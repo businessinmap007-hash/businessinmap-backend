@@ -9,6 +9,8 @@ use App\Models\ServiceFee;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\DepositsEscrowService;
+use App\Services\ServiceFeeService;
+use App\Services\WalletFeeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -221,40 +223,52 @@ class BookingController extends Controller
             // ===============================
             // 1) Auto CREATE DEPOSIT when status -> accepted
             // ===============================
-            if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $booking->status === Booking::STATUS_IN_PROGRESS) {
+         if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $booking->status === Booking::STATUS_IN_PROGRESS) {
 
-            // 1) تأكد إن deposit موجود ومجمد
-            $deposit = Deposit::query()
-                ->where('target_type', Booking::class)
-                ->where('target_id', (int) $booking->id)
-                ->orderByDesc('id')
-                ->first();
+            DB::transaction(function () use ($booking) {
 
-            if ($deposit && $deposit->status !== 'frozen') {
-                $deposit->status = 'frozen';
-                $deposit->save();
-            }
+                // 1) تأكد deposit frozen (لو موجود)
+                $deposit = Deposit::query()
+                    ->where('target_type', Booking::class)
+                    ->where('target_id', (int)$booking->id)
+                    ->orderByDesc('id')
+                    ->first();
 
-            // 2) احسب رسوم التنفيذ من service_fees
-            $feeAmount = $this->resolveBookingExecutionFeeAmount($booking);
+                if ($deposit && $deposit->status !== 'frozen') {
+                    $deposit->status = 'frozen';
+                    $deposit->save();
+                }
 
-            // 3) خصم الرسوم: هنا لازم تربطه بنظام المحفظة عندك
-            // الأفضل: سجلها في meta كإجراء idempotent + نفّذ الخصم الفعلي من WalletTransaction/WalletOpsService
-            $meta = $booking->meta ?? [];
-            $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
+                // 2) idempotency: لو تم الخصم قبل كده لا تعيده
+                $meta = $booking->meta ?? [];
+                if (!empty($meta['_execution_fee']['charged_at'])) {
+                    return;
+                }
 
-            if (empty($meta['_execution_fee']['charged_at']) && $feeAmount > 0) {
-                // TODO: هنا نفّذ خصم فعلي من المحفظة (Business غالبًا)
-                // WalletOpsService::chargeExecutionFee($booking, $feeAmount);
+                // 3) احسب split fees من service_fees
+                [$clientFee, $businessFee] = $this->resolveBookingExecutionFeeSplit($booking);
 
-                $meta['_execution_fee'] = [
-                    'amount'     => $feeAmount,
-                    'code'       => 'booking_execution_fee',
-                    'charged_at' => now()->toDateTimeString(),
-                ];
-                $booking->meta = $meta;
-                $booking->save();
-            }
+                if (($clientFee + $businessFee) <= 0) {
+                    return;
+                }
+
+                // 4) خصم split من الطرفين وتحويله لمحفظة APP (Ledger عبر WalletService)
+                /** @var WalletFeeService $walletFee */
+                $walletFee = app(WalletFeeService::class);
+
+                $walletFee->chargeSplitToApp(
+                    (int)$booking->user_id,
+                    (int)$booking->business_id,
+                    (float)$clientFee,
+                    (float)$businessFee,
+                    Booking::class,
+                    (string)$booking->id,
+                    'Booking execution fee'
+                );
+
+                // 5) سجّل في meta علامة تم الخصم
+                $this->markExecutionFeeMeta($booking, (float)$clientFee, (float)$businessFee);
+            });
         }
 
             // ===============================
@@ -264,30 +278,81 @@ class BookingController extends Controller
             // ===============================
             if ($oldStatus !== 'in_progress' && $newStatus === 'in_progress') {
 
-                $deposit = Deposit::query()
-                    ->where('target_type', Booking::class)
-                    ->where('target_id', (int) $booking->id)
-                    ->orderByDesc('id')
-                    ->lockForUpdate()
-                    ->first();
+                DB::transaction(function () use ($booking) {
 
-                if ($deposit) {
-                    $bothConfirmed = ((int) $deposit->client_confirmed === 1) && ((int) $deposit->business_confirmed === 1);
+                    $deposit = Deposit::query()
+                        ->where('target_type', Booking::class)
+                        ->where('target_id', (int) $booking->id)
+                        ->orderByDesc('id')
+                        ->lockForUpdate()
+                        ->first();
 
-                    if ($bothConfirmed) {
-                        // Option A: column exists (recommended)
-                        if (property_exists($deposit, 'execution_fee_charged_at')) {
-                            if (empty($deposit->execution_fee_charged_at)) {
-                                $this->escrow->chargeExecutionFee($deposit, null, 'DEPOSIT_EXECUTION_FEE');
-                                $deposit->execution_fee_charged_at = now();
-                                $deposit->save();
-                            }
-                        } else {
-                            // Option B: service must be idempotent by ledger uniqueness
-                            $this->escrow->chargeExecutionFee($deposit, null, 'DEPOSIT_EXECUTION_FEE');
-                        }
+                    if (!$deposit) {
+                        return;
                     }
-                }
+
+                    // لازم الطرفين يكونوا أكدوا قبل خصم الرسوم
+                    $bothConfirmed = ((int) $deposit->client_confirmed === 1) && ((int) $deposit->business_confirmed === 1);
+                    if (!$bothConfirmed) {
+                        return;
+                    }
+
+                    // تأكد deposit مجمد عند بداية التنفيذ
+                    if ($deposit->status !== 'frozen') {
+                        $deposit->status = 'frozen';
+                        $deposit->save();
+                    }
+
+                    // idempotency عبر booking.meta
+                    $booking->refresh(); // عشان أحدث meta
+                    $meta = $booking->meta ?? [];
+                    if (!empty($meta['_execution_fee']['charged_at'])) {
+                        return;
+                    }
+
+                    /** @var ServiceFeeService $feeService */
+                    $feeService = app(ServiceFeeService::class);
+
+                    // الكود الثابت لرسوم بدء التنفيذ
+                    $fee = $feeService->getByCodeForService('booking_execution_fee', $booking->service_id);
+                    if (!$fee) {
+                        return;
+                    }
+
+                    // Split حسب rules (amount/percent)
+                    [$clientFee, $businessFee] = $feeService->resolveSplit($fee, (float) ($booking->price ?? 0));
+
+                    $clientFee = (float) $clientFee;
+                    $businessFee = (float) $businessFee;
+
+                    if (($clientFee + $businessFee) <= 0) {
+                        return;
+                    }
+
+                    /** @var WalletFeeService $walletFee */
+                    $walletFee = app(WalletFeeService::class);
+
+                    // خصم split من الطرفين -> محفظة APP (مع Ledger عبر WalletService->transfer)
+                    $walletFee->chargeSplitToApp(
+                        (int) $booking->user_id,
+                        (int) $booking->business_id,
+                        $clientFee,
+                        $businessFee,
+                        Booking::class,
+                        (string) $booking->id,
+                        'Booking execution fee'
+                    );
+
+                    // سجل في meta
+                    $meta['_execution_fee'] = [
+                        'code'            => 'booking_execution_fee',
+                        'client_amount'   => round($clientFee, 2),
+                        'business_amount' => round($businessFee, 2),
+                        'charged_at'      => now()->toDateTimeString(),
+                    ];
+                    $booking->meta = $meta;
+                    $booking->save();
+                });
             }
         });
 
@@ -320,28 +385,39 @@ class BookingController extends Controller
             return back()->with('error', 'Deposit موجود بالفعل.');
         }
 
+        // load business settings
+        $booking->loadMissing('business:id,booking_hold_enabled,booking_hold_amount');
+
         if (!$booking->user_id || !$booking->business_id) {
             return back()->with('error', 'الحجز غير مكتمل (عميل أو بزنس مفقود).');
         }
 
-        DB::transaction(function () use ($booking) {
+        $hold    = (float) ($booking->business->booking_hold_amount ?? 0);
+        $enabled = (bool)  ($booking->business->booking_hold_enabled ?? false);
+
+        if (!$enabled || $hold <= 0) {
+            return back()->with('error', 'Booking hold is not enabled for this business.');
+        }
+
+        $total         = round($hold * 2, 2); // client + business
+        $clientAmount  = round($hold, 2);
+        $businessAmount= round($hold, 2);
+
+        DB::transaction(function () use ($booking, $total, $clientAmount, $businessAmount) {
 
             Deposit::create([
-                'client_id' => $booking->user_id,
-                'business_id' => $booking->business_id,
-                'target_type' => Booking::class,
-                'target_id' => $booking->id,
-
-                'total_amount' => 100,   // مؤقت للاختبار
-                'client_percent' => 50,
-                'business_percent' => 50,
-                'client_amount' => 50,
-                'business_amount' => 50,
-
-                'status' => 'frozen',
-
-                'client_confirmed' => false,
-                'business_confirmed' => false,
+                'client_id'         => (int) $booking->user_id,
+                'business_id'       => (int) $booking->business_id,
+                'target_type'       => Booking::class,
+                'target_id'         => (int) $booking->id,
+                'total_amount'      => $total,
+                'client_percent'    => 50,
+                'business_percent'  => 50,
+                'client_amount'     => $clientAmount,
+                'business_amount'   => $businessAmount,
+                'status'            => 'frozen',
+                'client_confirmed'  => 0,
+                'business_confirmed'=> 0,
             ]);
         });
 
@@ -917,7 +993,7 @@ class BookingController extends Controller
     }
     public function disputesIndex()
     {
-        $rows = \App\Models\Deposit::query()
+        $rows = Deposit::query()
             ->where('status', 'dispute')
             ->with([
                 'booking.user',
@@ -930,18 +1006,47 @@ class BookingController extends Controller
     }
 
 
-private function resolveBookingExecutionFeeAmount(Booking $booking): float
-{
-    $fee = ServiceFee::query()
-        ->where('is_active', 1)
-        ->where('code', 'booking_execution_fee')
-        ->where(function ($q) use ($booking) {
-            $q->where('service_id', $booking->service_id)
-              ->orWhereNull('service_id');
-        })
-        ->orderByRaw('service_id IS NULL') // يفضّل اللي له service_id (false) قبل null (true)
-        ->first();
+    private function resolveBookingExecutionFeeAmount(Booking $booking): float
+    {
+        $fee = ServiceFee::query()
+            ->where('is_active', 1)
+            ->where('code', 'booking_execution_fee')
+            ->where(function ($q) use ($booking) {
+                $q->where('service_id', $booking->service_id)
+                ->orWhereNull('service_id');
+            })
+            ->orderByRaw('service_id IS NULL') // يفضّل اللي له service_id (false) قبل null (true)
+            ->first();
 
-    return $fee ? (float) $fee->amount : 0.0;
-}
+        return $fee ? (float) $fee->amount : 0.0;
+    }
+
+    private function resolveBookingExecutionFeeSplit(Booking $booking): array
+    {
+        /** @var ServiceFeeService $feeService */
+        $feeService = app(ServiceFeeService::class);
+
+        // code ثابت للـ booking execution fee
+        $fee = $feeService->getByCodeForService('booking_execution_fee', $booking->service_id);
+
+        if (!$fee) return [0.0, 0.0, null];
+
+        [$clientFee, $businessFee] = $feeService->resolveSplit($fee, (float)($booking->price ?? 0));
+
+        return [$clientFee, $businessFee, $fee];
+    }
+
+    private function markExecutionFeeMeta(Booking $booking, float $clientFee, float $businessFee): void
+    {
+        $meta = $booking->meta ?? [];
+        $meta['_execution_fee'] = [
+            'code'          => 'booking_execution_fee',
+            'client_amount' => $clientFee,
+            'business_amount'=> $businessFee,
+            'charged_at'    => now()->toDateTimeString(),
+        ];
+        $booking->meta = $meta;
+        $booking->save();
+    }
+
 }

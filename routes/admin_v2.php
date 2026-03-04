@@ -8,7 +8,6 @@ use App\Http\Controllers\AdminV2\{
     CategoryController,
     PostController,
     DashboardController,
-    TransactionsController,
     UploadController,
     JobPostController,
     WalletTransactionController,
@@ -132,13 +131,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Transactions
-        // =========================
-        Route::prefix('transactions')->name('transactions.')->group(function () {
-            Route::get('/', [TransactionsController::class, 'index'])->name('index');
-            Route::get('{tx}', [TransactionsController::class, 'show'])->name('show');
-        });
+        
 
         // =========================
         // Financial
@@ -217,52 +210,46 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 
    
+Route::middleware(['admin.v2'])->group(function () {
 
-    Route::prefix('bookings')->name('bookings.')->group(function () {
+        Route::prefix('bookings')->name('bookings.')->group(function () {
 
-    // CRUD
-    Route::get('/', [BookingController::class, 'index'])->name('index');
-    Route::get('create', [BookingController::class, 'create'])->name('create');
-    Route::post('/', [BookingController::class, 'store'])->name('store');
+            // CRUD
+            Route::get('/', [BookingController::class, 'index'])->name('index');
+            Route::get('create', [BookingController::class, 'create'])->name('create');
+            Route::post('/', [BookingController::class, 'store'])->name('store');
 
-    Route::get('{booking}', [BookingController::class, 'show'])->name('show');
-    Route::get('{booking}/edit', [BookingController::class, 'edit'])->name('edit');
-    Route::put('{booking}', [BookingController::class, 'update'])->name('update');
-    Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
+            Route::get('{booking}', [BookingController::class, 'show'])->name('show');
+            Route::get('{booking}/edit', [BookingController::class, 'edit'])->name('edit');
+            Route::put('{booking}', [BookingController::class, 'update'])->name('update');
+            Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
 
-    // Service lookup (AJAX)
-    Route::get('services/lookup', [BookingController::class, 'serviceLookup'])->name('services.lookup');
+            // Service lookup (AJAX)  ⚠️ خليها قبل {booking} لو هتخلي path services/lookup
+            Route::get('services/lookup', [BookingController::class, 'serviceLookup'])->name('services.lookup');
 
-    // Deposit confirmations
-    Route::post('{booking}/start-confirm/client',   [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
-    Route::post('{booking}/start-confirm/business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
+            // Deposit confirmations
+            Route::post('{booking}/start-confirm/client',   [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
+            Route::post('{booking}/start-confirm/business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
 
-    // Deposit actions (بديل holds)
-    Route::post('{booking}/deposit/freeze',  [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
-    Route::post('{booking}/deposit/release', [BookingController::class, 'depositRelease'])->name('deposit.release');
-    Route::post('{booking}/deposit/refund',  [BookingController::class, 'depositRefund'])->name('deposit.refund');
-    Route::post('{booking}/deposit/dispute/open', [BookingController::class, 'depositDisputeOpen'])->name('deposit.dispute.open');
-    Route::post('{booking}/deposit/dispute/agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.dispute.agree_release');
-    Route::post('{booking}/deposit/dispute/agree-refund',  [BookingController::class, 'depositAgreeRefund'])->name('deposit.dispute.agree_refund');
-    Route::post('{booking}/deposit/confirm-client', [BookingController::class,'depositConfirmClient'])->name('deposit.confirmClient');
+            // Deposit actions
+            Route::post('{booking}/deposit/freeze',  [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
+            Route::post('{booking}/deposit/release', [BookingController::class, 'depositRelease'])->name('deposit.release');
+            Route::post('{booking}/deposit/refund',  [BookingController::class, 'depositRefund'])->name('deposit.refund');
 
+            Route::post('{booking}/deposit/dispute/open', [BookingController::class, 'depositDisputeOpen'])->name('deposit.dispute.open');
+            Route::post('{booking}/deposit/dispute/agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.dispute.agree_release');
+            Route::post('{booking}/deposit/dispute/agree-refund',  [BookingController::class, 'depositAgreeRefund'])->name('deposit.dispute.agree_refund');
+
+            Route::post('{booking}/deposit/confirm-client', [BookingController::class, 'depositConfirmClient'])->name('deposit.confirmClient');
+        });
+
+        Route::prefix('disputes')->name('disputes.')->group(function () {
+            Route::get('/', [DisputeController::class, 'index'])->name('index');
+            Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
+        });
 
     });
 
-   Route::middleware(['admin.v2'])->group(function () {
-
-    Route::prefix('bookings')->name('bookings.')->group(function () {
-        Route::get('/', [BookingController::class, 'index'])->name('index');
-        Route::get('{booking}', [BookingController::class, 'show'])->name('show');
-        // باقي CRUD…
-    });
-
-    Route::prefix('disputes')->name('disputes.')->group(function () {
-        Route::get('/', [DisputeController::class, 'index'])->name('index');
-        Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
-    });
-
-});
 
   
 });

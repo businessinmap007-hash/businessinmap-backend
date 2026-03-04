@@ -31,7 +31,14 @@
           <button class="a2-btn a2-btn-danger" type="submit">حذف</button>
         </form>
 
-        <button class="a2-btn a2-btn-primary" type="submit">تحديث</button>
+        <form method="POST" action="{{ route('admin.bookings.update', $booking) }}">
+  @csrf
+  @method('PUT')
+
+  <!-- fields -->
+
+  <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
+</form>
       </div>
     </form>
 

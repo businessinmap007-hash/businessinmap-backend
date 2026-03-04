@@ -80,7 +80,7 @@ class BookingController extends Controller
 
     public function show(Booking $booking)
     {
-        $booking = Booking::withTrashed()->findOrFail($booking);
+        $booking = Booking::withTrashed()->findOrFail($booking->id);
         $booking->load([
             'user:id,name,code,type',
             'business:id,name,code,type,booking_hold_enabled,booking_hold_amount',

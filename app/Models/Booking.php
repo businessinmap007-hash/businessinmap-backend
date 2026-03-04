@@ -10,6 +10,7 @@ use App\Models\User;
 
 class Booking extends Model
 {
+   
     protected $table = 'bookings';
 
     protected $fillable = [

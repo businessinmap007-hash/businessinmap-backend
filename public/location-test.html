@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Location Dropdown Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 32px;
+      background: #f6f7fb;
+      color: #111;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 520px;
+      box-shadow: 0 1px 8px rgba(0,0,0,.05);
+    }
+    h2 { margin: 0 0 16px; }
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-weight: 700;
+    }
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d9d9d9;
+      background: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+    select:disabled {
+      background: #f2f2f2;
+      color: #777;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .status {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f1f5ff;
+      border: 1px solid #d7e3ff;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .muted { color: #666; }
+    .ok { background: #ecfff1; border-color: #b9f5c8; }
+    .err { background: #fff1f1; border-color: #ffd0d0; }
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d9d9d9;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button:hover { background: #f7f7f7; }
+    code { font-family: Consolas, monospace; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Test: Country → Governorate → City</h2>
+    <div class="muted">API المتوقع: <code>/api/v1/countries</code> - <code>/api/v1/governorates?country_id=1</code> - <code>/api/v1/cities?governorate_id=5</code></div>
+
+    <label for="country">Country</label>
+    <select id="country">
+      <option value="">جارِ تحميل الدول...</option>
+    </select>
+
+    <label for="governorate">Governorate</label>
+    <select id="governorate" disabled>
+      <option value="">Select Governorate</option>
+    </select>
+
+    <label for="city">City</label>
+    <select id="city" disabled>
+      <option value="">Select City</option>
+    </select>
+
+    <div class="grid2">
+      <button id="reload">Reload Countries</button>
+      <button id="clear">Clear</button>
+    </div>
+
+    <div id="status" class="status">جاهز ✅</div>
+  </div>
+
+<script>
+  const API = {
+    countries:    '/api/v1/countries',
+    governorates: (countryId) => `/api/v1/governorates?country_id=${encodeURIComponent(countryId)}`,
+    cities:       (govId)     => `/api/v1/cities?governorate_id=${encodeURIComponent(govId)}`
+  };
+
+  const countryEl = document.getElementById('country');
+  const govEl     = document.getElementById('governorate');
+  const cityEl    = document.getElementById('city');
+  const statusEl  = document.getElementById('status');
+
+  const btnReload = document.getElementById('reload');
+  const btnClear  = document.getElementById('clear');
+
+  function setStatus(msg, type = 'ok') {
+    statusEl.textContent = msg;
+    statusEl.className = 'status ' + (type === 'err' ? 'err' : type === 'ok' ? 'ok' : '');
+  }
+
+  function resetGov() {
+    govEl.innerHTML = '<option value="">Select Governorate</option>';
+    govEl.disabled = true;
+  }
+
+  function resetCity() {
+    cityEl.innerHTML = '<option value="">Select City</option>';
+    cityEl.disabled = true;
+  }
+
+  function setSelectLoading(selectEl, placeholder) {
+    selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+    selectEl.disabled = true;
+  }
+
+  function normalizeResponse(res) {
+    // يدعم {data:[...]} أو [...]
+    return Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+  }
+
+  async function fetchJson(url) {
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+
+    // لو 404/500
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`HTTP ${resp.status} - ${url}\n${text.slice(0, 250)}`);
+    }
+
+    return resp.json();
+  }
+
+  async function loadCountries() {
+    setStatus('تحميل الدول ...', 'ok');
+    setSelectLoading(countryEl, 'جارِ تحميل الدول...');
+    resetGov();
+    resetCity();
+
+    try {
+      const res = await fetchJson(API.countries);
+      console.log('Countries response:', res);
+
+      const data = normalizeResponse(res);
+
+      if (!data.length) {
+        countryEl.innerHTML = '<option value="">لا توجد دول</option>';
+        countryEl.disabled = true;
+        setStatus('لا توجد دول في قاعدة البيانات.', 'err');
+        return;
+      }
+
+      countryEl.disabled = false;
+      countryEl.innerHTML = '<option value="">Select Country</option>';
+
+      data.forEach(c => {
+        const name = c.name_ar || c.name_en || `#${c.id}`;
+        countryEl.innerHTML += `<option value="${c.id}">${name}</option>`;
+      });
+
+      setStatus('تم تحميل الدول ✅ اختر دولة للمتابعة.', 'ok');
+    } catch (e) {
+      console.error(e);
+      countryEl.innerHTML = '<option value="">خطأ في تحميل الدول</option>';
+      countryEl.disabled = true;
+      setStatus('فشل تحميل الدول ❌\n' + e.message, 'err');
+    }
+  }
+
+  async function loadGovernorates(countryId) {
+    setStatus('تحميل المحافظات ...', 'ok');
+    setSelectLoading(govEl, 'جارِ تحميل المحافظات...');
+    resetCity();
+
+    try {
+      const res = await fetchJson(API.governorates(countryId));
+      console.log('Governorates response:', res);
+
+      const data = normalizeResponse(res);
+
+      govEl.disabled = false;
+      govEl.innerHTML = '<option value="">Select Governorate</option>';
+
+      if (!data.length) {
+        govEl.innerHTML = '<option value="">لا توجد محافظات لهذه الدولة</option>';
+        setStatus('تم التحميل ✅ لكن لا توجد محافظات لهذه الدولة.', 'err');
+        return;
+      }
+
+      data.forEach(g => {
+        const name = g.name_ar || g.name_en || `#${g.id}`;
+        govEl.innerHTML += `<option value="${g.id}">${name}</option>`;
+      });
+
+      setStatus('تم تحميل المحافظات ✅ اختر محافظة.', 'ok');
+    } catch (e) {
+      console.error(e);
+      resetGov();
+      setStatus('فشل تحميل المحافظات ❌\n' + e.message, 'err');
+    }
+  }
+
+  async function loadCities(govId) {
+    setStatus('تحميل المدن ...', 'ok');
+    setSelectLoading(cityEl, 'جارِ تحميل المدن...');
+
+    try {
+      const res = await fetchJson(API.cities(govId));
+      console.log('Cities response:', res);
+
+      const data = normalizeResponse(res);
+
+      cityEl.disabled = false;
+      cityEl.innerHTML = '<option value="">Select City</option>';
+
+      if (!data.length) {
+        cityEl.innerHTML = '<option value="">لا توجد مدن لهذه المحافظة</option>';
+        setStatus('تم التحميل ✅ لكن لا توجد مدن لهذه المحافظة.', 'err');
+        return;
+      }
+
+      data.forEach(c => {
+        const name = c.name_ar || c.name_en || `#${c.id}`;
+        cityEl.innerHTML += `<option value="${c.id}">${name}</option>`;
+      });
+
+      setStatus('تم تحميل المدن ✅ اختر مدينة.', 'ok');
+    } catch (e) {
+      console.error(e);
+      resetCity();
+      setStatus('فشل تحميل المدن ❌\n' + e.message, 'err');
+    }
+  }
+
+  // Events
+  countryEl.addEventListener('change', () => {
+    const countryId = countryEl.value;
+
+    resetGov();
+    resetCity();
+
+    if (!countryId) {
+      setStatus('اختر دولة للمتابعة.', 'ok');
+      return;
+    }
+
+    loadGovernorates(countryId);
+  });
+
+  govEl.addEventListener('change', () => {
+    const govId = govEl.value;
+
+    resetCity();
+
+    if (!govId) {
+      setStatus('اختر محافظة للمتابعة.', 'ok');
+      return;
+    }
+
+    loadCities(govId);
+  });
+
+  cityEl.addEventListener('change', () => {
+    const cityId = cityEl.value;
+    if (cityId) setStatus(`✅ Selected city_id = ${cityId}`, 'ok');
+  });
+
+  btnReload.addEventListener('click', () => loadCountries());
+
+  btnClear.addEventListener('click', () => {
+    countryEl.value = '';
+    resetGov();
+    resetCity();
+    setStatus('تم المسح ✅ اختر دولة.', 'ok');
+  });
+
+  // Init
+  loadCountries();
+</script>
+
+</body>
+</html>

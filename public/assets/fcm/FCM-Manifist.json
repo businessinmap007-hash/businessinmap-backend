@@ -1,0 +1,22 @@
+{
+  "short_name": "Arkab Maana",
+  "gcm_sender_id": "753177837943",
+  "name": "Arkab Maana",
+  "icons": [
+    {
+      "src": "/assets/fcm/icon-1x.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    },
+    {
+      "src": "/assets/fcm/icon-2x.png",
+      "type": "image/png",
+      "sizes": "96x96"
+    },
+    {
+      "src": "/assets/fcm/icon-4x.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

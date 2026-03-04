@@ -1,0 +1,5037 @@
+{
+  "info": {
+    "_postman_id": "6780e758-63fe-42dd-bee6-cc96122f916b",
+    "name": "Business Map  copy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "8800037"
+  },
+  "item": [
+
+    {
+      "name": "Rides",
+      "description": "Uber-like Ride System Endpoints",
+      "item": [
+        {
+          "name": "Create Ride",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["testing","api","v1", "rides"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup_address\": \"Cairo Tower\",\n  \"pickup_lat\": 30.045,\n  \"pickup_lng\": 31.224,\n  \"dropoff_address\": \"Nasr City\",\n  \"dropoff_lat\": 30.067,\n  \"dropoff_lng\": 31.345,\n  \"payment_method\": \"cash\",\n  \"estimated_price\": 75\n}"
+            }
+          }
+        },
+
+        {
+          "name": "My Rides (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["testing","api","v1", "rides"]
+            }
+          }
+        },
+
+        {
+          "name": "Driver Rides",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/driver/rides",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["v1", "driver", "rides"]
+            }
+          }
+        },
+
+        {
+          "name": "Show Ride Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides/:id",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["v1", "rides", ":id"]
+            }
+          }
+        },
+
+        {
+          "name": "Accept Ride (Driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides/:id/accept",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["v1", "rides", ":id", "accept"]
+            }
+          }
+        },
+
+        {
+          "name": "Update Ride Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides/:id/status",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["v1", "rides", ":id", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"arrived\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Cancel Ride",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/rides/:id",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["v1", "rides", ":id"]
+            }
+          }
+        }
+      ]
+      },
+
+          {
+      "name": "Driver Tracking",
+      "item": [
+        {
+          "name": "Update Driver Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/driver/location/update",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["testing","api","v1","driver","location","update"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 30.123456,\n  \"lng\": 31.654321\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Driver Location",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/driver/location/15",
+             "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": ["testing","api","v1","driver","location","15"]
+            }
+          }
+        }
+      ]
+    },
+
+
+
+   {
+  "name": "Delivery",
+  "description": "Delivery Orders Endpoints",
+  "item": [
+    {
+      "name": "Create Delivery Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/create",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "create"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"business_id\": 3,\n  \"pickup_address\": \"Street 1\",\n  \"pickup_lat\": 30.1234,\n  \"pickup_lng\": 31.5566,\n  \"dropoff_address\": \"Street 5\",\n  \"dropoff_lat\": 30.9000,\n  \"dropoff_lng\": 31.1000,\n  \"price\": 50,\n  \"distance_km\": 3.5,\n  \"notes\": \"Handle with care\"\n}"
+        }
+      }
+    },
+    {
+      "name": "My Delivery Orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/my",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "my"]
+        }
+      }
+    },
+    {
+      "name": "Business Delivery Orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/business",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "business"]
+        }
+      }
+    },
+    {
+      "name": "Courier Delivery Orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/courier",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "courier"]
+        }
+      }
+    },
+    {
+      "name": "Show Delivery Order",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/1",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "1"]
+        }
+      }
+    },
+    {
+      "name": "Accept Delivery Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/1/accept",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "1", "accept"]
+        }
+      }
+    },
+    {
+      "name": "Update Delivery Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/1/status",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "1", "status"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"on_the_way\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Cancel Delivery Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1//delivery/1/cancel",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["delivery", "1", "cancel"]
+        }
+      }
+    }
+  ]
+},
+
+
+{
+  "name": "Menu",
+  "item": [
+    {
+      "name": "Get Menu",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "https://businessinmap.com/testing/api/v1//menu","protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ], "path": ["menu"] }
+      }
+    },
+    {
+      "name": "Create Menu Item",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "https://businessinmap.com/testing/api/v1//menu/item","protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ], "path": ["menu","item"] },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name_ar", "value": "بيتزا مارجريتا" },
+            { "key": "description_ar", "value": "لذيذة" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Add Size",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "https://businessinmap.com/testing/api/v1//menu/item/1/size","protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ], "path": ["menu","item","1","size"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"name_ar\": \"Large\", \"price\": 80 }"
+        }
+      }
+    },
+    {
+      "name": "Add Extra",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "https://businessinmap.com/testing/api/v1//menu/item/1/extra",
+      "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ], "path": ["menu","item","1","extra"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"name_ar\": \"Cheese\", \"price\": 10 }"
+        }
+      }
+    },
+
+      {
+    "name": "Orders",
+    "description": "Menu Ordering System APIs",
+    "item": [
+      {
+        "name": "Create Order",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer {{token}}" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1//v1/orders/create",
+           "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+            "path": ["v1", "orders", "create"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"business_id\": 3,\n  \"items\": [\n    {\n      \"menu_item_id\": 12,\n      \"qty\": 2,\n      \"size\": \"large\",\n      \"addons\": [1,2]\n    }\n  ],\n  \"notes\": \"No onions please\",\n  \"payment_method\": \"cash\"\n}"
+          }
+        }
+      },
+
+      {
+        "name": "My Orders",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer {{token}}" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/orders/my",
+           "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+            "path": ["v1", "orders", "my"]
+          }
+        }
+      },
+
+      {
+        "name": "Business Orders",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer {{token}}" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/orders/business",
+           "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+            "path": ["v1", "orders", "business"]
+          }
+        }
+      },
+
+      {
+        "name": "Order Details",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer {{token}}" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/orders/15",
+           "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+            "path": ["v1", "orders", "15"]
+          }
+        }
+      },
+
+      
+
+      {
+        "name": "Update Order Status",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer {{token}}" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/orders/update-status",
+           "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+            "path": ["v1", "orders", "update-status"]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"order_id\": 15,\n  \"status\": \"accepted\"\n}"
+          }
+        }
+      }
+    ]
+  },
+
+  {
+  "name": "Menu Cart",
+  "item": [
+    {
+      "name": "Add To Cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/menu-cart/add",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["v1", "menu-cart", "add"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"menu_item_id\": 12,\n  \"qty\": 1,\n  \"size\": \"medium\",\n  \"addons\": [1,3]\n}"
+        }
+      }
+    },
+
+    {
+      "name": "Update Cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/menu-cart/update",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["v1", "menu-cart", "update"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cart_id\": 5,\n  \"qty\": 3\n}"
+        }
+      }
+    },
+
+    {
+      "name": "Delete From Cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/menu-cart/delete",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["v1", "menu-cart", "delete"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cart_id\": 5\n}"
+        }
+      }
+    },
+
+    {
+      "name": "Get My Cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/menu-cart",
+         "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+          "path": ["v1", "menu-cart"]
+        }
+      }
+    }
+  ]
+},
+
+  {
+    "name": "Menu Search & Filter",
+    "item": [
+      {
+        "name": "Search Menu",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/menu?search=pizza&min_price=20&max_price=90&order_by=price",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["v1", "menu"],
+            "query": [
+              { "key": "search", "value": "pizza" },
+              { "key": "min_price", "value": "20" },
+              { "key": "max_price", "value": "90" },
+              { "key": "order_by", "value": "price" }
+            ]
+          }
+        }
+      }
+    ]
+  },
+
+
+      {
+    "name": "Search Menu",
+    "request": {
+      "method": "GET",
+      "header": [
+        { "key": "Accept", "value": "application/json" }
+      ],
+      "url": {
+        "raw": "https://businessinmap.com/testing/api/v1/ax_price=80&order_by=price",
+      "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+        "path": ["menu","search"],
+        "query": [
+          { "key": "search", "value": "pizza" },
+          { "key": "min_price", "value": "30" },
+          { "key": "max_price", "value": "80" },
+          { "key": "order_by", "value": "price" }
+        ]
+      }
+    }
+  }
+
+    ]
+  },
+
+
+  {
+    "name": "Chat",
+    "description": "One to One Chat API",
+    "item": [
+      {
+        "name": "Get Conversations",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations"]
+          }
+        }
+      },
+      {
+        "name": "Start Conversation",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n \"receiver_id\": 10\n}"
+          },
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations"]
+          }
+        }
+      },
+      {
+        "name": "Get Messages",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations/1/messages",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations","1","messages"]
+          }
+        }
+      },
+      {
+        "name": "Send Message",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json" },
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n \"body\": \"Hello from Postman\"\n}"
+          },
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations/1/messages",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations","1","messages"]
+          }
+        }
+      },
+      {
+        "name": "Mark Messages as Read",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations/1/read",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations","1","read"]
+          }
+        }
+      },
+      {
+        "name": "Delete Conversation",
+        "request": {
+          "method": "DELETE",
+          "header": [
+            { "key": "Accept", "value": "application/json" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/chat/conversations/1",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","chat","conversations","1"]
+          }
+        }
+      }
+    ]
+  },
+
+
+
+  {
+    "name": "Cars",
+    "item": [
+      {
+        "name": "My Cars",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json", "type": "text" },
+            { "key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/cars/my",
+          
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","cars","my"]
+          }
+        }
+      },
+      {
+        "name": "Create Car",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Accept", "value": "application/json", "type": "text" },
+            { "key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE", "type": "text" }
+          ],
+          "body": {
+            "mode": "formdata",
+            "formdata": [
+              { "key": "car_type",   "value": "Sedan",      "type": "text" },
+              { "key": "car_model",  "value": "Hyundai",    "type": "text" },
+              { "key": "car_number", "value": "ABC-1234",   "type": "text" },
+              { "key": "color",      "value": "Black",      "type": "text" },
+              { "key": "year",       "value": "2023",       "type": "text" },
+              { "key": "image",      "value": "files/uploads/car.png", "type": "text" }
+            ]
+          },
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/cars",
+            "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","cars"]
+          }
+        }
+      },
+      {
+        "name": "Show Car",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "Accept", "value": "application/json", "type": "text" },
+            { "key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/cars/1",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","cars","1"]
+          }
+        }
+      },
+      {
+        "name": "Update Car",
+        "request": {
+          "method": "PUT",
+          "header": [
+            { "key": "Accept", "value": "application/json", "type": "text" },
+            { "key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE", "type": "text" }
+          ],
+          "body": {
+            "mode": "formdata",
+            "formdata": [
+              { "key": "car_type",   "value": "SUV",        "type": "text" },
+              { "key": "car_model",  "value": "Kia Sportage","type": "text" },
+              { "key": "car_number", "value": "XYZ-9999",   "type": "text" },
+              { "key": "color",      "value": "White",      "type": "text" },
+              { "key": "year",       "value": "2024",       "type": "text" }
+            ]
+          },
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/cars/1",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","cars","1"]
+          }
+        }
+      },
+      {
+        "name": "Delete Car",
+        "request": {
+          "method": "DELETE",
+          "header": [
+            { "key": "Accept", "value": "application/json", "type": "text" },
+            { "key": "Authorization", "value": "Bearer YOUR_TOKEN_HERE", "type": "text" }
+          ],
+          "url": {
+            "raw": "https://businessinmap.com/testing/api/v1/cars/1",
+          "protocol": "https",
+                "host": [
+                  "businessinmap",
+                  "com"
+                ],
+            "path": ["testing","api","v1","cars","1"]
+          }
+        }
+      }
+    ]
+  },
+
+
+
+
+    {
+      "name": "Comment",
+      "item": [
+        {
+          "name": "Replies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "czydGO3mMyhQiIdm92J0fxCzCqpKDdxMI2DH5BgPot4Pi8p0E9VJG8xbkWiwj6EhbLr0JhgC4u9VTe2tO7NtMcnvlAI0ybMXbgekhEJDE2R9syemtg7n0j8f",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "comment",
+                  "value": "Test Reply",
+                  "type": "text"
+                },
+                {
+                  "key": "comment_id",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/comments/6/replies",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "comments",
+                "6",
+                "replies"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Comment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "69rX56qjFwxyhCRmgTuES8qbmoQrgZ8rmfUdMhWHoKPh6DVIojjZwa0OG3WJgwGb00f96RtAQ96Rff3uKunqA6WQzYdbH4oDW685HtHXXAOIByy9u6BbcntN",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "comment",
+                  "value": "test comment",
+                  "type": "text"
+                },
+                {
+                  "key": "post_id",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "private",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/comments/store",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "comments",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Comments List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer 8vwPJVkKP0MSbbKJXTeBayuSsCOBqbnnXNJKztCLJrFe7DK164iiTbK2m3C090CeO1mZuqqBB7OkithZcNKIXs1wBT0hQejZgdMqRncR5BsTzIqIHpvNAcHK",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "",
+                "value": "",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/comments/6/post",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "comments",
+                "6",
+                "post"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Comments List Replies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "$2y$10$Vqt2bZV02E7uM5xsvB85gOmNBgsD3oolyArgXqSni9zeTkba0LoF.",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/comments/2/replies",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "comments",
+                "2",
+                "replies"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Posts Comment",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "69rX56qjFwxyhCRmgTuES8qbmoQrgZ8rmfUdMhWHoKPh6DVIojjZwa0OG3WJgwGb00f96RtAQ96Rff3uKunqA6WQzYdbH4oDW685HtHXXAOIByy9u6BbcntN",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "type": "text",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "comment",
+                  "value": "test comment",
+                  "type": "text"
+                },
+                {
+                  "key": "post_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "private",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://businessmap.softex-it.com/api/v1/comments/store",
+              "protocol": "http",
+              "host": [
+                "businessmap",
+                "softex-it",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "comments",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sponsors",
+      "item": [
+        {
+          "name": "Delete Sponsor",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "type": "text",
+                "value": "application/json"
+              },
+              {
+                "key": "lang",
+                "type": "text",
+                "value": "ar"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/sponsor/4/delete",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "sponsor",
+                "4",
+                "delete"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stop Sponsor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "type": "text",
+                "value": "application/json"
+              },
+              {
+                "key": "lang",
+                "type": "text",
+                "value": "ar"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/sponsor/7/stop",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "sponsor",
+                "7",
+                "stop"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Sponsor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "paid ad. 9009",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "test description for paid ad.",
+                  "type": "text"
+                },
+                {
+                  "key": "expire_at",
+                  "value": "2020-10-23",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "654654564654654",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "120",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "paid",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/post/ads",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "post",
+                "ads"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Sponsor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "type": "text",
+                "value": "application/json"
+              },
+              {
+                "key": "lang",
+                "type": "text",
+                "value": "ar"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "paid ad. test",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "test description for paid ad.",
+                  "type": "text"
+                },
+                {
+                  "key": "expire_at",
+                  "value": "2020-04-24",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "files/uploads/1581292336.generate-leads-blog-min.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "129",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "paid",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/sponsor/2/update",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "sponsor",
+                "2",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sponsors List For Auhenticated User.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "type": "text",
+                "value": "application/json"
+              },
+              {
+                "key": "lang",
+                "type": "text",
+                "value": "ar"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/get/paid/sponsors",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "get",
+                "paid",
+                "sponsors"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Jobs List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer 2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/get/jobs?keyword=title",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "get",
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "title"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Security Authentication",
+      "item": [
+        {
+          "name": "Register ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "clnt@clnt.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123123123",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "0500000067",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "Test Business",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "business",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "55",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "33.28947239487",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "44.03490349930",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "files/uploads/1584461115.content-that-attracts-leads.png",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "value": "files/uploads/1584461115.content-that-attracts-leads.png",
+                  "type": "text"
+                },
+                {
+                  "key": "cover",
+                  "value": "files/uploads/1584461115.content-that-attracts-leads.png",
+                  "type": "text"
+                },
+                {
+                  "key": "about",
+                  "value": "a sdas dasjd hasjkd haskjd haskjdh askjd haskj haskjdh askjd ",
+                  "type": "text"
+                },
+                {
+                  "key": "facebook",
+                  "value": "https://www.facebook.com/",
+                  "type": "text"
+                },
+                {
+                  "key": "twitter",
+                  "value": "https://www.facebook.com/",
+                  "type": "text"
+                },
+                {
+                  "key": "linkedin",
+                  "value": "https://www.facebook.com/",
+                  "type": "text"
+                },
+                {
+                  "key": "youtube",
+                  "value": "https://www.facebook.com/",
+                  "type": "text"
+                },
+                {
+                  "key": "instagram",
+                  "value": "https://www.facebook.com/instagram",
+                  "type": "text"
+                },
+                {
+                  "key": "location_id",
+                  "value": "5",
+                  "type": "text"
+                },
+                {
+                  "key": "codeProfile",
+                  "value": "1122334455",
+                  "type": "text"
+                },
+                {
+                  "key": "businessOptions",
+                  "value": "1,2,3,4",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/register",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "FK0A60sIewcpIX674yqGlxmxQ9pNpLNn6UY6OleAOMm1FFLes8olRYkSuHitx0YntgUAq2rIcKBkypydsqyRITazZkZecjyehjV0W9MGYe214ifyFaGCZ8v1",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "clnt@clnt.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123123123",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "0500000067",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "Hassan Saeed",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "business",
+                  "type": "text"
+                },
+                {
+                  "key": "category_id",
+                  "value": "55",
+                  "type": "text"
+                },
+                {
+                  "key": "latitude",
+                  "value": "33.28947239487",
+                  "type": "text"
+                },
+                {
+                  "key": "longitude",
+                  "value": "44.03490349930",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "files/uploads/1584461021.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "value": "files/uploads/1584461021.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "cover",
+                  "value": "files/uploads/1584461021.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "about",
+                  "value": "a sdas dasjd hasjkd haskjd haskjdh askjd haskj haskjdh askjd ",
+                  "type": "text"
+                },
+                {
+                  "key": "facebook",
+                  "value": "https://www.facebook.com/facebook",
+                  "type": "text"
+                },
+                {
+                  "key": "twitter",
+                  "value": "https://www.facebook.com/twitter",
+                  "type": "text"
+                },
+                {
+                  "key": "linkedin",
+                  "value": "https://www.facebook.com/linkedin",
+                  "type": "text"
+                },
+                {
+                  "key": "youtube",
+                  "value": "https://www.facebook.com/youtube",
+                  "type": "text"
+                },
+                {
+                  "key": "instagram",
+                  "value": "https://www.facebook.com/linkedin",
+                  "type": "text"
+                },
+                {
+                  "key": "businessOptions",
+                  "value": "1,2,3,95",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/profile/update",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "profile",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "businessinmap007@gmail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "951753987",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/login",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Business",
+      "item": [
+        {
+          "name": "Get Business by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/category/17/business",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "category",
+                "17",
+                "business"
+              ],
+              "query": [
+                {
+                  "key": "categoriesIds[]",
+                  "value": "55",
+                  "disabled": true
+                },
+                {
+                  "key": "categoriesIds[]",
+                  "value": "54",
+                  "disabled": true
+                },
+                {
+                  "key": "name",
+                  "value": "name",
+                  "disabled": true
+                },
+                {
+                  "key": "code",
+                  "value": "code",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Business List For Search & Filter & Target & Follower",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/get/business/list?categoryIds=55&businessOptions=95",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "get",
+                "business",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "\u0645\u062d\u0645\u062f \u0627\u0644\u0633\u0627\u062f\u0627\u062a",
+                  "disabled": true
+                },
+                {
+                  "key": "code",
+                  "value": "37445613",
+                  "disabled": true
+                },
+                {
+                  "key": "locationId",
+                  "value": "2",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryIds",
+                  "value": "55"
+                },
+                {
+                  "key": "categoryIds[]",
+                  "value": "25",
+                  "disabled": true
+                },
+                {
+                  "key": "orderByRate",
+                  "value": "asc",
+                  "description": "desc,asc",
+                  "disabled": true
+                },
+                {
+                  "key": "value",
+                  "value": "all",
+                  "disabled": true
+                },
+                {
+                  "key": "businessOptions",
+                  "value": "95"
+                },
+                {
+                  "key": "businessOptions[]",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "businessOptions[]",
+                  "value": "95",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Albums",
+      "item": [
+        {
+          "name": "Store Album",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "",
+                "value": "",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "post title",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "post content",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/albums/store",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "albums",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Album",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/albums/2/destroy",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "albums",
+                "2",
+                "destroy"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Albums",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "type": "text",
+                "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "post title 0001",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "post content 00001",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1583620720.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/albums/1/update",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "albums",
+                "1",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Share Posts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/share/38/social",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "share",
+                "38",
+                "social"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Post.",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://businessmap.softex-it.com/api/v1/posts/4/delete",
+              "protocol": "http",
+              "host": [
+                "businessmap",
+                "softex-it",
+                "com"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "posts",
+                "4",
+                "delete"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Post.",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Test post Okay",
+                  "type": "text"
+                },
+                {
+                  "key": "body",
+                  "value": "jksdhaksdh aksjdasd  adsasd iqweui uu",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "job",
+                  "type": "text"
+                },
+                {
+                  "key": "expire_at",
+                  "value": "2020-04-20",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1585103236.b87452fa903d1fd1d2811c076def8fb5-office-teamwork-illustration.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1585103236.b87452fa903d1fd1d2811c076def8fb5-office-teamwork-illustration.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1585103236.b87452fa903d1fd1d2811c076def8fb5-office-teamwork-illustration.jpg",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1585103236.b87452fa903d1fd1d2811c076def8fb5-office-teamwork-illustration.jpg",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/posts/8/update",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "posts",
+                "8",
+                "update"
+              ],
+              "query": [
+                {
+                  "key": "title",
+                  "value": "titelele; lkd;askdla;skd a",
+                  "disabled": true
+                },
+                {
+                  "key": "body",
+                  "value": "boooooooo ",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Like / dislike",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "",
+                "value": "",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "post_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "like",
+                  "value": "-1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/post/like",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "post",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Store Post And Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer 2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "post title 01",
+                  "type": "text"
+                },
+                {
+                  "key": "body",
+                  "value": "post content 01",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1580938269.blog2.png",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1580938269.blog1.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1580938269.Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "value": "files/uploads/1580938269.generate-leads-blog-min.jpg",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "post",
+                  "description": "job or post ",
+                  "type": "text"
+                },
+                {
+                  "key": "expire_at",
+                  "value": "2020-03-30",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/posts/store",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "posts",
+                "store"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Home Page Posts By Followers",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer KuIUujucNp1BOLOdFdCKpXMQn1bKEKW63JXkTUPIV7aO3NyKmIbv5FYrzEz6UQuyCsTRRT9hRmJSZWoOybETTrDvDjhmxgarhvEssbzo0kwrw2ylnRWCfA1g",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/get/posts?page=3",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "get",
+                "posts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "3"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Main Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/categories",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sub Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/categories?parentId=68",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "categories"
+              ],
+              "query": [
+                {
+                  "key": "parentId",
+                  "value": "68"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Countries & Cities",
+      "item": [
+        {
+          "name": "Countries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/countries",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "countries"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/cities/6",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "cities",
+                "6"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Genrate Fawry Payment Subscription",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "price",
+                  "value": "1000",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/generate/fawry/payment/subscription?price=1",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "generate",
+                "fawry",
+                "payment",
+                "subscription"
+              ],
+              "query": [
+                {
+                  "key": "price",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Success On Cashu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "",
+                "value": "",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/payment/success/cashu",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "payment",
+                "success",
+                "cashu"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Payment With Cashu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/payment/cashu/online?price=0.2&duration=6&code=1122334455&actionType=subscription&codeType=coupon",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "payment",
+                "cashu",
+                "online"
+              ],
+              "query": [
+                {
+                  "key": "price",
+                  "value": "0.2"
+                },
+                {
+                  "key": "duration",
+                  "value": "6"
+                },
+                {
+                  "key": "code",
+                  "value": "1122334455"
+                },
+                {
+                  "key": "actionType",
+                  "value": "subscription"
+                },
+                {
+                  "key": "codeType",
+                  "value": "coupon"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Charge Account by cashu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/payment/cashu/charge/account?price=100&actionType=recharge",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "payment",
+                "cashu",
+                "charge",
+                "account"
+              ],
+              "query": [
+                {
+                  "key": "chargeResponse",
+                  "value": "{%22merchantRefNumber%22:%2285%22,%22fawryRefNumber%22:%22957343473%22,%22paymentMethod%22:%22CARD%22}",
+                  "disabled": true
+                },
+                {
+                  "key": "code",
+                  "value": "couponCode",
+                  "disabled": true
+                },
+                {
+                  "key": "duration",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "price",
+                  "value": "100"
+                },
+                {
+                  "key": "actionType",
+                  "value": "recharge"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Charge Account By Fawry",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer czydGO3mMyhQiIdm92J0fxCzCqpKDdxMI2DH5BgPot4Pi8p0E9VJG8xbkWiwj6EhbLr0JhgC4u9VTe2tO7NtMcnvlAI0ybMXbgekhEJDE2R9syemtg7n0j8f",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/fawry/payment/charge/account?price=10",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "fawry",
+                "payment",
+                "charge",
+                "account"
+              ],
+              "query": [
+                {
+                  "key": "price",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer 0D0GltNaC8eB3YFetfAAEl9H466y7BKtQLssTosuauwTO4NGYftSbkmLssKykHU0SKpEqcRbj7OHLjoc0HoFPepmKKfxMH5RCiOcdihQyo22lzwdTj6iPHpc",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/total/user/balance",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "total",
+                "user",
+                "balance"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Currency Converter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/currency/converter?amount=1&from=EGP&to=USD",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "currency",
+                "converter"
+              ],
+              "query": [
+                {
+                  "key": "amount",
+                  "value": "1"
+                },
+                {
+                  "key": "from",
+                  "value": "EGP"
+                },
+                {
+                  "key": "to",
+                  "value": "USD"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetPayment Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://www.atfawry.com/ECommerceWeb/Fawry/payments/status?merchantCode=Zgy+s91LCyHh1SCRM3zOHQ==&merchantRefNumber=40&signature=972f9aa99eccb03b21ec97623f64607c988ede257f87e0384c323f19136af22b",
+              "protocol": "https",
+              "host": [
+                "www",
+                "atfawry",
+                "com"
+              ],
+              "path": [
+                "ECommerceWeb",
+                "Fawry",
+                "payments",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "merchantCode",
+                  "value": "Zgy+s91LCyHh1SCRM3zOHQ=="
+                },
+                {
+                  "key": "merchantRefNumber",
+                  "value": "40"
+                },
+                {
+                  "key": "signature",
+                  "value": "972f9aa99eccb03b21ec97623f64607c988ede257f87e0384c323f19136af22b"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Forgot Password",
+      "item": [
+        {
+          "name": "Forgot Password -- Enter Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "hassansaeed.es2015@gmail.com",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/password/forgot",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "password",
+                "forgot"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check If Code Is Success",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "hassansaeed.es2015@gmail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "code",
+                  "value": "2899",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/password/check",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "password",
+                "check"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password -- New Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "hassansaeed.es2015@gmail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123123",
+                  "type": "text"
+                },
+                {
+                  "key": "password_confirmation",
+                  "value": "123123222",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/password/reset",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "password",
+                "reset"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "ar",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer 0D0GltNaC8eB3YFetfAAEl9H466y7BKtQLssTosuauwTO4NGYftSbkmLssKykHU0SKpEqcRbj7OHLjoc0HoFPepmKKfxMH5RCiOcdihQyo22lzwdTj6iPHpc",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+                "type": "text"
+              },
+              {
+                "key": "lang",
+                "value": "en",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications/count",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications",
+                "count"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Store Post Copy",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "post title 01",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "post content 01",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/posts/store?=",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "posts",
+            "store"
+          ],
+          "query": [
+            {
+              "key": "",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Follow User ",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "type": "text",
+            "value": "application/json"
+          },
+          {
+            "key": "lang",
+            "type": "text",
+            "value": "ar"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "30",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/user/followers",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "user",
+            "followers"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Multi Images",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "images[]",
+              "type": "file",
+              "src": "/Users/hassan/Pictures/blog2.png"
+            },
+            {
+              "key": "images[]",
+              "type": "file",
+              "src": "/Users/hassan/Pictures/blog1.jpg"
+            },
+            {
+              "key": "images[]",
+              "type": "file",
+              "src": "/Users/hassan/Pictures/Captura-de-tela-de-2018-07-05-15-17-37-compressed.jpg"
+            },
+            {
+              "key": "images[]",
+              "type": "file",
+              "src": "/Users/hassan/Pictures/generate-leads-blog-min.jpg"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/upload/multi/images",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "upload",
+            "multi",
+            "images"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Rate Business",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer 2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "46",
+              "type": "text"
+            },
+            {
+              "key": "rate",
+              "value": "1",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/user/rate",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "user",
+            "rate"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Authenticated User profile",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "post title",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "post content",
+              "type": "text"
+            },
+            {
+              "key": "userId",
+              "value": "46",
+              "type": "text"
+            },
+            {
+              "key": "authPosts",
+              "value": "owner",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/profile",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "profile"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Followers",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "title",
+              "value": "post title",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "value": "post content",
+              "type": "text"
+            },
+            {
+              "key": "userId",
+              "value": "46",
+              "type": "text"
+            },
+            {
+              "key": "authPosts",
+              "value": "owner",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/user/followers?keyword=User Name",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "user",
+            "followers"
+          ],
+          "query": [
+            {
+              "key": "keyword",
+              "value": "User Name"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Aboutus",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/general/about-app",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "general",
+            "about-app"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Social Links",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/general/social/links",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "general",
+            "social",
+            "links"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Paid Ads",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/get/paid/sponsors",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "get",
+            "paid",
+            "sponsors"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Follow Categories",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "categoriesIds[]",
+              "value": "46",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "48",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "24",
+              "type": "text"
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "21",
+              "type": "text"
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "22",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/follow/categories",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "follow",
+            "categories"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Target User ",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "userId",
+              "value": "30",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/target/user",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "target",
+            "user"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Target Categories",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "categoriesIds[]",
+              "value": "38",
+              "type": "text"
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "21",
+              "type": "text"
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "22",
+              "type": "text"
+            },
+            {
+              "key": "categoriesIds[]",
+              "value": "23",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/target/categories",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "target",
+            "categories"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Targets Business",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/user/45/followers",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "user",
+            "45",
+            "followers"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Targets",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/user/targets",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "user",
+            "targets"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Apply  To Job",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "jobId",
+              "value": "19",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/job/apply",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "job",
+            "apply"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Applies List",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/payment/fawry/status?paymentId=40",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "payment",
+            "fawry",
+            "status"
+          ],
+          "query": [
+            {
+              "key": "paymentId",
+              "value": "40"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Approve Apply",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer 2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "usersIds[]",
+              "value": "46",
+              "type": "text"
+            },
+            {
+              "key": "usersIds[]",
+              "value": "5",
+              "type": "text"
+            },
+            {
+              "key": "usersIds[]",
+              "value": "6",
+              "type": "text"
+            },
+            {
+              "key": "jobId",
+              "value": "44",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/approve/applied/job",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "approve",
+            "applied",
+            "job"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Free Ads For Followers and Targets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer 2etel5IMtHo7PPBtE0eUEWILPwFGEx9nR186MX1ZO7mQLvLiiixQ2w4GM4sloipS0pNUkSO5MUKMYVHGaHYnnGDTi7NvbzGMb9FX9bVYRLf8jBhfnuDhR8sc",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "http://businessmap.softex-it.com/api/v1/get/free/advertisements",
+          "protocol": "http",
+          "host": [
+            "businessmap",
+            "softex-it",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "get",
+            "free",
+            "advertisements"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "lang",
+            "value": "ar",
+            "type": "text",
+            "disabled": true
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer CEPZM1RcbqAjzptYZjcNfWTxTvKGLpZH87Cig9vkyg5SfOrsseg2Wm8IP40Gbb2yFSmCdmnpxrPhJAWnO3AOQnYN82cQ3GjWwHVXCFzrxcrsUengIjJkpmaJ",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "multipart/form-data",
+            "type": "text",
+            "disabled": true
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "/Users/hassan/Downloads/order.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/upload/image",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "upload",
+            "image"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Profile Information",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/profile/information?userId=46",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "profile",
+            "information"
+          ],
+          "query": [
+            {
+              "key": "userId",
+              "value": "46"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Transactions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/transactions?operationType=transfer",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "transactions"
+          ],
+          "query": [
+            {
+              "key": "operationType",
+              "value": "transfer"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Payment And Subscription",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "price",
+              "value": "300",
+              "type": "text",
+              "disabled": true
+            },
+            {
+              "key": "duration",
+              "value": "3",
+              "type": "text"
+            },
+            {
+              "key": "profileCode",
+              "value": "8747171",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/payment/subscription",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "payment",
+            "subscription"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Charge Account ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "price",
+              "value": "1000",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/payment/charge/account",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "payment",
+            "charge",
+            "account"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Transfer To Another",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer bzdbZuVtSmpYxemH3wK6XG1w7R5PC81yc892DThzZExmigIh23Co6AKlnBAHNZ7A0n5jx3UJz737AsAL41UAl4a9qUPSI5BvAsH3GYTirnNOv96OccOiSBYo",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "price",
+              "value": "500",
+              "type": "text"
+            },
+            {
+              "key": "profileCode",
+              "value": "10001000",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/payment/transfer",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "payment",
+            "transfer"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Coupon Discount",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer FK0A60sIewcpIX674yqGlxmxQ9pNpLNn6UY6OleAOMm1FFLes8olRYkSuHitx0YntgUAq2rIcKBkypydsqyRITazZkZecjyehjV0W9MGYe214ifyFaGCZ8v1",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "categoryId",
+              "value": "all",
+              "type": "text"
+            },
+            {
+              "key": "code",
+              "value": "1122334455",
+              "type": "text"
+            },
+            {
+              "key": "codeType",
+              "value": "profileCode",
+              "description": "profileCode or couponCode",
+              "type": "text"
+            },
+            {
+              "key": "duration",
+              "value": "12",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/coupon/discount",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "coupon",
+            "discount"
+          ],
+          "query": [
+            {
+              "key": "",
+              "value": "",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "General Information APP",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://businessinmap.com/testing/api/v1/general/info",
+          "protocol": "https",
+          "host": [
+            "businessinmap",
+            "com"
+          ],
+          "path": [
+            "testing",
+            "api",
+            "v1",
+            "general",
+            "info"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/cart",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "cart"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add To Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "qty",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/cart/add",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "cart",
+                "add"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "cart_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "qty",
+                  "value": "2",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/cart/update",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "cart",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Cart Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "cart_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/cart/delete",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "cart",
+                "delete"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+{
+  "name": "Rides",
+  "description": "Ride booking system (Uber-like)",
+  "item": [
+    {
+      "name": "Create Ride",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "https://businessinmap.com/testing/api/v1/rides/create",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pickup_address\":\"Street 1\",\n  \"pickup_lat\":31.22,\n  \"pickup_lng\":30.11,\n  \"dropoff_address\":\"Street 9\",\n  \"dropoff_lat\":31.30,\n  \"dropoff_lng\":30.15,\n  \"payment_method\":\"cash\"\n}"
+        }
+      }
+    },
+
+    {
+      "name": "Accept Ride (Driver)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "https://businessinmap.com/testing/api/v1/rides/accept/:id"
+      }
+    },
+
+    {
+      "name": "Update Ride Status",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "https://businessinmap.com/testing/api/v1/rides/status/:id",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"arrived\"\n}"
+        }
+      }
+    },
+
+    {
+      "name": "My Rides (User)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "https://businessinmap.com/testing/api/v1/rides/my"
+      }
+    },
+
+    {
+      "name": "My Rides (Driver)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": "https://businessinmap.com/testing/api/v1/rides/driver"
+      }
+    }
+  ]
+}
+,
+
+{
+  "name": "Booking",
+  "item": [
+    {
+      "name": "Create Booking",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{url}}/api/v1/booking/create",
+          "host": ["{{url}}"],
+          "path": ["api","v1","booking","create"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"business_id\": 5,\n  \"service_type\": \"booking_service\",\n  \"service_id\": 2,\n  \"date\": \"2025-01-20\",\n  \"time\": \"16:00\",\n  \"price\": 150,\n  \"notes\": \"Test booking\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Update Booking Status",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{url}}/api/v1/booking/update-status",
+          "host": ["{{url}}"],
+          "path": ["api","v1","booking","update-status"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"booking_id\": 1,\n  \"status\": \"accepted\"\n}"
+        }
+      }
+    },
+    {
+      "name": "My Bookings",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{url}}/api/v1/booking/my",
+          "host": ["{{url}}"],
+          "path": ["api","v1","booking","my"]
+        }
+      }
+    },
+    {
+      "name": "Business Bookings",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": {
+          "raw": "{{url}}/api/v1/booking/business",
+          "host": ["{{url}}"],
+          "path": ["api","v1","booking","business"]
+        }
+      }
+    }
+  ]
+},
+
+
+
+
+
+    {
+      "name": "Notifications (Updated)",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All As Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications/markAllRead",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications",
+                "markAllRead"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark One As Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "notification_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications/markRead",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications",
+                "markRead"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "notification_id",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://businessinmap.com/testing/api/v1/notifications/delete",
+              "protocol": "https",
+              "host": [
+                "businessinmap",
+                "com"
+              ],
+              "path": [
+                "testing",
+                "api",
+                "v1",
+                "notifications",
+                "delete"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

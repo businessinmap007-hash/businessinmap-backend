@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <!-- Import FawryPay CSS Library-->
+    <link rel="stylesheet" href="https://atfawry.com/atfawry/plugin/assets/payments/css/fawrypay-payments.css">
+    <!-- Import FawryPay Staging JavaScript Library-->
+    <script src="https://cdn.jsdelivr.net/gh/emn178/js-sha256/build/sha256.min.js"></script>
+
+    <script type="text/javascript" src="https://www.atfawry.com/atfawry/plugin/assets/payments/js/fawrypay-payments.js"></script>
+
+    <script>
+        function checkout() {
+            const configuration = {
+                locale: "en",  //default en
+                mode: DISPLAY_MODE.POPUP,  //required, allowed values [POPUP, INSIDE_PAGE, SIDE_PAGE]
+            };
+            FawryPay.checkout(buildChargeRequest(), configuration);
+        }
+        function buildChargeRequest() {
+            let merchantRefNum = Math.floor((Math.random() * 100000000) + 1);
+            var chargeRequest = {
+                merchantCode: '400000016550',
+                merchantRefNum: '1157',
+                customerMobile: '01069893738',
+                customerEmail: 'businessinmap007@gmail.com',
+                customerName: 'fawrytest',
+                customerProfileId: '184',
+                chargeItems: [
+                    {
+                        itemId: '65b5666a5d40c',
+                        description: 'Bim Balance',
+                        price: 10.00,
+                        quantity: 1
+                    }
+                ],
+                returnUrl: 'https://businessinmap.com/testing/api/v1/fawry-success-payment'
+            };
+
+            chargeRequest.signature = signRequest(chargeRequest);
+            console.log(chargeRequest);
+            //exit();
+            return chargeRequest;
+        }
+
+        function signRequest(chargeRequest) {
+            var secKey = "";
+            var signString = chargeRequest['merchantCode'] + chargeRequest.merchantRefNum;
+            signString += chargeRequest.customerProfileId != null ? chargeRequest.customerProfileId : '';
+            signString += chargeRequest.returnUrl != null ? chargeRequest.returnUrl : '';
+            var items = chargeRequest.chargeItems.sort(function (x, y) {
+                let a = x.itemId.toUpperCase(),
+                    b = y.itemId.toUpperCase();
+                return a == b ? 0 : a > b ? 1 : -1;
+            });
+
+            items.forEach((item) => {
+                signString += item.itemId + '' + item.quantity + '' + item.price.toFixed(2);
+            });
+            signString += secKey;
+
+
+            return sha256(signString);
+        }
+    </script>
+
+
+
+</head>
+
+<body>
+    <!-- FawryPay Checkout Button -->
+    <input type="image" onclick="checkout();" src="https://www.atfawry.com/assets/img/FawryPayLogo.jpg"
+        alt="pay-using-fawry" id="fawry-payment-btn" />
+</body>
+
+</html>

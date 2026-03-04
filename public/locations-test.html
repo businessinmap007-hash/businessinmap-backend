@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>اختبار اختيار الموقع</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px }
+        select { width: 300px; padding: 6px; margin-bottom: 15px }
+    </style>
+</head>
+<body>
+
+<h3>اختبار Locations</h3>
+
+<label>الدولة</label><br>
+<select id="country">
+    <option value="">اختر الدولة</option>
+</select>
+
+<br>
+
+<label>المحافظة</label><br>
+<select id="governorate" disabled>
+    <option value="">اختر المحافظة</option>
+</select>
+
+<br>
+
+<label>المدينة</label><br>
+<select id="city" disabled>
+    <option value="">اختر المدينة</option>
+</select>
+
+<script>
+const API = 'http://127.0.0.1:8000/api/v1/locations';
+
+const country     = document.getElementById('country');
+const governorate = document.getElementById('governorate');
+const city        = document.getElementById('city');
+
+/*
+|--------------------------------------------------------------------------
+| Load Countries
+|--------------------------------------------------------------------------
+*/
+fetch(API + '/countries')
+    .then(r => r.json())
+    .then(data => {
+        data.forEach(item => {
+            country.innerHTML += `
+                <option value="${item.code}">
+                    ${item.name_ar}
+                </option>`;
+        });
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Country → Governorates
+|--------------------------------------------------------------------------
+*/
+country.onchange = function () {
+
+    governorate.innerHTML = '<option>جاري التحميل...</option>';
+    city.innerHTML = '<option value="">اختر المدينة</option>';
+    city.disabled = true;
+
+    if (!this.value) {
+        governorate.disabled = true;
+        return;
+    }
+
+    fetch(`${API}/governorates/${this.value}`)
+        .then(r => r.json())
+        .then(data => {
+            governorate.innerHTML = '<option value="">اختر المحافظة</option>';
+            data.forEach(item => {
+                governorate.innerHTML += `
+                    <option value="${item.code}">
+                        ${item.name_ar}
+                    </option>`;
+            });
+            governorate.disabled = false;
+        });
+};
+
+/*
+|--------------------------------------------------------------------------
+| Governorate → Cities
+|--------------------------------------------------------------------------
+*/
+governorate.onchange = function () {
+
+    city.innerHTML = '<option>جاري التحميل...</option>';
+
+    if (!this.value) {
+        city.disabled = true;
+        return;
+    }
+
+    fetch(`${API}/cities/${this.value}`)
+        .then(r => r.json())
+        .then(data => {
+            city.innerHTML = '<option value="">اختر المدينة</option>';
+            data.forEach(item => {
+                city.innerHTML += `
+                    <option value="${item.id}">
+                        ${item.name_ar}
+                    </option>`;
+            });
+            city.disabled = false;
+        });
+};
+</script>
+
+</body>
+</html>

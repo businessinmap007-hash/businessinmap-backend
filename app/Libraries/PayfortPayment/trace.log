@@ -1,0 +1,5119 @@
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1776983972
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=processResponse
+    [signature] => df5392a5028c780ba146efa7d36e1ce917011a2499a188a9679ee64dea3307fd
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1029621351
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=processResponse
+    [signature] => 9eb808901d948a4ea7521f898183088288fff9e7af93ae94aaa1e3632eff1d80
+)
+
+
+========================================================
+
+Fort Merchant Page Request Parameters 
+Array
+(
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1587321347
+    [service_command] => TOKENIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=merchantPageReturn
+    [signature] => 0b4581e93ea5308d5d9a13d5da82059a289ea506af8a46087fee0f00fe2da062
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 987483655
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=processResponse
+    [payment_option] => SADAD
+    [signature] => aad9116c2c79970c2664f080e6b62dacfda3bb4f4243aa8b395ca51eb7826ca5
+)
+
+
+========================================================
+
+Fort Merchant Page Request Parameters 
+Array
+(
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1761662208
+    [service_command] => TOKENIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=merchantPageReturn
+    [signature] => 04ecd5e1ddd4b4135cfde18c926ea7167a9c1d646043773cdf301a9d0e8f49cb
+)
+
+
+========================================================
+
+Fort Merchant Page Request Parameters 
+Array
+(
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1155498431
+    [service_command] => TOKENIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=merchantPageReturn
+    [signature] => 536d4e4fae7dea729ceb8fb5d9f893a15f9870c8bbdd3144feecd7260caba3bf
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 2021910415
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=processResponse
+    [signature] => 18a949a4524057af9134433470f0b018804964cdc8e7189e7fdb3af04bc1ebc5
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1554429981
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort-php-sdk/route.php?r=processResponse
+    [signature] => 4b7a8eee54d8234ddaed65f256279b3a6d72f8472fee3e30501e7154dc7ce1b5
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 2093989138
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => 7355aac654ade0a45599391a1e4caa466084b3c2e3104c022cdb3d570e779e03
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00009
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Invalid merchant identifier
+    [merchant_reference] => 2093989138
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [currency] => USD
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature:  , Response Signature: 6cdf1f8fb02d8959f8a9356c740fb18889a93623e8e75f1c7093b9ecc153fd42
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 1000
+    [currency] => USD
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1636265303
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => 8d9bd2cb99cd3acd47591ffed55e1c5ad57642fde2424b4cbc339c8e7cee9095
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 1000
+    [response_code] => 00008
+    [signature] => 8de3e15e073511526315bebb3c53b50e56ca188c8a47db31e41267715f642f2d
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.232.34.254
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Signature mismatch
+    [merchant_reference] => 1636265303
+    [customer_email] => test@payfort.com
+    [currency] => USD
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 8de3e15e073511526315bebb3c53b50e56ca188c8a47db31e41267715f642f2d, Response Signature: aa14b7cc877b0bf0aff740dcb420b63ea651d36257fc2da64a5e425f8b8981f6
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 980516083
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => 4b4356035bdcd1e844e3a0fec4dad2171e53641cadfc0a1777fb1ebcd2f57482
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00008
+    [signature] => dd248c05ecd754b8877fdf61d83f12e8fac78f654913a8b9fea7ebf6956ef248
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.232.34.254
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Signature mismatch
+    [merchant_reference] => 980516083
+    [customer_email] => test@payfort.com
+    [currency] => USD
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: dd248c05ecd754b8877fdf61d83f12e8fac78f654913a8b9fea7ebf6956ef248, Response Signature: b62570cefc602449a78aafcebbb9368fef4a7b548e6009dfacdfbdd394b7f5e9
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1317178541
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => 10acdaf15147bc23ce4fdd494d3f996b26a88efddca10c53778f330daa36ae39
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00013
+    [signature] => cd8bc145ab95817051fe242b7e3df66c901dc369b2728af43cf5c6d4f4619e95
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.232.34.254
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Invalid Currency
+    [merchant_reference] => 1317178541
+    [customer_email] => test@payfort.com
+    [currency] => USD
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Currency
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 687680245
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => f8627282babeb5c39dd04a86773d6151cd323d079ef0311ebd1f791bac6c9ad3
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1678365964
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [signature] => 0e39a96ae082c11766f8370ae6b62e5283a0c3f6b3a448a6ac180f8b4df814ba
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => payFort
+    [signature] => fb20a871ec50b38a824bfc2460e6ba6d5f7dd247e5b1c7a3316415a2d8b6ff1c
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.34.254
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152606318100015056
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1678365964
+    [authorization_code] => 398733
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 807288969
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [payment_option] => SADAD
+    [signature] => f228137fc1586173adbdd0d4be20506d2194c04100802646a48a9d2b0f18e9b6
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100
+    [response_code] => 00014
+    [signature] => cbc1db5d2ca4f30c1fda7d8a8d69a3f72120e74093648aee4dfa0f8ffa1b0122
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Inactive payment option
+    [merchant_reference] => 807288969
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1088017707
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 5981115b4d88e824468fcde7075975bd7c5ff84fe083aaca7e64323c3474a112
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100
+    [response_code] => 00014
+    [signature] => 8bce13682d216531e74cee16157ff30a100c571af97d0dc402af14b18b331c33
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Inactive payment option
+    [merchant_reference] => 1088017707
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 1686010573
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [payment_option] => NAPS
+    [order_description] => Apple iPhone 6s Plus
+    [signature] => ea93274afdddef9ed0cf5aa6f06b6ce9fad3262704248ca2ca08331142dcfbbd
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00009
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [payment_option] => NAPS
+    [order_description] => Apple iPhone 6s Plus
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Invalid merchant identifier
+    [merchant_reference] => 1686010573
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost/payfort/route.php?r=processResponse
+    [currency] => USD
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature:  , Response Signature: dce995eb74832fce13530f96a861cba0de438ef2ae3622c0f8e19ae012ea2c27
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => MERCHANT_IDENTIFIER
+    [access_code] => ACCESS_CODE
+    [merchant_reference] => 197936266
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/route.php?r=processResponse
+    [signature] => a5d63c30cf0815647e00df3199a52f44d4640c062e1d05ca3486ce5fa6b61ff5
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => USD
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 113110807
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/route.php?r=processResponse
+    [signature] => 55a49dbd582d7e8312f35c9c9535101ec54ac6ca6f46d3d78bab13cffffd4810
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 221054459
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/route.php?r=processResponse
+    [signature] => c0ab9f7416899633d44dc2ad5dd5e8a91524275d5d0d8b5bb904c0ae41b39553
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1383842779
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/route.php?r=processResponse
+    [signature] => 9989f82e2b6b277c452c8af660ace15dfa3f216447e51870a75aea4ea90a2e9b
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2118114224
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/route.php?r=processResponse
+    [signature] => 490d6a23422e5a48cbd22751fbcaed01c0811562737b6733a6c15381af457eaa
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1755881263
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [signature] => 5101e96d0bfb8c86609c3144b1bbfb6bba953099765fd3285b3c5c159c5f7b0c
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1478633417
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ebe608620e52e26b7e5d8150dee9d86552df9085694206914f4ba1404bee5703
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 837698159
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 20b78c38c7176a4b71733c926af915ea6ad6417ffd77c8c5b006538bbb369e57
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2090644652
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 24fb5c89a1e06ac1426be7ed8d4ad7a1a788b98e297c340d040dc235308e70b7
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1373156866
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => c515f9b35662abd16d6753faa87f1e05f17caf6495dfc6abef7a214469b0db34
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1953513339
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 398b64e5bbbe93b93017dc9ab2cca5645aa6a6b7959f41eacb130c8c7df02cd8
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1373796080
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 677c4ce4788d8002c3cbf6cc02baf5d19e33e72b593893194df78048b691fe18
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 625315255
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => d1cd22edf7204bc0524ff2c7f6ee089b7d57b02446ee7880b34ce317886b74ef
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2133377268
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 6c3fadf192edbd0b32cbe6fbf331ab8eca9d6c306f6d4beb50188aefa1b77dfe
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 469849017
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => fa036401afdd830501fa9afd5ed16a8adfb6618ba5dbb72fcd3088c991d43128
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00047
+    [signature] => 20eee61c1fa143ab70cefcd9a8312d0c718157f8753d81cde852172c4616ef01
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.232.13.70
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 469849017
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Order already processed
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 709696460
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => bf66b06bc88c8695fdb5b0ea8fcb3dd0892cb3f9c57de46d5e3f380431e4a3ef
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 08271af18214c647bc8eef7f8fc6cb4c106d2a466e5581fd12270bc241d9449a
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.13.70
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152613399300016808
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 709696460
+    [authorization_code] => 781070
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 280299023
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 917d61dcd7e88657066e2bfa4e7d15ab2e32433cedc26471f1bf8eb6180e8810
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 5c9f4794c4a00633352360e84cb51b833879cab5e0a637fd9cd09c282fd88acd
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.13.70
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152613408900016812
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 280299023
+    [authorization_code] => 132607
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1982688969
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => bf35e4ed366368f1322350e286834d56d894f49f957d33d4b889f633dc970fdb
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 7195e7541c27bf6acbd40fddfd7478c3274532783571f1d6624bc37fd23b9009
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.13.70
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152613428400016817
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1982688969
+    [authorization_code] => 755424
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1778121380
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 80017c5c3b8f9999389270b5adb30b603c72041e2a7596ce7501a290c7d03212
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1123033221
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => d6552d057fe7d02dae5b0c3abb99a6d5fa9d890d7ac9d5a4f068c0037d964821
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 62360698
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 2aeef320abb01ea481b233bca6d92df1bab9ad44e95c24b4bd7b1938d223abae
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan saeed
+    [signature] => d054eca1c5f38a83453b8e88122438f471f9588c28158064fc8a5e252e85d4f6
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.114.80
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152619942500018212
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 62360698
+    [authorization_code] => 457771
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00047
+    [card_holder_name] => Hassan saeed
+    [signature] => ebeae470c81c751ce080984eaf612c134c45baf40fdde58d43c75c0a2fb4d62c
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [customer_ip] => 41.232.114.80
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152619942500018212
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 62360698
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Order already processed
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 50000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1620496452
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ee6971cb240ccb97974527a0a536d48dc2fe28589890fd471f03e94def456166
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 2300
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1765336254
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => c69ee287ad905606911703501037435f98123da209cb05284921d1f795da6dee
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 500
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 956560268
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 959e36294d3040ef29da7bc30b23860a91d40ab95f19dfa67adaf1ab4213c74f
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1089560977
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => fe2821e37cf75dafe87ef92ca186f9b0b7bb7fccf583bd135688a24ea64f1a94
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 1231233
+    [signature] => 8bf00d6e2b9ff966508a74e4c8a160c4a4a294608aeb0862b6deb77911b377ed
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620203000018332
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1089560977
+    [authorization_code] => 202388
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 256006906
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 28f052d6b384c77f72d065f4f8e1f1f1951be56844ed987235126127e3e4d13f
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 32613167
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 61c8b19876760ea1d6bf71c0465e4011fde0a88e1c2744bbcab55fd654d18730
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1397357857
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 235b83d07e076d41d7eb0233dbb2f1dc9a03e658467e3b08cfa94a0363269670
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1828466015
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => fd14b58d20a88af94df7ce47b24165f69b74a3a426cfdbb891d46e2917b55429
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 00014
+    [signature] => cfae8e9db6f852a4f4fc533cd189ba5683fed17a7efb7a8c8c6ae635134be64d
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Inactive payment option
+    [merchant_reference] => 1828466015
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1686632268
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 7c726d38aa8f5cae7d10cb63154c273ea1733d7e641c23b6311fa54fb683f5eb
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 123358314
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => c30810925227acd7c7eae3200f8b42800aee19520bae9bbf5fd3a11dd516bc3c
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1427970752
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 9321a804cef19e53b5cdd19eeeb59febd25547bc65b6c4faaceb56d78e1536a8
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 00014
+    [signature] => 497eb71c9bd0da0b62c26c1d8155a8672dd797cbe1f9cc952ea4569ca8819d9f
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Inactive payment option
+    [merchant_reference] => 1427970752
+    [customer_email] => test@payfort.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 5600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1176773206
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 5debc5d2070fcc7af05188ec5ecf27369aa7fabd7ebf699e01eed856f96a0820
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 567edc00d7418949c6c19f12ea47c03cae569a26e81cc43224ba14d4f552c444
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620357500018381
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1176773206
+    [authorization_code] => 884230
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 00047
+    [card_holder_name] => Hassan
+    [signature] => 78effa46f65bc0e6bbc0ec7568ea9abe530a823fd1036548b04af00228437bd6
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620357500018381
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 1176773206
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Order already processed
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 5600
+    [response_code] => 00047
+    [signature] => 35adfbe174969ca115af30e10e763ba15361b47cef60070257dcf4164c5aa6ee
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 1176773206
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Order already processed
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1578345280
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 52884966851b53d72acdf88285f5350b923b23c93f2c2ce9c9484b1eae9268a9
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 7786302
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => d4dc5deadb5eb97e1df18660804931b1178ca119c284532761076b42a04446f6
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 0
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 336671239
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 49371ff87d3a5f1e083e462092137e344aa01aff43e75d15bbf6e2282acea74c
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 0
+    [response_code] => 00005
+    [signature] => f1a259e6c7f0e4e443469abf329ebb7c62fa482d956a3e11c398a3ecf29e5181
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Invalid amount
+    [merchant_reference] => 336671239
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid amount
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 189763554
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 68e3d6ecb7a0fdb402a4d29180fe2a74fbab9281899730334a81237f6ea4a2d2
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 96131697
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => e883863edeac770961eeb453d664e8bd2413c1cf38ef6031034c2bbc70b9d8c2
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1099802473
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => f8c0cb5ee8cafd87e3ec2579ce843f1acbe7272de6648ed0ca632ce7fe19be4c
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 952393996
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 127812edf3ab02d53d6b56b9c5b92669fad04fee91517d534471e3e18e82dbc2
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2127408954
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 0f4ec964eeadde7f17564c70218db8b6eec7a7f21158721145fa62567f830951
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1993573387
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 35428c5cfeb0d81e918ce95919497ea4a7ab4eec9d39c6ecaf4e198b7d2db2ce
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 958637174
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 144bf16e87802d3792ead9e314c8df200e8d3485fb1ee86238c805afeda0d888
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 849214959
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => c85a68557220f86ff3b093dc8f89002a867c5f11da9771ebae054623ce64409b
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 219781750
+    [customer_email] => test@payfort.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 107ecb0ac25de91875be6b61213d4c34caa2061b2601fc15a772cd899b8f0f5e
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan saeed Hassaan
+    [signature] => d43e1ce23d26a01ae2928440c42bc06542b1afabc370f99fee600a644243eef4
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620536300018464
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 219781750
+    [authorization_code] => 522293
+    [customer_email] => test@payfort.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 202723281
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => d8477a7c28a26df5b9612253d17ae0025bf22b8cd24780f07d90dd1a6e470cca
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Mohamed Alaa
+    [signature] => 534212fa1b0e5543f511bc1c0279ae85dae67d47717dd51966f41ceaf78a88ce
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620562300018484
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 202723281
+    [authorization_code] => 541017
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1342973987
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => fb38c212598caba1de59e15470665b636513ce3ef46aa930bca548e4428650fd
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 00072
+    [signature] => 3fcd968c7dab366c1891cb5fce415f1e2e5ceef79fac2875a560c248d73828a5
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Transaction has been cancelled by the Consumer.
+    [merchant_reference] => 1342973987
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Transaction has been cancelled by the Consumer.
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1122596213
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ddb54a99e3d49bc69e3ab937ff0afe7c1eeb49d8b0a9c74f7e30fc7654950081
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1716442048
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => e0629cae88a13b620f22e3c73635f9a73e8a240522f964b880374e475d4db6f0
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1103461531
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 3adeb3518091a93d91f0accc3a2996aba78e17912253d890c22f6a1417c59c14
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => b79e07f6cb6c901136f6be6a91b07b7ceb0d55937f8f90f578fa932ef8e41e78
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620631000018533
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1103461531
+    [authorization_code] => 981735
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 265798174
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 12af06b80f6854bc376079457b60b56a51ce3b75f96aec146f6b6112204d5d97
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => ddb8341c73540cc6b22bdef7831a441973d1ccf933c2df2a44716def18a0f08d
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620638900018542
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 265798174
+    [authorization_code] => 245069
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1055143380
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => efbca036983b7ebbdbd3891fbaeef5657dd86c08a87affba15a6fbb5ad5c0513
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 611452799
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 2b0a69d0e531c3dcb6844b4decb4c6f3e09641a059a113f272842961cc6de10b
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 98eb110d1814a95d42c3dd62862003e3dae9f03eec89aaa64b106619089fba2a
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620657300018558
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 611452799
+    [authorization_code] => 750866
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1503472575
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 13436d1698ac39baf7706f1ec7a781ef9dd9669fd5c5c6086b8e202a064f59d6
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [signature] => 3458a34b1fd915e702901d7f08a0578956ae4999480ed2bc95b7e58abecb26a0
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620675400018575
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1503472575
+    [authorization_code] => 610517
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 100000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [signature] => 3458a34b1fd915e702901d7f08a0578956ae4999480ed2bc95b7e58abecb26a0
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620675400018575
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1503472575
+    [authorization_code] => 610517
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 100000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 925821519
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => e34adf33f5a3684c5633c40862651645fd773eba422b49614b64e54a64fb6a74
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2018947998
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 064c1566334dad7f4a81518f025f50b1b58a621d82b87e3d7fdaface3ed25c4c
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1014228694
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 6c4ca2c45793b80e513a4f4af9a0cbcd4817ce03e7f26b70af3f254a619bf6d2
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan Saeed
+    [signature] => e58aadf85e0e958f506dbe8d14a0b451613862f5adfd598d4bff0428c45fdc91
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620937700018688
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1014228694
+    [authorization_code] => 570717
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 678375497
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => e962228a06843d4df22a4b8fe76c08df8432ab78b6ecd48494066f2f02427991
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 0625e4b1896ca733d5676d1ddd9f73ac7eeb2b0828e1d7035de8961398c09d32
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.233.243.183
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152620951500018702
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 678375497
+    [authorization_code] => 554939
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1026433102
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 03df782979722e15e324c45578d4eafb066fa7f11d31ea88257463200113c1e3
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1180097895
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 2ea1e7bf960810490cc2c8824999396af8431bb728a9069481be5d37ec3a0c22
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 91656472
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 672343091f27d910b2606b7e747ab73678fa83320f183f4f4511393d2427ba96
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 301626207
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 2faae114b5e71c225ba809cbd1308f4dae1e1737ca318d4513ac83ab3cd9feeb
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1580988926
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 72a110fa59f02d135880e4cf16dca60626c3c6882c4130b62a68802006e47a8c
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1307994272
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 41835ce768838ad2fc4ac3417578d02df4c852f6c5fdcd751c8fcabac2ec5211
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 482828949
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 188502a0be775637fe34e08dff0a01ad05a1cf26ebc41da2a6b41029abb4349d
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1552014735
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => f583d0a336c40f3cd16b4b4687c1354ca00e2e477f3c775bc75e8960410583ef
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 861873422
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ff1c1a3e7aa308f6a0547fa76e01b7d87873916e85d8fc1d92fac9ad5bb6654e
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 567395555
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 1e68e7c02d3197b8e0efce4c15ad5114dafb332ed18a282018bfe2f215150260
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 8ea630a33d14a4cb0859addebb2bf05dca7759948b5eba2094024bbd7cddc1f4
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621096800018759
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 567395555
+    [authorization_code] => 676380
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 75411608
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=Ahmed
+    [signature] => b25d38917ee1ec5e88e46c3cf39a21ab0f5a024f8b2a36922e74be585d819218
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => Ahmed
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 5454
+    [signature] => dc55aeec9a3b7ebac2e4e98124d6722229bda951d831cea1deb6b1a87a1dfae3
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621126600018776
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 75411608
+    [authorization_code] => 674514
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: dc55aeec9a3b7ebac2e4e98124d6722229bda951d831cea1deb6b1a87a1dfae3, Response Signature: 835a9e7b86444ad288a587dbad1a3d55a4608e7e1b4ed7b16dc19289164d95bf
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1704330708
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [signature] => 7a91d23d1551e16c525c02187fa87f5b69fc6e7a2d9d844387529525851f7ec6
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan SSA
+    [signature] => 67647d14fd52aaea12a12034996249155fc0dea2b9c0a7eea27ac8475e55295f
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621140000018786
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1704330708
+    [authorization_code] => 277875
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 67647d14fd52aaea12a12034996249155fc0dea2b9c0a7eea27ac8475e55295f, Response Signature: c8c622b063acb435f45dc2dc8a3308777c91dec97f4b47b0300c45a4f0ce16db
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1411543731
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info={"id":1,"user_id":159,"city_id":1,"is_order":1,"ordertype_id":2,"lat":null,"lng":null,"created_at":"2018-05-11 16:45:26","updated_at":"2018-05-11 16:49:15","status":1,"price":null,"pricing_by":null,"address":null}
+    [signature] => 072386251f06a4452d2690b7b1c696b5129be83710cee27775abc690e6c9afbd
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => {
+    [amount] => 10000
+    [response_code] => 00008
+    [signature] => 2faf7992afdd9b48e6692b1d5879c3de61d200cda94aa58f2391bd20a3dabfd8
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Signature mismatch
+    [merchant_reference] => 1411543731
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 2faf7992afdd9b48e6692b1d5879c3de61d200cda94aa58f2391bd20a3dabfd8, Response Signature: a51e07e5309a2d0a243b1ba6dc6bc1902a11a04d1faac3b63ef03d339cade68a
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 663900284
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [signature] => 031e8b141f466aaff18addb9997b86875404b90349f2f2cb3a50491d8214e95b
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 00072
+    [signature] => 9057229c64dec23c0a47aa0c292d66fcb1c46d9b932b19083d27a68fc71bc944
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Transaction has been cancelled by the Consumer.
+    [merchant_reference] => 663900284
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 9057229c64dec23c0a47aa0c292d66fcb1c46d9b932b19083d27a68fc71bc944, Response Signature: 2a28da4e7ea5f1136e8d2f72e337736fedc3696c3f286df0cdaac6e3f86ea747
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 00047
+    [signature] => 737253f3cacd6fe15ac6e5e4ee95e3475bccc82a578b7bae2558ad62ecc63a1e
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [language] => en
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 663900284
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 737253f3cacd6fe15ac6e5e4ee95e3475bccc82a578b7bae2558ad62ecc63a1e, Response Signature: 014d759dd25be9dcdc0d90bbe463e74effbfcd4fc6b5be5b86fc6b1e587f724b
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 563320118
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [signature] => a8b4958f0089753a9217c1176bc83e208e6a4e14ee6852707aa8b2b948d6e9f6
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan 
+    [signature] => 0a5272131d11eed9cda92b8d3db16fcdc3393f283f2d66ce7348290805679cfd
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621224300018830
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 563320118
+    [authorization_code] => 306660
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 0a5272131d11eed9cda92b8d3db16fcdc3393f283f2d66ce7348290805679cfd, Response Signature: ec116bff5a032a2221b684a68c4e0281bd8e0da6e29b1ea8e82050003af23baf
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 161068089
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order_info=1
+    [signature] => 0a1bcdcc03d2d11256e91a716c8cf8ba9b642af82295be39d30ad108e6d670b4
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan Saeed
+    [signature] => 94cc4ed7526f8e4f24021bff68f44e6a664e46a8ae1ed102924233c6173c7570
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621234300018836
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 161068089
+    [authorization_code] => 113452
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 94cc4ed7526f8e4f24021bff68f44e6a664e46a8ae1ed102924233c6173c7570, Response Signature: 497c5fc0c38f6f2f951b9bb71e667bafc6de732b6ae50576540ee14b16ded4ec
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order_info] => 1
+    [amount] => 10000
+    [response_code] => 00047
+    [card_holder_name] => Hassan Saeed
+    [signature] => e7b4c9234c77f14c00519bf6d9323ac64b320f72188c7cc44b883aa1f10fab48
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621234300018836
+    [command] => AUTHORIZATION
+    [response_message] => Order already processed
+    [merchant_reference] => 161068089
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: e7b4c9234c77f14c00519bf6d9323ac64b320f72188c7cc44b883aa1f10fab48, Response Signature: c778c1995a0135e55f025e57d4ffce79ce35e42351e06d830bf3d074a9ac27b6
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1957491501
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 441ca6bd04f684eff8abb6c5be8996a4494462e31e754199d02e6888b745d166
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 555
+    [signature] => a64f0fc4aa87a146f9bbf0d4fa73d886b30d7c10961285b3c140e9b42624bd18
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621271600018861
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1957491501
+    [authorization_code] => 143033
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1509324246
+    [customer_email] => test@user.com
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&orderId=1
+    [signature] => 236f28ce30d56aa2eb005a9c532267c165bd7d35fbce362f52049e524e349d7f
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [orderId] => 1
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 41c37fa8a2c6f539f29c56f1e35e5c932013034ed005dd054a4713ea3a4b3fd2
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621279700018865
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1509324246
+    [authorization_code] => 863486
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 41c37fa8a2c6f539f29c56f1e35e5c932013034ed005dd054a4713ea3a4b3fd2, Response Signature: 42fb73f6425c55890005754278512fd84fcea525dfb79730cd739d0d0a5c6b20
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 471811109
+    [customer_email] => test@user.com
+    [order_id] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&order
+    [signature] => e3850fe2e884cce545e98a2e2906cf356d03dc553e2e9891a246be5de04fa817
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [order] => 
+    [amount] => 10000
+    [response_code] => 00027
+    [signature] => cc0eec926eefd23311e1a2b7558bf4877a8806edaab97adf1085365595abfcbd
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Invalid extra parameters
+    [merchant_reference] => 471811109
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: cc0eec926eefd23311e1a2b7558bf4877a8806edaab97adf1085365595abfcbd, Response Signature: a392e18f5589361d271cf5aafd24596a4fafe53c836b7758d79d909d13afb7a4
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1334774630
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 19149ca735e8558f7f4f98ed0d598473eb5dc71b9325b8f74179443b69af4620
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 7ec7d30bbb64685c357fcfa7dddcd1b2065bf62469f30ddfdcc9cf69b674b450
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621346700018897
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 1334774630
+    [authorization_code] => 322678
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2121876927
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [order] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 0aa0bd3890390626d6a41a0e87019f777751f05c4ec2621c732fbf3075676da6
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00027
+    [signature] => 0ecc8185bd5b4c4eed58527903783fd927eaca8f685bbe3ba19609180218c91b
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [response_message] => Invalid extra parameters
+    [merchant_reference] => 2121876927
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid extra parameters
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1129483392
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [merchant_extra] => Hassan saeed Hassan
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 1e2c233feda5b934df6c2dd5af4e9d8bd021cc07258a9885ab62b7590357ed67
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00002
+    [signature] => c1ba8023aebe660df88a6ff4d5c8a79b33d6c29b4e07cf6d0db581a905e5be56
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [merchant_extra] => Hassan saeed Hassan
+    [response_message] => Invalid parameter format
+    [merchant_reference] => 1129483392
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid parameter format
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1805836720
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?orderId=552
+    [signature] => 5ef23df6d34fdc3ebc352553e16a687449c5ef53865815540fb1d5ebf7ec875e
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 833833489
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse&orderId=552
+    [signature] => 778d7d8f491cf0e26d203fef60700bd5ddfbe01e746a641a212d19fe4b932bfd
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [orderId] => 552
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 915056c007db459c4d610187b734e1ddb23ece7d488f9ecb3871b22d74907be7
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621400500018934
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 833833489
+    [authorization_code] => 948691
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Invalid Signature. Calculated Signature: 915056c007db459c4d610187b734e1ddb23ece7d488f9ecb3871b22d74907be7, Response Signature: b35a9adc4b5f1ef087fe29fb8c1cffdfdb0e4ccf3b48058ad10b6a8b0ec86f14
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2093308695
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 4352bc6e4d9308680adefb19193441357ef745983a9761ea19e4bae3d6387948
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 3c1ab887961e8fa436c3ecdb639dd1db065ad794f4989f2404a62b5e98946191
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621408500018938
+    [command] => AUTHORIZATION
+    [response_message] => Success
+    [merchant_reference] => 2093308695
+    [authorization_code] => 737081
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 735857742
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => e2906f309ad609e5de22bafb2fbab54efd48ec3b127a0b6e1734fe4586eab0f9
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 248ae8537d04f219b9df99ee597b884e623a1ed8c6e1c1c40074c391041fed1a
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621424300018940
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 735857742
+    [authorization_code] => 521371
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 92006822
+    [customer_email] => test@user.com
+    [order_description] => 1
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 9b4d58580a2c6117f07c379c7e62498b968bfaa9b926ea32708ca71abb80b41a
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 531358******3430
+    [card_holder_name] => 123
+    [signature] => be6bce6be1f4cd8f1554a3ba471eb353d35070161de28e442874284e34a172fd
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [order_description] => 1
+    [payment_option] => MASTERCARD
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621446100018947
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 92006822
+    [authorization_code] => 154030
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 109669053
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 97c19a240b9ba40f72c9a852c83098d19097a002095b302bef4e735a8a05087d
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00072
+    [signature] => 7a63d7009b8f7236061352a96fd1b2ab8da105fdc663b7eae6ad0a1252c3db25
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Transaction has been cancelled by the Consumer.
+    [merchant_reference] => 109669053
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Transaction has been cancelled by the Consumer.
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 117351960
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ca3e0893c012af8b309270c43fef5733fe014a5da6016e70d94862500ab50a17
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 927adf0a73dbcfef433480aa2dd436bf6233d5ea0d38026913441a00c6dba20e
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621515500018982
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 117351960
+    [authorization_code] => 344473
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 919589363
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 6b0f192c9db96d69073a336a0b10817372ea3a2c3d0c30fbcfa077ebabb9f476
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan saeed
+    [signature] => 49163cec8a14346310b82717a92ca88ba1e35c3fdd2d0a8c6d7649bbab5f1b74
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621647000019102
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 919589363
+    [authorization_code] => 919565
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 510675089
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 9b26ad399da0bf47d51655fa056bebbf019c7ebf7274e268f4c8a61e6dfa9c55
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00072
+    [signature] => 13a090ae71fe4bdd21e7d28cefe138645cc441673e0f0911f9aef8f52c3a619f
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Transaction has been cancelled by the Consumer.
+    [merchant_reference] => 510675089
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Transaction has been cancelled by the Consumer.
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 10000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2019399866
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 39302c2b22590dc2f35a833252e72c273d9938b2a936197d6d7dbbf10e474706
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => b54897f4c61d80ba6c5f27a7bcd7eb0cc59fd723fe4dde5bf3bd8ed0f1334b11
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621674300019115
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 2019399866
+    [authorization_code] => 342079
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 10000
+    [response_code] => 00047
+    [card_holder_name] => 123
+    [signature] => 242ce36e48396eee2f35e1c0606745753933d6babd65ee018abc82702eb91b00
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [customer_ip] => 41.176.105.188
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152621674300019115
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Order already processed
+    [merchant_reference] => 2019399866
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Order already processed
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 200000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1189939700
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 4
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => b64e60c6af1a1a35748ccbcf984228d1ce2c25b682034d137817b3c384b6a6a5
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 225000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 10903301
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 4
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => ebed937e6325d6a6903c0d58420eee362134776cbf95987296bf07adc457c5da
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 265000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1382671749
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 4
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 281b711f246054b43315ec1e3515c128486ad55374464f84a6b050ca5605cd8b
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 265000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1648499941
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 4
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => fd66b8fd42c4eba1974ced7da6c2e1fa48270b6217302e0904312b5feed6f5df
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 40000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 557057236
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 5e864ace9bd8161776651fd1a580987c9806be115e8317b4a3bf7b6761e644fb
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 40000
+    [response_code] => 00014
+    [signature] => 48fc41fccd168ce0448b379a46f6632b642a119b75fca3b0ef449da48e177bbd
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Inactive payment option
+    [merchant_reference] => 557057236
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 40000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 977614891
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => sadad
+    [signature] => b995fd37b7dae4728a2a6c791a37d4446e1ab145111b79ea75b73daa0141eebe
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 40000
+    [response_code] => 00080
+    [signature] => 0af978b06b5651eb00dfde434aa63ac429805fb6cda16b61e4ca303942179ddb
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => sadad
+    [customer_ip] => 41.232.47.32
+    [language] => en
+    [eci] => ECOMMERCE
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Invalid payment option
+    [merchant_reference] => 977614891
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Invalid payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 40000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2002768887
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 526cc7eeb70d08f5bd2cb3e326c1864caae06402ec30679b6b45f4b7eb3792c0
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 40000
+    [response_code] => 00014
+    [signature] => 7dbdb1c45c743a21ab05feab786a68feb57d0270ced468f92c6629a6027fa2fa
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Inactive payment option
+    [merchant_reference] => 2002768887
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 40000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 824898853
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 656c45d13da4a4b6d3e2edabafb95f1a7defb7bcace61688c937ad9e623fc330
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 40000
+    [response_code] => 00014
+    [signature] => a16b600b5e11e7020e722e729118bb2fe566bf79151b124c854740886a9cbd43
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Inactive payment option
+    [merchant_reference] => 824898853
+    [customer_email] => test@user.com
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 265000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 685872032
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 4
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 1c869d4bb3632ea64f0a5bffa99bb7e16a884a6b7e213525e8089a26a5476290
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 265000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan Saeed Hassaan
+    [signature] => 28b167005c52a2730364a04733eb6fc9953bcc9eac4922dde62f43e7496b3c42
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.47.32
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152625052500020115
+    [command] => AUTHORIZATION
+    [merchant_extra] => 4
+    [response_message] => Success
+    [merchant_reference] => 685872032
+    [authorization_code] => 422487
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 280000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1544881967
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 5
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => d75a19080d56c8ad6276a00879b8c0fcf36fbbc8976fb4d08a67e81060410107
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 280000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Ahmed
+    [signature] => 95c39065f8d899bf10368e4aa36a25b8794c07e9f7196a6f7dedbba27e61bd8f
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.176.103.137
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152628366800021439
+    [command] => AUTHORIZATION
+    [merchant_extra] => 5
+    [response_message] => Success
+    [merchant_reference] => 1544881967
+    [authorization_code] => 409697
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 740000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 325453707
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 6
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => eeb2560939062a5e6e147099ad1cb17428808cce9cd30970e2283eff4aa7eeac
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 216600
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1244126584
+    [customer_email] => hassansaeed.es2015@gmail.com
+    [merchant_extra] => 14
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 506e17859456ed912948b5edad2814f85eaf4ffe8af7e1f0c771f6a1f2615fe8
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 40000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 548861326
+    [customer_email] => test@user.com
+    [merchant_extra] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://localhost:8000/ar/payment/redirection?r=processResponse
+    [signature] => 438dcd7790f6ff0a14f9da713fc3f98ba560609dc57101d095514af1aa456e29
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 40000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123123123
+    [signature] => 060bfb091696f4d2394e491cd2254b44b8194040a6b94b0b67c23a729bdf6936
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.26.139
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152815593400092767
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 548861326
+    [authorization_code] => 457116
+    [customer_email] => test@user.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 361230582
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 1800744d28ae5524cfe9472cd06a6d9013a49464833b952caec7a2404306045b
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 28000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 783889475
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 56
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => ad5cc22f273c740514c2b1d52a8556f45e96e5c0fb24a0c62bf45b4616983dd6
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 28000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 849683028
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 56
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => d881b83be84b94cdfe8c7b6ffcd91260520de9922992a9dc2bd21854eb1cec22
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 534950553
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 6cd684d3d875b46cc0c6d466f7557d59bc7cc97a5e88ee22b9e945f8f40c0152
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 909650730
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => eda7fade63be96a5c71d4da47c6928a3ae3855f9a8e3e9dc9dc509fa67d7889a
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 574400884
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => a3629e96e65631852cab9cac650ca1fc4c4b60f2801c37959362f7c06605be7f
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1782142429
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 1f3cf205f97a10980066568b922b8ef24e860661967cbc6dbf39bbb381a2ee0f
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 466260708
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 350f53ff73043c82b73fed86a189dd6462883785d373b6130654b1551676ee34
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 230000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 489341267
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 487
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => f66d8daa76cd5d0804234ddbb7b633b199578b8079fd982d8fe80f9f4fdce782
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 230000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 20f9e8a2f940405eabc791eeb7ca4048395a8f098e13e4c2210d4610f29692c6
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.26.139
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152816345200092942
+    [command] => AUTHORIZATION
+    [merchant_extra] => 487
+    [response_message] => Success
+    [merchant_reference] => 489341267
+    [authorization_code] => 533240
+    [customer_email] => admin@admin.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 28000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 11804747
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 56
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => http://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => c2b7ec005de92fa8173e77ea53220dd811d397c542acfcc101a58e78d4d472b3
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 28000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2020950496
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 56
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 49376a91aefe5c5030fc3960c9dd2a0f47d7c36677d827203b1788c7f0908769
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 28000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 25a580d97a0b520ba0ae9a0dc0197cc2862949e911b350f988a1fe24dc95b8a7
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.26.139
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152816398700092948
+    [command] => AUTHORIZATION
+    [merchant_extra] => 56
+    [response_message] => Success
+    [merchant_reference] => 2020950496
+    [authorization_code] => 300344
+    [customer_email] => aasemelrayes@gmail.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 28000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 729293794
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 56
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => 984ea8d5393c62feea8253b43a3929a38b811b6cb8d1cf1ef3d0ab47d1556f72
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 28000
+    [response_code] => 00014
+    [signature] => dab052b8103634ff729c40cd0f735aed8f2cad974c0cc94dd17c1533c1936d6b
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 56
+    [response_message] => Inactive payment option
+    [merchant_reference] => 729293794
+    [customer_email] => aasemelrayes@gmail.com
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 33000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1665246610
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 485
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 9f71162b1f86def867fbd9e25ddee8b13046335b1391820f156ea8fad33a7b0a
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 33000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 9e13a3c69d06cf5d0b427150b7d23319cef90787cc0297e0c532ac35ee6793f7
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.201.195
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152818419500093847
+    [command] => AUTHORIZATION
+    [merchant_extra] => 485
+    [response_message] => Success
+    [merchant_reference] => 1665246610
+    [authorization_code] => 993984
+    [customer_email] => admin@admin.com
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 33000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 10684148
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 485
+    [merchant_extra1] => 16
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 558ca00b332e6f3ada9851f98c303a93051599c5f256bf630c9592c0085b0436
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 33000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 0000e119f283fcea412d852c47734d90368faac227b6c1ad7aac56660a84f153
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.201.195
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152818575200093932
+    [command] => AUTHORIZATION
+    [merchant_extra] => 485
+    [response_message] => Success
+    [merchant_reference] => 10684148
+    [authorization_code] => 699380
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 16
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 77000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 190297008
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 503
+    [merchant_extra1] => 19
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 0e474f923c65e1815d58def94ab58e15b16d321a3fa18917cc4d9824a5ffd255
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 77000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 32
+    [signature] => 854dad86a8d9decf62ff3e772967d9e51578e0281a54a40915cd8a975f354e0c
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.201.195
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152819263600094770
+    [command] => AUTHORIZATION
+    [merchant_extra] => 503
+    [response_message] => Success
+    [merchant_reference] => 190297008
+    [authorization_code] => 397379
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 19
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 217000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 139655969
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 516
+    [merchant_extra1] => 69
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => e430d0f43d7722cf8201293c14417a19d9db0cf94f13528373959d3b949c9c82
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 217000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => csdcsd
+    [signature] => 83430810c66aeef5daf405cc5480565b521428423fb243a375e140c227732728
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.201.195
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152819827300095361
+    [command] => AUTHORIZATION
+    [merchant_extra] => 516
+    [response_message] => Success
+    [merchant_reference] => 139655969
+    [authorization_code] => 122737
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 69
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 270000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 148528761
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 517
+    [merchant_extra1] => 72
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => be7a13c232edf273d7ecbcbe541e4a023cc44bf6ba0a90801eb08ee845472b20
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 270000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2111575422
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra] => 517
+    [merchant_extra1] => 72
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 437d482c45c1803a4f3321829b5948a09f24bb475871ddf6ce1d15abc44abf06
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 270000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 0c5a601f5b1c3cfc5030b9253aec16319f93e2b4a68789b43ea3cec736fe5473
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.201.195
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152820055400095600
+    [command] => AUTHORIZATION
+    [merchant_extra] => 517
+    [response_message] => Success
+    [merchant_reference] => 2111575422
+    [authorization_code] => 323118
+    [customer_email] => aasemelrayes@gmail.com
+    [merchant_extra1] => 72
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 122000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2112051080
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 559
+    [merchant_extra1] => 76
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 00f39aed9135a3a983f2b1ba4ffd45f31f93a98240541440113b2ddfee52d70c
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 122000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 2f8bf379a39480f36682882f4924fdb8ab03676cceb1d5274a1d11aadf62d490
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.232.7.57
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152824247900097003
+    [command] => AUTHORIZATION
+    [merchant_extra] => 559
+    [response_message] => Success
+    [merchant_reference] => 2112051080
+    [authorization_code] => 723071
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 76
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 27200
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2129390176
+    [customer_email] => comp01@comp.com
+    [merchant_extra] => 563
+    [merchant_extra1] => 79
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => c746ffb124294e983ba1c2c77772a8c10e66e57e76347dc5183a5ee4ba3db17a
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 27200
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 017762b5d9fca8f2a68d85ac356114af50417e5a570a38a102e07d4a15a4a226
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.236.200
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152828742400000159
+    [command] => AUTHORIZATION
+    [merchant_extra] => 563
+    [response_message] => Success
+    [merchant_reference] => 2129390176
+    [authorization_code] => 285402
+    [customer_email] => comp01@comp.com
+    [merchant_extra1] => 79
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 158800
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1503844966
+    [customer_email] => ahmed@gmail.com
+    [merchant_extra] => 565
+    [merchant_extra1] => 81
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 415d8f39241c33400fa9ed738d54ef896a97e6e79d20edcf9eb02418e168861d
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 158800
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 9cffb846ae876c662f6513244730b04f2c65e1f6793e397077a07c8015d0587b
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.236.200
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152828855600000258
+    [command] => AUTHORIZATION
+    [merchant_extra] => 565
+    [response_message] => Success
+    [merchant_reference] => 1503844966
+    [authorization_code] => 278344
+    [customer_email] => ahmed@gmail.com
+    [merchant_extra1] => 81
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 217000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 717773296
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 516
+    [merchant_extra1] => 69
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => e32fcc09e7ec0ca91905247c7b586d7cc71dfe8de63934d87c1b68a98bbee8d3
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 130000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 441453151
+    [customer_email] => lolo@mail.com
+    [merchant_extra] => 4
+    [merchant_extra1] => 8
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 41c1092f5852004a6e667cac545cafea38ac518f0087ade3b8ec6aafec81a4c7
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 130000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [signature] => 19e75ce3f42b2971981e54d752d6a66a6db01bd715c2c5a88c8612d00c25790e
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 217.55.214.5
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 152883561700023300
+    [command] => AUTHORIZATION
+    [merchant_extra] => 4
+    [response_message] => Success
+    [merchant_reference] => 441453151
+    [authorization_code] => 836807
+    [customer_email] => lolo@mail.com
+    [merchant_extra1] => 8
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 34400
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 230141143
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 1
+    [merchant_extra1] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [payment_option] => SADAD
+    [signature] => ca77a482ee6acd5bf6ccfe7e073ea52b068ad9a1bf8b60bd9a99017d27440f7d
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 34400
+    [response_code] => 00014
+    [signature] => db5294cf57ce514f275e6f899c1347496051e1bb4bc552e0c639d9ad9256e9a1
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => SADAD
+    [language] => en
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Inactive payment option
+    [merchant_reference] => 230141143
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 1
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [currency] => SAR
+    [status] => 00
+)
+
+
+========================================================
+
+Inactive payment option
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 34400
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1747635699
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 1
+    [merchant_extra1] => 1
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => cc3b1fd85e3c37bc7ce1e76aeab0bbaa2faec84f0e10623ac2bec75849f66f4f
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 370000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 427574045
+    [customer_email] => comp02@comp.com
+    [merchant_extra] => 289
+    [merchant_extra1] => 45
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 4da6f3af0b12d25e4881d2e47a9e27f70891fd783dd0654178321e818c4bd07d
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 370000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => Hassan
+    [signature] => 060d7bdcbd6e26f863a8f548041ac924a377278ab84d84fc8d174be568ccd2ab
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.42.193.46
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 153070993900098916
+    [command] => AUTHORIZATION
+    [merchant_extra] => 289
+    [response_message] => Success
+    [merchant_reference] => 427574045
+    [authorization_code] => 918995
+    [customer_email] => comp02@comp.com
+    [merchant_extra1] => 45
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 250000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 2146627543
+    [customer_email] => comp02@comp.com
+    [merchant_extra] => 290
+    [merchant_extra1] => 47
+    [merchant_extra2] => institution
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 8cbd4356744d1f5e670644a000230445542bb4839e456a71df20b2225970eda0
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 250000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => hassan
+    [signature] => 8b45990a6def535e3b39a3631e5777c988351f085b7fcca1d30e41a427185f5e
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.42.106.232
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 153071627300099549
+    [command] => AUTHORIZATION
+    [merchant_extra] => 290
+    [response_message] => Success
+    [merchant_reference] => 2146627543
+    [authorization_code] => 744129
+    [customer_email] => comp02@comp.com
+    [merchant_extra1] => 47
+    [merchant_extra2] => institution
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 34400
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 846256371
+    [customer_email] => admin@admin.com
+    [merchant_extra] => 1
+    [merchant_extra1] => 1
+    [merchant_extra2] => institution
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => 57e8f963e029e71c6f87cf33bd57c8359125c96242cc29cbc74bea12accdcd6d
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 34400
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => hassan
+    [signature] => 66cf769145e25018352b01b5b28b2a237eb0758edd12ca1bfad90fe7b63d987e
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.42.106.232
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 153072274000099838
+    [command] => AUTHORIZATION
+    [merchant_extra] => 1
+    [response_message] => Success
+    [merchant_reference] => 846256371
+    [authorization_code] => 539347
+    [customer_email] => admin@admin.com
+    [merchant_extra1] => 1
+    [merchant_extra2] => institution
+    [currency] => SAR
+    [status] => 02
+)
+
+
+========================================================
+
+Fort Redirect Request Parameters 
+Array
+(
+    [amount] => 1466000
+    [currency] => SAR
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [merchant_reference] => 1432519919
+    [customer_email] => comp02@comp.com
+    [merchant_extra] => 293
+    [merchant_extra1] => 49
+    [merchant_extra2] => institution
+    [command] => AUTHORIZATION
+    [language] => en
+    [return_url] => https://atlobha.me/ar/payment/redirection?r=processResponse
+    [signature] => b22ea51939dcc4d1823e57b4945fd3f91da658eab3b31c352f9352af024572b1
+)
+
+
+========================================================
+
+Fort Redirect Response Parameters 
+Array
+(
+    [r] => processResponse
+    [amount] => 1466000
+    [response_code] => 02000
+    [card_number] => 400555******0001
+    [card_holder_name] => 123
+    [signature] => 3712f22f98d135dd6c555bc76ca494650614707a3ca7b8029a9af6e9af2be43d
+    [merchant_identifier] => zGQSopvM
+    [access_code] => iYmlAOr63NLp70DDkSVY
+    [payment_option] => VISA
+    [expiry_date] => 2105
+    [customer_ip] => 41.42.106.232
+    [language] => en
+    [eci] => ECOMMERCE
+    [fort_id] => 153072320600099844
+    [command] => AUTHORIZATION
+    [merchant_extra] => 293
+    [response_message] => Success
+    [merchant_reference] => 1432519919
+    [authorization_code] => 785603
+    [customer_email] => comp02@comp.com
+    [merchant_extra1] => 49
+    [merchant_extra2] => institution
+    [currency] => SAR
+    [status] => 02
+)
+
+

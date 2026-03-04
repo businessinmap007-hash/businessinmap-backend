@@ -67,9 +67,7 @@
     return \Illuminate\Support\Facades\Route::has($routeName);
   };
 @endphp
-<div style="padding:10px;background:#ffeaa7;border-radius:10px;margin-bottom:10px;">
-  SHOW BLADE LOADED ✅
-</div>
+
 <div class="a2-page">
   <div class="a2-card" style="max-width:980px;margin:0 auto;">
 
@@ -184,6 +182,12 @@
             <br>
             Updated: {{ $booking->updated_at ? $booking->updated_at->format('Y-m-d H:i') : '—' }}
           </div>
+            @if(!empty($booking->meta['_execution_fee']['amount']))
+              <div class="a2-alert a2-alert-warning" style="margin-top:10px;">
+                رسوم بدء التنفيذ: {{ number_format((float)$booking->meta['_execution_fee']['amount'], 2) }}
+                <span class="a2-hint">({{ $booking->meta['_execution_fee']['charged_at'] ?? '' }})</span>
+              </div>
+            @endif
         </div>
 
         <div>

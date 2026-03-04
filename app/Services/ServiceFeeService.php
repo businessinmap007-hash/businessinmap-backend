@@ -16,6 +16,50 @@ class ServiceFeeService
             ->first();
     }
 
+    public function getByCodeForService(string $code, ?int $serviceId): ?ServiceFee
+    {
+        return ServiceFee::query()
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->when($serviceId, fn($q) => $q->where('service_id', $serviceId))
+            ->orderByRaw('service_id is null') // يفضل الخاص بالخدمة إن وجد
+            ->first();
+    }
+
+    /**
+     * Return [clientFee, businessFee]
+     * rules supports:
+     *  - client_amount, business_amount
+     *  - client_percent, business_percent (percent of booking price)
+     */
+    public function resolveSplit(ServiceFee $fee, float $bookingPrice): array
+    {
+        $rules = $fee->rules;
+        if (is_string($rules)) {
+            $rules = json_decode($rules, true) ?: [];
+        }
+        if (!is_array($rules)) $rules = [];
+
+        $client = 0.0;
+        $business = 0.0;
+
+        if (isset($rules['client_amount']) || isset($rules['business_amount'])) {
+            $client   = (float) ($rules['client_amount'] ?? 0);
+            $business = (float) ($rules['business_amount'] ?? 0);
+        } elseif (isset($rules['client_percent']) || isset($rules['business_percent'])) {
+            $clientPct   = (float) ($rules['client_percent'] ?? 0);
+            $businessPct = (float) ($rules['business_percent'] ?? 0);
+            $client   = ($bookingPrice * $clientPct) / 100.0;
+            $business = ($bookingPrice * $businessPct) / 100.0;
+        } else {
+            // fallback: لو amount موجود وعايز تقسيم متساوي (اختياري)
+            $client = (float) $fee->amount;
+            $business = (float) $fee->amount;
+        }
+
+        return [round($client, 2), round($business, 2)];
+    }
+
     /**
      * Calculate service fee
      *

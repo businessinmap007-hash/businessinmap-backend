@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Deposit;
+use App\Models\ServiceFee;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\DepositsEscrowService;
@@ -220,33 +221,41 @@ class BookingController extends Controller
             // ===============================
             // 1) Auto CREATE DEPOSIT when status -> accepted
             // ===============================
-            if ($oldStatus !== Booking::STATUS_ACCEPTED && $newStatus === Booking::STATUS_ACCEPTED) {
+            if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $booking->status === Booking::STATUS_IN_PROGRESS) {
 
-                $booking->load(['business']);
+            // 1) تأكد إن deposit موجود ومجمد
+            $deposit = Deposit::query()
+                ->where('target_type', Booking::class)
+                ->where('target_id', (int) $booking->id)
+                ->orderByDesc('id')
+                ->first();
 
-                $business = $booking->business;
-
-                if ($business && (bool) ($business->booking_hold_enabled ?? false)) {
-
-                    $amount = (float) ($business->booking_hold_amount ?? 0);
-
-                    // لازم يكون فيه طرفين
-                    if ($amount > 0 && (int) $booking->user_id > 0 && (int) $booking->business_id > 0) {
-
-                        // totalAmount = amount * 2 (client + business)
-                        // percents: 50/50 => each side == amount
-                        $this->escrow->create(
-                            (int) $booking->user_id,
-                            (int) $booking->business_id,
-                            (float) ($amount * 2),
-                            50,
-                            50,
-                            Booking::class,
-                            (int) $booking->id
-                        );
-                    }
-                }
+            if ($deposit && $deposit->status !== 'frozen') {
+                $deposit->status = 'frozen';
+                $deposit->save();
             }
+
+            // 2) احسب رسوم التنفيذ من service_fees
+            $feeAmount = $this->resolveBookingExecutionFeeAmount($booking);
+
+            // 3) خصم الرسوم: هنا لازم تربطه بنظام المحفظة عندك
+            // الأفضل: سجلها في meta كإجراء idempotent + نفّذ الخصم الفعلي من WalletTransaction/WalletOpsService
+            $meta = $booking->meta ?? [];
+            $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
+
+            if (empty($meta['_execution_fee']['charged_at']) && $feeAmount > 0) {
+                // TODO: هنا نفّذ خصم فعلي من المحفظة (Business غالبًا)
+                // WalletOpsService::chargeExecutionFee($booking, $feeAmount);
+
+                $meta['_execution_fee'] = [
+                    'amount'     => $feeAmount,
+                    'code'       => 'booking_execution_fee',
+                    'charged_at' => now()->toDateTimeString(),
+                ];
+                $booking->meta = $meta;
+                $booking->save();
+            }
+        }
 
             // ===============================
             // 2) Auto CHARGE EXECUTION FEE when status -> in_progress
@@ -919,4 +928,20 @@ class BookingController extends Controller
 
         return view('admin-v2.disputes.index', compact('rows'));
     }
+
+
+private function resolveBookingExecutionFeeAmount(Booking $booking): float
+{
+    $fee = ServiceFee::query()
+        ->where('is_active', 1)
+        ->where('code', 'booking_execution_fee')
+        ->where(function ($q) use ($booking) {
+            $q->where('service_id', $booking->service_id)
+              ->orWhereNull('service_id');
+        })
+        ->orderByRaw('service_id IS NULL') // يفضّل اللي له service_id (false) قبل null (true)
+        ->first();
+
+    return $fee ? (float) $fee->amount : 0.0;
+}
 }

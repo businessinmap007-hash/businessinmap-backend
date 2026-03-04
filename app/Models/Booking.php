@@ -52,20 +52,23 @@ class Booking extends Model
     /* =========================
      * Status
      * ========================= */
-    public const STATUS_PENDING   = 'pending';
-    public const STATUS_ACCEPTED  = 'accepted';
-    public const STATUS_REJECTED  = 'rejected';
-    public const STATUS_CANCELLED = 'cancelled';
-    public const STATUS_IN_PROGRESS = 'in_progress'; // لو مستخدمها في الكنترول
+    
+    public const STATUS_PENDING     = 'pending';
+    public const STATUS_ACCEPTED    = 'accepted';
+    public const STATUS_REJECTED    = 'rejected';
+    public const STATUS_CANCELLED   = 'cancelled';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_COMPLETED   = 'completed';
 
     public static function statusOptions(): array
     {
         return [
-            self::STATUS_PENDING   => 'Pending',
-            self::STATUS_ACCEPTED  => 'Accepted',
-            self::STATUS_REJECTED  => 'Rejected',
-            self::STATUS_CANCELLED => 'Cancelled',
+             self::STATUS_PENDING     => 'Pending',
+            self::STATUS_ACCEPTED    => 'Accepted',
+            self::STATUS_REJECTED    => 'Rejected',
+            self::STATUS_CANCELLED   => 'Cancelled',
             self::STATUS_IN_PROGRESS => 'In Progress',
+            self::STATUS_COMPLETED   => 'Completed',
         ];
     }
 

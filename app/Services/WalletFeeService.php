@@ -55,4 +55,68 @@ class WalletFeeService
             $appWallet->save();
         });
     }
+
+    public function chargeSplitToApp(
+        int $clientId,
+        int $businessId,
+        float $clientFee,
+        float $businessFee,
+        string $referenceType,
+        string $referenceId,
+        ?string $note = null
+    ): array {
+        $clientFee   = round((float)$clientFee, 2);
+        $businessFee = round((float)$businessFee, 2);
+
+        if ($clientFee <= 0 && $businessFee <= 0) {
+            return ['client' => null, 'business' => null];
+        }
+
+        $appUserId = (int) env('WALLET_APP_USER_ID', 1);
+        if ($appUserId <= 0) {
+            throw ValidationException::withMessages(['wallet' => 'WALLET_APP_USER_ID is not set']);
+        }
+
+        /** @var \App\Services\WalletService $walletService */
+        $walletService = app(\App\Services\WalletService::class);
+
+        return DB::transaction(function () use (
+            $walletService,
+            $clientId, $businessId, $appUserId,
+            $clientFee, $businessFee,
+            $referenceType, $referenceId, $note
+        ) {
+            $out = ['client' => null, 'business' => null];
+
+            // خصم من العميل -> app
+            if ($clientFee > 0) {
+                $out['client'] = $walletService->transfer(
+                    $clientId,
+                    $appUserId,
+                    $clientFee,
+                    $referenceType,
+                    $referenceId,
+                    $note ?: 'Booking fee (client)',
+                    "fee:{$referenceType}:{$referenceId}:client",
+                    ['fee_side' => 'client']
+                );
+            }
+
+            // خصم من البزنس -> app
+            if ($businessFee > 0) {
+                $out['business'] = $walletService->transfer(
+                    $businessId,
+                    $appUserId,
+                    $businessFee,
+                    $referenceType,
+                    $referenceId,
+                    $note ?: 'Booking fee (business)',
+                    "fee:{$referenceType}:{$referenceId}:business",
+                    ['fee_side' => 'business']
+                );
+            }
+
+            return $out;
+        });
+    }
 }

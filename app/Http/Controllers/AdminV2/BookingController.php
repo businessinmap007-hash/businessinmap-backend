@@ -5,85 +5,87 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Deposit;
-use App\Models\ServiceFee;
 use App\Models\Service;
 use App\Models\User;
-use App\Services\DepositsEscrowService;
 use App\Services\ServiceFeeService;
 use App\Services\WalletFeeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
-    private const PER_PAGE_ALLOWED = [10, 20, 50, 100];
-
-    public function __construct(
-        private DepositsEscrowService $escrow
-    ) {}
-
-    private function normalizePerPage($perPage): int
-    {
-        $perPage = (int) $perPage;
-        return in_array($perPage, self::PER_PAGE_ALLOWED, true) ? $perPage : 50;
-    }
-
-    private function keepQs(Request $request): array
-    {
-        return $request->only(['q', 'status', 'date', 'per_page', 'sort', 'dir']);
-    }
-
-    /* ==========================================================
-     * INDEX
-     * ========================================================== */
-
+    // =========================
+    // INDEX
+    // =========================
     public function index(Request $request)
     {
-        $q       = trim((string) $request->get('q', ''));
-        $status  = (string) $request->get('status', '');
-        $date    = (string) $request->get('date', ''); // Y-m-d
-        $perPage = $this->normalizePerPage($request->get('per_page', 50));
+        $q = Booking::query();
 
-        $sort = (string) $request->get('sort', 'starts_at');
-        $dir  = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        if ($request->filled('status')) {
+            $q->where('status', $request->string('status')->toString());
+        }
+        if ($request->filled('user_id')) {
+            $q->where('user_id', (int)$request->user_id);
+        }
+        if ($request->filled('business_id')) {
+            $q->where('business_id', (int)$request->business_id);
+        }
+        if ($request->filled('service_id')) {
+            $q->where('service_id', (int)$request->service_id);
+        }
 
-        $allowedSort = ['id', 'starts_at', 'ends_at', 'status', 'price', 'created_at'];
-        if (!in_array($sort, $allowedSort, true)) $sort = 'starts_at';
-
-        $rows = Booking::query()
-            ->with([
-                'user:id,name,code,type',
-                'business:id,name,code,type,booking_hold_enabled,booking_hold_amount',
-                'service:id,business_id,name_ar,name_en,price,duration',
-            ])
-            ->search($q)
-            ->status($status)
-            ->when($date !== '', fn ($qq) => $qq->whereDate('starts_at', $date))
-            ->orderBy($sort, $dir)
-            ->paginate($perPage)
-            ->appends($this->keepQs($request));
+        $perPage = (int)($request->get('perPage', 50));
+        $rows = $q->orderByDesc('id')->paginate($perPage);
 
         return view('admin-v2.bookings.index', [
             'rows' => $rows,
-            'q' => $q,
-            'status' => $status,
-            'date' => $date,
-            'perPage' => $perPage,
-            'sort' => $sort,
-            'dir' => $dir,
+            'filters' => [
+                'status' => $request->get('status'),
+                'user_id' => $request->get('user_id'),
+                'business_id' => $request->get('business_id'),
+                'service_id' => $request->get('service_id'),
+                'perPage' => $perPage,
+            ],
             'statusOptions' => Booking::statusOptions(),
         ]);
     }
 
-    /* ==========================================================
-     * SHOW
-     * ========================================================== */
+    // =========================
+    // CREATE / STORE
+    // =========================
+    public function create()
+    {
+        return view('admin-v2.bookings.create', [
+            'statusOptions' => Booking::statusOptions(),
+        ]);
+    }
 
+    public function store(Request $request)
+    {
+        $data = $this->validateBooking($request);
+
+        // Auto price (لو عندك logic تانية، عدّل هنا)
+        $data['price'] = $this->autoPriceFromService(
+            (int)$data['service_id'],
+            (int)($data['quantity'] ?? 1)
+        );
+
+        $booking = Booking::create($data);
+
+        return redirect()
+            ->route('admin.bookings.show', $booking)
+            ->with('success', 'تم إنشاء الحجز بنجاح.');
+    }
+
+    // =========================
+    // SHOW
+    // =========================
     public function show(Booking $booking)
     {
+        // SoftDeletes مدعوم عندك (deleted_at موجود)
         $booking = Booking::withTrashed()->findOrFail($booking->id);
+
         $booking->load([
             'user:id,name,code,type',
             'business:id,name,code,type,booking_hold_enabled,booking_hold_amount',
@@ -96,287 +98,184 @@ class BookingController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        return view('admin-v2.bookings.show', compact('booking', 'deposit'));
+        // confirmations قد تكون من deposit أو من meta (لو deposit غير مطلوب/غير موجود)
+        [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
+
+        return view('admin-v2.bookings.show', compact('booking', 'deposit', 'clientConfirmed', 'businessConfirmed'));
     }
 
-    /* ==========================================================
-     * CREATE / EDIT
-     * ========================================================== */
-
-    public function create()
-    {
-        $booking = new Booking();
-        $booking->timezone = config('app.timezone', 'Africa/Cairo');
-        $booking->starts_at = now()->addHour()->format('Y-m-d H:i:s');
-        $booking->duration_value = 1;
-        $booking->duration_unit = 'hour';
-        $booking->status = Booking::STATUS_PENDING;
-
-        $clients = User::query()
-            ->select(['id', 'name', 'type', 'code'])
-            ->clients()
-            ->orderByDesc('id')
-            ->limit(500)
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name', 'type', 'code', 'booking_hold_enabled', 'booking_hold_amount'])
-            ->businesses()
-            ->orderByDesc('id')
-            ->limit(500)
-            ->get();
-
-        $services = Service::query()
-            ->select(['id', 'business_id', 'name_ar', 'name_en', 'price', 'duration'])
-            ->orderByDesc('id')
-            ->limit(1000)
-            ->get();
-
-        return view('admin-v2.bookings.create', [
-            'booking' => $booking,
-            'statusOptions' => Booking::statusOptions(),
-            'clients' => $clients,
-            'businesses' => $businesses,
-            'services' => $services,
-        ]);
-    }
-
+    // =========================
+    // EDIT / UPDATE
+    // =========================
     public function edit(Booking $booking)
     {
-        $booking->load([
-            'user:id,name,code,type',
-            'business:id,name,code,type,booking_hold_enabled,booking_hold_amount',
-            'service:id,business_id,name_ar,name_en,price,duration',
-        ]);
-
-        $clients = User::query()
-            ->select(['id', 'name', 'type', 'code'])
-            ->clients()
-            ->orderByDesc('id')
-            ->limit(500)
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name', 'type', 'code', 'booking_hold_enabled', 'booking_hold_amount'])
-            ->businesses()
-            ->orderByDesc('id')
-            ->limit(500)
-            ->get();
-
-        $services = Service::query()
-            ->select(['id', 'business_id', 'name_ar', 'name_en', 'price', 'duration'])
-            ->orderByDesc('id')
-            ->limit(1000)
-            ->get();
-
         return view('admin-v2.bookings.edit', [
             'booking' => $booking,
             'statusOptions' => Booking::statusOptions(),
-            'clients' => $clients,
-            'businesses' => $businesses,
-            'services' => $services,
         ]);
-    }
-
-    /* ==========================================================
-     * STORE / UPDATE
-     * ========================================================== */
-
-    public function store(Request $request)
-    {
-        $data = $this->validateData($request);
-
-        $data = $this->normalizeMetaAndCheckboxes($request, $data);
-        $data = $this->applyLegacyDateTime($data);
-        $data = $this->hydrateEndTime($data);
-        $data = $this->autoPriceFromService($data);
-
-        $booking = Booking::create($data);
-
-        return redirect()
-            ->route('admin.bookings.show', $booking)
-            ->with('success', 'تم إنشاء الحجز بنجاح');
     }
 
     public function update(Request $request, Booking $booking)
     {
-        $data = $this->validateData($request, $booking);
-        $data = $this->normalizeMetaAndCheckboxes($request, $data);
+        $oldStatus = (string)$booking->status;
 
-        $oldStatus = (string) $booking->status;
-        $newStatus = (string) ($data['status'] ?? $oldStatus);
+        $data = $this->validateBooking($request, $booking->id);
 
-        $data = $this->applyLegacyDateTime($data);
-        $data = $this->hydrateEndTime($data);
-        $data = $this->autoPriceFromService($data);
+        // price computed
+        $data['price'] = $this->autoPriceFromService(
+            (int)$data['service_id'],
+            (int)($data['quantity'] ?? 1)
+        );
 
-        DB::transaction(function () use ($booking, $data, $oldStatus, $newStatus) {
+        DB::transaction(function () use ($booking, $data, $oldStatus) {
 
-            // lock booking row
-            $booking = Booking::query()
-                ->where('id', (int) $booking->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $booking->fill($data);
+            $booking->save();
 
-            $booking->update($data);
+            $newStatus = (string)$booking->status;
 
-            // ===============================
-            // 1) Auto CREATE DEPOSIT when status -> accepted
-            // ===============================
-         if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $booking->status === Booking::STATUS_IN_PROGRESS) {
+            // عند بداية التنفيذ: accepted -> in_progress (أو أي انتقال)
+            if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
 
-            DB::transaction(function () use ($booking) {
-
-                // 1) تأكد deposit frozen (لو موجود)
+                // اجلب deposit إن وجد (قد لا يكون موجود)
                 $deposit = Deposit::query()
                     ->where('target_type', Booking::class)
-                    ->where('target_id', (int)$booking->id)
+                    ->where('target_id', (int) $booking->id)
                     ->orderByDesc('id')
+                    ->lockForUpdate()
                     ->first();
 
+                // business settings: هل deposit مطلوب؟
+                $booking->loadMissing('business:id,booking_hold_enabled,booking_hold_amount');
+
+                $depositRequired = (bool)($booking->business->booking_hold_enabled ?? false)
+                    && (float)($booking->business->booking_hold_amount ?? 0) > 0;
+
+                if ($depositRequired && !$deposit) {
+                    // ممنوع يبدأ تنفيذ بدون deposit إذا صاحب الخدمة اشترطه
+                    abort(422, 'Deposit is required before starting execution for this business.');
+                }
+
+                // confirmations: شرط أساسي دائمًا
+                [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
+
+                if (!$clientConfirmed || !$businessConfirmed) {
+                    abort(422, 'يجب تأكيد الطرفين قبل بدء التنفيذ.');
+                }
+
+                // لو deposit موجود: تأكد frozen
                 if ($deposit && $deposit->status !== 'frozen') {
                     $deposit->status = 'frozen';
                     $deposit->save();
                 }
 
-                // 2) idempotency: لو تم الخصم قبل كده لا تعيده
-                $meta = $booking->meta ?? [];
-                if (!empty($meta['_execution_fee']['charged_at'])) {
-                    return;
-                }
-
-                // 3) احسب split fees من service_fees
-                [$clientFee, $businessFee] = $this->resolveBookingExecutionFeeSplit($booking);
-
-                if (($clientFee + $businessFee) <= 0) {
-                    return;
-                }
-
-                // 4) خصم split من الطرفين وتحويله لمحفظة APP (Ledger عبر WalletService)
-                /** @var WalletFeeService $walletFee */
-                $walletFee = app(WalletFeeService::class);
-
-                $walletFee->chargeSplitToApp(
-                    (int)$booking->user_id,
-                    (int)$booking->business_id,
-                    (float)$clientFee,
-                    (float)$businessFee,
-                    Booking::class,
-                    (string)$booking->id,
-                    'Booking execution fee'
-                );
-
-                // 5) سجّل في meta علامة تم الخصم
-                $this->markExecutionFeeMeta($booking, (float)$clientFee, (float)$businessFee);
-            });
-        }
-
-            // ===============================
-            // 2) Auto CHARGE EXECUTION FEE when status -> in_progress
-            //    but only after BOTH confirmations on deposit
-            //    + make it safe (idempotent flag if exists)
-            // ===============================
-            if ($oldStatus !== 'in_progress' && $newStatus === 'in_progress') {
-
-                DB::transaction(function () use ($booking) {
-
-                    $deposit = Deposit::query()
-                        ->where('target_type', Booking::class)
-                        ->where('target_id', (int) $booking->id)
-                        ->orderByDesc('id')
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (!$deposit) {
-                        return;
-                    }
-
-                    // لازم الطرفين يكونوا أكدوا قبل خصم الرسوم
-                    $bothConfirmed = ((int) $deposit->client_confirmed === 1) && ((int) $deposit->business_confirmed === 1);
-                    if (!$bothConfirmed) {
-                        return;
-                    }
-
-                    // تأكد deposit مجمد عند بداية التنفيذ
-                    if ($deposit->status !== 'frozen') {
-                        $deposit->status = 'frozen';
-                        $deposit->save();
-                    }
-
-                    // idempotency عبر booking.meta
-                    $booking->refresh(); // عشان أحدث meta
-                    $meta = $booking->meta ?? [];
-                    if (!empty($meta['_execution_fee']['charged_at'])) {
-                        return;
-                    }
-
-                    /** @var ServiceFeeService $feeService */
-                    $feeService = app(ServiceFeeService::class);
-
-                    // الكود الثابت لرسوم بدء التنفيذ
-                    $fee = $feeService->getByCodeForService('booking_execution_fee', $booking->service_id);
-                    if (!$fee) {
-                        return;
-                    }
-
-                    // Split حسب rules (amount/percent)
-                    [$clientFee, $businessFee] = $feeService->resolveSplit($fee, (float) ($booking->price ?? 0));
-
-                    $clientFee = (float) $clientFee;
-                    $businessFee = (float) $businessFee;
-
-                    if (($clientFee + $businessFee) <= 0) {
-                        return;
-                    }
-
-                    /** @var WalletFeeService $walletFee */
-                    $walletFee = app(WalletFeeService::class);
-
-                    // خصم split من الطرفين -> محفظة APP (مع Ledger عبر WalletService->transfer)
-                    $walletFee->chargeSplitToApp(
-                        (int) $booking->user_id,
-                        (int) $booking->business_id,
-                        $clientFee,
-                        $businessFee,
-                        Booking::class,
-                        (string) $booking->id,
-                        'Booking execution fee'
-                    );
-
-                    // سجل في meta
-                    $meta['_execution_fee'] = [
-                        'code'            => 'booking_execution_fee',
-                        'client_amount'   => round($clientFee, 2),
-                        'business_amount' => round($businessFee, 2),
-                        'charged_at'      => now()->toDateTimeString(),
-                    ];
-                    $booking->meta = $meta;
-                    $booking->save();
-                });
+                // خصم رسوم التنفيذ split مرة واحدة (idempotent عبر meta)
+                $this->chargeExecutionFeeSplitOnce($booking);
             }
+
+            // عند اكتمال الحجز (completed) - هنا لا نخصم رسوم جديدة
+            // ويمكنك لاحقًا ربط release deposit هنا إذا أردت (لكن حسب نظامك)
         });
 
         return redirect()
             ->route('admin.bookings.show', $booking)
-            ->with('success', 'تم تحديث الحجز بنجاح');
+            ->with('success', 'تم تحديث الحجز بنجاح.');
     }
 
+    // =========================
+    // DESTROY
+    // =========================
     public function destroy(Booking $booking)
     {
         $booking->delete();
-
-        return redirect()
-            ->route('admin.bookings.index')
-            ->with('success', 'تم حذف الحجز بنجاح');
+        return redirect()->route('admin.bookings.index')->with('success', 'تم حذف الحجز.');
     }
 
-    /* ==========================================================
-     * DEPOSIT FREEZE / RELEASE / REFUND
-     * ========================================================== */
+    // =========================
+    // SERVICE LOOKUP (AJAX)
+    // =========================
+    public function serviceLookup(Request $request)
+    {
+        $term = trim((string)$request->get('q', ''));
 
+        $services = Service::query()
+            ->when($term !== '', function ($q) use ($term) {
+                $q->where('name_ar', 'like', "%{$term}%")
+                  ->orWhere('name_en', 'like', "%{$term}%");
+            })
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get(['id','business_id','name_ar','name_en','price','duration']);
+
+        return response()->json([
+            'ok' => true,
+            'services' => $services,
+        ]);
+    }
+
+    // =========================
+    // CONFIRMATIONS (Client/Business)
+    // - شرط أساسي دائمًا حتى لو deposit غير موجود
+    // =========================
+    public function startConfirmClient(Booking $booking)
+    {
+        $deposit = $this->latestDeposit($booking);
+
+        DB::transaction(function () use ($booking, $deposit) {
+            if ($deposit) {
+                $deposit->client_confirmed = 1;
+                $deposit->save();
+                return;
+            }
+
+            // بدون deposit: سجل في meta
+            $meta = $booking->meta ?? [];
+            $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
+            $meta['_start_confirm']['client'] = 1;
+            $meta['_start_confirm']['client_at'] = now()->toDateTimeString();
+            $booking->meta = $meta;
+            $booking->save();
+        });
+
+        return back()->with('success', 'تم تأكيد العميل.');
+    }
+
+    public function startConfirmBusiness(Booking $booking)
+    {
+        $deposit = $this->latestDeposit($booking);
+
+        DB::transaction(function () use ($booking, $deposit) {
+            if ($deposit) {
+                $deposit->business_confirmed = 1;
+                $deposit->save();
+                return;
+            }
+
+            // بدون deposit: سجل في meta
+            $meta = $booking->meta ?? [];
+            $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
+            $meta['_start_confirm']['business'] = 1;
+            $meta['_start_confirm']['business_at'] = now()->toDateTimeString();
+            $booking->meta = $meta;
+            $booking->save();
+        });
+
+        return back()->with('success', 'تم تأكيد البزنس.');
+    }
+
+    // موجود في routes عندك
+    public function depositConfirmClient(Booking $booking)
+    {
+        // لو عندك منطق مختلف، عدّله.
+        // حالياً: اعتباره مثل client_confirmed
+        return $this->startConfirmClient($booking);
+    }
+
+    // =========================
+    // DEPOSIT ACTIONS
+    // =========================
     public function depositFreeze(Booking $booking)
     {
-        // تأكد أنه لا يوجد Deposit مسبق
         $exists = Deposit::where('target_type', Booking::class)
             ->where('target_id', $booking->id)
             ->exists();
@@ -385,7 +284,6 @@ class BookingController extends Controller
             return back()->with('error', 'Deposit موجود بالفعل.');
         }
 
-        // load business settings
         $booking->loadMissing('business:id,booking_hold_enabled,booking_hold_amount');
 
         if (!$booking->user_id || !$booking->business_id) {
@@ -396,28 +294,28 @@ class BookingController extends Controller
         $enabled = (bool)  ($booking->business->booking_hold_enabled ?? false);
 
         if (!$enabled || $hold <= 0) {
-            return back()->with('error', 'Booking hold is not enabled for this business.');
+            return back()->with('error', 'Deposit غير مفعل لهذا البزنس.');
         }
 
-        $total         = round($hold * 2, 2); // client + business
-        $clientAmount  = round($hold, 2);
-        $businessAmount= round($hold, 2);
+        $total          = round($hold * 2, 2);
+        $clientAmount   = round($hold, 2);
+        $businessAmount = round($hold, 2);
 
         DB::transaction(function () use ($booking, $total, $clientAmount, $businessAmount) {
 
             Deposit::create([
-                'client_id'         => (int) $booking->user_id,
-                'business_id'       => (int) $booking->business_id,
-                'target_type'       => Booking::class,
-                'target_id'         => (int) $booking->id,
-                'total_amount'      => $total,
-                'client_percent'    => 50,
-                'business_percent'  => 50,
-                'client_amount'     => $clientAmount,
-                'business_amount'   => $businessAmount,
-                'status'            => 'frozen',
-                'client_confirmed'  => 0,
-                'business_confirmed'=> 0,
+                'client_id'          => (int)$booking->user_id,
+                'business_id'        => (int)$booking->business_id,
+                'target_type'        => Booking::class,
+                'target_id'          => (int)$booking->id,
+                'total_amount'       => $total,
+                'client_percent'     => 50,
+                'business_percent'   => 50,
+                'client_amount'      => $clientAmount,
+                'business_amount'    => $businessAmount,
+                'status'             => 'frozen',
+                'client_confirmed'   => 0,
+                'business_confirmed' => 0,
             ]);
         });
 
@@ -426,627 +324,193 @@ class BookingController extends Controller
 
     public function depositRelease(Booking $booking)
     {
-        $deposit = Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', (int) $booking->id)
-            ->orderByDesc('id')
-            ->first();
+        $deposit = $this->latestDeposit($booking);
+        if (!$deposit) return back()->with('error', 'لا يوجد Deposit.');
 
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit مرتبط بهذا الحجز');
-        }
+        $deposit->status = 'released';
+        $deposit->released_at = now();
+        $deposit->save();
 
-        $this->escrow->release($deposit);
-
-        return back()->with('success', 'تم Release للـ Deposit');
+        return back()->with('success', 'تم Release للـ Deposit.');
     }
 
     public function depositRefund(Booking $booking)
     {
-        $deposit = Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', (int) $booking->id)
-            ->orderByDesc('id')
-            ->first();
+        $deposit = $this->latestDeposit($booking);
+        if (!$deposit) return back()->with('error', 'لا يوجد Deposit.');
 
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit مرتبط بهذا الحجز');
-        }
+        $deposit->status = 'refunded';
+        $deposit->refunded_at = now();
+        $deposit->save();
 
-        // refund both by default
-        $this->escrow->refund($deposit, true, true);
-
-        return back()->with('success', 'تم Refund للـ Deposit');
+        return back()->with('success', 'تم Refund للـ Deposit.');
     }
 
-    /* ==========================================================
-     * DEPOSIT CONFIRM ACTIONS
-     * ========================================================== */
-
-    public function depositConfirmClient(Booking $booking)
+    public function depositDisputeOpen(Booking $booking)
     {
-        return $this->depositConfirm($booking, 'client');
+        $deposit = $this->latestDeposit($booking);
+        if (!$deposit) return back()->with('error', 'لا يوجد Deposit.');
+
+        $deposit->status = 'dispute';
+        $deposit->dispute_opened_at = now();
+        $deposit->dispute_opened_by = 'admin';
+        $deposit->save();
+
+        return back()->with('success', 'تم فتح النزاع.');
     }
 
-    public function depositConfirmBusiness(Booking $booking)
+    public function depositAgreeRelease(Booking $booking)
     {
-        return $this->depositConfirm($booking, 'business');
+        $deposit = $this->latestDeposit($booking);
+        if (!$deposit) return back()->with('error', 'لا يوجد Deposit.');
+
+        $deposit->release_agreed_client = 1;
+        $deposit->release_agreed_business = 1;
+        $deposit->save();
+
+        return back()->with('success', 'تمت الموافقة على Release.');
     }
 
-    // Backward compatible aliases (لو عندك routes قديمة)
-    public function startConfirmClient(Booking $booking)
+    public function depositAgreeRefund(Booking $booking)
     {
-        return $this->depositConfirm($booking, 'client');
+        $deposit = $this->latestDeposit($booking);
+        if (!$deposit) return back()->with('error', 'لا يوجد Deposit.');
+
+        $deposit->refund_agreed_client = 1;
+        $deposit->refund_agreed_business = 1;
+        $deposit->save();
+
+        return back()->with('success', 'تمت الموافقة على Refund.');
     }
 
-    public function startConfirmBusiness(Booking $booking)
+    // =========================
+    // Helpers
+    // =========================
+
+    private function validateBooking(Request $request, ?int $ignoreId = null): array
     {
-        return $this->depositConfirm($booking, 'business');
-    }
+        return $request->validate([
+            'user_id'      => ['required','integer'],
+            'business_id'  => ['required','integer'],
+            'service_id'   => ['required','integer'],
 
-    private function depositConfirm(Booking $booking, string $who)
-    {
-        if (!in_array($who, ['client', 'business'], true)) {
-            $who = 'client';
-        }
+            'date'         => ['nullable','date'],
+            'time'         => ['nullable'],
 
-        DB::transaction(function () use ($booking, $who) {
+            'starts_at'    => ['nullable','date'],
+            'ends_at'      => ['nullable','date'],
 
-            // lock booking to avoid race with status transitions
-            $booking = Booking::query()
-                ->where('id', (int) $booking->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            'duration_value'=> ['nullable','integer','min:1'],
+            'duration_unit' => ['nullable', Rule::in(['minute','hour','day','week','month','year'])],
 
-            $deposit = Deposit::query()
-                ->where('target_type', Booking::class)
-                ->where('target_id', (int) $booking->id)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->first();
+            'all_day'      => ['nullable','boolean'],
+            'timezone'     => ['nullable','string','max:64'],
 
-            if (!$deposit) {
-                throw ValidationException::withMessages([
-                    'deposit' => 'لا يوجد Deposit مرتبط بهذا الحجز بعد.',
-                ]);
-            }
+            'quantity'     => ['nullable','integer','min:1'],
+            'party_size'   => ['nullable','integer','min:1'],
 
-            // منع التأكيد في الحالات النهائية
-            $terminalStatuses = ['released', 'refunded', 'cancelled', 'failed'];
-            if (in_array((string) $deposit->status, $terminalStatuses, true)) {
-                throw ValidationException::withMessages([
-                    'deposit' => 'لا يمكن التأكيد لأن حالة الـ Deposit نهائية: ' . $deposit->status,
-                ]);
-            }
+            'bookable_type'=> ['nullable','string','max:120'],
+            'bookable_id'  => ['nullable','integer'],
 
-            // لازم الطرفين موجودين على الحجز
-            if (!(int) $booking->user_id || !(int) $booking->business_id) {
-                throw ValidationException::withMessages([
-                    'deposit' => 'لا يمكن تأكيد الـ Deposit بدون client_id و business_id على الحجز.',
-                ]);
-            }
+            'status'       => ['required', Rule::in(array_keys(Booking::statusOptions()))],
+            'notes'        => ['nullable','string'],
 
-            $changed = false;
-
-            if ($who === 'client') {
-                if ((int) $deposit->client_confirmed === 0) {
-                    $deposit->client_confirmed = 1;
-                    // optional: $deposit->client_confirmed_at = now();
-                    $changed = true;
-                }
-            } else {
-                if ((int) $deposit->business_confirmed === 0) {
-                    $deposit->business_confirmed = 1;
-                    // optional: $deposit->business_confirmed_at = now();
-                    $changed = true;
-                }
-            }
-
-            if ($changed) {
-                $deposit->save();
-            }
-
-            // لو الاتنين أكدوا والحجز بالفعل in_progress => اشحن رسوم التنفيذ (بشكل آمن)
-            $bothConfirmed = ((int) $deposit->client_confirmed === 1) && ((int) $deposit->business_confirmed === 1);
-            if ($bothConfirmed && (string) $booking->status === 'in_progress') {
-
-                if (property_exists($deposit, 'execution_fee_charged_at')) {
-                    if (empty($deposit->execution_fee_charged_at)) {
-                        $this->escrow->chargeExecutionFee($deposit, null, 'DEPOSIT_EXECUTION_FEE');
-                        $deposit->execution_fee_charged_at = now();
-                        $deposit->save();
-                    }
-                } else {
-                    // لو مفيش عمود: لازم service تكون idempotent بالـ ledger
-                    $this->escrow->chargeExecutionFee($deposit, null, 'DEPOSIT_EXECUTION_FEE');
-                }
-            }
-        });
-
-        return back()->with('success', 'تم تسجيل التأكيد.');
-    }
-
-    /* ==========================================================
-     * DISPUTE FLOW (NO ADMIN NEEDED)
-     * ========================================================== */
-
-    // 1) open dispute (no admin needed)
-    public function depositDisputeOpen(Request $request, Booking $booking)
-    {
-        $who = (string) $request->get('who', 'client'); // client | business
-        if (!in_array($who, ['client', 'business'], true)) $who = 'client';
-
-        $reason = trim((string) $request->get('reason', ''));
-
-        DB::transaction(function () use ($booking, $who, $reason) {
-
-            $booking = Booking::query()
-                ->where('id', (int) $booking->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            // ensure deposit exists (auto-freeze if missing)
-            $deposit = Deposit::query()
-                ->where('target_type', Booking::class)
-                ->where('target_id', (int) $booking->id)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (!$deposit) {
-                // يحتاج user_id + business_id
-                if (!(int) $booking->user_id || !(int) $booking->business_id) {
-                    throw ValidationException::withMessages([
-                        'deposit' => 'لا يمكن فتح نزاع بدون client_id و business_id على الحجز.',
-                    ]);
-                }
-
-                // amount from business settings
-                $booking->load(['business']);
-                $business = $booking->business;
-
-                $enabled = (bool) ($business->booking_hold_enabled ?? false);
-                $amount  = (float) ($business->booking_hold_amount ?? 0);
-
-                if (!$enabled || $amount <= 0) {
-                    throw ValidationException::withMessages([
-                        'deposit' => 'جدية الحجز غير مفعّلة لهذا البزنس أو المبلغ غير مضبوط.',
-                    ]);
-                }
-
-                // create deposit: total = amount*2 (50/50)
-                $deposit = $this->escrow->create(
-                    (int) $booking->user_id,
-                    (int) $booking->business_id,
-                    (float) ($amount * 2),
-                    50,
-                    50,
-                    Booking::class,
-                    (int) $booking->id
-                );
-            }
-
-            // set dispute + reset agreements (important)
-            $deposit->status = 'dispute';
-            $deposit->dispute_opened_at = now();
-            $deposit->dispute_opened_by = $who;
-            $deposit->dispute_reason = $reason !== '' ? $reason : $deposit->dispute_reason;
-
-            $deposit->release_agreed_client = 0;
-            $deposit->release_agreed_business = 0;
-            $deposit->refund_agreed_client = 0;
-            $deposit->refund_agreed_business = 0;
-
-            $deposit->save();
-        });
-
-        return back()->with('success', 'تم فتح نزاع وتم إبقاء المبلغ مجمّد.');
-    }
-
-    // 2) agree RELEASE (each party clicks)
-    public function depositAgreeRelease(Request $request, Booking $booking)
-    {
-        $who = (string) $request->get('who', 'client');
-        if (!in_array($who, ['client', 'business'], true)) $who = 'client';
-
-        DB::transaction(function () use ($booking, $who) {
-
-            $deposit = Deposit::query()
-                ->where('target_type', Booking::class)
-                ->where('target_id', (int) $booking->id)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (!$deposit) {
-                throw ValidationException::withMessages(['deposit' => 'لا يوجد Deposit لهذا الحجز.']);
-            }
-
-            // must be dispute to use this flow
-            if ((string) $deposit->status !== 'dispute') {
-                throw ValidationException::withMessages(['deposit' => 'لا يمكن الموافقة على Release إلا أثناء النزاع.']);
-            }
-
-            if ($who === 'client') $deposit->release_agreed_client = 1;
-            if ($who === 'business') $deposit->release_agreed_business = 1;
-
-            // if someone agrees release => cancel refund agreement for safety
-            $deposit->refund_agreed_client = 0;
-            $deposit->refund_agreed_business = 0;
-
-            $deposit->save();
-
-            $both = ((int) $deposit->release_agreed_client === 1) && ((int) $deposit->release_agreed_business === 1);
-            if ($both) {
-                $this->escrow->release($deposit); // service will verify both agreed
-            }
-        });
-
-        return back()->with('success', 'تم تسجيل الموافقة على Release.');
-    }
-
-    // 3) agree REFUND (each party clicks)
-    public function depositAgreeRefund(Request $request, Booking $booking)
-    {
-        $who = (string) $request->get('who', 'client');
-        if (!in_array($who, ['client', 'business'], true)) $who = 'client';
-
-        DB::transaction(function () use ($booking, $who) {
-
-            $deposit = Deposit::query()
-                ->where('target_type', Booking::class)
-                ->where('target_id', (int) $booking->id)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (!$deposit) {
-                throw ValidationException::withMessages(['deposit' => 'لا يوجد Deposit لهذا الحجز.']);
-            }
-
-            if ((string) $deposit->status !== 'dispute') {
-                throw ValidationException::withMessages(['deposit' => 'لا يمكن الموافقة على Refund إلا أثناء النزاع.']);
-            }
-
-            if ($who === 'client') $deposit->refund_agreed_client = 1;
-            if ($who === 'business') $deposit->refund_agreed_business = 1;
-
-            // if someone agrees refund => cancel release agreement for safety
-            $deposit->release_agreed_client = 0;
-            $deposit->release_agreed_business = 0;
-
-            $deposit->save();
-
-            $both = ((int) $deposit->refund_agreed_client === 1) && ((int) $deposit->refund_agreed_business === 1);
-            if ($both) {
-                $this->escrow->refund($deposit, true, true); // service will verify both agreed
-            }
-        });
-
-        return back()->with('success', 'تم تسجيل الموافقة على Refund.');
-    }
-
-    /* ==========================================================
-     * SERVICE LOOKUP (AJAX)
-     * ========================================================== */
-
-    public function serviceLookup(Request $request)
-    {
-        $id = (int) $request->get('id', 0);
-
-        if ($id <= 0) {
-            return response()->json(['ok' => false, 'message' => 'Invalid id'], 400);
-        }
-
-        $service = Service::query()
-            ->select(['id', 'business_id', 'name_ar', 'name_en', 'price', 'duration'])
-            ->find($id);
-
-        if (!$service) {
-            return response()->json(['ok' => false, 'message' => 'Not found'], 404);
-        }
-
-        return response()->json([
-            'ok' => true,
-            'data' => [
-                'id' => $service->id,
-                'business_id' => $service->business_id,
-                'name' => $service->name_ar ?: ($service->name_en ?: ('Service #' . $service->id)),
-                'price' => (float) $service->price,
-                'duration_minutes' => (int) $service->duration,
-            ],
+            'meta'         => ['nullable'], // لو بتبعت meta json من form
         ]);
     }
 
-    /* ==========================================================
-     * VALIDATION + META + TIME + PRICE
-     * ========================================================== */
-
-    private function validateData(Request $request, ?Booking $booking = null): array
+    private function autoPriceFromService(int $serviceId, int $qty = 1): float
     {
-        $statusKeys = array_keys(Booking::statusOptions());
+        $qty = max(1, $qty);
 
-        $rules = [
-            'user_id' => [
-                'nullable',
-                'integer',
-                'min:1',
-                Rule::exists('users', 'id')->whereIn('type', ['client', 'business']),
-            ],
+        $service = Service::query()->find($serviceId);
+        $base = $service ? (float)($service->price ?? 0) : 0.0;
 
-            'business_id' => [
-                'required',
-                'integer',
-                'min:1',
-                Rule::exists('users', 'id')->where('type', 'business'),
-            ],
-
-            'service_id'  => ['nullable', 'integer', 'min:1'],
-
-            'starts_at' => ['required', 'date'],
-            'ends_at'   => ['nullable', 'date', 'after_or_equal:starts_at'],
-
-            'duration_value' => ['nullable', 'integer', 'min:1'],
-            'duration_unit'  => ['nullable', Rule::in(['minute', 'hour', 'day', 'week', 'month', 'year'])],
-
-            'all_day'   => ['nullable'],
-            'timezone'  => ['nullable', 'string', 'max:64'],
-
-            'quantity'   => ['nullable', 'integer', 'min:1'],
-            'party_size' => ['nullable', 'integer', 'min:1'],
-
-            'price'  => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', Rule::in($statusKeys)],
-            'notes'  => ['nullable', 'string', 'max:5000'],
-
-            'meta_raw' => ['nullable', 'string', 'max:20000'],
-        ];
-
-        $data = $request->validate($rules);
-
-        // ===== Extra validation by DB (types + relations) =====
-        $userId     = (int) ($data['user_id'] ?? 0);
-        $businessId = (int) ($data['business_id'] ?? 0);
-        $serviceId  = (int) ($data['service_id'] ?? 0);
-
-        if ($userId > 0 && $businessId > 0 && $userId === $businessId) {
-            throw ValidationException::withMessages([
-                'user_id' => 'لا يمكن أن يكون العميل هو نفس حساب الـ Business.',
-            ]);
-        }
-
-        // business must be type=business
-        $business = User::query()
-            ->select(['id', 'type'])
-            ->where('id', $businessId)
-            ->first();
-
-        if (!$business || (string) $business->type !== 'business') {
-            throw ValidationException::withMessages([
-                'business_id' => 'Business غير صالح (يجب أن يكون type=business).',
-            ]);
-        }
-
-        // user (client) must be type=client (if provided)
-        if ($userId > 0) {
-            $client = User::query()
-                ->select(['id', 'type'])
-                ->where('id', $userId)
-                ->first();
-
-            if (!$client || (string) $client->type !== 'client') {
-                throw ValidationException::withMessages([
-                    'user_id' => 'Client غير صالح (يجب أن يكون type=client).',
-                ]);
-            }
-        }
-
-        // service must belong to selected business (if provided)
-        if ($serviceId > 0) {
-            $service = Service::query()
-                ->select(['id', 'business_id'])
-                ->where('id', $serviceId)
-                ->first();
-
-            if (!$service) {
-                throw ValidationException::withMessages([
-                    'service_id' => 'Service غير موجودة.',
-                ]);
-            }
-
-            if ((int) $service->business_id !== $businessId) {
-                throw ValidationException::withMessages([
-                    'service_id' => 'هذه الخدمة لا تتبع الـ Business المحدد.',
-                ]);
-            }
-        }
-
-        return $data;
+        return round($base * $qty, 2);
     }
 
-    private function normalizeMetaAndCheckboxes(Request $request, array $data): array
+    private function latestDeposit(Booking $booking): ?Deposit
     {
-        // checkbox normalize
-        $data['all_day'] = $request->has('all_day');
-
-        // meta parsing
-        $metaRaw = trim((string) ($data['meta_raw'] ?? ''));
-        unset($data['meta_raw']);
-
-        if ($metaRaw !== '') {
-            $decoded = json_decode($metaRaw, true);
-            $data['meta'] = (json_last_error() === JSON_ERROR_NONE) ? $decoded : ['_raw' => $metaRaw];
-        } else {
-            $data['meta'] = null;
-        }
-
-        return $data;
-    }
-
-    private function applyLegacyDateTime(array $data): array
-    {
-        // لو عندك أعمدة legacy date/time في الجدول
-        if (!empty($data['starts_at'])) {
-            $start = \Carbon\Carbon::parse($data['starts_at']);
-            $data['date'] = $start->toDateString();
-            $data['time'] = $start->format('H:i:s');
-        }
-
-        return $data;
-    }
-
-    private function hydrateEndTime(array $data): array
-    {
-        $ends = trim((string) ($data['ends_at'] ?? ''));
-        if ($ends !== '') return $data;
-
-        $val  = (int) ($data['duration_value'] ?? 0);
-        $unit = (string) ($data['duration_unit'] ?? '');
-
-        if ($val <= 0 || $unit === '') return $data;
-
-        $start = \Carbon\Carbon::parse($data['starts_at']);
-
-        $end = match ($unit) {
-            'minute' => $start->copy()->addMinutes($val),
-            'hour'   => $start->copy()->addHours($val),
-            'day'    => $start->copy()->addDays($val),
-            'week'   => $start->copy()->addWeeks($val),
-            'month'  => $start->copy()->addMonths($val),
-            'year'   => $start->copy()->addYears($val),
-            default  => null,
-        };
-
-        if ($end) $data['ends_at'] = $end->format('Y-m-d H:i:s');
-
-        return $data;
-    }
-
-    private function durationToMinutes(?int $val, ?string $unit): ?int
-    {
-        $val = (int) ($val ?? 0);
-        $unit = (string) ($unit ?? '');
-        if ($val <= 0 || $unit === '') return null;
-
-        return match ($unit) {
-            'minute' => $val,
-            'hour'   => $val * 60,
-            'day'    => $val * 60 * 24,
-            'week'   => $val * 60 * 24 * 7,
-            'month'  => $val * 60 * 24 * 30,
-            'year'   => $val * 60 * 24 * 365,
-            default  => null,
-        };
-    }
-
-    private function autoPriceFromService(array $data): array
-    {
-        $serviceId = (int) ($data['service_id'] ?? 0);
-        if ($serviceId <= 0) return $data;
-
-        $service = Service::query()->select(['id', 'price', 'duration'])->find($serviceId);
-        if (!$service) return $data;
-
-        $basePrice   = (float) ($service->price ?? 0);
-        $baseMinutes = (int) ($service->duration ?? 0);
-        if ($basePrice <= 0 || $baseMinutes <= 0) return $data;
-
-        $bookingMinutes = null;
-
-        // ends_at موجود
-        if (!empty($data['ends_at']) && !empty($data['starts_at'])) {
-            $start = \Carbon\Carbon::parse($data['starts_at']);
-            $end   = \Carbon\Carbon::parse($data['ends_at']);
-            $diff  = $start->diffInMinutes($end, false);
-            if ($diff > 0) $bookingMinutes = $diff;
-        }
-
-        // duration موجود
-        if ($bookingMinutes === null) {
-            $bookingMinutes = $this->durationToMinutes(
-                isset($data['duration_value']) ? (int) $data['duration_value'] : null,
-                isset($data['duration_unit']) ? (string) $data['duration_unit'] : null
-            );
-        }
-
-        if (!$bookingMinutes || $bookingMinutes <= 0) {
-            $data['price'] = number_format($basePrice, 2, '.', '');
-            return $data;
-        }
-
-        $ratio = $bookingMinutes / $baseMinutes;
-        $price = $basePrice * $ratio;
-
-        $data['price'] = number_format($price, 2, '.', '');
-
-        // (اختياري) حفظ تفاصيل التسعير في meta
-        $meta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
-        $meta['_pricing'] = [
-            'base_price' => $basePrice,
-            'base_minutes' => $baseMinutes,
-            'booking_minutes' => $bookingMinutes,
-            'ratio' => $ratio,
-        ];
-        $data['meta'] = $meta ?: null;
-
-        return $data;
-    }
-    public function disputesIndex()
-    {
-        $rows = Deposit::query()
-            ->where('status', 'dispute')
-            ->with([
-                'booking.user',
-                'booking.business',
-            ])
+        return Deposit::query()
+            ->where('target_type', Booking::class)
+            ->where('target_id', (int)$booking->id)
             ->orderByDesc('id')
-            ->paginate(50);
-
-        return view('admin-v2.disputes.index', compact('rows'));
-    }
-
-
-    private function resolveBookingExecutionFeeAmount(Booking $booking): float
-    {
-        $fee = ServiceFee::query()
-            ->where('is_active', 1)
-            ->where('code', 'booking_execution_fee')
-            ->where(function ($q) use ($booking) {
-                $q->where('service_id', $booking->service_id)
-                ->orWhereNull('service_id');
-            })
-            ->orderByRaw('service_id IS NULL') // يفضّل اللي له service_id (false) قبل null (true)
             ->first();
-
-        return $fee ? (float) $fee->amount : 0.0;
     }
 
-    private function resolveBookingExecutionFeeSplit(Booking $booking): array
+    /**
+     * Confirmations always required.
+     * - If deposit exists: use deposit flags.
+     * - Else: use booking.meta['_start_confirm'].
+     */
+    private function resolveConfirmState(Booking $booking, ?Deposit $deposit): array
     {
+        if ($deposit) {
+            $client = ((int)$deposit->client_confirmed === 1);
+            $business = ((int)$deposit->business_confirmed === 1);
+            return [$client, $business];
+        }
+
+        $meta = $booking->meta ?? [];
+        $sc = $meta['_start_confirm'] ?? [];
+        $client = !empty($sc['client']);
+        $business = !empty($sc['business']);
+        return [$client, $business];
+    }
+
+    /**
+     * Charge execution fee split once (idempotent) based on service_fees:
+     * code = booking_execution_fee
+     * rules = {"client_amount":1,"business_amount":1} (amounts)
+     */
+    private function chargeExecutionFeeSplitOnce(Booking $booking): void
+    {
+        $booking->refresh();
+
+        $meta = $booking->meta ?? [];
+        if (!empty($meta['_execution_fee']['charged_at'])) {
+            return; // already charged
+        }
+
         /** @var ServiceFeeService $feeService */
         $feeService = app(ServiceFeeService::class);
 
-        // code ثابت للـ booking execution fee
-        $fee = $feeService->getByCodeForService('booking_execution_fee', $booking->service_id);
+        $fee = $feeService->getByCodeForService('booking_execution_fee', (int)$booking->service_id);
+        if (!$fee) {
+            return; // no fee configured
+        }
 
-        if (!$fee) return [0.0, 0.0, null];
-
+        // rules are amounts (recommended)
         [$clientFee, $businessFee] = $feeService->resolveSplit($fee, (float)($booking->price ?? 0));
 
-        return [$clientFee, $businessFee, $fee];
-    }
+        $clientFee = round((float)$clientFee, 2);
+        $businessFee = round((float)$businessFee, 2);
 
-    private function markExecutionFeeMeta(Booking $booking, float $clientFee, float $businessFee): void
-    {
-        $meta = $booking->meta ?? [];
+        if (($clientFee + $businessFee) <= 0) {
+            return;
+        }
+
+        /** @var WalletFeeService $walletFee */
+        $walletFee = app(WalletFeeService::class);
+
+        $walletFee->chargeSplitToApp(
+            (int)$booking->user_id,
+            (int)$booking->business_id,
+            $clientFee,
+            $businessFee,
+            Booking::class,
+            (string)$booking->id,
+            'Booking execution fee'
+        );
+
         $meta['_execution_fee'] = [
-            'code'          => 'booking_execution_fee',
-            'client_amount' => $clientFee,
-            'business_amount'=> $businessFee,
-            'charged_at'    => now()->toDateTimeString(),
+            'code'            => 'booking_execution_fee',
+            'client_amount'   => $clientFee,
+            'business_amount' => $businessFee,
+            'charged_at'      => now()->toDateTimeString(),
         ];
+
         $booking->meta = $meta;
         $booking->save();
     }
-
 }

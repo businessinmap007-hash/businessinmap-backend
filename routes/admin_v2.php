@@ -259,7 +259,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::prefix('disputes')->name('disputes.')->group(function () {
         Route::get('/', [DisputeController::class, 'index'])->name('index');
-        Route::get('{deposit}', [DisputeController::class, 'show'])->name('show');
+        Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
     });
 
 });

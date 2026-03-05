@@ -105,6 +105,22 @@ final class AdminV2PermissionMap
                 'route'   => 'admin.bookings.index',
                 'icon'  => 'calendar', // لو نظامك بيدعم icons
             ],
+            [
+                'key'     => 'business_service_price',
+                'label'   => 'تسعير الخدمات للبزنس',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.business_service_prices.index',
+            ],
+             [
+                'key'     => 'service_fee',
+                'label'   => 'رسوم الخدمات',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.service_fees.index',
+            ],
+
+            
 
             [
                 'key'     => 'coupons',

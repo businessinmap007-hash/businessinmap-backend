@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Service;
-use App\Models\User;
 use App\Services\ServiceFeeService;
 use App\Services\WalletFeeService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
+    private const DEPOSIT_MAX_PERCENT = 20; // max deposit = 20% of booking price
+    private const EXECUTION_FEE_CODE = 'booking_execution_fee';
+
     // =========================
     // INDEX
     // =========================
@@ -63,9 +66,9 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validateBooking($request);
+        $data = $this->validateBooking($request, false);
 
-        // Auto price (لو عندك logic تانية، عدّل هنا)
+        // auto price from service * qty
         $data['price'] = $this->autoPriceFromService(
             (int)$data['service_id'],
             (int)($data['quantity'] ?? 1)
@@ -83,7 +86,6 @@ class BookingController extends Controller
     // =========================
     public function show(Booking $booking)
     {
-        // SoftDeletes مدعوم عندك (deleted_at موجود)
         $booking = Booking::withTrashed()->findOrFail($booking->id);
 
         $booking->load([
@@ -92,16 +94,19 @@ class BookingController extends Controller
             'service:id,business_id,name_ar,name_en,price,duration',
         ]);
 
-        $deposit = Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', (int) $booking->id)
-            ->orderByDesc('id')
-            ->first();
+        $deposit = $this->latestDeposit($booking);
 
-        // confirmations قد تكون من deposit أو من meta (لو deposit غير مطلوب/غير موجود)
         [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
 
-        return view('admin-v2.bookings.show', compact('booking', 'deposit', 'clientConfirmed', 'businessConfirmed'));
+        $depositPolicy = $this->depositPolicy($booking); // required/hold/max/percent
+
+        return view('admin-v2.bookings.show', compact(
+            'booking',
+            'deposit',
+            'clientConfirmed',
+            'businessConfirmed',
+            'depositPolicy'
+        ));
     }
 
     // =========================
@@ -119,44 +124,42 @@ class BookingController extends Controller
     {
         $oldStatus = (string)$booking->status;
 
-        $data = $this->validateBooking($request, $booking->id);
+        $data = $this->validateBooking($request, true);
 
-        // price computed
-        $data['price'] = $this->autoPriceFromService(
-            (int)$data['service_id'],
-            (int)($data['quantity'] ?? 1)
-        );
+        // auto price
+        if (array_key_exists('service_id', $data) || array_key_exists('quantity', $data)) {
+            $serviceId = (int)($data['service_id'] ?? $booking->service_id);
+            $qty = (int)($data['quantity'] ?? ($booking->quantity ?? 1));
+            $data['price'] = $this->autoPriceFromService($serviceId, $qty);
+        }
 
         DB::transaction(function () use ($booking, $data, $oldStatus) {
 
+            // لا تكتب null إلى date/time إذا لم تُرسل (مهم لحل خطأ date cannot be null)
             $booking->fill($data);
             $booking->save();
 
             $newStatus = (string)$booking->status;
 
-            // عند بداية التنفيذ: accepted -> in_progress (أو أي انتقال)
+            // عند بداية التنفيذ: in_progress
             if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
 
-                // اجلب deposit إن وجد (قد لا يكون موجود)
+                // deposit policy
                 $deposit = Deposit::query()
                     ->where('target_type', Booking::class)
-                    ->where('target_id', (int) $booking->id)
+                    ->where('target_id', (int)$booking->id)
                     ->orderByDesc('id')
                     ->lockForUpdate()
                     ->first();
 
-                // business settings: هل deposit مطلوب؟
-                $booking->loadMissing('business:id,booking_hold_enabled,booking_hold_amount');
+                $depositPolicy = $this->depositPolicy($booking);
 
-                $depositRequired = (bool)($booking->business->booking_hold_enabled ?? false)
-                    && (float)($booking->business->booking_hold_amount ?? 0) > 0;
-
-                if ($depositRequired && !$deposit) {
-                    // ممنوع يبدأ تنفيذ بدون deposit إذا صاحب الخدمة اشترطه
-                    abort(422, 'Deposit is required before starting execution for this business.');
+                // ✅ Deposit مطلوب فقط لو البزنس مفعل التوجل
+                if ($depositPolicy['required'] && !$deposit) {
+                    abort(422, 'Deposit مطلوب لهذا البزنس قبل بدء التنفيذ.');
                 }
 
-                // confirmations: شرط أساسي دائمًا
+                // ✅ تأكيد الطرفين شرط أساسي دائمًا (deposit أو meta)
                 [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
 
                 if (!$clientConfirmed || !$businessConfirmed) {
@@ -169,12 +172,9 @@ class BookingController extends Controller
                     $deposit->save();
                 }
 
-                // خصم رسوم التنفيذ split مرة واحدة (idempotent عبر meta)
+                // ✅ خصم رسوم التنفيذ Split مرة واحدة
                 $this->chargeExecutionFeeSplitOnce($booking);
             }
-
-            // عند اكتمال الحجز (completed) - هنا لا نخصم رسوم جديدة
-            // ويمكنك لاحقًا ربط release deposit هنا إذا أردت (لكن حسب نظامك)
         });
 
         return redirect()
@@ -192,7 +192,7 @@ class BookingController extends Controller
     }
 
     // =========================
-    // SERVICE LOOKUP (AJAX)
+    // AJAX service lookup
     // =========================
     public function serviceLookup(Request $request)
     {
@@ -201,21 +201,17 @@ class BookingController extends Controller
         $services = Service::query()
             ->when($term !== '', function ($q) use ($term) {
                 $q->where('name_ar', 'like', "%{$term}%")
-                  ->orWhere('name_en', 'like', "%{$term}%");
+                    ->orWhere('name_en', 'like', "%{$term}%");
             })
             ->orderByDesc('id')
             ->limit(30)
             ->get(['id','business_id','name_ar','name_en','price','duration']);
 
-        return response()->json([
-            'ok' => true,
-            'services' => $services,
-        ]);
+        return response()->json(['ok' => true, 'services' => $services]);
     }
 
     // =========================
-    // CONFIRMATIONS (Client/Business)
-    // - شرط أساسي دائمًا حتى لو deposit غير موجود
+    // Confirmations (required always)
     // =========================
     public function startConfirmClient(Booking $booking)
     {
@@ -228,7 +224,7 @@ class BookingController extends Controller
                 return;
             }
 
-            // بدون deposit: سجل في meta
+            // بدون deposit: نخزن على meta
             $meta = $booking->meta ?? [];
             $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
             $meta['_start_confirm']['client'] = 1;
@@ -251,7 +247,7 @@ class BookingController extends Controller
                 return;
             }
 
-            // بدون deposit: سجل في meta
+            // بدون deposit: نخزن على meta
             $meta = $booking->meta ?? [];
             $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
             $meta['_start_confirm']['business'] = 1;
@@ -263,16 +259,14 @@ class BookingController extends Controller
         return back()->with('success', 'تم تأكيد البزنس.');
     }
 
-    // موجود في routes عندك
     public function depositConfirmClient(Booking $booking)
     {
-        // لو عندك منطق مختلف، عدّله.
-        // حالياً: اعتباره مثل client_confirmed
+        // في مشروعك موجود route باسم deposit.confirmClient
         return $this->startConfirmClient($booking);
     }
 
     // =========================
-    // DEPOSIT ACTIONS
+    // Deposit actions
     // =========================
     public function depositFreeze(Booking $booking)
     {
@@ -290,11 +284,25 @@ class BookingController extends Controller
             return back()->with('error', 'الحجز غير مكتمل (عميل أو بزنس مفقود).');
         }
 
-        $hold    = (float) ($booking->business->booking_hold_amount ?? 0);
-        $enabled = (bool)  ($booking->business->booking_hold_enabled ?? false);
+        $enabled = (bool)($booking->business->booking_hold_enabled ?? false);
+        $hold    = (float)($booking->business->booking_hold_amount ?? 0);
 
         if (!$enabled || $hold <= 0) {
             return back()->with('error', 'Deposit غير مفعل لهذا البزنس.');
+        }
+
+        // ✅ حد 20% من السعر
+        $maxHold = $this->depositMaxAllowedAmount($booking);
+        if ($maxHold <= 0) {
+            return back()->with('error', 'لا يمكن إنشاء Deposit لأن سعر الحجز غير متاح.');
+        }
+        if ($hold > $maxHold) {
+            return back()->with(
+                'error',
+                'قيمة الـ Deposit المحددة من البزنس أكبر من الحد المسموح (' . self::DEPOSIT_MAX_PERCENT . '%). '
+                . 'الحد الأقصى: ' . number_format($maxHold, 2)
+                . ' / المحدد: ' . number_format($hold, 2)
+            );
         }
 
         $total          = round($hold * 2, 2);
@@ -302,7 +310,6 @@ class BookingController extends Controller
         $businessAmount = round($hold, 2);
 
         DB::transaction(function () use ($booking, $total, $clientAmount, $businessAmount) {
-
             Deposit::create([
                 'client_id'          => (int)$booking->user_id,
                 'business_id'        => (int)$booking->business_id,
@@ -384,48 +391,69 @@ class BookingController extends Controller
     }
 
     // =========================
-    // Helpers
+    // VALIDATION
     // =========================
-
-    private function validateBooking(Request $request, ?int $ignoreId = null): array
+    private function validateBooking(Request $request, bool $isUpdate = false): array
     {
-        return $request->validate([
-            'user_id'      => ['required','integer'],
-            'business_id'  => ['required','integer'],
-            'service_id'   => ['required','integer'],
+        $rules = [
+            'user_id'     => ['required','integer'],
+            'business_id' => ['required','integer'],
+            'service_id'  => ['required','integer'],
 
-            'date'         => ['nullable','date'],
-            'time'         => ['nullable'],
+            'starts_at'   => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'date'],
+            'ends_at'     => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'date'],
 
-            'starts_at'    => ['nullable','date'],
-            'ends_at'      => ['nullable','date'],
+            'duration_value' => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer', 'min:1'],
+            'duration_unit'  => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', Rule::in(['minute','hour','day','week','month','year'])],
 
-            'duration_value'=> ['nullable','integer','min:1'],
-            'duration_unit' => ['nullable', Rule::in(['minute','hour','day','week','month','year'])],
+            'all_day'   => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'boolean'],
+            'timezone'  => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'string', 'max:64'],
 
-            'all_day'      => ['nullable','boolean'],
-            'timezone'     => ['nullable','string','max:64'],
+            'quantity'  => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer', 'min:1'],
+            'party_size'=> [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer', 'min:1'],
 
-            'quantity'     => ['nullable','integer','min:1'],
-            'party_size'   => ['nullable','integer','min:1'],
+            'bookable_type' => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'string', 'max:120'],
+            'bookable_id'   => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer'],
 
-            'bookable_type'=> ['nullable','string','max:120'],
-            'bookable_id'  => ['nullable','integer'],
+            'status' => ['required', Rule::in(array_keys(Booking::statusOptions()))],
+            'notes'  => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'string'],
+        ];
 
-            'status'       => ['required', Rule::in(array_keys(Booking::statusOptions()))],
-            'notes'        => ['nullable','string'],
+        // DB: date/time NOT NULL → create required / update sometimes
+        if (!$isUpdate) {
+            $rules['date'] = ['required','date'];
+            $rules['time'] = ['required'];
+        } else {
+            $rules['date'] = ['sometimes','nullable','date'];
+            $rules['time'] = ['sometimes','nullable'];
+        }
 
-            'meta'         => ['nullable'], // لو بتبعت meta json من form
-        ]);
+        $data = $request->validate($rules);
+
+        // fallback: derive date/time from starts_at
+        if (
+            (empty($data['date']) || empty($data['time']))
+            && !empty($data['starts_at'])
+        ) {
+            $dt = Carbon::parse($data['starts_at']);
+            $data['date'] = $data['date'] ?? $dt->toDateString();
+            $data['time'] = $data['time'] ?? $dt->format('H:i:s');
+        }
+
+        // update: if date/time explicitly null, don't write null
+        if ($isUpdate) {
+            if (array_key_exists('date', $data) && $data['date'] === null) unset($data['date']);
+            if (array_key_exists('time', $data) && $data['time'] === null) unset($data['time']);
+        }
+
+        return $data;
     }
 
     private function autoPriceFromService(int $serviceId, int $qty = 1): float
     {
         $qty = max(1, $qty);
-
         $service = Service::query()->find($serviceId);
         $base = $service ? (float)($service->price ?? 0) : 0.0;
-
         return round($base * $qty, 2);
     }
 
@@ -439,7 +467,7 @@ class BookingController extends Controller
     }
 
     /**
-     * Confirmations always required.
+     * Confirmations always required:
      * - If deposit exists: use deposit flags.
      * - Else: use booking.meta['_start_confirm'].
      */
@@ -458,10 +486,36 @@ class BookingController extends Controller
         return [$client, $business];
     }
 
+    private function depositMaxAllowedAmount(Booking $booking): float
+    {
+        $price = (float)($booking->price ?? 0);
+        if ($price <= 0) return 0.0;
+        return round($price * (self::DEPOSIT_MAX_PERCENT / 100), 2);
+    }
+
     /**
-     * Charge execution fee split once (idempotent) based on service_fees:
+     * Deposit required by business toggle:
+     * booking_hold_enabled + booking_hold_amount > 0
+     */
+    private function depositPolicy(Booking $booking): array
+    {
+        $booking->loadMissing('business:id,booking_hold_enabled,booking_hold_amount');
+
+        $enabled = (bool)($booking->business->booking_hold_enabled ?? false);
+        $hold = (float)($booking->business->booking_hold_amount ?? 0);
+
+        return [
+            'required' => $enabled && $hold > 0,
+            'hold'     => round($hold, 2),
+            'max'      => $this->depositMaxAllowedAmount($booking),
+            'percent'  => self::DEPOSIT_MAX_PERCENT,
+        ];
+    }
+
+    /**
+     * Charge split execution fee once:
      * code = booking_execution_fee
-     * rules = {"client_amount":1,"business_amount":1} (amounts)
+     * rules = {"client_amount":1,"business_amount":1}
      */
     private function chargeExecutionFeeSplitOnce(Booking $booking): void
     {
@@ -475,12 +529,12 @@ class BookingController extends Controller
         /** @var ServiceFeeService $feeService */
         $feeService = app(ServiceFeeService::class);
 
-        $fee = $feeService->getByCodeForService('booking_execution_fee', (int)$booking->service_id);
+        $fee = $feeService->getByCodeForService(self::EXECUTION_FEE_CODE, (int)$booking->service_id);
         if (!$fee) {
-            return; // no fee configured
+            return; // fee not configured
         }
 
-        // rules are amounts (recommended)
+        // split amounts from rules
         [$clientFee, $businessFee] = $feeService->resolveSplit($fee, (float)($booking->price ?? 0));
 
         $clientFee = round((float)$clientFee, 2);
@@ -504,7 +558,7 @@ class BookingController extends Controller
         );
 
         $meta['_execution_fee'] = [
-            'code'            => 'booking_execution_fee',
+            'code'            => self::EXECUTION_FEE_CODE,
             'client_amount'   => $clientFee,
             'business_amount' => $businessFee,
             'charged_at'      => now()->toDateTimeString(),
@@ -513,4 +567,24 @@ class BookingController extends Controller
         $booking->meta = $meta;
         $booking->save();
     }
+
+    private function autoPriceFromServiceForBusiness(int $serviceId, int $businessId, int $qty = 1): float
+    {
+        $qty = max(1, $qty);
+
+        $base = (float) Service::query()->whereKey($serviceId)->value('price');
+
+        $businessPrice = \App\Models\BusinessServicePrice::query()
+            ->where('service_id', $serviceId)
+            ->where('business_id', $businessId)
+            ->where('is_active', true)
+            ->value('price');
+
+        if ($businessPrice !== null) {
+            $base = (float) $businessPrice;
+        }
+
+        return round($base * $qty, 2);
+    }
+
 }

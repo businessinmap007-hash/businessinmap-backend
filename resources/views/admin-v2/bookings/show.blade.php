@@ -19,6 +19,18 @@
   $depositRequired = (bool) data_get($booking, 'business.booking_hold_enabled', false)
       && (float) data_get($booking, 'business.booking_hold_amount', 0) > 0;
 @endphp
+@if(!empty($depositPolicy['required']))
+  <div class="a2-alert a2-alert-warning" style="margin-top:10px;">
+    هذا البزنس <b>يشترط Deposit</b>.
+    قيمة الـ Hold: <b>{{ number_format((float)$depositPolicy['hold'], 2) }}</b>
+    — الحد الأقصى المسموح: <b>{{ $depositPolicy['percent'] }}%</b>
+    ({{ number_format((float)$depositPolicy['max'], 2) }})
+  </div>
+@else
+  <div class="a2-alert a2-alert-info" style="margin-top:10px;">
+    هذا البزنس لا يشترط Deposit (اختياري).
+  </div>
+@endif
 
 <div class="a2-page">
   <div class="a2-header" style="margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">

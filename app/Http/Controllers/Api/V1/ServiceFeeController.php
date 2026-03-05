@@ -1,72 +1,109 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1;
+namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Service;
 use App\Models\ServiceFee;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 
 class ServiceFeeController extends Controller
 {
-    /**
-     * GET /v1/service-fees
-     * Optional: ?codes=delivery_platform_fee,booking_platform_fee
-     */
     public function index(Request $request)
     {
-        $codes = $request->query('codes');
-        $codesArr = [];
+        $q = ServiceFee::query();
 
-        if (is_string($codes) && trim($codes) !== '') {
-            $codesArr = array_values(array_filter(array_map('trim', explode(',', $codes))));
+        if ($request->filled('code')) {
+            $q->where('code', 'like', '%'.$request->get('code').'%');
+        }
+        if ($request->filled('service_id')) {
+            $q->where('service_id', (int)$request->service_id);
+        }
+        if ($request->filled('is_active')) {
+            $q->where('is_active', (int)$request->is_active);
         }
 
-        $cacheKey = 'service_fees:index:' . md5(json_encode($codesArr));
+        $rows = $q->orderByDesc('id')->paginate(50);
 
-        $data = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($codesArr) {
-            $q = ServiceFee::query()->where('is_active', 1);
+        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
 
-            if (!empty($codesArr)) {
-                $q->whereIn('code', $codesArr);
-            }
+        return view('admin-v2.service-fees.index', compact('rows','services'));
+    }
 
-            return $q->orderBy('code')->get([
-                'id', 'code', 'amount', 'rules', 'is_active', 'updated_at'
-            ]);
-        });
+    public function create()
+    {
+        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
+        return view('admin-v2.service-fees.create', compact('services'));
+    }
 
-        return response()->json([
-            'status'  => 200,
-            'message' => 'Service fees',
-            'data'    => $data,
+    public function store(Request $request)
+    {
+        $data = $this->validateFee($request);
+
+        // rules JSON normalize
+        $data['rules'] = $this->normalizeRules($data['rules'] ?? null);
+
+        $row = ServiceFee::create($data);
+
+        return redirect()->route('admin.service_fees.show', $row)->with('success', 'تم إنشاء Service Fee.');
+    }
+
+    public function show(ServiceFee $serviceFee)
+    {
+        $serviceFee->load('service:id,name_ar,name_en');
+        return view('admin-v2.service-fees.show', compact('serviceFee'));
+    }
+
+    public function edit(ServiceFee $serviceFee)
+    {
+        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
+        return view('admin-v2.service-fees.edit', compact('serviceFee','services'));
+    }
+
+    public function update(Request $request, ServiceFee $serviceFee)
+    {
+        $data = $this->validateFee($request, $serviceFee->id);
+        $data['rules'] = $this->normalizeRules($data['rules'] ?? null);
+
+        $serviceFee->update($data);
+
+        return redirect()->route('admin.service_fees.show', $serviceFee)->with('success', 'تم تحديث Service Fee.');
+    }
+
+    public function destroy(ServiceFee $serviceFee)
+    {
+        $serviceFee->delete();
+        return redirect()->route('admin.service_fees.index')->with('success', 'تم الحذف.');
+    }
+
+    private function validateFee(Request $request, ?int $ignoreId = null): array
+    {
+        return $request->validate([
+            'code' => ['required','string','max:100'],
+            'service_id' => ['nullable','integer'],
+            'amount' => ['required','numeric','min:0'],
+            'rules' => ['nullable'], // JSON string
+            'is_active' => ['required', Rule::in([0,1])],
         ]);
     }
 
-    /**
-     * GET /v1/service-fees/{code}
-     */
-    public function show(string $code)
+    private function normalizeRules($rules)
     {
-        $cacheKey = 'service_fees:show:' . $code;
+        if ($rules === null || $rules === '') return null;
 
-        $fee = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($code) {
-            return ServiceFee::where('code', $code)
-                ->where('is_active', 1)
-                ->first(['id','code','amount','rules','is_active','updated_at']);
-        });
+        // لو جاي array
+        if (is_array($rules)) return json_encode($rules, JSON_UNESCAPED_UNICODE);
 
-        if (!$fee) {
-            return response()->json([
-                'status'  => 404,
-                'message' => 'Service fee not found',
-            ], 404);
+        // لو string لازم يكون JSON صالح
+        if (is_string($rules)) {
+            $decoded = json_decode($rules, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                abort(422, 'rules must be valid JSON.');
+            }
+            return json_encode($decoded, JSON_UNESCAPED_UNICODE);
         }
 
-        return response()->json([
-            'status'  => 200,
-            'message' => 'Service fee',
-            'data'    => $fee,
-        ]);
+        return null;
     }
 }

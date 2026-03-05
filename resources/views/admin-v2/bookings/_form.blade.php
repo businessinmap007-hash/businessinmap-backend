@@ -24,6 +24,10 @@
       <input class="a2-input" name="user_id" type="number" value="{{ $val('user_id') }}" required>
     </div>
 
+    <div class="a2-alert a2-alert-info" style="margin-bottom:12px;">
+      ملاحظة: إذا كان البزنس مفعل Deposit Hold فسيصبح إلزاميًا، وبحد أقصى <b>20%</b> من سعر الخدمة.
+    </div>
+
     <div>
       <label class="a2-label">Business (business_id)</label>
       <input class="a2-input" name="business_id" type="number" value="{{ $val('business_id') }}" required>
@@ -39,12 +43,13 @@
 
     <div>
       <label class="a2-label">Date</label>
-      <input class="a2-input" name="date" type="date" value="{{ $val('date') }}">
+      <input class="a2-input" name="date" type="date" value="{{ $val('date') }}" required>
+
     </div>
 
     <div>
       <label class="a2-label">Time</label>
-      <input class="a2-input" name="time" type="time" value="{{ $val('time') }}">
+      <input class="a2-input" name="time" type="time" value="{{ $val('time') }}" required>
     </div>
 
     <div>

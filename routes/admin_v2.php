@@ -19,7 +19,9 @@ use App\Http\Controllers\AdminV2\{
     SubscriptionController,
     AlbumController,
     BookingController,
-    DisputeController
+    DisputeController,
+    ServiceFeeController,
+    BusinessServicePriceController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -175,6 +177,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
         });
+
+         Route::prefix('service-fees')->name('service_fees.')->group(function () {
+        Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
+        Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
+        Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
+        Route::get('{serviceFee}', [ServiceFeeController::class, 'show'])->name('show');
+        Route::get('{serviceFee}/edit', [ServiceFeeController::class, 'edit'])->name('edit');
+        Route::put('{serviceFee}', [ServiceFeeController::class, 'update'])->name('update');
+        Route::delete('{serviceFee}', [ServiceFeeController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
+            Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
+            Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
+            Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
+            Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])->name('edit');
+            Route::put('{row}', [BusinessServicePriceController::class, 'update'])->name('update');
+            Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
+        });
+
 
     });
 });

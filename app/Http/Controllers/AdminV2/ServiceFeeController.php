@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Service;
+use App\Models\User;
 use App\Models\ServiceFee;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,10 +32,20 @@ class ServiceFeeController extends Controller
         return view('admin-v2.service-fees.index', compact('rows','services'));
     }
 
-    public function create()
+   public function create()
     {
-        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
-        return view('admin-v2.service-fees.create', compact('services'));
+        $services = Service::query()
+            ->select('id','name')   // عدّل الاسم لو عندك name_ar مثلاً
+            ->orderBy('name')
+            ->get();
+
+        $businesses = User::query()
+            ->select('id','name')
+            ->where('type','business')   // عدّل حسب مشروعك: role/type/is_business...
+            ->orderBy('name')
+            ->get();
+
+        return view('admin_v2.service_fees.create', compact('services','businesses'));
     }
 
     public function store(Request $request)

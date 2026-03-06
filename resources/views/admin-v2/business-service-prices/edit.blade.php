@@ -1,17 +1,10 @@
-@extends('admin-v2.layouts.master')
-@section('title','Edit Business Service Price')
-@section('body_class','admin-v2-business-service-prices edit')
-
+@extends('admin_v2.layouts.app')
 @section('content')
-<div class="a2-page">
-  <div class="a2-header" style="margin-bottom:12px;">
-    <div class="a2-title">Edit Business Service Price</div>
-    <div class="a2-hint">#{{ $row->id }}</div>
-  </div>
-
-  <form method="POST" action="{{ route('admin.business_service_prices.update', $row) }}">
+<div class="a2-card" style="padding:14px;">
+  <div class="a2-title" style="margin-bottom:10px;">Edit Business Service Price</div>
+  <form method="POST" action="{{ route('admin.business-service-prices.update', $row) }}">
     @csrf @method('PUT')
-    @include('admin-v2.business-service-prices._form', ['row'=>$row, 'submitLabel' => 'Update'])
+    @include('admin_v2.business-service-prices._form', ['submitLabel' => 'Update'])
   </form>
 </div>
 @endsection

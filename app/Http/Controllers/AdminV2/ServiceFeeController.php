@@ -3,118 +3,115 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\ServiceFee;   // عدّل لو اسم الموديل مختلف
 use App\Models\Service;
 use App\Models\User;
-use App\Models\ServiceFee;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ServiceFeeController extends Controller
 {
     public function index(Request $request)
     {
-        $q = ServiceFee::query();
+        $q = trim((string) $request->get('q', ''));
 
-        if ($request->filled('code')) {
-            $q->where('code', 'like', '%'.$request->get('code').'%');
-        }
-        if ($request->filled('service_id')) {
-            $q->where('service_id', (int)$request->service_id);
-        }
-        if ($request->filled('is_active')) {
-            $q->where('is_active', (int)$request->is_active);
-        }
+        $rows = ServiceFee::query()
+            ->with([
+                'service:id,name_ar,name_en',
+                'business:id,name,code',
+            ])
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->whereHas('business', fn($b) => $b->where('name', 'like', "%{$q}%")->orWhere('code', 'like', "%{$q}%"))
+                   ->orWhereHas('service', fn($s) => $s->where('name_ar', 'like', "%{$q}%")->orWhere('name_en', 'like', "%{$q}%"));
+            })
+            ->orderByDesc('id')
+            ->paginate(50)
+            ->withQueryString();
 
-        $rows = $q->orderByDesc('id')->paginate(50);
-
-        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
-
-        return view('admin-v2.service-fees.index', compact('rows','services'));
+        return view('admin_v2.service-fees.index', compact('rows', 'q'));
     }
 
-   public function create()
+    public function create()
     {
+        // ✅ لو dropdown service فاضي: السبب غالبًا هنا
         $services = Service::query()
-            ->select('id','name')   // عدّل الاسم لو عندك name_ar مثلاً
-            ->orderBy('name')
+            ->select(['id','name_ar','name_en'])
+            ->orderBy('id','desc')
             ->get();
 
         $businesses = User::query()
-            ->select('id','name')
-            ->where('type','business')   // عدّل حسب مشروعك: role/type/is_business...
-            ->orderBy('name')
+            ->select(['id','name','code'])
+            ->where('type', 'business') // عدّل حسب مشروعك
+            ->orderByDesc('id')
             ->get();
 
-        return view('admin_v2.service_fees.create', compact('services','businesses'));
+        return view('admin_v2.service-fees.create', compact('services','businesses'));
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateFee($request);
+        $data = $request->validate([
+            'service_id'  => ['required','integer','min:1'],
+            'business_id' => ['required','integer','min:1'],
+            'price'       => ['required','numeric','min:0'],
+            'is_active'   => ['nullable'],
+        ]);
 
-        // rules JSON normalize
-        $data['rules'] = $this->normalizeRules($data['rules'] ?? null);
+        $data['is_active'] = (int) ($request->boolean('is_active') ? 1 : 0);
 
-        $row = ServiceFee::create($data);
+        // ✅ منع التكرار (business + service)
+        $row = ServiceFee::query()->updateOrCreate(
+            [
+                'service_id'  => (int) $data['service_id'],
+                'business_id' => (int) $data['business_id'],
+            ],
+            [
+                'price'     => $data['price'],
+                'is_active' => $data['is_active'],
+            ]
+        );
 
-        return redirect()->route('admin.service_fees.show', $row)->with('success', 'تم إنشاء Service Fee.');
-    }
-
-    public function show(ServiceFee $serviceFee)
-    {
-        $serviceFee->load('service:id,name_ar,name_en');
-        return view('admin-v2.service-fees.show', compact('serviceFee'));
+        return redirect()
+            ->route('admin.service-fees.edit', $row)
+            ->with('success', 'تم إنشاء/تحديث سعر الخدمة بنجاح.');
     }
 
     public function edit(ServiceFee $serviceFee)
     {
-        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
-        return view('admin-v2.service-fees.edit', compact('serviceFee','services'));
+        $services = Service::query()
+            ->select(['id','name_ar','name_en'])
+            ->orderBy('id','desc')
+            ->get();
+
+        $businesses = User::query()
+            ->select(['id','name','code'])
+            ->where('type', 'business')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('admin_v2.service-fees.edit', compact('serviceFee','services','businesses'));
     }
 
     public function update(Request $request, ServiceFee $serviceFee)
     {
-        $data = $this->validateFee($request, $serviceFee->id);
-        $data['rules'] = $this->normalizeRules($data['rules'] ?? null);
+        $data = $request->validate([
+            'service_id'  => ['required','integer','min:1'],
+            'business_id' => ['required','integer','min:1'],
+            'price'       => ['required','numeric','min:0'],
+            'is_active'   => ['nullable'],
+        ]);
 
-        $serviceFee->update($data);
+        $serviceFee->service_id  = (int) $data['service_id'];
+        $serviceFee->business_id = (int) $data['business_id'];
+        $serviceFee->price       = $data['price'];
+        $serviceFee->is_active   = (int) ($request->boolean('is_active') ? 1 : 0);
+        $serviceFee->save();
 
-        return redirect()->route('admin.service_fees.show', $serviceFee)->with('success', 'تم تحديث Service Fee.');
+        return back()->with('success', 'تم تحديث سعر الخدمة بنجاح.');
     }
 
     public function destroy(ServiceFee $serviceFee)
     {
         $serviceFee->delete();
-        return redirect()->route('admin.service_fees.index')->with('success', 'تم الحذف.');
-    }
-
-    private function validateFee(Request $request, ?int $ignoreId = null): array
-    {
-        return $request->validate([
-            'code' => ['required','string','max:100'],
-            'service_id' => ['nullable','integer'],
-            'amount' => ['required','numeric','min:0'],
-            'rules' => ['nullable'], // JSON string
-            'is_active' => ['required', Rule::in([0,1])],
-        ]);
-    }
-
-    private function normalizeRules($rules)
-    {
-        if ($rules === null || $rules === '') return null;
-
-        // لو جاي array
-        if (is_array($rules)) return json_encode($rules, JSON_UNESCAPED_UNICODE);
-
-        // لو string لازم يكون JSON صالح
-        if (is_string($rules)) {
-            $decoded = json_decode($rules, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                abort(422, 'rules must be valid JSON.');
-            }
-            return json_encode($decoded, JSON_UNESCAPED_UNICODE);
-        }
-
-        return null;
+        return redirect()->route('admin.service-fees.index')->with('success', 'تم الحذف بنجاح.');
     }
 }

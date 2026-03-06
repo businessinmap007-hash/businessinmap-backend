@@ -117,7 +117,7 @@ final class AdminV2PermissionMap
                 'label'   => 'رسوم الخدمات',
                 'icon'    => 'zmdi zmdi-view-dashboard',
                 'ability' => null,
-                'route'   => 'admin.service_fees.index',
+                'route'   => 'admin.service-fees.index',
             ],
 
             

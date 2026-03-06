@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\{
     Auth\LoginController,
     Users\UserController,
-    DashboardController,
     CategoryController,
     PostController,
+    DashboardController,
     TransactionsController,
     UploadController,
     JobPostController,
@@ -20,8 +20,8 @@ use App\Http\Controllers\AdminV2\{
     AlbumController,
     BookingController,
     DisputeController,
-    ServiceFeeController,
-    BusinessServicePriceController
+    BusinessServicePriceController,
+    ServiceFeeController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -33,107 +33,169 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [LoginController::class, 'login'])->name('login.post');
     Route::post('logout',[LoginController::class, 'logout'])->name('logout');
 
+    /**
+     * ✅ callback route (بدون auth) — الأفضل تحميه بتوقيع/secret
+     */
+    Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
+        ->name('payments.callback.success');
+
     // =========================
-    // AdminV2 (Protected)
+    // Protected (admin.v2)
     // =========================
     Route::middleware(['admin.v2'])->group(function () {
 
-        // Dashboard
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
-        // Uploads
-        Route::post('upload', [UploadController::class, 'store'])->name('upload.store');
+        // Upload
+        Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
 
+        // =========================
         // Users
+        // =========================
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
-            Route::get('create', [UserController::class, 'create'])->name('create');
-            Route::post('/', [UserController::class, 'store'])->name('store');
+
+            Route::delete('/', [UserController::class, 'bulkDestroy'])->name('bulkDestroy');
+            Route::post('restore', [UserController::class, 'bulkRestore'])->name('bulkRestore');
+            Route::delete('force', [UserController::class, 'bulkForceDelete'])->name('bulkForceDelete');
+
             Route::get('{user}', [UserController::class, 'show'])->name('show');
             Route::get('{user}/edit', [UserController::class, 'edit'])->name('edit');
             Route::put('{user}', [UserController::class, 'update'])->name('update');
+
             Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::post('{id}/restore', [UserController::class, 'restore'])->name('restore');
+            Route::delete('{id}/force', [UserController::class, 'forceDelete'])->name('forceDelete');
+
+            Route::post('{user}/toggle-suspend', [UserController::class, 'toggleSuspend'])->name('toggleSuspend');
         });
 
-        // Categories
+        // =========================
+        // Categories (CRUD)
+        // =========================
         Route::prefix('categories')->name('categories.')->group(function () {
             Route::get('/', [CategoryController::class, 'index'])->name('index');
+
             Route::get('create', [CategoryController::class, 'create'])->name('create');
             Route::post('/', [CategoryController::class, 'store'])->name('store');
+
             Route::get('{category}/edit', [CategoryController::class, 'edit'])->name('edit');
             Route::put('{category}', [CategoryController::class, 'update'])->name('update');
+
             Route::delete('{category}', [CategoryController::class, 'destroy'])->name('destroy');
+
+            Route::post('{category}/toggle-active', [CategoryController::class, 'toggleActive'])->name('toggleActive');
+            Route::post('{category}/reorder', [CategoryController::class, 'updateReorder'])->name('reorder');
         });
 
-        // Posts
+        // =========================
+        // Posts (CRUD)
+        // =========================
         Route::prefix('posts')->name('posts.')->group(function () {
             Route::get('/', [PostController::class, 'index'])->name('index');
-            Route::get('create', [PostController::class, 'create'])->name('create');
             Route::post('/', [PostController::class, 'store'])->name('store');
+
             Route::get('{post}', [PostController::class, 'show'])->name('show');
             Route::get('{post}/edit', [PostController::class, 'edit'])->name('edit');
             Route::put('{post}', [PostController::class, 'update'])->name('update');
+
+            Route::post('{post}/toggle-active', [PostController::class, 'toggleActive'])->name('toggleActive');
             Route::delete('{post}', [PostController::class, 'destroy'])->name('destroy');
+
+            Route::delete('{post}/images/{image}', [PostController::class, 'destroyImage'])->name('images.destroy');
+            Route::delete('{post}/main-image', [PostController::class, 'destroyMainImage'])->name('main_image.destroy');
         });
 
+        // =========================
         // Jobs
+        // =========================
         Route::prefix('jobs')->name('jobs.')->group(function () {
             Route::get('/', [JobPostController::class, 'index'])->name('index');
-            Route::get('create', [JobPostController::class, 'create'])->name('create');
             Route::post('/', [JobPostController::class, 'store'])->name('store');
-            Route::get('{job}', [JobPostController::class, 'show'])->name('show');
-            Route::get('{job}/edit', [JobPostController::class, 'edit'])->name('edit');
-            Route::put('{job}', [JobPostController::class, 'update'])->name('update');
-            Route::delete('{job}', [JobPostController::class, 'destroy'])->name('destroy');
+
+            Route::get('{post}', [JobPostController::class, 'show'])->name('show');
+            Route::get('{post}/edit', [JobPostController::class, 'edit'])->name('edit');
+            Route::put('{post}', [JobPostController::class, 'update'])->name('update');
+
+            Route::post('{post}/toggle-active', [JobPostController::class, 'toggleActive'])->name('toggleActive');
+            Route::delete('{post}', [JobPostController::class, 'destroy'])->name('destroy');
         });
 
+        // =========================
         // Sponsors
+        // =========================
         Route::prefix('sponsors')->name('sponsors.')->group(function () {
             Route::get('/', [SponsorController::class, 'index'])->name('index');
+
             Route::get('create', [SponsorController::class, 'create'])->name('create');
             Route::post('/', [SponsorController::class, 'store'])->name('store');
-            Route::get('{sponsor}', [SponsorController::class, 'show'])->name('show');
+
             Route::get('{sponsor}/edit', [SponsorController::class, 'edit'])->name('edit');
             Route::put('{sponsor}', [SponsorController::class, 'update'])->name('update');
+
+            Route::post('{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->name('toggleActive');
             Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->name('destroy');
         });
 
+        // =========================
+        // Transactions
+        // =========================
+        Route::prefix('transactions')->name('transactions.')->group(function () {
+            Route::get('/', [TransactionsController::class, 'index'])->name('index');
+            Route::get('{tx}', [TransactionsController::class, 'show'])->name('show');
+        });
+
+        // =========================
+        // Wallet Transactions
+        // =========================
+        Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
+            Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
+            Route::get('user/{user}', [WalletTransactionController::class, 'user'])->name('user'); // قبل {walletTransaction}
+            Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->name('show');
+        });
+
+        // Wallet Ops (Recharge)
+        Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
+        Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
+
+        // Wallet Note Templates
+        Route::resource('wallet-notes', WalletNoteTemplateController::class)
+            ->except(['show'])
+            ->names('wallet-notes');
+
+        // =========================
+        // Subscriptions
+        // =========================
+        Route::get('subscriptions', [SubscriptionController::class,'index'])->name('subscriptions.index');
+        Route::get('subscriptions/{subscription}', [SubscriptionController::class,'show'])->name('subscriptions.show');
+        Route::get('subscriptions/{subscription}/edit', [SubscriptionController::class,'edit'])->name('subscriptions.edit');
+        Route::put('subscriptions/{subscription}', [SubscriptionController::class,'update'])->name('subscriptions.update');
+        Route::post('subscriptions/{subscription}/toggle-active', [SubscriptionController::class,'toggleActive'])->name('subscriptions.toggle-active');
+
+        // =========================
+        // Payments (Admin)
+        // =========================
+        Route::prefix('payments')->name('payments.')->group(function () {
+            Route::get('/', [PaymentController::class, 'index'])->name('index');
+            Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->name('confirm');
+        });
+
+        // =========================
         // Albums
+        // =========================
         Route::prefix('albums')->name('albums.')->group(function () {
             Route::get('/', [AlbumController::class, 'index'])->name('index');
             Route::get('create', [AlbumController::class, 'create'])->name('create');
             Route::post('/', [AlbumController::class, 'store'])->name('store');
+
             Route::get('{album}', [AlbumController::class, 'show'])->name('show');
             Route::get('{album}/edit', [AlbumController::class, 'edit'])->name('edit');
             Route::put('{album}', [AlbumController::class, 'update'])->name('update');
+
             Route::delete('{album}', [AlbumController::class, 'destroy'])->name('destroy');
-        });
 
-        // Transactions (لو عندك صفحة عامة)
-        Route::prefix('transactions')->name('transactions.')->group(function () {
-            Route::get('/', [TransactionsController::class, 'index'])->name('index');
-            Route::get('{txn}', [TransactionsController::class, 'show'])->name('show');
-        });
-
-        // Wallet
-        Route::prefix('wallet')->name('wallet.')->group(function () {
-            Route::get('transactions', [WalletTransactionController::class, 'index'])->name('transactions.index');
-            Route::get('transactions/{txn}', [WalletTransactionController::class, 'show'])->name('transactions.show');
-
-            Route::get('note-templates', [WalletNoteTemplateController::class, 'index'])->name('note_templates.index');
-
-            Route::post('ops/hold', [WalletOpsController::class, 'hold'])->name('ops.hold');
-            Route::post('ops/release', [WalletOpsController::class, 'release'])->name('ops.release');
-        });
-
-        // Payments / Subscriptions (حسب الموجود عندك)
-        Route::prefix('payments')->name('payments.')->group(function () {
-            Route::get('/', [PaymentController::class, 'index'])->name('index');
-        });
-
-        Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
-            Route::get('/', [SubscriptionController::class, 'index'])->name('index');
+            Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->name('images.set-cover');
+            Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->name('images.delete');
         });
 
         // =========================
@@ -141,7 +203,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // =========================
         Route::prefix('bookings')->name('bookings.')->group(function () {
 
-            // Service lookup (AJAX) - لازم قبل {booking}
+            // ✅ لازم قبل {booking}
             Route::get('services/lookup', [BookingController::class, 'serviceLookup'])->name('services.lookup');
 
             // CRUD
@@ -154,7 +216,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{booking}', [BookingController::class, 'update'])->name('update');
             Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
 
-            // Start confirm (client/business)
+            // Deposit confirmations
             Route::post('{booking}/start-confirm/client',   [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
             Route::post('{booking}/start-confirm/business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
 
@@ -167,28 +229,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/deposit/dispute/agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.dispute.agree_release');
             Route::post('{booking}/deposit/dispute/agree-refund',  [BookingController::class, 'depositAgreeRefund'])->name('deposit.dispute.agree_refund');
 
-            Route::post('{booking}/deposit/confirm-client', [BookingController::class, 'depositConfirmClient'])->name('deposit.confirmClient');
+            Route::post('{booking}/deposit/confirm-client',   [BookingController::class,'depositConfirmClient'])->name('deposit.confirmClient');
+            Route::post('{booking}/deposit/confirm-business', [BookingController::class,'depositConfirmBusiness'])->name('deposit.confirmBusiness');
         });
 
         // =========================
         // Disputes
         // =========================
-        Route::prefix('disputes')->name('disputes.')->group(function () {
-            Route::get('/', [DisputeController::class, 'index'])->name('index');
-            Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
-        });
+        Route::get('disputes', [DisputeController::class, 'index'])->name('disputes.index');
 
-         Route::prefix('service-fees')->name('service_fees.')->group(function () {
-        Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
-        Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
-        Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
-        Route::get('{serviceFee}', [ServiceFeeController::class, 'show'])->name('show');
-        Route::get('{serviceFee}/edit', [ServiceFeeController::class, 'edit'])->name('edit');
-        Route::put('{serviceFee}', [ServiceFeeController::class, 'update'])->name('update');
-        Route::delete('{serviceFee}', [ServiceFeeController::class, 'destroy'])->name('destroy');
+        // =========================
+        // Service Fees / Business Service Prices
+        // =========================
+        Route::prefix('service-fees')->name('service-fees.')->group(function () {
+            Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
+            Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
+            Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
+            Route::get('{serviceFee}/edit', [ServiceFeeController::class, 'edit'])->name('edit');
+            Route::put('{serviceFee}', [ServiceFeeController::class, 'update'])->name('update');
+            Route::delete('{serviceFee}', [ServiceFeeController::class, 'destroy'])->name('destroy');
         });
-
-        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
+         Route::prefix('business-service-prices')->name('business-service-prices.')->group(function () {
             Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
             Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
             Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
@@ -197,6 +258,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
         });
 
-
     });
+
 });

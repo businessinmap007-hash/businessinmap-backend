@@ -4,104 +4,101 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
-use App\Models\Service;
+use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class BusinessServicePriceController extends Controller
 {
     public function index(Request $request)
     {
-        $q = BusinessServicePrice::query()->with([
-            'business:id,name,type',
-            'service:id,name_ar,name_en',
-        ]);
+        $q = trim((string) $request->get('q', ''));
 
-        if ($request->filled('business_id')) {
-            $q->where('business_id', (int)$request->business_id);
-        }
-        if ($request->filled('service_id')) {
-            $q->where('service_id', (int)$request->service_id);
-        }
-        if ($request->filled('is_active')) {
-            $q->where('is_active', (int)$request->is_active);
-        }
-
-        $rows = $q->orderByDesc('id')->paginate(50);
-
-        $businesses = User::query()
-            ->where('type', 'business')
+        $rows = BusinessServicePrice::query()
+            ->with(['business:id,name,code', 'service:id,key,name_ar,name_en'])
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->whereHas('business', fn($b) => $b->where('name','like',"%{$q}%")->orWhere('code','like',"%{$q}%"))
+                   ->orWhereHas('service', fn($s) => $s->where('key','like',"%{$q}%")->orWhere('name_ar','like',"%{$q}%")->orWhere('name_en','like',"%{$q}%"));
+            })
             ->orderByDesc('id')
-            ->limit(200)
-            ->get(['id','name']);
+            ->paginate(50)
+            ->withQueryString();
 
-        $services = Service::query()
-            ->orderByDesc('id')
-            ->limit(200)
-            ->get(['id','name_ar','name_en']);
-
-        return view('admin-v2.business-service-prices.index', compact('rows','businesses','services'));
+        return view('admin-v2.business-service-prices.index', compact('rows','q'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $businesses = User::query()->where('type', 'business')->orderByDesc('id')->limit(200)->get(['id','name']);
-        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
+        $services = PlatformService::query()->where('is_active',1)->orderBy('name_ar')->get();
+        $businesses = User::query()
+            ->select(['id','name','code'])
+            ->where('type','business') // عدّل حسب مشروعك
+            ->orderBy('name')
+            ->get();
 
-        return view('admin-v2.business-service-prices.create', compact('businesses','services'));
+        $row = new BusinessServicePrice([
+            'is_active' => 1,
+            'price' => 0,
+            'business_id' => (int) $request->get('business_id', 0),
+            'platform-service_id' => (int) $request->get('platform-service_id', 0),
+        ]);
+
+        return view('admin-v2.business-service-prices.create', compact('row','services','businesses'));
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateRow($request);
+        $data = $this->validateData($request);
 
-        // upsert: (business_id, service_id) unique
+        // منع تكرار (business + service)
         $row = BusinessServicePrice::query()->updateOrCreate(
-            ['business_id' => (int)$data['business_id'], 'service_id' => (int)$data['service_id']],
-            ['price' => (float)$data['price'], 'is_active' => (int)$data['is_active']]
+            ['business_id'=>$data['business_id'], 'platform-service_id'=>$data['platform-service_id']],
+            $data
         );
 
-        return redirect()->route('admin.business_service_prices.index')->with('success', 'تم حفظ تسعير الخدمة للبزنس.');
+        return redirect()->route('admin.business-service-prices.edit', $row)->with('success','تم الحفظ بنجاح.');
     }
 
     public function edit(BusinessServicePrice $row)
     {
-        $row->load(['business:id,name', 'service:id,name_ar,name_en']);
+        $services = PlatformService::query()->where('is_active',1)->orderBy('name_ar')->get();
+        $businesses = User::query()
+            ->select(['id','name','code'])
+            ->where('type','business')
+            ->orderBy('name')
+            ->get();
 
-        $businesses = User::query()->where('type', 'business')->orderByDesc('id')->limit(200)->get(['id','name']);
-        $services = Service::query()->orderByDesc('id')->limit(200)->get(['id','name_ar','name_en']);
-
-        return view('admin-v2.business-service-prices.edit', compact('row','businesses','services'));
+        return view('admin-v2.business-service-prices.edit', compact('row','services','businesses'));
     }
 
     public function update(Request $request, BusinessServicePrice $row)
     {
-        $data = $this->validateRow($request, true);
+        $data = $this->validateData($request);
+        $row->update($data);
 
-        $row->update([
-            'business_id' => (int)$data['business_id'],
-            'service_id'  => (int)$data['service_id'],
-            'price'       => (float)$data['price'],
-            'is_active'   => (int)$data['is_active'],
-        ]);
-
-        return redirect()->route('admin.business_service_prices.index')->with('success', 'تم التحديث.');
+        return back()->with('success','تم التحديث بنجاح.');
     }
 
     public function destroy(BusinessServicePrice $row)
     {
         $row->delete();
-        return redirect()->route('admin.business_service_prices.index')->with('success', 'تم الحذف.');
+        return redirect()->route('admin.business-service-prices.index')->with('success','تم الحذف بنجاح.');
     }
 
-    private function validateRow(Request $request, bool $isUpdate = false): array
+    private function validateData(Request $request): array
     {
-        return $request->validate([
-            'business_id' => ['required','integer'],
-            'service_id'  => ['required','integer'],
-            'price'       => ['required','numeric','min:0'],
-            'is_active'   => ['required', Rule::in([0,1])],
+        $data = $request->validate([
+            'business_id' => ['required','integer','min:1'],
+            'platform-service_id' => ['required','integer','min:1'],
+
+            'price' => ['required','numeric','min:0'],
+            'is_active' => ['nullable'],
+
+            'fee_type' => ['nullable','in:fixed,percent'],
+            'fee_value' => ['nullable','numeric','min:0'],
         ]);
+
+        $data['is_active'] = (int) $request->boolean('is_active');
+        return $data;
     }
 }

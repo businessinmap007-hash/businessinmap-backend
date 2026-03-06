@@ -110,14 +110,21 @@ final class AdminV2PermissionMap
                 'label'   => 'تسعير الخدمات للبزنس',
                 'icon'    => 'zmdi zmdi-view-dashboard',
                 'ability' => null,
-                'route'   => 'admin.business_service_prices.index',
+                'route'   => 'admin.business-service-prices.index',
             ],
-             [
+            [
                 'key'     => 'service_fee',
                 'label'   => 'رسوم الخدمات',
                 'icon'    => 'zmdi zmdi-view-dashboard',
                 'ability' => null,
                 'route'   => 'admin.service-fees.index',
+            ],
+            [
+                'key'     => 'platform_services',
+                'label'   => 'خدمات النظام الأساسية',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.platform-services.index',
             ],
 
             

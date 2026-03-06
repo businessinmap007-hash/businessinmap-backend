@@ -21,7 +21,8 @@ use App\Http\Controllers\AdminV2\{
     BookingController,
     DisputeController,
     BusinessServicePriceController,
-    ServiceFeeController
+    ServiceFeeController,
+    PlatformServiceController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -256,6 +257,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])->name('edit');
             Route::put('{row}', [BusinessServicePriceController::class, 'update'])->name('update');
             Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Platform Services
+        |--------------------------------------------------------------------------
+        | تعريف الخدمات الأساسية للنظام مثل:
+        | booking / menu / delivery
+        | وتحديد قواعدها (deposit / fee / rules)
+        */
+
+    Route::prefix('platform-services')->name('platform-services.')->group(function () {
+
+            Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
+            Route::get('/create', [PlatformServiceController::class, 'create'])->name('create');
+            Route::post('/', [PlatformServiceController::class, 'store'])->name('store');
+            Route::get('/{platformService}/edit', [PlatformServiceController::class, 'edit'])->name('edit');
+            Route::put('/{platformService}', [PlatformServiceController::class, 'update'])->name('update');
+            Route::delete('/{platformService}', [PlatformServiceController::class, 'destroy'])->name('destroy');
         });
 
     });

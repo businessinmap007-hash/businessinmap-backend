@@ -18,7 +18,7 @@
       <option value="">-- اختر --</option>
       @foreach($businesses as $b)
         <option value="{{ $b->id }}" @selected(old('business_id', (int)$row->business_id) === (int)$b->id)>
-          {{ $b->name }} — #{{ $b->id }}
+          {{ $b->name }}
         </option>
       @endforeach
     </select>

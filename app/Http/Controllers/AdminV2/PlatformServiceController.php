@@ -22,7 +22,7 @@ class PlatformServiceController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin_v2.platform_services.index', compact('rows', 'q'));
+        return view('admin-v2.platform-services.index', compact('rows', 'q'));
     }
 
     public function create()
@@ -33,7 +33,7 @@ class PlatformServiceController extends Controller
             'max_deposit_percent' => 0,
         ]);
 
-        return view('admin_v2.platform_services.create', compact('row'));
+        return view('admin-v2.platform-services.create', compact('row'));
     }
 
     public function store(Request $request)
@@ -50,7 +50,7 @@ class PlatformServiceController extends Controller
     public function edit(PlatformService $platformService)
     {
         $row = $platformService;
-        return view('admin_v2.platform_services.edit', compact('row'));
+        return view('admin-v2.platform-services.edit', compact('row'));
     }
 
     public function update(Request $request, PlatformService $platformService)

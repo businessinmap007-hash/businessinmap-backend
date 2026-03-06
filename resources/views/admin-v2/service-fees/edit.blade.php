@@ -9,7 +9,7 @@
     <div class="a2-hint">إضافة رسوم منصة</div>
   </div>
 
-  <form method="POST" action="{{ route('admin.service_fees.store') }}">
+  <form method="POST" action="{{ route('admin.service-fees.store') }}">
     @csrf
     @include('admin-v2.service-fees._form', ['submitLabel' => 'Create'])
   </form>

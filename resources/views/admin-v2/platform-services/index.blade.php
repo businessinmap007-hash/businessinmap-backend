@@ -1,4 +1,7 @@
-@extends('admin_v2.layouts.app')
+@extends('admin-v2.layouts.master')
+@section('title','Platform Services')
+
+@section('body_class','admin-v2-platform-services index')
 
 @section('content')
 <div class="a2-card" style="padding:14px;">

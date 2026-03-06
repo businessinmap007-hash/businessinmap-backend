@@ -1,5 +1,6 @@
-@extends('admin_v2.layouts.app')
-
+@extends('admin-v2.layouts.master')
+@section('title','Business Service Prices')
+@section('body_class','admin-v2-business-service-prices index')
 @section('content')
 <div class="a2-card" style="padding:14px;">
   <div class="a2-header" style="margin-bottom:10px;">

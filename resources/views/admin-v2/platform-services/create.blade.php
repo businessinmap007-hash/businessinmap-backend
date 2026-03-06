@@ -1,10 +1,13 @@
-@extends('admin_v2.layouts.app')
+@extends('admin-v2.layouts.master')
+@section('title','Create Platform Service') 
+@section('body_class','admin-v2-platform-services create')
+
 @section('content')
 <div class="a2-card" style="padding:14px;">
-  <div class="a2-title" style="margin-bottom:10px;">Create Business Service Price</div>
-  <form method="POST" action="{{ route('admin.business-service-prices.store') }}">
+  <div class="a2-title" style="margin-bottom:10px;">Create Platform Service</div>
+  <form method="POST" action="{{ route('admin.platform-services.store') }}">
     @csrf
-    @include('admin_v2.business-service-prices._form', ['submitLabel' => 'Create'])
+    @include('admin-v2.platform-services._form', ['submitLabel' => 'Create'])
   </form>
 </div>
 @endsection

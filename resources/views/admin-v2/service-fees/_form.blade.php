@@ -48,6 +48,6 @@
 
   <div class="a2-actionsbar" style="margin-top:14px;display:flex;gap:10px;">
     <button class="a2-btn a2-btn-primary" type="submit">{{ $submitLabel ?? 'Save' }}</button>
-    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.service_fees.index') }}">Back</a>
+    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.service-fees.index') }}">Back</a>
   </div>
 </div>

@@ -31,7 +31,7 @@ class BusinessServicePriceController extends Controller
     {
         $services = PlatformService::query()->where('is_active',1)->orderBy('name_ar')->get();
         $businesses = User::query()
-            ->select(['id','name','code'])
+            ->select(['name'])
             ->where('type','business') // عدّل حسب مشروعك
             ->orderBy('name')
             ->get();

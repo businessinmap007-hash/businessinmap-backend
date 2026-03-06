@@ -4,20 +4,65 @@
 
     $currentRoute = Route::currentRouteName();
 
+    if (!isset($adminV2Menu) || !is_array($adminV2Menu) || empty($adminV2Menu)) {
+        $adminV2Menu = [
+            ['type' => 'section', 'label' => 'Main'],
+
+            ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard'],
+
+            ['type' => 'section', 'label' => 'Management'],
+
+            ['label' => 'Users', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
+            ['label' => 'Categories', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => 'admin.categories.'],
+            ['label' => 'Posts', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => 'admin.posts.'],
+            ['label' => 'Jobs', 'route' => 'admin.jobs.index', 'icon' => 'briefcase', 'active' => 'admin.jobs.'],
+            ['label' => 'Sponsors', 'route' => 'admin.sponsors.index', 'icon' => 'megaphone', 'active' => 'admin.sponsors.'],
+            ['label' => 'Albums', 'route' => 'admin.albums.index', 'icon' => 'image', 'active' => 'admin.albums.'],
+
+            ['type' => 'section', 'label' => 'Booking & Finance'],
+
+            [
+                'label' => 'Bookings',
+                'route' => 'admin.bookings.index',
+                'icon' => 'ticket',
+                'active' => 'admin.bookings.',
+                'children' => [
+                    ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
+                    ['label' => 'Create Booking', 'route' => 'admin.bookings.create'],
+                ],
+            ],
+
+            ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'icon' => 'shield', 'active' => 'admin.disputes.'],
+            ['label' => 'Transactions', 'route' => 'admin.transactions.index', 'icon' => 'credit', 'active' => 'admin.transactions.'],
+            ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'icon' => 'credit', 'active' => 'admin.wallet-transactions.'],
+            ['label' => 'Wallet Notes', 'route' => 'admin.wallet-notes.index', 'icon' => 'file', 'active' => 'admin.wallet-notes.'],
+            ['label' => 'Payments', 'route' => 'admin.payments.index', 'icon' => 'credit', 'active' => 'admin.payments.'],
+
+            ['type' => 'section', 'label' => 'Services'],
+
+            ['label' => 'Service Fees', 'route' => 'admin.service-fees.index', 'icon' => 'settings', 'active' => 'admin.service-fees.'],
+            ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => 'admin.platform-services.'],
+            ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'icon' => 'settings', 'active' => 'admin.business_service_prices.'],
+
+            ['type' => 'section', 'label' => 'Other'],
+
+            ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'icon' => 'file', 'active' => 'admin.subscriptions.'],
+        ];
+    }
+
     $isActive = function(array $item) use ($currentRoute) {
         $route = $item['route'] ?? null;
         if (!$route) return false;
 
         if (!empty($item['active']) && is_string($item['active'])) {
-            return str_starts_with((string)$currentRoute, (string)$item['active']);
+            return str_starts_with((string) $currentRoute, (string) $item['active']);
         }
 
         if ($currentRoute === $route) return true;
 
-        return str_starts_with((string)$currentRoute, rtrim($route, '.') . '.');
+        return str_starts_with((string) $currentRoute, rtrim($route, '.') . '.');
     };
 
-    // Inline SVG by key (no external libs)
     $ico = function(?string $key) {
         $key = (string)($key ?? 'dot');
 
@@ -40,80 +85,76 @@
     };
 @endphp
 
-@if(!empty($adminV2Menu))
-    <ul class="a2-nav-list">
-        @foreach($adminV2Menu as $item)
-            @php
-                $type  = $item['type'] ?? 'link';
-                $label = $item['label'] ?? '—';
+<ul class="a2-nav-list">
+    @foreach($adminV2Menu as $item)
+        @php
+            $type  = $item['type'] ?? 'link';
+            $label = $item['label'] ?? '—';
 
-                if ($type === 'section') {
-                    echo '<li class="a2-nav-section">'.e($label).'</li>';
-                    continue;
+            if ($type === 'section') {
+                echo '<li class="a2-nav-section">'.e($label).'</li>';
+                continue;
+            }
+
+            $routeName = $item['route'] ?? null;
+            $exists    = ($routeName && Route::has($routeName));
+            $href      = $exists ? route($routeName) : '#';
+
+            $active = $exists && $isActive($item);
+
+            $children    = $item['children'] ?? [];
+            $hasChildren = is_array($children) && count($children) > 0;
+
+            $open = false;
+            if ($hasChildren) {
+                foreach ($children as $ch) {
+                    if ($isActive($ch)) { $open = true; break; }
                 }
+                $open = $open || $active;
+            }
 
-                $routeName = $item['route'] ?? null;
-                $exists    = ($routeName && Route::has($routeName));
-                $href      = $exists ? route($routeName) : '#';
+            $iconKey = $item['icon'] ?? 'dot';
+        @endphp
 
-                $active = $exists && $isActive($item);
-
-                $children    = $item['children'] ?? [];
-                $hasChildren = is_array($children) && count($children) > 0;
-
-                $open = false;
-                if ($hasChildren) {
-                    foreach ($children as $ch) {
-                        if ($isActive($ch)) { $open = true; break; }
-                    }
-                    $open = $open || $active;
-                }
-
-                $iconKey = $item['icon'] ?? 'dot';
-            @endphp
-
-            <li class="a2-nav-item">
-                @if(!$hasChildren)
-                    <a class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ !$exists ? 'is-disabled' : '' }}"
-                       href="{{ $href }}"
-                       aria-current="{{ $active ? 'page' : 'false' }}"
-                       aria-disabled="{{ $exists ? 'false' : 'true' }}">
+        <li class="a2-nav-item">
+            @if(!$hasChildren)
+                <a class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ !$exists ? 'is-disabled' : '' }}"
+                   href="{{ $href }}"
+                   aria-current="{{ $active ? 'page' : 'false' }}"
+                   aria-disabled="{{ $exists ? 'false' : 'true' }}">
+                    {!! $ico($iconKey) !!}
+                    <span class="a2-nav-text">{{ $label }}</span>
+                </a>
+            @else
+                <details class="a2-nav-group" {{ $open ? 'open' : '' }}>
+                    <summary class="a2-nav-parent {{ $active ? 'is-active' : '' }}">
                         {!! $ico($iconKey) !!}
                         <span class="a2-nav-text">{{ $label }}</span>
-                    </a>
-                @else
-                    <details class="a2-nav-group" {{ $open ? 'open' : '' }}>
-                        <summary class="a2-nav-parent {{ $active ? 'is-active' : '' }}">
-                            {!! $ico($iconKey) !!}
-                            <span class="a2-nav-text">{{ $label }}</span>
-                            <span class="a2-nav-caret">▾</span>
-                        </summary>
+                        <span class="a2-nav-caret">▾</span>
+                    </summary>
 
-                        <ul class="a2-nav-children">
-                            @foreach($children as $child)
-                                @php
-                                    $cr      = $child['route'] ?? null;
-                                    $ce      = ($cr && Route::has($cr));
-                                    $chref   = $ce ? route($cr) : '#';
-                                    $cactive = $ce && $isActive($child);
-                                @endphp
+                    <ul class="a2-nav-children">
+                        @foreach($children as $child)
+                            @php
+                                $cr      = $child['route'] ?? null;
+                                $ce      = ($cr && Route::has($cr));
+                                $chref   = $ce ? route($cr) : '#';
+                                $cactive = $ce && $isActive($child);
+                            @endphp
 
-                                <li>
-                                    <a class="a2-nav-child-link {{ $cactive ? 'is-active' : '' }} {{ !$ce ? 'is-disabled' : '' }}"
-                                       href="{{ $chref }}"
-                                       aria-current="{{ $cactive ? 'page' : 'false' }}"
-                                       aria-disabled="{{ $ce ? 'false' : 'true' }}">
-                                        <span class="a2-nav-bullet"></span>
-                                        <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
-                                    </a>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </details>
-                @endif
-            </li>
-        @endforeach
-    </ul>
-@else
-    <div class="a2-nav-empty">لا توجد عناصر قائمة متاحة لهذا المستخدم.</div>
-@endif
+                            <li>
+                                <a class="a2-nav-child-link {{ $cactive ? 'is-active' : '' }} {{ !$ce ? 'is-disabled' : '' }}"
+                                   href="{{ $chref }}"
+                                   aria-current="{{ $cactive ? 'page' : 'false' }}"
+                                   aria-disabled="{{ $ce ? 'false' : 'true' }}">
+                                    <span class="a2-nav-bullet"></span>
+                                    <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </details>
+            @endif
+        </li>
+    @endforeach
+</ul>

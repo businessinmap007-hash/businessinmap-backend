@@ -2,12 +2,13 @@
 
 @section('title','Bookings')
 @section('body_class','admin-v2-bookings')
+@section('topbar_title','Bookings')
 
 @section('content')
 @php
-  $qVal      = (string)($q ?? '');
-  $statusVal = (string)($status ?? '');
-  $dateVal   = (string)($date ?? '');
+  $qVal       = (string)($q ?? '');
+  $statusVal  = (string)($status ?? '');
+  $dateVal    = (string)($date ?? '');
   $perPageVal = (int)($perPage ?? 50);
 
   $sortNow = (string)($sort ?? 'starts_at');
@@ -29,27 +30,29 @@
 
   $badge = function(string $st) {
     return match($st) {
-      'accepted'  => 'a2-badge a2-badge-success',
-      'rejected'  => 'a2-badge a2-badge-danger',
-      'cancelled' => 'a2-badge a2-badge-muted',
-      default     => 'a2-badge a2-badge-warning',
+      'accepted'    => 'a2-badge a2-badge-success',
+      'rejected'    => 'a2-badge a2-badge-danger',
+      'cancelled'   => 'a2-badge a2-badge-muted',
+      'in_progress' => 'a2-badge a2-badge-primary',
+      'completed'   => 'a2-badge a2-badge-success',
+      default       => 'a2-badge a2-badge-warning',
     };
   };
 
   $fmt = function($dt) {
     if (!$dt) return '—';
-    try { return \Carbon\Carbon::parse($dt)->format('Y-m-d H:i'); } catch (\Throwable $e) { return (string)$dt; }
+    try {
+      return \Carbon\Carbon::parse($dt)->format('Y-m-d H:i');
+    } catch (\Throwable $e) {
+      return (string) $dt;
+    }
   };
 
   $kindOf = function($row) {
-    $k = $row->meta['booking_kind'] ?? '';
+    $k = data_get($row, 'meta.booking_kind', '');
     return $k !== '' ? $k : '—';
   };
 @endphp
-
-<div class="a2-alert a2-alert-warning">
-  has client route? {{ \Illuminate\Support\Facades\Route::has('admin.bookings.start_confirm.client') ? 'YES' : 'NO' }}
-</div>
 
 <div class="a2-page">
   <div class="a2-card">
@@ -57,7 +60,7 @@
     <div class="a2-header">
       <div>
         <h2 class="a2-title">Bookings</h2>
-        <div class="a2-hint">حجوزات عامة (وقت/مدة)</div>
+        <div class="a2-hint">حجوزات عامة (وقت / مدة)</div>
       </div>
       <div class="a2-actionsbar">
         <a class="a2-btn a2-btn-primary" href="{{ route('admin.bookings.create') }}">إضافة حجز</a>
@@ -79,7 +82,7 @@
         <select class="a2-select" name="status">
           <option value="">الكل</option>
           @foreach($statusOptions as $k => $label)
-            <option value="{{ $k }}" @selected($statusVal===$k)>{{ $label }}</option>
+            <option value="{{ $k }}" @selected($statusVal === (string)$k)>{{ $label }}</option>
           @endforeach
         </select>
       </div>
@@ -93,7 +96,7 @@
         <label class="a2-label">Per page</label>
         <select class="a2-select" name="per_page">
           @foreach([10,20,50,100] as $pp)
-            <option value="{{ $pp }}" @selected($perPageVal===$pp)>{{ $pp }}</option>
+            <option value="{{ $pp }}" @selected($perPageVal === $pp)>{{ $pp }}</option>
           @endforeach
         </select>
       </div>
@@ -107,7 +110,7 @@
       <input type="hidden" name="dir" value="{{ $dirNow }}">
     </form>
 
-    <div class="a2-tablewrap">
+    <div class="a2-table-wrap">
       <table class="a2-table">
         <thead>
           <tr>
@@ -142,12 +145,13 @@
               </td>
 
               <td>
-                {{ $r->service ? ($r->service->name_ar ?? $r->service->name_en ?? $r->service->display_name) : '—' }}
+                {{ $r->service ? ($r->service->name_ar ?? $r->service->name_en ?? $r->service->display_name ?? '—') : '—' }}
               </td>
 
               <td><span class="a2-badge a2-badge-muted">{{ $kindOf($r) }}</span></td>
 
               <td>{{ $fmt($r->starts_at) }}</td>
+
               <td>
                 @if($r->ends_at)
                   {{ $fmt($r->ends_at) }}
@@ -159,7 +163,9 @@
               </td>
 
               <td>
-                <span class="{{ $badge($r->status) }}">{{ $statusOptions[$r->status] ?? $r->status }}</span>
+                <span class="{{ $badge((string)$r->status) }}">
+                  {{ $statusOptions[$r->status] ?? $r->status }}
+                </span>
               </td>
 
               <td class="a2-actions">

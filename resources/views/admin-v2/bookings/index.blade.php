@@ -2,7 +2,6 @@
 
 @section('title','Bookings')
 @section('body_class','admin-v2-bookings')
-@section('topbar_title','Bookings')
 
 @section('content')
 @php
@@ -60,7 +59,7 @@
     <div class="a2-header">
       <div>
         <h2 class="a2-title">Bookings</h2>
-        <div class="a2-hint">حجوزات عامة (وقت / مدة)</div>
+        <div class="a2-hint">حجوزات عامة + عناصر قابلة للحجز</div>
       </div>
       <div class="a2-actionsbar">
         <a class="a2-btn a2-btn-primary" href="{{ route('admin.bookings.create') }}">إضافة حجز</a>
@@ -74,7 +73,7 @@
     <form method="GET" class="a2-filters" style="display:grid;grid-template-columns:1.4fr .8fr .8fr .6fr auto;gap:10px;align-items:end;">
       <div>
         <label class="a2-label">بحث</label>
-        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="ID / notes / user_id / business_id">
+        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="ID / notes / user_id / business_id / bookable_id">
       </div>
 
       <div>
@@ -118,6 +117,7 @@
             <th>Client</th>
             <th>Business</th>
             <th>Service</th>
+            <th>Bookable Item</th>
             <th>Kind</th>
             <th><a href="{{ $sortUrl('starts_at') }}">Start</a></th>
             <th><a href="{{ $sortUrl('ends_at') }}">End</a></th>
@@ -145,7 +145,19 @@
               </td>
 
               <td>
-                {{ $r->service ? ($r->service->name_ar ?? $r->service->name_en ?? $r->service->display_name ?? '—') : '—' }}
+                {{ $r->service ? ($r->service->name_ar ?? $r->service->name_en ?? $r->service->key ?? '—') : '—' }}
+              </td>
+
+              <td>
+                @if($r->bookable)
+                  <div style="font-weight:700;">{{ $r->bookable->title ?? '—' }}</div>
+                  <div class="a2-hint">
+                    {{ $r->bookable->item_type ?? '' }}
+                    @if(!empty($r->bookable->code)) — {{ $r->bookable->code }} @endif
+                  </div>
+                @else
+                  <span class="a2-hint">—</span>
+                @endif
               </td>
 
               <td><span class="a2-badge a2-badge-muted">{{ $kindOf($r) }}</span></td>
@@ -181,7 +193,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="9" class="a2-muted" style="text-align:center;padding:18px;">لا توجد بيانات</td>
+              <td colspan="10" class="a2-muted" style="text-align:center;padding:18px;">لا توجد بيانات</td>
             </tr>
           @endforelse
         </tbody>

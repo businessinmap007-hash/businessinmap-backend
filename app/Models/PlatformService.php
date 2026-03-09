@@ -9,10 +9,14 @@ class PlatformService extends Model
     protected $table = 'platform_services';
 
     protected $fillable = [
-        'key','name_ar','name_en',
+        'key',
+        'name_ar',
+        'name_en',
         'is_active',
-        'supports_deposit','max_deposit_percent',
-        'fee_type','fee_value',
+        'supports_deposit',
+        'max_deposit_percent',
+        'fee_type',
+        'fee_value',
         'rules',
     ];
 

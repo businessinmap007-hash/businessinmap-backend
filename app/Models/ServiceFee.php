@@ -3,35 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PlatformService;
 
 class ServiceFee extends Model
 {
     protected $table = 'service_fees';
 
     protected $fillable = [
-        'business_id',
+        'code',
         'service_id',
-        'price',
-        'is_active',
-        'fee_type',
-        'fee_value',
+        'amount',
         'rules',
+        'is_active',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'amount' => 'decimal:2',
         'is_active' => 'boolean',
-        'fee_value' => 'decimal:2',
         'rules' => 'array',
     ];
 
-    public function business()
-    {
-        return $this->belongsTo(User::class, 'business_id');
-    }
-
     public function service()
     {
-        return $this->belongsTo(Service::class, 'service_id');
+        return $this->belongsTo(PlatformService::class, 'service_id');
     }
 }

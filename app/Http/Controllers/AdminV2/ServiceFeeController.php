@@ -4,46 +4,24 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceFee;
-use App\Models\Service;
-use App\Models\User;
+use App\Models\PlatformService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ServiceFeeController extends Controller
 {
     public function index(Request $request)
     {
-        $q = trim((string) $request->get('q', ''));
-        $code = trim((string) $request->get('code', ''));
         $serviceId = (int) $request->get('service_id', 0);
-        $isActive = $request->get('is_active', '');
+        $isActive  = $request->get('is_active', '');
 
-        // مهم: نرسل الخدمات للفلتر في صفحة index
-        $services = Service::query()
-            ->select(['id', 'name_ar', 'name_en'])
+        $services = PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en'])
             ->orderBy('name_ar')
             ->get();
 
         $rows = ServiceFee::query()
-            ->with([
-                'service:id,name_ar,name_en',
-                'business:id,name,code',
-            ])
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($sub) use ($q) {
-                    $sub->whereHas('business', function ($b) use ($q) {
-                        $b->where('name', 'like', "%{$q}%")
-                          ->orWhere('code', 'like', "%{$q}%");
-                    })->orWhereHas('service', function ($s) use ($q) {
-                        $s->where('name_ar', 'like', "%{$q}%")
-                          ->orWhere('name_en', 'like', "%{$q}%");
-                    });
-                });
-            })
-            ->when($code !== '', function ($query) use ($code) {
-                $query->whereHas('business', function ($b) use ($code) {
-                    $b->where('code', 'like', "%{$code}%");
-                });
-            })
+            ->with(['service:id,key,name_ar,name_en'])
             ->when($serviceId > 0, function ($query) use ($serviceId) {
                 $query->where('service_id', $serviceId);
             })
@@ -56,77 +34,59 @@ class ServiceFeeController extends Controller
 
         return view('admin-v2.service-fees.index', compact(
             'rows',
-            'q',
-            'code',
+            'services',
             'serviceId',
-            'isActive',
-            'services'
+            'isActive'
         ));
     }
 
     public function create()
     {
-        $services = Service::query()
-            ->select(['id', 'name_ar', 'name_en'])
+        $services = PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en'])
+            ->where('is_active', 1)
             ->orderBy('name_ar')
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name', 'code'])
-            ->where('type', 'business')
-            ->orderBy('name')
             ->get();
 
         $row = new ServiceFee([
             'is_active' => 1,
-            'price' => 0,
+            'amount' => 0,
         ]);
 
-        return view('admin-v2.service-fees.create', compact('row', 'services', 'businesses'));
+        return view('admin-v2.service-fees.create', compact('row', 'services'));
     }
 
     public function store(Request $request)
     {
         $data = $this->validateData($request);
 
-        $row = ServiceFee::updateOrCreate(
-            [
-                'business_id' => $data['business_id'],
-                'service_id'  => $data['service_id'],
-            ],
-            $data
-        );
+        $row = ServiceFee::create($data);
 
         return redirect()
             ->route('admin.service-fees.edit', $row)
-            ->with('success', 'تم حفظ السعر بنجاح.');
+            ->with('success', 'تم إنشاء رسم الخدمة بنجاح.');
     }
 
     public function edit(ServiceFee $serviceFee)
     {
-        $services = Service::query()
-            ->select(['id', 'name_ar', 'name_en'])
+        $services = PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en'])
+            ->where('is_active', 1)
             ->orderBy('name_ar')
             ->get();
 
-        $businesses = User::query()
-            ->select(['id', 'name', 'code'])
-            ->where('type', 'business')
-            ->orderBy('name')
-            ->get();
+        $row = $serviceFee->load('service:id,key,name_ar,name_en');
 
-        $row = $serviceFee;
-
-        return view('admin-v2.service-fees.edit', compact('row', 'services', 'businesses'));
+        return view('admin-v2.service-fees.edit', compact('row', 'services'));
     }
 
     public function update(Request $request, ServiceFee $serviceFee)
     {
-        $data = $this->validateData($request);
+        $data = $this->validateData($request, $serviceFee->id);
 
         $serviceFee->update($data);
 
-        return back()->with('success', 'تم تحديث السعر بنجاح.');
+        return back()->with('success', 'تم تحديث رسم الخدمة بنجاح.');
     }
 
     public function destroy(ServiceFee $serviceFee)
@@ -135,19 +95,30 @@ class ServiceFeeController extends Controller
 
         return redirect()
             ->route('admin.service-fees.index')
-            ->with('success', 'تم الحذف بنجاح.');
+            ->with('success', 'تم حذف السجل بنجاح.');
     }
 
-    protected function validateData(Request $request): array
+    protected function validateData(Request $request, ?int $ignoreId = null): array
     {
         $data = $request->validate([
-            'business_id' => ['required', 'integer', 'exists:users,id'],
-            'service_id'  => ['required', 'integer', 'exists:services,id'],
-            'price'       => ['required', 'numeric', 'min:0'],
-            'is_active'   => ['nullable'],
-            'fee_type'    => ['nullable', 'in:fixed,percent'],
-            'fee_value'   => ['nullable', 'numeric', 'min:0'],
-            'rules'       => ['nullable'],
+            'code' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('service_fees', 'code')->ignore($ignoreId),
+            ],
+            'service_id' => [
+                'nullable',
+                'integer',
+                'exists:platform_services,id',
+            ],
+            'amount' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+            'rules' => ['nullable'],
+            'is_active' => ['nullable'],
         ]);
 
         $data['is_active'] = (int) $request->boolean('is_active');

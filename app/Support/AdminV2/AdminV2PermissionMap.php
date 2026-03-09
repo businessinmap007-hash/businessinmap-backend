@@ -72,6 +72,7 @@ final class AdminV2PermissionMap
                 'ability' => null,
                 'route'   => 'admin.subscriptions.index',
             ],
+            ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'icon' => 'folder', 'active' => 'admin.bookable-items.'],
 
             // [
             //     'key'     => 'financial',
@@ -110,7 +111,7 @@ final class AdminV2PermissionMap
                 'label'   => 'تسعير الخدمات للبزنس',
                 'icon'    => 'zmdi zmdi-view-dashboard',
                 'ability' => null,
-                'route'   => 'admin.business-service-prices.index',
+                'route'   => 'admin.platform-services.index',
             ],
             [
                 'key'     => 'service_fee',

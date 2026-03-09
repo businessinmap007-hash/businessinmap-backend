@@ -22,7 +22,8 @@ use App\Http\Controllers\AdminV2\{
     DisputeController,
     BusinessServicePriceController,
     ServiceFeeController,
-    PlatformServiceController
+    PlatformServiceController,
+    BookableItemController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -211,6 +212,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [BookingController::class, 'index'])->name('index');
             Route::get('create', [BookingController::class, 'create'])->name('create');
             Route::post('/', [BookingController::class, 'store'])->name('store');
+            Route::get('bookable-items/lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookable-items.lookup');
 
             Route::get('{booking}', [BookingController::class, 'show'])->name('show');
             Route::get('{booking}/edit', [BookingController::class, 'edit'])->name('edit');
@@ -232,6 +234,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::post('{booking}/deposit/confirm-client',   [BookingController::class,'depositConfirmClient'])->name('deposit.confirmClient');
             Route::post('{booking}/deposit/confirm-business', [BookingController::class,'depositConfirmBusiness'])->name('deposit.confirmBusiness');
+            
         });
 
         // =========================
@@ -250,13 +253,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{serviceFee}', [ServiceFeeController::class, 'update'])->name('update');
             Route::delete('{serviceFee}', [ServiceFeeController::class, 'destroy'])->name('destroy');
         });
-         Route::prefix('business-service-prices')->name('business-service-prices.')->group(function () {
+
+        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
             Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
-            Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
+            Route::get('/create', [BusinessServicePriceController::class, 'create'])->name('create');
             Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
-            Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])->name('edit');
-            Route::put('{row}', [BusinessServicePriceController::class, 'update'])->name('update');
-            Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
+            Route::get('/{row}/edit', [BusinessServicePriceController::class, 'edit'])->name('edit');
+            Route::put('/{row}', [BusinessServicePriceController::class, 'update'])->name('update');
+            Route::delete('/{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
         });
 
 
@@ -269,8 +273,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         | وتحديد قواعدها (deposit / fee / rules)
         */
 
-    Route::prefix('platform-services')->name('platform-services.')->group(function () {
-
+        Route::prefix('platform-services')->name('platform-services.')->group(function () {
             Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
             Route::get('/create', [PlatformServiceController::class, 'create'])->name('create');
             Route::post('/', [PlatformServiceController::class, 'store'])->name('store');
@@ -279,6 +282,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/{platformService}', [PlatformServiceController::class, 'destroy'])->name('destroy');
         });
 
+        Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
+            Route::get('/', [BookableItemController::class, 'index'])->name('index');
+            Route::get('/create', [BookableItemController::class, 'create'])->name('create');
+            Route::post('/', [BookableItemController::class, 'store'])->name('store');
+            Route::get('/{bookableItem}/edit', [BookableItemController::class, 'edit'])->name('edit');
+            Route::put('/{bookableItem}', [BookableItemController::class, 'update'])->name('update');
+            Route::delete('/{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
+        });
     });
 
 });

@@ -8,7 +8,6 @@ use App\Http\Controllers\AdminV2\{
     CategoryController,
     PostController,
     DashboardController,
-    TransactionsController,
     UploadController,
     JobPostController,
     WalletTransactionController,
@@ -139,13 +138,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Transactions
-        // =========================
-        Route::prefix('transactions')->name('transactions.')->group(function () {
-            Route::get('/', [TransactionsController::class, 'index'])->name('index');
-            Route::get('{tx}', [TransactionsController::class, 'show'])->name('show');
-        });
+      
 
         // =========================
         // Wallet Transactions
@@ -204,37 +197,29 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Bookings
         // =========================
         Route::prefix('bookings')->name('bookings.')->group(function () {
-
-            // ✅ لازم قبل {booking}
-            Route::get('services/lookup', [BookingController::class, 'serviceLookup'])->name('services.lookup');
-
-            // CRUD
             Route::get('/', [BookingController::class, 'index'])->name('index');
-            Route::get('create', [BookingController::class, 'create'])->name('create');
+            Route::get('/create', [BookingController::class, 'create'])->name('create');
             Route::post('/', [BookingController::class, 'store'])->name('store');
-            Route::get('bookable-items/lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookable-items.lookup');
+            Route::get('/service-lookup', [BookingController::class, 'serviceLookup'])->name('serviceLookup');
+            Route::get('/bookable-items-lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookableItemsLookup');
+            Route::get('/{booking}', [BookingController::class, 'show'])->name('show');
+            Route::get('/{booking}/edit', [BookingController::class, 'edit'])->name('edit');
+            Route::put('/{booking}', [BookingController::class, 'update'])->name('update');
+            Route::delete('/{booking}', [BookingController::class, 'destroy'])->name('destroy');
 
-            Route::get('{booking}', [BookingController::class, 'show'])->name('show');
-            Route::get('{booking}/edit', [BookingController::class, 'edit'])->name('edit');
-            Route::put('{booking}', [BookingController::class, 'update'])->name('update');
-            Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
-
-            // Deposit confirmations
-            Route::post('{booking}/start-confirm/client',   [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
-            Route::post('{booking}/start-confirm/business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
-
-            // Deposit actions
-            Route::post('{booking}/deposit/freeze',  [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
-            Route::post('{booking}/deposit/release', [BookingController::class, 'depositRelease'])->name('deposit.release');
-            Route::post('{booking}/deposit/refund',  [BookingController::class, 'depositRefund'])->name('deposit.refund');
-
-            Route::post('{booking}/deposit/dispute/open', [BookingController::class, 'depositDisputeOpen'])->name('deposit.dispute.open');
-            Route::post('{booking}/deposit/dispute/agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.dispute.agree_release');
-            Route::post('{booking}/deposit/dispute/agree-refund',  [BookingController::class, 'depositAgreeRefund'])->name('deposit.dispute.agree_refund');
-
-            Route::post('{booking}/deposit/confirm-client',   [BookingController::class,'depositConfirmClient'])->name('deposit.confirmClient');
-            Route::post('{booking}/deposit/confirm-business', [BookingController::class,'depositConfirmBusiness'])->name('deposit.confirmBusiness');
-            
+            // confirmations
+            Route::post('/{booking}/start-confirm-client', [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
+            Route::post('/{booking}/start-confirm-business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
+            Route::post('/{booking}/deposit-confirm-client', [BookingController::class, 'depositConfirmClient'])->name('deposit.confirm.client');
+            Route::post('/{booking}/deposit-confirm-business', [BookingController::class, 'depositConfirmBusiness'])->name('deposit.confirm.business');
+            // deposit actions
+            Route::post('/{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
+            Route::post('/{booking}/deposit-release', [BookingController::class, 'depositRelease'])->name('deposit.release');
+            Route::post('/{booking}/deposit-refund', [BookingController::class, 'depositRefund'])->name('deposit.refund');
+            Route::post('/{booking}/deposit-dispute-open', [BookingController::class, 'depositDisputeOpen'])->name('deposit.dispute.open');
+            Route::post('/{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.agree.release');
+            Route::post('/{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->name('deposit.agree.refund');
+            Route::get('/pricing-preview', [BookingController::class, 'pricingPreview'])->name('pricingPreview');
         });
 
         // =========================
@@ -245,14 +230,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // =========================
         // Service Fees / Business Service Prices
         // =========================
-        Route::prefix('service-fees')->name('service-fees.')->group(function () {
-            Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
-            Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
-            Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
-            Route::get('{serviceFee}/edit', [ServiceFeeController::class, 'edit'])->name('edit');
-            Route::put('{serviceFee}', [ServiceFeeController::class, 'update'])->name('update');
-            Route::delete('{serviceFee}', [ServiceFeeController::class, 'destroy'])->name('destroy');
-        });
+      Route::prefix('service-fees')->name('service-fees.')->group(function () {
+        Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
+
+        Route::get('/create', [ServiceFeeController::class, 'create'])->name('create');
+        Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
+
+        Route::get('/show', [ServiceFeeController::class, 'show'])->name('show');
+        Route::get('/edit', [ServiceFeeController::class, 'edit'])->name('edit');
+        Route::put('/update', [ServiceFeeController::class, 'update'])->name('update');
+
+        Route::match(['post', 'patch'], '/toggle-active', [ServiceFeeController::class, 'toggleActive'])
+            ->name('toggleActive');
+
+        Route::delete('/delete', [ServiceFeeController::class, 'destroy'])->name('destroy');
+    });
+
+
+        
 
         Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
             Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');

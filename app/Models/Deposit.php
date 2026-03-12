@@ -88,4 +88,13 @@ class Deposit extends Model
     {
         return in_array($this->status, [DepositStatus::RELEASED, DepositStatus::REFUNDED], true);
     }
+    public function target()
+    {
+        return $this->morphTo();
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(\App\Models\WalletTransaction::class, 'deposit_id');
+    }
 }

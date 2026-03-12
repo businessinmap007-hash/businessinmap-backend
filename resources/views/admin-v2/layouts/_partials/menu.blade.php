@@ -67,10 +67,8 @@
             ],
         ],
         ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'icon' => 'shield', 'active' => 'admin.disputes.'],
-        ['label' => 'Transactions', 'route' => 'admin.transactions.index', 'icon' => 'credit', 'active' => 'admin.transactions.'],
         ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'icon' => 'credit', 'active' => 'admin.wallet-transactions.'],
         ['label' => 'Wallet Notes', 'route' => 'admin.wallet-notes.index', 'icon' => 'file', 'active' => 'admin.wallet-notes.'],
-        ['label' => 'Payments', 'route' => 'admin.payments.index', 'icon' => 'credit', 'active' => 'admin.payments.'],
         ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'icon' => 'file', 'active' => 'admin.subscriptions.'],
     ];
 @endphp

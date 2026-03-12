@@ -1321,3 +1321,130 @@ body.admin-v2.admin-v2-wallet-transactions .a2-tx-info-table td{
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* =====================================================
+   Service Fees
+   ===================================================== */
+.a2-service-fee-form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+
+.a2-sf-section-card{
+  padding:18px;
+  min-width:0;
+}
+
+.a2-sf-card-title{
+  font-size:17px;
+  margin-bottom:14px;
+  font-weight:800;
+}
+
+.a2-sf-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+
+.a2-sf-grid-3{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+
+.a2-sf-field{
+  min-width:0;
+}
+
+.a2-sf-check{
+  display:flex;
+  align-items:end;
+}
+
+.a2-sf-check label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+}
+
+/* Tom Select */
+.ts-wrapper{
+  width:100%;
+}
+
+.ts-wrapper.single .ts-control,
+.ts-wrapper.multi .ts-control{
+  min-height:40px;
+  border:1px solid var(--a2-border-2);
+  border-radius:14px;
+  padding:7px 12px;
+  box-shadow:none;
+  background:#fff;
+  font-size:14px;
+  line-height:1.5;
+}
+
+.ts-wrapper.single.input-active .ts-control,
+.ts-wrapper.multi.input-active .ts-control,
+.ts-wrapper.focus .ts-control{
+  border-color:#c7d2fe;
+  box-shadow:0 0 0 4px var(--a2-primary-soft);
+}
+
+.ts-wrapper .ts-control > input{
+  font-size:14px !important;
+}
+
+.ts-wrapper .item{
+  font-size:14px;
+  font-weight:700;
+  color:var(--a2-text);
+}
+
+.ts-dropdown{
+  border:1px solid var(--a2-border-2);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 12px 30px rgba(16,24,40,.10);
+  z-index:9999;
+  background:#fff;
+}
+
+.ts-dropdown .option,
+.ts-dropdown .create,
+.ts-dropdown .no-results{
+  padding:10px 12px;
+  font-size:14px;
+}
+
+.ts-dropdown .active{
+  background:#f8fafc;
+  color:var(--a2-text);
+}
+
+.ts-dropdown .selected{
+  background:rgba(11,18,32,.04);
+  color:var(--a2-text);
+  font-weight:800;
+}
+
+.js-a2-searchable{
+  width:100%;
+}
+
+@media (max-width: 1200px){
+  .a2-service-fee-form-grid,
+  .a2-sf-grid-3{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width: 700px){
+  .a2-sf-grid,
+  .bk-action-grid{
+    grid-template-columns:1fr;
+  }
+}

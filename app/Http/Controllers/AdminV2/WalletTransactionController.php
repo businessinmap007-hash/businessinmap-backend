@@ -221,6 +221,7 @@ final class WalletTransactionController extends Controller
 
         return view('admin-v2.wallet-transactions.show', compact('tx'));
     }
+    
 
 //     public function show(User $user, WalletTransaction $walletTransaction)
 //     {

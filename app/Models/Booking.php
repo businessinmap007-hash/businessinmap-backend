@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Booking extends Model
 {
@@ -40,7 +44,11 @@ class Booking extends Model
         'ends_at' => 'datetime',
         'all_day' => 'boolean',
         'price' => 'decimal:2',
+        'quantity' => 'integer',
+        'party_size' => 'integer',
+        'duration_value' => 'integer',
         'meta' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
     public const STATUS_PENDING     = 'pending';
@@ -62,25 +70,59 @@ class Booking extends Model
         ];
     }
 
-    public function user()
+    /**
+     * المستخدم العميل
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function business()
+    /**
+     * alias مفيد لو بعض الأكواد تستخدم client بدل user
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
     }
 
-    // ✅ مهم جدًا: الخدمة الآن من platform_services
-    public function service()
+    /**
+     * الخدمة من platform_services
+     */
+    public function service(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'service_id');
     }
 
-    public function bookable()
+    public function bookable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * لو ستستخدم reference_type/reference_id = booking
+     * هذه العلاقة ليست مباشرة بعمود booking_id
+     * لذلك الأفضل تركها مفلترة بهذا الشكل
+     */
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class, 'reference_id', 'id')
+            ->where('reference_type', 'booking');
+    }
+
+    public function deposits(): MorphMany
+    {
+        return $this->morphMany(Deposit::class, 'target');
+    }
+
+    public function latestDeposit()
+    {
+        return $this->morphOne(Deposit::class, 'target')->latestOfMany();
     }
 
     public function scopeStatus(Builder $query, ?string $status): Builder
@@ -90,5 +132,37 @@ class Booking extends Model
         }
 
         return $query->where('status', $status);
+    }
+
+    public function scopeForBusiness(Builder $query, ?int $businessId): Builder
+    {
+        if (!$businessId) {
+            return $query;
+        }
+
+        return $query->where('business_id', $businessId);
+    }
+
+    public function scopeForClient(Builder $query, ?int $userId): Builder
+    {
+        if (!$userId) {
+            return $query;
+        }
+
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopeForService(Builder $query, ?int $serviceId): Builder
+    {
+        if (!$serviceId) {
+            return $query;
+        }
+
+        return $query->where('service_id', $serviceId);
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::statusOptions()[$this->status] ?? (string) $this->status;
     }
 }

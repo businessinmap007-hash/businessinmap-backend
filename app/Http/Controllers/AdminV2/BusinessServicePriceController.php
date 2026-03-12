@@ -8,14 +8,17 @@ use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BusinessServicePriceController extends Controller
 {
     public function index(Request $request)
     {
-        $serviceId  = (int) $request->get('platform_service_id', 0);
-        $businessId = (int) $request->get('business_id', 0);
-        $isActive   = $request->get('is_active', '');
+        $serviceId     = (int) $request->get('service_id', 0);
+        $businessId    = (int) $request->get('business_id', 0);
+        $isActive      = $request->get('is_active', '');
+        $qBusiness     = trim((string) $request->get('q_business', ''));
+        $qService      = trim((string) $request->get('q_service', ''));
 
         $services = PlatformService::query()
             ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
@@ -28,20 +31,100 @@ class BusinessServicePriceController extends Controller
             ->orderBy('name')
             ->get();
 
-        $rows = BusinessServicePrice::query()
+        $baseQuery = BusinessServicePrice::query()
+            ->selectRaw("
+                business_service_prices.*,
+
+                CASE
+                    WHEN discount_enabled = 1
+                    THEN ROUND(price * discount_percent / 100, 2)
+                    ELSE 0
+                END as discount_amount,
+
+                CASE
+                    WHEN discount_enabled = 1
+                    THEN ROUND(price - (price * discount_percent / 100), 2)
+                    ELSE ROUND(price, 2)
+                END as price_after_discount,
+
+                CASE
+                    WHEN deposit_enabled = 1
+                    THEN ROUND(
+                        (
+                            CASE
+                                WHEN discount_enabled = 1
+                                THEN price - (price * discount_percent / 100)
+                                ELSE price
+                            END
+                        ) * deposit_percent / 100,
+                    2)
+                    ELSE 0
+                END as deposit_amount,
+
+                CASE
+                    WHEN deposit_enabled = 1
+                    THEN ROUND(
+                        (
+                            CASE
+                                WHEN discount_enabled = 1
+                                THEN price - (price * discount_percent / 100)
+                                ELSE price
+                            END
+                        ) - (
+                            (
+                                CASE
+                                    WHEN discount_enabled = 1
+                                    THEN price - (price * discount_percent / 100)
+                                    ELSE price
+                                END
+                            ) * deposit_percent / 100
+                        ),
+                    2)
+                    ELSE ROUND(
+                        CASE
+                            WHEN discount_enabled = 1
+                            THEN price - (price * discount_percent / 100)
+                            ELSE price
+                        END,
+                    2)
+                END as remaining_amount
+            ")
             ->with([
                 'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
                 'business:id,name',
             ])
-            ->when($serviceId > 0, function ($query) use ($serviceId) {
-                $query->where('platform_service_id', $serviceId);
+            ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
+            ->when($businessId > 0, fn ($query) => $query->where('business_id', $businessId))
+            ->when($isActive !== '' && $isActive !== null, fn ($query) => $query->where('is_active', (int) $isActive))
+            ->when($qBusiness !== '', function ($query) use ($qBusiness) {
+                $query->whereHas('business', function ($sub) use ($qBusiness) {
+                    $sub->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($qBusiness) . '%']);
+                });
             })
-            ->when($businessId > 0, function ($query) use ($businessId) {
-                $query->where('business_id', $businessId);
-            })
-            ->when($isActive !== '' && $isActive !== null, function ($query) use ($isActive) {
-                $query->where('is_active', (int) $isActive);
-            })
+            ->when($qService !== '', function ($query) use ($qService) {
+                $query->whereHas('service', function ($sub) use ($qService) {
+                    $term = '%' . mb_strtolower($qService) . '%';
+
+                    $sub->whereRaw('LOWER(name_ar) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(name_en) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(`key`) LIKE ?', [$term]);
+                });
+            });
+
+        $statsQuery = clone $baseQuery;
+
+        $stats = [
+            'total_rows' => BusinessServicePrice::count(),
+            'active_rows' => BusinessServicePrice::where('is_active',1)->count(),
+            'deposit_rows' => BusinessServicePrice::where('deposit_enabled',1)->count(),
+            'avg_price' => BusinessServicePrice::avg('price'),
+            'business_count' => BusinessServicePrice::distinct('business_id')->count(),
+            'services_count' => BusinessServicePrice::distinct('service_id')->count(),
+            'max_price' => BusinessServicePrice::max('price'),
+            'min_price' => BusinessServicePrice::min('price'),
+        ];
+
+        $rows = $baseQuery
             ->orderByDesc('id')
             ->paginate(50)
             ->withQueryString();
@@ -52,7 +135,10 @@ class BusinessServicePriceController extends Controller
             'businesses',
             'serviceId',
             'businessId',
-            'isActive'
+            'isActive',
+            'qBusiness',
+            'qService',
+            'stats'
         ));
     }
 
@@ -75,6 +161,8 @@ class BusinessServicePriceController extends Controller
             'price' => 0,
             'deposit_enabled' => 0,
             'deposit_percent' => 0,
+            'discount_enabled' => 0,
+            'discount_percent' => 0,
         ]);
 
         return view('admin-v2.business-service-prices.create', compact('row', 'services', 'businesses'));
@@ -84,17 +172,17 @@ class BusinessServicePriceController extends Controller
     {
         $data = $this->validateData($request);
 
-        $row = BusinessServicePrice::updateOrCreate(
+        $row = BusinessServicePrice::query()->updateOrCreate(
             [
                 'business_id' => $data['business_id'],
-                'platform_service_id' => $data['platform_service_id'],
+                'service_id' => $data['service_id'],
             ],
             $data
         );
 
         return redirect()
             ->route('admin.business_service_prices.edit', $row)
-            ->with('success', 'تم حفظ سعر الخدمة وإعدادات الديبوزت بنجاح.');
+            ->with('success', 'تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.');
     }
 
     public function edit(BusinessServicePrice $row)
@@ -123,6 +211,18 @@ class BusinessServicePriceController extends Controller
     {
         $data = $this->validateData($request, $row->id);
 
+        $duplicate = BusinessServicePrice::query()
+            ->where('business_id', $data['business_id'])
+            ->where('service_id', $data['service_id'])
+            ->where('id', '!=', $row->id)
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'service_id' => 'يوجد سجل آخر لنفس البزنس والخدمة.',
+            ]);
+        }
+
         $row->update($data);
 
         return back()->with('success', 'تم تحديث السجل بنجاح.');
@@ -140,39 +240,49 @@ class BusinessServicePriceController extends Controller
     protected function validateData(Request $request, ?int $ignoreId = null): array
     {
         $data = $request->validate([
-            'business_id' => [
-                'required',
-                'integer',
-                'exists:users,id',
-            ],
-            'platform_service_id' => [
+            'business_id' => ['required', 'integer', 'exists:users,id'],
+            'service_id' => [
                 'required',
                 'integer',
                 'exists:platform_services,id',
+                Rule::unique('business_service_prices', 'service_id')
+                    ->where(function ($query) use ($request) {
+                        return $query->where('business_id', $request->input('business_id'));
+                    })
+                    ->ignore($ignoreId),
             ],
-            'price' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
+            'price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['nullable'],
             'deposit_enabled' => ['nullable'],
-            'deposit_percent' => [
-                'nullable',
-                'integer',
-                'min:0',
-                'max:100',
-            ],
+            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'discount_enabled' => ['nullable'],
+            'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+        ], [], [
+            'business_id' => 'البزنس',
+            'service_id' => 'الخدمة',
+            'price' => 'السعر',
+            'deposit_enabled' => 'تفعيل الديبوزت',
+            'deposit_percent' => 'نسبة الديبوزت',
+            'discount_enabled' => 'تفعيل الخصم',
+            'discount_percent' => 'نسبة الخصم',
         ]);
 
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
         $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
+        $data['discount_enabled'] = (int) $request->boolean('discount_enabled');
+        $data['discount_percent'] = (int) ($data['discount_percent'] ?? 0);
 
-        $service = PlatformService::query()->find($data['platform_service_id']);
+        if (!$data['discount_enabled']) {
+            $data['discount_percent'] = 0;
+        }
+
+        $service = PlatformService::query()->find($data['service_id']);
 
         if (!$service) {
-            abort(422, 'الخدمة غير موجودة.');
+            throw ValidationException::withMessages([
+                'service_id' => 'الخدمة غير موجودة.',
+            ]);
         }
 
         if (!(bool) $service->supports_deposit) {
@@ -189,7 +299,9 @@ class BusinessServicePriceController extends Controller
         $maxAllowed = (int) ($service->max_deposit_percent ?? 0);
 
         if ($data['deposit_percent'] > $maxAllowed) {
-            abort(422, "نسبة الديبوزت المطلوبة تتجاوز الحد المسموح لهذه الخدمة ({$maxAllowed}%).");
+            throw ValidationException::withMessages([
+                'deposit_percent' => "نسبة الديبوزت المطلوبة تتجاوز الحد المسموح لهذه الخدمة ({$maxAllowed}%).",
+            ]);
         }
 
         return $data;

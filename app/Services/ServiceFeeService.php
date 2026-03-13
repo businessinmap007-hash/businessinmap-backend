@@ -6,71 +6,72 @@ use App\Models\ServiceFee;
 
 class ServiceFeeService
 {
-    /**
-     * Get active ServiceFee by code
-     */
     public function getByCode(string $code): ?ServiceFee
     {
-        return ServiceFee::where('code', $code)
+        return ServiceFee::query()
+            ->where('code', $code)
             ->where('is_active', true)
             ->first();
     }
 
+    /**
+     * Prefer fee with matching service_id, else fallback to service_id NULL.
+     */
     public function getByCodeForService(string $code, ?int $serviceId): ?ServiceFee
     {
         return ServiceFee::query()
             ->where('code', $code)
             ->where('is_active', true)
-            ->when($serviceId, fn($q) => $q->where('service_id', $serviceId))
-            ->orderByRaw('service_id is null') // يفضل الخاص بالخدمة إن وجد
+            ->where(function ($q) use ($serviceId) {
+                if ($serviceId) {
+                    $q->where('service_id', $serviceId)->orWhereNull('service_id');
+                } else {
+                    $q->whereNull('service_id');
+                }
+            })
+            ->orderByRaw('service_id IS NULL') // service_id NOT NULL first, then NULL
             ->first();
     }
 
     /**
-     * Return [clientFee, businessFee]
+     * Split fee as fixed amounts for each side (EGP values).
+     *
      * rules supports:
-     *  - client_amount, business_amount
-     *  - client_percent, business_percent (percent of booking price)
+     *  - client_amount
+     *  - business_amount
+     *
+     * If rules empty, fallback to column `amount` for BOTH sides (optional fallback).
+     *
+     * @return array{0: float, 1: float} [clientFee, businessFee]
      */
-    public function resolveSplit(ServiceFee $fee, float $bookingPrice): array
+    public function resolveSplit(ServiceFee $fee, float $baseAmount = 0.0): array
     {
-        $rules = $fee->rules;
-        if (is_string($rules)) {
-            $rules = json_decode($rules, true) ?: [];
-        }
-        if (!is_array($rules)) $rules = [];
+        $rules = $this->normalizeRules($fee->rules);
 
         $client = 0.0;
         $business = 0.0;
 
-        if (isset($rules['client_amount']) || isset($rules['business_amount'])) {
-            $client   = (float) ($rules['client_amount'] ?? 0);
+        if (array_key_exists('client_amount', $rules) || array_key_exists('business_amount', $rules)) {
+            $client = (float) ($rules['client_amount'] ?? 0);
             $business = (float) ($rules['business_amount'] ?? 0);
-        } elseif (isset($rules['client_percent']) || isset($rules['business_percent'])) {
-            $clientPct   = (float) ($rules['client_percent'] ?? 0);
-            $businessPct = (float) ($rules['business_percent'] ?? 0);
-            $client   = ($bookingPrice * $clientPct) / 100.0;
-            $business = ($bookingPrice * $businessPct) / 100.0;
         } else {
-            // fallback: لو amount موجود وعايز تقسيم متساوي (اختياري)
-            $client = (float) $fee->amount;
-            $business = (float) $fee->amount;
+            // fallback: use column amount for both sides (only if you want a simple default)
+            $client = (float) ($fee->amount ?? 0);
+            $business = (float) ($fee->amount ?? 0);
         }
+
+        if ($client < 0) $client = 0;
+        if ($business < 0) $business = 0;
 
         return [round($client, 2), round($business, 2)];
     }
 
     /**
-     * Calculate service fee
-     *
-     * @param string $code
-     * @param float  $baseAmount   (order total / wallet amount / deposit amount)
-     * @param array  $context      optional (distance, items_count, user_type, ...)
+     * General fee calculator (fixed/percent/tiered) for other modules if needed.
      */
     public function calculate(string $code, float $baseAmount, array $context = []): float
     {
         $feeRow = $this->getByCode($code);
-
         if (!$feeRow) {
             return 0.0;
         }
@@ -91,15 +92,13 @@ class ServiceFeeService
             default   => $this->fixedFee($rules, (float) $feeRow->amount),
         };
 
-        // Safety: never negative
         if ($result < 0) $result = 0;
 
         return round($result, 2);
     }
 
     /**
-     * Ensure rules is always an array
-     * - handles: array (casted), null, JSON string, invalid data
+     * Ensure rules always array.
      */
     protected function normalizeRules($rules): array
     {
@@ -111,7 +110,6 @@ class ServiceFeeService
             return [];
         }
 
-        // If rules stored as JSON string
         if (is_string($rules)) {
             $decoded = json_decode($rules, true);
             return is_array($decoded) ? $decoded : [];
@@ -120,34 +118,22 @@ class ServiceFeeService
         return [];
     }
 
-    /**
-     * Fixed fee: prefer rules['amount'], fallback to column amount
-     */
     protected function fixedFee(array $rules, float $fallbackAmount): float
     {
         if (isset($rules['amount']) && is_numeric($rules['amount'])) {
             return (float) $rules['amount'];
         }
-
         return $fallbackAmount;
     }
 
-    /**
-     * Percent-based fee
-     * rules:
-     * - percent (required)
-     * - min (optional)
-     * - max (optional)
-     */
     protected function percentFee(array $rules, float $baseAmount): float
     {
         $percent = (float) ($rules['percent'] ?? 0);
-        $fee     = ($baseAmount * $percent) / 100;
+        $fee = ($baseAmount * $percent) / 100;
 
         if (isset($rules['min']) && is_numeric($rules['min'])) {
             $fee = max($fee, (float) $rules['min']);
         }
-
         if (isset($rules['max']) && is_numeric($rules['max'])) {
             $fee = min($fee, (float) $rules['max']);
         }
@@ -155,18 +141,9 @@ class ServiceFeeService
         return $fee;
     }
 
-    /**
-     * Tiered fee
-     * tiers: [
-     *   {min: 0, max: 50, amount: 10},
-     *   {min: 50, max: 100, amount: 15},
-     *   {min: 100, max: null, amount: 20},
-     * ]
-     */
     protected function tieredFee(array $rules, float $baseAmount): float
     {
         $tiers = $rules['tiers'] ?? [];
-
         if (!is_array($tiers)) {
             return 0.0;
         }
@@ -177,7 +154,7 @@ class ServiceFeeService
             $min = isset($tier['min']) ? (float) $tier['min'] : 0.0;
             $max = array_key_exists('max', $tier) ? $tier['max'] : null;
 
-            $maxOk = is_null($max) || $baseAmount < (float)$max;
+            $maxOk = is_null($max) || $baseAmount < (float) $max;
 
             if ($baseAmount >= $min && $maxOk) {
                 return (float) ($tier['amount'] ?? 0);

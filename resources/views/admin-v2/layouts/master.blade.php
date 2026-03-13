@@ -26,7 +26,6 @@
                 <span class="a2-brand-text">Admin V2</span>
             </a>
 
-            {{-- Close button (mobile) --}}
             <button class="a2-burger" type="button" id="a2CloseSidebar" aria-label="Close Menu">
                 ✕
             </button>
@@ -51,23 +50,22 @@
                     @yield('topbar_title','BIM Admin V2')
                 </div>
             </div>
-            
 
-           
+            <div class="a2-topbar-right">
+                @include('admin-v2.layouts._partials.userbar')
+            </div>
         </header>
-        
 
         {{-- Content --}}
         <main class="a2-content">
             @yield('content')
             @include('admin-v2.layouts._partials.resultsbar-auto')
-            
         </main>
 
     </div>
 </div>
 
-{{-- Toggle Active (tables / pills) --}}
+{{-- Toggle Active --}}
 <script>
 (function(){
   const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';

@@ -3,24 +3,38 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Service;
-use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Booking extends Model
 {
-   use SoftDeletes;
+    use SoftDeletes;
 
     protected $table = 'bookings';
 
     protected $fillable = [
-        'user_id','business_id','service_id',
-        'date','time','price','status','notes',
-        'starts_at','ends_at','duration_value','duration_unit',
-        'all_day','timezone','quantity','party_size',
-        'bookable_type','bookable_id',
+        'user_id',
+        'business_id',
+        'service_id',
+        'date',
+        'time',
+        'price',
+        'status',
+        'notes',
+        'starts_at',
+        'ends_at',
+        'duration_value',
+        'duration_unit',
+        'all_day',
+        'timezone',
+        'quantity',
+        'party_size',
+        'bookable_type',
+        'bookable_id',
         'meta',
     ];
 
@@ -28,31 +42,15 @@ class Booking extends Model
         'date' => 'date',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
-        'all_day' => 'bool',
+        'all_day' => 'boolean',
         'price' => 'decimal:2',
+        'quantity' => 'integer',
+        'party_size' => 'integer',
+        'duration_value' => 'integer',
         'meta' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
-    // ✅ لعرض أسماء الطرفين بسهولة
-    protected $appends = [
-        'user_name',
-        'business_name',
-        'user_code',
-        'business_code',
-    ];
-
-    /* =========================
-     * Polymorphic (optional)
-     * ========================= */
-    public function bookable()
-    {
-        return $this->morphTo();
-    }
-
-    /* =========================
-     * Status
-     * ========================= */
-    
     public const STATUS_PENDING     = 'pending';
     public const STATUS_ACCEPTED    = 'accepted';
     public const STATUS_REJECTED    = 'rejected';
@@ -63,7 +61,7 @@ class Booking extends Model
     public static function statusOptions(): array
     {
         return [
-             self::STATUS_PENDING     => 'Pending',
+            self::STATUS_PENDING     => 'Pending',
             self::STATUS_ACCEPTED    => 'Accepted',
             self::STATUS_REJECTED    => 'Rejected',
             self::STATUS_CANCELLED   => 'Cancelled',
@@ -72,138 +70,99 @@ class Booking extends Model
         ];
     }
 
-    /* =========================
-     * Relations
-     * ========================= */
-    public function user()
+    /**
+     * المستخدم العميل
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function business()
+    /**
+     * alias مفيد لو بعض الأكواد تستخدم client بدل user
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
     }
 
-    public function service()
+    /**
+     * الخدمة من platform_services
+     */
+    public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class, 'service_id');
+        return $this->belongsTo(PlatformService::class, 'service_id');
     }
 
-    public function holds()
+    public function bookable(): MorphTo
     {
-        return $this->hasMany(\App\Models\WalletHold::class, 'reference_id', 'id')
-            ->where('reference_type', static::class)
-            ->where('context', 'booking');
+        return $this->morphTo();
     }
 
-    /* =========================
-     * Accessors (Computed)
-     * ========================= */
-    protected function userName(): Attribute
+    /**
+     * لو ستستخدم reference_type/reference_id = booking
+     * هذه العلاقة ليست مباشرة بعمود booking_id
+     * لذلك الأفضل تركها مفلترة بهذا الشكل
+     */
+    public function walletTransactions(): HasMany
     {
-        return Attribute::get(function () {
-            // لو withNames شغال هتلاقي user_name column جاهز
-            if (array_key_exists('user_name', $this->attributes ?? [])) {
-                return $this->attributes['user_name'] ?: null;
-            }
-            return $this->user?->name ?: ($this->user_id ? ('User #'.$this->user_id) : null);
-        });
+        return $this->hasMany(WalletTransaction::class, 'reference_id', 'id')
+            ->where('reference_type', 'booking');
     }
 
-    protected function businessName(): Attribute
+    public function deposits(): MorphMany
     {
-        return Attribute::get(function () {
-            if (array_key_exists('business_name', $this->attributes ?? [])) {
-                return $this->attributes['business_name'] ?: null;
-            }
-            return $this->business?->name ?: ($this->business_id ? ('Business #'.$this->business_id) : null);
-        });
+        return $this->morphMany(Deposit::class, 'target');
     }
 
-    protected function userCode(): Attribute
+    public function latestDeposit()
     {
-        return Attribute::get(function () {
-            if (array_key_exists('user_code', $this->attributes ?? [])) {
-                return $this->attributes['user_code'] ?: null;
-            }
-            return $this->user?->code ?: null;
-        });
+        return $this->morphOne(Deposit::class, 'target')->latestOfMany();
     }
 
-    protected function businessCode(): Attribute
+    public function scopeStatus(Builder $query, ?string $status): Builder
     {
-        return Attribute::get(function () {
-            if (array_key_exists('business_code', $this->attributes ?? [])) {
-                return $this->attributes['business_code'] ?: null;
-            }
-            return $this->business?->code ?: null;
-        });
+        if (!$status) {
+            return $query;
+        }
+
+        return $query->where('status', $status);
     }
 
-    /* =========================
-     * Scopes
-     * ========================= */
-    public function scopeWithNames(Builder $q): Builder
+    public function scopeForBusiness(Builder $query, ?int $businessId): Builder
     {
-        // ✅ يضيف أعمدة user_name / business_name مباشرة من users
-        return $q->select('bookings.*')
-            ->selectSub(
-                User::query()->select('name')
-                    ->whereColumn('users.id', 'bookings.user_id')
-                    ->limit(1),
-                'user_name'
-            )
-            ->selectSub(
-                User::query()->select('name')
-                    ->whereColumn('users.id', 'bookings.business_id')
-                    ->limit(1),
-                'business_name'
-            )
-            ->selectSub(
-                User::query()->select('code')
-                    ->whereColumn('users.id', 'bookings.user_id')
-                    ->limit(1),
-                'user_code'
-            )
-            ->selectSub(
-                User::query()->select('code')
-                    ->whereColumn('users.id', 'bookings.business_id')
-                    ->limit(1),
-                'business_code'
-            );
+        if (!$businessId) {
+            return $query;
+        }
+
+        return $query->where('business_id', $businessId);
     }
 
-    public function scopeSearch(Builder $q, string $term): Builder
+    public function scopeForClient(Builder $query, ?int $userId): Builder
     {
-        $term = trim($term);
-        if ($term === '') return $q;
+        if (!$userId) {
+            return $query;
+        }
 
-        return $q->where(function (Builder $qq) use ($term) {
-
-            if (ctype_digit($term)) {
-                $qq->orWhere('bookings.id', (int)$term)
-                   ->orWhere('bookings.user_id', (int)$term)
-                   ->orWhere('bookings.business_id', (int)$term);
-            }
-
-            $qq->orWhere('bookings.notes', 'like', "%{$term}%");
-
-            // ✅ لو بتستخدم withNames() هتقدر تبحث بالاسم مباشرة
-            $qq->orWhere('user_name', 'like', "%{$term}%")
-               ->orWhere('business_name', 'like', "%{$term}%");
-        });
+        return $query->where('user_id', $userId);
     }
 
-    public function scopeStatus(Builder $q, string $status): Builder
+    public function scopeForService(Builder $query, ?int $serviceId): Builder
     {
-        $status = trim($status);
-        return $status === '' ? $q : $q->where('status', $status);
+        if (!$serviceId) {
+            return $query;
+        }
+
+        return $query->where('service_id', $serviceId);
     }
 
-    public function scopeOnDate(Builder $q, ?string $date): Builder
+    public function getStatusLabelAttribute(): string
     {
-        $date = trim((string)$date);
-        return $date === '' ? $q : $q->whereDate('starts_at', $date);
+        return self::statusOptions()[$this->status] ?? (string) $this->status;
     }
 }

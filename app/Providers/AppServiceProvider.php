@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Support\AdminV2\AdminV2Menu;
 use App\Models\Deposit; // ✅ مهم
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -48,8 +47,7 @@ class AppServiceProvider extends ServiceProvider
         // ✅ Admin V2 Menu
         View::composer('admin-v2.*', function ($view) {
             $user = auth()->user();
-            $menu = $user ? AdminV2Menu::visibleFor($user) : [];
-            $view->with('adminV2Menu', $menu);
+           
         });
 
         // ✅ Admin V2 Auto Paginator (يحقن $__a2_paginator لكل صفحات admin-v2.*)

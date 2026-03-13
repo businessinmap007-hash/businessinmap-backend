@@ -72,6 +72,7 @@ final class AdminV2PermissionMap
                 'ability' => null,
                 'route'   => 'admin.subscriptions.index',
             ],
+            ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'icon' => 'folder', 'active' => 'admin.bookable-items.'],
 
             // [
             //     'key'     => 'financial',
@@ -105,6 +106,29 @@ final class AdminV2PermissionMap
                 'route'   => 'admin.bookings.index',
                 'icon'  => 'calendar', // لو نظامك بيدعم icons
             ],
+            [
+                'key'     => 'business_service_price',
+                'label'   => 'تسعير الخدمات للبزنس',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.platform-services.index',
+            ],
+            [
+                'key'     => 'service_fee',
+                'label'   => 'رسوم الخدمات',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.service-fees.index',
+            ],
+            [
+                'key'     => 'platform_services',
+                'label'   => 'خدمات النظام الأساسية',
+                'icon'    => 'zmdi zmdi-view-dashboard',
+                'ability' => null,
+                'route'   => 'admin.platform-services.index',
+            ],
+
+            
 
             [
                 'key'     => 'coupons',

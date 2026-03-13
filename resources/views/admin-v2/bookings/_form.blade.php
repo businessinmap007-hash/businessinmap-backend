@@ -1,540 +1,671 @@
-@php
-  $stMap = $statusOptions ?? \App\Models\Booking::statusOptions();
-
-  $unitOptions = [
-    '' => '—',
-    'minute' => 'Minute',
-    'hour'   => 'Hour',
-    'day'    => 'Day',
-    'week'   => 'Week',
-    'month'  => 'Month',
-    'year'   => 'Year',
-  ];
-
-  $metaText = '';
-  if (!empty($booking->meta)) {
-    $metaText = json_encode($booking->meta, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE);
-  }
-
-  $startsVal = old('starts_at', $booking->starts_at ? \Carbon\Carbon::parse($booking->starts_at)->format('Y-m-d\TH:i') : '');
-  $endsVal   = old('ends_at',   $booking->ends_at   ? \Carbon\Carbon::parse($booking->ends_at)->format('Y-m-d\TH:i')   : '');
-
-  $priceVal  = old('price', $booking->price);
-
-  $oldClientId   = (int) old('user_id', $booking->user_id);
-  $oldBusinessId = (int) old('business_id', $booking->business_id);
-  $oldServiceId  = (int) old('service_id', $booking->service_id);
-
-  // services passed from controller (collection)
-  $servicesJson = collect($services ?? [])->map(function($s){
-    return [
-      'id' => (int)$s->id,
-      'business_id' => (int)$s->business_id,
-      'name' => (string)($s->name_ar ?: ($s->name_en ?: ('Service #'.$s->id))),
-      'price' => (float)($s->price ?? 0),
-      'duration_minutes' => (int)($s->duration ?? 0),
-    ];
-  })->values()->toJson(JSON_UNESCAPED_UNICODE);
-@endphp
-
-@if($errors->any())
-  <div class="a2-alert a2-alert-danger">{!! implode('<br>', $errors->all()) !!}</div>
+@if ($errors->any())
+    <div class="a2-alert a2-alert-danger" style="margin-bottom:12px;">
+        <ul style="margin:0;padding-inline-start:18px;">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
 @endif
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+@php
+    $selectedServiceId = (string) old('service_id', $booking->service_id ?? '');
+    $selectedBusinessId = (string) old('business_id', $booking->business_id ?? '');
+    $selectedClientId = (string) old('user_id', $booking->user_id ?? '');
+    $selectedBookableId = (string) old('bookable_id', $booking->bookable_id ?? '');
 
-  {{-- Client (Admin/Test only) --}}
-  <div>
-    <label class="a2-label">Client</label>
-    <select class="a2-select" name="user_id" id="a2_client_id">
-      <option value="">—</option>
-      @foreach(($clients ?? collect()) as $c)
-        <option value="{{ $c->id }}" @selected((int)$oldClientId === (int)$c->id)>
-          #{{ $c->id }} — {{ $c->name }} ({{ $c->type }}) {{ !empty($c->code) ? ' • '.$c->code : '' }}
-        </option>
-      @endforeach
-    </select>
-    <div class="a2-hint">في التطبيق سيتم تحديده تلقائيًا.</div>
-  </div>
+    $startDateValue = old('date', optional($booking->date)->format('Y-m-d'));
+    $startTimeValue = old('time', $booking->time ? \Illuminate\Support\Str::limit($booking->time, 5, '') : '');
+    $endsAtValue = old('ends_at', optional($booking->ends_at)->format('Y-m-d\TH:i'));
+    $durationMode = old('duration_unit', $booking->duration_unit ?? 'day');
+    $durationValueOld = old('duration_value', $booking->duration_value ?? 1);
+    $quantityValue = old('quantity', $booking->quantity ?? 1);
 
-  {{-- Business --}}
-  <div>
-    <label class="a2-label">Business</label>
-    <select class="a2-select" name="business_id" id="a2_business_id" required>
-      <option value="">— اختر بزنس —</option>
-      @foreach(($businesses ?? collect()) as $b)
-        <option value="{{ $b->id }}" @selected((int)$oldBusinessId === (int)$b->id)>
-          #{{ $b->id }} — {{ $b->name }} {{ !empty($b->code) ? ' • '.$b->code : '' }}
-        </option>
-      @endforeach
-    </select>
-    <div class="a2-hint">سيتم ربط bookable تلقائيًا بالـ Business في الـ API لاحقًا.</div>
-  </div>
+    $selectedClient = $clients->firstWhere('id', (int) $selectedClientId);
+    $selectedBusiness = $businesses->firstWhere('id', (int) $selectedBusinessId);
+    $selectedService = $services->firstWhere('id', (int) $selectedServiceId);
+@endphp
 
-{{-- Service Autocomplete (Select2-like UX - no libs) --}}
-<div style="grid-column:1 / -1;">
-  <label class="a2-label">Service (بحث)</label>
+<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;">
 
-  {{-- hidden actual id --}}
-  <input type="hidden" name="service_id" id="a2_service_id" value="{{ $oldServiceId ?: '' }}">
+    <div class="a2-card" style="padding:18px;">
+        <div class="a2-title" style="font-size:18px;margin-bottom:14px;">البيانات الأساسية</div>
 
-  <div style="position:relative;display:flex;gap:10px;align-items:center;">
-    <div style="flex:1;position:relative;">
-      <input
-        class="a2-input"
-        id="a2_service_search"
-        type="text"
-        placeholder="اكتب اسم الخدمة للبحث..."
-        autocomplete="off"
-      />
+        <div class="bk-form-grid">
 
-      {{-- clear button --}}
-      <button type="button" id="a2_service_clear"
-              class="a2-btn a2-btn-ghost"
-              style="position:absolute;top:50%;transform:translateY(-50%);left:10px;display:none;padding:6px 10px;">
-        ✕
-      </button>
+            {{-- العميل --}}
+            <div class="bk-field-search" id="client_search_box">
+                <label class="a2-label">العميل</label>
+                <input type="hidden" name="user_id" id="user_id" value="{{ $selectedClientId }}">
 
-      {{-- dropdown --}}
-      <div id="a2_service_dropdown"
-           style="display:none; position:absolute; left:0; right:0; top:calc(100% + 6px);
-                  background:#fff; border:1px solid var(--a2-border-2); border-radius:12px;
-                  box-shadow:0 12px 30px rgba(16,24,40,.08); max-height:280px; overflow:auto; z-index:60;">
-      </div>
+                <input
+                    type="text"
+                    id="client_search"
+                    class="a2-input"
+                    placeholder="ابحث باسم العميل..."
+                    autocomplete="off"
+                    value="{{ $selectedClient->name ?? '' }}"
+                    required
+                >
+
+                <div class="bk-dropdown" id="client_dropdown">
+                    @foreach($clients as $client)
+                        <button
+                            type="button"
+                            class="bk-option client-option"
+                            data-id="{{ $client->id }}"
+                            data-name="{{ $client->name }}"
+                        >
+                            {{ $client->name }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- البزنس --}}
+            <div class="bk-field-search" id="business_search_box">
+                <label class="a2-label">البزنس</label>
+                <input type="hidden" name="business_id" id="business_id" value="{{ $selectedBusinessId }}">
+
+                <input
+                    type="text"
+                    id="business_search"
+                    class="a2-input"
+                    placeholder="ابحث باسم البزنس..."
+                    autocomplete="off"
+                    value="{{ $selectedBusiness->name ?? '' }}"
+                    required
+                >
+
+                <div class="bk-dropdown" id="business_dropdown">
+                    @foreach($businesses as $business)
+                        <button
+                            type="button"
+                            class="bk-option business-option"
+                            data-id="{{ $business->id }}"
+                            data-name="{{ $business->name }}"
+                        >
+                            {{ $business->name }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- الخدمة --}}
+            <div class="bk-field-search" id="service_search_box">
+                <label class="a2-label">الخدمة</label>
+                <input type="hidden" name="service_id" id="service_id" value="{{ $selectedServiceId }}">
+
+                <input
+                    type="text"
+                    id="service_search"
+                    class="a2-input"
+                    placeholder="ابحث باسم الخدمة..."
+                    autocomplete="off"
+                    value="{{ $selectedService ? ($selectedService->name_ar ?: $selectedService->name_en) : '' }}"
+                    required
+                >
+
+                <div class="bk-dropdown" id="service_dropdown">
+                    @foreach($services as $service)
+                        <button
+                            type="button"
+                            class="bk-option service-option"
+                            data-id="{{ $service->id }}"
+                            data-name="{{ $service->name_ar ?: $service->name_en }}"
+                            data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}"
+                            data-max-deposit-percent="{{ (int)($service->max_deposit_percent ?? 0) }}"
+                        >
+                            {{ $service->name_ar ?: $service->name_en }}
+                            @if(!empty($service->key))
+                                <span class="bk-option-sub">({{ $service->key }})</span>
+                            @endif
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- العنصر القابل للحجز --}}
+            <div>
+                <label class="a2-label">العنصر القابل للحجز</label>
+                <select name="bookable_id" id="bookable_id" class="a2-select">
+                    <option value="">بدون عنصر محدد</option>
+                </select>
+                <div id="bookable_hint" class="a2-hint" style="margin-top:6px;">
+                    اختر البزنس والخدمة أولًا لتحميل العناصر القابلة للحجز.
+                </div>
+            </div>
+
+            {{-- نمط المدة --}}
+            <div>
+                <label class="a2-label">نمط المدة</label>
+                <select name="duration_unit" id="duration_unit" class="a2-select">
+                    <option value="day" @selected($durationMode === 'day')>يوم</option>
+                    <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
+                </select>
+            </div>
+
+            {{-- تاريخ البداية --}}
+            <div>
+                <label class="a2-label">تاريخ البداية</label>
+                <input type="date" id="start_date" name="date" class="a2-input" value="{{ $startDateValue }}" required>
+            </div>
+
+            {{-- وقت البداية --}}
+            <div id="start_time_wrap">
+                <label class="a2-label">وقت البداية</label>
+                <input type="time" id="start_time" name="time" class="a2-input" value="{{ $startTimeValue }}">
+            </div>
+
+            {{-- تاريخ/وقت النهاية --}}
+            <div>
+                <label class="a2-label">تاريخ/وقت النهاية</label>
+                <input type="datetime-local" id="ends_at" name="ends_at" class="a2-input" value="{{ $endsAtValue }}">
+            </div>
+
+            {{-- الكمية --}}
+            <div>
+                <label class="a2-label">الكمية</label>
+                <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
+            </div>
+
+            {{-- المدة المحسوبة --}}
+            <div>
+                <label class="a2-label">المدة المحسوبة</label>
+                <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
+                <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
+            </div>
+
+            {{-- عدد الأفراد --}}
+            <div>
+                <label class="a2-label">عدد الأفراد</label>
+                <input type="number" min="1" name="party_size" class="a2-input" value="{{ old('party_size', $booking->party_size) }}">
+            </div>
+
+            {{-- الحالة --}}
+            <div>
+                <label class="a2-label">الحالة</label>
+                <select name="status" class="a2-select" required>
+                    @foreach($statusOptions as $key => $label)
+                        <option value="{{ $key }}" @selected(old('status', $booking->status ?? \App\Models\Booking::STATUS_PENDING) === $key)>
+                            {{ $label }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- timezone --}}
+            <div>
+                <label class="a2-label">Timezone</label>
+                <input type="text" name="timezone" class="a2-input" value="{{ old('timezone', $booking->timezone ?? 'Africa/Cairo') }}">
+            </div>
+
+            {{-- all_day --}}
+            <div style="display:flex;align-items:end;">
+                <label style="display:flex;gap:8px;align-items:center;font-weight:800;">
+                    <input type="checkbox" name="all_day" value="1" id="all_day_checkbox" @checked(old('all_day', $booking->all_day ?? false))>
+                    طوال اليوم
+                </label>
+            </div>
+
+            {{-- notes --}}
+            <div style="grid-column:1 / -1;">
+                <label class="a2-label">ملاحظات</label>
+                <textarea name="notes" class="a2-textarea" rows="4">{{ old('notes', $booking->notes) }}</textarea>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <div class="a2-hint" id="a2_service_hint">—</div>
+    <div class="bk-summary-grid">
+        <div class="a2-card" style="padding:18px;">
+            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص التسعير</div>
+
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>سعر الوحدة</span><strong id="summary_unit_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>السعر الأصلي</span><strong id="summary_original_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>الخصم</span><strong id="summary_discount">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>السعر بعد الخصم</span><strong id="summary_final_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>رسوم المنصة</span><strong id="summary_platform_fee">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>الإجمالي النهائي</span><strong id="summary_total_cost">0.00 EGP</strong></div>
+            </div>
+        </div>
+
+        <div class="a2-card" style="padding:18px;">
+            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص الديبوزت</div>
+
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>الخدمة تدعم ديبوزت؟</span><strong id="summary_supports_deposit">—</strong></div>
+                <div class="bk-kv"><span>أقصى نسبة</span><strong id="summary_max_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>النسبة المطبقة</span><strong id="summary_applied_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>قيمة الديبوزت</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card" style="padding:16px;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+            <a href="{{ route('admin.bookings.index') }}" class="a2-btn">رجوع</a>
+            <button type="submit" class="a2-btn a2-btn-primary">
+                {{ !empty($isEdit) ? 'حفظ التعديلات' : 'إنشاء الحجز' }}
+            </button>
+        </div>
+    </div>
 </div>
 
-  {{-- Status --}}
-  <div>
-    <label class="a2-label">status</label>
-    <select class="a2-select" name="status">
-      @foreach($stMap as $k => $label)
-        <option value="{{ $k }}" @selected((string)old('status', $booking->status ?: 'pending') === (string)$k)>{{ $label }}</option>
-      @endforeach
-    </select>
-  </div>
-
-</div>
-
-<div class="a2-card" style="padding:14px;margin-top:12px;">
-  <div class="a2-hint" style="margin-bottom:10px;">الوقت / المدة</div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-
-    <div>
-      <label class="a2-label">starts_at</label>
-      <input class="a2-input" id="a2_starts_at" type="datetime-local" name="starts_at" value="{{ $startsVal }}">
-    </div>
-
-    <div>
-      <label class="a2-label">ends_at (اختياري)</label>
-      <input class="a2-input" id="a2_ends_at" type="datetime-local" name="ends_at" value="{{ $endsVal }}">
-      <div class="a2-hint">اتركه فارغًا لو الحجز بدون نهاية</div>
-    </div>
-
-    <div>
-      <label class="a2-label">duration</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <input class="a2-input" id="a2_dur_val" name="duration_value" value="{{ old('duration_value', $booking->duration_value) }}" placeholder="مثال: 2">
-        <select class="a2-select" id="a2_dur_unit" name="duration_unit">
-          @foreach($unitOptions as $k => $label)
-            <option value="{{ $k }}" @selected((string)old('duration_unit', (string)$booking->duration_unit) === (string)$k)>
-              {{ $label }}
-            </option>
-          @endforeach
-        </select>
-      </div>
-      <div class="a2-hint">لو ends_at فاضي، سيتم حسابه من المدة</div>
-    </div>
-
-    <div>
-      <label class="a2-label">timezone (اختياري)</label>
-      <input class="a2-input" name="timezone"
-             value="{{ old('timezone', $booking->timezone ?: 'Africa/Cairo') }}"
-             placeholder="Africa/Cairo">
-    </div>
-
-    <div style="display:flex;align-items:flex-end;">
-      <label class="a2-check" style="display:flex;gap:10px;align-items:center;">
-        <input type="checkbox" name="all_day" value="1" @checked((bool)old('all_day', (bool)$booking->all_day))>
-        <span>all_day (حجز يوم كامل/فندقي)</span>
-      </label>
-    </div>
-
-  </div>
-</div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
-
-  <div>
-    <label class="a2-label">quantity (اختياري)</label>
-    <input class="a2-input" name="quantity" value="{{ old('quantity', $booking->quantity) }}" placeholder="مثال: 3 (وحدات/ليالي/جلسات)">
-  </div>
-
-  <div>
-    <label class="a2-label">party_size (اختياري)</label>
-    <input class="a2-input" name="party_size" value="{{ old('party_size', $booking->party_size) }}" placeholder="مثال: 4 أفراد">
-  </div>
-
-  <div>
-    <label class="a2-label">price (محسوب تلقائيًا)</label>
-    <input class="a2-input" id="a2_price" name="price" value="{{ $priceVal }}" readonly>
-    <div class="a2-hint" id="a2_price_hint">—</div>
-  </div>
-
-</div>
-
-<div style="margin-top:12px;">
-  <label class="a2-label">notes</label>
-  <textarea class="a2-textarea" name="notes" rows="4">{{ old('notes', $booking->notes) }}</textarea>
-</div>
-
-<div style="margin-top:12px;">
-  <label class="a2-label">meta (JSON) اختياري</label>
-  <textarea class="a2-textarea" name="meta_raw" rows="7" placeholder='مثال:
-{
-  "booking_kind": "restaurant",
-  "menu_items": [{"id": 1, "qty": 2}],
-  "special_requests": "بدون بصل"
+<style>
+.bk-form-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(280px,1fr));
+    gap:16px;
+    align-items:end;
 }
-'>{{ old('meta_raw', $metaText) }}</textarea>
-  <div class="a2-hint">لو JSON غير صالح سيتم حفظه داخل meta._raw</div>
-</div>
+.bk-summary-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+}
+.bk-kv-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+}
+.bk-kv{
+    background:#f8fafc;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:12px 14px;
+}
+.bk-kv span{
+    display:block;
+    font-size:12px;
+    color:#6b7280;
+    margin-bottom:6px;
+}
+.bk-kv strong{
+    display:block;
+    font-size:15px;
+    font-weight:800;
+    line-height:1.5;
+    word-break:break-word;
+}
+
+.bk-field-search{
+    position:relative;
+}
+.bk-dropdown{
+    display:none;
+    position:absolute;
+    inset-inline:0;
+    top:calc(100% + 6px);
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    box-shadow:0 12px 30px rgba(15,23,42,.08);
+    max-height:250px;
+    overflow:auto;
+    z-index:30;
+}
+.bk-option{
+    width:100%;
+    text-align:right;
+    padding:12px 14px;
+    border:0;
+    background:#fff;
+    cursor:pointer;
+    display:block;
+}
+.bk-option:hover{
+    background:#f8fafc;
+}
+.bk-option-sub{
+    color:#6b7280;
+    font-size:12px;
+}
+
+@media (max-width: 1200px){
+    .bk-summary-grid{
+        grid-template-columns:1fr;
+    }
+}
+@media (max-width: 900px){
+    .bk-form-grid{
+        grid-template-columns:1fr;
+    }
+}
+@media (max-width: 700px){
+    .bk-kv-grid{
+        grid-template-columns:1fr;
+    }
+}
+</style>
 
 <script>
-(function(){
-  // DATA
-  const SERVICES = {!! $servicesJson !!};
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form');
 
-  // Elements
-  const businessEl   = document.getElementById('a2_business_id');
-  const serviceIdEl  = document.getElementById('a2_service_id');
-  const searchEl     = document.getElementById('a2_service_search');
-  const dropEl       = document.getElementById('a2_service_dropdown');
-  const hintEl       = document.getElementById('a2_service_hint');
-  const clearBtn     = document.getElementById('a2_service_clear');
+    const hiddenClientId = document.getElementById('user_id');
+    const clientSearch = document.getElementById('client_search');
+    const clientDropdown = document.getElementById('client_dropdown');
+    const clientBox = document.getElementById('client_search_box');
 
-  const startsEl     = document.getElementById('a2_starts_at');
-  const endsEl       = document.getElementById('a2_ends_at');
-  const durValEl     = document.getElementById('a2_dur_val');
-  const durUnitEl    = document.getElementById('a2_dur_unit');
-  const priceEl      = document.getElementById('a2_price');
-  const priceHintEl  = document.getElementById('a2_price_hint');
+    const hiddenBusinessId = document.getElementById('business_id');
+    const businessSearch = document.getElementById('business_search');
+    const businessDropdown = document.getElementById('business_dropdown');
+    const businessBox = document.getElementById('business_search_box');
 
-  // State
-  let currentService = null;
-  let open = false;
-  let activeIndex = -1;
-  let lastItems = [];
+    const hiddenServiceId = document.getElementById('service_id');
+    const serviceSearch = document.getElementById('service_search');
+    const serviceDropdown = document.getElementById('service_dropdown');
+    const serviceBox = document.getElementById('service_search_box');
 
-  function getBusinessId(){
-    return parseInt(businessEl?.value || '0', 10) || 0;
-  }
+    const bookableSelect = document.getElementById('bookable_id');
+    const bookableHint = document.getElementById('bookable_hint');
 
-  function escapeHtml(s){
-    return (s || '').toString()
-      .replaceAll('&','&amp;').replaceAll('<','&lt;')
-      .replaceAll('>','&gt;').replaceAll('"','&quot;')
-      .replaceAll("'","&#039;");
-  }
+    const durationUnit = document.getElementById('duration_unit');
+    const startDate = document.getElementById('start_date');
+    const startTime = document.getElementById('start_time');
+    const startTimeWrap = document.getElementById('start_time_wrap');
+    const endsAt = document.getElementById('ends_at');
+    const quantity = document.getElementById('quantity');
+    const durationPreview = document.getElementById('duration_preview');
+    const durationValue = document.getElementById('duration_value');
+    const allDayCheckbox = document.getElementById('all_day_checkbox');
 
-  function toMinutes(val, unit){
-    val = parseInt(val || '0', 10);
-    if (!val || val <= 0) return null;
-    switch(unit){
-      case 'minute': return val;
-      case 'hour':   return val * 60;
-      case 'day':    return val * 60 * 24;
-      case 'week':   return val * 60 * 24 * 7;
-      case 'month':  return val * 60 * 24 * 30;
-      case 'year':   return val * 60 * 24 * 365;
-      default:       return null;
-    }
-  }
+    const selectedBookableId = @json((string) $selectedBookableId);
 
-  function diffMinutes(startLocal, endLocal){
-    if (!startLocal || !endLocal) return null;
-    const s = new Date(startLocal);
-    const e = new Date(endLocal);
-    const ms = e.getTime() - s.getTime();
-    if (!isFinite(ms) || ms <= 0) return null;
-    return Math.round(ms / 60000);
-  }
+    const summaryUnitPrice = document.getElementById('summary_unit_price');
+    const summaryOriginalPrice = document.getElementById('summary_original_price');
+    const summaryDiscount = document.getElementById('summary_discount');
+    const summaryFinalPrice = document.getElementById('summary_final_price');
+    const summaryPlatformFee = document.getElementById('summary_platform_fee');
+    const summaryTotalCost = document.getElementById('summary_total_cost');
+    const summarySupportsDeposit = document.getElementById('summary_supports_deposit');
+    const summaryMaxDepositPercent = document.getElementById('summary_max_deposit_percent');
+    const summaryAppliedDepositPercent = document.getElementById('summary_applied_deposit_percent');
+    const summaryDepositAmount = document.getElementById('summary_deposit_amount');
 
-  function recalcPrice(){
-    if (!priceEl || !priceHintEl) return;
-
-    if (!currentService || !currentService.price || !currentService.duration_minutes){
-      priceHintEl.textContent = '—';
-      return;
+    function money(v) {
+        return Number(v || 0).toFixed(2) + ' EGP';
     }
 
-    const basePrice = Number(currentService.price) || 0;
-    const baseMin   = Number(currentService.duration_minutes) || 0;
-
-    if (basePrice <= 0 || baseMin <= 0){
-      priceHintEl.textContent = 'الخدمة بدون سعر/مدة';
-      return;
+    function normalizeText(value) {
+        return (value || '').toString().trim().toLocaleLowerCase();
     }
 
-    let minutes = diffMinutes(startsEl?.value, endsEl?.value);
-    if (!minutes){
-      minutes = toMinutes(durValEl?.value, durUnitEl?.value);
+    function setupSearchable(inputEl, hiddenEl, dropdownEl, boxEl, optionSelector) {
+        const options = Array.from(dropdownEl.querySelectorAll(optionSelector));
+
+        function close() {
+            dropdownEl.style.display = 'none';
+        }
+
+        function filter() {
+            const keyword = normalizeText(inputEl.value);
+            let visible = 0;
+
+            options.forEach(option => {
+                const name = normalizeText(option.dataset.name);
+                if (keyword === '' || name.includes(keyword)) {
+                    option.style.display = 'block';
+                    visible++;
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+
+            dropdownEl.style.display = visible > 0 ? 'block' : 'none';
+        }
+
+        inputEl.addEventListener('focus', filter);
+
+        inputEl.addEventListener('input', function () {
+            hiddenEl.value = '';
+            filter();
+        });
+
+        options.forEach(option => {
+            option.addEventListener('click', async function () {
+                hiddenEl.value = option.dataset.id;
+                inputEl.value = option.dataset.name;
+                close();
+
+                if (hiddenEl === hiddenBusinessId || hiddenEl === hiddenServiceId) {
+                    await loadBookableItems();
+                    await refreshPreview();
+                }
+            });
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!boxEl.contains(e.target)) {
+                close();
+            }
+        });
     }
 
-    if (!minutes || minutes <= 0){
-      const p = basePrice.toFixed(2);
-      priceEl.value = p;
-      priceHintEl.textContent = `السعر الأساسي: ${p}`;
-      return;
+    setupSearchable(clientSearch, hiddenClientId, clientDropdown, clientBox, '.client-option');
+    setupSearchable(businessSearch, hiddenBusinessId, businessDropdown, businessBox, '.business-option');
+    setupSearchable(serviceSearch, hiddenServiceId, serviceDropdown, serviceBox, '.service-option');
+
+    function parseDateTime(date, time = '00:00') {
+        if (!date) return null;
+        return new Date(date + 'T' + time + ':00');
     }
 
-    const ratio = minutes / baseMin;
-    const price = basePrice * ratio;
+    function updateModeUI() {
+        const mode = durationUnit.value;
+        const isDay = mode === 'day';
 
-    const p = price.toFixed(2);
-    priceEl.value = p;
-    priceHintEl.textContent = `محسوب: ${basePrice} × (${minutes} / ${baseMin}) = ${p}`;
-  }
-
-  function setService(service){
-    currentService = service || null;
-
-    if (!currentService){
-      serviceIdEl.value = '';
-      searchEl.value = '';
-      hintEl.textContent = '—';
-      clearBtn.style.display = 'none';
-      recalcPrice();
-      return;
+        startTimeWrap.style.display = isDay ? 'none' : '';
+        allDayCheckbox.checked = isDay;
     }
 
-    serviceIdEl.value = String(currentService.id);
-    searchEl.value = currentService.name;
-    hintEl.textContent = `Service: ${currentService.name} | Base: ${currentService.price} / ${currentService.duration_minutes} min`;
-    clearBtn.style.display = 'inline-flex';
-    recalcPrice();
-  }
+    function updateDurationAndEnd() {
+        const mode = durationUnit.value;
+        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
+        const sDate = startDate.value;
+        const sTime = startTime.value || '00:00';
 
-  function filtered(term){
-    const bid = getBusinessId();
-    term = (term || '').trim().toLowerCase();
+        updateModeUI();
 
-    let list = SERVICES.filter(s => !bid || Number(s.business_id) === bid);
+        if (!sDate) {
+            durationPreview.value = '—';
+            durationValue.value = '';
+            return;
+        }
 
-    if (term){
-      list = list.filter(s => (s.name || '').toLowerCase().includes(term));
+        if (mode === 'day') {
+            durationValue.value = qty;
+            durationPreview.value = qty + ' يوم';
+
+            // نظام فندقي/إيجار: 10 أيام => checkout بداية اليوم 11
+            const end = new Date(sDate + 'T00:00:00');
+            end.setDate(end.getDate() + qty);
+
+            endsAt.value = end.toISOString().slice(0, 16);
+        } else {
+            const start = parseDateTime(sDate, sTime);
+            if (!start) {
+                durationPreview.value = '—';
+                durationValue.value = '';
+                return;
+            }
+
+            durationValue.value = qty;
+            durationPreview.value = qty + ' ساعة';
+
+            const end = new Date(start.getTime() + (qty * 60 * 60 * 1000));
+            endsAt.value = end.toISOString().slice(0, 16);
+        }
     }
 
-    return list.slice(0, 20);
-  }
+    async function loadBookableItems() {
+        const businessId = String(hiddenBusinessId.value || '').trim();
+        const serviceId = String(hiddenServiceId.value || '').trim();
+        const previousValue = String(bookableSelect.value || selectedBookableId || '').trim();
 
-  function render(items){
-    lastItems = items || [];
-    activeIndex = (lastItems.length ? 0 : -1);
+        bookableSelect.innerHTML = '<option value="">جاري تحميل العناصر...</option>';
 
-    if (!lastItems.length){
-      dropEl.innerHTML = `<div style="padding:10px 12px;color:var(--a2-muted);">لا توجد نتائج</div>`;
-      return;
+        if (!businessId || !serviceId) {
+            bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
+            if (bookableHint) {
+                bookableHint.textContent = 'اختر البزنس والخدمة أولًا لتحميل العناصر القابلة للحجز.';
+            }
+            await refreshPreview();
+            return;
+        }
+
+        try {
+            const url = `{{ route('admin.bookings.bookableItemsLookup') }}?business_id=${encodeURIComponent(businessId)}&service_id=${encodeURIComponent(serviceId)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
+
+            if (!data.ok || !Array.isArray(data.items)) {
+                if (bookableHint) {
+                    bookableHint.textContent = 'تعذر تحميل العناصر القابلة للحجز.';
+                }
+                await refreshPreview();
+                return;
+            }
+
+            if (data.items.length === 0) {
+                if (bookableHint) {
+                    bookableHint.textContent = 'لا توجد عناصر قابلة للحجز مرتبطة بهذا البزنس وهذه الخدمة.';
+                }
+                await refreshPreview();
+                return;
+            }
+
+            data.items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.title}${item.code ? ' (' + item.code + ')' : ''}`;
+                opt.dataset.price = item.price ?? 0;
+                opt.dataset.depositEnabled = item.deposit_enabled ? '1' : '0';
+                opt.dataset.depositPercent = item.deposit_percent ?? 0;
+                opt.dataset.itemType = item.item_type ?? '';
+
+                if (String(item.id) === previousValue) {
+                    opt.selected = true;
+                }
+
+                bookableSelect.appendChild(opt);
+            });
+
+            if (bookableHint) {
+                bookableHint.textContent = `تم تحميل ${data.items.length} عنصر قابل للحجز.`;
+            }
+        } catch (e) {
+            console.error('bookableItemsLookup error:', e);
+            bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
+            if (bookableHint) {
+                bookableHint.textContent = 'حدث خطأ أثناء تحميل العناصر القابلة للحجز.';
+            }
+        }
+
+        await refreshPreview();
     }
 
-    dropEl.innerHTML = lastItems.map((s, idx) => {
-      const active = idx === activeIndex;
-      return `
-        <div
-          role="option"
-          data-id="${s.id}"
-          data-idx="${idx}"
-          style="
-            display:flex;gap:10px;align-items:center;justify-content:space-between;
-            padding:10px 12px; cursor:pointer;
-            background:${active ? 'rgba(99,102,241,.10)' : 'transparent'};
-            border-bottom:1px solid var(--a2-border);
-          "
-        >
-          <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-            <div style="font-weight:800;color:var(--a2-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${escapeHtml(s.name)}
-            </div>
-            <div style="font-size:12px;color:var(--a2-muted);">
-              #${s.id} • بزنس: ${s.business_id}
-            </div>
-          </div>
+    async function refreshPreview() {
+        const businessId = hiddenBusinessId.value;
+        const serviceId = hiddenServiceId.value;
+        const bookableId = bookableSelect.value || '';
+        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
 
-          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-            <span style="font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--a2-border-2);">
-              ${s.duration_minutes} min
-            </span>
-            <span style="font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--a2-border-2);">
-              ${Number(s.price || 0).toFixed(2)}
-            </span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
+        if (!businessId || !serviceId) {
+            summaryUnitPrice.textContent = money(0);
+            summaryOriginalPrice.textContent = money(0);
+            summaryDiscount.textContent = money(0);
+            summaryFinalPrice.textContent = money(0);
+            summaryPlatformFee.textContent = money(0);
+            summaryTotalCost.textContent = money(0);
+            summarySupportsDeposit.textContent = '—';
+            summaryMaxDepositPercent.textContent = '—';
+            summaryAppliedDepositPercent.textContent = '—';
+            summaryDepositAmount.textContent = money(0);
+            return;
+        }
 
-  function openDropdown(){
-    if (!dropEl) return;
-    const items = filtered(searchEl.value);
-    render(items);
-    dropEl.style.display = 'block';
-    open = true;
-    ensureActiveVisible();
-  }
+        try {
+            const url = new URL(`{{ route('admin.bookings.pricingPreview') }}`, window.location.origin);
+            url.searchParams.set('business_id', businessId);
+            url.searchParams.set('service_id', serviceId);
+            url.searchParams.set('quantity', qty);
+            if (bookableId) {
+                url.searchParams.set('bookable_id', bookableId);
+            }
 
-  function closeDropdown(){
-    if (!dropEl) return;
-    dropEl.style.display = 'none';
-    open = false;
-    activeIndex = -1;
-  }
+            const res = await fetch(url.toString());
+            const data = await res.json();
 
-  function ensureActiveVisible(){
-    if (!open) return;
-    const activeEl = dropEl.querySelector(`[data-idx="${activeIndex}"]`);
-    if (!activeEl) return;
-    const rect = activeEl.getBoundingClientRect();
-    const parent = dropEl.getBoundingClientRect();
+            if (!data.ok) {
+                return;
+            }
 
-    if (rect.top < parent.top) activeEl.scrollIntoView({block:'nearest'});
-    if (rect.bottom > parent.bottom) activeEl.scrollIntoView({block:'nearest'});
-  }
+            const pricing = data.pricing || {};
+            const deposit = data.deposit_policy || {};
+            const service = data.service || {};
 
-  function selectActive(){
-    if (!lastItems.length || activeIndex < 0) return;
-    const svc = lastItems[activeIndex];
-    if (svc) setService(svc);
-    closeDropdown();
-  }
+            summaryUnitPrice.textContent = money(pricing.unit_price || 0);
+            summaryOriginalPrice.textContent = money(pricing.original_price || 0);
+            summaryDiscount.textContent = money(pricing.discount_amount || 0);
+            summaryFinalPrice.textContent = money(pricing.final_price || 0);
+            summaryPlatformFee.textContent = money(pricing.platform_fee || 0);
+            summaryTotalCost.textContent = money(pricing.final_price || 0);
 
-  // Events: business change => validate current selection
-  businessEl?.addEventListener('change', function(){
-    const bid = getBusinessId();
-    if (currentService && bid && Number(currentService.business_id) !== bid){
-      setService(null);
-    }
-    // reopen suggestions if typing
-    if (document.activeElement === searchEl) openDropdown();
-  });
-
-  // Search input events
-  searchEl?.addEventListener('focus', function(){
-    openDropdown();
-  });
-
-  searchEl?.addEventListener('input', function(){
-    // typing invalidates selection
-    if (serviceIdEl.value && currentService && searchEl.value !== currentService.name){
-      serviceIdEl.value = '';
-      currentService = null;
-      hintEl.textContent = '—';
-      clearBtn.style.display = searchEl.value.trim() ? 'inline-flex' : 'none';
-      priceHintEl.textContent = '—';
-    }
-    openDropdown();
-  });
-
-  searchEl?.addEventListener('keydown', function(e){
-    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
-      openDropdown();
-      e.preventDefault();
-      return;
+            summarySupportsDeposit.textContent = service.supports_deposit ? 'نعم' : 'لا';
+            summaryMaxDepositPercent.textContent = (service.max_deposit_percent ?? 0) + '%';
+            summaryAppliedDepositPercent.textContent = (deposit.configured_percent ?? 0) + '%';
+            summaryDepositAmount.textContent = money(deposit.amount || 0);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    if (!open) return;
+    bookableSelect.addEventListener('change', refreshPreview);
 
-    if (e.key === 'ArrowDown'){
-      e.preventDefault();
-      activeIndex = Math.min(activeIndex + 1, lastItems.length - 1);
-      openDropdown(); // re-render to update highlight
-      ensureActiveVisible();
-      return;
-    }
+    quantity.addEventListener('input', function () {
+        updateDurationAndEnd();
+        refreshPreview();
+    });
 
-    if (e.key === 'ArrowUp'){
-      e.preventDefault();
-      activeIndex = Math.max(activeIndex - 1, 0);
-      openDropdown();
-      ensureActiveVisible();
-      return;
-    }
+    durationUnit.addEventListener('change', function () {
+        updateDurationAndEnd();
+        refreshPreview();
+    });
 
-    if (e.key === 'Enter'){
-      e.preventDefault();
-      selectActive();
-      return;
-    }
+    startDate.addEventListener('change', updateDurationAndEnd);
+    startTime.addEventListener('change', updateDurationAndEnd);
 
-    if (e.key === 'Escape'){
-      e.preventDefault();
-      closeDropdown();
-      return;
-    }
-  });
+    form?.addEventListener('submit', function (e) {
+        if (!hiddenClientId.value) {
+            e.preventDefault();
+            clientSearch.focus();
+            alert('من فضلك اختر العميل من القائمة.');
+            return;
+        }
 
-  // Mouse click selection
-  dropEl?.addEventListener('mousemove', function(e){
-    const row = e.target.closest('[data-idx]');
-    if (!row) return;
-    const idx = parseInt(row.getAttribute('data-idx') || '-1', 10);
-    if (idx >= 0 && idx !== activeIndex){
-      activeIndex = idx;
-      // lightweight highlight without full re-render:
-      Array.from(dropEl.querySelectorAll('[data-idx]')).forEach(el => {
-        el.style.background = (parseInt(el.getAttribute('data-idx'),10) === activeIndex)
-          ? 'rgba(99,102,241,.10)'
-          : 'transparent';
-      });
-    }
-  });
+        if (!hiddenBusinessId.value) {
+            e.preventDefault();
+            businessSearch.focus();
+            alert('من فضلك اختر البزنس من القائمة.');
+            return;
+        }
 
-  dropEl?.addEventListener('click', function(e){
-    const row = e.target.closest('[data-id]');
-    if (!row) return;
-    const id = parseInt(row.getAttribute('data-id') || '0', 10);
-    const svc = SERVICES.find(x => Number(x.id) === id) || null;
-    setService(svc);
-    closeDropdown();
-  });
+        if (!hiddenServiceId.value) {
+            e.preventDefault();
+            serviceSearch.focus();
+            alert('من فضلك اختر الخدمة من القائمة.');
+        }
+    });
 
-  // Clear
-  clearBtn?.addEventListener('click', function(){
-    setService(null);
-    searchEl.focus();
-    openDropdown();
-  });
-
-  // Close on outside click
-  document.addEventListener('click', function(e){
-    if (e.target === searchEl) return;
-    if (dropEl.contains(e.target)) return;
-    if (e.target === clearBtn) return;
-    closeDropdown();
-  });
-
-  // price recalculation triggers
-  startsEl?.addEventListener('change', recalcPrice);
-  endsEl?.addEventListener('change', recalcPrice);
-  durValEl?.addEventListener('input', recalcPrice);
-  durUnitEl?.addEventListener('change', recalcPrice);
-
-  // INIT: preselect by old id
-  (function init(){
-    const oldId = parseInt(serviceIdEl.value || '0', 10);
-    if (oldId > 0){
-      const svc = SERVICES.find(x => Number(x.id) === oldId) || null;
-      if (svc){
-        setService(svc);
-        return;
-      }
-    }
-    clearBtn.style.display = 'none';
-    recalcPrice();
-  })();
-
-})();
+    (async function initBookingForm() {
+        updateModeUI();
+        updateDurationAndEnd();
+        await loadBookableItems();
+        await refreshPreview();
+    })();
+});
 </script>

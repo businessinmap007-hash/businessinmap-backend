@@ -41,12 +41,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
         ->name('payments.callback.success');
 
-    /**
-     * ✅ callback route (بدون auth) — الأفضل تحميه بتوقيع/secret
-     */
-    Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
-        ->name('payments.callback.success');
-
     // =========================
     // Protected (admin.v2)
     // =========================
@@ -103,10 +97,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{post}', [PostController::class, 'update'])->name('update');
             Route::post('{post}/toggle-active', [PostController::class, 'toggleActive'])->name('toggleActive');
             Route::delete('{post}', [PostController::class, 'destroy'])->name('destroy');
-<<<<<<< HEAD
-
-=======
->>>>>>> local-backup-before-main-sync
             Route::delete('{post}/images/{image}', [PostController::class, 'destroyImage'])->name('images.destroy');
             Route::delete('{post}/main-image', [PostController::class, 'destroyMainImage'])->name('main_image.destroy');
         });
@@ -137,21 +127,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->name('destroy');
         });
 
-<<<<<<< HEAD
-      
-
-=======
->>>>>>> local-backup-before-main-sync
         // =========================
         // Wallet Transactions
         // =========================
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
             Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
-<<<<<<< HEAD
-            Route::get('user/{user}', [WalletTransactionController::class, 'user'])->name('user'); // قبل {walletTransaction}
-=======
             Route::get('user/{user}', [WalletTransactionController::class, 'user'])->name('user');
->>>>>>> local-backup-before-main-sync
             Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->name('show');
         });
 
@@ -167,16 +148,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // =========================
         // Subscriptions
         // =========================
-<<<<<<< HEAD
-        Route::get('subscriptions', [SubscriptionController::class,'index'])->name('subscriptions.index');
-        Route::get('subscriptions/{subscription}', [SubscriptionController::class,'show'])->name('subscriptions.show');
-        Route::get('subscriptions/{subscription}/edit', [SubscriptionController::class,'edit'])->name('subscriptions.edit');
-        Route::put('subscriptions/{subscription}', [SubscriptionController::class,'update'])->name('subscriptions.update');
-        Route::post('subscriptions/{subscription}/toggle-active', [SubscriptionController::class,'toggleActive'])->name('subscriptions.toggle-active');
-
-        // =========================
-        // Payments (Admin)
-=======
         Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
             Route::get('/', [SubscriptionController::class, 'index'])->name('index');
             Route::get('{subscription}', [SubscriptionController::class, 'show'])->name('show');
@@ -187,7 +158,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // =========================
         // Payments
->>>>>>> local-backup-before-main-sync
         // =========================
         Route::prefix('payments')->name('payments.')->group(function () {
             Route::get('/', [PaymentController::class, 'index'])->name('index');
@@ -201,20 +171,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [AlbumController::class, 'index'])->name('index');
             Route::get('create', [AlbumController::class, 'create'])->name('create');
             Route::post('/', [AlbumController::class, 'store'])->name('store');
-<<<<<<< HEAD
-
-            Route::get('{album}', [AlbumController::class, 'show'])->name('show');
-            Route::get('{album}/edit', [AlbumController::class, 'edit'])->name('edit');
-            Route::put('{album}', [AlbumController::class, 'update'])->name('update');
-
-            Route::delete('{album}', [AlbumController::class, 'destroy'])->name('destroy');
-
-=======
             Route::get('{album}', [AlbumController::class, 'show'])->name('show');
             Route::get('{album}/edit', [AlbumController::class, 'edit'])->name('edit');
             Route::put('{album}', [AlbumController::class, 'update'])->name('update');
             Route::delete('{album}', [AlbumController::class, 'destroy'])->name('destroy');
->>>>>>> local-backup-before-main-sync
             Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->name('images.set-cover');
             Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->name('images.delete');
         });
@@ -224,30 +184,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // =========================
         Route::prefix('bookings')->name('bookings.')->group(function () {
             Route::get('/', [BookingController::class, 'index'])->name('index');
-<<<<<<< HEAD
-            Route::get('/create', [BookingController::class, 'create'])->name('create');
-            Route::post('/', [BookingController::class, 'store'])->name('store');
-            Route::get('/service-lookup', [BookingController::class, 'serviceLookup'])->name('serviceLookup');
-            Route::get('/bookable-items-lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookableItemsLookup');
-            Route::get('/{booking}', [BookingController::class, 'show'])->name('show');
-            Route::get('/{booking}/edit', [BookingController::class, 'edit'])->name('edit');
-            Route::put('/{booking}', [BookingController::class, 'update'])->name('update');
-            Route::delete('/{booking}', [BookingController::class, 'destroy'])->name('destroy');
-
-            // confirmations
-            Route::post('/{booking}/start-confirm-client', [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
-            Route::post('/{booking}/start-confirm-business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
-            Route::post('/{booking}/deposit-confirm-client', [BookingController::class, 'depositConfirmClient'])->name('deposit.confirm.client');
-            Route::post('/{booking}/deposit-confirm-business', [BookingController::class, 'depositConfirmBusiness'])->name('deposit.confirm.business');
-            // deposit actions
-            Route::post('/{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
-            Route::post('/{booking}/deposit-release', [BookingController::class, 'depositRelease'])->name('deposit.release');
-            Route::post('/{booking}/deposit-refund', [BookingController::class, 'depositRefund'])->name('deposit.refund');
-            Route::post('/{booking}/deposit-dispute-open', [BookingController::class, 'depositDisputeOpen'])->name('deposit.dispute.open');
-            Route::post('/{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->name('deposit.agree.release');
-            Route::post('/{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->name('deposit.agree.refund');
-            Route::get('/pricing-preview', [BookingController::class, 'pricingPreview'])->name('pricingPreview');
-=======
             Route::get('create', [BookingController::class, 'create'])->name('create');
             Route::post('/', [BookingController::class, 'store'])->name('store');
 
@@ -270,76 +206,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{booking}/edit', [BookingController::class, 'edit'])->name('edit');
             Route::put('{booking}', [BookingController::class, 'update'])->name('update');
             Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
->>>>>>> local-backup-before-main-sync
         });
 
         // =========================
         // Disputes
         // =========================
-<<<<<<< HEAD
-        Route::get('disputes', [DisputeController::class, 'index'])->name('disputes.index');
-
-        // =========================
-        // Service Fees / Business Service Prices
-        // =========================
-      Route::prefix('service-fees')->name('service-fees.')->group(function () {
-        Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
-
-        Route::get('/create', [ServiceFeeController::class, 'create'])->name('create');
-        Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
-
-        Route::get('/show', [ServiceFeeController::class, 'show'])->name('show');
-        Route::get('/edit', [ServiceFeeController::class, 'edit'])->name('edit');
-        Route::put('/update', [ServiceFeeController::class, 'update'])->name('update');
-
-        Route::match(['post', 'patch'], '/toggle-active', [ServiceFeeController::class, 'toggleActive'])
-            ->name('toggleActive');
-
-        Route::delete('/delete', [ServiceFeeController::class, 'destroy'])->name('destroy');
-    });
-
-
-        
-
-        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
-            Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
-            Route::get('/create', [BusinessServicePriceController::class, 'create'])->name('create');
-            Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
-            Route::get('/{row}/edit', [BusinessServicePriceController::class, 'edit'])->name('edit');
-            Route::put('/{row}', [BusinessServicePriceController::class, 'update'])->name('update');
-            Route::delete('/{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
-        });
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Platform Services
-        |--------------------------------------------------------------------------
-        | تعريف الخدمات الأساسية للنظام مثل:
-        | booking / menu / delivery
-        | وتحديد قواعدها (deposit / fee / rules)
-        */
-
-        Route::prefix('platform-services')->name('platform-services.')->group(function () {
-            Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
-            Route::get('/create', [PlatformServiceController::class, 'create'])->name('create');
-            Route::post('/', [PlatformServiceController::class, 'store'])->name('store');
-            Route::get('/{platformService}/edit', [PlatformServiceController::class, 'edit'])->name('edit');
-            Route::put('/{platformService}', [PlatformServiceController::class, 'update'])->name('update');
-            Route::delete('/{platformService}', [PlatformServiceController::class, 'destroy'])->name('destroy');
-        });
-
-        Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
-            Route::get('/', [BookableItemController::class, 'index'])->name('index');
-            Route::get('/create', [BookableItemController::class, 'create'])->name('create');
-            Route::post('/', [BookableItemController::class, 'store'])->name('store');
-            Route::get('/{bookableItem}/edit', [BookableItemController::class, 'edit'])->name('edit');
-            Route::put('/{bookableItem}', [BookableItemController::class, 'update'])->name('update');
-            Route::delete('/{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
-        });
-    });
-
-=======
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
@@ -395,5 +266,4 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
         });
     });
->>>>>>> local-backup-before-main-sync
 });

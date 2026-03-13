@@ -37,7 +37,6 @@ use App\Http\Controllers\Api\V1\{
     TransactionController,
     NotificationController,
     BookingController,
-    ServiceFeeController,
     DeliveryController,
     RideController,
     ChatController,
@@ -350,8 +349,7 @@ Route::prefix('v1')->group(function () {
     });
 
   
-    Route::get('service-fees', [ServiceFeeController::class, 'index']);
-    Route::get('service-fees/{code}', [ServiceFeeController::class, 'show']);
+    
     
       
 });

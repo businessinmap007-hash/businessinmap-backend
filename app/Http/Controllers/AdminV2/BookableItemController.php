@@ -67,18 +67,6 @@ class BookableItemController extends Controller
 
     public function create()
     {
-        $services = PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name'])
-            ->where('type', 'business')
-            ->orderBy('name')
-            ->get();
-
         $row = new BookableItem([
             'price' => 0,
             'quantity' => 1,
@@ -87,7 +75,11 @@ class BookableItemController extends Controller
             'deposit_percent' => 0,
         ]);
 
-        return view('admin-v2.bookable-items.create', compact('row', 'services', 'businesses'));
+        return view('admin-v2.bookable-items.create', [
+            'row' => $row,
+            'services' => $this->services(),
+            'businesses' => $this->businesses(),
+        ]);
     }
 
     public function store(Request $request)
@@ -103,29 +95,21 @@ class BookableItemController extends Controller
 
     public function edit(BookableItem $bookableItem)
     {
-        $services = PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name'])
-            ->where('type', 'business')
-            ->orderBy('name')
-            ->get();
-
         $row = $bookableItem->load([
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
             'business:id,name',
         ]);
 
-        return view('admin-v2.bookable-items.edit', compact('row', 'services', 'businesses'));
+        return view('admin-v2.bookable-items.edit', [
+            'row' => $row,
+            'services' => $this->services(),
+            'businesses' => $this->businesses(),
+        ]);
     }
 
     public function update(Request $request, BookableItem $bookableItem)
     {
-        $data = $this->validateData($request, $bookableItem->id);
+        $data = $this->validateData($request);
 
         $bookableItem->update($data);
 
@@ -141,7 +125,7 @@ class BookableItemController extends Controller
             ->with('success', 'تم حذف العنصر بنجاح.');
     }
 
-    protected function validateData(Request $request, ?int $ignoreId = null): array
+    protected function validateData(Request $request): array
     {
         $data = $request->validate([
             'business_id' => ['required', 'integer', 'exists:users,id'],
@@ -155,27 +139,27 @@ class BookableItemController extends Controller
             'is_active' => ['nullable'],
             'deposit_enabled' => ['nullable'],
             'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'meta' => ['nullable'],
+            'meta' => ['nullable', 'string'],
         ]);
 
-        $data['is_active'] = (int) $request->boolean('is_active');
-        $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
+        $data['is_active'] = (int) $request->input('is_active', 1);
+        $data['deposit_enabled'] = (int) $request->input('deposit_enabled', 0);
         $data['quantity'] = (int) ($data['quantity'] ?? 1);
         $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
 
         $service = PlatformService::query()->find($data['service_id']);
 
-        if (!$service) {
+        if (! $service) {
             throw ValidationException::withMessages([
                 'service_id' => 'الخدمة غير موجودة.',
             ]);
         }
 
-        if (!(bool) $service->supports_deposit) {
+        if (! (bool) $service->supports_deposit) {
             $data['deposit_enabled'] = 0;
             $data['deposit_percent'] = 0;
         } else {
-            if (!$data['deposit_enabled']) {
+            if (! $data['deposit_enabled']) {
                 $data['deposit_percent'] = 0;
             } else {
                 $maxAllowed = (int) ($service->max_deposit_percent ?? 0);
@@ -188,13 +172,51 @@ class BookableItemController extends Controller
             }
         }
 
-        if (isset($data['meta']) && is_string($data['meta']) && trim($data['meta']) !== '') {
-            $decoded = json_decode($data['meta'], true);
-            $data['meta'] = json_last_error() === JSON_ERROR_NONE ? $decoded : null;
-        } else {
-            $data['meta'] = null;
-        }
+        $data['meta'] = $this->parseMetaJson($request->input('meta'));
 
         return $data;
+    }
+
+    protected function parseMetaJson(?string $value): ?array
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw ValidationException::withMessages([
+                'meta' => 'حقل Meta يجب أن يكون JSON صحيحًا.',
+            ]);
+        }
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'meta' => 'حقل Meta يجب أن يكون JSON object أو array.',
+            ]);
+        }
+
+        return $decoded;
+    }
+
+    protected function services()
+    {
+        return PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->get();
+    }
+
+    protected function businesses()
+    {
+        return User::query()
+            ->select(['id', 'name'])
+            ->where('type', 'business')
+            ->orderBy('name')
+            ->get();
     }
 }

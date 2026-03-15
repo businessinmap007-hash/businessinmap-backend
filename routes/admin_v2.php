@@ -22,7 +22,11 @@ use App\Http\Controllers\AdminV2\{
     BusinessServicePriceController,
     ServiceFeeController,
     PlatformServiceController,
-    BookableItemController
+    BookableItemController,
+    BookableItemPriceRuleController,
+    BookableItemBlockedSlotController,
+    BookableItemCalendarController,
+    BookableItemBulkController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -253,17 +257,99 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{platformService}', [PlatformServiceController::class, 'update'])->name('update');
             Route::delete('{platformService}', [PlatformServiceController::class, 'destroy'])->name('destroy');
         });
-
         // =========================
         // Bookable Items
         // =========================
         Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
+
             Route::get('/', [BookableItemController::class, 'index'])->name('index');
             Route::get('create', [BookableItemController::class, 'create'])->name('create');
             Route::post('/', [BookableItemController::class, 'store'])->name('store');
+
             Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->name('edit');
             Route::put('{bookableItem}', [BookableItemController::class, 'update'])->name('update');
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
+
+            /*
+            |-----------------------------------
+            | Blocked Slots
+            |-----------------------------------
+            */
+
+            Route::get('{bookableItem}/blocked-slots',
+                [BookableItemBlockedSlotController::class,'index']
+            )->name('blocked-slots.index');
+
+            Route::get('{bookableItem}/blocked-slots/create',
+                [BookableItemBlockedSlotController::class,'create']
+            )->name('blocked-slots.create');
+
+            Route::post('{bookableItem}/blocked-slots',
+                [BookableItemBlockedSlotController::class,'store']
+            )->name('blocked-slots.store');
+
+            Route::delete('{bookableItem}/blocked-slots/{slot}',
+                [BookableItemBlockedSlotController::class,'destroy']
+            )->name('blocked-slots.destroy');
+
+
+            /*
+            |-----------------------------------
+            | Price Rules
+            |-----------------------------------
+            */
+
+            Route::get('{bookableItem}/price-rules',
+                [BookableItemPriceRuleController::class,'index']
+            )->name('price-rules.index');
+
+            Route::get('{bookableItem}/price-rules/create',
+                [BookableItemPriceRuleController::class,'create']
+            )->name('price-rules.create');
+
+            Route::post('{bookableItem}/price-rules',
+                [BookableItemPriceRuleController::class,'store']
+            )->name('price-rules.store');
+
+            Route::delete('{bookableItem}/price-rules/{rule}',
+                [BookableItemPriceRuleController::class,'destroy']
+            )->name('price-rules.destroy');
+
+
+            /*
+            |-----------------------------------
+            | Calendar
+            |-----------------------------------
+            */
+
+            Route::get('{bookableItem}/calendar',
+                [BookableItemCalendarController::class,'index']
+            )->name('calendar');
+
+            Route::post('{bookableItem}/calendar/blocked-slot',
+                [BookableItemCalendarController::class,'storeBlockedSlot']
+            )->name('calendar.blocked-slot.store');
+
+            Route::post('{bookableItem}/calendar/price-rule',
+                [BookableItemCalendarController::class,'storePriceRule']
+            )->name('calendar.price-rule.store');
+
         });
+
+
+        // =========================
+        // Bulk Operations
+        // =========================
+        Route::prefix('bookable-items/bulk')->name('bookable-items.bulk.')->group(function () {
+
+            Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
+
+            Route::post('/block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
+
+            Route::post('/price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
+
+        });
+
+
     });
 });

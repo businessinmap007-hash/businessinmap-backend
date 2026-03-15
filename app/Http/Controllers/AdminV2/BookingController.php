@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use App\Services\BookableAvailabilityService;
+use App\Services\BookablePricingService;
 
 class BookingController extends Controller
 {
@@ -557,68 +559,183 @@ class BookingController extends Controller
         ]);
     }
 
-    public function pricingPreview(Request $request)
-    {
-        $businessId = (int) $request->get('business_id', 0);
-        $serviceId  = (int) $request->get('service_id', 0);
-        $bookableId = (int) $request->get('bookable_id', 0);
-        $quantity   = max((int) $request->get('quantity', 1), 1);
+ public function pricingPreview(Request $request)
+{
+    $businessId = (int) $request->get('business_id', 0);
+    $serviceId  = (int) $request->get('service_id', 0);
+    $bookableId = (int) $request->get('bookable_id', 0);
+    $quantity   = max((int) $request->get('quantity', 1), 1);
 
-        if ($businessId <= 0 || $serviceId <= 0) {
+    $startsAt = $request->get('starts_at');
+    $endsAt   = $request->get('ends_at');
+
+    if ($businessId <= 0 || $serviceId <= 0) {
+        return response()->json([
+            'ok' => false,
+            'message' => 'business_id و service_id مطلوبان',
+        ], 422);
+    }
+
+    /** @var BookingEngine $engine */
+    $engine = app(BookingEngine::class);
+
+    /** @var \App\Services\BookableAvailabilityService $availabilityService */
+    $availabilityService = app(BookableAvailabilityService::class);
+
+    /** @var \App\Services\BookablePricingService $pricingService */
+    $pricingService = app(BookablePricingService::class);
+
+    $calc = $engine->prepare($businessId, $serviceId);
+
+    $bookable = null;
+    $availability = null;
+    $dynamicBookablePricing = null;
+
+    if ($bookableId > 0) {
+        $bookable = BookableItem::query()
+            ->where('id', $bookableId)
+            ->where('business_id', $businessId)
+            ->where('service_id', $serviceId)
+            ->where('is_active', 1)
+            ->first();
+
+        if (! $bookable) {
             return response()->json([
                 'ok' => false,
-                'message' => 'business_id و service_id مطلوبان',
+                'message' => 'العنصر القابل للحجز غير موجود أو غير نشط',
+            ], 404);
+        }
+
+        if (!empty($startsAt) && !empty($endsAt)) {
+            try {
+                $availability = $availabilityService->check($bookable, $startsAt, $endsAt);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'تعذر فحص التوفر',
+                ], 500);
+            }
+
+            if (!($availability['available'] ?? false)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
+                    'code' => $availability['code'] ?? 'unavailable',
+                    'availability' => [
+                        'available' => false,
+                        'starts_at' => $availability['starts_at'] ?? $startsAt,
+                        'ends_at' => $availability['ends_at'] ?? $endsAt,
+                        'conflicts_count' => isset($availability['conflicts']) ? $availability['conflicts']->count() : 0,
+                        'conflicts' => isset($availability['conflicts'])
+                            ? $availability['conflicts']->map(function ($slot) {
+                                return [
+                                    'id' => (int) $slot->id,
+                                    'block_type' => (string) ($slot->block_type ?? ''),
+                                    'reason' => (string) ($slot->reason ?? ''),
+                                    'starts_at' => optional($slot->starts_at)->toDateTimeString(),
+                                    'ends_at' => optional($slot->ends_at)->toDateTimeString(),
+                                ];
+                            })->values()
+                            : [],
+                    ],
+                ], 422);
+            }
+        }
+
+        try {
+            $pricingDate = !empty($startsAt) ? $startsAt : now();
+
+            $dynamicBookablePricing = $pricingService->resolve(
+                $bookable,
+                $pricingDate,
+                $quantity
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
             ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'تعذر حساب سعر العنصر القابل للحجز',
+            ], 500);
         }
-
-        /** @var BookingEngine $engine */
-        $engine = app(BookingEngine::class);
-
-        $calc = $engine->prepare($businessId, $serviceId);
-
-        $bookable = null;
-        if ($bookableId > 0) {
-            $bookable = BookableItem::query()
-                ->where('id', $bookableId)
-                ->where('business_id', $businessId)
-                ->where('service_id', $serviceId)
-                ->where('is_active', 1)
-                ->first();
-        }
-
-        $priceBreakdown = $this->resolveBookingPriceBreakdown($calc, $bookable, $quantity);
-        $depositPolicy  = $this->buildDepositPolicyFromSources($calc, (float) $priceBreakdown['final_price'], $bookable);
-
-        return response()->json([
-            'ok' => true,
-            'service' => [
-                'id' => (int) $calc['service']->id,
-                'key' => (string) ($calc['service']->key ?? ''),
-                'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-                'name_en' => (string) ($calc['service']->name_en ?? ''),
-                'supports_deposit' => (bool) ($calc['service']->supports_deposit ?? false),
-                'max_deposit_percent' => (int) ($calc['service']->max_deposit_percent ?? 0),
-                'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-                'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-            ],
-            'business_price' => [
-                'price' => (float) ($calc['business_price']->price ?? 0),
-                'discount_enabled' => (bool) ($calc['business_price']->discount_enabled ?? false),
-                'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
-                'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
-            ],
-            'bookable' => $bookable ? [
-                'id' => (int) $bookable->id,
-                'title' => (string) $bookable->title,
-                'price' => (float) $bookable->price,
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
-            ] : null,
-            'pricing' => $priceBreakdown,
-            'deposit_policy' => $depositPolicy,
-        ]);
     }
+
+    $priceBreakdown = $this->resolveBookingPriceBreakdown($calc, $bookable, $quantity);
+
+    if ($dynamicBookablePricing && ($dynamicBookablePricing['ok'] ?? false)) {
+        $priceBreakdown['base_price'] = (float) ($dynamicBookablePricing['base_price'] ?? 0);
+        $priceBreakdown['unit_price'] = (float) ($dynamicBookablePricing['unit_price'] ?? 0);
+        $priceBreakdown['final_price'] = (float) ($dynamicBookablePricing['final_price'] ?? 0);
+        $priceBreakdown['currency'] = (string) ($dynamicBookablePricing['currency'] ?? 'EGP');
+        $priceBreakdown['bookable_rule'] = $dynamicBookablePricing['rule'] ?? null;
+        $priceBreakdown['bookable_breakdown'] = $dynamicBookablePricing['breakdown'] ?? [];
+        $priceBreakdown['pricing_source'] = 'bookable_price_rules';
+    } else {
+        $priceBreakdown['pricing_source'] = 'default_booking_engine';
+    }
+
+    $depositPolicy = $this->buildDepositPolicyFromSources(
+        $calc,
+        (float) ($priceBreakdown['final_price'] ?? 0),
+        $bookable
+    );
+
+    return response()->json([
+        'ok' => true,
+
+        'service' => [
+            'id' => (int) $calc['service']->id,
+            'key' => (string) ($calc['service']->key ?? ''),
+            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
+            'name_en' => (string) ($calc['service']->name_en ?? ''),
+            'supports_deposit' => (bool) ($calc['service']->supports_deposit ?? false),
+            'max_deposit_percent' => (int) ($calc['service']->max_deposit_percent ?? 0),
+            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
+            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
+        ],
+
+        'business_price' => [
+            'price' => (float) ($calc['business_price']->price ?? 0),
+            'discount_enabled' => (bool) ($calc['business_price']->discount_enabled ?? false),
+            'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
+            'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
+            'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
+        ],
+
+        'bookable' => $bookable ? [
+            'id' => (int) $bookable->id,
+            'title' => (string) $bookable->title,
+            'price' => (float) $bookable->price,
+            'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
+            'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
+            'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
+            'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
+        ] : null,
+
+        'availability' => $availability ? [
+            'available' => (bool) ($availability['available'] ?? false),
+            'code' => (string) ($availability['code'] ?? ''),
+            'reason' => $availability['reason'] ?? null,
+            'starts_at' => $availability['starts_at'] ?? $startsAt,
+            'ends_at' => $availability['ends_at'] ?? $endsAt,
+        ] : null,
+
+        'bookable_dynamic_pricing' => $dynamicBookablePricing,
+
+        'pricing' => $priceBreakdown,
+        'deposit_policy' => $depositPolicy,
+    ]);
+}
+
+
 
     // =========================
     // Confirmations
@@ -1230,4 +1347,5 @@ class BookingController extends Controller
     {
         app(WalletFeeService::class)->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
     }
+
 }

@@ -3,21 +3,25 @@
 
     $currentRoute = Route::currentRouteName();
 
-    $isActive = function(array $item) use ($currentRoute) {
+    $isActive = function (array $item) use ($currentRoute) {
         $route = $item['route'] ?? null;
-        if (!$route) return false;
-
-        if (!empty($item['active']) && is_string($item['active'])) {
-            return str_starts_with((string)$currentRoute, (string)$item['active']);
+        if (! $route) {
+            return false;
         }
 
-        if ($currentRoute === $route) return true;
+        if (! empty($item['active']) && is_string($item['active'])) {
+            return str_starts_with((string) $currentRoute, (string) $item['active']);
+        }
 
-        return str_starts_with((string)$currentRoute, rtrim($route, '.') . '.');
+        if ($currentRoute === $route) {
+            return true;
+        }
+
+        return str_starts_with((string) $currentRoute, rtrim($route, '.') . '.');
     };
 
-    $ico = function(?string $key) {
-        $key = (string)($key ?? 'dot');
+    $ico = function (?string $key) {
+        $key = (string) ($key ?? 'dot');
 
         $svgs = [
             'dashboard' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8V15H3v6Zm10-18v6h8V3h-8Z"/></svg>',
@@ -80,24 +84,29 @@
             $label = $item['label'] ?? '—';
 
             if ($type === 'section') {
-                echo '<li class="a2-nav-section">'.e($label).'</li>';
+                echo '<li class="a2-nav-section">' . e($label) . '</li>';
                 continue;
             }
 
             $routeName = $item['route'] ?? null;
-            $exists    = ($routeName && Route::has($routeName));
+            $exists    = $routeName && Route::has($routeName);
             $href      = $exists ? route($routeName) : '#';
-
-            $active = $exists && $isActive($item);
 
             $children    = $item['children'] ?? [];
             $hasChildren = is_array($children) && count($children) > 0;
 
+            $active = $exists && $isActive($item);
+
             $open = false;
             if ($hasChildren) {
-                foreach ($children as $ch) {
-                    if ($isActive($ch)) { $open = true; break; }
+                foreach ($children as $child) {
+                    $childRoute = $child['route'] ?? null;
+                    if ($childRoute && Route::has($childRoute) && $isActive($child)) {
+                        $open = true;
+                        break;
+                    }
                 }
+
                 $open = $open || $active;
             }
 
@@ -106,16 +115,22 @@
 
         <li class="a2-nav-item">
             @if(!$hasChildren)
-                <a class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ !$exists ? 'is-disabled' : '' }}"
-                   href="{{ $href }}"
-                   aria-current="{{ $active ? 'page' : 'false' }}"
-                   aria-disabled="{{ $exists ? 'false' : 'true' }}">
+                <a
+                    class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ !$exists ? 'is-disabled' : '' }}"
+                    href="{{ $href }}"
+                    data-tip="{{ $label }}"
+                    aria-current="{{ $active ? 'page' : 'false' }}"
+                    aria-disabled="{{ $exists ? 'false' : 'true' }}"
+                >
                     {!! $ico($iconKey) !!}
                     <span class="a2-nav-text">{{ $label }}</span>
                 </a>
             @else
                 <details class="a2-nav-group" {{ $open ? 'open' : '' }}>
-                    <summary class="a2-nav-parent {{ $active ? 'is-active' : '' }}">
+                    <summary
+                        class="a2-nav-parent {{ $active || $open ? 'is-active' : '' }}"
+                        data-tip="{{ $label }}"
+                    >
                         {!! $ico($iconKey) !!}
                         <span class="a2-nav-text">{{ $label }}</span>
                         <span class="a2-nav-caret">▾</span>
@@ -124,17 +139,19 @@
                     <ul class="a2-nav-children">
                         @foreach($children as $child)
                             @php
-                                $cr      = $child['route'] ?? null;
-                                $ce      = ($cr && Route::has($cr));
-                                $chref   = $ce ? route($cr) : '#';
-                                $cactive = $ce && $isActive($child);
+                                $childRoute = $child['route'] ?? null;
+                                $childExists = $childRoute && Route::has($childRoute);
+                                $childHref = $childExists ? route($childRoute) : '#';
+                                $childActive = $childExists && $isActive($child);
                             @endphp
 
                             <li>
-                                <a class="a2-nav-child-link {{ $cactive ? 'is-active' : '' }} {{ !$ce ? 'is-disabled' : '' }}"
-                                   href="{{ $chref }}"
-                                   aria-current="{{ $cactive ? 'page' : 'false' }}"
-                                   aria-disabled="{{ $ce ? 'false' : 'true' }}">
+                                <a
+                                    class="a2-nav-child-link {{ $childActive ? 'is-active' : '' }} {{ !$childExists ? 'is-disabled' : '' }}"
+                                    href="{{ $childHref }}"
+                                    aria-current="{{ $childActive ? 'page' : 'false' }}"
+                                    aria-disabled="{{ $childExists ? 'false' : 'true' }}"
+                                >
                                     <span class="a2-nav-bullet"></span>
                                     <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
                                 </a>

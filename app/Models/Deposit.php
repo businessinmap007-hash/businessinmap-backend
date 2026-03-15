@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Enums\DepositStatus;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Deposit extends Model
 {
@@ -31,7 +34,6 @@ class Deposit extends Model
     ];
 
     protected $casts = [
-        // ✅ Money as decimal (no float)
         'total_amount'    => 'decimal:2',
         'client_amount'   => 'decimal:2',
         'business_amount' => 'decimal:2',
@@ -47,27 +49,29 @@ class Deposit extends Model
         'released_at' => 'datetime',
         'refunded_at' => 'datetime',
 
-        // ✅ Enum cast (مهم)
         'status' => DepositStatus::class,
     ];
 
-    /* =========================
-     * Relations
-     * ========================= */
-
-    public function client()
+    public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
     }
 
-    public function business()
+    public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
     }
 
-    /* =========================
-     * Helpers (اختيارية مفيدة)
-     * ========================= */
+    public function target(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class, 'reference_id', 'id')
+            ->where('reference_type', 'deposit');
+    }
 
     public function isFrozen(): bool
     {
@@ -86,15 +90,9 @@ class Deposit extends Model
 
     public function isFinal(): bool
     {
-        return in_array($this->status, [DepositStatus::RELEASED, DepositStatus::REFUNDED], true);
-    }
-    public function target()
-    {
-        return $this->morphTo();
-    }
-
-    public function walletTransactions()
-    {
-        return $this->hasMany(\App\Models\WalletTransaction::class, 'deposit_id');
+        return in_array($this->status, [
+            DepositStatus::RELEASED,
+            DepositStatus::REFUNDED,
+        ], true);
     }
 }

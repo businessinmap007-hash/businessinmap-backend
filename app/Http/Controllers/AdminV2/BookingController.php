@@ -9,19 +9,25 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
+use App\Services\BookingDepositService;
 use App\Services\BookingEngine;
 use App\Services\WalletFeeService;
+use App\Services\BookableAvailabilityService;
+use App\Services\BookablePricingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use App\Services\BookableAvailabilityService;
-use App\Services\BookablePricingService;
 
 class BookingController extends Controller
 {
     private const EXECUTION_FEE_CODE = 'booking_execution';
+
+    public function __construct(
+        protected BookingDepositService $bookingDepositService
+    ) {
+    }
 
     // =========================
     // INDEX
@@ -35,7 +41,7 @@ class BookingController extends Controller
         $dir  = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
         $allowedSorts = ['id', 'starts_at', 'ends_at', 'status'];
-        if (!in_array($sort, $allowedSorts, true)) {
+        if (! in_array($sort, $allowedSorts, true)) {
             $sort = 'starts_at';
         }
 
@@ -43,7 +49,7 @@ class BookingController extends Controller
         $status = trim((string) $request->get('status', ''));
         $date   = trim((string) $request->get('date', ''));
 
-        $q = Booking::query()
+        $query = Booking::query()
             ->with([
                 'user:id,name,phone,email',
                 'business:id,name,phone,email',
@@ -52,27 +58,32 @@ class BookingController extends Controller
             ]);
 
         if ($status !== '') {
-            $q->where('status', $status);
+            $query->where('status', $status);
         }
 
         if ($date !== '') {
-            $q->whereDate('starts_at', $date);
+            $query->whereDate('starts_at', $date);
         }
 
         if ($qValue !== '') {
-            $q->where(function ($sub) use ($qValue) {
+            $query->where(function ($sub) use ($qValue) {
                 if (is_numeric($qValue)) {
-                    $sub->orWhere('id', (int) $qValue)
-                        ->orWhere('user_id', (int) $qValue)
-                        ->orWhere('business_id', (int) $qValue)
-                        ->orWhere('service_id', (int) $qValue);
+                    $numeric = (int) $qValue;
+
+                    $sub->orWhere('id', $numeric)
+                        ->orWhere('user_id', $numeric)
+                        ->orWhere('business_id', $numeric)
+                        ->orWhere('service_id', $numeric);
                 }
 
                 $sub->orWhere('notes', 'like', "%{$qValue}%");
             });
         }
 
-        $rows = $q->orderBy($sort, $dir)->paginate($perPage)->withQueryString();
+        $rows = $query
+            ->orderBy($sort, $dir)
+            ->paginate($perPage)
+            ->withQueryString();
 
         return view('admin-v2.bookings.index', [
             'rows' => $rows,
@@ -91,56 +102,7 @@ class BookingController extends Controller
     // =========================
     public function create()
     {
-        $services = PlatformService::query()
-            ->select([
-                'id',
-                'key',
-                'name_ar',
-                'name_en',
-                'is_active',
-                'supports_deposit',
-                'max_deposit_percent',
-                'fee_type',
-                'fee_value',
-            ])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name'])
-            ->where('type', 'business')
-            ->orderBy('name')
-            ->get();
-
-        $clients = User::query()
-            ->select(['id', 'name'])
-            ->where(function ($q) {
-                $q->whereNull('type')->orWhere('type', '!=', 'business');
-            })
-            ->orderBy('name')
-            ->limit(300)
-            ->get();
-
-        $businessServicePrices = BusinessServicePrice::query()
-            ->select([
-                'business_id',
-                'service_id',
-                'price',
-                'deposit_enabled',
-                'deposit_percent',
-                'discount_enabled',
-                'discount_percent',
-            ])
-            ->get();
-
-        return view('admin-v2.bookings.create', [
-            'statusOptions' => Booking::statusOptions(),
-            'services' => $services,
-            'businesses' => $businesses,
-            'clients' => $clients,
-            'businessServicePrices' => $businessServicePrices,
-        ]);
+        return view('admin-v2.bookings.create', $this->formData());
     }
 
     public function store(Request $request)
@@ -175,65 +137,14 @@ class BookingController extends Controller
         );
 
         $data['price'] = (float) $priceBreakdown['final_price'];
-
-        $meta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
-
-        $meta['platform_service'] = [
-            'id' => (int) $calc['service']->id,
-            'key' => (string) $calc['service']->key,
-            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-            'name_en' => (string) ($calc['service']->name_en ?? ''),
-        ];
-
-        $meta['pricing'] = [
-            'original_price' => (float) $priceBreakdown['original_price'],
-            'discount_enabled' => (bool) $priceBreakdown['discount_enabled'],
-            'discount_percent' => (int) $priceBreakdown['discount_percent'],
-            'discount_amount' => (float) $priceBreakdown['discount_amount'],
-            'final_price' => (float) $priceBreakdown['final_price'],
-            'price' => (float) $priceBreakdown['final_price'],
-            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-            'source' => $bookable ? 'bookable_item' : 'business_service_price',
-            'unit_price' => (float) $priceBreakdown['unit_price'],
-            'quantity' => (int) $priceBreakdown['quantity'],
-            'platform_fee' => (float) $priceBreakdown['platform_fee'],
-        ];
-
-        $meta['deposit_policy'] = $depositPolicy;
-
-        if ($bookable) {
-            $meta['bookable_item'] = [
-                'id' => (int) $bookable->id,
-                'title' => (string) $bookable->title,
-                'code' => (string) ($bookable->code ?? ''),
-                'item_type' => (string) ($bookable->item_type ?? ''),
-                'price' => (float) $bookable->price,
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
-            ];
-        }
-
-        $meta['_execution_fee'] = [
-            'code' => self::EXECUTION_FEE_CODE,
-            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-            'client_amount' => 0,
-            'business_amount' => 0,
-            'platform_amount' => (float) $priceBreakdown['platform_fee'],
-            'charged_at' => null,
-            'transactions' => [],
-        ];
-
-        $data['meta'] = $meta;
-
-        if ($bookable) {
-            $data['bookable_type'] = BookableItem::class;
-            $data['bookable_id'] = (int) $bookable->id;
-        } else {
-            $data['bookable_type'] = null;
-            $data['bookable_id'] = null;
-        }
+        $data = $this->applyBookableToPayload($data, $bookable);
+        $data['meta'] = $this->buildBookingMeta(
+            existingMeta: [],
+            calc: $calc,
+            priceBreakdown: $priceBreakdown,
+            depositPolicy: $depositPolicy,
+            bookable: $bookable
+        );
 
         $booking = Booking::create($data);
 
@@ -254,18 +165,21 @@ class BookingController extends Controller
             'business:id,name,code,type',
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
             'bookable',
+            'latestDispute',
         ]);
 
         $deposit = $this->latestDeposit($booking);
         [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
         $depositPolicy = $this->depositPolicy($booking);
+        $latestDispute = $booking->latestDispute;
 
         return view('admin-v2.bookings.show', compact(
             'booking',
             'deposit',
             'clientConfirmed',
             'businessConfirmed',
-            'depositPolicy'
+            'depositPolicy',
+            'latestDispute'
         ));
     }
 
@@ -274,57 +188,10 @@ class BookingController extends Controller
     // =========================
     public function edit(Booking $booking)
     {
-        $services = PlatformService::query()
-            ->select([
-                'id',
-                'key',
-                'name_ar',
-                'name_en',
-                'is_active',
-                'supports_deposit',
-                'max_deposit_percent',
-                'fee_type',
-                'fee_value',
-            ])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->get();
-
-        $businesses = User::query()
-            ->select(['id', 'name'])
-            ->where('type', 'business')
-            ->orderBy('name')
-            ->get();
-
-        $clients = User::query()
-            ->select(['id', 'name'])
-            ->where(function ($q) {
-                $q->whereNull('type')->orWhere('type', '!=', 'business');
-            })
-            ->orderBy('name')
-            ->limit(300)
-            ->get();
-
-        $businessServicePrices = BusinessServicePrice::query()
-            ->select([
-                'business_id',
-                'service_id',
-                'price',
-                'deposit_enabled',
-                'deposit_percent',
-                'discount_enabled',
-                'discount_percent',
-            ])
-            ->get();
-
-        return view('admin-v2.bookings.edit', [
-            'booking' => $booking,
-            'statusOptions' => Booking::statusOptions(),
-            'services' => $services,
-            'businesses' => $businesses,
-            'clients' => $clients,
-            'businessServicePrices' => $businessServicePrices,
-        ]);
+        return view('admin-v2.bookings.edit', array_merge(
+            $this->formData(),
+            ['booking' => $booking]
+        ));
     }
 
     public function update(Request $request, Booking $booking)
@@ -363,65 +230,19 @@ class BookingController extends Controller
         );
 
         $data['price'] = (float) $priceBreakdown['final_price'];
+        $data = $this->applyBookableToPayload($data, $bookable);
 
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-        $newMeta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
-        $meta = array_replace_recursive($meta, $newMeta);
+        $existingMeta = is_array($booking->meta ?? null) ? $booking->meta : [];
+        $incomingMeta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
+        $mergedMeta   = array_replace_recursive($existingMeta, $incomingMeta);
 
-        $meta['platform_service'] = [
-            'id' => (int) $calc['service']->id,
-            'key' => (string) $calc['service']->key,
-            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-            'name_en' => (string) ($calc['service']->name_en ?? ''),
-        ];
-
-        $meta['pricing'] = [
-            'original_price' => (float) $priceBreakdown['original_price'],
-            'discount_enabled' => (bool) $priceBreakdown['discount_enabled'],
-            'discount_percent' => (int) $priceBreakdown['discount_percent'],
-            'discount_amount' => (float) $priceBreakdown['discount_amount'],
-            'final_price' => (float) $priceBreakdown['final_price'],
-            'price' => (float) $priceBreakdown['final_price'],
-            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-            'source' => $bookable ? 'bookable_item' : 'business_service_price',
-            'unit_price' => (float) $priceBreakdown['unit_price'],
-            'quantity' => (int) $priceBreakdown['quantity'],
-            'platform_fee' => (float) $priceBreakdown['platform_fee'],
-        ];
-
-        $meta['deposit_policy'] = $depositPolicy;
-
-        if ($bookable) {
-            $meta['bookable_item'] = [
-                'id' => (int) $bookable->id,
-                'title' => (string) $bookable->title,
-                'code' => (string) ($bookable->code ?? ''),
-                'item_type' => (string) ($bookable->item_type ?? ''),
-                'price' => (float) $bookable->price,
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
-            ];
-
-            $data['bookable_type'] = BookableItem::class;
-            $data['bookable_id'] = (int) $bookable->id;
-        } else {
-            unset($meta['bookable_item']);
-            $data['bookable_type'] = null;
-            $data['bookable_id'] = null;
-        }
-
-        $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
-        $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
-        $meta['_execution_fee']['fee_type'] = (string) ($calc['service']->fee_type ?? '');
-        $meta['_execution_fee']['fee_value'] = $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null;
-        $meta['_execution_fee']['platform_amount'] = (float) $priceBreakdown['platform_fee'];
-        $meta['_execution_fee']['client_amount'] = (float) ($meta['_execution_fee']['client_amount'] ?? 0);
-        $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
-        $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
-        $meta['_execution_fee']['transactions'] = $meta['_execution_fee']['transactions'] ?? [];
-
-        $data['meta'] = $meta;
+        $data['meta'] = $this->buildBookingMeta(
+            existingMeta: $mergedMeta,
+            calc: $calc,
+            priceBreakdown: $priceBreakdown,
+            depositPolicy: $depositPolicy,
+            bookable: $bookable
+        );
 
         DB::transaction(function () use ($booking, $data, $oldStatus) {
             $booking->fill($data);
@@ -430,36 +251,7 @@ class BookingController extends Controller
             $newStatus = (string) $booking->status;
 
             if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
-                $deposit = Deposit::query()
-                    ->where('target_type', Booking::class)
-                    ->where('target_id', (int) $booking->id)
-                    ->orderByDesc('id')
-                    ->lockForUpdate()
-                    ->first();
-
-                $depositPolicy = $this->depositPolicy($booking);
-                [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
-
-                if (!$clientConfirmed || !$businessConfirmed) {
-                    throw ValidationException::withMessages([
-                        'status' => 'يجب تأكيد الطرفين قبل بدء التنفيذ.',
-                    ]);
-                }
-
-                if ($depositPolicy['required']) {
-                    if (!$deposit) {
-                        throw ValidationException::withMessages([
-                            'status' => 'Deposit مطلوب لهذا الحجز قبل بدء التنفيذ.',
-                        ]);
-                    }
-
-                    if ($deposit->status !== 'frozen') {
-                        $deposit->status = 'frozen';
-                        $deposit->save();
-                    }
-                }
-
-                $this->chargeExecutionFeeSplitOnce($booking);
+                $this->handleMoveToInProgress($booking);
             }
         });
 
@@ -481,7 +273,7 @@ class BookingController extends Controller
     }
 
     // =========================
-    // AJAX service lookup
+    // AJAX LOOKUPS
     // =========================
     public function serviceLookup(Request $request)
     {
@@ -518,26 +310,26 @@ class BookingController extends Controller
         $serviceId  = (int) $request->get('service_id', 0);
         $term       = trim((string) $request->get('q', ''));
 
-        $q = BookableItem::query()
-            ->where('is_active', 1);
+        $query = BookableItem::query()->where('is_active', 1);
 
         if ($businessId > 0) {
-            $q->where('business_id', $businessId);
+            $query->where('business_id', $businessId);
         }
 
         if ($serviceId > 0) {
-            $q->where('service_id', $serviceId);
+            $query->where('service_id', $serviceId);
         }
 
         if ($term !== '') {
-            $q->where(function ($sub) use ($term) {
+            $query->where(function ($sub) use ($term) {
                 $sub->where('title', 'like', "%{$term}%")
                     ->orWhere('code', 'like', "%{$term}%")
                     ->orWhere('item_type', 'like', "%{$term}%");
             });
         }
 
-        $rows = $q->orderBy('title')
+        $rows = $query
+            ->orderBy('title')
             ->limit(50)
             ->get([
                 'id',
@@ -559,56 +351,102 @@ class BookingController extends Controller
         ]);
     }
 
- public function pricingPreview(Request $request)
-{
-    $businessId = (int) $request->get('business_id', 0);
-    $serviceId  = (int) $request->get('service_id', 0);
-    $bookableId = (int) $request->get('bookable_id', 0);
-    $quantity   = max((int) $request->get('quantity', 1), 1);
+    public function pricingPreview(Request $request)
+    {
+        $businessId = (int) $request->get('business_id', 0);
+        $serviceId  = (int) $request->get('service_id', 0);
+        $bookableId = (int) $request->get('bookable_id', 0);
+        $quantity   = max((int) $request->get('quantity', 1), 1);
 
-    $startsAt = $request->get('starts_at');
-    $endsAt   = $request->get('ends_at');
+        $startsAt = $request->get('starts_at');
+        $endsAt   = $request->get('ends_at');
 
-    if ($businessId <= 0 || $serviceId <= 0) {
-        return response()->json([
-            'ok' => false,
-            'message' => 'business_id و service_id مطلوبان',
-        ], 422);
-    }
-
-    /** @var BookingEngine $engine */
-    $engine = app(BookingEngine::class);
-
-    /** @var \App\Services\BookableAvailabilityService $availabilityService */
-    $availabilityService = app(BookableAvailabilityService::class);
-
-    /** @var \App\Services\BookablePricingService $pricingService */
-    $pricingService = app(BookablePricingService::class);
-
-    $calc = $engine->prepare($businessId, $serviceId);
-
-    $bookable = null;
-    $availability = null;
-    $dynamicBookablePricing = null;
-
-    if ($bookableId > 0) {
-        $bookable = BookableItem::query()
-            ->where('id', $bookableId)
-            ->where('business_id', $businessId)
-            ->where('service_id', $serviceId)
-            ->where('is_active', 1)
-            ->first();
-
-        if (! $bookable) {
+        if ($businessId <= 0 || $serviceId <= 0) {
             return response()->json([
                 'ok' => false,
-                'message' => 'العنصر القابل للحجز غير موجود أو غير نشط',
-            ], 404);
+                'message' => 'business_id و service_id مطلوبان',
+            ], 422);
         }
 
-        if (!empty($startsAt) && !empty($endsAt)) {
+        /** @var BookingEngine $engine */
+        $engine = app(BookingEngine::class);
+
+        /** @var BookableAvailabilityService $availabilityService */
+        $availabilityService = app(BookableAvailabilityService::class);
+
+        /** @var BookablePricingService $pricingService */
+        $pricingService = app(BookablePricingService::class);
+
+        $calc = $engine->prepare($businessId, $serviceId);
+
+        $bookable = null;
+        $availability = null;
+        $dynamicBookablePricing = null;
+
+        if ($bookableId > 0) {
+            $bookable = BookableItem::query()
+                ->where('id', $bookableId)
+                ->where('business_id', $businessId)
+                ->where('service_id', $serviceId)
+                ->where('is_active', 1)
+                ->first();
+
+            if (! $bookable) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'العنصر القابل للحجز غير موجود أو غير نشط',
+                ], 404);
+            }
+
+            if (! empty($startsAt) && ! empty($endsAt)) {
+                try {
+                    $availability = $availabilityService->check($bookable, $startsAt, $endsAt);
+                } catch (\InvalidArgumentException $e) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => $e->getMessage(),
+                    ], 422);
+                } catch (\Throwable $e) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => 'تعذر فحص التوفر',
+                    ], 500);
+                }
+
+                if (! ($availability['available'] ?? false)) {
+                    return response()->json([
+                        'ok' => false,
+                        'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
+                        'code' => $availability['code'] ?? 'unavailable',
+                        'availability' => [
+                            'available' => false,
+                            'starts_at' => $availability['starts_at'] ?? $startsAt,
+                            'ends_at' => $availability['ends_at'] ?? $endsAt,
+                            'conflicts_count' => isset($availability['conflicts']) ? $availability['conflicts']->count() : 0,
+                            'conflicts' => isset($availability['conflicts'])
+                                ? $availability['conflicts']->map(function ($slot) {
+                                    return [
+                                        'id' => (int) $slot->id,
+                                        'block_type' => (string) ($slot->block_type ?? ''),
+                                        'reason' => (string) ($slot->reason ?? ''),
+                                        'starts_at' => optional($slot->starts_at)->toDateTimeString(),
+                                        'ends_at' => optional($slot->ends_at)->toDateTimeString(),
+                                    ];
+                                })->values()
+                                : [],
+                        ],
+                    ], 422);
+                }
+            }
+
             try {
-                $availability = $availabilityService->check($bookable, $startsAt, $endsAt);
+                $pricingDate = ! empty($startsAt) ? $startsAt : now();
+
+                $dynamicBookablePricing = $pricingService->resolve(
+                    $bookable,
+                    $pricingDate,
+                    $quantity
+                );
             } catch (\InvalidArgumentException $e) {
                 return response()->json([
                     'ok' => false,
@@ -617,128 +455,74 @@ class BookingController extends Controller
             } catch (\Throwable $e) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'تعذر فحص التوفر',
+                    'message' => 'تعذر حساب سعر العنصر القابل للحجز',
                 ], 500);
             }
-
-            if (!($availability['available'] ?? false)) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
-                    'code' => $availability['code'] ?? 'unavailable',
-                    'availability' => [
-                        'available' => false,
-                        'starts_at' => $availability['starts_at'] ?? $startsAt,
-                        'ends_at' => $availability['ends_at'] ?? $endsAt,
-                        'conflicts_count' => isset($availability['conflicts']) ? $availability['conflicts']->count() : 0,
-                        'conflicts' => isset($availability['conflicts'])
-                            ? $availability['conflicts']->map(function ($slot) {
-                                return [
-                                    'id' => (int) $slot->id,
-                                    'block_type' => (string) ($slot->block_type ?? ''),
-                                    'reason' => (string) ($slot->reason ?? ''),
-                                    'starts_at' => optional($slot->starts_at)->toDateTimeString(),
-                                    'ends_at' => optional($slot->ends_at)->toDateTimeString(),
-                                ];
-                            })->values()
-                            : [],
-                    ],
-                ], 422);
-            }
         }
 
-        try {
-            $pricingDate = !empty($startsAt) ? $startsAt : now();
+        $priceBreakdown = $this->resolveBookingPriceBreakdown($calc, $bookable, $quantity);
 
-            $dynamicBookablePricing = $pricingService->resolve(
-                $bookable,
-                $pricingDate,
-                $quantity
-            );
-        } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'تعذر حساب سعر العنصر القابل للحجز',
-            ], 500);
+        if ($dynamicBookablePricing && ($dynamicBookablePricing['ok'] ?? false)) {
+            $priceBreakdown['base_price'] = (float) ($dynamicBookablePricing['base_price'] ?? 0);
+            $priceBreakdown['unit_price'] = (float) ($dynamicBookablePricing['unit_price'] ?? 0);
+            $priceBreakdown['final_price'] = (float) ($dynamicBookablePricing['final_price'] ?? 0);
+            $priceBreakdown['currency'] = (string) ($dynamicBookablePricing['currency'] ?? 'EGP');
+            $priceBreakdown['bookable_rule'] = $dynamicBookablePricing['rule'] ?? null;
+            $priceBreakdown['bookable_breakdown'] = $dynamicBookablePricing['breakdown'] ?? [];
+            $priceBreakdown['pricing_source'] = 'bookable_price_rules';
+        } else {
+            $priceBreakdown['pricing_source'] = 'default_booking_engine';
         }
+
+        $depositPolicy = $this->buildDepositPolicyFromSources(
+            $calc,
+            (float) ($priceBreakdown['final_price'] ?? 0),
+            $bookable
+        );
+
+        return response()->json([
+            'ok' => true,
+            'service' => [
+                'id' => (int) $calc['service']->id,
+                'key' => (string) ($calc['service']->key ?? ''),
+                'name_ar' => (string) ($calc['service']->name_ar ?? ''),
+                'name_en' => (string) ($calc['service']->name_en ?? ''),
+                'supports_deposit' => (bool) ($calc['service']->supports_deposit ?? false),
+                'max_deposit_percent' => (int) ($calc['service']->max_deposit_percent ?? 0),
+                'fee_type' => (string) ($calc['service']->fee_type ?? ''),
+                'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
+            ],
+            'business_price' => [
+                'price' => (float) ($calc['business_price']->price ?? 0),
+                'discount_enabled' => (bool) ($calc['business_price']->discount_enabled ?? false),
+                'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
+                'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
+                'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
+            ],
+            'bookable' => $bookable ? [
+                'id' => (int) $bookable->id,
+                'title' => (string) $bookable->title,
+                'price' => (float) $bookable->price,
+                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
+                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
+                'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
+                'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
+            ] : null,
+            'availability' => $availability ? [
+                'available' => (bool) ($availability['available'] ?? false),
+                'code' => (string) ($availability['code'] ?? ''),
+                'reason' => $availability['reason'] ?? null,
+                'starts_at' => $availability['starts_at'] ?? $startsAt,
+                'ends_at' => $availability['ends_at'] ?? $endsAt,
+            ] : null,
+            'bookable_dynamic_pricing' => $dynamicBookablePricing,
+            'pricing' => $priceBreakdown,
+            'deposit_policy' => $depositPolicy,
+        ]);
     }
-
-    $priceBreakdown = $this->resolveBookingPriceBreakdown($calc, $bookable, $quantity);
-
-    if ($dynamicBookablePricing && ($dynamicBookablePricing['ok'] ?? false)) {
-        $priceBreakdown['base_price'] = (float) ($dynamicBookablePricing['base_price'] ?? 0);
-        $priceBreakdown['unit_price'] = (float) ($dynamicBookablePricing['unit_price'] ?? 0);
-        $priceBreakdown['final_price'] = (float) ($dynamicBookablePricing['final_price'] ?? 0);
-        $priceBreakdown['currency'] = (string) ($dynamicBookablePricing['currency'] ?? 'EGP');
-        $priceBreakdown['bookable_rule'] = $dynamicBookablePricing['rule'] ?? null;
-        $priceBreakdown['bookable_breakdown'] = $dynamicBookablePricing['breakdown'] ?? [];
-        $priceBreakdown['pricing_source'] = 'bookable_price_rules';
-    } else {
-        $priceBreakdown['pricing_source'] = 'default_booking_engine';
-    }
-
-    $depositPolicy = $this->buildDepositPolicyFromSources(
-        $calc,
-        (float) ($priceBreakdown['final_price'] ?? 0),
-        $bookable
-    );
-
-    return response()->json([
-        'ok' => true,
-
-        'service' => [
-            'id' => (int) $calc['service']->id,
-            'key' => (string) ($calc['service']->key ?? ''),
-            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-            'name_en' => (string) ($calc['service']->name_en ?? ''),
-            'supports_deposit' => (bool) ($calc['service']->supports_deposit ?? false),
-            'max_deposit_percent' => (int) ($calc['service']->max_deposit_percent ?? 0),
-            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-        ],
-
-        'business_price' => [
-            'price' => (float) ($calc['business_price']->price ?? 0),
-            'discount_enabled' => (bool) ($calc['business_price']->discount_enabled ?? false),
-            'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
-            'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
-            'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
-        ],
-
-        'bookable' => $bookable ? [
-            'id' => (int) $bookable->id,
-            'title' => (string) $bookable->title,
-            'price' => (float) $bookable->price,
-            'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-            'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
-            'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
-            'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
-        ] : null,
-
-        'availability' => $availability ? [
-            'available' => (bool) ($availability['available'] ?? false),
-            'code' => (string) ($availability['code'] ?? ''),
-            'reason' => $availability['reason'] ?? null,
-            'starts_at' => $availability['starts_at'] ?? $startsAt,
-            'ends_at' => $availability['ends_at'] ?? $endsAt,
-        ] : null,
-
-        'bookable_dynamic_pricing' => $dynamicBookablePricing,
-
-        'pricing' => $priceBreakdown,
-        'deposit_policy' => $depositPolicy,
-    ]);
-}
-
-
 
     // =========================
-    // Confirmations
+    // START CONFIRMATIONS
     // =========================
     public function startConfirmClient(Booking $booking)
     {
@@ -746,15 +530,17 @@ class BookingController extends Controller
 
         DB::transaction(function () use ($booking, $deposit) {
             if ($deposit) {
-                $deposit->client_confirmed = 1;
+                $deposit->client_confirmed = true;
                 $deposit->save();
+
                 return;
             }
 
-            $meta = $booking->meta ?? [];
+            $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
             $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
             $meta['_start_confirm']['client'] = 1;
             $meta['_start_confirm']['client_at'] = now()->toDateTimeString();
+
             $booking->meta = $meta;
             $booking->save();
         });
@@ -768,15 +554,17 @@ class BookingController extends Controller
 
         DB::transaction(function () use ($booking, $deposit) {
             if ($deposit) {
-                $deposit->business_confirmed = 1;
+                $deposit->business_confirmed = true;
                 $deposit->save();
+
                 return;
             }
 
-            $meta = $booking->meta ?? [];
+            $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
             $meta['_start_confirm'] = $meta['_start_confirm'] ?? [];
             $meta['_start_confirm']['business'] = 1;
             $meta['_start_confirm']['business_at'] = now()->toDateTimeString();
+
             $booking->meta = $meta;
             $booking->save();
         });
@@ -795,128 +583,167 @@ class BookingController extends Controller
     }
 
     // =========================
-    // Deposit actions
+    // DEPOSIT ACTIONS
     // =========================
     public function depositFreeze(Booking $booking)
     {
-        $exists = Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', $booking->id)
-            ->exists();
-
-        if ($exists) {
-            return back()->with('error', 'Deposit موجود بالفعل.');
-        }
-
         $depositPolicy = $this->depositPolicy($booking);
 
-        if (!$depositPolicy['required']) {
+        if (! $depositPolicy['required']) {
             return back()->with('error', 'Deposit غير مفعل لهذا الحجز.');
         }
 
-        $hold = (float) $depositPolicy['hold'];
-        if ($hold <= 0) {
-            return back()->with('error', 'قيمة الـ Deposit غير صالحة.');
+        try {
+            $this->bookingDepositService->freezeForBooking(
+                $booking,
+                (float) $depositPolicy['hold']
+            );
+
+            return back()->with('success', 'تم إنشاء Deposit وتجميد المبالغ بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر إنشاء الـ Deposit: ' . $e->getMessage());
         }
-
-        $total          = round($hold * 2, 2);
-        $clientAmount   = round($hold, 2);
-        $businessAmount = round($hold, 2);
-
-        DB::transaction(function () use ($booking, $total, $clientAmount, $businessAmount) {
-            Deposit::create([
-                'client_id'          => (int) $booking->user_id,
-                'business_id'        => (int) $booking->business_id,
-                'target_type'        => Booking::class,
-                'target_id'          => (int) $booking->id,
-                'total_amount'       => $total,
-                'client_percent'     => 50,
-                'business_percent'   => 50,
-                'client_amount'      => $clientAmount,
-                'business_amount'    => $businessAmount,
-                'status'             => 'frozen',
-                'client_confirmed'   => 0,
-                'business_confirmed' => 0,
-            ]);
-        });
-
-        return back()->with('success', 'تم إنشاء Deposit بنجاح.');
     }
 
     public function depositRelease(Booking $booking)
     {
-        $deposit = $this->latestDeposit($booking);
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit.');
+        try {
+            $this->bookingDepositService->releaseForBooking($booking);
+
+            return back()->with('success', 'تم Release للـ Deposit بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر Release للـ Deposit: ' . $e->getMessage());
         }
-
-        $deposit->status = 'released';
-        $deposit->released_at = now();
-        $deposit->save();
-
-        return back()->with('success', 'تم Release للـ Deposit.');
     }
 
     public function depositRefund(Booking $booking)
     {
-        $deposit = $this->latestDeposit($booking);
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit.');
+        try {
+            $this->bookingDepositService->refundForBooking($booking);
+
+            return back()->with('success', 'تم Refund للـ Deposit بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر Refund للـ Deposit: ' . $e->getMessage());
         }
-
-        $deposit->status = 'refunded';
-        $deposit->refunded_at = now();
-        $deposit->save();
-
-        return back()->with('success', 'تم Refund للـ Deposit.');
     }
 
-    public function depositDisputeOpen(Booking $booking)
+    public function depositDisputeOpen(Request $request, Booking $booking)
     {
-        $deposit = $this->latestDeposit($booking);
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit.');
+        $data = $request->validate([
+            'reason_code' => ['nullable', 'string', 'max:100'],
+            'reason_text' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        try {
+            $dispute = $this->bookingDepositService->openDisputeForBooking(
+                booking: $booking,
+                openedByUserId: auth()->id() ?: (int) $booking->user_id,
+                actorId: auth()->id(),
+                payload: [
+                    'reason_code' => $data['reason_code'] ?? null,
+                    'reason_text' => $data['reason_text'] ?? null,
+                ]
+            );
+
+            return redirect()
+                ->route('admin.disputes.show', $dispute)
+                ->with('success', 'تم فتح النزاع بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر فتح النزاع: ' . $e->getMessage());
         }
-
-        $deposit->status = 'dispute';
-        $deposit->dispute_opened_at = now();
-        $deposit->dispute_opened_by = 'admin';
-        $deposit->save();
-
-        return back()->with('success', 'تم فتح النزاع.');
     }
 
     public function depositAgreeRelease(Booking $booking)
     {
-        $deposit = $this->latestDeposit($booking);
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit.');
+        try {
+            $this->bookingDepositService->releaseForBooking($booking);
+
+            return back()->with('success', 'تمت الموافقة وتنفيذ Release.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر تنفيذ Release: ' . $e->getMessage());
         }
-
-        $deposit->release_agreed_client = 1;
-        $deposit->release_agreed_business = 1;
-        $deposit->save();
-
-        return back()->with('success', 'تمت الموافقة على Release.');
     }
 
     public function depositAgreeRefund(Booking $booking)
     {
-        $deposit = $this->latestDeposit($booking);
-        if (!$deposit) {
-            return back()->with('error', 'لا يوجد Deposit.');
+        try {
+            $this->bookingDepositService->refundForBooking($booking);
+
+            return back()->with('success', 'تمت الموافقة وتنفيذ Refund.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'تعذر تنفيذ Refund: ' . $e->getMessage());
         }
-
-        $deposit->refund_agreed_client = 1;
-        $deposit->refund_agreed_business = 1;
-        $deposit->save();
-
-        return back()->with('success', 'تمت الموافقة على Refund.');
     }
 
     // =========================
     // HELPERS
     // =========================
+    protected function formData(): array
+    {
+        $services = PlatformService::query()
+            ->select([
+                'id',
+                'key',
+                'name_ar',
+                'name_en',
+                'is_active',
+                'supports_deposit',
+                'max_deposit_percent',
+                'fee_type',
+                'fee_value',
+            ])
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->get();
+
+        $businesses = User::query()
+            ->select(['id', 'name'])
+            ->where('type', 'business')
+            ->orderBy('name')
+            ->get();
+
+        $clients = User::query()
+            ->select(['id', 'name'])
+            ->where(function ($q) {
+                $q->whereNull('type')->orWhere('type', '!=', 'business');
+            })
+            ->orderBy('name')
+            ->limit(300)
+            ->get();
+
+        $businessServicePrices = BusinessServicePrice::query()
+            ->select([
+                'business_id',
+                'service_id',
+                'price',
+                'deposit_enabled',
+                'deposit_percent',
+                'discount_enabled',
+                'discount_percent',
+            ])
+            ->get();
+
+        return [
+            'statusOptions' => Booking::statusOptions(),
+            'services' => $services,
+            'businesses' => $businesses,
+            'clients' => $clients,
+            'businessServicePrices' => $businessServicePrices,
+        ];
+    }
+
     protected function validateBooking(Request $request, bool $isUpdate = false): array
     {
         $rules = [
@@ -957,13 +784,13 @@ class BookingController extends Controller
 
         $data['meta'] = is_array($request->input('meta')) ? $request->input('meta') : [];
 
-        $durationUnit = (string) ($data['duration_unit'] ?? 'day');
+        $durationUnit  = (string) ($data['duration_unit'] ?? 'day');
         $durationValue = max((int) ($data['duration_value'] ?? $data['quantity'] ?? 1), 1);
 
         $date = $data['date'] ?? null;
         $time = $data['time'] ?? null;
 
-        if (!empty($data['starts_at'])) {
+        if (! empty($data['starts_at'])) {
             $start = Carbon::parse($data['starts_at'], $data['timezone']);
         } elseif ($date) {
             if ($durationUnit === 'day') {
@@ -978,29 +805,22 @@ class BookingController extends Controller
         }
 
         if ($start) {
-            if (!empty($data['ends_at'])) {
+            if (! empty($data['ends_at'])) {
                 $end = Carbon::parse($data['ends_at'], $data['timezone']);
             } else {
-                if ($durationUnit === 'day') {
-                    $end = (clone $start)->addDays($durationValue);
-                } elseif ($durationUnit === 'hour') {
-                    $end = (clone $start)->addHours($durationValue);
-                } elseif ($durationUnit === 'minute') {
-                    $end = (clone $start)->addMinutes($durationValue);
-                } elseif ($durationUnit === 'week') {
-                    $end = (clone $start)->addWeeks($durationValue);
-                } elseif ($durationUnit === 'month') {
-                    $end = (clone $start)->addMonths($durationValue);
-                } elseif ($durationUnit === 'year') {
-                    $end = (clone $start)->addYears($durationValue);
-                } else {
-                    $end = null;
-                }
+                $end = match ($durationUnit) {
+                    'day' => (clone $start)->addDays($durationValue),
+                    'hour' => (clone $start)->addHours($durationValue),
+                    'minute' => (clone $start)->addMinutes($durationValue),
+                    'week' => (clone $start)->addWeeks($durationValue),
+                    'month' => (clone $start)->addMonths($durationValue),
+                    'year' => (clone $start)->addYears($durationValue),
+                    default => null,
+                };
             }
 
             $data['starts_at'] = $start->copy()->utc();
             $data['ends_at'] = $end ? $end->copy()->utc() : null;
-
             $data['date'] = $start->toDateString();
             $data['time'] = $start->format('H:i:s');
 
@@ -1011,6 +831,8 @@ class BookingController extends Controller
                     $data['duration_value'] = max(1, $start->diffInHours($end));
                 } elseif ($durationUnit === 'minute') {
                     $data['duration_value'] = max(1, $start->diffInMinutes($end));
+                } else {
+                    $data['duration_value'] = $durationValue;
                 }
             } else {
                 $data['duration_value'] = $durationValue;
@@ -1023,6 +845,7 @@ class BookingController extends Controller
             if (array_key_exists('date', $data) && $data['date'] === null) {
                 unset($data['date']);
             }
+
             if (array_key_exists('time', $data) && $data['time'] === null) {
                 unset($data['time']);
             }
@@ -1037,13 +860,13 @@ class BookingController extends Controller
             ->where('is_active', 1)
             ->first();
 
-        if (!$businessService) {
+        if (! $businessService) {
             throw ValidationException::withMessages([
                 'service_id' => 'هذه الخدمة غير مفعلة لهذا البزنس.',
             ]);
         }
 
-        if (!empty($data['bookable_id'])) {
+        if (! empty($data['bookable_id'])) {
             $bookable = BookableItem::query()
                 ->where('id', (int) $data['bookable_id'])
                 ->where('business_id', $businessId)
@@ -1051,7 +874,7 @@ class BookingController extends Controller
                 ->where('is_active', 1)
                 ->first();
 
-            if (!$bookable) {
+            if (! $bookable) {
                 throw ValidationException::withMessages([
                     'bookable_id' => 'العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.',
                 ]);
@@ -1069,28 +892,25 @@ class BookingController extends Controller
 
     protected function latestDeposit(Booking $booking): ?Deposit
     {
-        return Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', (int) $booking->id)
-            ->orderByDesc('id')
-            ->first();
+        return $this->bookingDepositService->latestDeposit($booking);
     }
 
     protected function resolveConfirmState(Booking $booking, ?Deposit $deposit): array
     {
         if ($deposit) {
-            $client = ((int) $deposit->client_confirmed === 1);
-            $business = ((int) $deposit->business_confirmed === 1);
-
-            return [$client, $business];
+            return [
+                (bool) $deposit->client_confirmed,
+                (bool) $deposit->business_confirmed,
+            ];
         }
 
-        $meta = $booking->meta ?? [];
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
         $sc = $meta['_start_confirm'] ?? [];
-        $client = !empty($sc['client']);
-        $business = !empty($sc['business']);
 
-        return [$client, $business];
+        return [
+            ! empty($sc['client']),
+            ! empty($sc['business']),
+        ];
     }
 
     protected function depositPolicy(Booking $booking): array
@@ -1154,6 +974,35 @@ class BookingController extends Controller
         ];
     }
 
+    protected function handleMoveToInProgress(Booking $booking): void
+    {
+        $deposit = $this->latestDeposit($booking);
+        $depositPolicy = $this->depositPolicy($booking);
+        [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
+
+        if (! $clientConfirmed || ! $businessConfirmed) {
+            throw ValidationException::withMessages([
+                'status' => 'يجب تأكيد الطرفين قبل بدء التنفيذ.',
+            ]);
+        }
+
+        if ($depositPolicy['required']) {
+            if (! $deposit) {
+                throw ValidationException::withMessages([
+                    'status' => 'Deposit مطلوب لهذا الحجز قبل بدء التنفيذ.',
+                ]);
+            }
+
+            if (! $deposit->isFrozen()) {
+                throw ValidationException::withMessages([
+                    'status' => 'يجب أن تكون حالة الـ Deposit مجمدة قبل بدء التنفيذ.',
+                ]);
+            }
+        }
+
+        $this->chargeExecutionFeeSplitOnce($booking);
+    }
+
     protected function chargeExecutionFeeSplitOnce(Booking $booking): void
     {
         $booking->refresh();
@@ -1161,7 +1010,7 @@ class BookingController extends Controller
         $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
         $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
 
-        if (!empty($meta['_execution_fee']['charged_at'])) {
+        if (! empty($meta['_execution_fee']['charged_at'])) {
             return;
         }
 
@@ -1176,7 +1025,7 @@ class BookingController extends Controller
 
         foreach ($transactions as $tx) {
             $amount = (float) $tx->amount;
-            $payer = (string) data_get($tx->meta, 'payer', '');
+            $payer  = (string) data_get($tx->meta, 'payer', '');
 
             if ($payer === 'client') {
                 $clientAmount += $amount;
@@ -1191,7 +1040,7 @@ class BookingController extends Controller
                 'amount' => $amount,
                 'type' => (string) $tx->type,
                 'direction' => (string) $tx->direction,
-                'status' => (string) $tx->status,
+                'status' => (string) ($tx->status ?? ''),
             ];
         }
 
@@ -1218,7 +1067,7 @@ class BookingController extends Controller
         $normalizedType = $bookableType ?: BookableItem::class;
         $accepted = [BookableItem::class, 'bookable_item', 'bookable_items'];
 
-        if (!in_array($normalizedType, $accepted, true)) {
+        if (! in_array($normalizedType, $accepted, true)) {
             return null;
         }
 
@@ -1228,6 +1077,19 @@ class BookingController extends Controller
             ->where('service_id', $serviceId)
             ->where('is_active', 1)
             ->first();
+    }
+
+    protected function applyBookableToPayload(array $data, ?BookableItem $bookable): array
+    {
+        if ($bookable) {
+            $data['bookable_type'] = BookableItem::class;
+            $data['bookable_id'] = (int) $bookable->id;
+        } else {
+            $data['bookable_type'] = null;
+            $data['bookable_id'] = null;
+        }
+
+        return $data;
     }
 
     protected function resolveBookingPriceBreakdown(array $calc, ?BookableItem $bookable, int $quantity = 1): array
@@ -1257,21 +1119,13 @@ class BookingController extends Controller
 
         $discountEnabled = (bool) ($businessPrice->discount_enabled ?? false);
         $discountPercent = $discountEnabled ? (int) ($businessPrice->discount_percent ?? 0) : 0;
-
-        if ($discountPercent < 0) {
-            $discountPercent = 0;
-        }
-
-        if ($discountPercent > 100) {
-            $discountPercent = 100;
-        }
+        $discountPercent = max(0, min($discountPercent, 100));
 
         $discountAmount = $discountEnabled
             ? round($originalPrice * ($discountPercent / 100), 2)
             : 0.00;
 
         $finalPrice = round($originalPrice - $discountAmount, 2);
-
         if ($finalPrice < 0) {
             $finalPrice = 0.00;
         }
@@ -1343,9 +1197,68 @@ class BookingController extends Controller
         ];
     }
 
+    protected function buildBookingMeta(
+        array $existingMeta,
+        array $calc,
+        array $priceBreakdown,
+        array $depositPolicy,
+        ?BookableItem $bookable
+    ): array {
+        $meta = $existingMeta;
+
+        $meta['platform_service'] = [
+            'id' => (int) $calc['service']->id,
+            'key' => (string) $calc['service']->key,
+            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
+            'name_en' => (string) ($calc['service']->name_en ?? ''),
+        ];
+
+        $meta['pricing'] = [
+            'original_price' => (float) $priceBreakdown['original_price'],
+            'discount_enabled' => (bool) $priceBreakdown['discount_enabled'],
+            'discount_percent' => (int) $priceBreakdown['discount_percent'],
+            'discount_amount' => (float) $priceBreakdown['discount_amount'],
+            'final_price' => (float) $priceBreakdown['final_price'],
+            'price' => (float) $priceBreakdown['final_price'],
+            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
+            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
+            'source' => $bookable ? 'bookable_item' : 'business_service_price',
+            'unit_price' => (float) $priceBreakdown['unit_price'],
+            'quantity' => (int) $priceBreakdown['quantity'],
+            'platform_fee' => (float) $priceBreakdown['platform_fee'],
+        ];
+
+        $meta['deposit_policy'] = $depositPolicy;
+
+        if ($bookable) {
+            $meta['bookable_item'] = [
+                'id' => (int) $bookable->id,
+                'title' => (string) $bookable->title,
+                'code' => (string) ($bookable->code ?? ''),
+                'item_type' => (string) ($bookable->item_type ?? ''),
+                'price' => (float) $bookable->price,
+                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
+                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
+            ];
+        } else {
+            unset($meta['bookable_item']);
+        }
+
+        $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
+        $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
+        $meta['_execution_fee']['fee_type'] = (string) ($calc['service']->fee_type ?? '');
+        $meta['_execution_fee']['fee_value'] = $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null;
+        $meta['_execution_fee']['platform_amount'] = (float) $priceBreakdown['platform_fee'];
+        $meta['_execution_fee']['client_amount'] = (float) ($meta['_execution_fee']['client_amount'] ?? 0);
+        $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
+        $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
+        $meta['_execution_fee']['transactions'] = $meta['_execution_fee']['transactions'] ?? [];
+
+        return $meta;
+    }
+
     protected function applyExecutionPlatformFees(Booking $booking): void
     {
         app(WalletFeeService::class)->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
     }
-
 }

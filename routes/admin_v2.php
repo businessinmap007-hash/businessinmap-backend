@@ -197,8 +197,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::post('{booking}/start-confirm-client', [BookingController::class, 'startConfirmClient'])->name('start_confirm.client');
             Route::post('{booking}/start-confirm-business', [BookingController::class, 'startConfirmBusiness'])->name('start_confirm.business');
+
             Route::post('{booking}/deposit-confirm-client', [BookingController::class, 'depositConfirmClient'])->name('deposit.confirm.client');
             Route::post('{booking}/deposit-confirm-business', [BookingController::class, 'depositConfirmBusiness'])->name('deposit.confirm.business');
+
             Route::post('{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])->name('deposit.freeze');
             Route::post('{booking}/deposit-release', [BookingController::class, 'depositRelease'])->name('deposit.release');
             Route::post('{booking}/deposit-refund', [BookingController::class, 'depositRefund'])->name('deposit.refund');
@@ -217,7 +219,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // =========================
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
-            Route::get('{booking}', [DisputeController::class, 'show'])->name('show');
+            Route::post('/', [DisputeController::class, 'store'])->name('store');
+
+            Route::post('bookings/{booking}/open', [DisputeController::class, 'openForBooking'])->name('bookings.open');
+
+            Route::get('{dispute}', [DisputeController::class, 'show'])->name('show');
+
+            Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->name('under-review');
+            Route::post('{dispute}/cancel', [DisputeController::class, 'cancel'])->name('cancel');
+            Route::post('{dispute}/close', [DisputeController::class, 'close'])->name('close');
+
+            Route::post('{dispute}/resolve-release-business', [DisputeController::class, 'resolveReleaseBusiness'])->name('resolve.release-business');
+            Route::post('{dispute}/resolve-refund-client', [DisputeController::class, 'resolveRefundClient'])->name('resolve.refund-client');
+            Route::post('{dispute}/resolve-split', [DisputeController::class, 'resolveSplit'])->name('resolve.split');
+            Route::post('{dispute}/resolve-no-action', [DisputeController::class, 'resolveNoAction'])->name('resolve.no-action');
         });
 
         // =========================

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Booking extends Model
@@ -70,17 +71,11 @@ class Booking extends Model
         ];
     }
 
-    /**
-     * المستخدم العميل
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * alias مفيد لو بعض الأكواد تستخدم client بدل user
-     */
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -91,9 +86,6 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'business_id');
     }
 
-    /**
-     * الخدمة من platform_services
-     */
     public function service(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'service_id');
@@ -104,11 +96,6 @@ class Booking extends Model
         return $this->morphTo();
     }
 
-    /**
-     * لو ستستخدم reference_type/reference_id = booking
-     * هذه العلاقة ليست مباشرة بعمود booking_id
-     * لذلك الأفضل تركها مفلترة بهذا الشكل
-     */
     public function walletTransactions(): HasMany
     {
         return $this->hasMany(WalletTransaction::class, 'reference_id', 'id')
@@ -120,14 +107,24 @@ class Booking extends Model
         return $this->morphMany(Deposit::class, 'target');
     }
 
-    public function latestDeposit()
+    public function latestDeposit(): MorphOne
     {
         return $this->morphOne(Deposit::class, 'target')->latestOfMany();
     }
 
+    public function disputes(): MorphMany
+    {
+        return $this->morphMany(Dispute::class, 'disputeable');
+    }
+
+    public function latestDispute(): MorphOne
+    {
+        return $this->morphOne(Dispute::class, 'disputeable')->latestOfMany();
+    }
+
     public function scopeStatus(Builder $query, ?string $status): Builder
     {
-        if (!$status) {
+        if (! $status) {
             return $query;
         }
 
@@ -136,7 +133,7 @@ class Booking extends Model
 
     public function scopeForBusiness(Builder $query, ?int $businessId): Builder
     {
-        if (!$businessId) {
+        if (! $businessId) {
             return $query;
         }
 
@@ -145,7 +142,7 @@ class Booking extends Model
 
     public function scopeForClient(Builder $query, ?int $userId): Builder
     {
-        if (!$userId) {
+        if (! $userId) {
             return $query;
         }
 
@@ -154,7 +151,7 @@ class Booking extends Model
 
     public function scopeForService(Builder $query, ?int $serviceId): Builder
     {
-        if (!$serviceId) {
+        if (! $serviceId) {
             return $query;
         }
 

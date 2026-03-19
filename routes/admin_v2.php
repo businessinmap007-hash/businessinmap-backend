@@ -26,7 +26,11 @@ use App\Http\Controllers\AdminV2\{
     BookableItemPriceRuleController,
     BookableItemBlockedSlotController,
     BookableItemCalendarController,
-    BookableItemBulkController
+    BookableItemBulkController,
+    CategoryServiceBulkController,
+    CategoryOptionController,
+    OptionController,
+
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -276,95 +280,82 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Bookable Items
         // =========================
         Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
-
             Route::get('/', [BookableItemController::class, 'index'])->name('index');
-            Route::get('create', [BookableItemController::class, 'create'])->name('create');
+            Route::get('/create', [BookableItemController::class, 'create'])->name('create');
             Route::post('/', [BookableItemController::class, 'store'])->name('store');
+            Route::get('/{bookableItem}', [BookableItemController::class, 'show'])->name('show');
+            Route::get('/{bookableItem}/edit', [BookableItemController::class, 'edit'])->name('edit');
+            Route::put('/{bookableItem}', [BookableItemController::class, 'update'])->name('update');
+            Route::delete('/{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
 
-            Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->name('edit');
-            Route::put('{bookableItem}', [BookableItemController::class, 'update'])->name('update');
-            Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
+            Route::get('/{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->name('calendar');
+            Route::post('/{bookableItem}/calendar/blocked-slot', [BookableItemCalendarController::class, 'storeBlockedSlot'])->name('calendar.blocked-slot.store');
+            Route::post('/{bookableItem}/calendar/price-rule', [BookableItemCalendarController::class, 'storePriceRule'])->name('calendar.price-rule.store');
 
             /*
             |-----------------------------------
             | Blocked Slots
             |-----------------------------------
             */
-
-            Route::get('{bookableItem}/blocked-slots',
-                [BookableItemBlockedSlotController::class,'index']
-            )->name('blocked-slots.index');
-
-            Route::get('{bookableItem}/blocked-slots/create',
-                [BookableItemBlockedSlotController::class,'create']
-            )->name('blocked-slots.create');
-
-            Route::post('{bookableItem}/blocked-slots',
-                [BookableItemBlockedSlotController::class,'store']
-            )->name('blocked-slots.store');
-
-            Route::delete('{bookableItem}/blocked-slots/{slot}',
-                [BookableItemBlockedSlotController::class,'destroy']
-            )->name('blocked-slots.destroy');
-
+            Route::get('/{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'index'])->name('blocked-slots.index');
+            Route::get('/{bookableItem}/blocked-slots/create', [BookableItemBlockedSlotController::class, 'create'])->name('blocked-slots.create');
+            Route::post('/{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'store'])->name('blocked-slots.store');
+            Route::get('/{bookableItem}/blocked-slots/{slot}/edit', [BookableItemBlockedSlotController::class, 'edit'])->name('blocked-slots.edit');
+            Route::put('/{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'update'])->name('blocked-slots.update');
+            Route::delete('/{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'destroy'])->name('blocked-slots.destroy');
 
             /*
             |-----------------------------------
             | Price Rules
             |-----------------------------------
             */
-
-            Route::get('{bookableItem}/price-rules',
-                [BookableItemPriceRuleController::class,'index']
-            )->name('price-rules.index');
-
-            Route::get('{bookableItem}/price-rules/create',
-                [BookableItemPriceRuleController::class,'create']
-            )->name('price-rules.create');
-
-            Route::post('{bookableItem}/price-rules',
-                [BookableItemPriceRuleController::class,'store']
-            )->name('price-rules.store');
-
-            Route::delete('{bookableItem}/price-rules/{rule}',
-                [BookableItemPriceRuleController::class,'destroy']
-            )->name('price-rules.destroy');
-
-
+            Route::get('/{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'index'])->name('price-rules.index');
+            Route::get('/{bookableItem}/price-rules/create', [BookableItemPriceRuleController::class, 'create'])->name('price-rules.create');
+            Route::post('/{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'store'])->name('price-rules.store');
+            Route::get('/{bookableItem}/price-rules/{rule}/edit', [BookableItemPriceRuleController::class, 'edit'])->name('price-rules.edit');
+            Route::put('/{bookableItem}/price-rules/{rule}', [BookableItemPriceRuleController::class, 'update'])->name('price-rules.update');
+            Route::delete('/{bookableItem}/price-rules/{rule}', [BookableItemPriceRuleController::class, 'destroy'])->name('price-rules.destroy');
+        
             /*
             |-----------------------------------
             | Calendar
             |-----------------------------------
             */
-
-            Route::get('{bookableItem}/calendar',
-                [BookableItemCalendarController::class,'index']
-            )->name('calendar');
-
-            Route::post('{bookableItem}/calendar/blocked-slot',
-                [BookableItemCalendarController::class,'storeBlockedSlot']
-            )->name('calendar.blocked-slot.store');
-
-            Route::post('{bookableItem}/calendar/price-rule',
-                [BookableItemCalendarController::class,'storePriceRule']
-            )->name('calendar.price-rule.store');
-
+            Route::get('{bookableItem}/calendar',[BookableItemCalendarController::class,'index'])->name('calendar');
+            Route::post('{bookableItem}/calendar/blocked-slot',[BookableItemCalendarController::class,'storeBlockedSlot'])->name('calendar.blocked-slot.store');
+            Route::post('{bookableItem}/calendar/price-rule',[BookableItemCalendarController::class,'storePriceRule'])->name('calendar.price-rule.store');
         });
-
-
         // =========================
         // Bulk Operations
         // =========================
         Route::prefix('bookable-items/bulk')->name('bookable-items.bulk.')->group(function () {
-
             Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
-
             Route::post('/block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
-
             Route::post('/price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
-
         });
 
+        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
+            Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
+            Route::post('/apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
+        });
+        Route::post('categories/services-bulk/apply', [CategoryServiceBulkController::class, 'apply'])->name('categories.services-bulk.apply');
+
+        Route::get('categories/{category}/options', [CategoryOptionController::class, 'edit'])->name('categories.options.edit');
+
+        Route::put('categories/{category}/options', [CategoryOptionController::class, 'update'])->name('categories.options.update');
+
+  // =========================
+        // Options
+        // =========================
+
+        Route::resource('options', OptionController::class)->except(['show']);
+
+        Route::get('categories/{category}/options', [CategoryOptionController::class, 'edit'])
+            ->name('categories.options.edit');
+
+        Route::put('categories/{category}/options', [CategoryOptionController::class, 'update'])
+            ->name('categories.options.update');
 
     });
+
 });

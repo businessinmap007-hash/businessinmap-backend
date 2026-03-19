@@ -1,175 +1,208 @@
 @extends('admin-v2.layouts.master')
 
 @section('title', 'Bookable Items')
-@section('body_class', 'admin-v2-bookable-items')
+@section('body_class', 'admin-v2-bookable-items-index')
 
 @section('content')
+@php
+    $qVal = (string) ($q ?? '');
+    $serviceIdVal = (int) ($serviceId ?? 0);
+    $businessIdVal = (int) ($businessId ?? 0);
+    $isActiveVal = (string) ($isActive ?? '');
+    $itemTypeVal = (string) ($itemType ?? '');
+@endphp
+
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">Bookable Items</h1>
+            <h1 class="a2-page-title">العناصر القابلة للحجز</h1>
             <div class="a2-page-subtitle">
-                الغرف / الشقق / الأجنحة / الملاعب / أي عنصر قابل للحجز
+                إدارة الغرف والملاعب والطاولات والوحدات والعناصر القابلة للحجز
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-primary" href="{{ route('admin.bookable-items.create') }}">
-                + إضافة
+            <a href="{{ route('admin.bookable-items.create') }}" class="a2-btn a2-btn-primary">
+                + إضافة عنصر
             </a>
         </div>
     </div>
 
-    <div class="a2-card a2-mb-12">
-        <form method="GET" action="{{ route('admin.bookable-items.index') }}" class="a2-filterbar">
+    @if(session('success'))
+        <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
+    @endif
 
+    @if($errors->any())
+        <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
+    @endif
+
+    <div class="a2-card">
+        <form method="GET" action="{{ route('admin.bookable-items.index') }}" class="a2-filterbar">
             <input
                 class="a2-input a2-filter-search"
+                type="text"
                 name="q"
-                value="{{ $q ?? '' }}"
-                placeholder="title / code / type"
+                value="{{ $qVal }}"
+                placeholder="بحث: title / code / item type"
             >
 
-            <select class="a2-select a2-filter-md" name="service_id">
-                <option value="">الخدمة كلها</option>
-                @foreach($services as $s)
-                    <option value="{{ $s->id }}" @selected((int) request('service_id') === (int) $s->id)>
-                        {{ $s->name_ar ?? $s->name_en ?? $s->key }} ({{ $s->key }})
+            <input
+                class="a2-input a2-filter-sm"
+                type="text"
+                name="item_type"
+                value="{{ $itemTypeVal }}"
+                placeholder="نوع العنصر"
+            >
+
+            <select class="a2-select a2-filter-md" name="business_id">
+                <option value="0">كل البزنسات</option>
+                @foreach(($businesses ?? []) as $b)
+                    <option value="{{ $b->id }}" @selected($businessIdVal === (int) $b->id)>
+                        {{ $b->name ?: ('#' . $b->id) }}
                     </option>
                 @endforeach
             </select>
 
-            <select class="a2-select a2-filter-md" name="business_id">
-                <option value="">البزنس كله</option>
-                @foreach($businesses as $b)
-                    <option value="{{ $b->id }}" @selected((int) request('business_id') === (int) $b->id)>
-                        {{ $b->name }}
+            <select class="a2-select a2-filter-md" name="service_id">
+                <option value="0">كل الخدمات</option>
+                @foreach(($services ?? []) as $s)
+                    <option value="{{ $s->id }}" @selected($serviceIdVal === (int) $s->id)>
+                        {{ $s->name_ar ?: ($s->name_en ?: $s->key) }}
                     </option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="is_active">
-                <option value="">الكل</option>
-                <option value="1" @selected(request('is_active') === '1')>Yes</option>
-                <option value="0" @selected(request('is_active') === '0')>No</option>
+                <option value="" @selected($isActiveVal === '')>الكل</option>
+                <option value="1" @selected($isActiveVal === '1')>Active</option>
+                <option value="0" @selected($isActiveVal === '0')>Inactive</option>
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">بحث</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">Reset</a>
+                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
             </div>
         </form>
     </div>
 
-    <div class="a2-card">
+    <div class="a2-card" style="margin-top:16px;">
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Title</th>
-                        <th>Type</th>
-                        <th>Code</th>
-                        <th>Service</th>
+                        <th style="width:80px;">ID</th>
                         <th>Business</th>
+                        <th>Service</th>
+                        <th>Item Type</th>
+                        <th>Title</th>
+                        <th>Code</th>
                         <th>Price</th>
                         <th>Capacity</th>
+                        <th>Qty</th>
                         <th>Deposit</th>
-                        <th>Active</th>
-                        <th>Actions</th>
+                        <th>Status</th>
+                        <th style="width:280px;">Actions</th>
                     </tr>
                 </thead>
-
                 <tbody>
-                    @forelse($rows as $r)
-                        <tr>
-                            <td>{{ $r->id }}</td>
+                @forelse($rows as $row)
+                    <tr>
+                        <td>{{ $row->id }}</td>
 
-                            <td>
-                                <span class="a2-clip" title="{{ $r->title }}">
-                                    {{ $r->title }}
-                                </span>
-                            </td>
+                        <td>
+                            {{ $row->business->name ?? '—' }}
+                        </td>
 
-                            <td>{{ $r->item_type ?: '-' }}</td>
-                            <td>{{ $r->code ?: '-' }}</td>
+                        <td>
+                            {{ $row->service->name_ar ?? ($row->service->name_en ?? ($row->service->key ?? '—')) }}
+                        </td>
 
-                            <td>
-                                @if($r->service)
-                                    <div class="a2-bookable-service-cell">
-                                        <div class="a2-fw-800">
-                                            {{ $r->service->name_ar ?? $r->service->name_en ?? '-' }}
-                                        </div>
-                                        <div class="a2-hint">{{ $r->service->key }}</div>
-                                    </div>
-                                @else
-                                    -
-                                @endif
-                            </td>
+                        <td dir="ltr">
+                            {{ $row->item_type ?: '—' }}
+                        </td>
 
-                            <td>
-                                <span class="a2-clip" title="{{ $r->business->name ?? '-' }}">
-                                    {{ $r->business->name ?? '-' }}
-                                </span>
-                            </td>
+                        <td class="a2-fw-700">
+                            {{ $row->title ?: '—' }}
+                        </td>
 
-                            <td dir="ltr">{{ number_format((float) $r->price, 2) }}</td>
-                            <td>{{ $r->capacity ?: '-' }}</td>
+                        <td dir="ltr">
+                            {{ $row->code ?: '—' }}
+                        </td>
 
-                            <td>
-                                @if($r->deposit_enabled)
-                                    <div class="a2-bookable-deposit-cell">
-                                        <span class="a2-pill a2-pill-active">Yes</span>
-                                        <span class="a2-hint">{{ (int) $r->deposit_percent }}%</span>
-                                    </div>
-                                @else
-                                    <span class="a2-pill a2-pill-gray">No</span>
-                                @endif
-                            </td>
+                        <td>
+                            {{ number_format((float) ($row->price ?? 0), 2) }}
+                        </td>
 
-                            <td>
-                                @if($r->is_active)
-                                    <span class="a2-pill a2-pill-active">Yes</span>
-                                @else
-                                    <span class="a2-pill a2-pill-gray">No</span>
-                                @endif
-                            </td>
+                        <td>
+                            {{ $row->capacity ?: '—' }}
+                        </td>
 
-                            <td>
-                                <div class="a2-actions">
-                                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.bookable-items.edit', $r) }}">
-                                        Edit
-                                    </a>
+                        <td>
+                            {{ $row->quantity ?: '—' }}
+                        </td>
 
-                                    <form method="POST" action="{{ route('admin.bookable-items.destroy', $r) }}" onsubmit="return confirm('Delete?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="a2-btn a2-btn-danger a2-btn-sm" type="submit">
-                                            Delete
-                                        </button>
-                                    </form>
-                                    <a class="a2-btn a2-btn-ghost"href="{{ route('admin.bookable-items.blocked-slots.index',$r) }}">Availability</a>
-                                    <a class="a2-btn a2-btn-ghost"href="{{ route('admin.bookable-items.price-rules.index',$r) }}">Pricing</a>
-<a class="a2-btn a2-btn-ghost a2-btn-sm"
-   href="{{ route('admin.bookable-items.calendar', $r) }}">
-    Calendar
-</a>
-                                </div>
-                                
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="11" class="a2-empty-cell">لا توجد بيانات</td>
-                        </tr>
-                    @endforelse
+                        <td>
+                            @if((int) ($row->deposit_enabled ?? 0) === 1)
+                                {{ (int) ($row->deposit_percent ?? 0) }}%
+                            @else
+                                —
+                            @endif
+                        </td>
+
+                        <td>
+                            <span class="a2-pill {{ (int) ($row->is_active ?? 0) === 1 ? 'a2-pill-active' : 'a2-pill-inactive' }}">
+                                {{ (int) ($row->is_active ?? 0) === 1 ? 'Active' : 'Inactive' }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <a href="{{ route('admin.bookable-items.edit', $row) }}" class="a2-btn a2-btn-ghost a2-btn-sm">
+                                    Edit
+                                </a>
+
+                                <a href="{{ route('admin.bookable-items.calendar', $row) }}" class="a2-btn a2-btn-ghost a2-btn-sm">
+                                    Calendar
+                                </a>
+
+                                <a href="{{ route('admin.bookable-items.blocked-slots.index', $row) }}" class="a2-btn a2-btn-ghost a2-btn-sm">
+                                    Blocked Slots
+                                </a>
+
+                                <a href="{{ route('admin.bookable-items.price-rules.index', $row) }}" class="a2-btn a2-btn-ghost a2-btn-sm">
+                                    Price Rules
+                                </a>
+
+                                <form method="POST"
+                                      action="{{ route('admin.bookable-items.destroy', $row) }}"
+                                      onsubmit="return confirm('تأكيد حذف العنصر؟');"
+                                      style="margin:0;">
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button type="submit" class="a2-btn a2-btn-danger a2-btn-sm">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="12" class="a2-empty-cell">لا توجد عناصر قابلة للحجز</td>
+                    </tr>
+                @endforelse
                 </tbody>
             </table>
         </div>
 
-        <div class="a2-mt-12">
-            {{ $rows->links() }}
-        </div>
+        @if(method_exists($rows, 'links'))
+            <div style="margin-top:16px;">
+                {{ $rows->links() }}
+            </div>
+        @endif
     </div>
 </div>
+
+
 @endsection

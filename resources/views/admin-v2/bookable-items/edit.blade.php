@@ -4,10 +4,10 @@
 @section('body_class', 'admin-v2-bookable-items-edit')
 
 @section('content')
-<div class="a2-page">
+<div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">Edit Bookable Item</h1>
+            <h1 class="a2-page-title">تعديل عنصر قابل للحجز</h1>
             <div class="a2-page-subtitle">
                 {{ $row->title ?: ('#' . $row->id) }}
             </div>
@@ -15,12 +15,18 @@
 
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">
-                Back
+                رجوع
             </a>
         </div>
     </div>
 
     @include('admin-v2.bookable-items.partials.tabs', ['item' => $row])
+
+    @if(session('success'))
+        <div class="a2-alert a2-alert-success a2-mb-12">
+            {{ session('success') }}
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="a2-alert a2-alert-danger a2-mb-12">
@@ -41,7 +47,8 @@
             'row' => $row,
             'businesses' => $businesses,
             'services' => $services,
-            'submitLabel' => 'Update',
+            'allowedItemTypes' => $allowedItemTypes ?? [],
+            'submitLabel' => 'تحديث',
         ])
     </form>
 </div>

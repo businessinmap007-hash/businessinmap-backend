@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -27,14 +27,23 @@ class BookableItem extends Model
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
-        'capacity' => 'integer',
-        'quantity' => 'integer',
-        'deposit_enabled' => 'boolean',
-        'deposit_percent' => 'integer',
-        'is_active' => 'boolean',
-        'meta' => 'array',
+        'business_id'      => 'integer',
+        'service_id'       => 'integer',
+        'item_type'        => 'string',
+        'price'            => 'decimal:2',
+        'capacity'         => 'integer',
+        'quantity'         => 'integer',
+        'deposit_enabled'  => 'boolean',
+        'deposit_percent'  => 'integer',
+        'is_active'        => 'boolean',
+        'meta'             => 'array',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relations
+    |--------------------------------------------------------------------------
+    */
 
     public function business(): BelongsTo
     {
@@ -72,6 +81,12 @@ class BookableItem extends Model
             ->orderByDesc('id');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -79,7 +94,7 @@ class BookableItem extends Model
 
     public function scopeForBusiness(Builder $query, ?int $businessId): Builder
     {
-        if (!$businessId) {
+        if (! $businessId) {
             return $query;
         }
 
@@ -88,10 +103,32 @@ class BookableItem extends Model
 
     public function scopeForService(Builder $query, ?int $serviceId): Builder
     {
-        if (!$serviceId) {
+        if (! $serviceId) {
             return $query;
         }
 
         return $query->where('service_id', $serviceId);
+    }
+
+    public function scopeForItemType(Builder $query, ?string $itemType): Builder
+    {
+        $itemType = trim((string) $itemType);
+
+        if ($itemType === '') {
+            return $query;
+        }
+
+        return $query->where('item_type', $itemType);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function getDisplayNameAttribute(): string
+    {
+        return (string) ($this->title ?: ($this->code ?: ('Item #' . $this->id)));
     }
 }

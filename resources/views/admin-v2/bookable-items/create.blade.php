@@ -1,34 +1,25 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'Create Bookable Item')
-@section('body_class', 'admin-v2-bookable-items-create')
+@section('title','Create Bookable Item')
+@section('body_class','admin-v2-bookable-items-create')
 
 @section('content')
-<div class="a2-page">
+<div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">Create Bookable Item</h1>
+            <h1 class="a2-page-title">إضافة عنصر قابل للحجز</h1>
             <div class="a2-page-subtitle">
-                إضافة عنصر جديد قابل للحجز
+                إنشاء غرفة أو ملعب أو طاولة أو أي عنصر قابل للحجز حسب الخدمة والتصنيف
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">
-                Back
-            </a>
+            <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
         </div>
     </div>
 
-    @if ($errors->any())
-        <div class="a2-alert a2-alert-danger a2-mb-12">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء</div>
-            <ul class="a2-errors-list">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
+    @if($errors->any())
+        <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
     @endif
 
     <form method="POST" action="{{ route('admin.bookable-items.store') }}">
@@ -36,9 +27,10 @@
 
         @include('admin-v2.bookable-items._form', [
             'row' => $row,
-            'businesses' => $businesses,
             'services' => $services,
-            'submitLabel' => 'Create',
+            'businesses' => $businesses,
+            'allowedItemTypes' => $allowedItemTypes ?? [],
+            'submitLabel' => 'حفظ',
         ])
     </form>
 </div>

@@ -200,7 +200,8 @@
     })();
     </script>
 
+ @include('admin-v2.layouts._partials.date-range-script')
     @stack('scripts')
-
+   
 </body>
 </html>

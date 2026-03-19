@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BusinessServicePrice extends Model
@@ -13,7 +12,9 @@ class BusinessServicePrice extends Model
     protected $fillable = [
         'business_id',
         'service_id',
+        'bookable_item_type',
         'price',
+        'currency',
         'is_active',
         'deposit_enabled',
         'deposit_percent',
@@ -22,16 +23,16 @@ class BusinessServicePrice extends Model
     ];
 
     protected $casts = [
-        'business_id' => 'integer',
-        'service_id' => 'integer',
-        'price' => 'decimal:2',
-        'is_active' => 'boolean',
-        'deposit_enabled' => 'boolean',
-        'deposit_percent' => 'integer',
-        'discount_enabled' => 'boolean',
-        'discount_percent' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'business_id'        => 'integer',
+        'service_id'         => 'integer',
+        'bookable_item_type' => 'string',
+        'price'              => 'decimal:2',
+        'currency'           => 'string',
+        'is_active'          => 'boolean',
+        'deposit_enabled'    => 'boolean',
+        'deposit_percent'    => 'integer',
+        'discount_enabled'   => 'boolean',
+        'discount_percent'   => 'integer',
     ];
 
     public function business(): BelongsTo
@@ -44,36 +45,12 @@ class BusinessServicePrice extends Model
         return $this->belongsTo(PlatformService::class, 'service_id');
     }
 
-    public function scopeActive(Builder $query): Builder
+    public function getDisplayNameAttribute(): string
     {
-        return $query->where('is_active', true);
-    }
+        $business = $this->business?->name ?: 'Business';
+        $service  = $this->service?->name_ar ?: $this->service?->name_en ?: $this->service?->key ?: 'Service';
+        $type     = $this->bookable_item_type ?: 'category';
 
-    public function getDiscountAmountAttribute(): float
-    {
-        if (!$this->discount_enabled || (int) $this->discount_percent <= 0) {
-            return 0.0;
-        }
-
-        return round(((float) $this->price * (int) $this->discount_percent) / 100, 2);
-    }
-
-    public function getPriceAfterDiscountAttribute(): float
-    {
-        return round((float) $this->price - (float) $this->discount_amount, 2);
-    }
-
-    public function getDepositAmountAttribute(): float
-    {
-        if (!$this->deposit_enabled || (int) $this->deposit_percent <= 0) {
-            return 0.0;
-        }
-
-        return round(((float) $this->price_after_discount * (int) $this->deposit_percent) / 100, 2);
-    }
-
-    public function getRemainingAmountAttribute(): float
-    {
-        return round((float) $this->price_after_discount - (float) $this->deposit_amount, 2);
+        return "{$business} / {$service} / {$type}";
     }
 }

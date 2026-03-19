@@ -2,53 +2,47 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\PlatformService;
+use Illuminate\Database\Seeder;
 
 class PlatformServiceSeeder extends Seeder
 {
     public function run(): void
     {
-        $items = [
+        $rows = [
             [
                 'key' => 'booking',
-                'name_ar' => 'الحجوزات',
+                'name_ar' => 'الحجز',
                 'name_en' => 'Booking',
-                'is_active' => 1,
-                'supports_deposit' => 1,
-                'max_deposit_percent' => 20,
-                'fee_type' => 'percent',
-                'fee_value' => 5,
-                'rules' => null,
+                'is_active' => true,
+                'sort_order' => 1,
+                'supports_deposit' => true,
+                'max_deposit_percent' => 100,
             ],
             [
                 'key' => 'menu',
-                'name_ar' => 'المنيو',
+                'name_ar' => 'القائمة',
                 'name_en' => 'Menu',
-                'is_active' => 1,
-                'supports_deposit' => 0,
+                'is_active' => true,
+                'sort_order' => 2,
+                'supports_deposit' => false,
                 'max_deposit_percent' => 0,
-                'fee_type' => 'percent',
-                'fee_value' => 3,
-                'rules' => null,
             ],
             [
                 'key' => 'delivery',
                 'name_ar' => 'التوصيل',
                 'name_en' => 'Delivery',
-                'is_active' => 1,
-                'supports_deposit' => 0,
+                'is_active' => true,
+                'sort_order' => 3,
+                'supports_deposit' => false,
                 'max_deposit_percent' => 0,
-                'fee_type' => 'fixed',
-                'fee_value' => 10,
-                'rules' => null,
             ],
         ];
 
-        foreach ($items as $item) {
+        foreach ($rows as $row) {
             PlatformService::updateOrCreate(
-                ['key' => $item['key']],
-                $item
+                ['key' => $row['key']],
+                $row
             );
         }
     }

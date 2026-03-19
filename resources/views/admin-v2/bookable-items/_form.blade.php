@@ -1,288 +1,228 @@
 @php
-    $selectedServiceId = (int) old('service_id', $row->service_id);
-    $selectedService = collect($services)->firstWhere('id', $selectedServiceId);
-
-    $supportsDeposit = (bool) data_get($selectedService, 'supports_deposit', false);
-    $maxDepositPercent = (int) data_get($selectedService, 'max_deposit_percent', 0);
-
-    $metaValue = old(
-        'meta',
-        is_array($row->meta ?? null)
-            ? json_encode($row->meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-            : ''
-    );
+    $isEdit = isset($row) && $row->exists;
 @endphp
 
-<div class="a2-card a2-mb-12">
-    <div class="a2-card-head">
-        <div>
-            <div class="a2-title">Item Information</div>
-            <div class="a2-hint">تعريف العنصر القابل للحجز</div>
-        </div>
-    </div>
+<div class="a2-form-grid">
 
-    <div class="a2-form-grid">
-        <div class="a2-form-group">
-            <label class="a2-label">Business</label>
-            <select class="a2-select" name="business_id" required>
-                <option value="">-- اختر --</option>
-                @foreach($businesses as $b)
-                    <option value="{{ $b->id }}" @selected((int) old('business_id', $row->business_id) === (int) $b->id)>
-                        {{ $b->name }}
-                    </option>
-                @endforeach
-            </select>
-            @error('business_id')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
+    {{-- =========================
+        Basic Info
+    ========================== --}}
+    <div class="a2-card">
+        <div class="a2-card-head">
+            <h3>البيانات الأساسية</h3>
         </div>
 
-        <div class="a2-form-group">
-            <label class="a2-label">Service</label>
-            <select class="a2-select" name="service_id" id="service_id" required>
-                <option value="">-- اختر --</option>
-                @foreach($services as $s)
-                    <option
-                        value="{{ $s->id }}"
-                        data-supports-deposit="{{ (int) $s->supports_deposit }}"
-                        data-max-deposit-percent="{{ (int) $s->max_deposit_percent }}"
-                        @selected((int) old('service_id', $row->service_id) === (int) $s->id)
-                    >
-                        {{ $s->name_ar ?? $s->name_en ?? $s->key }} ({{ $s->key }})
-                    </option>
-                @endforeach
-            </select>
-            @error('service_id')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
+        <div class="a2-card-body">
 
-        <div class="a2-form-group">
-            <label class="a2-label">Item Type</label>
-            <input
-                class="a2-input"
-                name="item_type"
-                value="{{ old('item_type', $row->item_type) }}"
-                placeholder="room / suite / apartment / court"
-            >
-            @error('item_type')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
+            {{-- Business --}}
+            <div class="a2-form-group">
+                <label>البزنس</label>
+                <select name="business_id" class="a2-select" required>
+                    <option value="">اختر البزنس</option>
+                    @foreach($businesses as $b)
+                        <option value="{{ $b->id }}"
+                            {{ old('business_id', $row->business_id ?? '') == $b->id ? 'selected' : '' }}>
+                            {{ $b->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
-        <div class="a2-form-group">
-            <label class="a2-label">Title</label>
-            <input
-                class="a2-input"
-                name="title"
-                value="{{ old('title', $row->title) }}"
-                required
-                placeholder="Room 101 / Court 1"
-            >
-            @error('title')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
+            {{-- Service --}}
+            <div class="a2-form-group">
+                <label>الخدمة</label>
+                <select name="service_id" class="a2-select" required>
+                    <option value="">اختر الخدمة</option>
+                    @foreach($services as $s)
+                        <option value="{{ $s->id }}"
+                            {{ old('service_id', $row->service_id ?? '') == $s->id ? 'selected' : '' }}>
+                            {{ $s->name_ar ?? $s->name_en }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
-        <div class="a2-form-group">
-            <label class="a2-label">Code</label>
-            <input
-                class="a2-input"
-                name="code"
-                value="{{ old('code', $row->code) }}"
-                placeholder="101 / A3"
-            >
-            @error('code')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
+            {{-- Item Type --}}
+            <div class="a2-form-group">
+                <label>نوع العنصر</label>
 
-        <div class="a2-form-group">
-            <label class="a2-label">Active</label>
-            <select class="a2-select" name="is_active">
-                <option value="1" @selected((string) old('is_active', (int) $row->is_active) === '1')>Yes</option>
-                <option value="0" @selected((string) old('is_active', (int) $row->is_active) === '0')>No</option>
-            </select>
-            @error('is_active')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-    </div>
-</div>
-
-<div class="a2-card a2-mb-12">
-    <div class="a2-card-head">
-        <div>
-            <div class="a2-title">Pricing & Capacity</div>
-            <div class="a2-hint">السعر والسعة</div>
-        </div>
-    </div>
-
-    <div class="a2-form-grid">
-        <div class="a2-form-group">
-            <label class="a2-label">Price</label>
-            <input
-                class="a2-input"
-                type="number"
-                step="0.01"
-                min="0"
-                name="price"
-                value="{{ old('price', $row->price) }}"
-                required
-            >
-            @error('price')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div class="a2-form-group">
-            <label class="a2-label">Capacity</label>
-            <input
-                class="a2-input"
-                type="number"
-                min="1"
-                name="capacity"
-                value="{{ old('capacity', $row->capacity) }}"
-            >
-            @error('capacity')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div class="a2-form-group">
-            <label class="a2-label">Quantity</label>
-            <input
-                class="a2-input"
-                type="number"
-                min="1"
-                name="quantity"
-                value="{{ old('quantity', $row->quantity ?? 1) }}"
-            >
-            @error('quantity')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-    </div>
-</div>
-
-<div class="a2-card">
-    <div class="a2-card-head">
-        <div>
-            <div class="a2-title">Deposit Settings</div>
-            <div class="a2-hint">العربون المطلوب للحجز</div>
-        </div>
-    </div>
-
-    <div class="a2-form-grid">
-        <div class="a2-form-group">
-            <label class="a2-label">Deposit Enabled</label>
-            <select class="a2-select" name="deposit_enabled" id="deposit_enabled">
-                <option value="1" @selected((string) old('deposit_enabled', (int) $row->deposit_enabled) === '1')>Yes</option>
-                <option value="0" @selected((string) old('deposit_enabled', (int) $row->deposit_enabled) === '0')>No</option>
-            </select>
-            @error('deposit_enabled')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div class="a2-form-group">
-            <label class="a2-label">Deposit Percent</label>
-            <input
-                class="a2-input"
-                type="number"
-                min="0"
-                max="100"
-                name="deposit_percent"
-                id="deposit_percent"
-                value="{{ old('deposit_percent', $row->deposit_percent) }}"
-            >
-
-            <div class="a2-hint a2-mt-8" id="deposit_help">
-                @if($supportsDeposit)
-                    الحد الأقصى المسموح: {{ $maxDepositPercent }}%
+                @if(!empty($allowedItemTypes))
+                    <select name="item_type" class="a2-select" required>
+                        <option value="">اختر النوع</option>
+                        @foreach($allowedItemTypes as $type)
+                            <option value="{{ $type }}"
+                                {{ old('item_type', $row->item_type ?? '') === $type ? 'selected' : '' }}>
+                                {{ ucfirst($type) }}
+                            </option>
+                        @endforeach
+                    </select>
                 @else
-                    الخدمة المختارة لا تدعم الديبوزت
+                    <input type="text"
+                           name="item_type"
+                           class="a2-input"
+                           value="{{ old('item_type', $row->item_type ?? '') }}"
+                           placeholder="مثال: room / car / table"
+                           required>
                 @endif
             </div>
 
-            @error('deposit_percent')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
+            {{-- Title --}}
+            <div class="a2-form-group">
+                <label>العنوان</label>
+                <input type="text"
+                       name="title"
+                       class="a2-input"
+                       value="{{ old('title', $row->title ?? '') }}"
+                       required>
+            </div>
 
-        <div class="a2-form-group a2-col-span-full">
-            <label class="a2-label">Meta (JSON)</label>
-            <textarea
-                class="a2-textarea"
-                name="meta"
-                rows="5"
-                placeholder='{"floor":1,"view":"sea"}'
-            >{{ $metaValue }}</textarea>
-            @error('meta')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
+            {{-- Code --}}
+            <div class="a2-form-group">
+                <label>الكود (اختياري)</label>
+                <input type="text"
+                       name="code"
+                       class="a2-input"
+                       value="{{ old('code', $row->code ?? '') }}">
+            </div>
+
         </div>
     </div>
 
-    <div class="a2-actionsbar a2-mt-16">
-        <button class="a2-btn a2-btn-primary" type="submit">
-            {{ $submitLabel ?? 'Save' }}
-        </button>
+    {{-- =========================
+        Pricing
+    ========================== --}}
+    <div class="a2-card">
+        <div class="a2-card-head">
+            <h3>السعر والإعدادات</h3>
+        </div>
 
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">
-            Back
-        </a>
+        <div class="a2-card-body">
+
+            {{-- Price --}}
+            <div class="a2-form-group">
+                <label>السعر</label>
+                <input type="number"
+                       step="0.01"
+                       name="price"
+                       class="a2-input"
+                       value="{{ old('price', $row->price ?? 0) }}"
+                       required>
+            </div>
+
+            {{-- Capacity --}}
+            <div class="a2-form-group">
+                <label>السعة</label>
+                <input type="number"
+                       name="capacity"
+                       class="a2-input"
+                       value="{{ old('capacity', $row->capacity ?? '') }}">
+            </div>
+
+            {{-- Quantity --}}
+            <div class="a2-form-group">
+                <label>الكمية</label>
+                <input type="number"
+                       name="quantity"
+                       class="a2-input"
+                       value="{{ old('quantity', $row->quantity ?? 1) }}">
+            </div>
+
+            {{-- Active --}}
+            <div class="a2-form-group a2-switch">
+                <label>
+                    <input type="checkbox" name="is_active" value="1"
+                        {{ old('is_active', $row->is_active ?? 1) ? 'checked' : '' }}>
+                    مفعل
+                </label>
+            </div>
+
+        </div>
     </div>
+
+    {{-- =========================
+        Deposit
+    ========================== --}}
+    <div class="a2-card">
+        <div class="a2-card-head">
+            <h3>الديبوزت</h3>
+        </div>
+
+        <div class="a2-card-body">
+
+            {{-- Enable Deposit --}}
+            <div class="a2-form-group a2-switch">
+                <label>
+                    <input type="checkbox"
+                           name="deposit_enabled"
+                           value="1"
+                           id="deposit_enabled"
+                           {{ old('deposit_enabled', $row->deposit_enabled ?? 0) ? 'checked' : '' }}>
+                    تفعيل الديبوزت
+                </label>
+            </div>
+
+            {{-- Percent --}}
+            <div class="a2-form-group">
+                <label>نسبة الديبوزت (%)</label>
+                <input type="number"
+                       name="deposit_percent"
+                       id="deposit_percent"
+                       class="a2-input"
+                       value="{{ old('deposit_percent', $row->deposit_percent ?? 0) }}">
+            </div>
+
+        </div>
+    </div>
+
+    {{-- =========================
+        Meta JSON
+    ========================== --}}
+    <div class="a2-card">
+        <div class="a2-card-head">
+            <h3>Meta (JSON)</h3>
+        </div>
+
+        <div class="a2-card-body">
+            <textarea name="meta"
+                      class="a2-textarea"
+                      rows="6"
+                      placeholder='{"key": "value"}'>{{ old('meta', isset($row->meta) ? json_encode($row->meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : '') }}</textarea>
+        </div>
+    </div>
+
 </div>
 
-@push('scripts')
+{{-- =========================
+    Actions
+========================= --}}
+<div class="a2-actions">
+    <button class="a2-btn a2-btn-primary">
+        {{ $isEdit ? 'تحديث' : 'إنشاء' }}
+    </button>
+
+    <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn">
+        رجوع
+    </a>
+</div>
+
+{{-- =========================
+    JS (UX)
+========================= --}}
 <script>
-(function () {
-    const serviceSelect = document.getElementById('service_id');
-    const depositEnabled = document.getElementById('deposit_enabled');
-    const depositPercent = document.getElementById('deposit_percent');
-    const depositHelp = document.getElementById('deposit_help');
+document.addEventListener('DOMContentLoaded', function () {
 
-    function refreshDepositUi() {
-        if (!serviceSelect || !depositEnabled || !depositPercent || !depositHelp) {
-            return;
-        }
+    const depositCheckbox = document.getElementById('deposit_enabled');
+    const depositInput = document.getElementById('deposit_percent');
 
-        const option = serviceSelect.options[serviceSelect.selectedIndex];
-        if (!option) {
-            return;
-        }
-
-        const supports = Number(option.dataset.supportsDeposit || 0) === 1;
-        const maxPercent = Number(option.dataset.maxDepositPercent || 0);
-
-        if (!supports) {
-            depositEnabled.value = '0';
-            depositEnabled.setAttribute('disabled', 'disabled');
-            depositPercent.value = '0';
-            depositPercent.setAttribute('readonly', 'readonly');
-            depositPercent.setAttribute('max', '0');
-            depositHelp.textContent = 'الخدمة المختارة لا تدعم الديبوزت';
-            return;
-        }
-
-        depositEnabled.removeAttribute('disabled');
-        depositPercent.setAttribute('max', String(maxPercent));
-
-        if (depositEnabled.value === '1') {
-            depositPercent.removeAttribute('readonly');
-        } else {
-            depositPercent.value = '0';
-            depositPercent.setAttribute('readonly', 'readonly');
-        }
-
-        depositHelp.textContent = 'الحد الأقصى المسموح: ' + maxPercent + '%';
+    function toggleDeposit() {
+        if (!depositCheckbox || !depositInput) return;
+        depositInput.disabled = !depositCheckbox.checked;
     }
 
-    serviceSelect?.addEventListener('change', refreshDepositUi);
-    depositEnabled?.addEventListener('change', refreshDepositUi);
+    if (depositCheckbox) {
+        depositCheckbox.addEventListener('change', toggleDeposit);
+        toggleDeposit();
+    }
 
-    refreshDepositUi();
-})();
+});
 </script>
-@endpush

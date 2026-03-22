@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Option;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -56,7 +55,7 @@ class Category extends Model
 
     public function scopeChildrenOnly(Builder $query): Builder
     {
-        return $query->where('parent_id', '!=', 0);
+        return $query->where('parent_id', '>', 0);
     }
 
     public function scopeActive(Builder $query, $value = true): Builder
@@ -86,17 +85,38 @@ class Category extends Model
         return $this->belongsTo(self::class, 'parent_id');
     }
 
-    public function children(): HasMany
-    {
-        return $this->hasMany(self::class, 'parent_id');
-    }
-
-    public function activeChildren(): HasMany
+    /**
+     * Legacy old direct children from categories table.
+     * Keep temporarily فقط للبيانات القديمة إن احتجتها.
+     */
+    public function legacyChildren(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')
-            ->where('is_active', true)
+            ->where('parent_id', '>', 0)
             ->orderByRaw('COALESCE(reorder, 999999) ASC')
             ->orderByDesc('id');
+    }
+
+    /**
+     * Legacy active direct children from categories table.
+     */
+    public function activeLegacyChildren(): HasMany
+    {
+        return $this->legacyChildren()
+            ->where('is_active', true);
+    }
+
+    /**
+     * New normalized children through pivot table.
+     */
+    public function children(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CategoryChild::class,
+            'category_parent_child',
+            'parent_id',
+            'child_id'
+        )->withTimestamps();
     }
 
     public function products(): HasMany
@@ -104,11 +124,10 @@ class Category extends Model
         return $this->hasMany(Product::class);
     }
 
-    public function options(): BelongsToMany
-    {
-        return $this->belongsToMany(Option::class, 'category_option');
-    }
-
+    /**
+     * Legacy relation only if you still have category_id in users table.
+     * Keep it as-is if used elsewhere.
+     */
     public function users(): HasMany
     {
         return $this->hasMany(User::class, 'category_id');
@@ -192,6 +211,16 @@ class Category extends Model
     | Helpers
     |--------------------------------------------------------------------------
     */
+
+    public function isRoot(): bool
+    {
+        return (int) $this->parent_id === 0;
+    }
+
+    public function isLegacyChild(): bool
+    {
+        return (int) $this->parent_id > 0;
+    }
 
     public function displayName(?string $locale = null): string
     {
@@ -316,20 +345,5 @@ class Category extends Model
         $value = trim((string) ($config['item_family'] ?? ''));
 
         return $value !== '' ? $value : null;
-    }
-    public function categoryOptions(): BelongsToMany
-    {
-        return $this->belongsToMany(Option::class, 'category_option', 'category_id', 'option_id');
-    }
-
-    public function activeOptions(): BelongsToMany
-    {
-        $relation = $this->belongsToMany(Option::class, 'category_option', 'category_id', 'option_id');
-
-        if (method_exists(Option::class, 'scopeActive')) {
-            $relation->where('options.is_active', 1);
-        }
-
-        return $relation;
     }
 }

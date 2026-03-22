@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\CategoryChild;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
@@ -233,101 +234,106 @@ class CategoryController extends Controller
         }
     }
 
-  public function index(Request $request): View
-{
-    $rootId  = (int) $request->get('root_id', 0);
-    $q       = trim((string) $request->get('q', ''));
-    $active  = $request->get('active');
-    $perPage = $this->normalizePerPage($request->get('per_page', 50));
+    public function index(Request $request): View
+    {
+        $rootId  = (int) $request->get('root_id', 0);
+        $q       = trim((string) $request->get('q', ''));
+        $active  = $request->get('active');
+        $perPage = $this->normalizePerPage($request->get('per_page', 50));
 
-    $sort = (string) $request->get('sort', 'reorder');
-    $dir  = strtolower((string) $request->get('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        $sort = (string) $request->get('sort', 'reorder');
+        $dir  = strtolower((string) $request->get('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-    $allowedSorts = ['reorder', 'name_ar', 'name_en', 'id'];
-    if (! in_array($sort, $allowedSorts, true)) {
-        $sort = 'reorder';
-    }
+        $allowedRootSorts = ['reorder', 'name_ar', 'name_en', 'id'];
+        $allowedChildSorts = ['reorder', 'name_ar', 'name_en', 'id'];
 
-    $roots = Category::query()
-        ->where('parent_id', 0)
-        ->orderByRaw('COALESCE(reorder, 999999) ASC')
-        ->orderBy('id', 'asc')
-        ->get([
-            'id',
-            'name_ar',
-            'name_en',
-            'image',
-            'per_month',
-            'per_year',
-            'slug',
-            'is_active',
-        ]);
-
-    $root = null;
-    if ($rootId > 0) {
-        $root = Category::query()
+        $roots = Category::query()
             ->where('parent_id', 0)
-            ->find($rootId);
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('id', 'asc')
+            ->get([
+                'id',
+                'parent_id',
+                'name_ar',
+                'name_en',
+                'image',
+                'per_month',
+                'per_year',
+                'slug',
+                'is_active',
+                'reorder',
+            ]);
+
+        $root = null;
+
+        if ($rootId > 0) {
+            $root = Category::query()
+                ->where('parent_id', 0)
+                ->find($rootId);
+        }
+
+        $children = collect();
+
+        if ($rootId > 0 && $root) {
+            if (! in_array($sort, $allowedChildSorts, true)) {
+                $sort = 'reorder';
+            }
+
+            $children = CategoryChild::query()
+                ->with('options:id')
+                ->whereHas('parents', function ($query) use ($rootId) {
+                    $query->where('categories.id', $rootId);
+                })
+                ->when($q !== '', function ($query) use ($q) {
+                    $query->where(function ($w) use ($q) {
+                        $w->where('name_ar', 'like', "%{$q}%")
+                          ->orWhere('name_en', 'like', "%{$q}%");
+                    });
+                })
+                ->select(['id', 'name_ar', 'name_en', 'reorder', 'created_at', 'updated_at'])
+                ->orderByRaw('COALESCE(reorder, 999999) ASC')
+                ->orderBy('id', 'asc')
+                ->when($sort !== 'reorder', function ($query) use ($sort, $dir) {
+                    $query->reorder()->orderBy($sort, $dir)->orderBy('id', 'asc');
+                })
+                ->paginate($perPage)
+                ->withQueryString();
+        } else {
+            if (! in_array($sort, $allowedRootSorts, true)) {
+                $sort = 'reorder';
+            }
+        }
+
+        $platformServices = PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en'])
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get();
+
+        $activeOptions  = ['' => 'الكل', '1' => 'نشط', '0' => 'غير نشط'];
+        $perPageOptions = self::PER_PAGE_ALLOWED;
+
+        return view('admin-v2.categories.index', compact(
+            'roots',
+            'rootId',
+            'root',
+            'children',
+            'q',
+            'active',
+            'activeOptions',
+            'perPage',
+            'perPageOptions',
+            'sort',
+            'dir',
+            'platformServices'
+        ));
     }
-
-    $children = null;
-
-    if ($rootId > 0) {
-        $children = Category::query()
-            ->withCount(['categoryPlatformServices as services_count'])
-            ->where('parent_id', $rootId)
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($w) use ($q) {
-                    $w->where('name_ar', 'like', "%{$q}%")
-                        ->orWhere('name_en', 'like', "%{$q}%")
-                        ->orWhere('slug', 'like', "%{$q}%");
-                });
-            })
-            ->when($active !== null && $active !== '', function ($query) use ($active) {
-                $query->where('is_active', (int) $active);
-            })
-            ->when(true, function ($query) use ($sort, $dir) {
-                if ($sort === 'reorder') {
-                    $query->orderByRaw('COALESCE(reorder, 999999) ' . $dir)
-                        ->orderBy('id', 'asc');
-                } else {
-                    $query->orderBy($sort, $dir)
-                        ->orderBy('id', 'asc');
-                }
-            })
-            ->paginate($perPage)
-            ->withQueryString();
-    }
-
-    $platformServices = PlatformService::query()
-        ->select(['id', 'key', 'name_ar', 'name_en'])
-        ->where('is_active', 1)
-        ->orderBy('name_ar')
-        ->orderBy('id')
-        ->get();
-
-    $activeOptions  = ['' => 'الكل', '1' => 'نشط', '0' => 'غير نشط'];
-    $perPageOptions = self::PER_PAGE_ALLOWED;
-
-    return view('admin-v2.categories.index', compact(
-        'roots',
-        'rootId',
-        'root',
-        'children',
-        'q',
-        'active',
-        'activeOptions',
-        'perPage',
-        'perPageOptions',
-        'sort',
-        'dir',
-        'platformServices'
-    ));
-}
 
     public function create(): View
     {
         $row = new Category([
+            'parent_id' => 0,
             'is_active' => 1,
             'reorder' => 0,
             'per_month' => 0,
@@ -401,8 +407,18 @@ class CategoryController extends Controller
             'delivery_supports_scheduled' => 'nullable|in:0,1',
         ]);
 
+        $pid = (int) ($data['parent_id'] ?? 0);
+
+        if ($pid > 0) {
+            return back()
+                ->withErrors([
+                    'parent_id' => 'إضافة/تعديل الأقسام الفرعية أصبحت من جدول category_children_master وربط category_parent_child، وليس من CategoryController.',
+                ])
+                ->withInput();
+        }
+
         $data['is_active'] = (int) ($data['is_active'] ?? 1);
-        $data['parent_id'] = (int) ($data['parent_id'] ?? 0);
+        $data['parent_id'] = 0;
         $data['slug'] = $this->normalizeSlug(
             $data['slug'] ?? null,
             $data['name_en'] ?? null,
@@ -436,19 +452,21 @@ class CategoryController extends Controller
             $this->syncCategoryServicesAndConfigs($request, $category);
         });
 
-        $rootId = (int) $request->input('root_id', 0);
-
         return redirect()
-            ->route('admin.categories.index', $rootId > 0 ? ['root_id' => $rootId] : [])
-            ->with('success', 'تم إضافة القسم بنجاح');
+            ->route('admin.categories.index')
+            ->with('success', 'تم إضافة القسم الرئيسي بنجاح');
     }
 
     public function edit(Category $category): View
     {
+        if ((int) $category->parent_id > 0) {
+            abort(404);
+        }
+
         $row = $category->load([
             'categoryPlatformServices:id,category_id,platform_service_id,is_active,sort_order,meta',
             'serviceConfigs:id,category_id,platform_service_id,config,is_active,sort_order',
-            'categoryOptions:id,name_ar,name_en',
+            'children:id,name_ar,name_en,reorder',
         ]);
 
         $parents = Category::query()
@@ -493,6 +511,10 @@ class CategoryController extends Controller
 
     public function update(Request $request, Category $category): RedirectResponse
     {
+        if ((int) $category->parent_id > 0) {
+            abort(404);
+        }
+
         $data = $request->validate([
             'name_ar' => 'required|string|max:191',
             'name_en' => 'nullable|string|max:191',
@@ -533,28 +555,16 @@ class CategoryController extends Controller
 
         $pid = (int) ($data['parent_id'] ?? 0);
 
-        if ($pid === (int) $category->id) {
+        if ($pid > 0) {
             return back()
-                ->withErrors(['parent_id' => 'لا يمكن جعل القسم تابعًا لنفسه.'])
+                ->withErrors([
+                    'parent_id' => 'تحويل القسم الرئيسي إلى فرعي لم يعد مدعومًا داخل CategoryController بعد فصل children في جداول مستقلة.',
+                ])
                 ->withInput();
         }
 
-        if ((int) $category->parent_id === 0 && $pid > 0) {
-            $childIds = Category::query()
-                ->where('parent_id', $category->id)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-
-            if (in_array($pid, $childIds, true)) {
-                return back()
-                    ->withErrors(['parent_id' => 'لا يمكن جعل القسم الرئيسي تابعًا لأحد أقسامه الفرعية.'])
-                    ->withInput();
-            }
-        }
-
         $data['is_active'] = (int) ($data['is_active'] ?? $category->is_active);
-        $data['parent_id'] = $pid;
+        $data['parent_id'] = 0;
         $data['slug'] = $this->normalizeSlug(
             $data['slug'] ?? $category->slug,
             $data['name_en'] ?? null,
@@ -596,20 +606,22 @@ class CategoryController extends Controller
             $this->deleteImageIfExists($oldImage);
         }
 
-        $returnRootId = (int) $request->get('root_id', ($pid > 0 ? $pid : 0));
-
         return redirect()
-            ->route('admin.categories.index', $returnRootId > 0 ? ['root_id' => $returnRootId] : [])
-            ->with('success', 'تم تحديث القسم بنجاح');
+            ->route('admin.categories.index')
+            ->with('success', 'تم تحديث القسم الرئيسي بنجاح');
     }
 
     public function destroy(Request $request, Category $category): RedirectResponse
     {
-        $rootId = (int) $request->get('root_id', $category->parent_id ?: 0);
+        if ((int) $category->parent_id > 0) {
+            return back()->withErrors([
+                'error' => 'حذف الأقسام الفرعية القديمة لم يعد يتم من هذا الكنترولر.',
+            ]);
+        }
 
         if ($category->children()->exists()) {
             return back()->withErrors([
-                'error' => 'لا يمكن حذف قسم لديه أقسام فرعية. احذف الأقسام الفرعية أولاً.',
+                'error' => 'لا يمكن حذف قسم رئيسي لديه أقسام فرعية مرتبطة. قم بفصل الأقسام الفرعية أولاً.',
             ]);
         }
 
@@ -617,12 +629,19 @@ class CategoryController extends Controller
 
         $category->delete();
 
-        return $this->redirectToIndex($rootId)
-            ->with('success', 'تم حذف القسم بنجاح');
+        return $this->redirectToIndex()
+            ->with('success', 'تم حذف القسم الرئيسي بنجاح');
     }
 
     public function toggleActive(Category $category)
     {
+        if ((int) $category->parent_id > 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Toggle active للأقسام الفرعية القديمة غير مدعوم من هذا الكنترولر.',
+            ], 422);
+        }
+
         $category->is_active = ! $category->is_active;
         $category->save();
 
@@ -635,6 +654,13 @@ class CategoryController extends Controller
 
     public function updateReorder(Request $request, Category $category)
     {
+        if ((int) $category->parent_id > 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'إعادة الترتيب من هذا الكنترولر متاحة للأقسام الرئيسية فقط.',
+            ], 422);
+        }
+
         $data = $request->validate([
             'reorder' => 'required|integer|min:0|max:999999',
         ]);
@@ -647,4 +673,484 @@ class CategoryController extends Controller
             'reorder' => $category->reorder,
         ]);
     }
+
+    public function syncChildren(Request $request, $parent)
+    {
+        $parent = Category::query()
+            ->where('parent_id', 0)
+            ->findOrFail($parent);
+
+        $childIds = collect($request->input('child_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $parent->children()->sync($childIds);
+
+        return redirect()
+            ->route('admin.category-children.index', ['parent_id' => $parent->id])
+            ->with('success', 'تم تحديث ربط الأقسام الفرعية بنجاح.');
+    }
+
+    public function categoryChildrenIndex(Request $request): View
+    {
+        $parentId = (int) $request->get('parent_id', 0);
+        $q = trim((string) $request->get('q', ''));
+        $perPage = $this->normalizePerPage($request->get('per_page', 50));
+
+        $sort = (string) $request->get('sort', 'reorder');
+        $dir = strtolower((string) $request->get('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        $allowedSorts = ['id', 'reorder', 'name_ar', 'name_en'];
+        if (! in_array($sort, $allowedSorts, true)) {
+            $sort = 'reorder';
+        }
+
+        $parents = Category::query()
+            ->where('parent_id', 0)
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en', 'reorder']);
+
+        $parent = null;
+        if ($parentId > 0) {
+            $parent = Category::query()
+                ->with('children:id,name_ar,name_en,reorder')
+                ->where('parent_id', 0)
+                ->find($parentId);
+        }
+
+        $rows = CategoryChild::query()
+            ->with([
+                'parents:id,name_ar,name_en',
+                'options:id',
+            ])
+            ->withCount('parents')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('name_ar', 'like', "%{$q}%")
+                      ->orWhere('name_en', 'like', "%{$q}%");
+                });
+            })
+            ->select(['id', 'name_ar', 'name_en', 'reorder', 'created_at', 'updated_at'])
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('id', 'asc')
+            ->when($sort !== 'reorder', function ($query) use ($sort, $dir) {
+                $query->reorder()->orderBy($sort, $dir)->orderBy('id', 'asc');
+            })
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $perPageOptions = self::PER_PAGE_ALLOWED;
+
+        return view('admin-v2.category-children.index', compact(
+            'rows',
+            'parents',
+            'parent',
+            'parentId',
+            'q',
+            'perPage',
+            'perPageOptions',
+            'sort',
+            'dir'
+        ));
+    }
+
+    public function categoryChildrenCreate(Request $request): View
+    {
+        $parentId = (int) $request->get('parent_id', 0);
+
+        $row = new CategoryChild([
+            'name_ar' => '',
+            'name_en' => '',
+            'reorder' => 0,
+        ]);
+
+        $parents = Category::query()
+            ->where('parent_id', 0)
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en']);
+
+        $selectedParentIds = $parentId > 0 ? [$parentId] : [];
+
+        return view('admin-v2.category-children.create', compact(
+            'row',
+            'parents',
+            'selectedParentIds',
+            'parentId'
+        ));
+    }
+
+    public function categoryChildrenStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name_ar' => 'required|string|max:191',
+            'name_en' => 'nullable|string|max:191',
+            'reorder' => 'nullable|integer|min:0|max:1000000',
+            'parent_ids' => 'nullable|array',
+            'parent_ids.*' => 'integer|exists:categories,id',
+        ]);
+
+        $parentIds = collect($request->input('parent_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $row = null;
+
+        DB::transaction(function () use ($data, $parentIds, &$row) {
+            $row = CategoryChild::query()->create([
+                'name_ar' => trim((string) $data['name_ar']),
+                'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
+                'reorder' => (int) ($data['reorder'] ?? 0),
+            ]);
+
+            if (! empty($parentIds)) {
+                $row->parents()->sync($parentIds);
+            }
+        });
+
+        $redirectParentId = ! empty($parentIds) ? (int) $parentIds[0] : 0;
+
+        return redirect()
+            ->route('admin.category-children.index', $redirectParentId > 0 ? ['parent_id' => $redirectParentId] : [])
+            ->with('success', 'تم إضافة القسم الفرعي بنجاح.');
+    }
+
+    public function categoryChildrenEdit($categoryChild): View
+    {
+        $row = CategoryChild::query()
+            ->with([
+                'parents:id,name_ar,name_en',
+                'options:id,name_ar,name_en',
+            ])
+            ->findOrFail($categoryChild);
+
+        $parents = Category::query()
+            ->where('parent_id', 0)
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en']);
+
+        $selectedParentIds = $row->parents
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return view('admin-v2.category-children.edit', compact(
+            'row',
+            'parents',
+            'selectedParentIds'
+        ));
+    }
+
+    public function categoryChildrenUpdate(Request $request, $categoryChild): RedirectResponse
+    {
+        $row = CategoryChild::query()->findOrFail($categoryChild);
+
+        $data = $request->validate([
+            'name_ar' => 'required|string|max:191',
+            'name_en' => 'nullable|string|max:191',
+            'reorder' => 'nullable|integer|min:0|max:1000000',
+            'parent_ids' => 'nullable|array',
+            'parent_ids.*' => 'integer|exists:categories,id',
+        ]);
+
+        $parentIds = collect($request->input('parent_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        DB::transaction(function () use ($row, $data, $parentIds) {
+            $row->update([
+                'name_ar' => trim((string) $data['name_ar']),
+                'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
+                'reorder' => (int) ($data['reorder'] ?? 0),
+            ]);
+
+            $row->parents()->sync($parentIds);
+        });
+
+        $redirectParentId = (int) ($request->input('parent_id', 0));
+        if ($redirectParentId <= 0 && ! empty($parentIds)) {
+            $redirectParentId = (int) $parentIds[0];
+        }
+
+        return redirect()
+            ->route('admin.category-children.index', $redirectParentId > 0 ? ['parent_id' => $redirectParentId] : [])
+            ->with('success', 'تم تحديث القسم الفرعي بنجاح.');
+    }
+
+    public function categoryChildrenDestroy(Request $request, $categoryChild): RedirectResponse
+    {
+        $row = CategoryChild::query()
+            ->withCount('options')
+            ->findOrFail($categoryChild);
+
+        if ((int) ($row->options_count ?? 0) > 0) {
+            return back()->withErrors([
+                'error' => 'لا يمكن حذف القسم الفرعي لأنه مرتبط بخيارات. قم بفصل الخيارات أولاً.',
+            ]);
+        }
+
+        DB::transaction(function () use ($row) {
+            $row->parents()->detach();
+            $row->delete();
+        });
+
+        $parentId = (int) $request->input('parent_id', 0);
+
+        return redirect()
+            ->route('admin.category-children.index', $parentId > 0 ? ['parent_id' => $parentId] : [])
+            ->with('success', 'تم حذف القسم الفرعي بنجاح.');
+    }
+
+    public function detachChildParent($categoryChild, $parent): RedirectResponse
+    {
+        $row = CategoryChild::query()->findOrFail($categoryChild);
+        $parentId = (int) $parent;
+
+        $row->parents()->detach([$parentId]);
+
+        return redirect()
+            ->route('admin.category-children.index', ['parent_id' => $parentId])
+            ->with('success', 'تم فصل ربط القسم الفرعي من القسم الرئيسي بنجاح.');
+    }
+    private function normalizeLegacyChildName(?string $value): string
+{
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '';
+    }
+
+    return mb_strtolower(preg_replace('/\s+/u', ' ', $value));
+}
+
+private function findMatchingCategoryChild(?string $nameAr, ?string $nameEn): ?CategoryChild
+{
+    $nameArNorm = $this->normalizeLegacyChildName($nameAr);
+    $nameEnNorm = $this->normalizeLegacyChildName($nameEn);
+
+    $all = CategoryChild::query()
+        ->select(['id', 'name_ar', 'name_en', 'reorder'])
+        ->get();
+
+    return $all->first(function ($child) use ($nameArNorm, $nameEnNorm) {
+        $childAr = $this->normalizeLegacyChildName($child->name_ar);
+        $childEn = $this->normalizeLegacyChildName($child->name_en);
+
+        if ($nameArNorm !== '' && ($childAr === $nameArNorm || $childEn === $nameArNorm)) {
+            return true;
+        }
+
+        if ($nameEnNorm !== '' && ($childAr === $nameEnNorm || $childEn === $nameEnNorm)) {
+            return true;
+        }
+
+        return false;
+    });
+}
+
+public function legacyChildrenReview(Request $request): View
+{
+    $q = trim((string) $request->get('q', ''));
+    $perPage = $this->normalizePerPage($request->get('per_page', 50));
+    $parentId = (int) $request->get('parent_id', 0); // 👈 جديد
+
+    $query = Category::query()
+        ->where('parent_id', '>', 0)
+        ->with([
+            'parent:id,name_ar,name_en',
+        ]);
+
+    // 👇 فلتر بالقسم الرئيسي
+    if ($parentId > 0) {
+        $query->where('parent_id', $parentId);
+    }
+
+    $rows = $query
+        ->when($q !== '', function ($query) use ($q) {
+            $query->where(function ($w) use ($q) {
+                $w->where('name_ar', 'like', "%{$q}%")
+                  ->orWhere('name_en', 'like', "%{$q}%");
+            });
+        })
+        ->select([
+            'id',
+            'parent_id',
+            'name_ar',
+            'name_en',
+            'reorder',
+            'is_active',
+        ])
+        ->orderBy('parent_id', 'asc')
+        ->orderByRaw('COALESCE(reorder, 999999) ASC')
+        ->orderBy('id', 'asc')
+        ->paginate($perPage)
+        ->withQueryString();
+
+    $items = collect($rows->items())->map(function ($legacy) {
+        $matched = $this->findMatchingCategoryChild($legacy->name_ar, $legacy->name_en);
+
+        return [
+            'legacy' => $legacy,
+            'matched_child' => $matched,
+            'is_matched' => $matched !== null,
+        ];
+    });
+
+    // 👇 مهم جدًا: قائمة الأقسام الرئيسية
+    $parents = Category::query()
+        ->where('parent_id', 0)
+        ->orderBy('name_ar')
+        ->get(['id', 'name_ar', 'name_en']);
+
+    $perPageOptions = self::PER_PAGE_ALLOWED;
+
+    return view('admin-v2.category-children.legacy-review', [
+        'rows' => $rows,
+        'items' => $items,
+        'q' => $q,
+        'parentId' => $parentId, // 👈 جديد
+        'parents' => $parents,   // 👈 جديد
+        'perPage' => $perPage,
+        'perPageOptions' => $perPageOptions,
+    ]);
+}
+public function bulkUpdateChildrenReorder(Request $request): RedirectResponse
+{
+    $data = $request->validate([
+        'parent_id' => 'nullable|integer|min:0',
+        'child_reorders' => 'required|array',
+        'child_reorders.*' => 'nullable|integer|min:0|max:999999',
+        'save_one_id' => 'nullable|integer|exists:category_children_master,id',
+    ]);
+
+    $parentId = (int) ($data['parent_id'] ?? 0);
+    $saveOneId = (int) ($data['save_one_id'] ?? 0);
+
+    $childReorders = collect($data['child_reorders'] ?? [])
+        ->mapWithKeys(function ($value, $key) {
+            return [(int) $key => (int) $value];
+        })
+        ->filter(fn ($value, $key) => $key > 0);
+
+    if ($childReorders->isEmpty()) {
+        return back()->withErrors([
+            'error' => 'لا توجد قيم reorder صالحة للحفظ.',
+        ]);
+    }
+
+    $query = CategoryChild::query()->whereIn('id', $childReorders->keys()->all());
+
+    if ($parentId > 0) {
+        $query->whereHas('parents', function ($q) use ($parentId) {
+            $q->where('categories.id', $parentId);
+        });
+    }
+
+    $rows = $query->get(['id', 'reorder']);
+
+    DB::transaction(function () use ($rows, $childReorders, $saveOneId) {
+        foreach ($rows as $row) {
+            if ($saveOneId > 0 && (int) $row->id !== $saveOneId) {
+                continue;
+            }
+
+            $newReorder = (int) ($childReorders[$row->id] ?? $row->reorder ?? 0);
+
+            if ((int) $row->reorder !== $newReorder) {
+                $row->update([
+                    'reorder' => $newReorder,
+                ]);
+            }
+        }
+    });
+
+    return redirect()
+        ->route('admin.categories.index', $parentId > 0 ? ['root_id' => $parentId] : [])
+        ->with('success', $saveOneId > 0
+            ? 'تم تحديث ترتيب القسم الفرعي بنجاح.'
+            : 'تم تحديث ترتيب الأقسام الفرعية بنجاح.');
+}
+
+public function importLegacyChildren(Request $request): RedirectResponse
+{
+    $data = $request->validate([
+        'legacy_ids' => 'required|array|min:1',
+        'legacy_ids.*' => 'integer|exists:categories,id',
+    ]);
+
+    $legacyIds = collect($data['legacy_ids'])
+        ->map(fn ($id) => (int) $id)
+        ->filter(fn ($id) => $id > 0)
+        ->unique()
+        ->values()
+        ->all();
+
+    $legacyRows = Category::query()
+        ->whereIn('id', $legacyIds)
+        ->where('parent_id', '>', 0)
+        ->get([
+            'id',
+            'parent_id',
+            'name_ar',
+            'name_en',
+            'reorder',
+            'is_active',
+        ]);
+
+    $importedCount = 0;
+    $attachedCount = 0;
+
+    DB::transaction(function () use ($legacyRows, &$importedCount, &$attachedCount) {
+        foreach ($legacyRows as $legacy) {
+            $child = $this->findMatchingCategoryChild($legacy->name_ar, $legacy->name_en);
+
+            if (! $child) {
+                $child = CategoryChild::query()->create([
+                    'name_ar' => trim((string) $legacy->name_ar),
+                    'name_en' => trim((string) ($legacy->name_en ?? '')) ?: null,
+                    'reorder' => (int) ($legacy->reorder ?? 0),
+                ]);
+
+                $importedCount++;
+            } else {
+                if (
+                    (int) ($child->reorder ?? 0) === 0 &&
+                    (int) ($legacy->reorder ?? 0) > 0
+                ) {
+                    $child->update([
+                        'reorder' => (int) $legacy->reorder,
+                    ]);
+                }
+            }
+
+            $before = $child->parents()->where('categories.id', (int) $legacy->parent_id)->exists();
+
+            $child->parents()->syncWithoutDetaching([
+                (int) $legacy->parent_id,
+            ]);
+
+            if (! $before) {
+                $attachedCount++;
+            }
+        }
+    });
+
+    return redirect()
+        ->route('admin.category-children.legacy-review')
+        ->with('success', "تمت مراجعة الاستيراد بنجاح. تم إنشاء {$importedCount} قسم فرعي جديد، وتم إنشاء {$attachedCount} ربط جديد.");
+}
 }

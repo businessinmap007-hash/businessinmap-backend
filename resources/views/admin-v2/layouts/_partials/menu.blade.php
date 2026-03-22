@@ -48,6 +48,7 @@
         ['type' => 'section', 'label' => 'Users & Content'],
         ['label' => 'Users', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
         ['label' => 'Categories', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => 'admin.categories.'],
+        ['label' => 'Options', 'route' => 'admin.options.index', 'icon' => 'folder', 'active' => 'admin.options.'],
         ['label' => 'Posts', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => 'admin.posts.'],
         ['label' => 'Jobs', 'route' => 'admin.jobs.index', 'icon' => 'briefcase', 'active' => 'admin.jobs.'],
         ['label' => 'Sponsors', 'route' => 'admin.sponsors.index', 'icon' => 'megaphone', 'active' => 'admin.sponsors.'],

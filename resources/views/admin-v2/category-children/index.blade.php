@@ -187,6 +187,7 @@
 
                     <th style="width:120px;">Parents</th>
                     <th>الأقسام الرئيسية المرتبطة</th>
+                    <th style="width:110px;">المجموعات</th>
                     <th style="width:120px;">Options</th>
                     <th style="width:220px;">Actions</th>
                 </tr>
@@ -235,6 +236,9 @@
                             @else
                                 <span class="a2-muted">لا يوجد ربط</span>
                             @endif
+                        </td>
+                        <td>
+                            <span class="a2-pill a2-pill-active">{{ (int) ($row->option_groups_count ?? $c->option_groups_count ?? 0) }}</span>
                         </td>
 
                         <td>

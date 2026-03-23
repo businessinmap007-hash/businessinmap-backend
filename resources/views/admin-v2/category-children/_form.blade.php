@@ -18,16 +18,7 @@
 @endif
 
 <div class="a2-page">
-    <div class="a2-page-head">
-        <div>
-            <h1 class="a2-page-title">
-                {{ $isEdit ? 'تعديل القسم الفرعي الموحّد' : 'إضافة قسم فرعي موحّد' }}
-            </h1>
-            <div class="a2-page-subtitle">
-                إدارة بيانات القسم الفرعي وربطه بقسم رئيسي واحد أو أكثر
-            </div>
-        </div>
-    </div>
+    
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
@@ -143,7 +134,7 @@
         <div class="a2-card a2-card--section">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-section-title a2-mb-0">الخيارات المرتبطة</div>
+                    <div class="a2-section-title a2-mb-0">ملخص المجموعات والخيارات</div>
                 </div>
             </div>
 

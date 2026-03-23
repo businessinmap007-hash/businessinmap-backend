@@ -281,13 +281,17 @@ class CategoryController extends Controller
 
             $children = CategoryChild::query()
                 ->with('options:id')
+                ->withCount([
+                    'options',
+                    'optionGroups',
+                ])
                 ->whereHas('parents', function ($query) use ($rootId) {
                     $query->where('categories.id', $rootId);
                 })
                 ->when($q !== '', function ($query) use ($q) {
                     $query->where(function ($w) use ($q) {
                         $w->where('name_ar', 'like', "%{$q}%")
-                          ->orWhere('name_en', 'like', "%{$q}%");
+                        ->orWhere('name_en', 'like', "%{$q}%");
                     });
                 })
                 ->select(['id', 'name_ar', 'name_en', 'reorder', 'created_at', 'updated_at'])

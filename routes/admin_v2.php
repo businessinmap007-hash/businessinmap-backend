@@ -3,68 +3,79 @@
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AdminV2\{
-    Auth\LoginController,
-    Users\UserController,
-    CategoryController,
-    PostController,
-    DashboardController,
-    UploadController,
-    JobPostController,
-    WalletTransactionController,
-    WalletNoteTemplateController,
-    SponsorController,
-    PaymentController,
-    WalletOpsController,
-    SubscriptionController,
     AlbumController,
-    BookingController,
-    DisputeController,
-    BusinessServicePriceController,
-    ServiceFeeController,
-    PlatformServiceController,
+    BookableItemBlockedSlotController,
+    BookableItemBulkController,
+    BookableItemCalendarController,
     BookableItemController,
     BookableItemPriceRuleController,
-    BookableItemBlockedSlotController,
-    BookableItemCalendarController,
-    BookableItemBulkController,
-    CategoryServiceBulkController,
-    CategoryOptionController,
-    OptionController,
-    CategoryChildController,
+    BookingController,
+    BusinessServicePriceController,
     CategoryChildOptionController,
+    CategoryChildOptionGroupController,
+    CategoryController,
+    CategoryOptionController,
+    CategoryServiceBulkController,
+    DashboardController,
+    DisputeController,
+    JobPostController,
+    OptionController,
+    OptionGroupController,
+    PaymentController,
+    PlatformServiceController,
+    PostController,
+    ServiceFeeController,
+    SponsorController,
+    SubscriptionController,
+    UploadController,
+    WalletNoteTemplateController,
+    WalletOpsController,
+    WalletTransactionController,
+    Users\UserController,
+    Auth\LoginController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
-    // =========================
-    // Auth (Public)
-    // =========================
+    /*
+    |--------------------------------------------------------------------------
+    | Auth (Public)
+    |--------------------------------------------------------------------------
+    */
     Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('login', [LoginController::class, 'login'])->name('login.post');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
-    /**
-     * callback route (بدون auth)
-     * الأفضل لاحقًا حمايته بتوقيع/secret
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Payments Callback (Public)
+    |--------------------------------------------------------------------------
+    | الأفضل لاحقًا حمايته بتوقيع/secret
+    */
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
         ->name('payments.callback.success');
 
-    // =========================
-    // Protected (admin.v2)
-    // =========================
+    /*
+    |--------------------------------------------------------------------------
+    | Protected Routes (admin.v2)
+    |--------------------------------------------------------------------------
+    */
     Route::middleware(['admin.v2'])->group(function () {
 
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-        // =========================
-        // Upload
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Upload
+        |--------------------------------------------------------------------------
+        */
         Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
 
-        // =========================
-        // Users
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Users
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
 
@@ -83,67 +94,117 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{user}/toggle-suspend', [UserController::class, 'toggleSuspend'])->name('toggleSuspend');
         });
 
-        // =========================
-        // Categories
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Categories
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('categories')->name('categories.')->group(function () {
             Route::get('/', [CategoryController::class, 'index'])->name('index');
-            Route::get('/create', [CategoryController::class, 'create'])->name('create');
+            Route::get('create', [CategoryController::class, 'create'])->name('create');
             Route::post('/', [CategoryController::class, 'store'])->name('store');
-            Route::get('/{category}/edit', [CategoryController::class, 'edit'])->name('edit');
-            Route::put('/{category}', [CategoryController::class, 'update'])->name('update');
-            Route::delete('/{category}', [CategoryController::class, 'destroy'])->name('destroy');
-            Route::post('/{category}/toggle-active', [CategoryController::class, 'toggleActive'])->name('toggleActive');
-            Route::post('/{category}/reorder', [CategoryController::class, 'updateReorder'])->name('reorder');
+            Route::get('{category}/edit', [CategoryController::class, 'edit'])->name('edit');
+            Route::put('{category}', [CategoryController::class, 'update'])->name('update');
+            Route::delete('{category}', [CategoryController::class, 'destroy'])->name('destroy');
 
-            Route::get('/{category}/options', [CategoryOptionController::class, 'edit'])->name('options.edit');
-            Route::put('/{category}/options', [CategoryOptionController::class, 'update'])->name('options.update');
+            Route::post('{category}/toggle-active', [CategoryController::class, 'toggleActive'])->name('toggleActive');
+            Route::post('{category}/reorder', [CategoryController::class, 'updateReorder'])->name('reorder');
+
+            Route::get('{category}/options', [CategoryOptionController::class, 'edit'])->name('options.edit');
+            Route::put('{category}/options', [CategoryOptionController::class, 'update'])->name('options.update');
         });
 
-       
-    /*
-    |--------------------------------------------------------------------------
-    | Category Children
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('category-children')->name('category-children.')->group(function () {
-        Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])->name('index');
-        Route::get('/create', [CategoryController::class, 'categoryChildrenCreate'])->name('create');
-        Route::post('/', [CategoryController::class, 'categoryChildrenStore'])->name('store');
+        /*
+        |--------------------------------------------------------------------------
+        | Category Children
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('category-children')->name('category-children.')->group(function () {
+            Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])->name('index');
+            Route::get('create', [CategoryController::class, 'categoryChildrenCreate'])->name('create');
+            Route::post('/', [CategoryController::class, 'categoryChildrenStore'])->name('store');
 
-        Route::get('/legacy-review', [CategoryController::class, 'legacyChildrenReview'])->name('legacy-review');
-        Route::post('/legacy-import', [CategoryController::class, 'importLegacyChildren'])->name('legacy-import');
+            Route::get('legacy-review', [CategoryController::class, 'legacyChildrenReview'])->name('legacy-review');
+            Route::post('legacy-import', [CategoryController::class, 'importLegacyChildren'])->name('legacy-import');
 
-        Route::post('/reorder-bulk', [CategoryController::class, 'bulkUpdateChildrenReorder'])->name('reorder-bulk');
+            Route::post('reorder-bulk', [CategoryController::class, 'bulkUpdateChildrenReorder'])->name('reorder-bulk');
 
-        Route::get('/{categoryChild}/edit', [CategoryController::class, 'categoryChildrenEdit'])->name('edit');
-        Route::put('/{categoryChild}', [CategoryController::class, 'categoryChildrenUpdate'])->name('update');
-        Route::delete('/{categoryChild}', [CategoryController::class, 'categoryChildrenDestroy'])->name('destroy');
+            Route::get('{categoryChild}/edit', [CategoryController::class, 'categoryChildrenEdit'])->name('edit');
+            Route::put('{categoryChild}', [CategoryController::class, 'categoryChildrenUpdate'])->name('update');
+            Route::delete('{categoryChild}', [CategoryController::class, 'categoryChildrenDestroy'])->name('destroy');
 
-        Route::delete('/{categoryChild}/parents/{parent}', [CategoryController::class, 'detachChildParent'])
-            ->name('detach-parent');
+            Route::delete('{categoryChild}/parents/{parent}', [CategoryController::class, 'detachChildParent'])
+                ->name('detach-parent');
 
-        Route::post('/{parent}/sync', [CategoryController::class, 'syncChildren'])
-            ->name('sync');
-
+            Route::post('{parent}/sync', [CategoryController::class, 'syncChildren'])
+                ->name('sync');
         });
 
-        // =========================
-        // Category Services Bulk
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Category Child Option Groups
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('category-children/{categoryChild}/option-groups')
+            ->name('category-child-option-groups.')
+            ->group(function () {
+                Route::get('/', [CategoryChildOptionGroupController::class, 'index'])->name('index');
+                Route::get('create', [CategoryChildOptionGroupController::class, 'create'])->name('create');
+                Route::post('/', [CategoryChildOptionGroupController::class, 'store'])->name('store');
+                Route::get('{group}/edit', [CategoryChildOptionGroupController::class, 'edit'])->name('edit');
+                Route::put('{group}', [CategoryChildOptionGroupController::class, 'update'])->name('update');
+                Route::delete('{group}', [CategoryChildOptionGroupController::class, 'destroy'])->name('destroy');
+            });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Category Child Options
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('category-child-options')->name('category-child-options.')->group(function () {
+            Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])->name('edit');
+            Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->name('update');
+
+            Route::get('bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])->name('bulk.edit');
+            Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])->name('bulk.update');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Category Services Bulk
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
             Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
             Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
         });
 
-        // =========================
-        // Options
-        // =========================
-        Route::resource('options', OptionController::class)->except(['show']);
+        /*
+        |--------------------------------------------------------------------------
+        | Options
+        |--------------------------------------------------------------------------
+        */
+        Route::post('options/bulk-assign-group', [OptionController::class, 'bulkAssignGroup'])
+            ->name('options.bulk-assign-group');
 
-        // =========================
-        // Posts
-        // =========================
+        Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])
+            ->name('options.bulk-delete');
+
+        Route::resource('options', OptionController::class)->except(['show']);
+        /*
+        |--------------------------------------------------------------------------
+        | Option Groups
+        |--------------------------------------------------------------------------
+        */
+        Route::resource('option-groups', OptionGroupController::class)
+            ->except(['show'])
+            ->names('option-groups');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Posts
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('posts')->name('posts.')->group(function () {
             Route::get('/', [PostController::class, 'index'])->name('index');
             Route::post('/', [PostController::class, 'store'])->name('store');
@@ -156,9 +217,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{post}/main-image', [PostController::class, 'destroyMainImage'])->name('main_image.destroy');
         });
 
-        // =========================
-        // Jobs
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Jobs
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('jobs')->name('jobs.')->group(function () {
             Route::get('/', [JobPostController::class, 'index'])->name('index');
             Route::post('/', [JobPostController::class, 'store'])->name('store');
@@ -169,9 +232,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{post}', [JobPostController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Sponsors
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Sponsors
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('sponsors')->name('sponsors.')->group(function () {
             Route::get('/', [SponsorController::class, 'index'])->name('index');
             Route::get('create', [SponsorController::class, 'create'])->name('create');
@@ -182,31 +247,39 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Wallet Transactions
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Wallet Transactions
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
             Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
             Route::get('user/{user}', [WalletTransactionController::class, 'user'])->name('user');
             Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->name('show');
         });
 
-        // =========================
-        // Wallet Ops (Recharge)
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Wallet Ops
+        |--------------------------------------------------------------------------
+        */
         Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
         Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
 
-        // =========================
-        // Wallet Note Templates
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Wallet Notes
+        |--------------------------------------------------------------------------
+        */
         Route::resource('wallet-notes', WalletNoteTemplateController::class)
             ->except(['show'])
             ->names('wallet-notes');
 
-        // =========================
-        // Subscriptions
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Subscriptions
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
             Route::get('/', [SubscriptionController::class, 'index'])->name('index');
             Route::get('{subscription}', [SubscriptionController::class, 'show'])->name('show');
@@ -215,17 +288,21 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{subscription}/toggle-active', [SubscriptionController::class, 'toggleActive'])->name('toggle-active');
         });
 
-        // =========================
-        // Payments
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Payments
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('payments')->name('payments.')->group(function () {
             Route::get('/', [PaymentController::class, 'index'])->name('index');
             Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->name('confirm');
         });
 
-        // =========================
-        // Albums
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Albums
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('albums')->name('albums.')->group(function () {
             Route::get('/', [AlbumController::class, 'index'])->name('index');
             Route::get('create', [AlbumController::class, 'create'])->name('create');
@@ -238,9 +315,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->name('images.delete');
         });
 
-        // =========================
-        // Bookings
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Bookings
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('bookings')->name('bookings.')->group(function () {
             Route::get('/', [BookingController::class, 'index'])->name('index');
             Route::get('create', [BookingController::class, 'create'])->name('create');
@@ -269,9 +348,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{booking}', [BookingController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Disputes
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Disputes
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::post('/', [DisputeController::class, 'store'])->name('store');
@@ -290,9 +371,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{dispute}/resolve-no-action', [DisputeController::class, 'resolveNoAction'])->name('resolve.no-action');
         });
 
-        // =========================
-        // Service Fees
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Service Fees
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('service-fees')->name('service-fees.')->group(function () {
             Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
             Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
@@ -304,9 +387,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('delete', [ServiceFeeController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Business Service Prices
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Business Service Prices
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
             Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
             Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
@@ -316,9 +401,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Platform Services
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Platform Services
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('platform-services')->name('platform-services.')->group(function () {
             Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
             Route::get('create', [PlatformServiceController::class, 'create'])->name('create');
@@ -328,9 +415,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{platformService}', [PlatformServiceController::class, 'destroy'])->name('destroy');
         });
 
-        // =========================
-        // Bookable Items
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Bookable Items
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
             Route::get('/', [BookableItemController::class, 'index'])->name('index');
             Route::get('create', [BookableItemController::class, 'create'])->name('create');
@@ -341,18 +430,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
 
             /*
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             | Calendar
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             */
             Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->name('calendar');
             Route::post('{bookableItem}/calendar/blocked-slot', [BookableItemCalendarController::class, 'storeBlockedSlot'])->name('calendar.blocked-slot.store');
             Route::post('{bookableItem}/calendar/price-rule', [BookableItemCalendarController::class, 'storePriceRule'])->name('calendar.price-rule.store');
 
             /*
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             | Blocked Slots
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             */
             Route::get('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'index'])->name('blocked-slots.index');
             Route::get('{bookableItem}/blocked-slots/create', [BookableItemBlockedSlotController::class, 'create'])->name('blocked-slots.create');
@@ -362,9 +451,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'destroy'])->name('blocked-slots.destroy');
 
             /*
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             | Price Rules
-            |-----------------------------------
+            |--------------------------------------------------------------------------
             */
             Route::get('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'index'])->name('price-rules.index');
             Route::get('{bookableItem}/price-rules/create', [BookableItemPriceRuleController::class, 'create'])->name('price-rules.create');
@@ -374,24 +463,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableItem}/price-rules/{rule}', [BookableItemPriceRuleController::class, 'destroy'])->name('price-rules.destroy');
         });
 
-        // =========================
-        // Bookable Items Bulk
-        // =========================
+        /*
+        |--------------------------------------------------------------------------
+        | Bookable Items Bulk
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('bookable-items/bulk')->name('bookable-items.bulk.')->group(function () {
             Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
             Route::post('block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
             Route::post('price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
         });
-
-        Route::prefix('category-child-options')->name('category-child-options.')->group(function () {
-            Route::get('/{categoryChild}', [CategoryChildOptionController::class, 'edit'])->name('edit');
-            Route::put('/{categoryChild}', [CategoryChildOptionController::class, 'update'])->name('update');
-
-            Route::get('/bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])->name('bulk.edit');
-            Route::post('/bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])->name('bulk.update');
-        });
-        
-       
     });
-
 });

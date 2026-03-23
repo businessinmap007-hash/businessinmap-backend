@@ -362,8 +362,9 @@
                         <th>
                             <a class="a2-link" href="{{ $sortUrl('name_en') }}">الاسم (EN){!! $arrow('name_en') !!}</a>
                         </th>
-                        <th style="width:120px;">Options</th>
-                        <th style="width:260px;">Actions</th>
+                        <th style="width:110px;">المجموعات</th>
+                        <th style="width:120px;">الخيارات</th>
+                        <th style="width:360px;">الإجراءات</th>
                     </tr>
                     </thead>
 
@@ -396,19 +397,30 @@
 
                             <td class="a2-fw-700">{{ $c->name_ar ?: '—' }}</td>
                             <td dir="ltr">{{ $c->name_en ?: '—' }}</td>
+
                             <td>
-                                <span class="a2-pill a2-pill-success">{{ $optCount }}</span>
+                                <span class="a2-pill a2-pill-active">{{ (int) ($c->option_groups_count ?? 0) }}</span>
                             </td>
+
+                            <td>
+                                <span class="a2-pill a2-pill-success">{{ (int) ($c->options_count ?? $optCount ?? 0) }}</span>
+                            </td>
+
                             <td>
                                 <div class="a2-actions">
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                       href="{{ route('admin.category-children.edit', $c->id) }}">
+                                    href="{{ route('admin.category-children.edit', $c->id) }}">
                                         تعديل الفرعي
                                     </a>
 
+                                    <a class="a2-btn a2-btn-ghost a2-btn-sm"
+                                    href="{{ route('admin.category-child-option-groups.index', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
+                                        مجموعات الخيارات
+                                    </a>
+
                                     <a class="a2-btn a2-btn-primary a2-btn-sm"
-                                       href="{{ route('admin.category-children.index', ['parent_id' => $rootIdInt]) }}">
-                                        إدارة الفروع
+                                    href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
+                                        خيارات القسم الفرعي
                                     </a>
                                 </div>
                             </td>
@@ -465,7 +477,7 @@
                             <a class="a2-link" href="{{ $sortUrl('reorder') }}">Order{!! $arrow('reorder') !!}</a>
                         </th>
                         <th style="width:120px;">Status</th>
-                        <th style="width:260px;">Actions</th>
+                        <th style="width:290px;">Actions</th>
                     </tr>
                     </thead>
 

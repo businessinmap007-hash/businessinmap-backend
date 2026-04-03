@@ -12,9 +12,7 @@ use App\Http\Controllers\AdminV2\{
     BookingController,
     BusinessServicePriceController,
     CategoryChildOptionController,
-    CategoryChildOptionGroupController,
     CategoryController,
-    CategoryOptionController,
     CategoryServiceBulkController,
     DashboardController,
     DisputeController,
@@ -110,24 +108,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{category}/toggle-active', [CategoryController::class, 'toggleActive'])->name('toggleActive');
             Route::post('{category}/reorder', [CategoryController::class, 'updateReorder'])->name('reorder');
 
-            Route::get('{category}/options', [CategoryOptionController::class, 'edit'])->name('options.edit');
-            Route::put('{category}/options', [CategoryOptionController::class, 'update'])->name('options.update');
         });
 
-        /*
+       /*
         |--------------------------------------------------------------------------
         | Category Children
         |--------------------------------------------------------------------------
         */
         Route::prefix('category-children')->name('category-children.')->group(function () {
             Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])->name('index');
+
             Route::get('create', [CategoryController::class, 'categoryChildrenCreate'])->name('create');
             Route::post('/', [CategoryController::class, 'categoryChildrenStore'])->name('store');
 
-            Route::get('legacy-review', [CategoryController::class, 'legacyChildrenReview'])->name('legacy-review');
-            Route::post('legacy-import', [CategoryController::class, 'importLegacyChildren'])->name('legacy-import');
-
-            Route::post('reorder-bulk', [CategoryController::class, 'bulkUpdateChildrenReorder'])->name('reorder-bulk');
+            Route::post('{parent}/sync', [CategoryController::class, 'syncChildren'])->name('sync');
 
             Route::get('{categoryChild}/edit', [CategoryController::class, 'categoryChildrenEdit'])->name('edit');
             Route::put('{categoryChild}', [CategoryController::class, 'categoryChildrenUpdate'])->name('update');
@@ -135,26 +129,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::delete('{categoryChild}/parents/{parent}', [CategoryController::class, 'detachChildParent'])
                 ->name('detach-parent');
-
-            Route::post('{parent}/sync', [CategoryController::class, 'syncChildren'])
-                ->name('sync');
         });
 
         /*
         |--------------------------------------------------------------------------
-        | Category Child Option Groups
+        | Category Services Bulk
         |--------------------------------------------------------------------------
         */
-        Route::prefix('category-children/{categoryChild}/option-groups')
-            ->name('category-child-option-groups.')
-            ->group(function () {
-                Route::get('/', [CategoryChildOptionGroupController::class, 'index'])->name('index');
-                Route::get('create', [CategoryChildOptionGroupController::class, 'create'])->name('create');
-                Route::post('/', [CategoryChildOptionGroupController::class, 'store'])->name('store');
-                Route::get('{group}/edit', [CategoryChildOptionGroupController::class, 'edit'])->name('edit');
-                Route::put('{group}', [CategoryChildOptionGroupController::class, 'update'])->name('update');
-                Route::delete('{group}', [CategoryChildOptionGroupController::class, 'destroy'])->name('destroy');
-            });
+        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
+            Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
+            Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -171,16 +156,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         /*
         |--------------------------------------------------------------------------
-        | Category Services Bulk
-        |--------------------------------------------------------------------------
-        */
-        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
-            Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
-            Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
-        });
-
-        /*
-        |--------------------------------------------------------------------------
         | Options
         |--------------------------------------------------------------------------
         */
@@ -191,6 +166,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('options.bulk-delete');
 
         Route::resource('options', OptionController::class)->except(['show']);
+
         /*
         |--------------------------------------------------------------------------
         | Option Groups

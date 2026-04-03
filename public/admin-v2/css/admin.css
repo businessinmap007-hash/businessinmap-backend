@@ -3455,3 +3455,121 @@ color:#0284c7;
     flex-direction:row;
   }
 }
+.a2-filterbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.a2-filterbar .a2-filter-search{
+  flex: 1 1 260px;
+  min-width: 260px;
+}
+
+.a2-filterbar .a2-filter-sm{
+  min-width: 140px;
+}
+
+.a2-filterbar .a2-filter-md{
+  min-width: 220px;
+}
+
+.a2-filterbar .ts-wrapper{
+  min-width: 220px;
+  flex: 0 1 260px;
+}
+
+.a2-filterbar .ts-wrapper.multi .ts-control{
+  min-height: var(--a2-h);
+  border: 1px solid var(--a2-border-2);
+  border-radius: 12px;
+  padding: 6px 10px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.a2-filterbar .ts-wrapper.multi .ts-control .item{
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.a2-filterbar .a2-filter-actions{
+  margin-inline-start: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px){
+  .a2-filterbar .a2-filter-search,
+  .a2-filterbar .a2-filter-sm,
+  .a2-filterbar .a2-filter-md,
+  .a2-filterbar .ts-wrapper{
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .a2-filterbar .a2-filter-actions{
+    margin-inline-start: 0;
+    width: 100%;
+  }
+}
+.a2-filterbar .ts-wrapper{
+  min-width: 220px;
+  flex: 0 1 260px;
+}
+
+.a2-filterbar .ts-wrapper.multi .ts-control{
+  min-height: var(--a2-h);
+  border: 1px solid var(--a2-border-2);
+  border-radius: 12px;
+  padding: 6px 10px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.a2-filterbar .ts-wrapper.multi .ts-control .item{
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fix duplicated look for Tom Select inside users filterbar */
+.admin-v2-users .a2-filterbar #filterOption {
+  display: none !important;
+}
+
+.admin-v2-users .a2-filterbar .ts-wrapper {
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 220px;
+  flex: 0 1 260px;
+}
+
+.admin-v2-users .a2-filterbar .ts-wrapper.multi .ts-control,
+.admin-v2-users .a2-filterbar .ts-wrapper.single .ts-control {
+  min-height: var(--a2-h);
+  border: 1px solid var(--a2-border-2);
+  border-radius: 12px;
+  padding: 6px 10px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.admin-v2-users .a2-filterbar .ts-wrapper.focus .ts-control {
+  border-color: #c7d2fe;
+  box-shadow: 0 0 0 4px var(--a2-primary-soft);
+}
+
+.admin-v2-users .a2-filterbar .ts-wrapper .item {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

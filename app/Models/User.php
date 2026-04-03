@@ -42,6 +42,7 @@ class User extends Authenticatable
         'longitude',
         'location_id',
         'category_id',
+        'category_child_id',
         'about',
         'paid_at',
         'pin_code',
@@ -252,10 +253,7 @@ class User extends Authenticatable
         return $this->hasOne(Subscription::class)->latestOfMany();
     }
 
-    public function options()
-    {
-        return $this->belongsToMany(Option::class, 'option_user');
-    }
+   
 
     public function posts()
     {
@@ -312,5 +310,18 @@ class User extends Authenticatable
     {
         return $this->hasMany(Booking::class, 'business_id');
     }
-    
+    public function category()
+{
+    return $this->belongsTo(Category::class, 'category_id');
+}
+
+public function categoryChild()
+{
+    return $this->belongsTo(CategoryChild::class, 'category_child_id');
+}
+
+public function options()
+{
+    return $this->belongsToMany(Option::class, 'option_user', 'user_id', 'option_id');
+}
 }

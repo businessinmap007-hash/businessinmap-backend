@@ -71,10 +71,6 @@
                 إدارة كل الأقسام الفرعية
             </a>
 
-            <a href="{{ route('admin.category-children.legacy-review') }}" class="a2-btn a2-btn-ghost">
-                مراجعة الفروع القديمة
-            </a>
-
             @if($rootIdInt > 0)
                 <a href="{{ route('admin.category-children.create', ['parent_id' => $rootIdInt]) }}"
                    class="a2-btn a2-btn-primary">
@@ -167,18 +163,6 @@
                             إضافة لهذا القسم
                         </a>
                     @endif
-                </div>
-            </div>
-
-            <div class="a2-option-chip-card">
-                <div class="a2-option-chip-title">الفروع القديمة (Legacy)</div>
-                <div class="a2-option-chip-sub">
-                    مراجعة ما كان مخزنًا سابقًا داخل categories واستيراده للنظام الجديد
-                </div>
-                <div class="a2-page-actions a2-mt-12">
-                    <a href="{{ route('admin.category-children.legacy-review') }}" class="a2-btn a2-btn-primary a2-btn-sm">
-                        فتح شاشة المراجعة
-                    </a>
                 </div>
             </div>
         </div>
@@ -302,7 +286,7 @@
         </div>
 
         <form method="POST"
-              action="{{ route('admin.category-children.reorder-bulk') }}"
+              action="{{ route('admin.category-children.store') }}"
               class="a2-card a2-mt-16">
             @csrf
             <input type="hidden" name="parent_id" value="{{ $rootIdInt }}">
@@ -325,10 +309,6 @@
                         إدارة كاملة
                     </a>
 
-                    <a href="{{ route('admin.category-children.legacy-review') }}"
-                       class="a2-btn a2-btn-ghost a2-btn-sm">
-                        مراجعة legacy
-                    </a>
                 </div>
             </div>
 
@@ -362,9 +342,8 @@
                         <th>
                             <a class="a2-link" href="{{ $sortUrl('name_en') }}">الاسم (EN){!! $arrow('name_en') !!}</a>
                         </th>
-                        <th style="width:110px;">المجموعات</th>
                         <th style="width:120px;">الخيارات</th>
-                        <th style="width:360px;">الإجراءات</th>
+                        <th style="width:320px;">الإجراءات</th>
                     </tr>
                     </thead>
 
@@ -380,15 +359,17 @@
                                 <div style="display:flex;gap:8px;align-items:center;">
                                     <input class="a2-input"
                                            type="number"
-                                           name="child_reorders[{{ $c->id }}]"
+                                           name="rows[{{ $loop->index }}][reorder]"
                                            value="{{ (int) ($c->reorder ?? 0) }}"
                                            min="0"
                                            step="1"
                                            style="max-width:90px;">
 
+                                    <input type="hidden"
+                                           name="rows[{{ $loop->index }}][id]"
+                                           value="{{ $c->id }}">
+
                                     <button type="submit"
-                                            name="save_one_id"
-                                            value="{{ $c->id }}"
                                             class="a2-btn a2-btn-ghost a2-btn-sm">
                                         حفظ
                                     </button>
@@ -399,28 +380,19 @@
                             <td dir="ltr">{{ $c->name_en ?: '—' }}</td>
 
                             <td>
-                                <span class="a2-pill a2-pill-active">{{ (int) ($c->option_groups_count ?? 0) }}</span>
-                            </td>
-
-                            <td>
                                 <span class="a2-pill a2-pill-success">{{ (int) ($c->options_count ?? $optCount ?? 0) }}</span>
                             </td>
 
                             <td>
                                 <div class="a2-actions">
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                    href="{{ route('admin.category-children.edit', $c->id) }}">
+                                       href="{{ route('admin.category-children.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
                                         تعديل الفرعي
                                     </a>
 
-                                    <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                    href="{{ route('admin.category-child-option-groups.index', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
-                                        مجموعات الخيارات
-                                    </a>
-
                                     <a class="a2-btn a2-btn-primary a2-btn-sm"
-                                    href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
-                                        خيارات القسم الفرعي
+                                       href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
+                                        إدارة خيارات القسم
                                     </a>
                                 </div>
                             </td>

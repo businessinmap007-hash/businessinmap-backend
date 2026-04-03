@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\CategoryChildOption;
-use App\Models\CategoryChildOptionGroup;
 use App\Models\Option;
+use App\Models\OptionGroup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,68 +18,74 @@ class CategoryChildOptionController extends Controller
 {
     public function edit(Request $request, CategoryChild $categoryChild): View
     {
-        $qAvailable = trim((string) $request->get('q_available', ''));
-        $qSelected  = trim((string) $request->get('q_selected', ''));
-        $parentId   = (int) $request->get('parent_id', 0);
-        $groupId    = (int) $request->get('group_id', 0);
+        $parentId = (int) $request->get('parent_id', 0);
+        $q = trim((string) $request->get('q', ''));
 
-        $groups = $categoryChild->optionGroups()
-            ->get(['id', 'child_id', 'name_ar', 'name_en', 'reorder', 'is_active']);
-
-        if ($groups->isEmpty()) {
-            $groups = collect([
-                CategoryChildOptionGroup::create([
-                    'child_id'   => $categoryChild->id,
-                    'name_ar'    => 'عام',
-                    'name_en'    => 'General',
-                    'reorder'    => 0,
-                    'is_active'  => 1,
-                ])
-            ]);
-        }
-
-        $defaultGroupId = (int) ($groups->first()->id ?? 0);
-
-        $assignedOptionIds = CategoryChildOption::query()
-            ->where('child_id', $categoryChild->id)
-            ->pluck('option_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $selectedLinks = CategoryChildOption::query()
+        // =========================
+        // GROUPS + OPTIONS
+        // =========================
+        $groups = OptionGroup::query()
+            ->where('is_active', 1)
             ->with([
-                'option:id,name_ar,name_en',
-                'group:id,name_ar,name_en',
+                'options' => function ($query) use ($q) {
+                    $query
+                        ->when($this->hasIsActiveColumn(), fn ($sub) => $sub->where('is_active', 1))
+                        ->when($q !== '', function ($sub) use ($q) {
+                            $sub->where(function ($w) use ($q) {
+                                $w->where('name_ar', 'like', "%{$q}%")
+                                ->orWhere('name_en', 'like', "%{$q}%");
+                            });
+                        })
+                        ->orderBy('id', 'asc');
+                }
             ])
-            ->where('child_id', $categoryChild->id)
-            ->when($groupId > 0, fn ($q) => $q->where('group_id', $groupId))
-            ->when($qSelected !== '', function ($query) use ($qSelected) {
-                $query->whereHas('option', function ($w) use ($qSelected) {
-                    $w->where('name_ar', 'like', "%{$qSelected}%")
-                      ->orWhere('name_en', 'like', "%{$qSelected}%");
-                });
-            })
-            ->orderBy('group_id')
             ->orderBy('reorder')
             ->orderBy('id')
-            ->get();
+            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->map(function ($group) {
+                $group->options = collect($group->options)->values();
+                return $group;
+            })
+            ->filter(fn ($group) => $group->options->isNotEmpty()) // 🔥 مهم
+            ->values();
 
-        $availableOptions = Option::query()
-            ->when($this->hasIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-            ->whereNotIn('id', !empty($assignedOptionIds) ? $assignedOptionIds : [0])
-            ->when($qAvailable !== '', function ($query) use ($qAvailable) {
-                $query->where(function ($w) use ($qAvailable) {
-                    $w->where('name_ar', 'like', "%{$qAvailable}%")
-                      ->orWhere('name_en', 'like', "%{$qAvailable}%");
+        // =========================
+        // SELECTED OPTIONS
+        // =========================
+        $selectedOptionIds = CategoryChildOption::query()
+            ->where('child_id', $categoryChild->id)
+            ->orderBy('reorder')
+            ->orderBy('id')
+            ->pluck('option_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        // =========================
+        // UNGROUPED OPTIONS
+        // =========================
+        $ungroupedOptions = Option::query()
+            ->when($this->hasIsActiveColumn(), fn ($query) => $query->where('is_active', 1))
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('name_ar', 'like', "%{$q}%")
+                    ->orWhere('name_en', 'like', "%{$q}%");
                 });
             })
-            ->ordered()
-            ->get(['id', 'name_ar', 'name_en']);
+            ->whereNull('group_id')
+            ->orderBy('id', 'asc')
+            ->get(['id', 'name_ar', 'name_en', 'group_id']);
 
+        // =========================
+        // CHILD LOAD
+        // =========================
         $categoryChild->load([
             'parents:id,name_ar,name_en',
         ]);
 
+        // =========================
+        // PARENT
+        // =========================
         $parent = null;
         if ($parentId > 0) {
             $parent = Category::query()
@@ -88,52 +94,38 @@ class CategoryChildOptionController extends Controller
         }
 
         return view('admin-v2.category-children.options.edit', [
-            'categoryChild'    => $categoryChild,
-            'availableOptions' => $availableOptions,
-            'selectedLinks'    => $selectedLinks,
-            'groups'           => $groups,
-            'defaultGroupId'   => $defaultGroupId,
-            'currentGroupId'   => $groupId,
-            'qAvailable'       => $qAvailable,
-            'qSelected'        => $qSelected,
-            'parentId'         => $parentId,
-            'parent'           => $parent,
+            'categoryChild' => $categoryChild,
+            'groups' => $groups,
+            'selectedOptionIds' => $selectedOptionIds,
+            'ungroupedOptions' => $ungroupedOptions,
+            'parentId' => $parentId,
+            'parent' => $parent,
+            'q' => $q,
         ]);
     }
 
     public function update(Request $request, CategoryChild $categoryChild): RedirectResponse
     {
         $data = $request->validate([
-            'rows'                 => ['nullable', 'array'],
-            'rows.*.option_id'     => ['required', 'integer', 'exists:options,id'],
-            'rows.*.group_id'      => ['nullable', 'integer', 'exists:category_child_option_groups,id'],
-            'rows.*.reorder'       => ['nullable', 'integer', 'min:0'],
-            'parent_id'            => ['nullable', 'integer', 'min:0'],
-            'group_id'             => ['nullable', 'integer', 'min:0'],
+            'rows' => ['nullable', 'array'],
+            'rows.*.option_id' => ['required', 'integer', 'exists:options,id'],
+            'rows.*.reorder' => ['nullable', 'integer', 'min:0'],
+            'parent_id' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $rows = collect($data['rows'] ?? [])
-            ->map(function ($row) use ($categoryChild) {
+            ->map(function ($row, $index) use ($categoryChild) {
                 $optionId = (int) ($row['option_id'] ?? 0);
-                $groupId  = (int) ($row['group_id'] ?? 0);
-                $reorder  = (int) ($row['reorder'] ?? 0);
+                $reorder = (int) ($row['reorder'] ?? $index);
 
                 if ($optionId <= 0) {
                     return null;
                 }
 
-                if ($groupId <= 0 || !CategoryChildOptionGroup::query()
-                    ->where('id', $groupId)
-                    ->where('child_id', $categoryChild->id)
-                    ->exists()) {
-                    $groupId = $this->getOrCreateDefaultGroupId($categoryChild);
-                }
-
                 return [
-                    'child_id'  => $categoryChild->id,
+                    'child_id' => $categoryChild->id,
                     'option_id' => $optionId,
-                    'group_id'  => $groupId,
-                    'reorder'   => max(0, $reorder),
+                    'reorder' => max(0, $reorder),
                 ];
             })
             ->filter()
@@ -156,10 +148,6 @@ class CategoryChildOptionController extends Controller
 
         if (!empty($data['parent_id'])) {
             $routeParams['parent_id'] = (int) $data['parent_id'];
-        }
-
-        if (!empty($data['group_id'])) {
-            $routeParams['group_id'] = (int) $data['group_id'];
         }
 
         return redirect()
@@ -215,10 +203,8 @@ class CategoryChildOptionController extends Controller
         $data = $request->validate([
             'child_ids' => ['required', 'array', 'min:1'],
             'child_ids.*' => ['integer', 'exists:category_children_master,id'],
-
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer', 'exists:options,id'],
-
             'mode' => ['required', 'in:append,replace,remove'],
             'parent_id' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -244,14 +230,12 @@ class CategoryChildOptionController extends Controller
         foreach ($children as $child) {
             $currentLinks = CategoryChildOption::query()
                 ->where('child_id', $child->id)
-                ->get(['option_id', 'group_id', 'reorder']);
+                ->get(['option_id', 'reorder']);
 
             $currentIds = $currentLinks
                 ->pluck('option_id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
-
-            $defaultGroupId = $this->getOrCreateDefaultGroupId($child);
 
             if ($data['mode'] === 'replace') {
                 CategoryChildOption::query()
@@ -260,10 +244,9 @@ class CategoryChildOptionController extends Controller
 
                 foreach ($optionIds as $index => $optionId) {
                     CategoryChildOption::query()->create([
-                        'child_id'  => $child->id,
+                        'child_id' => $child->id,
                         'option_id' => (int) $optionId,
-                        'group_id'  => $defaultGroupId,
-                        'reorder'   => $index,
+                        'reorder' => $index,
                     ]);
                 }
 
@@ -276,21 +259,20 @@ class CategoryChildOptionController extends Controller
                     ->values()
                     ->all();
 
-                $start = (int) $currentLinks->max('reorder') + 1;
+                $start = ((int) $currentLinks->max('reorder')) + 1;
 
                 foreach ($toAdd as $i => $optionId) {
                     CategoryChildOption::query()->create([
-                        'child_id'  => $child->id,
+                        'child_id' => $child->id,
                         'option_id' => (int) $optionId,
-                        'group_id'  => $defaultGroupId,
-                        'reorder'   => $start + $i,
+                        'reorder' => $start + $i,
                     ]);
                 }
 
                 continue;
             }
 
-            if ($data['mode'] === 'remove') {
+            if ($data['mode'] === 'remove' && !empty($optionIds)) {
                 CategoryChildOption::query()
                     ->where('child_id', $child->id)
                     ->whereIn('option_id', $optionIds)
@@ -306,29 +288,6 @@ class CategoryChildOptionController extends Controller
         return redirect()
             ->route('admin.category-children.index', $routeParams)
             ->with('success', 'تم تحديث خيارات الأقسام الفرعية المحددة بنجاح.');
-    }
-
-    protected function getOrCreateDefaultGroupId(CategoryChild $categoryChild): int
-    {
-        $group = CategoryChildOptionGroup::query()
-            ->where('child_id', $categoryChild->id)
-            ->orderBy('reorder')
-            ->orderBy('id')
-            ->first();
-
-        if ($group) {
-            return (int) $group->id;
-        }
-
-        $group = CategoryChildOptionGroup::query()->create([
-            'child_id'  => $categoryChild->id,
-            'name_ar'   => 'عام',
-            'name_en'   => 'General',
-            'reorder'   => 0,
-            'is_active' => 1,
-        ]);
-
-        return (int) $group->id;
     }
 
     protected function hasIsActiveColumn(): bool

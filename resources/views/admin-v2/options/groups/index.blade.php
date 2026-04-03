@@ -1,38 +1,36 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'Options')
-@section('body_class', 'admin-v2 admin-v2-options-index')
+@section('title','Option Groups')
+@section('body_class','admin-v2 admin-v2-option-groups-index')
 
 @section('content')
 @php
     $qVal = (string) ($q ?? '');
-    $groupFilterVal = (string) ($groupFilter ?? '');
 @endphp
 
 <div class="a2-page">
+
+    {{-- ================= HEADER ================= --}}
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">كل الخيارات</h1>
+            <h1 class="a2-page-title">مجموعات الخيارات</h1>
             <div class="a2-page-subtitle">
-                تنظيم الـ Options داخل مجموعات عامة. كل Option يمكن أن ينتمي إلى مجموعة واحدة فقط.
+                إدارة مجموعات تنظيم الخيارات
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">
-                إدارة المجموعات
+            <a href="{{ route('admin.options.index') }}" class="a2-btn a2-btn-ghost">
+                إدارة الخيارات
             </a>
 
-            <a href="{{ route('admin.option-groups.create') }}" class="a2-btn a2-btn-ghost">
+            <a href="{{ route('admin.option-groups.create') }}" class="a2-btn a2-btn-primary">
                 + إضافة Group
-            </a>
-
-            <a href="{{ route('admin.options.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة Option
             </a>
         </div>
     </div>
 
+    {{-- ================= ALERTS ================= --}}
     @if(session('success'))
         <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
     @endif
@@ -41,193 +39,124 @@
         <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
     @endif
 
-    <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الخيارات</div>
-            <div class="a2-stat-value">{{ (int) ($totalCount ?? 0) }}</div>
-            <div class="a2-stat-note">داخل الجدول الأساسي</div>
-        </div>
+    {{-- ================= FILTER ================= --}}
+    <div class="a2-card a2-card--section a2-mb-16">
+        <form method="GET" action="{{ route('admin.option-groups.index') }}" class="a2-form-grid">
 
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">خيارات داخل Groups</div>
-            <div class="a2-stat-value">{{ (int) ($groupedCount ?? 0) }}</div>
-            <div class="a2-stat-note">مصنفة بالفعل</div>
-        </div>
-
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">خيارات بدون Group</div>
-            <div class="a2-stat-value">{{ (int) ($ungroupedCount ?? 0) }}</div>
-            <div class="a2-stat-note">تحتاج تصنيف</div>
-        </div>
-
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">عدد الـ Groups</div>
-            <div class="a2-stat-value">{{ collect($allGroups ?? [])->count() }}</div>
-            <div class="a2-stat-note">المتاحة حاليًا</div>
-        </div>
-    </div>
-
-    <div class="a2-card a2-mb-16">
-        <form method="GET" action="{{ route('admin.options.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search"
-                   type="text"
-                   name="q"
-                   value="{{ $qVal }}"
-                   placeholder="بحث في الخيارات">
-
-            <select class="a2-select a2-filter-md" name="group_id">
-                <option value="" @selected($groupFilterVal === '')>كل المجموعات</option>
-                <option value="ungrouped" @selected($groupFilterVal === 'ungrouped')>بدون Group</option>
-                @foreach(($allGroups ?? []) as $g)
-                    <option value="{{ $g->id }}" @selected($groupFilterVal === (string) $g->id)>
-                        {{ $g->name_ar ?: ($g->name_en ?: ('#' . $g->id)) }}
-                    </option>
-                @endforeach
-            </select>
-
-            <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a href="{{ route('admin.options.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+            <div class="a2-form-group">
+                <label class="a2-label">بحث</label>
+                <input class="a2-input"
+                       type="text"
+                       name="q"
+                       value="{{ $qVal }}"
+                       placeholder="اسم المجموعة">
             </div>
+
+            <div class="a2-page-actions" style="align-items:flex-end;">
+                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+
+                <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">
+                    تفريغ
+                </a>
+            </div>
+
         </form>
     </div>
 
-    <form method="POST" action="{{ route('admin.options.bulk-assign-group') }}" id="optionsBulkAssignForm">
-        @csrf
+    {{-- ================= TABLE ================= --}}
+    <div class="a2-card">
+        <div class="a2-table-wrap">
+            <table class="a2-table">
+                <thead>
+                <tr>
+                    <th style="width:80px;">ID</th>
+                    <th>الاسم (AR)</th>
+                    <th>الاسم (EN)</th>
+                    <th style="width:120px;">الترتيب</th>
+                    <th style="width:120px;">الحالة</th>
+                    <th style="width:140px;">عدد الخيارات</th>
+                    <th style="width:260px;">الإجراءات</th>
+                </tr>
+                </thead>
 
-        <div class="a2-card a2-card--section a2-mb-16">
-            <div class="a2-card-head">
-                <div>
-                    <div class="a2-card-title">Bulk Assign</div>
-                    <div class="a2-card-sub">
-                        حدد Option واحدة أو أكثر ثم انقلها إلى Group واحدة. عند النقل، تختفي من أي Group أخرى تلقائيًا.
-                    </div>
-                </div>
+                <tbody>
+                @forelse($rows as $row)
+                    @php
+                        $isActive = (int) ($row->is_active ?? 0) === 1;
+                    @endphp
 
-                <div class="a2-page-actions">
-                    <select class="a2-select" name="target_group_id" style="min-width:220px;">
-                        <option value="">بدون Group</option>
-                        @foreach(($allGroups ?? []) as $g)
-                            <option value="{{ $g->id }}">
-                                {{ $g->name_ar ?: ($g->name_en ?: ('#' . $g->id)) }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <tr>
+                        <td>#{{ $row->id }}</td>
 
-                    <button type="submit" class="a2-btn a2-btn-primary">
-                        نقل المحدد
-                    </button>
-                </div>
-            </div>
+                        <td class="a2-fw-700">
+                            {{ $row->name_ar ?: '—' }}
+                        </td>
 
-            <div class="a2-page-subtitle" style="padding:0 16px 16px;">
-                كل Option يظهر في مكان واحد فقط لأن الربط يعتمد على `group_id` واحد داخل جدول `options`.
-            </div>
+                        <td dir="ltr">
+                            {{ $row->name_en ?: '—' }}
+                        </td>
+
+                        <td>
+                            {{ (int) ($row->reorder ?? 0) }}
+                        </td>
+
+                        <td>
+                            <span class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }}">
+                                {{ $isActive ? 'Active' : 'Inactive' }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="a2-pill a2-pill-success">
+                                {{ (int) ($row->options_count ?? 0) }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <div class="a2-actions">
+
+                                <a href="{{ route('admin.option-groups.edit', $row->id) }}"
+                                   class="a2-btn a2-btn-primary a2-btn-sm">
+                                    إدارة الخيارات
+                                </a>
+
+                                <a href="{{ route('admin.option-groups.edit', $row->id) }}"
+                                   class="a2-btn a2-btn-ghost a2-btn-sm">
+                                    تعديل
+                                </a>
+
+                                <form method="POST"
+                                      action="{{ route('admin.option-groups.destroy', $row->id) }}"
+                                      onsubmit="return confirm('تأكيد حذف المجموعة؟');">
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button type="submit"
+                                            class="a2-btn a2-btn-danger a2-btn-sm">
+                                        حذف
+                                    </button>
+                                </form>
+
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="a2-empty-cell">
+                            لا توجد مجموعات
+                        </td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
         </div>
 
-        @if($groupFilterVal === '' || $groupFilterVal === 'ungrouped')
-            <div class="a2-card a2-card--section a2-mb-16">
-                <div class="a2-card-head">
-                    <div>
-                        <div class="a2-card-title">بدون Group</div>
-                        <div class="a2-card-sub">
-                            {{ collect($ungroupedOptions ?? [])->count() }} خيار
-                        </div>
-                    </div>
-                </div>
-
-                @if(collect($ungroupedOptions ?? [])->count())
-                    <div class="a2-check-grid">
-                        @foreach($ungroupedOptions as $option)
-                            <label class="a2-check-card">
-                                <input type="checkbox" name="option_ids[]" value="{{ $option->id }}">
-                                <span>
-                                    <strong>
-                                        #{{ $option->id }} — {{ $option->name_ar ?: ($option->name_en ?: '—') }}
-                                    </strong>
-                                    <small dir="ltr">
-                                        {{ $option->name_en ?: '—' }}
-                                    </small>
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="a2-alert a2-alert-warning" style="margin:16px;">
-                        لا توجد Options غير مصنفة.
-                    </div>
-                @endif
+        {{-- ================= PAGINATION ================= --}}
+        @if(method_exists($rows, 'links'))
+            <div class="a2-mt-16">
+                {{ $rows->links() }}
             </div>
         @endif
-
-        @foreach(($groups ?? []) as $group)
-            @php
-                $groupOptions = $group->options ?? collect();
-            @endphp
-
-            @if($groupFilterVal === '' || $groupFilterVal === (string) $group->id)
-                <div class="a2-card a2-card--section a2-mb-16">
-                    <div class="a2-card-head">
-                        <div>
-                            <div class="a2-card-title">
-                                {{ $group->name_ar ?: ($group->name_en ?: ('#' . $group->id)) }}
-                            </div>
-                            <div class="a2-card-sub">
-                                Group #{{ $group->id }} — {{ $groupOptions->count() }} خيار
-                            </div>
-                        </div>
-
-                        <div class="a2-page-actions">
-                            <a href="{{ route('admin.option-groups.edit', $group->id) }}"
-                               class="a2-btn a2-btn-ghost a2-btn-sm">
-                                تعديل المجموعة
-                            </a>
-                        </div>
-                    </div>
-
-                    @if($groupOptions->count())
-                        <div class="a2-check-grid">
-                            @foreach($groupOptions as $option)
-                                <label class="a2-check-card">
-                                    <input type="checkbox" name="option_ids[]" value="{{ $option->id }}">
-                                    <span>
-                                        <strong>
-                                            #{{ $option->id }} — {{ $option->name_ar ?: ($option->name_en ?: '—') }}
-                                        </strong>
-                                        <small dir="ltr">
-                                            {{ $option->name_en ?: '—' }}
-                                        </small>
-                                    </span>
-                                </label>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="a2-alert a2-alert-warning" style="margin:16px;">
-                            لا توجد Options داخل هذه المجموعة.
-                        </div>
-                    @endif
-                </div>
-            @endif
-        @endforeach
-    </form>
+    </div>
 </div>
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const bulkForm = document.getElementById('optionsBulkAssignForm');
-
-    if (!bulkForm) return;
-
-    bulkForm.addEventListener('submit', function (e) {
-        const checked = bulkForm.querySelectorAll('input[name="option_ids[]"]:checked').length;
-
-        if (checked === 0) {
-            e.preventDefault();
-            alert('حدد Option واحدة على الأقل.');
-        }
-    });
-});
-</script>
-@endpush
 @endsection

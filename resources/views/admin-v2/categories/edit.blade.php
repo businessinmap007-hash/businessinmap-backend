@@ -26,13 +26,13 @@
 
     <div class="a2-card">
         <form method="POST"
-              action="{{ route('admin.categories.update', $row->id) }}"
-              enctype="multipart/form-data">
+        action="{{ route('admin.categories.update', $category->id) }}"
+        enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
             @include('admin-v2.categories._form', [
-                'row' => $row,
+                'row' => $category,
                 'rootId' => $rootId ?? 0,
                 'backUrl' => $backUrl ?? route('admin.categories.index', !empty($rootId ?? 0) ? ['root_id' => $rootId] : []),
                 'platformServices' => $platformServices ?? collect(),

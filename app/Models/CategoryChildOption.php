@@ -14,14 +14,12 @@ class CategoryChildOption extends Model
     protected $fillable = [
         'child_id',
         'option_id',
-        'group_id',
         'reorder',
     ];
 
     protected $casts = [
         'child_id'  => 'integer',
         'option_id' => 'integer',
-        'group_id'  => 'integer',
         'reorder'   => 'integer',
     ];
 
@@ -33,10 +31,5 @@ class CategoryChildOption extends Model
     public function option(): BelongsTo
     {
         return $this->belongsTo(Option::class, 'option_id');
-    }
-
-    public function group(): BelongsTo
-    {
-        return $this->belongsTo(CategoryChildOptionGroup::class, 'group_id');
     }
 }

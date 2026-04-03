@@ -8,6 +8,7 @@
     <title>@yield('title', 'Admin V2')</title>
 
     <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
     @stack('styles')
 </head>
 
@@ -201,6 +202,7 @@
     </script>
 
  @include('admin-v2.layouts._partials.date-range-script')
+ <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     @stack('scripts')
    
 </body>

@@ -13,17 +13,15 @@ final class ImagePath
             return null;
         }
 
-        // full URL
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             return $path;
         }
 
-        // ✅ enforce legacy uploads folder: files/uploads/...
         if (!str_starts_with($path, 'files/uploads/')) {
             if (str_starts_with($path, 'uploads/')) {
-                $path = 'files/' . $path; // uploads/... -> files/uploads/...
+                $path = 'files/' . $path;
             } elseif (!str_contains($path, '/')) {
-                $path = 'files/uploads/' . $path; // filename -> files/uploads/filename
+                $path = 'files/uploads/' . $path;
             }
         }
 

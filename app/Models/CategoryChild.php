@@ -50,21 +50,6 @@ class CategoryChild extends Model
         )->where('options.is_active', 1);
     }
 
-    public function optionGroups(): HasMany
-    {
-        return $this->hasMany(CategoryChildOptionGroup::class, 'child_id')
-            ->orderBy('reorder')
-            ->orderBy('id');
-    }
-
-    public function activeOptionGroups(): HasMany
-    {
-        return $this->hasMany(CategoryChildOptionGroup::class, 'child_id')
-            ->where('is_active', 1)
-            ->orderBy('reorder')
-            ->orderBy('id');
-    }
-
     public function optionLinks(): HasMany
     {
         return $this->hasMany(CategoryChildOption::class, 'child_id')

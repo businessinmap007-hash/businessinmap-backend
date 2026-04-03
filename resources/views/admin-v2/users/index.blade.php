@@ -1,318 +1,386 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','Users')
+@section('title', 'المستخدمون')
+@section('body_class', 'admin-v2-users')
 
 @section('content')
 @php
     use Illuminate\Support\Str;
 
-    $qVal        = (string)($q ?? '');
-    $typeVal     = (string)($type ?? '');
-    $subActiveVal= (string)($subActive ?? '');
-    $activeVal   = (string)($active ?? '');
-    $trashedVal  = (string)($trashed ?? '');
+    $qVal = (string) ($q ?? '');
+    $typeVal = (string) ($type ?? '');
+    $activeVal = (string) ($active ?? '');
+    $subActiveVal = (string) ($subActive ?? '');
+    $trashedVal = (string) ($trashed ?? '');
+    $perPageVal = (int) ($perPage ?? 50);
+    $sortNow = (string) ($sort ?? 'id');
+    $dirNow = (string) ($dir ?? 'desc');
 
-    $perPageVal  = (int)($perPage ?? 50);
+    $categoryIdVal = (int) ($categoryId ?? 0);
+    $categoryChildIdVal = (int) ($categoryChildId ?? 0);
 
-    $sortNow = (string)($sort ?? 'id');
-    $dirNow  = (string)($dir ?? 'desc');
+    $optionIdsVal = collect($optionIds ?? [])
+        ->map(fn ($id) => (int) $id)
+        ->filter(fn ($id) => $id > 0)
+        ->values()
+        ->all();
 
-    $qsKeep = [
-        'q'          => $qVal,
-        'type'       => $typeVal,
-        'sub_active' => $subActiveVal,
-        'active'     => $activeVal,
-        'trashed'    => $trashedVal,
-        'per_page'   => $perPageVal,
-        'sort'       => $sortNow,
-        'dir'        => $dirNow,
+    $perPageOptions = $perPageOptions ?? [10, 20, 50, 100];
+
+    $sortOptions = [
+        'id' => 'ID',
+        'name' => 'Name',
+        'phone' => 'Phone',
+        'email' => 'Email',
+        'type' => 'Type',
+        'activated_at' => 'Activated',
     ];
 
-    $sortUrl = function(string $col) use ($qsKeep, $sortNow, $dirNow) {
-        $nextDir = ($sortNow === $col && $dirNow === 'asc') ? 'desc' : 'asc';
-        return route('admin.users.index', array_merge($qsKeep, [
-            'sort' => $col,
-            'dir'  => $nextDir,
-        ]));
-    };
-
-    $arrow = function(string $col) use ($sortNow, $dirNow) {
-        if ($sortNow !== $col) return '';
-        return $dirNow === 'asc' ? ' ▲' : ' ▼';
-    };
-
-    $perPageOptions = $perPageOptions ?? [10,20,50,100];
-
-    // ✅ hard limit to 10 chars + ...
-    $limit10 = fn($v) => Str::limit((string)$v, 10, '...');
+    $limit15 = fn ($v) => Str::limit((string) $v, 15, '...');
 @endphp
 
 <div class="a2-page">
-    <div class="a2-card">
-
-        <div class="a2-header">
-            <h2 class="a2-title">المستخدمون</h2>
+    <div class="a2-page-head">
+        <div>
+            <h1 class="a2-page-title">المستخدمون</h1>
+            <div class="a2-page-subtitle">إدارة حسابات admin / client / business</div>
         </div>
+    </div>
 
-        @if(session('success'))
-            <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
-        @endif
+    @if(session('success'))
+        <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
+    @endif
 
-        @if($errors->any())
-            <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
-        @endif
+    @if($errors->any())
+        <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
+    @endif
 
-        {{-- Filters --}}
-        <form method="GET" action="{{ route('admin.users.index') }}" class="a2-toolbar">
-            <div class="a2-filters">
-                {{-- Search --}}
-                <input class="a2-input"
-                    name="q"
-                    value="{{ $qVal }}"
-                    placeholder="بحث بالاسم/الموبايل/الإيميل">
+    <div class="a2-card">
+        <form method="GET" action="{{ route('admin.users.index') }}" class="a2-filterbar" id="usersFilterForm">
+            <input
+                class="a2-input a2-filter-search"
+                name="q"
+                value="{{ $qVal }}"
+                placeholder="بحث بالاسم / الهاتف / البريد"
+            >
 
-                <select class="a2-select" name="type">
-                    <option value="" @selected($typeVal==='')>كل الأنواع</option>
-                    <option value="client"   @selected($typeVal==='client')>Client</option>
-                    <option value="business" @selected($typeVal==='business')>Business</option>
-                    <option value="admin"    @selected($typeVal==='admin')>Admin</option>
-                </select>
+            <select class="a2-select a2-filter-sm" name="type">
+                @foreach(($types ?? []) as $k => $label)
+                    <option value="{{ $k }}" @selected($typeVal === (string) $k)>{{ $label }}</option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="sub_active">
-                    <option value=""  @selected($subActiveVal==='')>كل الاشتراكات</option>
-                    <option value="1" @selected($subActiveVal==='1')>نشط</option>
-                    <option value="0" @selected($subActiveVal==='0')>غير نشط</option>
-                </select>
+            <select class="a2-select a2-filter-md" name="category_id" id="filterCategory">
+                <option value="">كل التصنيفات</option>
+                @foreach(($categories ?? []) as $cat)
+                    <option value="{{ $cat->id }}" @selected($categoryIdVal === (int) $cat->id)>
+                        {{ $cat->name_ar ?: $cat->name_en ?: ('#' . $cat->id) }}
+                    </option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="active">
-                    <option value=""  @selected($activeVal==='')>كل الحالات</option>
-                    <option value="1" @selected($activeVal==='1')>مفعل</option>
-                    <option value="0" @selected($activeVal==='0')>غير مفعل</option>
-                </select>
+            <select class="a2-select a2-filter-md" name="category_child_id" id="filterChild">
+                <option value="">كل الأقسام الفرعية</option>
+                @foreach(($children ?? []) as $child)
+                    <option value="{{ $child->id }}" @selected($categoryChildIdVal === (int) $child->id)>
+                        {{ $child->name_ar ?: $child->name_en ?: ('#' . $child->id) }}
+                    </option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="trashed">
-                    <option value=""      @selected($trashedVal==='')>غير محذوفين</option>
-                    <option value="with"  @selected($trashedVal==='with')>مع المحذوفين</option>
-                    <option value="only"  @selected($trashedVal==='only')>المحذوفين فقط</option>
-                </select>
+            <select
+                class="a2-select a2-filter-md"
+                name="option_ids[]"
+                id="filterOption"
+                multiple
+            >
+                @foreach(($options ?? []) as $opt)
+                    <option value="{{ $opt->id }}" @selected(in_array((int) $opt->id, $optionIdsVal, true))>
+                        {{ $opt->name_ar ?: $opt->name_en ?: ('#' . $opt->id) }}
+                    </option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="per_page">
-                    @foreach($perPageOptions as $n)
-                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} / صفحة</option>
-                    @endforeach
-                </select>
+            <select class="a2-select a2-filter-md" name="trashed">
+                @foreach(($trashedOptions ?? []) as $k => $label)
+                    <option value="{{ $k }}" @selected($trashedVal === (string) $k)>{{ $label }}</option>
+                @endforeach
+            </select>
 
-                {{-- ✅ Actions group (keeps same row) --}}
-                <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                    <a href="{{ route('admin.users.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
-                </div>
+            <select class="a2-select a2-filter-sm" name="sort">
+                @foreach($sortOptions as $k => $label)
+                    <option value="{{ $k }}" @selected($sortNow === $k)>{{ $label }}</option>
+                @endforeach
+            </select>
+
+            <select class="a2-select a2-filter-sm" name="dir">
+                <option value="desc" @selected($dirNow === 'desc')>DESC</option>
+                <option value="asc" @selected($dirNow === 'asc')>ASC</option>
+            </select>
+
+            <select class="a2-select a2-filter-sm" name="per_page">
+                @foreach($perPageOptions as $n)
+                    <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>
+                        {{ $n }} / صفحة
+                    </option>
+                @endforeach
+            </select>
+
+            <div class="a2-filter-actions">
+                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">تفريغ</a>
             </div>
         </form>
 
-
-        {{-- Bulk Actions --}}
-        <form id="bulkForm" method="POST" action="{{ route('admin.users.bulkDestroy') }}">
-            @csrf
-            <input type="hidden" id="bulkMethod" name="_method" value="DELETE">
-
-            <div class="a2-toolbar">
-                <div class="a2-filters" style="justify-content:flex-start;">
-                    <button type="submit"
-                            class="a2-btn a2-btn-danger"
-                            onclick="
-                                document.getElementById('bulkForm').action='{{ route('admin.users.bulkDestroy') }}';
-                                document.getElementById('bulkMethod').value='DELETE';
-                                return confirm('تأكيد حذف (Soft) للمستخدمين المحددين؟');
-                            ">
-                        حذف (Soft)
-                    </button>
-
-                    <button type="submit"
-                            class="a2-btn a2-btn-success"
-                            onclick="
-                                document.getElementById('bulkForm').action='{{ route('admin.users.bulkRestore') }}';
-                                document.getElementById('bulkMethod').value='';
-                                return confirm('تأكيد استرجاع المستخدمين المحددين؟');
-                            ">
-                        Restore
-                    </button>
-
-                    <button type="submit"
-                            class="a2-btn a2-btn-dark"
-                            onclick="
-                                document.getElementById('bulkForm').action='{{ route('admin.users.bulkForceDelete') }}';
-                                document.getElementById('bulkMethod').value='DELETE';
-                                return confirm('⚠️ حذف نهائي للمستخدمين المحددين؟ لا يمكن التراجع!');
-                            ">
-                        حذف نهائي
-                    </button>
-                    <a href="#" id="bulkViewBtn" class="a2-btn a2-btn-ghost">View</a>
-<a href="#" id="bulkEditBtn" class="a2-btn a2-btn-ghost">Edit</a>
-
-
-                    <span class="a2-hint" style="margin-inline-start:10px;">اختر مستخدمين ثم اختر العملية.</span>
-                </div>
-            </div>
-
-            <div class="a2-table-wrap">
-                <table class="a2-table">
-                    <thead>
+        <div class="a2-table-wrap">
+            <table class="a2-table">
+                <thead>
                     <tr>
-                        <th style="width:60px;">
-                            <input class="a2-checkbox" type="checkbox"
-                                   onclick="document.querySelectorAll('.cb-user:not([disabled])').forEach(cb => cb.checked = this.checked)">
-                        </th>
-
-                        <th style="width:90px;">
-                            <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
-                        </th>
-
-                        <th style="width:180px;">
-                            <a class="a2-link" href="{{ $sortUrl('name') }}">الاسم{!! $arrow('name') !!}</a>
-                        </th>
-
-                        <th style="width:170px;">
-                            <a class="a2-link" href="{{ $sortUrl('phone') }}">الموبايل{!! $arrow('phone') !!}</a>
-                        </th>
-
-                        <th style="width: 160px;">
-                            {{-- ✅ FIX: class name was wrong --}}
-                            <a class="a2-link " href="{{ $sortUrl('email') }}">Email{!! $arrow('email') !!}</a>
-                        </th>
-
-                        <th style="width:120px;">
-                            <a class="a2-link" href="{{ $sortUrl('type') }}">Type{!! $arrow('type') !!}</a>
-                        </th>
-
-                        <th style="width:120px center;">Activation</th>
-                        <th style="width: 120px;">Subscription</th>
-                        
+                        <th>ID</th>
+                        <th>الصورة</th>
+                        <th>الاسم</th>
+                        <th>النوع</th>
+                        <th>التصنيف</th>
+                        <th>القسم الفرعي</th>
+                        <th>الهاتف</th>
+                        <th>الاشتراك</th>
+                        <th>التفعيل</th>
+                        <th>الإجراءات</th>
                     </tr>
-                    </thead>
+                </thead>
 
-                    <tbody>
-                    @forelse($users as $u)
+                <tbody>
+                    @forelse($items as $row)
                         @php
-                            $sub = $u->latestSubscription ?? null;
-                            $isMe = auth()->check() && (int)auth()->id() === (int)$u->id;
-                            $isTrashed = method_exists($u,'trashed') ? $u->trashed() : false;
+                            $showUrl = route('admin.users.show', $row->id);
 
-                            $nameFull  = (string)($u->name ?? '');
-                            $emailFull = (string)($u->email ?? '');
+                            $name = (string) ($row->name ?? '');
+                            $userLabel = $name !== '' ? $name : ('#' . $row->id);
+
+                            $categoryName = $row->category?->name_ar ?: ($row->category?->name_en ?: '—');
+                            $childName = $row->categoryChild?->name_ar ?: ($row->categoryChild?->name_en ?: '—');
+
+                            $sub = $row->latestSubscription;
+                            $imgPath = $row->logo ?? null;
                         @endphp
 
-                        <tr class="{{ $isTrashed ? 'a2-row-trashed' : '' }}">
+                        <tr class="{{ method_exists($row, 'trashed') && $row->trashed() ? 'a2-row-trashed' : '' }}">
                             <td>
-                                <input class="a2-checkbox cb-user"
-                                       type="checkbox"
-                                       name="ids[]"
-                                       value="{{ $u->id }}"
-                                       @disabled($isMe)
-                                       title="{{ $isMe ? 'لا يمكن تنفيذ العملية على حسابك الحالي' : '' }}">
+                                <a class="a2-link" href="{{ $showUrl }}">{{ $row->id }}</a>
                             </td>
-
-                            <td>{{ $u->id }}</td>
-
-                            {{-- ✅ name limited to 10 chars --}}
-                            <td class="a2-text-right a2-fw-700">
-                                <span class="a2-clip a2-clip--name" title="{{ $nameFull }}">
-                                    {{ $limit10($nameFull) }}
-                                </span>
-                            </td>
-
-                            <td dir="ltr">{{ $u->phone }}</td>
-
-                            {{-- ✅ email limited to 10 chars --}}
-                            <td dir="ltr">
-                                <span class="a2-clip a2-clip--email" title="{{ $emailFull }}">
-                                    {{ $limit10($emailFull) }}
-                                </span>
-                            </td>
-
-                            <td>{{ $u->type }}</td>
 
                             <td>
-                                @if(!empty($u->activated_at))
-                                    <span class="a2-pill a2-pill-active">Active</span>
+                                @if($imgPath)
+                                    <x-admin-v2.image :path="$imgPath" size="52" radius="12px" />
                                 @else
-                                    <span class="a2-pill a2-pill-inactive">Inactive</span>
+                                    <div class="a2-album-cover-empty">—</div>
                                 @endif
                             </td>
 
                             <td>
-                                @if(!$sub)
-                                    <span class="a2-pill a2-pill-sub-none">None</span>
-                                @elseif((int)($sub->is_active ?? 0) === 1)
-                                    <span class="a2-pill a2-pill-sub-active">Active</span>
+                                <a class="a2-link a2-clip" href="{{ $showUrl }}" title="{{ $userLabel }}">
+                                    {{ $limit15($userLabel) }}
+                                </a>
+                            </td>
+
+                            <td>{{ $row->type ?: '—' }}</td>
+
+                            <td title="{{ $categoryName }}">
+                                {{ $categoryName }}
+                            </td>
+
+                            <td title="{{ $childName }}">
+                                {{ $childName }}
+                            </td>
+
+                            <td dir="ltr">{{ $row->phone ?: '—' }}</td>
+
+                            <td>
+                                @if($sub && (int) ($sub->is_active ?? 0) === 1)
+                                    <span class="a2-pill a2-pill-sub-active">نشط</span>
                                 @else
-                                    <span class="a2-pill a2-pill-sub-expired">Expired</span>
+                                    <span class="a2-pill a2-pill-sub-none">—</span>
                                 @endif
                             </td>
 
-                            
+                            <td>
+                                @if($row->activated_at)
+                                    <span class="a2-pill a2-pill-success">مفعل</span>
+                                @else
+                                    <span class="a2-pill a2-pill-danger">غير مفعل</span>
+                                @endif
+                            </td>
+
+                            <td>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.users.edit', $row->id) }}">
+                                        تعديل
+                                    </a>
+
+                                    <form method="POST" action="{{ route('admin.users.destroy', $row->id) }}" onsubmit="return confirm('حذف المستخدم؟');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="a2-btn a2-btn-ghost a2-btn-sm" type="submit">حذف</button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="a2-empty-cell">لا يوجد نتائج</td>
+                            <td colspan="10" class="a2-empty-cell">لا يوجد بيانات</td>
                         </tr>
                     @endforelse
-                    </tbody>
-                </table>
-            </div>
+                </tbody>
+            </table>
+        </div>
 
-            {{-- pagination تحت الجدول --}}
-            <div style="padding:12px;">
-                {{ $users->links() }}
+        @if(method_exists($items, 'links'))
+            <div class="a2-paginate">
+                {{ $items->links() }}
             </div>
-        </form>
-
+        @endif
     </div>
 </div>
 
 <script>
-(function(){
-  function getSelectedIds(){
-    return Array.from(document.querySelectorAll('.cb-user:checked'))
-      .map(cb => cb.value)
-      .filter(Boolean);
-  }
+document.addEventListener('DOMContentLoaded', function () {
+    const childCatalog = @json($childCatalog ?? (object) []);
+    const optionCatalog = @json($optionCatalog ?? (object) []);
 
-  function requireSingleSelection(){
-    const ids = getSelectedIds();
-    if (ids.length === 0){
-      alert('اختر مستخدم واحد أولاً.');
-      return null;
+    const categorySelect = document.getElementById('filterCategory');
+    const childSelect = document.getElementById('filterChild');
+    const optionSelect = document.getElementById('filterOption');
+
+    const selectedChildId = {{ (int) ($categoryChildId ?? 0) }};
+    const selectedOptionIds = @json(array_map('intval', $optionIdsVal ?? []));
+
+    function itemLabel(item) {
+        return item && item.name_ar && item.name_ar !== ''
+            ? item.name_ar
+            : ((item && item.name_en) ? item.name_en : ((item && item.id) ? ('#' + item.id) : '—'));
     }
-    if (ids.length > 1){
-      alert('اختر مستخدم واحد فقط لتنفيذ View / Edit.');
-      return null;
+
+    function destroyTom(el) {
+        if (el && el.tomselect) {
+            el.tomselect.destroy();
+        }
     }
-    return ids[0];
-  }
 
-  const viewBtn = document.getElementById('bulkViewBtn');
-  const editBtn = document.getElementById('bulkEditBtn');
+    function initOptionSelect() {
+        if (!optionSelect || typeof TomSelect === 'undefined') return;
 
-  if (viewBtn){
-    viewBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      const id = requireSingleSelection();
-      if (!id) return;
-      window.location.href = @json(url('/admin/users')) + '/' + id;
+        destroyTom(optionSelect);
+
+        new TomSelect(optionSelect, {
+            plugins: ['remove_button'],
+            create: false,
+            persist: false,
+            maxOptions: null,
+            hideSelected: true,
+            closeAfterSelect: false,
+            placeholder: 'اختر خيارًا أو أكثر',
+        });
+    }
+
+    function refillChildren(categoryId, keepChildId = 0) {
+        const rows = childCatalog[String(categoryId)] || childCatalog[categoryId] || [];
+
+        childSelect.innerHTML = '<option value="">كل الأقسام الفرعية</option>';
+
+        rows.forEach(function (child) {
+            const opt = document.createElement('option');
+            opt.value = child.id;
+            opt.textContent = itemLabel(child);
+
+            if (parseInt(keepChildId, 10) === parseInt(child.id, 10)) {
+                opt.selected = true;
+            }
+
+            childSelect.appendChild(opt);
+        });
+    }
+
+    function normalizeOptions(source) {
+        if (Array.isArray(source)) {
+            return source;
+        }
+
+        if (!source || typeof source !== 'object') {
+            return [];
+        }
+
+        const grouped = Array.isArray(source.groups)
+            ? source.groups.flatMap(group => Array.isArray(group.options) ? group.options : [])
+            : [];
+
+        const ungrouped = Array.isArray(source.ungrouped)
+            ? source.ungrouped
+            : [];
+
+        const merged = [...grouped, ...ungrouped];
+        const seen = new Set();
+
+        return merged.filter(item => {
+            const id = parseInt(item.id || 0, 10);
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+    }
+
+    function refillOptions(childId, keepOptionIds = []) {
+        const raw = optionCatalog[String(childId)] || optionCatalog[childId] || [];
+        const rows = normalizeOptions(raw);
+
+        destroyTom(optionSelect);
+        optionSelect.innerHTML = '';
+
+        rows.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = itemLabel(item);
+
+            if (Array.isArray(keepOptionIds) && keepOptionIds.includes(parseInt(item.id, 10))) {
+                opt.selected = true;
+            }
+
+            optionSelect.appendChild(opt);
+        });
+
+        initOptionSelect();
+    }
+
+    categorySelect.addEventListener('change', function () {
+        const categoryId = parseInt(this.value || 0, 10);
+
+        refillChildren(categoryId, 0);
+
+        destroyTom(optionSelect);
+        optionSelect.innerHTML = '';
+        initOptionSelect();
     });
-  }
 
-  if (editBtn){
-    editBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      const id = requireSingleSelection();
-      if (!id) return;
-      window.location.href = @json(url('/admin/users')) + '/' + id + '/edit';
+    childSelect.addEventListener('change', function () {
+        const childId = parseInt(this.value || 0, 10);
+
+        if (childId > 0) {
+            refillOptions(childId, []);
+        } else {
+            destroyTom(optionSelect);
+            optionSelect.innerHTML = '';
+            initOptionSelect();
+        }
     });
-  }
-})();
+
+    if (parseInt(categorySelect.value || 0, 10) > 0) {
+        refillChildren(parseInt(categorySelect.value, 10), selectedChildId);
+    }
+
+    if (selectedChildId > 0) {
+        refillOptions(selectedChildId, selectedOptionIds);
+    } else {
+        initOptionSelect();
+    }
+});
 </script>
-
-
 @endsection

@@ -25,6 +25,12 @@
         ->values()
         ->all();
 
+    $serviceIdsVal = collect($serviceIds ?? [])
+        ->map(fn ($id) => (int) $id)
+        ->filter(fn ($id) => $id > 0)
+        ->values()
+        ->all();
+
     $perPageOptions = $perPageOptions ?? [10, 20, 50, 100];
 
     $sortOptions = [
@@ -97,6 +103,19 @@
                 @foreach(($options ?? []) as $opt)
                     <option value="{{ $opt->id }}" @selected(in_array((int) $opt->id, $optionIdsVal, true))>
                         {{ $opt->name_ar ?: $opt->name_en ?: ('#' . $opt->id) }}
+                    </option>
+                @endforeach
+            </select>
+
+            <select
+                class="a2-select a2-filter-md"
+                name="service_ids[]"
+                id="filterService"
+                multiple
+            >
+                @foreach(($services ?? []) as $srv)
+                    <option value="{{ $srv->id }}" @selected(in_array((int) $srv->id, $serviceIdsVal, true))>
+                        {{ $srv->name_ar ?: $srv->name_en ?: ('#' . $srv->id) }}
                     </option>
                 @endforeach
             </select>
@@ -246,13 +265,16 @@
 document.addEventListener('DOMContentLoaded', function () {
     const childCatalog = @json($childCatalog ?? (object) []);
     const optionCatalog = @json($optionCatalog ?? (object) []);
+    const serviceCatalog = @json($serviceCatalog ?? (object) []);
 
     const categorySelect = document.getElementById('filterCategory');
     const childSelect = document.getElementById('filterChild');
     const optionSelect = document.getElementById('filterOption');
+    const serviceSelect = document.getElementById('filterService');
 
     const selectedChildId = {{ (int) ($categoryChildId ?? 0) }};
     const selectedOptionIds = @json(array_map('intval', $optionIdsVal ?? []));
+    const selectedServiceIds = @json(array_map('intval', $serviceIdsVal ?? []));
 
     function itemLabel(item) {
         return item && item.name_ar && item.name_ar !== ''
@@ -266,24 +288,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function initOptionSelect() {
-        if (!optionSelect || typeof TomSelect === 'undefined') return;
+    function initMultiSelect(el, placeholder) {
+        if (!el || typeof TomSelect === 'undefined') return;
 
-        destroyTom(optionSelect);
+        destroyTom(el);
 
-        new TomSelect(optionSelect, {
+        new TomSelect(el, {
             plugins: ['remove_button'],
             create: false,
             persist: false,
             maxOptions: null,
             hideSelected: true,
             closeAfterSelect: false,
-            placeholder: 'اختر خيارًا أو أكثر',
+            placeholder: placeholder,
         });
     }
 
     function refillChildren(categoryId, keepChildId = 0) {
-        const rows = childCatalog[String(categoryId)] || childCatalog[categoryId] || [];
+        const rows = childCatalog[String(categoryId)] || [];
 
         childSelect.innerHTML = '<option value="">كل الأقسام الفرعية</option>';
 
@@ -300,37 +322,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function normalizeOptions(source) {
-        if (Array.isArray(source)) {
-            return source;
-        }
-
-        if (!source || typeof source !== 'object') {
-            return [];
-        }
-
-        const grouped = Array.isArray(source.groups)
-            ? source.groups.flatMap(group => Array.isArray(group.options) ? group.options : [])
-            : [];
-
-        const ungrouped = Array.isArray(source.ungrouped)
-            ? source.ungrouped
-            : [];
-
-        const merged = [...grouped, ...ungrouped];
-        const seen = new Set();
-
-        return merged.filter(item => {
-            const id = parseInt(item.id || 0, 10);
-            if (!id || seen.has(id)) return false;
-            seen.add(id);
-            return true;
-        });
-    }
-
     function refillOptions(childId, keepOptionIds = []) {
-        const raw = optionCatalog[String(childId)] || optionCatalog[childId] || [];
-        const rows = normalizeOptions(raw);
+        const rows = optionCatalog[String(childId)] || [];
 
         destroyTom(optionSelect);
         optionSelect.innerHTML = '';
@@ -340,24 +333,43 @@ document.addEventListener('DOMContentLoaded', function () {
             opt.value = item.id;
             opt.textContent = itemLabel(item);
 
-            if (Array.isArray(keepOptionIds) && keepOptionIds.includes(parseInt(item.id, 10))) {
+            if (keepOptionIds.includes(parseInt(item.id, 10))) {
                 opt.selected = true;
             }
 
             optionSelect.appendChild(opt);
         });
 
-        initOptionSelect();
+        initMultiSelect(optionSelect, 'اختر خيارًا أو أكثر');
+    }
+
+    function refillServices(childId, keepServiceIds = []) {
+        const rows = serviceCatalog[String(childId)] || [];
+
+        destroyTom(serviceSelect);
+        serviceSelect.innerHTML = '';
+
+        rows.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = itemLabel(item);
+
+            if (keepServiceIds.includes(parseInt(item.id, 10))) {
+                opt.selected = true;
+            }
+
+            serviceSelect.appendChild(opt);
+        });
+
+        initMultiSelect(serviceSelect, 'اختر خدمة أو أكثر');
     }
 
     categorySelect.addEventListener('change', function () {
         const categoryId = parseInt(this.value || 0, 10);
 
         refillChildren(categoryId, 0);
-
-        destroyTom(optionSelect);
-        optionSelect.innerHTML = '';
-        initOptionSelect();
+        refillOptions(0, []);
+        refillServices(0, []);
     });
 
     childSelect.addEventListener('change', function () {
@@ -365,21 +377,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (childId > 0) {
             refillOptions(childId, []);
+            refillServices(childId, []);
         } else {
-            destroyTom(optionSelect);
-            optionSelect.innerHTML = '';
-            initOptionSelect();
+            refillOptions(0, []);
+            refillServices(0, []);
         }
     });
 
     if (parseInt(categorySelect.value || 0, 10) > 0) {
-        refillChildren(parseInt(categorySelect.value, 10), selectedChildId);
+        refillChildren(parseInt(categorySelect.value || 0, 10), selectedChildId);
     }
 
     if (selectedChildId > 0) {
         refillOptions(selectedChildId, selectedOptionIds);
+        refillServices(selectedChildId, selectedServiceIds);
     } else {
-        initOptionSelect();
+        initMultiSelect(optionSelect, 'اختر خيارًا أو أكثر');
+        initMultiSelect(serviceSelect, 'اختر خدمة أو أكثر');
     }
 });
 </script>

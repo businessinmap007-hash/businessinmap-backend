@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\CategoryChild;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
@@ -81,14 +82,25 @@ class CategoryServiceBulkController extends Controller
         };
     }
 
+    public function index(Request $request)
+    {
+        $rootId = (int) $request->get('root_id', 0);
+
+        return redirect()->route('admin.categories.index', $rootId > 0 ? ['root_id' => $rootId] : []);
+    }
+
     public function apply(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'root_id' => ['required', 'integer', 'exists:categories,id'],
+
+            // الاسم كما هو لتوافق الـ UI الحالي
             'category_ids' => ['required', 'array', 'min:1'],
-            'category_ids.*' => ['integer', 'exists:categories,id'],
+            'category_ids.*' => ['integer', 'exists:category_children_master,id'],
+
             'platform_service_ids' => ['required', 'array', 'min:1'],
             'platform_service_ids.*' => ['integer', 'exists:platform_services,id'],
+
             'mode' => ['required', 'in:append,replace,remove'],
         ]);
 
@@ -98,29 +110,35 @@ class CategoryServiceBulkController extends Controller
             ->first();
 
         if (! $root) {
-            return back()->withErrors(['root_id' => 'القسم الرئيسي غير صحيح.'])->withInput();
+            return back()
+                ->withErrors(['root_id' => 'القسم الرئيسي غير صحيح.'])
+                ->withInput();
         }
 
-        $categoryIds = collect($data['category_ids'])
+        $childIds = collect($data['category_ids'])
             ->map(fn ($id) => (int) $id)
-            ->filter()
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values();
 
-        $validCategoryIds = Category::query()
-            ->where('parent_id', $root->id)
-            ->whereIn('id', $categoryIds)
+        $validChildIds = CategoryChild::query()
+            ->whereIn('id', $childIds->all())
+            ->whereHas('parents', function ($query) use ($root) {
+                $query->where('categories.id', $root->id);
+            })
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        if (empty($validCategoryIds)) {
-            return back()->withErrors(['category_ids' => 'اختر تصنيفًا فرعيًا واحدًا على الأقل من نفس القسم الرئيسي.'])->withInput();
+        if (empty($validChildIds)) {
+            return back()
+                ->withErrors(['category_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل مرتبطًا بنفس القسم الرئيسي.'])
+                ->withInput();
         }
 
         $serviceIds = collect($data['platform_service_ids'])
             ->map(fn ($id) => (int) $id)
-            ->filter()
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -132,16 +150,23 @@ class CategoryServiceBulkController extends Controller
 
         $mode = (string) $data['mode'];
 
-        DB::transaction(function () use ($validCategoryIds, $serviceIds, $services, $mode, $request) {
-            foreach ($validCategoryIds as $categoryId) {
+        DB::transaction(function () use ($validChildIds, $serviceIds, $services, $mode, $request, $root) {
+            foreach ($validChildIds as $childId) {
                 if ($mode === 'replace') {
-                    CategoryPlatformService::query()->where('category_id', $categoryId)->delete();
-                    CategoryServiceConfig::query()->where('category_id', $categoryId)->delete();
+                    CategoryPlatformService::query()
+                        ->where('child_id', $childId)
+                        ->delete();
+
+                    CategoryServiceConfig::query()
+                        ->where('child_id', $childId)
+                        ->delete();
 
                     $order = 1;
+
                     foreach ($serviceIds as $serviceId) {
-                        CategoryPlatformService::create([
-                            'category_id' => $categoryId,
+                        CategoryPlatformService::query()->create([
+                            'category_id' => $root->id,
+                            'child_id' => $childId,
                             'platform_service_id' => $serviceId,
                             'is_active' => true,
                             'sort_order' => $order,
@@ -150,8 +175,9 @@ class CategoryServiceBulkController extends Controller
 
                         $service = $services->get($serviceId);
                         if ($service) {
-                            CategoryServiceConfig::create([
-                                'category_id' => $categoryId,
+                            CategoryServiceConfig::query()->create([
+                                'category_id' => $root->id,
+                                'child_id' => $childId,
                                 'platform_service_id' => $serviceId,
                                 'config' => $this->serviceConfigPayload($request, $service),
                                 'is_active' => true,
@@ -161,59 +187,63 @@ class CategoryServiceBulkController extends Controller
 
                         $order++;
                     }
+
+                    continue;
                 }
 
                 if ($mode === 'append') {
                     $existingServiceIds = CategoryPlatformService::query()
-                        ->where('category_id', $categoryId)
+                        ->where('child_id', $childId)
                         ->pluck('platform_service_id')
                         ->map(fn ($id) => (int) $id)
                         ->all();
 
                     $currentMaxSort = (int) CategoryPlatformService::query()
-                        ->where('category_id', $categoryId)
+                        ->where('child_id', $childId)
                         ->max('sort_order');
 
                     foreach ($serviceIds as $serviceId) {
-                        if (in_array($serviceId, $existingServiceIds, true)) {
-                            continue;
+                        if (! in_array($serviceId, $existingServiceIds, true)) {
+                            $currentMaxSort++;
+
+                            CategoryPlatformService::query()->create([
+                                'category_id' => $root->id,
+                                'child_id' => $childId,
+                                'platform_service_id' => $serviceId,
+                                'is_active' => true,
+                                'sort_order' => $currentMaxSort,
+                                'meta' => null,
+                            ]);
                         }
-
-                        $currentMaxSort++;
-
-                        CategoryPlatformService::create([
-                            'category_id' => $categoryId,
-                            'platform_service_id' => $serviceId,
-                            'is_active' => true,
-                            'sort_order' => $currentMaxSort,
-                            'meta' => null,
-                        ]);
 
                         $service = $services->get($serviceId);
                         if ($service) {
-                            CategoryServiceConfig::updateOrCreate(
+                            CategoryServiceConfig::query()->updateOrCreate(
                                 [
-                                    'category_id' => $categoryId,
+                                    'child_id' => $childId,
                                     'platform_service_id' => $serviceId,
                                 ],
                                 [
+                                    'category_id' => $root->id,
                                     'config' => $this->serviceConfigPayload($request, $service),
                                     'is_active' => true,
-                                    'sort_order' => $currentMaxSort,
+                                    'sort_order' => max($currentMaxSort, 1),
                                 ]
                             );
                         }
                     }
+
+                    continue;
                 }
 
                 if ($mode === 'remove') {
                     CategoryPlatformService::query()
-                        ->where('category_id', $categoryId)
+                        ->where('child_id', $childId)
                         ->whereIn('platform_service_id', $serviceIds)
                         ->delete();
 
                     CategoryServiceConfig::query()
-                        ->where('category_id', $categoryId)
+                        ->where('child_id', $childId)
                         ->whereIn('platform_service_id', $serviceIds)
                         ->delete();
                 }
@@ -221,7 +251,7 @@ class CategoryServiceBulkController extends Controller
         });
 
         return redirect()
-            ->route('admin.categories.index', ['root_id' => $data['root_id']])
-            ->with('success', 'تم تطبيق الخدمات على التصنيفات المختارة بنجاح.');
+            ->route('admin.categories.index', ['root_id' => $root->id])
+            ->with('success', 'تم تطبيق الخدمات وإعداداتها على الأقسام الفرعية المختارة بنجاح.');
     }
 }

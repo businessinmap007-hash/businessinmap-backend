@@ -11,6 +11,7 @@ class BusinessServicePrice extends Model
 
     protected $fillable = [
         'business_id',
+        'child_id',
         'service_id',
         'bookable_item_type',
         'price',
@@ -24,6 +25,7 @@ class BusinessServicePrice extends Model
 
     protected $casts = [
         'business_id'        => 'integer',
+        'child_id'           => 'integer',
         'service_id'         => 'integer',
         'bookable_item_type' => 'string',
         'price'              => 'decimal:2',
@@ -40,6 +42,16 @@ class BusinessServicePrice extends Model
         return $this->belongsTo(User::class, 'business_id');
     }
 
+    public function child(): BelongsTo
+    {
+        return $this->belongsTo(CategoryChild::class, 'child_id');
+    }
+
+    public function categoryChild(): BelongsTo
+    {
+        return $this->child();
+    }
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'service_id');
@@ -48,9 +60,10 @@ class BusinessServicePrice extends Model
     public function getDisplayNameAttribute(): string
     {
         $business = $this->business?->name ?: 'Business';
+        $child    = $this->child?->display_name ?: 'Child';
         $service  = $this->service?->name_ar ?: $this->service?->name_en ?: $this->service?->key ?: 'Service';
         $type     = $this->bookable_item_type ?: 'category';
 
-        return "{$business} / {$service} / {$type}";
+        return "{$business} / {$child} / {$service} / {$type}";
     }
 }

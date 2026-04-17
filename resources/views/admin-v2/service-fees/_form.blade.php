@@ -3,6 +3,7 @@
     $clientFee   = $clientFee ?? null;
 
     $selectedBusinessId = old('business_id', $businessFee->business_id ?? $clientFee->business_id ?? request('business_id'));
+    $selectedChildId    = old('child_id', $businessFee->child_id ?? $clientFee->child_id ?? request('child_id'));
     $selectedServiceId  = old('service_id', $businessFee->service_id ?? $clientFee->service_id ?? request('service_id'));
     $selectedFeeCode    = old('fee_code', $businessFee->fee_code ?? $clientFee->fee_code ?? 'booking_execution');
 
@@ -51,18 +52,34 @@
     <div class="a2-header">
         <div>
             <h3 class="a2-sf-card-title" style="margin:0;">البيانات الأساسية</h3>
-            <div class="a2-hint">اختيار البزنس والخدمة وكود الرسم</div>
+            <div class="a2-hint">اختيار البزنس والقسم الفرعي والخدمة وكود الرسم</div>
         </div>
     </div>
 
     <div class="a2-sf-grid-3">
         <div class="a2-sf-field">
             <label class="a2-hint" style="display:block;margin-bottom:6px;">البزنس</label>
-            <select name="business_id" class="js-a2-searchable" style="width:100%;">
+            <select name="business_id" id="sf_business_id" class="js-a2-searchable" style="width:100%;">
                 <option value="">Global</option>
                 @foreach($businesses as $business)
-                    <option value="{{ $business->id }}" @selected((string) $selectedBusinessId === (string) $business->id)>
+                    <option
+                        value="{{ $business->id }}"
+                        data-child-id="{{ (int) ($business->category_child_id ?? 0) }}"
+                        @selected((string) $selectedBusinessId === (string) $business->id)
+                    >
                         {{ $business->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="a2-sf-field">
+            <label class="a2-hint" style="display:block;margin-bottom:6px;">القسم الفرعي</label>
+            <select name="child_id" id="sf_child_id" class="js-a2-searchable" style="width:100%;">
+                <option value="">Global / Auto from Business</option>
+                @foreach($children as $child)
+                    <option value="{{ $child->id }}" @selected((string) $selectedChildId === (string) $child->id)>
+                        {{ $child->name_ar ?: $child->name_en ?: ('#' . $child->id) }}
                     </option>
                 @endforeach
             </select>
@@ -81,7 +98,7 @@
             </select>
         </div>
 
-        <div class="a2-sf-field">
+        <div class="a2-sf-field a2-field-full">
             <label class="a2-hint" style="display:block;margin-bottom:6px;">كود الرسم</label>
             <select name="fee_code" class="js-a2-searchable" style="width:100%;" required>
                 @foreach($feeCodeOptions as $value => $label)
@@ -298,5 +315,36 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    const businessSelect = document.getElementById('sf_business_id');
+    const childSelect = document.getElementById('sf_child_id');
+
+    function syncChildFromBusiness() {
+        if (!businessSelect || !childSelect) return;
+        if (!businessSelect.value) return;
+        if (childSelect.value) return;
+
+        const selectedOption = businessSelect.options[businessSelect.selectedIndex];
+        if (!selectedOption) return;
+
+        const childId = selectedOption.getAttribute('data-child-id');
+        if (!childId || childId === '0') return;
+
+        childSelect.value = childId;
+
+        if (childSelect.tomselect) {
+            childSelect.tomselect.setValue(childId, true);
+        }
+    }
+
+    if (businessSelect) {
+        businessSelect.addEventListener('change', function () {
+            if (childSelect && childSelect.tomselect && !childSelect.tomselect.getValue()) {
+                syncChildFromBusiness();
+            }
+        });
+
+        setTimeout(syncChildFromBusiness, 50);
+    }
 });
 </script>

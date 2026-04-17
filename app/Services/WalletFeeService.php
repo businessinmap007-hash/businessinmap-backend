@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Wallet;
+namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\ServiceFee;
@@ -8,6 +8,7 @@ use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class WalletFeeService
@@ -23,9 +24,17 @@ class WalletFeeService
      */
     public function resolveBookingFees(Booking $booking, string $feeCode = 'booking_execution'): Collection
     {
-        $baseAmount = round((float) $booking->price, 2);
+        $booking->loadMissing([
+            'business:id,name,category_child_id',
+            'service:id,key,name_ar,name_en',
+            'user:id,name',
+        ]);
 
-        $rules = ServiceFee::query()
+        $baseAmount = round((float) $booking->price, 2);
+        $childId = $this->resolveBookingChildId($booking);
+        $hasChildColumn = Schema::hasColumn('service_fees', 'child_id');
+
+        $rulesQuery = ServiceFee::query()
             ->where('fee_code', $feeCode)
             ->where('is_active', 1)
             ->whereIn('payer', ['business', 'client'])
@@ -36,62 +45,66 @@ class WalletFeeService
             ->where(function ($q) use ($booking) {
                 $q->whereNull('service_id')
                     ->orWhere('service_id', (int) $booking->service_id);
-            })
+            });
+
+        if ($hasChildColumn) {
+            $rulesQuery->where(function ($q) use ($childId) {
+                $q->whereNull('child_id');
+
+                if ($childId > 0) {
+                    $q->orWhere('child_id', $childId);
+                }
+            });
+        }
+
+        $rules = $rulesQuery
             ->orderBy('priority')
             ->get()
-            ->groupBy('payer')
-            ->map(fn ($rows) => $rows->first());
+            ->groupBy('payer');
 
         $lines = collect();
 
-        $businessRule = $rules->get('business');
-        if ($businessRule) {
-            $amount = $this->calculateFeeAmount($businessRule, $baseAmount);
+        foreach (['business', 'client'] as $payer) {
+            $rule = $this->resolveBestRuleForPayer(
+                rows: $rules->get($payer, collect()),
+                booking: $booking,
+                childId: $childId,
+                hasChildColumn: $hasChildColumn
+            );
 
-            if ($amount > 0) {
-                $lines->push([
-                    'payer' => 'business',
-                    'user_id' => (int) $booking->business_id,
-                    'service_fee_id' => (int) $businessRule->id,
-                    'fee_code' => (string) $feeCode,
-                    'fee_type' => (string) $businessRule->fee_type,
-                    'calc_type' => (string) $businessRule->calc_type,
-                    'amount' => $amount,
-                    'currency' => (string) ($businessRule->currency ?: 'EGP'),
-                    'base_amount' => $baseAmount,
-                    'booking_id' => (int) $booking->id,
-                    'service_id' => (int) $booking->service_id,
-                    'business_id' => (int) $booking->business_id,
-                    'client_id' => (int) $booking->user_id,
-                    'rules' => $businessRule->rules,
-                    'notes' => $businessRule->notes,
-                ]);
+            if (! $rule) {
+                continue;
             }
-        }
 
-        $clientRule = $rules->get('client');
-        if ($clientRule) {
-            $amount = $this->calculateFeeAmount($clientRule, $baseAmount);
+            $amount = $this->calculateFeeAmount($rule, $baseAmount);
 
-            if ($amount > 0) {
-                $lines->push([
-                    'payer' => 'client',
-                    'user_id' => (int) $booking->user_id,
-                    'service_fee_id' => (int) $clientRule->id,
-                    'fee_code' => (string) $feeCode,
-                    'fee_type' => (string) $clientRule->fee_type,
-                    'calc_type' => (string) $clientRule->calc_type,
-                    'amount' => $amount,
-                    'currency' => (string) ($clientRule->currency ?: 'EGP'),
-                    'base_amount' => $baseAmount,
-                    'booking_id' => (int) $booking->id,
-                    'service_id' => (int) $booking->service_id,
-                    'business_id' => (int) $booking->business_id,
-                    'client_id' => (int) $booking->user_id,
-                    'rules' => $clientRule->rules,
-                    'notes' => $clientRule->notes,
-                ]);
+            if ($amount <= 0) {
+                continue;
             }
+
+            $lines->push([
+                'payer' => $payer,
+                'user_id' => $payer === 'business'
+                    ? (int) $booking->business_id
+                    : (int) $booking->user_id,
+
+                'service_fee_id' => (int) $rule->id,
+                'fee_code' => (string) $feeCode,
+                'fee_type' => (string) $rule->fee_type,
+                'calc_type' => (string) $rule->calc_type,
+                'amount' => $amount,
+                'currency' => (string) ($rule->currency ?: 'EGP'),
+                'base_amount' => $baseAmount,
+
+                'booking_id' => (int) $booking->id,
+                'service_id' => (int) $booking->service_id,
+                'business_id' => (int) $booking->business_id,
+                'client_id' => (int) $booking->user_id,
+                'child_id' => $hasChildColumn ? (int) ($rule->child_id ?? 0) : $childId,
+
+                'rules' => $rule->rules,
+                'notes' => $rule->notes,
+            ]);
         }
 
         return $lines->values();
@@ -104,7 +117,7 @@ class WalletFeeService
     {
         $booking->loadMissing([
             'user:id,name',
-            'business:id,name',
+            'business:id,name,category_child_id',
             'service:id,name_ar,name_en,key',
         ]);
 
@@ -217,11 +230,84 @@ class WalletFeeService
                 'service_id' => (int) $booking->service_id,
                 'business_id' => (int) $booking->business_id,
                 'client_id' => (int) $booking->user_id,
+                'child_id' => (int) ($line['child_id'] ?? $this->resolveBookingChildId($booking)),
 
                 'rules' => $line['rules'] ?? null,
                 'notes' => $line['notes'] ?? null,
             ],
         ]);
+    }
+
+    protected function resolveBookingChildId(Booking $booking): int
+    {
+        $businessChildId = (int) ($booking->business?->category_child_id ?? 0);
+        if ($businessChildId > 0) {
+            return $businessChildId;
+        }
+
+        $metaChildId = (int) data_get($booking->meta, 'business_context.category_child_id', 0);
+        if ($metaChildId > 0) {
+            return $metaChildId;
+        }
+
+        $metaExecutionChildId = (int) data_get($booking->meta, '_execution_fee.child_id', 0);
+        if ($metaExecutionChildId > 0) {
+            return $metaExecutionChildId;
+        }
+
+        return 0;
+    }
+
+    protected function resolveBestRuleForPayer(
+        Collection $rows,
+        Booking $booking,
+        int $childId,
+        bool $hasChildColumn
+    ): ?ServiceFee {
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return $rows
+            ->sortBy(function (ServiceFee $row) use ($booking, $childId, $hasChildColumn) {
+                $score = 0;
+
+                $rowBusinessId = $row->business_id !== null ? (int) $row->business_id : null;
+                $rowServiceId  = $row->service_id !== null ? (int) $row->service_id : null;
+
+                if ($rowBusinessId === (int) $booking->business_id) {
+                    $score += 0;
+                } elseif ($rowBusinessId === null) {
+                    $score += 100;
+                } else {
+                    $score += 10000;
+                }
+
+                if ($rowServiceId === (int) $booking->service_id) {
+                    $score += 0;
+                } elseif ($rowServiceId === null) {
+                    $score += 10;
+                } else {
+                    $score += 10000;
+                }
+
+                if ($hasChildColumn) {
+                    $rowChildId = $row->child_id !== null ? (int) $row->child_id : null;
+
+                    if ($childId > 0 && $rowChildId === $childId) {
+                        $score += 0;
+                    } elseif ($rowChildId === null) {
+                        $score += 1;
+                    } else {
+                        $score += 10000;
+                    }
+                }
+
+                $score += (int) ($row->priority ?? 9999);
+
+                return $score;
+            })
+            ->first();
     }
 
     protected function calculateFeeAmount(ServiceFee $rule, float $baseAmount): float
@@ -233,11 +319,11 @@ class WalletFeeService
             ? round($baseAmount * ($amountValue / 100), 2)
             : round($amountValue, 2);
 
-        if (!is_null($rule->min_amount)) {
+        if (! is_null($rule->min_amount)) {
             $amount = max($amount, (float) $rule->min_amount);
         }
 
-        if (!is_null($rule->max_amount)) {
+        if (! is_null($rule->max_amount)) {
             $amount = min($amount, (float) $rule->max_amount);
         }
 
@@ -250,7 +336,7 @@ class WalletFeeService
             ->where('user_id', $userId)
             ->first();
 
-        if (!$wallet) {
+        if (! $wallet) {
             throw new RuntimeException("لا توجد محفظة للمستخدم رقم {$userId}");
         }
 
@@ -270,7 +356,10 @@ class WalletFeeService
     {
         $payerLabel = $payer === 'business' ? 'Business' : 'Client';
         $serviceName = (string) ($booking->service->name_ar ?? $booking->service->name_en ?? $booking->service->key ?? 'service');
+        $childId = $this->resolveBookingChildId($booking);
 
-        return "Platform fee [{$feeCode}] charged to {$payerLabel} for booking #{$booking->id} ({$serviceName})";
+        return $childId > 0
+            ? "Platform fee [{$feeCode}] charged to {$payerLabel} for booking #{$booking->id} ({$serviceName}) / child #{$childId}"
+            : "Platform fee [{$feeCode}] charged to {$payerLabel} for booking #{$booking->id} ({$serviceName})";
     }
 }

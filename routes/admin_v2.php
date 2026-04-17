@@ -29,6 +29,8 @@ use App\Http\Controllers\AdminV2\{
     WalletNoteTemplateController,
     WalletOpsController,
     WalletTransactionController,
+    CategoryChildServiceFeeController,
+    CategoryChildServiceFeeBulkController,
     Users\UserController,
     Auth\LoginController
 };
@@ -448,6 +450,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
             Route::post('block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
             Route::post('price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
+        });
+                /*
+        |--------------------------------------------------------------------------
+        | Category Child Service Fees
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->group(function () {
+            Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->name('edit');
+            Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->name('update');
+        });
+                /*
+        |--------------------------------------------------------------------------
+        | Category Child Service Fees Bulk
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('category-child-service-fees/bulk')->name('category-child-service-fees.bulk.')->group(function () {
+            Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('edit');
+            Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('update');
         });
     });
 });

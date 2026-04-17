@@ -41,11 +41,14 @@ class PlatformService extends Model
         return $this->hasMany(CategoryPlatformService::class, 'platform_service_id');
     }
 
-    public function bookingProfiles(): HasMany
+    public function categoryServiceConfigs(): HasMany
     {
-        return $this->hasMany(CategoryBookingProfile::class, 'platform_service_id');
+        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id');
     }
 
+    /**
+     * Legacy root-level relations
+     */
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -54,7 +57,7 @@ class PlatformService extends Model
             'platform_service_id',
             'category_id'
         )
-            ->withPivot(['is_active', 'sort_order', 'meta'])
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
             ->withTimestamps();
     }
 
@@ -67,10 +70,95 @@ class PlatformService extends Model
             'category_id'
         )
             ->wherePivot('is_active', true)
-            ->withPivot(['is_active', 'sort_order', 'meta'])
+            ->wherePivot('child_id', null)
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
             ->withTimestamps()
             ->orderBy('category_platform_services.sort_order')
             ->orderBy('categories.id');
+    }
+
+    /**
+     * Main relation now = category children
+     */
+    public function children(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CategoryChild::class,
+            'category_platform_services',
+            'platform_service_id',
+            'child_id'
+        )
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps();
+    }
+
+    public function activeChildren(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CategoryChild::class,
+            'category_platform_services',
+            'platform_service_id',
+            'child_id'
+        )
+            ->wherePivot('is_active', true)
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps()
+            ->orderBy('category_platform_services.sort_order')
+            ->orderBy('category_children_master.id');
+    }
+
+    /**
+     * root containers reached through assigned children
+     */
+    public function parentCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Category::class,
+            'category_platform_services',
+            'platform_service_id',
+            'category_id'
+        )
+            ->wherePivotNotNull('child_id')
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps();
+    }
+
+    public function activeParentCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Category::class,
+            'category_platform_services',
+            'platform_service_id',
+            'category_id'
+        )
+            ->wherePivot('is_active', true)
+            ->wherePivotNotNull('child_id')
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps()
+            ->orderBy('category_platform_services.sort_order')
+            ->orderBy('categories.id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Config Relations
+    |--------------------------------------------------------------------------
+    */
+
+    public function rootConfigs(): HasMany
+    {
+        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id')
+            ->whereNull('child_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function childConfigs(): HasMany
+    {
+        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id')
+            ->whereNotNull('child_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     /*
@@ -88,8 +176,8 @@ class PlatformService extends Model
     {
         return (string) ($this->name_ar ?: $this->name_en ?: $this->key ?: ('Service #' . $this->id));
     }
-    public function categoryServiceConfigs()
+    public function categoryChildServiceFees()
     {
-        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id');
+        return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id');
     }
 }

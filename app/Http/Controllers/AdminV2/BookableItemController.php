@@ -28,7 +28,7 @@ class BookableItemController extends Controller
         $rows = BookableItem::query()
             ->with([
                 'service:id,key,name_ar,name_en',
-                'business:id,name,type,category_id',
+                'business:id,name,type,category_id,category_child_id',
             ])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
@@ -100,7 +100,7 @@ class BookableItemController extends Controller
     {
         $row = $bookableItem->load([
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
-            'business:id,name,type,category_id',
+            'business:id,name,type,category_id,category_child_id',
         ]);
 
         return view('admin-v2.bookable-items.edit', [
@@ -175,11 +175,7 @@ class BookableItemController extends Controller
         $data['quantity'] = (int) ($data['quantity'] ?? 1);
         $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
 
-        $business = User::query()
-            ->select(['id', 'type', 'category_id', 'name'])
-            ->where('id', $data['business_id'])
-            ->where('type', 'business')
-            ->first();
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext((int) $data['business_id']);
 
         if (! $business) {
             throw ValidationException::withMessages([
@@ -187,9 +183,9 @@ class BookableItemController extends Controller
             ]);
         }
 
-        if (! $business->category_id) {
+        if (! $categoryId && ! $childId) {
             throw ValidationException::withMessages([
-                'business_id' => 'هذا البزنس غير مرتبط بأي تصنيف حتى الآن.',
+                'business_id' => 'هذا البزنس غير مرتبط بأي category أو category child حتى الآن.',
             ]);
         }
 
@@ -203,15 +199,27 @@ class BookableItemController extends Controller
             ]);
         }
 
-        $serviceEnabledForCategory = CategoryPlatformService::query()
-            ->forCategory((int) $business->category_id)
-            ->forService((int) $service->id)
-            ->active()
-            ->exists();
+        $serviceEnabledForBusiness = false;
 
-        if (! $serviceEnabledForCategory) {
+        if ($childId > 0) {
+            $serviceEnabledForBusiness = CategoryPlatformService::query()
+                ->forChild($childId)
+                ->forService((int) $service->id)
+                ->active()
+                ->exists();
+        }
+
+        if (! $serviceEnabledForBusiness && $categoryId > 0) {
+            $serviceEnabledForBusiness = CategoryPlatformService::query()
+                ->forCategory($categoryId)
+                ->forService((int) $service->id)
+                ->active()
+                ->exists();
+        }
+
+        if (! $serviceEnabledForBusiness) {
             throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير مفعلة أو غير مسموحة لتصنيف هذا البزنس.',
+                'service_id' => 'هذه الخدمة غير مفعلة أو غير مسموحة لهذا البزنس.',
             ]);
         }
 
@@ -299,7 +307,7 @@ class BookableItemController extends Controller
     protected function businesses()
     {
         return User::query()
-            ->select(['id', 'name', 'category_id'])
+            ->select(['id', 'name', 'category_id', 'category_child_id'])
             ->where('type', 'business')
             ->orderBy('name')
             ->orderBy('id')
@@ -312,12 +320,9 @@ class BookableItemController extends Controller
             return [];
         }
 
-        $business = User::query()
-            ->where('id', $businessId)
-            ->where('type', 'business')
-            ->first(['id', 'category_id']);
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
 
-        if (! $business || ! $business->category_id) {
+        if (! $business) {
             return [];
         }
 
@@ -328,11 +333,24 @@ class BookableItemController extends Controller
             return [];
         }
 
-        $serviceConfig = CategoryServiceConfig::query()
-            ->forCategory((int) $business->category_id)
-            ->forService((int) $service->id)
-            ->active()
-            ->first();
+        $serviceConfig = null;
+
+        if ($childId > 0) {
+            $serviceConfig = CategoryServiceConfig::query()
+                ->forChild($childId)
+                ->forService((int) $service->id)
+                ->active()
+                ->first();
+        }
+
+        // fallback مؤقت للبيانات القديمة
+        if (! $serviceConfig && $categoryId > 0) {
+            $serviceConfig = CategoryServiceConfig::query()
+                ->forCategory($categoryId)
+                ->forService((int) $service->id)
+                ->active()
+                ->first();
+        }
 
         if (! $serviceConfig) {
             return [];
@@ -355,5 +373,25 @@ class BookableItemController extends Controller
             ->values()
             ->all();
     }
-    
+
+    protected function resolveBusinessContext(int $businessId): array
+    {
+        if (! $businessId) {
+            return [null, 0, 0];
+        }
+
+        $business = User::query()
+            ->where('id', $businessId)
+            ->where('type', 'business')
+            ->first();
+
+        if (! $business) {
+            return [null, 0, 0];
+        }
+
+        $categoryId = (int) ($business->getAttribute('category_id') ?? 0);
+        $childId = (int) ($business->getAttribute('category_child_id') ?? 0);
+
+        return [$business, $categoryId, $childId];
+    }
 }

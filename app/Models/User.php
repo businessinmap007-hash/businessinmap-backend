@@ -324,4 +324,61 @@ public function options()
 {
     return $this->belongsToMany(Option::class, 'option_user', 'user_id', 'option_id');
 }
+public function platformServices()
+{
+    return $this->belongsToMany(
+        PlatformService::class,
+        'user_platform_service',
+        'user_id',
+        'platform_service_id'
+    )->withPivot(['is_active'])->withTimestamps();
+}
+
+public function activePlatformServices()
+{
+    return $this->belongsToMany(
+        PlatformService::class,
+        'user_platform_service',
+        'user_id',
+        'platform_service_id'
+    )->wherePivot('is_active', 1)
+     ->withPivot(['is_active'])
+     ->withTimestamps();
+}
+public function serviceFeeConsent()
+{
+    return $this->hasOne(UserServiceFeeConsent::class, 'user_id');
+}
+
+public function feeConsent()
+{
+    return $this->serviceFeeConsent();
+}
+
+public function hasFeeAutoChargeEnabled(): bool
+{
+    if (! $this->relationLoaded('serviceFeeConsent')) {
+        $this->load('serviceFeeConsent');
+    }
+
+    return (bool) optional($this->serviceFeeConsent)->fee_auto_charge_enabled;
+}
+
+public function hasRatingEnabled(): bool
+{
+    if (! $this->relationLoaded('serviceFeeConsent')) {
+        $this->load('serviceFeeConsent');
+    }
+
+    return (bool) optional($this->serviceFeeConsent)->rating_enabled;
+}
+
+public function hasStatsEnabled(): bool
+{
+    if (! $this->relationLoaded('serviceFeeConsent')) {
+        $this->load('serviceFeeConsent');
+    }
+
+    return (bool) optional($this->serviceFeeConsent)->stats_enabled;
+}
 }

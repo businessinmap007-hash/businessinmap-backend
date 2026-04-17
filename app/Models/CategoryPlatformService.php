@@ -12,6 +12,7 @@ class CategoryPlatformService extends Model
 
     protected $fillable = [
         'category_id',
+        'child_id',
         'platform_service_id',
         'is_active',
         'sort_order',
@@ -20,6 +21,7 @@ class CategoryPlatformService extends Model
 
     protected $casts = [
         'category_id'         => 'integer',
+        'child_id'            => 'integer',
         'platform_service_id' => 'integer',
         'is_active'           => 'boolean',
         'sort_order'          => 'integer',
@@ -35,6 +37,16 @@ class CategoryPlatformService extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    public function child(): BelongsTo
+    {
+        return $this->belongsTo(CategoryChild::class, 'child_id');
+    }
+
+    public function categoryChild(): BelongsTo
+    {
+        return $this->child();
     }
 
     public function platformService(): BelongsTo
@@ -71,6 +83,15 @@ class CategoryPlatformService extends Model
         return $query->where('category_id', $categoryId);
     }
 
+    public function scopeForChild(Builder $query, ?int $childId): Builder
+    {
+        if (! $childId) {
+            return $query;
+        }
+
+        return $query->where('child_id', $childId);
+    }
+
     public function scopeForService(Builder $query, ?int $serviceId): Builder
     {
         if (! $serviceId) {
@@ -94,5 +115,15 @@ class CategoryPlatformService extends Model
     public function isBooking(): bool
     {
         return (string) ($this->platformService?->key ?? '') === 'booking';
+    }
+
+    public function isAssignedToChild(): bool
+    {
+        return (int) ($this->child_id ?? 0) > 0;
+    }
+
+    public function isAssignedToCategory(): bool
+    {
+        return (int) ($this->category_id ?? 0) > 0;
     }
 }

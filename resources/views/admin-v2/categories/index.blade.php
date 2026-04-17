@@ -290,6 +290,12 @@
               class="a2-card a2-mt-16">
             @csrf
             <input type="hidden" name="parent_id" value="{{ $rootIdInt }}">
+            <input type="hidden" name="root_id" value="{{ $rootIdInt }}">
+        <input type="hidden" name="q" value="{{ $qVal }}">
+        <input type="hidden" name="active" value="{{ $activeVal }}">
+        <input type="hidden" name="per_page" value="{{ $perPageVal }}">
+        <input type="hidden" name="sort" value="{{ $sortNow }}">
+        <input type="hidden" name="dir" value="{{ $dirNow }}">
 
             <div class="a2-card-head">
                 <div>
@@ -299,16 +305,22 @@
                     </div>
                 </div>
 
-                <div class="a2-page-actions">
+               <div class="a2-page-actions">
                     <button type="submit" class="a2-btn a2-btn-primary">
                         حفظ كل التعديلات
                     </button>
 
+                    <button type="submit"
+                            class="a2-btn a2-btn-dark"
+                            formaction="{{ route('admin.category-child-service-fees.bulk.edit') }}"
+                            formmethod="GET">
+                        رسوم الخدمات للمحدد
+                    </button>
+
                     <a href="{{ route('admin.category-children.index', ['parent_id' => $rootIdInt]) }}"
-                       class="a2-btn a2-btn-ghost a2-btn-sm">
+                    class="a2-btn a2-btn-ghost a2-btn-sm">
                         إدارة كاملة
                     </a>
-
                 </div>
             </div>
 
@@ -330,9 +342,13 @@
                 <table class="a2-table">
                     <thead>
                     <tr>
+                        <th style="width:60px;">
+                            <input type="checkbox" class="a2-checkbox" id="js-check-all-children">
+                        </th>
                         <th style="width:90px;">
                             <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                         </th>
+                        
                         <th style="width:150px;">
                             <a class="a2-link" href="{{ $sortUrl('reorder') }}">Reorder{!! $arrow('reorder') !!}</a>
                         </th>
@@ -350,9 +366,19 @@
                     <tbody>
                     @forelse(($childrenSafe ?? []) as $c)
                         @php
-                            $optCount = $c->relationLoaded('options') ? $c->options->count() : 0;
+                            $optCount = isset($c->options_count)
+                                ? (int) $c->options_count
+                                : (($c->relationLoaded('options') && $c->options) ? $c->options->count() : 0);
                         @endphp
                         <tr>
+                            <td>
+                                    <input
+                                        type="checkbox"
+                                        class="a2-checkbox js-child-check"
+                                        name="child_ids[]"
+                                        value="{{ $c->id }}"
+                                    >
+                                </td>
                             <td>{{ $c->id }}</td>
 
                             <td>
@@ -380,26 +406,47 @@
                             <td dir="ltr">{{ $c->name_en ?: '—' }}</td>
 
                             <td>
-                                <span class="a2-pill a2-pill-success">{{ (int) ($c->options_count ?? $optCount ?? 0) }}</span>
+                                <span class="a2-pill a2-pill-success">{{ $optCount }}</span>
+
+                                @if($c->relationLoaded('options') && $c->options->isNotEmpty())
+                                    <div class="a2-mt-8" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+                                        @foreach($c->options->take(3) as $opt)
+                                            <span class="a2-pill a2-pill-gray">
+                                                {{ $opt->name_ar ?: ($opt->name_en ?: ('#' . $opt->id)) }}
+                                            </span>
+                                        @endforeach
+
+                                        @if($c->options->count() > 3)
+                                            <span class="a2-pill a2-pill-warning">
+                                                +{{ $c->options->count() - 3 }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
                             </td>
 
-                            <td>
-                                <div class="a2-actions">
-                                    <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                       href="{{ route('admin.category-children.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
-                                        تعديل الفرعي
-                                    </a>
+                    <td>
+                        <div class="a2-actions">
+                            <a
+                                class="a2-btn a2-btn-ghost a2-btn-sm"
+                                href="{{ route('admin.category-children.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}"
+                            >
+                                تعديل
+                            </a>
 
-                                    <a class="a2-btn a2-btn-primary a2-btn-sm"
-                                       href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}">
-                                        إدارة خيارات القسم
-                                    </a>
-                                </div>
-                            </td>
+                            <a
+                                class="a2-btn a2-btn-ghost a2-btn-sm"
+                                href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id]) }}"
+                            >
+                                الخيارات
+                            </a>
+
+                        </div>
+                    </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="a2-empty-cell">لا توجد أقسام فرعية مرتبطة</td>
+                            <td colspan="7" class="a2-empty-cell">لا توجد أقسام فرعية مرتبطة</td>
                         </tr>
                     @endforelse
                     </tbody>
@@ -518,4 +565,32 @@
         </div>
     @endif
 </div>
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const checkAll = document.getElementById('js-check-all-children');
+    const items = Array.from(document.querySelectorAll('.js-child-check'));
+
+    if (!checkAll || !items.length) {
+        return;
+    }
+
+    checkAll.addEventListener('change', function () {
+        items.forEach(function (item) {
+            item.checked = checkAll.checked;
+        });
+    });
+
+    items.forEach(function (item) {
+        item.addEventListener('change', function () {
+            const allChecked = items.every(i => i.checked);
+            const anyChecked = items.some(i => i.checked);
+
+            checkAll.checked = allChecked;
+            checkAll.indeterminate = anyChecked && !allChecked;
+        });
+    });
+});
+</script>
+@endpush
 @endsection

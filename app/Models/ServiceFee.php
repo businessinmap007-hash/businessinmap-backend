@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServiceFee extends Model
@@ -23,6 +23,7 @@ class ServiceFee extends Model
 
     protected $fillable = [
         'business_id',
+        'child_id',
         'service_id',
         'fee_code',
         'fee_type',
@@ -40,6 +41,7 @@ class ServiceFee extends Model
 
     protected $casts = [
         'business_id' => 'integer',
+        'child_id' => 'integer',
         'service_id' => 'integer',
         'amount' => 'decimal:2',
         'min_amount' => 'decimal:2',
@@ -56,9 +58,19 @@ class ServiceFee extends Model
         return $this->belongsTo(User::class, 'business_id');
     }
 
+    public function child(): BelongsTo
+    {
+        return $this->belongsTo(CategoryChild::class, 'child_id');
+    }
+
+    public function categoryChild(): BelongsTo
+    {
+        return $this->child();
+    }
+
     public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class, 'service_id');
+        return $this->belongsTo(PlatformService::class, 'service_id');
     }
 
     public function scopeActive(Builder $query): Builder
@@ -68,7 +80,7 @@ class ServiceFee extends Model
 
     public function scopeForFeeCode(Builder $query, ?string $feeCode): Builder
     {
-        if (!$feeCode) {
+        if (! $feeCode) {
             return $query;
         }
 
@@ -84,6 +96,15 @@ class ServiceFee extends Model
         return $query->where('business_id', $businessId);
     }
 
+    public function scopeForChild(Builder $query, $childId): Builder
+    {
+        if ($childId === null || $childId === '') {
+            return $query->whereNull('child_id');
+        }
+
+        return $query->where('child_id', $childId);
+    }
+
     public function scopeForService(Builder $query, $serviceId): Builder
     {
         if ($serviceId === null || $serviceId === '') {
@@ -95,11 +116,25 @@ class ServiceFee extends Model
 
     public function scopeForPayer(Builder $query, ?string $payer): Builder
     {
-        if (!$payer) {
+        if (! $payer) {
             return $query;
         }
 
         return $query->where('payer', $payer);
+    }
+
+    public function scopeForContext(
+        Builder $query,
+        $businessId = null,
+        $childId = null,
+        $serviceId = null,
+        ?string $feeCode = null
+    ): Builder {
+        return $query
+            ->forBusiness($businessId)
+            ->forChild($childId)
+            ->forService($serviceId)
+            ->forFeeCode($feeCode);
     }
 
     public function getFeeTypeLabelAttribute(): string

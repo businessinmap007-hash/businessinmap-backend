@@ -9,6 +9,7 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
+use App\Models\ServiceFee;
 use App\Services\BookingDepositService;
 use App\Services\BookingEngine;
 use App\Services\WalletFeeService;
@@ -52,7 +53,7 @@ class BookingController extends Controller
         $query = Booking::query()
             ->with([
                 'user:id,name,phone,email',
-                'business:id,name,phone,email',
+                'business:id,name,phone,email,category_id,category_child_id',
                 'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
                 'bookable',
             ]);
@@ -117,6 +118,12 @@ class BookingController extends Controller
             (int) $data['service_id']
         );
 
+        $calc = $this->enrichCalcWithContext(
+            $calc,
+            (int) $data['business_id'],
+            (int) $data['service_id']
+        );
+
         $bookable = $this->resolveSelectedBookable(
             (int) $data['business_id'],
             (int) $data['service_id'],
@@ -162,7 +169,7 @@ class BookingController extends Controller
 
         $booking->load([
             'user:id,name,code,type',
-            'business:id,name,code,type',
+            'business:id,name,code,type,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
             'bookable',
             'latestDispute',
@@ -206,6 +213,7 @@ class BookingController extends Controller
         $businessId = (int) ($data['business_id'] ?? $booking->business_id);
 
         $calc = $engine->prepare($businessId, $serviceId);
+        $calc = $this->enrichCalcWithContext($calc, $businessId, $serviceId);
 
         $bookableType = $data['bookable_type'] ?? $booking->bookable_type;
         $bookableId   = $data['bookable_id'] ?? $booking->bookable_id;
@@ -378,6 +386,7 @@ class BookingController extends Controller
         $pricingService = app(BookablePricingService::class);
 
         $calc = $engine->prepare($businessId, $serviceId);
+        $calc = $this->enrichCalcWithContext($calc, $businessId, $serviceId);
 
         $bookable = null;
         $availability = null;
@@ -498,6 +507,7 @@ class BookingController extends Controller
                 'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
                 'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
                 'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
+                'child_id' => (int) (($calc['business_price']->child_id ?? 0)),
             ],
             'bookable' => $bookable ? [
                 'id' => (int) $bookable->id,
@@ -508,6 +518,7 @@ class BookingController extends Controller
                 'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
                 'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
             ] : null,
+            'fee_snapshot' => $calc['fee_snapshot'] ?? [],
             'availability' => $availability ? [
                 'available' => (bool) ($availability['available'] ?? false),
                 'code' => (string) ($availability['code'] ?? ''),
@@ -709,7 +720,7 @@ class BookingController extends Controller
             ->get();
 
         $businesses = User::query()
-            ->select(['id', 'name'])
+            ->select(['id', 'name', 'category_child_id'])
             ->where('type', 'business')
             ->orderBy('name')
             ->get();
@@ -726,6 +737,7 @@ class BookingController extends Controller
         $businessServicePrices = BusinessServicePrice::query()
             ->select([
                 'business_id',
+                'child_id',
                 'service_id',
                 'price',
                 'deposit_enabled',
@@ -854,15 +866,37 @@ class BookingController extends Controller
         $businessId = (int) ($data['business_id'] ?? 0);
         $serviceId  = (int) ($data['service_id'] ?? 0);
 
-        $businessService = BusinessServicePrice::query()
-            ->where('business_id', $businessId)
-            ->where('service_id', $serviceId)
-            ->where('is_active', 1)
-            ->first();
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        if (! $business) {
+            throw ValidationException::withMessages([
+                'business_id' => 'البزنس غير موجود أو غير صحيح.',
+            ]);
+        }
+
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        if (! $business) {
+            throw ValidationException::withMessages([
+                'business_id' => 'البزنس غير موجود.',
+            ]);
+        }
+
+        $businessService = $this->resolveBusinessServicePrice(
+            $businessId,
+            $serviceId,
+            $childId
+        );
 
         if (! $businessService) {
             throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير مفعلة لهذا البزنس.',
+                'service_id' => 'الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.',
+            ]);
+        }
+
+        if (! $businessService) {
+            throw ValidationException::withMessages([
+                'service_id' => 'هذه الخدمة غير مفعلة لهذا البزنس ضمن القسم الفرعي الحالي.',
             ]);
         }
 
@@ -917,16 +951,18 @@ class BookingController extends Controller
     {
         $booking->loadMissing([
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+            'business:id,name,category_id,category_child_id',
             'bookable',
         ]);
 
         $service = $booking->service;
+        $childId = (int) ($booking->business?->category_child_id ?? 0);
 
-        $businessPrice = BusinessServicePrice::query()
-            ->where('business_id', (int) $booking->business_id)
-            ->where('service_id', (int) $booking->service_id)
-            ->where('is_active', 1)
-            ->first();
+        $businessPrice = $this->resolveBusinessServicePrice(
+            (int) $booking->business_id,
+            (int) $booking->service_id,
+            $childId
+        );
 
         $serviceSupportsDeposit = (bool) data_get($service, 'supports_deposit', false);
         $serviceMaxPercent = (int) data_get($service, 'max_deposit_percent', 0);
@@ -1017,6 +1053,13 @@ class BookingController extends Controller
         /** @var WalletFeeService $feeService */
         $feeService = app(WalletFeeService::class);
 
+        /*
+        |----------------------------------------------------------------------
+        | ملاحظة:
+        | WalletFeeService ما زال هو المنفذ الفعلي للخصم.
+        | هنا فقط نحافظ على snapshot أوضح داخل booking meta.
+        |----------------------------------------------------------------------
+        */
         $transactions = $feeService->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
 
         $clientAmount = 0.0;
@@ -1099,6 +1142,8 @@ class BookingController extends Controller
         if ($bookable && (float) $bookable->price > 0) {
             $unitPrice = round((float) $bookable->price, 2);
             $originalPrice = round($unitPrice * $quantity, 2);
+            $feeSnapshot = $calc['fee_snapshot'] ?? [];
+            $platformFee = (float) ($feeSnapshot['platform']['amount'] ?? ($calc['platform_fee'] ?? 0));
 
             return [
                 'unit_price' => $unitPrice,
@@ -1108,7 +1153,7 @@ class BookingController extends Controller
                 'discount_percent' => 0,
                 'discount_amount' => 0.00,
                 'final_price' => $originalPrice,
-                'platform_fee' => round((float) ($calc['platform_fee'] ?? 0) * $quantity, 2),
+                'platform_fee' => round($platformFee * $quantity, 2),
             ];
         }
 
@@ -1130,14 +1175,7 @@ class BookingController extends Controller
             $finalPrice = 0.00;
         }
 
-        $service = $calc['service'];
-        $platformFee = 0.00;
-
-        if (($service->fee_type ?? '') === 'percent') {
-            $platformFee = round($finalPrice * ((float) $service->fee_value / 100), 2);
-        } elseif (($service->fee_type ?? '') === 'fixed') {
-            $platformFee = round((float) $service->fee_value, 2);
-        }
+        $platformFee = $this->resolvePlatformFeeAmount($calc, $finalPrice);
 
         return [
             'unit_price' => $unitPrice,
@@ -1205,6 +1243,8 @@ class BookingController extends Controller
         ?BookableItem $bookable
     ): array {
         $meta = $existingMeta;
+        $feeSnapshot = $calc['fee_snapshot'] ?? [];
+        $businessPrice = $calc['business_price'] ?? null;
 
         $meta['platform_service'] = [
             'id' => (int) $calc['service']->id,
@@ -1213,6 +1253,12 @@ class BookingController extends Controller
             'name_en' => (string) ($calc['service']->name_en ?? ''),
         ];
 
+        $meta['business_context'] = [
+            'business_id' => (int) ($calc['business']->id ?? 0),
+            'category_id' => (int) ($calc['business']->category_id ?? 0),
+            'category_child_id' => (int) ($calc['business']->category_child_id ?? 0),
+        ];
+  
         $meta['pricing'] = [
             'original_price' => (float) $priceBreakdown['original_price'],
             'discount_enabled' => (bool) $priceBreakdown['discount_enabled'],
@@ -1226,8 +1272,11 @@ class BookingController extends Controller
             'unit_price' => (float) $priceBreakdown['unit_price'],
             'quantity' => (int) $priceBreakdown['quantity'],
             'platform_fee' => (float) $priceBreakdown['platform_fee'],
+            'business_service_price_id' => (int) ($businessPrice->id ?? 0),
+            'business_service_price_child_id' => (int) ($businessPrice->child_id ?? 0),
         ];
 
+        $meta['service_fees_snapshot'] = $feeSnapshot;
         $meta['deposit_policy'] = $depositPolicy;
 
         if ($bookable) {
@@ -1253,6 +1302,7 @@ class BookingController extends Controller
         $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
         $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
         $meta['_execution_fee']['transactions'] = $meta['_execution_fee']['transactions'] ?? [];
+        $meta['_execution_fee']['child_id'] = (int) ($calc['business']->category_child_id ?? 0);
 
         return $meta;
     }
@@ -1260,5 +1310,187 @@ class BookingController extends Controller
     protected function applyExecutionPlatformFees(Booking $booking): void
     {
         app(WalletFeeService::class)->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
+    }
+
+    protected function resolveBusinessContext(int $businessId): array
+    {
+        if (! $businessId) {
+            return [null, 0, 0];
+        }
+
+        $business = User::query()
+            ->select(['id', 'name', 'type', 'category_id', 'category_child_id'])
+            ->where('id', $businessId)
+            ->where('type', 'business')
+            ->first();
+
+        if (! $business) {
+            return [null, 0, 0];
+        }
+
+        return [
+            $business,
+            (int) ($business->category_id ?? 0),
+            (int) ($business->category_child_id ?? 0),
+        ];
+    }
+
+    protected function resolveBusinessServicePrice(int $businessId, int $serviceId, int $childId = 0): ?BusinessServicePrice
+    {
+        if ($businessId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        // 🔥 أولوية child
+        if ($childId > 0) {
+            $row = BusinessServicePrice::query()
+                ->where('business_id', $businessId)
+                ->where('child_id', $childId)
+                ->where('service_id', $serviceId)
+                ->where('is_active', 1)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row) {
+                return $row;
+            }
+        }
+
+        // fallback قديم
+        return BusinessServicePrice::query()
+            ->where('business_id', $businessId)
+            ->where('service_id', $serviceId)
+            ->where('is_active', 1)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function resolveServiceFeeRows(int $businessId, int $serviceId, int $childId = 0, string $feeCode = self::EXECUTION_FEE_CODE): array
+    {
+        $rows = collect();
+
+        if ($childId > 0) {
+            $rows = ServiceFee::query()
+                ->where('business_id', $businessId)
+                ->where('child_id', $childId)
+                ->where('service_id', $serviceId)
+                ->where('fee_code', $feeCode)
+                ->where('is_active', 1)
+                ->get();
+
+            if ($rows->isNotEmpty()) {
+                return $rows->keyBy('payer')->all();
+            }
+        }
+
+        $rows = ServiceFee::query()
+            ->where('business_id', $businessId)
+            ->where('service_id', $serviceId)
+            ->where('fee_code', $feeCode)
+            ->where('is_active', 1)
+            ->get();
+
+        return $rows->keyBy('payer')->all();
+    }
+
+    protected function enrichCalcWithContext(array $calc, int $businessId, int $serviceId): array
+    {
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        $calc['business'] = $business;
+        $calc['business_category_id'] = $categoryId;
+        $calc['business_child_id'] = $childId;
+
+        $businessPrice = $this->resolveBusinessServicePrice($businessId, $serviceId, $childId);
+        if ($businessPrice) {
+            $calc['business_price'] = $businessPrice;
+            $calc['price'] = (float) $businessPrice->price;
+        }
+
+        $feeRows = $this->resolveServiceFeeRows($businessId, $serviceId, $childId, self::EXECUTION_FEE_CODE);
+
+        $calc['service_fee_rows'] = $feeRows;
+        $calc['fee_snapshot'] = [
+            'business_id' => $businessId,
+            'child_id' => $childId,
+            'service_id' => $serviceId,
+            'fee_code' => self::EXECUTION_FEE_CODE,
+            'business' => $this->mapFeeRowForSnapshot($feeRows['business'] ?? null),
+            'client' => $this->mapFeeRowForSnapshot($feeRows['client'] ?? null),
+        ];
+
+        return $calc;
+    }
+
+    protected function mapFeeRowForSnapshot(?ServiceFee $row): ?array
+    {
+        if (! $row) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row->id,
+            'payer' => (string) $row->payer,
+            'fee_type' => (string) $row->fee_type,
+            'calc_type' => (string) $row->calc_type,
+            'amount' => (float) ($row->amount ?? 0),
+            'min_amount' => $row->min_amount !== null ? (float) $row->min_amount : null,
+            'max_amount' => $row->max_amount !== null ? (float) $row->max_amount : null,
+            'currency' => (string) ($row->currency ?? 'EGP'),
+            'priority' => (int) ($row->priority ?? 0),
+            'child_id' => (int) ($row->child_id ?? 0),
+            'service_id' => (int) ($row->service_id ?? 0),
+            'fee_code' => (string) ($row->fee_code ?? ''),
+        ];
+    }
+
+    protected function calculateFeeAmountFromRow(?ServiceFee $row, float $baseAmount): float
+    {
+        if (! $row) {
+            return 0.00;
+        }
+
+        $calcType = (string) ($row->calc_type ?? '');
+        $amount = 0.00;
+
+        if ($calcType === ServiceFee::CALC_PERCENT) {
+            $amount = round($baseAmount * ((float) ($row->amount ?? 0) / 100), 2);
+        } else {
+            $amount = round((float) ($row->amount ?? 0), 2);
+        }
+
+        $min = $row->min_amount !== null ? (float) $row->min_amount : null;
+        $max = $row->max_amount !== null ? (float) $row->max_amount : null;
+
+        if ($min !== null && $amount < $min) {
+            $amount = round($min, 2);
+        }
+
+        if ($max !== null && $amount > $max) {
+            $amount = round($max, 2);
+        }
+
+        return round($amount, 2);
+    }
+
+    protected function resolvePlatformFeeAmount(array $calc, float $finalPrice): float
+    {
+        $feeRows = $calc['service_fee_rows'] ?? [];
+
+        $platformCandidate = $feeRows['business'] ?? $feeRows['client'] ?? null;
+        if ($platformCandidate instanceof ServiceFee) {
+            return $this->calculateFeeAmountFromRow($platformCandidate, $finalPrice);
+        }
+
+        $service = $calc['service'];
+        $platformFee = 0.00;
+
+        if (($service->fee_type ?? '') === 'percent') {
+            $platformFee = round($finalPrice * ((float) $service->fee_value / 100), 2);
+        } elseif (($service->fee_type ?? '') === 'fixed') {
+            $platformFee = round((float) $service->fee_value, 2);
+        }
+
+        return $platformFee;
     }
 }

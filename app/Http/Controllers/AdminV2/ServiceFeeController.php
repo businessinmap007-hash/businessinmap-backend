@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\CategoryChild;
 use App\Models\PlatformService;
 use App\Models\ServiceFee;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ServiceFeeController extends Controller
 {
@@ -26,6 +28,7 @@ class ServiceFeeController extends Controller
         return $request->only([
             'q',
             'business_id',
+            'child_id',
             'service_id',
             'fee_code',
             'is_active',
@@ -37,6 +40,7 @@ class ServiceFeeController extends Controller
     {
         $q          = trim((string) $request->get('q', ''));
         $businessId = (string) $request->get('business_id', '');
+        $childId    = (string) $request->get('child_id', '');
         $serviceId  = (string) $request->get('service_id', '');
         $feeCode    = (string) $request->get('fee_code', '');
         $isActive   = (string) $request->get('is_active', '');
@@ -45,6 +49,7 @@ class ServiceFeeController extends Controller
         $rows = ServiceFee::query()
             ->select([
                 'business_id',
+                'child_id',
                 'service_id',
                 'fee_code',
                 DB::raw('MAX(id) as id'),
@@ -68,6 +73,13 @@ class ServiceFeeController extends Controller
                     $qq->where('business_id', $businessId);
                 }
             })
+            ->when($childId !== '', function ($qq) use ($childId) {
+                if ($childId === 'global') {
+                    $qq->whereNull('child_id');
+                } else {
+                    $qq->where('child_id', $childId);
+                }
+            })
             ->when($serviceId !== '', function ($qq) use ($serviceId) {
                 if ($serviceId === 'global') {
                     $qq->whereNull('service_id');
@@ -83,23 +95,26 @@ class ServiceFeeController extends Controller
                     $qq->where('is_active', 0);
                 }
             })
-            ->groupBy('business_id', 'service_id', 'fee_code')
+            ->groupBy('business_id', 'child_id', 'service_id', 'fee_code')
             ->orderByDesc(DB::raw('MAX(id)'))
             ->paginate($perPage)
             ->appends($this->keepQs($request));
 
         $businesses = $this->businesses();
+        $children   = $this->children();
         $services   = $this->services();
 
         return view('admin-v2.service-fees.index', [
             'rows' => $rows,
             'q' => $q,
             'businessId' => $businessId,
+            'childId' => $childId,
             'serviceId' => $serviceId,
             'feeCode' => $feeCode,
             'isActive' => $isActive,
             'perPage' => $perPage,
             'businesses' => $businesses,
+            'children' => $children,
             'services' => $services,
             'feeCodeOptions' => $this->feeCodeOptions(),
         ]);
@@ -108,11 +123,13 @@ class ServiceFeeController extends Controller
     public function create()
     {
         $businesses = $this->businesses();
+        $children   = $this->children();
         $services   = $this->services();
         $defaults   = $this->defaultFeeData();
 
         return view('admin-v2.service-fees.create', [
             'businesses' => $businesses,
+            'children' => $children,
             'services' => $services,
             'feeCodeOptions' => $this->feeCodeOptions(),
             'feeTypeOptions' => $this->feeTypeOptions(),
@@ -140,84 +157,53 @@ class ServiceFeeController extends Controller
 
     public function show(Request $request)
     {
-        [$businessId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
+        [$businessId, $childId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
 
         $fees = ServiceFee::query()
-            ->where(function ($q) use ($businessId) {
-                if ($businessId === null) {
-                    $q->whereNull('business_id');
-                } else {
-                    $q->where('business_id', $businessId);
-                }
-            })
-            ->where(function ($q) use ($serviceId) {
-                if ($serviceId === null) {
-                    $q->whereNull('service_id');
-                } else {
-                    $q->where('service_id', $serviceId);
-                }
-            })
-            ->where('fee_code', $feeCode)
+            ->forContext($businessId, $childId, $serviceId, $feeCode)
             ->get()
             ->keyBy('payer');
 
         abort_if($fees->isEmpty(), 404);
 
-        $businessFee = $fees->get('business');
-        $clientFee   = $fees->get('client');
-
         $business = $businessId ? User::find($businessId) : null;
+        $child    = $childId ? CategoryChild::find($childId) : null;
         $service  = $serviceId ? PlatformService::find($serviceId) : null;
 
         return view('admin-v2.service-fees.show', [
-           'businessFee' => $businessFee,
-    'clientFee' => $clientFee,
-    'business' => $business,
-    'service' => $service,
-    'feeCode' => $feeCode,
-    'groupKey' => $this->buildGroupKey($businessId, $serviceId, $feeCode),
-    'services' => $this->services(),
+            'businessFee' => $fees->get('business'),
+            'clientFee' => $fees->get('client'),
+            'business' => $business,
+            'child' => $child,
+            'service' => $service,
+            'feeCode' => $feeCode,
+            'groupKey' => $this->buildGroupKey($businessId, $childId, $serviceId, $feeCode),
+            'services' => $this->services(),
         ]);
     }
 
     public function edit(Request $request)
     {
-        [$businessId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
+        [$businessId, $childId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
 
         $fees = ServiceFee::query()
-            ->where(function ($q) use ($businessId) {
-                if ($businessId === null) {
-                    $q->whereNull('business_id');
-                } else {
-                    $q->where('business_id', $businessId);
-                }
-            })
-            ->where(function ($q) use ($serviceId) {
-                if ($serviceId === null) {
-                    $q->whereNull('service_id');
-                } else {
-                    $q->where('service_id', $serviceId);
-                }
-            })
-            ->where('fee_code', $feeCode)
+            ->forContext($businessId, $childId, $serviceId, $feeCode)
             ->get()
             ->keyBy('payer');
 
         abort_if($fees->isEmpty(), 404);
 
-        $businesses = $this->businesses();
-        $services   = $this->services();
-
         return view('admin-v2.service-fees.edit', [
-            'businesses' => $businesses,
-            'services' => $services,
+            'businesses' => $this->businesses(),
+            'children' => $this->children(),
+            'services' => $this->services(),
             'feeCodeOptions' => $this->feeCodeOptions(),
             'feeTypeOptions' => $this->feeTypeOptions(),
             'calcTypeOptions' => $this->calcTypeOptions(),
             'businessFee' => $fees->get('business') ?: $this->defaultSingleFee('business'),
             'clientFee' => $fees->get('client') ?: $this->defaultSingleFee('client'),
             'mode' => 'edit',
-            'groupKey' => $this->buildGroupKey($businessId, $serviceId, $feeCode),
+            'groupKey' => $this->buildGroupKey($businessId, $childId, $serviceId, $feeCode),
         ]);
     }
 
@@ -233,6 +219,7 @@ class ServiceFeeController extends Controller
         return redirect()
             ->route('admin.service-fees.show', [
                 'business_id' => $data['business_id'],
+                'child_id' => $data['child_id'],
                 'service_id' => $data['service_id'],
                 'fee_code' => $data['fee_code'],
             ])
@@ -241,24 +228,10 @@ class ServiceFeeController extends Controller
 
     public function destroy(Request $request)
     {
-        [$businessId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
+        [$businessId, $childId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
 
         ServiceFee::query()
-            ->where(function ($q) use ($businessId) {
-                if ($businessId === null) {
-                    $q->whereNull('business_id');
-                } else {
-                    $q->where('business_id', $businessId);
-                }
-            })
-            ->where(function ($q) use ($serviceId) {
-                if ($serviceId === null) {
-                    $q->whereNull('service_id');
-                } else {
-                    $q->where('service_id', $serviceId);
-                }
-            })
-            ->where('fee_code', $feeCode)
+            ->forContext($businessId, $childId, $serviceId, $feeCode)
             ->delete();
 
         return redirect()
@@ -268,24 +241,10 @@ class ServiceFeeController extends Controller
 
     public function toggleActive(Request $request)
     {
-        [$businessId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
+        [$businessId, $childId, $serviceId, $feeCode] = $this->resolveGroupKey($request);
 
         $fees = ServiceFee::query()
-            ->where(function ($q) use ($businessId) {
-                if ($businessId === null) {
-                    $q->whereNull('business_id');
-                } else {
-                    $q->where('business_id', $businessId);
-                }
-            })
-            ->where(function ($q) use ($serviceId) {
-                if ($serviceId === null) {
-                    $q->whereNull('service_id');
-                } else {
-                    $q->where('service_id', $serviceId);
-                }
-            })
-            ->where('fee_code', $feeCode)
+            ->forContext($businessId, $childId, $serviceId, $feeCode)
             ->get();
 
         abort_if($fees->isEmpty(), 404);
@@ -303,6 +262,7 @@ class ServiceFeeController extends Controller
     {
         $data = $request->validate([
             'business_id' => ['nullable', 'integer', 'exists:users,id'],
+            'child_id'    => ['nullable', 'integer', 'exists:category_children_master,id'],
             'service_id'  => ['nullable', 'integer', 'exists:platform_services,id'],
             'fee_code'    => ['required', 'string', 'max:100', Rule::in(array_keys($this->feeCodeOptions()))],
 
@@ -329,11 +289,14 @@ class ServiceFeeController extends Controller
             'client.rules'      => ['nullable', 'string'],
         ], [], [
             'business_id' => 'البزنس',
+            'child_id' => 'القسم الفرعي',
             'service_id' => 'الخدمة',
             'fee_code' => 'كود الرسم',
             'business.amount' => 'قيمة رسوم البزنس',
             'client.amount' => 'قيمة رسوم العميل',
         ]);
+
+        $data = $this->normalizeContext($data);
 
         $data['business']['is_active'] = $request->boolean('business.is_active');
         $data['client']['is_active']   = $request->boolean('client.is_active');
@@ -343,49 +306,71 @@ class ServiceFeeController extends Controller
         return $data;
     }
 
+    private function normalizeContext(array $data): array
+    {
+        $businessId = $data['business_id'] ?? null;
+        $childId    = $data['child_id'] ?? null;
+
+        if ($businessId) {
+            $business = User::query()
+                ->select(['id', 'type', 'category_child_id'])
+                ->where('id', $businessId)
+                ->where('type', 'business')
+                ->first();
+
+            if (! $business) {
+                throw ValidationException::withMessages([
+                    'business_id' => 'البزنس غير صحيح.',
+                ]);
+            }
+
+            $businessChildId = (int) ($business->category_child_id ?? 0);
+
+            if (! $childId && $businessChildId > 0) {
+                $data['child_id'] = $businessChildId;
+            }
+
+            if ($childId && $businessChildId > 0 && (int) $childId !== $businessChildId) {
+                throw ValidationException::withMessages([
+                    'child_id' => 'القسم الفرعي لا يطابق القسم الفرعي المرتبط بهذا البزنس.',
+                ]);
+            }
+        }
+
+        return $data;
+    }
+
     private function upsertPayerFee(string $payer, array $data): void
     {
         $payload = $data[$payer];
 
         $businessId = $data['business_id'] ?: null;
+        $childId    = $data['child_id'] ?: null;
         $serviceId  = $data['service_id'] ?: null;
         $feeCode    = $data['fee_code'];
 
-        $row = ServiceFee::query()
-            ->where('payer', $payer)
-            ->where('fee_code', $feeCode)
-            ->where(function ($q) use ($businessId) {
-                if ($businessId === null) {
-                    $q->whereNull('business_id');
-                } else {
-                    $q->where('business_id', $businessId);
-                }
-            })
-            ->where(function ($q) use ($serviceId) {
-                if ($serviceId === null) {
-                    $q->whereNull('service_id');
-                } else {
-                    $q->where('service_id', $serviceId);
-                }
-            })
-            ->first();
-
         $values = [
-            'fee_code'    => $feeCode,
             'business_id' => $businessId,
-            'service_id'  => $serviceId,
-            'payer'       => $payer,
-            'fee_type'    => $payload['fee_type'],
-            'calc_type'   => $payload['calc_type'],
-            'amount'      => $payload['amount'] ?? 0,
-            'min_amount'  => $payload['min_amount'] ?? null,
-            'max_amount'  => $payload['max_amount'] ?? null,
-            'currency'    => strtoupper($payload['currency'] ?? 'EGP'),
-            'priority'    => $payload['priority'] ?? 100,
-            'is_active'   => $payload['is_active'] ?? true,
-            'notes'       => $payload['notes'] ?? null,
-            'rules'       => $payload['rules'] ?? null,
+            'child_id' => $childId,
+            'service_id' => $serviceId,
+            'fee_code' => $feeCode,
+            'payer' => $payer,
+            'fee_type' => $payload['fee_type'],
+            'calc_type' => $payload['calc_type'],
+            'amount' => $payload['amount'] ?? 0,
+            'min_amount' => $payload['min_amount'] ?? null,
+            'max_amount' => $payload['max_amount'] ?? null,
+            'currency' => $payload['currency'] ?? 'EGP',
+            'priority' => $payload['priority'] ?? 100,
+            'is_active' => (bool) ($payload['is_active'] ?? true),
+            'rules' => $payload['rules'] ?? null,
+            'notes' => $payload['notes'] ?? null,
         ];
+
+        $row = ServiceFee::query()
+            ->forContext($businessId, $childId, $serviceId, $feeCode)
+            ->forPayer($payer)
+            ->first();
 
         if ($row) {
             $row->update($values);
@@ -413,22 +398,36 @@ class ServiceFeeController extends Controller
     private function resolveGroupKey(Request $request): array
     {
         $businessId = $request->get('business_id');
+        $childId    = $request->get('child_id');
         $serviceId  = $request->get('service_id');
         $feeCode    = $request->get('fee_code');
 
         abort_unless($feeCode, 404);
 
-        return [
-            ($businessId !== '' && $businessId !== null) ? (int) $businessId : null,
-            ($serviceId !== '' && $serviceId !== null) ? (int) $serviceId : null,
-            $feeCode,
-        ];
+        $businessId = ($businessId !== '' && $businessId !== null) ? (int) $businessId : null;
+        $childId    = ($childId !== '' && $childId !== null) ? (int) $childId : null;
+        $serviceId  = ($serviceId !== '' && $serviceId !== null) ? (int) $serviceId : null;
+
+        if (! $childId && $businessId) {
+            $business = User::query()
+                ->select(['id', 'type', 'category_child_id'])
+                ->where('id', $businessId)
+                ->where('type', 'business')
+                ->first();
+
+            if ($business && (int) ($business->category_child_id ?? 0) > 0) {
+                $childId = (int) $business->category_child_id;
+            }
+        }
+
+        return [$businessId, $childId, $serviceId, $feeCode];
     }
 
-    private function buildGroupKey($businessId, $serviceId, $feeCode): array
+    private function buildGroupKey($businessId, $childId, $serviceId, $feeCode): array
     {
         return [
             'business_id' => $businessId,
+            'child_id' => $childId,
             'service_id' => $serviceId,
             'fee_code' => $feeCode,
         ];
@@ -460,10 +459,19 @@ class ServiceFeeController extends Controller
     private function businesses()
     {
         return User::query()
-            ->select(['id', 'name', 'code'])
+            ->select(['id', 'name', 'code', 'category_child_id'])
             ->where('type', 'business')
             ->orderByDesc('id')
             ->limit(500)
+            ->get();
+    }
+
+    private function children()
+    {
+        return CategoryChild::query()
+            ->select(['id', 'name_ar', 'name_en', 'reorder'])
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('id')
             ->get();
     }
 

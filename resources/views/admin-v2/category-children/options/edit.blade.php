@@ -78,6 +78,45 @@
             <div class="a2-stat-value" id="selectedCountText">{{ $totalSelected }}</div>
             <div class="a2-stat-note">سيتم حفظه فعليًا على القسم الفرعي</div>
         </div>
+        <div class="a2-card a2-card--soft a2-mt-16">
+    <div class="a2-card-head">
+        <div>
+            <div class="a2-section-title a2-mb-0">الخيارات المختارة لهذا القسم الفرعي</div>
+            <div class="a2-section-subtitle">
+                العدد الحالي:
+                <strong>{{ (int) ($categoryChild->options_count ?? $categoryChild->options->count()) }}</strong>
+            </div>
+        </div>
+
+        <div class="a2-page-actions">
+            <a
+                href="{{ route('admin.category-child-options.edit', ['categoryChild' => $categoryChild->id]) }}"
+                class="a2-btn a2-btn-ghost"
+            >
+                إدارة الخيارات
+            </a>
+        </div>
+    </div>
+
+    @if(($categoryChild->options ?? collect())->isEmpty())
+        <div class="a2-empty-cell">
+            لا توجد خيارات مختارة لهذا القسم الفرعي حتى الآن.
+        </div>
+    @else
+        <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
+            @foreach($categoryChild->options as $opt)
+                @php
+                    $optName = $opt->name_ar ?: ($opt->name_en ?: ('#' . $opt->id));
+                @endphp
+
+                <span class="a2-pill a2-pill-gray">
+                    {{ $optName }}
+                    <span class="a2-muted">#{{ $opt->id }}</span>
+                </span>
+            @endforeach
+        </div>
+    @endif
+</div>
 
         <div class="a2-stat-card">
             <div class="a2-stat-label">عدد المجموعات</div>

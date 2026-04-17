@@ -3573,3 +3573,22 @@ color:#0284c7;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.a2-filter-services {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px dashed var(--a2-border-2);
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.a2-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}

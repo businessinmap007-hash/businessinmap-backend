@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\CategoryPlatformService;
-use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,6 +90,47 @@ class CategoryController extends Controller
         return $value !== '' ? $value : null;
     }
 
+    private function syncChildServices(CategoryChild $categoryChild, array $parentIds, array $serviceIds): void
+    {
+        $parentIds = collect($parentIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $serviceIds = collect($serviceIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        CategoryPlatformService::query()
+            ->where('child_id', $categoryChild->id)
+            ->delete();
+
+        if (empty($serviceIds)) {
+            return;
+        }
+
+        $order = 1;
+        $fallbackCategoryId = (int) ($parentIds[0] ?? 0);
+
+        foreach ($serviceIds as $serviceId) {
+            CategoryPlatformService::query()->create([
+                'category_id' => $fallbackCategoryId > 0 ? $fallbackCategoryId : null,
+                'child_id' => $categoryChild->id,
+                'platform_service_id' => $serviceId,
+                'is_active' => true,
+                'sort_order' => $order,
+                'meta' => null,
+            ]);
+
+            $order++;
+        }
+    }
+
     public function index(Request $request): View
     {
         $rootId  = (int) $request->get('root_id', 0);
@@ -137,9 +177,9 @@ class CategoryController extends Controller
             }
 
             $children = CategoryChild::query()
-                ->with('options:id')
                 ->withCount([
                     'options',
+                    'activePlatformServices',
                 ])
                 ->whereHas('parents', function ($query) use ($rootId) {
                     $query->where('categories.id', $rootId);
@@ -147,7 +187,7 @@ class CategoryController extends Controller
                 ->when($q !== '', function ($query) use ($q) {
                     $query->where(function ($w) use ($q) {
                         $w->where('name_ar', 'like', "%{$q}%")
-                          ->orWhere('name_en', 'like', "%{$q}%");
+                            ->orWhere('name_en', 'like', "%{$q}%");
                     });
                 })
                 ->select(['id', 'name_ar', 'name_en', 'reorder', 'created_at', 'updated_at'])
@@ -235,25 +275,14 @@ class CategoryController extends Controller
         abort_if((int) $category->parent_id !== 0, 404);
 
         $category->load([
-            'platformServices:id,key,name_ar,name_en',
             'children:id,name_ar,name_en,reorder',
         ]);
-
-        $selectedServiceIds = $category->platformServices
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $serviceConfigs = CategoryServiceConfig::query()
-            ->where('category_id', $category->id)
-            ->get()
-            ->keyBy('platform_service_id');
 
         return view('admin-v2.categories.edit', [
             'category' => $category,
             'rootId' => $category->id,
-            'selectedServiceIds' => $selectedServiceIds,
-            'serviceConfigs' => $serviceConfigs,
+            'selectedServiceIds' => [],
+            'serviceConfigs' => collect(),
         ]);
     }
 
@@ -299,21 +328,22 @@ class CategoryController extends Controller
         $oldImage = $category->image;
 
         DB::transaction(function () use ($category) {
-            CategoryPlatformService::query()
-                ->where('category_id', $category->id)
-                ->delete();
-
-            CategoryServiceConfig::query()
-                ->where('category_id', $category->id)
-                ->delete();
-
             $childIds = $category->children()->pluck('category_children_master.id')->all();
 
-            if (!empty($childIds)) {
+            if (! empty($childIds)) {
+                CategoryPlatformService::query()
+                    ->whereIn('child_id', $childIds)
+                    ->delete();
+
                 DB::table('category_parent_child')
                     ->where('parent_id', $category->id)
                     ->delete();
             }
+
+            CategoryPlatformService::query()
+                ->where('category_id', $category->id)
+                ->whereNull('child_id')
+                ->delete();
 
             $category->delete();
         });
@@ -396,11 +426,12 @@ class CategoryController extends Controller
             ->withCount([
                 'parents',
                 'options',
+                'activePlatformServices',
             ])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('name_ar', 'like', "%{$q}%")
-                    ->orWhere('name_en', 'like', "%{$q}%");
+                        ->orWhere('name_en', 'like', "%{$q}%");
                 });
             })
             ->select(['id', 'name_ar', 'name_en', 'reorder', 'created_at', 'updated_at'])
@@ -446,11 +477,20 @@ class CategoryController extends Controller
             ->orderBy('id')
             ->get(['id', 'name_ar', 'name_en']);
 
+        $services = PlatformService::query()
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'key', 'name_ar', 'name_en']);
+
         return view('admin-v2.category-children.create', [
             'categoryChild' => new CategoryChild([
                 'reorder' => 0,
             ]),
             'parents' => $parents,
+            'services' => $services,
+            'selectedServiceIds' => [],
+            'serviceConfigs' => collect(),
             'parentId' => $parentId,
             'root' => $root,
             'selectedParentIds' => $parentId > 0 ? [$parentId] : [],
@@ -465,6 +505,8 @@ class CategoryController extends Controller
             'reorder' => 'nullable|integer|min:0|max:1000000',
             'parent_ids' => 'nullable|array',
             'parent_ids.*' => 'integer|exists:categories,id',
+            'service_ids' => 'nullable|array',
+            'service_ids.*' => 'integer|exists:platform_services,id',
             'return_to' => 'nullable|string|max:50',
         ]);
 
@@ -475,9 +517,16 @@ class CategoryController extends Controller
             ->values()
             ->all();
 
+        $serviceIds = collect($request->input('service_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         $row = null;
 
-        DB::transaction(function () use ($data, $parentIds, &$row) {
+        DB::transaction(function () use ($data, $parentIds, $serviceIds, &$row) {
             $row = CategoryChild::query()->create([
                 'name_ar' => trim((string) $data['name_ar']),
                 'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
@@ -487,6 +536,8 @@ class CategoryController extends Controller
             if (! empty($parentIds)) {
                 $row->parents()->sync($parentIds);
             }
+
+            $this->syncChildServices($row, $parentIds, $serviceIds);
         });
 
         $redirectParentId = ! empty($parentIds) ? (int) $parentIds[0] : 0;
@@ -503,16 +554,52 @@ class CategoryController extends Controller
             ->with('success', 'تم إضافة القسم الفرعي بنجاح.');
     }
 
+    public function syncChildren(Request $request, Category $parent): RedirectResponse
+    {
+        abort_if((int) $parent->parent_id !== 0, 404);
+
+        $data = $request->validate([
+            'child_ids' => ['nullable', 'array'],
+            'child_ids.*' => ['integer', 'exists:category_children_master,id'],
+        ]);
+
+        $childIds = collect($data['child_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $parent->children()->sync($childIds);
+
+        return $this->redirectToIndex($parent->id)
+            ->with('success', 'تم تحديث ربط الأقسام الفرعية بنجاح.');
+    }
+
     public function categoryChildrenEdit(Request $request, CategoryChild $categoryChild): View
     {
         $parentId = (int) $request->get('parent_id', 0);
 
         $categoryChild->load([
             'parents:id,name_ar,name_en,parent_id',
-            'options:id,name_ar,name_en',
-        ]);
+            'options' => function ($q) {
+                $q->select('options.id', 'options.name_ar', 'options.name_en', 'options.group_id')
+                ->orderBy('options.id');
+            },
+            'platformServices:id,key,name_ar,name_en',
+        ])->loadCount('options');
 
         $selectedParentIds = $categoryChild->parents
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $selectedServiceIds = $categoryChild->platformServices
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $selectedOptionIds = $categoryChild->options
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -524,16 +611,25 @@ class CategoryController extends Controller
             ->orderBy('id')
             ->get(['id', 'name_ar', 'name_en']);
 
+        $services = PlatformService::query()
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'key', 'name_ar', 'name_en']);
+
         $root = null;
         if ($parentId > 0) {
             $root = Category::query()
                 ->where('parent_id', 0)
-                ->find($parentId);
+                ->find($parentId, ['id', 'name_ar', 'name_en']);
         }
 
         return view('admin-v2.category-children.edit', [
             'categoryChild' => $categoryChild,
             'parents' => $parents,
+            'services' => $services,
+            'selectedServiceIds' => $selectedServiceIds,
+            'selectedOptionIds' => $selectedOptionIds,
             'parentId' => $parentId,
             'root' => $root,
             'selectedParentIds' => $selectedParentIds,
@@ -548,6 +644,8 @@ class CategoryController extends Controller
             'reorder' => ['nullable', 'integer', 'min:0'],
             'parent_ids' => ['nullable', 'array'],
             'parent_ids.*' => ['integer', 'exists:categories,id'],
+            'service_ids' => ['nullable', 'array'],
+            'service_ids.*' => ['integer', 'exists:platform_services,id'],
         ]);
 
         $parentIds = collect($data['parent_ids'] ?? [])
@@ -557,7 +655,14 @@ class CategoryController extends Controller
             ->values()
             ->all();
 
-        DB::transaction(function () use ($categoryChild, $data, $parentIds) {
+        $serviceIds = collect($data['service_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        DB::transaction(function () use ($categoryChild, $data, $parentIds, $serviceIds) {
             $categoryChild->update([
                 'name_ar' => $data['name_ar'],
                 'name_en' => $data['name_en'] ?? null,
@@ -565,6 +670,7 @@ class CategoryController extends Controller
             ]);
 
             $categoryChild->parents()->sync($parentIds);
+            $this->syncChildServices($categoryChild, $parentIds, $serviceIds);
         });
 
         $firstParentId = (int) ($parentIds[0] ?? 0);
@@ -583,6 +689,10 @@ class CategoryController extends Controller
                 ->delete();
 
             DB::table('category_child_option')
+                ->where('child_id', $categoryChild->id)
+                ->delete();
+
+            CategoryPlatformService::query()
                 ->where('child_id', $categoryChild->id)
                 ->delete();
 
@@ -607,54 +717,21 @@ class CategoryController extends Controller
             ->exists();
 
         if (! $hasParents) {
-            DB::transaction(function () use ($categoryChild) {
-                DB::table('category_child_option')
-                    ->where('child_id', $categoryChild->id)
-                    ->delete();
+            CategoryPlatformService::query()
+                ->where('child_id', $categoryChild->id)
+                ->delete();
 
-                $categoryChild->delete();
-            });
+            DB::table('category_child_option')
+                ->where('child_id', $categoryChild->id)
+                ->delete();
+
+            $categoryChild->delete();
 
             return $this->redirectToIndex($rootId)
-                ->with('success', 'تم فك الربط وحذف القسم الفرعي لأنه لم يعد مرتبطًا بأي قسم رئيسي.');
+                ->with('success', 'تم فصل القسم الفرعي، ولأنه لم يعد مرتبطًا بأي قسم رئيسي تم حذفه نهائيًا.');
         }
 
-        return $this->redirectToIndex($rootId)
-            ->with('success', 'تم فك ربط القسم الفرعي من القسم الرئيسي بنجاح.');
-    }
-
-    public function syncChildren(Request $request, $parent)
-    {
-        $parent = Category::query()
-            ->where('parent_id', 0)
-            ->findOrFail($parent);
-
-        $data = $request->validate([
-            'child_ids' => ['nullable', 'array'],
-            'child_ids.*' => ['integer', 'exists:category_children_master,id'],
-            'q' => ['nullable', 'string', 'max:191'],
-            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
-            'sort' => ['nullable', 'string', 'max:50'],
-            'dir' => ['nullable', 'string', 'max:10'],
-        ]);
-
-        $childIds = collect($data['child_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-
-        $parent->children()->sync($childIds);
-
-        return redirect()
-            ->route('admin.category-children.index', [
-                'parent_id' => $parent->id,
-                'q' => (string) ($data['q'] ?? ''),
-                'per_page' => (int) ($data['per_page'] ?? 50),
-                'sort' => (string) ($data['sort'] ?? 'reorder'),
-                'dir' => (string) ($data['dir'] ?? 'asc'),
-            ])
-            ->with('success', 'تم تحديث ربط الأقسام الفرعية بنجاح.');
+        return $this->redirectToIndex($rootId > 0 ? $rootId : $parent->id)
+            ->with('success', 'تم فصل القسم الفرعي عن القسم الرئيسي بنجاح.');
     }
 }

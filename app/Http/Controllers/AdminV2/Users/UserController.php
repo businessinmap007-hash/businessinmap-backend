@@ -8,6 +8,7 @@ use App\Models\CategoryChild;
 use App\Models\CategoryChildOption;
 use App\Models\Option;
 use App\Models\OptionGroup;
+use App\Models\PlatformService;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\UserPurgeService;
@@ -30,12 +31,20 @@ class UserController extends Controller
 
         $categoryId      = (int) $request->get('category_id', 0);
         $categoryChildId = (int) $request->get('category_child_id', 0);
+
         $optionIds = collect($request->input('option_ids', []))
-                    ->map(fn ($id) => (int) $id)
-                    ->filter(fn ($id) => $id > 0)
-                    ->unique()
-                    ->values()
-                    ->all();
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $serviceIds = collect($request->input('service_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
         $perPageAllowed = [10, 20, 50, 100];
         $perPage = (int) $request->get('per_page', 50);
@@ -73,9 +82,14 @@ class UserController extends Controller
             })
             ->when($categoryId > 0, fn ($q) => $q->where('category_id', $categoryId))
             ->when($categoryChildId > 0, fn ($q) => $q->where('category_child_id', $categoryChildId))
-           ->when(!empty($optionIds), function ($q) use ($optionIds) {
+            ->when(!empty($optionIds), function ($q) use ($optionIds) {
                 $q->whereHas('options', function ($opt) use ($optionIds) {
                     $opt->whereIn('options.id', $optionIds);
+                });
+            })
+            ->when(!empty($serviceIds), function ($q) use ($serviceIds) {
+                $q->whereHas('activePlatformServices', function ($s) use ($serviceIds) {
+                    $s->whereIn('platform_services.id', $serviceIds);
                 });
             })
             ->with([
@@ -133,19 +147,34 @@ class UserController extends Controller
         }
 
         $options = collect();
+        if ($categoryChildId > 0) {
+            $options = Option::query()
+                ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
+                ->whereIn('id', function ($sub) use ($categoryChildId) {
+                    $sub->select('option_id')
+                        ->from('category_child_option')
+                        ->where('child_id', $categoryChildId);
+                })
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->get(['id', 'name_ar', 'name_en']);
+        }
 
-            if ($categoryChildId > 0) {
-                $options = Option::query()
-                    ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-                    ->whereIn('id', function ($sub) use ($categoryChildId) {
-                        $sub->select('option_id')
-                            ->from('category_child_option')
-                            ->where('child_id', $categoryChildId);
-                    })
-                    ->orderBy('name_ar')
-                    ->orderBy('id')
-                    ->get(['id', 'name_ar', 'name_en']);
-            }
+        $services = collect();
+        if ($categoryChildId > 0) {
+            $services = PlatformService::query()
+                ->where('is_active', 1)
+                ->whereIn('id', function ($sub) use ($categoryChildId) {
+                    $sub->select('platform_service_id')
+                        ->from('category_platform_services')
+                        ->where('child_id', $categoryChildId)
+                        ->where('is_active', 1);
+                })
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->get(['id', 'name_ar', 'name_en']);
+        }
+
         $childCatalog = Category::query()
             ->withoutGlobalScopes()
             ->where('parent_id', 0)
@@ -197,6 +226,37 @@ class UserController extends Controller
                 ];
             })
             ->all();
+
+        $serviceCatalog = CategoryChild::query()
+            ->get(['id'])
+            ->mapWithKeys(function ($child) {
+                $childId = (int) $child->id;
+
+                $services = PlatformService::query()
+                    ->where('is_active', 1)
+                    ->whereIn('id', function ($sub) use ($childId) {
+                        $sub->select('platform_service_id')
+                            ->from('category_platform_services')
+                            ->where('child_id', $childId)
+                            ->where('is_active', 1);
+                    })
+                    ->orderBy('name_ar')
+                    ->orderBy('id')
+                    ->get(['id', 'name_ar', 'name_en'])
+                    ->map(fn ($srv) => [
+                        'id' => (int) $srv->id,
+                        'name_ar' => (string) ($srv->name_ar ?? ''),
+                        'name_en' => (string) ($srv->name_en ?? ''),
+                    ])
+                    ->values()
+                    ->all();
+
+                return [
+                    $childId => $services,
+                ];
+            })
+            ->all();
+
         return view('admin-v2.users.index', [
             'items' => $users,
             'q' => $q,
@@ -207,6 +267,7 @@ class UserController extends Controller
             'categoryId' => $categoryId,
             'categoryChildId' => $categoryChildId,
             'optionIds' => $optionIds,
+            'serviceIds' => $serviceIds,
             'types' => $types,
             'activeOptions' => $activeOptions,
             'subscriptionOptions' => $subscriptionOptions,
@@ -218,8 +279,10 @@ class UserController extends Controller
             'categories' => $categories,
             'children' => $children,
             'options' => $options,
+            'services' => $services,
             'childCatalog' => $childCatalog,
             'optionCatalog' => $optionCatalog,
+            'serviceCatalog' => $serviceCatalog,
         ]);
     }
 
@@ -256,6 +319,8 @@ class UserController extends Controller
 
         $groups = collect();
         $ungroupedOptions = collect();
+        $services = collect();
+        $selectedServiceIds = [];
 
         if ((int) $user->category_child_id > 0) {
             $childId = (int) $user->category_child_id;
@@ -301,6 +366,24 @@ class UserController extends Controller
                 })
                 ->orderBy('id', 'asc')
                 ->get(['id', 'name_ar', 'name_en', 'group_id']);
+
+            $services = PlatformService::query()
+                ->where('is_active', 1)
+                ->whereIn('id', function ($sub) use ($childId) {
+                    $sub->select('platform_service_id')
+                        ->from('category_platform_services')
+                        ->where('child_id', $childId)
+                        ->where('is_active', 1);
+                })
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->get(['id', 'name_ar', 'name_en']);
+
+            $selectedServiceIds = $services
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
         }
 
         $childCatalog = Category::query()
@@ -395,15 +478,48 @@ class UserController extends Controller
             })
             ->all();
 
+        $serviceCatalog = CategoryChild::query()
+            ->get(['id'])
+            ->mapWithKeys(function ($child) {
+                $childId = (int) $child->id;
+
+                $services = PlatformService::query()
+                    ->where('is_active', 1)
+                    ->whereIn('id', function ($sub) use ($childId) {
+                        $sub->select('platform_service_id')
+                            ->from('category_platform_services')
+                            ->where('child_id', $childId)
+                            ->where('is_active', 1);
+                    })
+                    ->orderBy('name_ar')
+                    ->orderBy('id')
+                    ->get(['id', 'name_ar', 'name_en'])
+                    ->map(fn ($srv) => [
+                        'id' => (int) $srv->id,
+                        'name_ar' => (string) ($srv->name_ar ?? ''),
+                        'name_en' => (string) ($srv->name_en ?? ''),
+                    ])
+                    ->values()
+                    ->all();
+
+                return [
+                    $childId => $services,
+                ];
+            })
+            ->all();
+
         return view('admin-v2.users.edit', [
             'user' => $user,
             'categories' => $categories,
             'children' => $children,
             'groups' => $groups,
             'ungroupedOptions' => $ungroupedOptions,
+            'services' => $services,
+            'selectedServiceIds' => $selectedServiceIds,
             'selectedOptionIds' => $selectedOptionIds,
             'childCatalog' => $childCatalog,
             'optionCatalog' => $optionCatalog,
+            'serviceCatalog' => $serviceCatalog,
         ]);
     }
 
@@ -427,10 +543,28 @@ class UserController extends Controller
         $groupedOptions = collect($user->options ?? [])
             ->groupBy(fn ($opt) => $opt->group_id ?: 'ungrouped');
 
+        $childServices = collect();
+        if ((int) ($user->category_child_id ?? 0) > 0) {
+            $childId = (int) $user->category_child_id;
+
+            $childServices = PlatformService::query()
+                ->where('is_active', 1)
+                ->whereIn('id', function ($sub) use ($childId) {
+                    $sub->select('platform_service_id')
+                        ->from('category_platform_services')
+                        ->where('child_id', $childId)
+                        ->where('is_active', 1);
+                })
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->get(['id', 'name_ar', 'name_en']);
+        }
+
         return view('admin-v2.users.show', [
             'user' => $user,
             'subscriptions' => $subscriptions,
             'groupedOptions' => $groupedOptions,
+            'childServices' => $childServices,
         ]);
     }
 
@@ -450,6 +584,9 @@ class UserController extends Controller
             'options' => 'nullable|array',
             'options.*' => 'integer|exists:options,id',
 
+            'service_ids' => 'nullable|array',
+            'service_ids.*' => 'integer|exists:platform_services,id',
+
             'about' => 'nullable|string',
             'image' => 'nullable|string|max:255',
             'logo' => 'nullable|string|max:255',
@@ -468,17 +605,28 @@ class UserController extends Controller
             ->values()
             ->all();
 
+        $serviceIds = collect($request->input('service_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         if (($data['type'] ?? '') === 'business') {
             $this->validateBusinessClassification(
                 (int) ($data['category_id'] ?? 0),
                 (int) ($data['category_child_id'] ?? 0),
-                $optionIds
+                $optionIds,
+                $serviceIds
             );
         } else {
             $data['category_id'] = null;
             $data['category_child_id'] = null;
             $optionIds = [];
+            $serviceIds = [];
         }
+
+        unset($data['service_ids']);
 
         if (empty($data['password'])) {
             unset($data['password']);
@@ -486,7 +634,7 @@ class UserController extends Controller
             $data['password'] = bcrypt($data['password']);
         }
 
-        DB::transaction(function () use ($user, $data, $optionIds) {
+        DB::transaction(function () use ($user, $data, $optionIds, $serviceIds) {
             $user->fill($data);
             $user->save();
 
@@ -494,7 +642,13 @@ class UserController extends Controller
                 $user->options()->sync($optionIds);
             }
         });
-
+        if (method_exists($user, 'platformServices')) {
+            $user->platformServices()->sync(
+                collect($serviceIds)->mapWithKeys(fn($id) => [
+                    $id => ['is_active' => 1]
+                ])->all()
+            );
+        }
         return redirect()
             ->route('admin.users.edit', $user->id)
             ->with('success', 'تم تحديث بيانات المستخدم بنجاح');
@@ -640,7 +794,7 @@ class UserController extends Controller
         return back()->with('success', 'تم حذف المستخدمين نهائيًا مع كل علاقاتهم.');
     }
 
-    protected function validateBusinessClassification(int $categoryId, int $childId, array $optionIds): void
+    protected function validateBusinessClassification(int $categoryId, int $childId, array $optionIds, array $serviceIds = []): void
     {
         $errors = [];
 
@@ -682,6 +836,24 @@ class UserController extends Controller
             if (!empty($invalidOptionIds)) {
                 throw ValidationException::withMessages([
                     'options' => 'بعض الخيارات المختارة لا تتبع القسم الفرعي المختار.',
+                ]);
+            }
+        }
+
+        if (!empty($serviceIds)) {
+            $validServiceIds = DB::table('category_platform_services')
+                ->where('child_id', $childId)
+                ->where('is_active', 1)
+                ->pluck('platform_service_id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+
+            $invalidServiceIds = array_values(array_diff($serviceIds, $validServiceIds));
+
+            if (!empty($invalidServiceIds)) {
+                throw ValidationException::withMessages([
+                    'service_ids' => 'بعض الخدمات المختارة لا تتبع القسم الفرعي المختار.',
                 ]);
             }
         }

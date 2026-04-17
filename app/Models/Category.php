@@ -97,9 +97,6 @@ class Category extends Model
             ->orderByDesc('id');
     }
 
-    /**
-     * Legacy active direct children from categories table.
-     */
     public function activeLegacyChildren(): HasMany
     {
         return $this->legacyChildren()
@@ -119,6 +116,18 @@ class Category extends Model
         )->withTimestamps();
     }
 
+    public function activeChildren(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CategoryChild::class,
+            'category_parent_child',
+            'parent_id',
+            'child_id'
+        )
+            ->orderBy('category_children_master.reorder')
+            ->orderBy('category_children_master.id');
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
@@ -126,7 +135,6 @@ class Category extends Model
 
     /**
      * Legacy relation only if you still have category_id in users table.
-     * Keep it as-is if used elsewhere.
      */
     public function users(): HasMany
     {
@@ -135,7 +143,10 @@ class Category extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Category <-> Platform Services
+    | Service Relations
+    |--------------------------------------------------------------------------
+    | root category لم يعد owner فعلي للخدمات
+    | لكنه يبقى مرجعًا/حاوية ويمكن استخدامه في fallback أو الإحصاءات
     |--------------------------------------------------------------------------
     */
 
@@ -144,14 +155,26 @@ class Category extends Model
         return $this->hasMany(CategoryPlatformService::class, 'category_id');
     }
 
-    public function activeCategoryPlatformServices(): HasMany
+    public function rootServiceLinks(): HasMany
     {
-        return $this->categoryPlatformServices()
-            ->where('is_active', true)
+        return $this->hasMany(CategoryPlatformService::class, 'category_id')
+            ->whereNull('child_id')
             ->orderBy('sort_order')
             ->orderBy('id');
     }
 
+    public function childServiceLinks(): HasMany
+    {
+        return $this->hasMany(CategoryPlatformService::class, 'category_id')
+            ->whereNotNull('child_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    /**
+     * Legacy root-level many-to-many.
+     * Keep temporarily لأي أجزاء قديمة لم تُنقل بعد.
+     */
     public function platformServices(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -160,7 +183,7 @@ class Category extends Model
             'category_id',
             'platform_service_id'
         )
-            ->withPivot(['is_active', 'sort_order', 'meta'])
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
             ->withTimestamps();
     }
 
@@ -173,18 +196,43 @@ class Category extends Model
             'platform_service_id'
         )
             ->wherePivot('is_active', true)
-            ->withPivot(['is_active', 'sort_order', 'meta'])
+            ->wherePivot('child_id', null)
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
             ->withTimestamps()
             ->orderBy('category_platform_services.sort_order')
             ->orderBy('platform_services.id');
     }
 
-    public function bookingServiceLinks(): HasMany
+    /**
+     * الخدمات الفعلية للـ root تأتي عبر أطفاله
+     */
+    public function childPlatformServices(): BelongsToMany
     {
-        return $this->activeCategoryPlatformServices()
-            ->whereHas('platformService', function ($q) {
-                $q->where('key', 'booking');
-            });
+        return $this->belongsToMany(
+            PlatformService::class,
+            'category_platform_services',
+            'category_id',
+            'platform_service_id'
+        )
+            ->wherePivotNotNull('child_id')
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps();
+    }
+
+    public function activeChildPlatformServices(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PlatformService::class,
+            'category_platform_services',
+            'category_id',
+            'platform_service_id'
+        )
+            ->wherePivot('is_active', true)
+            ->wherePivotNotNull('child_id')
+            ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
+            ->withTimestamps()
+            ->orderBy('category_platform_services.sort_order')
+            ->orderBy('platform_services.id');
     }
 
     /*
@@ -196,6 +244,22 @@ class Category extends Model
     public function serviceConfigs(): HasMany
     {
         return $this->hasMany(CategoryServiceConfig::class, 'category_id');
+    }
+
+    public function rootServiceConfigs(): HasMany
+    {
+        return $this->hasMany(CategoryServiceConfig::class, 'category_id')
+            ->whereNull('child_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function childServiceConfigs(): HasMany
+    {
+        return $this->hasMany(CategoryServiceConfig::class, 'category_id')
+            ->whereNotNull('child_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function activeServiceConfigs(): HasMany
@@ -238,6 +302,9 @@ class Category extends Model
         return $this->displayName();
     }
 
+    /**
+     * helper قديم: root-level only
+     */
     public function hasService(int|string $serviceIdOrKey): bool
     {
         $services = $this->relationLoaded('activePlatformServices')
@@ -253,6 +320,9 @@ class Category extends Model
         });
     }
 
+    /**
+     * helper قديم: root-level fallback only
+     */
     public function getServiceConfig(string $serviceKey): array
     {
         $serviceKey = trim($serviceKey);
@@ -269,8 +339,8 @@ class Category extends Model
             return [];
         }
 
-        if ($this->relationLoaded('serviceConfigs')) {
-            $configRow = $this->serviceConfigs->first(function ($row) use ($service) {
+        if ($this->relationLoaded('rootServiceConfigs')) {
+            $configRow = $this->rootServiceConfigs->first(function ($row) use ($service) {
                 return (int) $row->platform_service_id === (int) $service->id;
             });
 
@@ -279,7 +349,7 @@ class Category extends Model
             return is_array($config) ? $config : [];
         }
 
-        $configRow = $this->serviceConfigs()
+        $configRow = $this->rootServiceConfigs()
             ->where('platform_service_id', $service->id)
             ->first();
 
@@ -291,14 +361,14 @@ class Category extends Model
     public function bookingAllowedItemTypes(): array
     {
         $config = $this->getServiceConfig('booking');
-        $values = $config['allowed_item_types'] ?? [];
+        $types = $config['allowed_item_types'] ?? [];
 
-        if (! is_array($values)) {
+        if (! is_array($types)) {
             return [];
         }
 
-        return collect($values)
-            ->map(fn ($value) => trim((string) $value))
+        return collect($types)
+            ->map(fn ($v) => trim((string) $v))
             ->filter()
             ->unique()
             ->values()
@@ -308,42 +378,17 @@ class Category extends Model
     public function bookingModes(): array
     {
         $config = $this->getServiceConfig('booking');
-        $values = $config['booking_modes'] ?? [];
+        $modes = $config['booking_modes'] ?? [];
 
-        if (! is_array($values)) {
+        if (! is_array($modes)) {
             return [];
         }
 
-        return collect($values)
-            ->map(fn ($value) => trim((string) $value))
+        return collect($modes)
+            ->map(fn ($v) => trim((string) $v))
             ->filter()
             ->unique()
             ->values()
             ->all();
-    }
-
-    public function bookingRequiredFields(): array
-    {
-        $config = $this->getServiceConfig('booking');
-        $values = $config['required_fields'] ?? [];
-
-        if (! is_array($values)) {
-            return [];
-        }
-
-        return collect($values)
-            ->map(fn ($value) => trim((string) $value))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    public function bookingItemFamily(): ?string
-    {
-        $config = $this->getServiceConfig('booking');
-        $value = trim((string) ($config['item_family'] ?? ''));
-
-        return $value !== '' ? $value : null;
     }
 }

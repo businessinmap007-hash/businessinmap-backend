@@ -1,7 +1,6 @@
 @php
     $id = (int) ($user->id ?? 0);
 
-    // ✅ الصورة الأساسية للحساب من logo
     $logoPath  = $user->logo ?? null;
     $imagePath = $user->image ?? null;
     $coverPath = $user->cover ?? null;
@@ -15,8 +14,14 @@
         ? collect($oldOptions)->map(fn ($v) => (int) $v)->filter()->values()->all()
         : collect($selectedOptionIds ?? [])->map(fn ($v) => (int) $v)->filter()->values()->all();
 
+    $oldServices = old('service_ids');
+    $selectedServiceIdsNow = is_array($oldServices)
+        ? collect($oldServices)->map(fn ($v) => (int) $v)->filter()->values()->all()
+        : collect($selectedServiceIds ?? [])->map(fn ($v) => (int) $v)->filter()->values()->all();
+
     $childCatalogJson = json_encode($childCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $optionCatalogJson = json_encode($optionCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $serviceCatalogJson = json_encode($serviceCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 @endphp
 
 <div class="a2-card a2-card--section">
@@ -196,6 +201,43 @@
                     <div class="a2-muted">اختر القسم الفرعي لعرض الخيارات المتاحة.</div>
                 @endif
             </div>
+            @error('options')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+            @error('options.*')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <div style="margin-top:14px;">
+            <label class="a2-label">Services</label>
+            <div id="business_services_wrap">
+                @if(collect($services ?? [])->count())
+                    <div class="a2-card a2-card--soft a2-card--tight">
+                        <div class="a2-form-grid-3">
+                            @foreach(($services ?? []) as $srv)
+                                <label class="a2-check">
+                                    <input
+                                        type="checkbox"
+                                        name="service_ids[]"
+                                        value="{{ $srv->id }}"
+                                        @checked(in_array((int) $srv->id, $selectedServiceIdsNow, true))
+                                    >
+                                    <span>{{ $srv->name_ar ?: ($srv->name_en ?: ('#' . $srv->id)) }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    <div class="a2-muted">اختر القسم الفرعي لعرض الخدمات المتاحة.</div>
+                @endif
+            </div>
+            @error('service_ids')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+            @error('service_ids.*')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
         </div>
     </div>
 </div>
@@ -329,12 +371,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const childEl = document.getElementById('business_category_child_id');
     const businessWrap = document.getElementById('business_fields_wrap');
     const optionsWrap = document.getElementById('business_options_wrap');
+    const servicesWrap = document.getElementById('business_services_wrap');
 
     const childCatalog = {!! $childCatalogJson ?: '{}' !!};
     const optionCatalog = {!! $optionCatalogJson ?: '{}' !!};
+    const serviceCatalog = {!! $serviceCatalogJson ?: '{}' !!};
+
     let selectedOptions = @json(array_values($selectedIds));
+    let selectedServices = @json(array_values($selectedServiceIdsNow));
 
     function optionLabel(item) {
+        return item.name_ar || item.name_en || ('#' + item.id);
+    }
+
+    function serviceLabel(item) {
         return item.name_ar || item.name_en || ('#' + item.id);
     }
 
@@ -390,6 +440,31 @@ document.addEventListener('DOMContentLoaded', function () {
         optionsWrap.innerHTML = html;
     }
 
+    function renderServices(childId) {
+        const services = serviceCatalog[String(childId || '')] || [];
+
+        if (!services.length) {
+            servicesWrap.innerHTML = '<div class="a2-muted">لا توجد خدمات متاحة لهذا القسم الفرعي.</div>';
+            return;
+        }
+
+        let html = '<div class="a2-card a2-card--soft a2-card--tight">';
+        html += '<div class="a2-form-grid-3">';
+
+        services.forEach(service => {
+            const checked = selectedServices.includes(Number(service.id)) ? 'checked' : '';
+            html += `
+                <label class="a2-check">
+                    <input type="checkbox" name="service_ids[]" value="${service.id}" ${checked}>
+                    <span>${serviceLabel(service)}</span>
+                </label>
+            `;
+        });
+
+        html += '</div></div>';
+        servicesWrap.innerHTML = html;
+    }
+
     function renderChildren(categoryId, keepCurrent = false) {
         const children = childCatalog[String(categoryId || '')] || [];
         const currentValue = keepCurrent ? String(childEl.value || '') : '';
@@ -407,9 +482,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!keepCurrent) {
             childEl.value = '';
             selectedOptions = [];
+            selectedServices = [];
             renderOptions('');
+            renderServices('');
         } else {
             renderOptions(childEl.value);
+            renderServices(childEl.value);
         }
     }
 
@@ -421,7 +499,9 @@ document.addEventListener('DOMContentLoaded', function () {
             categoryEl.value = '';
             childEl.innerHTML = '<option value="">-- اختر القسم الفرعي --</option>';
             selectedOptions = [];
+            selectedServices = [];
             optionsWrap.innerHTML = '<div class="a2-muted">هذا القسم يظهر فقط للحساب التجاري.</div>';
+            servicesWrap.innerHTML = '<div class="a2-muted">هذا القسم يظهر فقط للحساب التجاري.</div>';
         } else {
             renderChildren(categoryEl.value, true);
         }
@@ -431,17 +511,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     categoryEl.addEventListener('change', function () {
         selectedOptions = [];
+        selectedServices = [];
         renderChildren(this.value, false);
     });
 
     childEl.addEventListener('change', function () {
         selectedOptions = [];
+        selectedServices = [];
         renderOptions(this.value);
+        renderServices(this.value);
     });
 
     toggleBusinessFields();
 
-    // ✅ نفس فكرة category preview لكن على user.logo
     const logoInput = document.getElementById('user-logo-input');
     const logoBox = document.getElementById('logoPreviewBox');
 

@@ -22,7 +22,6 @@ use App\Http\Controllers\AdminV2\{
     PaymentController,
     PlatformServiceController,
     PostController,
-    ServiceFeeController,
     SponsorController,
     SubscriptionController,
     UploadController,
@@ -349,21 +348,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{dispute}/resolve-no-action', [DisputeController::class, 'resolveNoAction'])->name('resolve.no-action');
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Service Fees
-        |--------------------------------------------------------------------------
-        */
-        Route::prefix('service-fees')->name('service-fees.')->group(function () {
-            Route::get('/', [ServiceFeeController::class, 'index'])->name('index');
-            Route::get('create', [ServiceFeeController::class, 'create'])->name('create');
-            Route::post('/', [ServiceFeeController::class, 'store'])->name('store');
-            Route::get('show', [ServiceFeeController::class, 'show'])->name('show');
-            Route::get('edit', [ServiceFeeController::class, 'edit'])->name('edit');
-            Route::put('update', [ServiceFeeController::class, 'update'])->name('update');
-            Route::match(['post', 'patch'], 'toggle-active', [ServiceFeeController::class, 'toggleActive'])->name('toggleActive');
-            Route::delete('delete', [ServiceFeeController::class, 'destroy'])->name('destroy');
-        });
+       
 
         /*
         |--------------------------------------------------------------------------

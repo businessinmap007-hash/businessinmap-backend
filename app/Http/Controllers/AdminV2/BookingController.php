@@ -9,7 +9,7 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
-use App\Models\ServiceFee;
+use App\Models\CategoryChildServiceFee;
 use App\Services\BookingDepositService;
 use App\Services\BookingEngine;
 use App\Services\WalletFeeService;
@@ -1143,7 +1143,7 @@ class BookingController extends Controller
             $unitPrice = round((float) $bookable->price, 2);
             $originalPrice = round($unitPrice * $quantity, 2);
             $feeSnapshot = $calc['fee_snapshot'] ?? [];
-            $platformFee = (float) ($feeSnapshot['platform']['amount'] ?? ($calc['platform_fee'] ?? 0));
+            $platformFee = (float) ($calc['platform_fee'] ?? 0);
 
             return [
                 'unit_price' => $unitPrice,
@@ -1175,7 +1175,7 @@ class BookingController extends Controller
             $finalPrice = 0.00;
         }
 
-        $platformFee = $this->resolvePlatformFeeAmount($calc, $finalPrice);
+        $platformFee = (float) ($calc['platform_fee'] ?? 0);
 
         return [
             'unit_price' => $unitPrice,
@@ -1365,34 +1365,6 @@ class BookingController extends Controller
             ->first();
     }
 
-    protected function resolveServiceFeeRows(int $businessId, int $serviceId, int $childId = 0, string $feeCode = self::EXECUTION_FEE_CODE): array
-    {
-        $rows = collect();
-
-        if ($childId > 0) {
-            $rows = ServiceFee::query()
-                ->where('business_id', $businessId)
-                ->where('child_id', $childId)
-                ->where('service_id', $serviceId)
-                ->where('fee_code', $feeCode)
-                ->where('is_active', 1)
-                ->get();
-
-            if ($rows->isNotEmpty()) {
-                return $rows->keyBy('payer')->all();
-            }
-        }
-
-        $rows = ServiceFee::query()
-            ->where('business_id', $businessId)
-            ->where('service_id', $serviceId)
-            ->where('fee_code', $feeCode)
-            ->where('is_active', 1)
-            ->get();
-
-        return $rows->keyBy('payer')->all();
-    }
-
     protected function enrichCalcWithContext(array $calc, int $businessId, int $serviceId): array
     {
         [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
@@ -1407,90 +1379,99 @@ class BookingController extends Controller
             $calc['price'] = (float) $businessPrice->price;
         }
 
-        $feeRows = $this->resolveServiceFeeRows($businessId, $serviceId, $childId, self::EXECUTION_FEE_CODE);
+        $feeSnapshot = $this->resolveExecutionFeeSnapshot($businessId, $serviceId, $childId);
 
-        $calc['service_fee_rows'] = $feeRows;
-        $calc['fee_snapshot'] = [
-            'business_id' => $businessId,
-            'child_id' => $childId,
-            'service_id' => $serviceId,
-            'fee_code' => self::EXECUTION_FEE_CODE,
-            'business' => $this->mapFeeRowForSnapshot($feeRows['business'] ?? null),
-            'client' => $this->mapFeeRowForSnapshot($feeRows['client'] ?? null),
+        $calc['service_fee_rows'] = [
+            'business' => $feeSnapshot['business'],
+            'client' => $feeSnapshot['client'],
         ];
+
+        $calc['fee_snapshot'] = $feeSnapshot;
 
         return $calc;
     }
+    
 
-    protected function mapFeeRowForSnapshot(?ServiceFee $row): ?array
+
+    
+
+    protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
+    {
+        if ($childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return CategoryChildServiceFee::query()
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->first();
+    }
+
+    protected function mapChildFeeRowForSnapshot(?CategoryChildServiceFee $row, string $payer): ?array
     {
         if (! $row) {
             return null;
         }
 
+        if ($payer === 'business') {
+            if (! $row->hasBusinessFee()) {
+                return null;
+            }
+
+            return [
+                'id' => (int) $row->id,
+                'payer' => 'business',
+                'fee_type' => 'business_fee',
+                'calc_type' => 'fixed',
+                'amount' => (float) ($row->business_fee_amount ?? 0),
+                'currency' => (string) ($row->currency ?? 'EGP'),
+                'child_id' => (int) ($row->child_id ?? 0),
+                'service_id' => (int) ($row->platform_service_id ?? 0),
+                'is_active' => (bool) ($row->is_active ?? false),
+                'sort_order' => (int) ($row->sort_order ?? 0),
+                'notes' => $row->notes,
+            ];
+        }
+
+        if ($payer === 'client') {
+            if (! $row->hasClientFee()) {
+                return null;
+            }
+
+            return [
+                'id' => (int) $row->id,
+                'payer' => 'client',
+                'fee_type' => 'client_fee',
+                'calc_type' => 'fixed',
+                'amount' => (float) ($row->client_fee_amount ?? 0),
+                'currency' => (string) ($row->currency ?? 'EGP'),
+                'child_id' => (int) ($row->child_id ?? 0),
+                'service_id' => (int) ($row->platform_service_id ?? 0),
+                'is_active' => (bool) ($row->is_active ?? false),
+                'sort_order' => (int) ($row->sort_order ?? 0),
+                'notes' => $row->notes,
+            ];
+        }
+
+        return null;
+    }
+
+    protected function resolveExecutionFeeSnapshot(int $businessId, int $serviceId, int $childId = 0): array
+    {
+        $row = $this->resolveChildServiceFeeRow($childId, $serviceId);
+
         return [
-            'id' => (int) $row->id,
-            'payer' => (string) $row->payer,
-            'fee_type' => (string) $row->fee_type,
-            'calc_type' => (string) $row->calc_type,
-            'amount' => (float) ($row->amount ?? 0),
-            'min_amount' => $row->min_amount !== null ? (float) $row->min_amount : null,
-            'max_amount' => $row->max_amount !== null ? (float) $row->max_amount : null,
-            'currency' => (string) ($row->currency ?? 'EGP'),
-            'priority' => (int) ($row->priority ?? 0),
-            'child_id' => (int) ($row->child_id ?? 0),
-            'service_id' => (int) ($row->service_id ?? 0),
-            'fee_code' => (string) ($row->fee_code ?? ''),
+            'business_id' => $businessId,
+            'child_id' => $childId,
+            'service_id' => $serviceId,
+            'fee_code' => self::EXECUTION_FEE_CODE,
+            'business' => $this->mapChildFeeRowForSnapshot($row, 'business'),
+            'client' => $this->mapChildFeeRowForSnapshot($row, 'client'),
         ];
     }
 
-    protected function calculateFeeAmountFromRow(?ServiceFee $row, float $baseAmount): float
-    {
-        if (! $row) {
-            return 0.00;
-        }
 
-        $calcType = (string) ($row->calc_type ?? '');
-        $amount = 0.00;
 
-        if ($calcType === ServiceFee::CALC_PERCENT) {
-            $amount = round($baseAmount * ((float) ($row->amount ?? 0) / 100), 2);
-        } else {
-            $amount = round((float) ($row->amount ?? 0), 2);
-        }
 
-        $min = $row->min_amount !== null ? (float) $row->min_amount : null;
-        $max = $row->max_amount !== null ? (float) $row->max_amount : null;
-
-        if ($min !== null && $amount < $min) {
-            $amount = round($min, 2);
-        }
-
-        if ($max !== null && $amount > $max) {
-            $amount = round($max, 2);
-        }
-
-        return round($amount, 2);
-    }
-
-    protected function resolvePlatformFeeAmount(array $calc, float $finalPrice): float
-    {
-        $feeRows = $calc['service_fee_rows'] ?? [];
-
-        $platformCandidate = $feeRows['business'] ?? $feeRows['client'] ?? null;
-        if ($platformCandidate instanceof ServiceFee) {
-            return $this->calculateFeeAmountFromRow($platformCandidate, $finalPrice);
-        }
-
-        $service = $calc['service'];
-        $platformFee = 0.00;
-
-        if (($service->fee_type ?? '') === 'percent') {
-            $platformFee = round($finalPrice * ((float) $service->fee_value / 100), 2);
-        } elseif (($service->fee_type ?? '') === 'fixed') {
-            $platformFee = round((float) $service->fee_value, 2);
-        }
-
-        return $platformFee;
-    }
 }

@@ -58,7 +58,6 @@
         ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => 'admin.platform-services.'],
         ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'icon' => 'settings', 'active' => 'admin.business_service_prices.'],
         ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'icon' => 'folder', 'active' => 'admin.bookable-items.'],
-        ['label' => 'Service Fees', 'route' => 'admin.service-fees.index', 'icon' => 'settings', 'active' => 'admin.service-fees.'],
         ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'icon' => 'settings', 'active' => 'admin.option-groups.'],
 
         ['type' => 'section', 'label' => 'Bookings & Wallet'],

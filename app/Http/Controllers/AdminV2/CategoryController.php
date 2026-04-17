@@ -106,29 +106,45 @@ class CategoryController extends Controller
             ->values()
             ->all();
 
-        CategoryPlatformService::query()
-            ->where('child_id', $categoryChild->id)
-            ->delete();
+        $fallbackCategoryId = (int) ($parentIds[0] ?? 0);
 
         if (empty($serviceIds)) {
+            CategoryPlatformService::query()
+                ->where('child_id', $categoryChild->id)
+                ->update([
+                    'is_active' => 0,
+                    'updated_at' => now(),
+                ]);
+
             return;
         }
 
         $order = 1;
-        $fallbackCategoryId = (int) ($parentIds[0] ?? 0);
 
         foreach ($serviceIds as $serviceId) {
-            CategoryPlatformService::query()->create([
-                'category_id' => $fallbackCategoryId > 0 ? $fallbackCategoryId : null,
-                'child_id' => $categoryChild->id,
-                'platform_service_id' => $serviceId,
-                'is_active' => true,
-                'sort_order' => $order,
-                'meta' => null,
-            ]);
+            CategoryPlatformService::query()->updateOrCreate(
+                [
+                    'child_id' => $categoryChild->id,
+                    'platform_service_id' => $serviceId,
+                ],
+                [
+                    'category_id' => $fallbackCategoryId > 0 ? $fallbackCategoryId : null,
+                    'is_active' => true,
+                    'sort_order' => $order,
+                    'meta' => null,
+                ]
+            );
 
             $order++;
         }
+
+        CategoryPlatformService::query()
+            ->where('child_id', $categoryChild->id)
+            ->whereNotIn('platform_service_id', $serviceIds)
+            ->update([
+                'is_active' => 0,
+                'updated_at' => now(),
+            ]);
     }
 
     public function index(Request $request): View
@@ -584,7 +600,7 @@ class CategoryController extends Controller
             'parents:id,name_ar,name_en,parent_id',
             'options' => function ($q) {
                 $q->select('options.id', 'options.name_ar', 'options.name_en', 'options.group_id')
-                ->orderBy('options.id');
+                    ->orderBy('options.id');
             },
             'platformServices:id,key,name_ar,name_en',
         ])->loadCount('options');

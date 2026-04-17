@@ -87,21 +87,28 @@ class CategoryChildServiceFeeBulkController extends Controller
             ->where('is_active', 1)
             ->orderBy('name_ar')
             ->orderBy('id')
-            ->get(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent', 'is_active']);
+            ->get([
+                'id',
+                'key',
+                'name_ar',
+                'name_en',
+                'supports_deposit',
+                'max_deposit_percent',
+                'is_active',
+            ]);
 
-        $selectedServiceIds = [];
         $activeChildServiceMap = DB::table('category_platform_services')
-        ->whereIn('child_id', $validChildIds)
-        ->where('is_active', 1)
-        ->get(['child_id', 'platform_service_id'])
-        ->groupBy('child_id')
-        ->map(function ($rows) {
-            return collect($rows)
-                ->pluck('platform_service_id')
-                ->map(fn ($id) => (int) $id)
-                ->values()
-                ->all();
-        });
+            ->whereIn('child_id', $validChildIds)
+            ->where('is_active', 1)
+            ->get(['child_id', 'platform_service_id'])
+            ->groupBy('child_id')
+            ->map(function ($rows) {
+                return collect($rows)
+                    ->pluck('platform_service_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->values()
+                    ->all();
+            });
 
         $existingFees = CategoryChildServiceFee::query()
             ->whereIn('child_id', $validChildIds)
@@ -118,7 +125,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             'childIds' => $validChildIds,
             'services' => $services,
             'existingFees' => $existingFees,
-            'selectedServiceIds' => $selectedServiceIds,
+            'activeChildServiceMap' => $activeChildServiceMap,
         ]);
     }
 
@@ -128,7 +135,6 @@ class CategoryChildServiceFeeBulkController extends Controller
         $parent   = $this->resolveParentOrAbort($parentId);
 
         $childIds = $this->normalizeIds($request->input('child_ids', []));
-        $selectedServiceIds = $this->normalizeIds($request->input('selected_service_ids', []));
 
         if (empty($childIds)) {
             return redirect()
@@ -146,6 +152,7 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         $request->validate([
             'rows' => ['nullable', 'array'],
+            'rows.*.*.row_enabled' => ['nullable'],
             'rows.*.*.business_fee_enabled' => ['nullable'],
             'rows.*.*.business_fee_amount' => ['nullable', 'numeric', 'min:0'],
             'rows.*.*.client_fee_enabled' => ['nullable'],
@@ -158,117 +165,99 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         $rowsInput = is_array($request->input('rows')) ? $request->input('rows') : [];
 
-        DB::transaction(function () use ($children, $rowsInput, $selectedServiceIds, $parentId) {
+        $serviceIds = PlatformService::query()
+            ->where('is_active', 1)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        DB::transaction(function () use ($children, $rowsInput, $serviceIds, $parentId) {
             foreach ($children as $child) {
+                $childRows = is_array($rowsInput[$child->id] ?? null) ? $rowsInput[$child->id] : [];
+
                 $currentMaxSort = (int) DB::table('category_platform_services')
                     ->where('child_id', (int) $child->id)
                     ->max('sort_order');
 
                 $nextSort = $currentMaxSort > 0 ? $currentMaxSort + 1 : 1;
 
-                /*
-                 * 1) الخدمات المختارة:
-                 *    - إن وجد السجل لنفس child + service نحدّثه
-                 *    - إن لم يوجد ننشئه
-                 *
-                 * ملاحظة مهمة:
-                 * نبحث هنا بـ child_id + platform_service_id فقط
-                 * لأن السجل قد يكون موجودًا مسبقًا تحت category_id مختلف.
-                 */
-                foreach ($selectedServiceIds as $serviceId) {
-                    $serviceId = (int) $serviceId;
+                foreach ($serviceIds as $serviceId) {
+                    $payload = is_array($childRows[$serviceId] ?? null) ? $childRows[$serviceId] : [];
+                    $rowEnabled = (bool) ($payload['row_enabled'] ?? false);
 
-                    $existing = DB::table('category_platform_services')
+                    $existingPlatformService = DB::table('category_platform_services')
                         ->where('child_id', (int) $child->id)
-                        ->where('platform_service_id', $serviceId)
+                        ->where('platform_service_id', (int) $serviceId)
                         ->first();
 
-                    if ($existing) {
-                        DB::table('category_platform_services')
-                            ->where('id', (int) $existing->id)
-                            ->update([
+                    if ($rowEnabled) {
+                        if ($existingPlatformService) {
+                            DB::table('category_platform_services')
+                                ->where('id', (int) $existingPlatformService->id)
+                                ->update([
+                                    'category_id' => $parentId,
+                                    'is_active' => 1,
+                                    'sort_order' => (int) ($existingPlatformService->sort_order ?? $nextSort),
+                                    'updated_at' => now(),
+                                ]);
+                        } else {
+                            DB::table('category_platform_services')->insert([
                                 'category_id' => $parentId,
+                                'child_id' => (int) $child->id,
+                                'platform_service_id' => (int) $serviceId,
                                 'is_active' => 1,
-                                'sort_order' => (int) ($existing->sort_order ?? $nextSort),
+                                'sort_order' => $nextSort,
+                                'meta' => null,
+                                'created_at' => now(),
                                 'updated_at' => now(),
                             ]);
-                    } else {
-                        DB::table('category_platform_services')->insert([
-                            'category_id' => $parentId,
-                            'child_id' => (int) $child->id,
-                            'platform_service_id' => $serviceId,
-                            'is_active' => 1,
-                            'sort_order' => $nextSort,
-                            'meta' => null,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
 
-                        $nextSort++;
+                            $nextSort++;
+                        }
+
+                        $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
+                        $clientFeeEnabled   = (bool) ($payload['client_fee_enabled'] ?? false);
+                        $isActive           = (bool) ($payload['is_active'] ?? false);
+
+                        $businessFeeAmount = round((float) ($payload['business_fee_amount'] ?? 0), 2);
+                        $clientFeeAmount   = round((float) ($payload['client_fee_amount'] ?? 0), 2);
+
+                        CategoryChildServiceFee::query()->updateOrCreate(
+                            [
+                                'child_id' => (int) $child->id,
+                                'platform_service_id' => (int) $serviceId,
+                            ],
+                            [
+                                'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
+                                'business_fee_amount'  => $businessFeeEnabled ? $businessFeeAmount : 0,
+                                'client_fee_enabled'   => $clientFeeEnabled ? 1 : 0,
+                                'client_fee_amount'    => $clientFeeEnabled ? $clientFeeAmount : 0,
+                                'currency'             => strtoupper(trim((string) ($payload['currency'] ?? 'EGP'))) ?: 'EGP',
+                                'is_active'            => $isActive ? 1 : 0,
+                                'sort_order'           => (int) ($payload['sort_order'] ?? 0),
+                                'notes'                => trim((string) ($payload['notes'] ?? '')) ?: null,
+                            ]
+                        );
+                    } else {
+                        if ($existingPlatformService) {
+                            DB::table('category_platform_services')
+                                ->where('id', (int) $existingPlatformService->id)
+                                ->update([
+                                    'is_active' => 0,
+                                    'updated_at' => now(),
+                                ]);
+                        }
+
+                        CategoryChildServiceFee::query()
+                            ->where('child_id', (int) $child->id)
+                            ->where('platform_service_id', (int) $serviceId)
+                            ->update([
+                                'is_active' => 0,
+                                'updated_at' => now(),
+                            ]);
                     }
                 }
-
-                /*
-                 * 2) الخدمات غير المختارة:
-                 *    لا نحذفها، فقط نوقفها.
-                 */
-                DB::table('category_platform_services')
-                    ->where('child_id', (int) $child->id)
-                    ->when(! empty($selectedServiceIds), function ($q) use ($selectedServiceIds) {
-                        $q->whereNotIn('platform_service_id', $selectedServiceIds);
-                    })
-                    ->update([
-                        'is_active' => 0,
-                        'updated_at' => now(),
-                    ]);
-
-                /*
-                 * 3) حفظ رسوم الخدمات المختارة
-                 */
-                $childRows = is_array($rowsInput[$child->id] ?? null) ? $rowsInput[$child->id] : [];
-
-                foreach ($selectedServiceIds as $serviceId) {
-                    $serviceId = (int) $serviceId;
-                    $payload = is_array($childRows[$serviceId] ?? null) ? $childRows[$serviceId] : [];
-
-                    $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
-                    $clientFeeEnabled   = (bool) ($payload['client_fee_enabled'] ?? false);
-                    $isActive           = (bool) ($payload['is_active'] ?? false);
-
-                    $businessFeeAmount = round((float) ($payload['business_fee_amount'] ?? 0), 2);
-                    $clientFeeAmount   = round((float) ($payload['client_fee_amount'] ?? 0), 2);
-
-                    CategoryChildServiceFee::query()->updateOrCreate(
-                        [
-                            'child_id' => (int) $child->id,
-                            'platform_service_id' => $serviceId,
-                        ],
-                        [
-                            'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
-                            'business_fee_amount'  => $businessFeeEnabled ? $businessFeeAmount : 0,
-                            'client_fee_enabled'   => $clientFeeEnabled ? 1 : 0,
-                            'client_fee_amount'    => $clientFeeEnabled ? $clientFeeAmount : 0,
-                            'currency'             => strtoupper(trim((string) ($payload['currency'] ?? 'EGP'))) ?: 'EGP',
-                            'is_active'            => $isActive ? 1 : 0,
-                            'sort_order'           => (int) ($payload['sort_order'] ?? 0),
-                            'notes'                => trim((string) ($payload['notes'] ?? '')) ?: null,
-                        ]
-                    );
-                }
-
-                /*
-                 * 4) رسوم الخدمات غير المختارة:
-                 *    لا نحذفها، فقط نوقفها.
-                 */
-                CategoryChildServiceFee::query()
-                    ->where('child_id', (int) $child->id)
-                    ->when(! empty($selectedServiceIds), function ($q) use ($selectedServiceIds) {
-                        $q->whereNotIn('platform_service_id', $selectedServiceIds);
-                    })
-                    ->update([
-                        'is_active' => 0,
-                        'updated_at' => now(),
-                    ]);
             }
         });
 

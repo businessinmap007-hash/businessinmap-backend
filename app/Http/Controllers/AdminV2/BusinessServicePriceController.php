@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
 use App\Models\CategoryChild;
+use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -15,17 +16,19 @@ class BusinessServicePriceController extends Controller
 {
     public function index(Request $request)
     {
-        $serviceId        = (int) $request->get('service_id', 0);
-        $businessId       = (int) $request->get('business_id', 0);
-        $childId          = (int) $request->get('child_id', 0);
-        $isActive         = $request->get('is_active', '');
-        $qBusiness        = trim((string) $request->get('q_business', ''));
-        $qService         = trim((string) $request->get('q_service', ''));
-        $qChild           = trim((string) $request->get('q_child', ''));
-        $qItemType        = trim((string) $request->get('q_item_type', ''));
+        $serviceId  = (int) $request->get('service_id', 0);
+        $businessId = (int) $request->get('business_id', 0);
+        $childId    = (int) $request->get('child_id', 0);
+        $isActive   = $request->get('is_active', '');
+
+        $qBusiness = trim((string) $request->get('q_business', ''));
+        $qService  = trim((string) $request->get('q_service', ''));
+        $qChild    = trim((string) $request->get('q_child', ''));
+        $qItemType = trim((string) $request->get('q_item_type', ''));
 
         $services = PlatformService::query()
             ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
+            ->where('is_active', 1)
             ->orderBy('name_ar')
             ->orderBy('id')
             ->get();
@@ -117,20 +120,20 @@ class BusinessServicePriceController extends Controller
             });
 
         $stats = [
-            'total_rows'      => BusinessServicePrice::count(),
-            'active_rows'     => BusinessServicePrice::where('is_active', 1)->count(),
-            'deposit_rows'    => BusinessServicePrice::where('deposit_enabled', 1)->count(),
-            'avg_price'       => BusinessServicePrice::avg('price'),
-            'business_count'  => BusinessServicePrice::distinct('business_id')->count(),
-            'children_count'  => BusinessServicePrice::query()->whereNotNull('child_id')->distinct('child_id')->count('child_id'),
-            'services_count'  => BusinessServicePrice::distinct('service_id')->count(),
-            'item_types_count'=> BusinessServicePrice::query()
+            'total_rows'       => BusinessServicePrice::count(),
+            'active_rows'      => BusinessServicePrice::where('is_active', 1)->count(),
+            'deposit_rows'     => BusinessServicePrice::where('deposit_enabled', 1)->count(),
+            'avg_price'        => BusinessServicePrice::avg('price'),
+            'business_count'   => BusinessServicePrice::distinct('business_id')->count(),
+            'children_count'   => BusinessServicePrice::query()->whereNotNull('child_id')->distinct('child_id')->count('child_id'),
+            'services_count'   => BusinessServicePrice::distinct('service_id')->count(),
+            'item_types_count' => BusinessServicePrice::query()
                 ->whereNotNull('bookable_item_type')
                 ->where('bookable_item_type', '!=', '')
                 ->distinct('bookable_item_type')
                 ->count('bookable_item_type'),
-            'max_price'       => BusinessServicePrice::max('price'),
-            'min_price'       => BusinessServicePrice::min('price'),
+            'max_price'        => BusinessServicePrice::max('price'),
+            'min_price'        => BusinessServicePrice::min('price'),
         ];
 
         $rows = $baseQuery
@@ -188,7 +191,12 @@ class BusinessServicePriceController extends Controller
             'bookable_item_type' => 'category',
         ]);
 
-        return view('admin-v2.business-service-prices.create', compact('row', 'services', 'businesses', 'children'));
+        return view('admin-v2.business-service-prices.create', compact(
+            'row',
+            'services',
+            'businesses',
+            'children'
+        ));
     }
 
     public function store(Request $request)
@@ -207,7 +215,7 @@ class BusinessServicePriceController extends Controller
 
         return redirect()
             ->route('admin.business_service_prices.edit', $row)
-            ->with('success', 'تم حفظ سعر الخدمة ونوع العنصر وإعدادات الديبوزت والخصم بنجاح.');
+            ->with('success', 'تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.');
     }
 
     public function edit(BusinessServicePrice $row)
@@ -238,7 +246,12 @@ class BusinessServicePriceController extends Controller
             'child:id,name_ar,name_en,reorder',
         ]);
 
-        return view('admin-v2.business-service-prices.edit', compact('row', 'services', 'businesses', 'children'));
+        return view('admin-v2.business-service-prices.edit', compact(
+            'row',
+            'services',
+            'businesses',
+            'children'
+        ));
     }
 
     public function update(Request $request, BusinessServicePrice $row)
@@ -279,9 +292,7 @@ class BusinessServicePriceController extends Controller
             'business_id' => [
                 'required',
                 'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    return $query->where('type', 'business');
-                }),
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business')),
             ],
 
             'child_id' => [
@@ -334,9 +345,11 @@ class BusinessServicePriceController extends Controller
 
         $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? ''));
         $data['currency'] = trim((string) ($data['currency'] ?? 'EGP')) ?: 'EGP';
+
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
         $data['discount_enabled'] = (int) $request->boolean('discount_enabled');
+
         $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
         $data['discount_percent'] = (int) ($data['discount_percent'] ?? 0);
 
@@ -360,25 +373,44 @@ class BusinessServicePriceController extends Controller
             $submittedChildId = $businessChildId;
         }
 
-        if ($submittedChildId > 0 && $businessChildId > 0 && $submittedChildId !== $businessChildId) {
-            throw ValidationException::withMessages([
-                'child_id' => 'القسم الفرعي لا يطابق القسم الفرعي المرتبط بهذا البزنس.',
-            ]);
-        }
-
         if (! $submittedChildId) {
             throw ValidationException::withMessages([
                 'child_id' => 'هذا البزنس غير مرتبط بأي category child حتى الآن.',
             ]);
         }
 
+        if ($businessChildId > 0 && $submittedChildId !== $businessChildId) {
+            throw ValidationException::withMessages([
+                'child_id' => 'القسم الفرعي لا يطابق القسم الفرعي المرتبط بهذا البزنس.',
+            ]);
+        }
+
         $service = PlatformService::query()
-            ->select(['id', 'supports_deposit', 'max_deposit_percent'])
-            ->find($data['service_id']);
+            ->select(['id', 'is_active', 'supports_deposit', 'max_deposit_percent'])
+            ->where('id', $data['service_id'])
+            ->first();
 
         if (! $service) {
             throw ValidationException::withMessages([
                 'service_id' => 'الخدمة غير موجودة.',
+            ]);
+        }
+
+        if (! (bool) $service->is_active) {
+            throw ValidationException::withMessages([
+                'service_id' => 'الخدمة غير مفعلة.',
+            ]);
+        }
+
+        $serviceAllowedForChild = CategoryChildServiceFee::query()
+            ->where('child_id', $submittedChildId)
+            ->where('platform_service_id', (int) $data['service_id'])
+            ->where('is_active', 1)
+            ->exists();
+
+        if (! $serviceAllowedForChild) {
+            throw ValidationException::withMessages([
+                'service_id' => 'هذه الخدمة غير متاحة لهذا القسم الفرعي. يجب ربط الخدمة بالقسم الفرعي وتفعيل رسومها أولاً.',
             ]);
         }
 
@@ -390,6 +422,12 @@ class BusinessServicePriceController extends Controller
                 $data['deposit_percent'] = 0;
             } else {
                 $maxAllowed = (int) ($service->max_deposit_percent ?? 0);
+
+                if ($maxAllowed <= 0) {
+                    throw ValidationException::withMessages([
+                        'deposit_percent' => 'هذه الخدمة لا تسمح بنسبة ديبوزت أكبر من 0%.',
+                    ]);
+                }
 
                 if ($data['deposit_percent'] > $maxAllowed) {
                     throw ValidationException::withMessages([

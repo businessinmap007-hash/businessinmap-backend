@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminV2\CategoryServiceBulkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -85,6 +86,17 @@ Route::prefix('administrator')->middleware(['auth:admin'])->group(function () {
     
     
     Route::resource('businesses', App\Http\Controllers\Admin\BusinessController::class);
+});
+
+
+
+
+Route::prefix('admin')->middleware(['web'])->group(function () {
+
+    Route::post('category-services-bulk/apply',
+        [CategoryServiceBulkController::class, 'apply']
+    )->name('admin.category-services-bulk.apply');
+
 });
 /*
 |--------------------------------------------------------------------------

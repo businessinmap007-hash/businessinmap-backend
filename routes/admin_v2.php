@@ -12,6 +12,8 @@ use App\Http\Controllers\AdminV2\{
     BookingController,
     BusinessServicePriceController,
     CategoryChildOptionController,
+    CategoryChildServiceFeeBulkController,
+    CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
     DashboardController,
@@ -28,8 +30,6 @@ use App\Http\Controllers\AdminV2\{
     WalletNoteTemplateController,
     WalletOpsController,
     WalletTransactionController,
-    CategoryChildServiceFeeController,
-    CategoryChildServiceFeeBulkController,
     Users\UserController,
     Auth\LoginController
 };
@@ -49,7 +49,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     |--------------------------------------------------------------------------
     | Payments Callback (Public)
     |--------------------------------------------------------------------------
-    | الأفضل لاحقًا حمايته بتوقيع/secret
     */
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
         ->name('payments.callback.success');
@@ -108,10 +107,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::post('{category}/toggle-active', [CategoryController::class, 'toggleActive'])->name('toggleActive');
             Route::post('{category}/reorder', [CategoryController::class, 'updateReorder'])->name('reorder');
-
         });
 
-       /*
+        /*
         |--------------------------------------------------------------------------
         | Category Children
         |--------------------------------------------------------------------------
@@ -136,23 +134,39 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         | Category Services Bulk
         |--------------------------------------------------------------------------
+        | URL:
+        | GET  /admin/categories/services-bulk
+        | POST /admin/categories/services-bulk/apply
+        |
+        | Route name:
+        | admin.categories.services-bulk.index
+        | admin.categories.services-bulk.apply
         */
-        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
-            Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
-            Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
-        });
+        Route::prefix('categories/services-bulk')
+            ->name('categories.services-bulk.')
+            ->group(function () {
+                Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
+
+                // حتى لو اتفتح من المتصفح GET لا يعطي 404
+                Route::get('apply', function () {
+                    return redirect()->route('admin.categories.index');
+                })->name('apply.get');
+
+                Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
+            });
 
         /*
         |--------------------------------------------------------------------------
         | Category Child Options
         |--------------------------------------------------------------------------
+        | مهم: bulk routes قبل {categoryChild}
         */
         Route::prefix('category-child-options')->name('category-child-options.')->group(function () {
-            Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])->name('edit');
-            Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->name('update');
-
             Route::get('bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])->name('bulk.edit');
             Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])->name('bulk.update');
+
+            Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])->name('edit');
+            Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->name('update');
         });
 
         /*
@@ -348,8 +362,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{dispute}/resolve-no-action', [DisputeController::class, 'resolveNoAction'])->name('resolve.no-action');
         });
 
-       
-
         /*
         |--------------------------------------------------------------------------
         | Business Service Prices
@@ -392,20 +404,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{bookableItem}', [BookableItemController::class, 'update'])->name('update');
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->name('destroy');
 
-            /*
-            |--------------------------------------------------------------------------
-            | Calendar
-            |--------------------------------------------------------------------------
-            */
             Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->name('calendar');
             Route::post('{bookableItem}/calendar/blocked-slot', [BookableItemCalendarController::class, 'storeBlockedSlot'])->name('calendar.blocked-slot.store');
             Route::post('{bookableItem}/calendar/price-rule', [BookableItemCalendarController::class, 'storePriceRule'])->name('calendar.price-rule.store');
 
-            /*
-            |--------------------------------------------------------------------------
-            | Blocked Slots
-            |--------------------------------------------------------------------------
-            */
             Route::get('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'index'])->name('blocked-slots.index');
             Route::get('{bookableItem}/blocked-slots/create', [BookableItemBlockedSlotController::class, 'create'])->name('blocked-slots.create');
             Route::post('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'store'])->name('blocked-slots.store');
@@ -413,11 +415,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'update'])->name('blocked-slots.update');
             Route::delete('{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'destroy'])->name('blocked-slots.destroy');
 
-            /*
-            |--------------------------------------------------------------------------
-            | Price Rules
-            |--------------------------------------------------------------------------
-            */
             Route::get('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'index'])->name('price-rules.index');
             Route::get('{bookableItem}/price-rules/create', [BookableItemPriceRuleController::class, 'create'])->name('price-rules.create');
             Route::post('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'store'])->name('price-rules.store');
@@ -436,7 +433,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
             Route::post('price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
         });
-                /*
+
+        /*
         |--------------------------------------------------------------------------
         | Category Child Service Fees
         |--------------------------------------------------------------------------
@@ -445,7 +443,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->name('edit');
             Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->name('update');
         });
-                /*
+
+        /*
         |--------------------------------------------------------------------------
         | Category Child Service Fees Bulk
         |--------------------------------------------------------------------------

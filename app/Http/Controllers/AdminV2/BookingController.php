@@ -9,10 +9,8 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
-use App\Models\CategoryChildServiceFee;
 use App\Services\BookingDepositService;
-use App\Services\BookingEngine;
-use App\Services\WalletFeeService;
+use App\Services\ServiceExecutionEngine;
 use App\Services\BookableAvailabilityService;
 use App\Services\BookablePricingService;
 use Carbon\Carbon;
@@ -26,13 +24,11 @@ class BookingController extends Controller
     private const EXECUTION_FEE_CODE = 'booking_execution';
 
     public function __construct(
-        protected BookingDepositService $bookingDepositService
+        protected BookingDepositService $bookingDepositService,
+        protected ServiceExecutionEngine $serviceExecutionEngine
     ) {
     }
 
-    // =========================
-    // INDEX
-    // =========================
     public function index(Request $request)
     {
         $perPage = (int) $request->get('per_page', 50);
@@ -98,9 +94,6 @@ class BookingController extends Controller
         ]);
     }
 
-    // =========================
-    // CREATE / STORE
-    // =========================
     public function create()
     {
         return view('admin-v2.bookings.create', $this->formData());
@@ -110,46 +103,21 @@ class BookingController extends Controller
     {
         $data = $this->validateBooking($request, false);
 
-        /** @var BookingEngine $engine */
-        $engine = app(BookingEngine::class);
-
-        $calc = $engine->prepare(
-            (int) $data['business_id'],
-            (int) $data['service_id']
+        $calc = $this->serviceExecutionEngine->prepare(
+            businessId: (int) $data['business_id'],
+            serviceId: (int) $data['service_id'],
+            bookableId: ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null,
+            quantity: (int) ($data['quantity'] ?? 1)
         );
 
-        $calc = $this->enrichCalcWithContext(
-            $calc,
-            (int) $data['business_id'],
-            (int) $data['service_id']
-        );
+        $bookable = $calc['bookable'] ?? null;
 
-        $bookable = $this->resolveSelectedBookable(
-            (int) $data['business_id'],
-            (int) $data['service_id'],
-            $data['bookable_type'] ?? null,
-            $data['bookable_id'] ?? null
-        );
-
-        $priceBreakdown = $this->resolveBookingPriceBreakdown(
-            $calc,
-            $bookable,
-            (int) ($data['quantity'] ?? 1)
-        );
-
-        $depositPolicy = $this->buildDepositPolicyFromSources(
-            $calc,
-            (float) $priceBreakdown['final_price'],
-            $bookable
-        );
-
-        $data['price'] = (float) $priceBreakdown['final_price'];
+        $data['price'] = (float) data_get($calc, 'price_breakdown.final_price', 0);
         $data = $this->applyBookableToPayload($data, $bookable);
-        $data['meta'] = $this->buildBookingMeta(
+
+        $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
             existingMeta: [],
             calc: $calc,
-            priceBreakdown: $priceBreakdown,
-            depositPolicy: $depositPolicy,
             bookable: $bookable
         );
 
@@ -160,9 +128,6 @@ class BookingController extends Controller
             ->with('success', 'تم إنشاء الحجز بنجاح.');
     }
 
-    // =========================
-    // SHOW
-    // =========================
     public function show(Booking $booking)
     {
         $booking = Booking::withTrashed()->findOrFail($booking->id);
@@ -190,9 +155,6 @@ class BookingController extends Controller
         ));
     }
 
-    // =========================
-    // EDIT / UPDATE
-    // =========================
     public function edit(Booking $booking)
     {
         return view('admin-v2.bookings.edit', array_merge(
@@ -206,49 +168,33 @@ class BookingController extends Controller
         $oldStatus = (string) $booking->status;
         $data = $this->validateBooking($request, true);
 
-        /** @var BookingEngine $engine */
-        $engine = app(BookingEngine::class);
-
         $serviceId  = (int) ($data['service_id'] ?? $booking->service_id);
         $businessId = (int) ($data['business_id'] ?? $booking->business_id);
+        $quantity   = (int) ($data['quantity'] ?? $booking->quantity ?? 1);
 
-        $calc = $engine->prepare($businessId, $serviceId);
-        $calc = $this->enrichCalcWithContext($calc, $businessId, $serviceId);
+        $bookableId = ! empty($data['bookable_id'] ?? $booking->bookable_id)
+            ? (int) ($data['bookable_id'] ?? $booking->bookable_id)
+            : null;
 
-        $bookableType = $data['bookable_type'] ?? $booking->bookable_type;
-        $bookableId   = $data['bookable_id'] ?? $booking->bookable_id;
-
-        $bookable = $this->resolveSelectedBookable(
-            $businessId,
-            $serviceId,
-            $bookableType,
-            $bookableId
+        $calc = $this->serviceExecutionEngine->prepare(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            bookableId: $bookableId,
+            quantity: $quantity
         );
 
-        $priceBreakdown = $this->resolveBookingPriceBreakdown(
-            $calc,
-            $bookable,
-            (int) ($data['quantity'] ?? $booking->quantity ?? 1)
-        );
+        $bookable = $calc['bookable'] ?? null;
 
-        $depositPolicy = $this->buildDepositPolicyFromSources(
-            $calc,
-            (float) $priceBreakdown['final_price'],
-            $bookable
-        );
-
-        $data['price'] = (float) $priceBreakdown['final_price'];
+        $data['price'] = (float) data_get($calc, 'price_breakdown.final_price', 0);
         $data = $this->applyBookableToPayload($data, $bookable);
 
         $existingMeta = is_array($booking->meta ?? null) ? $booking->meta : [];
         $incomingMeta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
-        $mergedMeta   = array_replace_recursive($existingMeta, $incomingMeta);
+        $mergedMeta = array_replace_recursive($existingMeta, $incomingMeta);
 
-        $data['meta'] = $this->buildBookingMeta(
+        $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
             existingMeta: $mergedMeta,
             calc: $calc,
-            priceBreakdown: $priceBreakdown,
-            depositPolicy: $depositPolicy,
             bookable: $bookable
         );
 
@@ -268,9 +214,6 @@ class BookingController extends Controller
             ->with('success', 'تم تحديث الحجز بنجاح.');
     }
 
-    // =========================
-    // DESTROY
-    // =========================
     public function destroy(Booking $booking)
     {
         $booking->delete();
@@ -280,9 +223,6 @@ class BookingController extends Controller
             ->with('success', 'تم حذف الحجز.');
     }
 
-    // =========================
-    // AJAX LOOKUPS
-    // =========================
     public function serviceLookup(Request $request)
     {
         $term = trim((string) $request->get('q', ''));
@@ -376,138 +316,81 @@ class BookingController extends Controller
             ], 422);
         }
 
-        /** @var BookingEngine $engine */
-        $engine = app(BookingEngine::class);
+        try {
+            $calc = $this->serviceExecutionEngine->preview(
+                businessId: $businessId,
+                serviceId: $serviceId,
+                bookableId: $bookableId > 0 ? $bookableId : null,
+                quantity: $quantity,
+                startsAt: $startsAt,
+                endsAt: $endsAt
+            );
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            report($e);
 
-        /** @var BookableAvailabilityService $availabilityService */
-        $availabilityService = app(BookableAvailabilityService::class);
-
-        /** @var BookablePricingService $pricingService */
-        $pricingService = app(BookablePricingService::class);
-
-        $calc = $engine->prepare($businessId, $serviceId);
-        $calc = $this->enrichCalcWithContext($calc, $businessId, $serviceId);
-
-        $bookable = null;
-        $availability = null;
-        $dynamicBookablePricing = null;
-
-        if ($bookableId > 0) {
-            $bookable = BookableItem::query()
-                ->where('id', $bookableId)
-                ->where('business_id', $businessId)
-                ->where('service_id', $serviceId)
-                ->where('is_active', 1)
-                ->first();
-
-            if (! $bookable) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'العنصر القابل للحجز غير موجود أو غير نشط',
-                ], 404);
-            }
-
-            if (! empty($startsAt) && ! empty($endsAt)) {
-                try {
-                    $availability = $availabilityService->check($bookable, $startsAt, $endsAt);
-                } catch (\InvalidArgumentException $e) {
-                    return response()->json([
-                        'ok' => false,
-                        'message' => $e->getMessage(),
-                    ], 422);
-                } catch (\Throwable $e) {
-                    return response()->json([
-                        'ok' => false,
-                        'message' => 'تعذر فحص التوفر',
-                    ], 500);
-                }
-
-                if (! ($availability['available'] ?? false)) {
-                    return response()->json([
-                        'ok' => false,
-                        'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
-                        'code' => $availability['code'] ?? 'unavailable',
-                        'availability' => [
-                            'available' => false,
-                            'starts_at' => $availability['starts_at'] ?? $startsAt,
-                            'ends_at' => $availability['ends_at'] ?? $endsAt,
-                            'conflicts_count' => isset($availability['conflicts']) ? $availability['conflicts']->count() : 0,
-                            'conflicts' => isset($availability['conflicts'])
-                                ? $availability['conflicts']->map(function ($slot) {
-                                    return [
-                                        'id' => (int) $slot->id,
-                                        'block_type' => (string) ($slot->block_type ?? ''),
-                                        'reason' => (string) ($slot->reason ?? ''),
-                                        'starts_at' => optional($slot->starts_at)->toDateTimeString(),
-                                        'ends_at' => optional($slot->ends_at)->toDateTimeString(),
-                                    ];
-                                })->values()
-                                : [],
-                        ],
-                    ], 422);
-                }
-            }
-
-            try {
-                $pricingDate = ! empty($startsAt) ? $startsAt : now();
-
-                $dynamicBookablePricing = $pricingService->resolve(
-                    $bookable,
-                    $pricingDate,
-                    $quantity
-                );
-            } catch (\InvalidArgumentException $e) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => $e->getMessage(),
-                ], 422);
-            } catch (\Throwable $e) {
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'تعذر حساب سعر العنصر القابل للحجز',
-                ], 500);
-            }
+            return response()->json([
+                'ok' => false,
+                'message' => 'تعذر حساب التسعير أو التوفر.',
+            ], 500);
         }
 
-        $priceBreakdown = $this->resolveBookingPriceBreakdown($calc, $bookable, $quantity);
+        $availability = $calc['availability'] ?? null;
 
-        if ($dynamicBookablePricing && ($dynamicBookablePricing['ok'] ?? false)) {
-            $priceBreakdown['base_price'] = (float) ($dynamicBookablePricing['base_price'] ?? 0);
-            $priceBreakdown['unit_price'] = (float) ($dynamicBookablePricing['unit_price'] ?? 0);
-            $priceBreakdown['final_price'] = (float) ($dynamicBookablePricing['final_price'] ?? 0);
-            $priceBreakdown['currency'] = (string) ($dynamicBookablePricing['currency'] ?? 'EGP');
-            $priceBreakdown['bookable_rule'] = $dynamicBookablePricing['rule'] ?? null;
-            $priceBreakdown['bookable_breakdown'] = $dynamicBookablePricing['breakdown'] ?? [];
-            $priceBreakdown['pricing_source'] = 'bookable_price_rules';
-        } else {
-            $priceBreakdown['pricing_source'] = 'default_booking_engine';
+        if ($availability && ! ($availability['available'] ?? false)) {
+            return response()->json([
+                'ok' => false,
+                'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
+                'code' => $availability['code'] ?? 'unavailable',
+                'availability' => [
+                    'available' => false,
+                    'starts_at' => $availability['starts_at'] ?? $startsAt,
+                    'ends_at' => $availability['ends_at'] ?? $endsAt,
+                    'conflicts_count' => isset($availability['conflicts']) ? $availability['conflicts']->count() : 0,
+                    'conflicts' => isset($availability['conflicts'])
+                        ? $availability['conflicts']->map(function ($slot) {
+                            return [
+                                'id' => (int) $slot->id,
+                                'block_type' => (string) ($slot->block_type ?? ''),
+                                'reason' => (string) ($slot->reason ?? ''),
+                                'starts_at' => optional($slot->starts_at)->toDateTimeString(),
+                                'ends_at' => optional($slot->ends_at)->toDateTimeString(),
+                            ];
+                        })->values()
+                        : [],
+                ],
+            ], 422);
         }
 
-        $depositPolicy = $this->buildDepositPolicyFromSources(
-            $calc,
-            (float) ($priceBreakdown['final_price'] ?? 0),
-            $bookable
-        );
+        $service = $calc['service'];
+        $businessPrice = $calc['business_price'];
+        $bookable = $calc['bookable'] ?? null;
 
         return response()->json([
             'ok' => true,
             'service' => [
-                'id' => (int) $calc['service']->id,
-                'key' => (string) ($calc['service']->key ?? ''),
-                'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-                'name_en' => (string) ($calc['service']->name_en ?? ''),
-                'supports_deposit' => (bool) ($calc['service']->supports_deposit ?? false),
-                'max_deposit_percent' => (int) ($calc['service']->max_deposit_percent ?? 0),
-                'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-                'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
+                'id' => (int) $service->id,
+                'key' => (string) ($service->key ?? ''),
+                'name_ar' => (string) ($service->name_ar ?? ''),
+                'name_en' => (string) ($service->name_en ?? ''),
+                'supports_deposit' => (bool) ($service->supports_deposit ?? false),
+                'max_deposit_percent' => (int) ($service->max_deposit_percent ?? 0),
+                'fee_type' => (string) ($service->fee_type ?? ''),
+                'fee_value' => $service->fee_value !== null ? (float) $service->fee_value : null,
             ],
             'business_price' => [
-                'price' => (float) ($calc['business_price']->price ?? 0),
-                'discount_enabled' => (bool) ($calc['business_price']->discount_enabled ?? false),
-                'discount_percent' => (int) ($calc['business_price']->discount_percent ?? 0),
-                'deposit_enabled' => (bool) ($calc['business_price']->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($calc['business_price']->deposit_percent ?? 0),
-                'child_id' => (int) (($calc['business_price']->child_id ?? 0)),
+                'price' => (float) ($businessPrice->price ?? 0),
+                'discount_enabled' => (bool) ($businessPrice->discount_enabled ?? false),
+                'discount_percent' => (int) ($businessPrice->discount_percent ?? 0),
+                'deposit_enabled' => (bool) ($businessPrice->deposit_enabled ?? false),
+                'deposit_percent' => (int) ($businessPrice->deposit_percent ?? 0),
+                'child_id' => (int) ($businessPrice->child_id ?? 0),
             ],
             'bookable' => $bookable ? [
                 'id' => (int) $bookable->id,
@@ -526,15 +409,11 @@ class BookingController extends Controller
                 'starts_at' => $availability['starts_at'] ?? $startsAt,
                 'ends_at' => $availability['ends_at'] ?? $endsAt,
             ] : null,
-            'bookable_dynamic_pricing' => $dynamicBookablePricing,
-            'pricing' => $priceBreakdown,
-            'deposit_policy' => $depositPolicy,
+            'pricing' => $calc['price_breakdown'] ?? [],
+            'deposit_policy' => $calc['deposit_policy'] ?? [],
         ]);
     }
 
-    // =========================
-    // START CONFIRMATIONS
-    // =========================
     public function startConfirmClient(Booking $booking)
     {
         $deposit = $this->latestDeposit($booking);
@@ -593,21 +472,18 @@ class BookingController extends Controller
         return $this->startConfirmBusiness($booking);
     }
 
-    // =========================
-    // DEPOSIT ACTIONS
-    // =========================
     public function depositFreeze(Booking $booking)
     {
         $depositPolicy = $this->depositPolicy($booking);
 
-        if (! $depositPolicy['required']) {
+        if (! ($depositPolicy['required'] ?? false)) {
             return back()->with('error', 'Deposit غير مفعل لهذا الحجز.');
         }
 
         try {
             $this->bookingDepositService->freezeForBooking(
                 $booking,
-                (float) $depositPolicy['hold']
+                (float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0)
             );
 
             return back()->with('success', 'تم إنشاء Deposit وتجميد المبالغ بنجاح.');
@@ -698,9 +574,6 @@ class BookingController extends Controller
         }
     }
 
-    // =========================
-    // HELPERS
-    // =========================
     protected function formData(): array
     {
         $services = PlatformService::query()
@@ -874,14 +747,6 @@ class BookingController extends Controller
             ]);
         }
 
-        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
-
-        if (! $business) {
-            throw ValidationException::withMessages([
-                'business_id' => 'البزنس غير موجود.',
-            ]);
-        }
-
         $businessService = $this->resolveBusinessServicePrice(
             $businessId,
             $serviceId,
@@ -891,12 +756,6 @@ class BookingController extends Controller
         if (! $businessService) {
             throw ValidationException::withMessages([
                 'service_id' => 'الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.',
-            ]);
-        }
-
-        if (! $businessService) {
-            throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير مفعلة لهذا البزنس ضمن القسم الفرعي الحالي.',
             ]);
         }
 
@@ -949,152 +808,17 @@ class BookingController extends Controller
 
     protected function depositPolicy(Booking $booking): array
     {
-        $booking->loadMissing([
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
-            'business:id,name,category_id,category_child_id',
-            'bookable',
-        ]);
-
-        $service = $booking->service;
-        $childId = (int) ($booking->business?->category_child_id ?? 0);
-
-        $businessPrice = $this->resolveBusinessServicePrice(
-            (int) $booking->business_id,
-            (int) $booking->service_id,
-            $childId
-        );
-
-        $serviceSupportsDeposit = (bool) data_get($service, 'supports_deposit', false);
-        $serviceMaxPercent = (int) data_get($service, 'max_deposit_percent', 0);
-
-        $businessDepositEnabled = (bool) data_get($businessPrice, 'deposit_enabled', false);
-        $businessDepositPercent = (int) data_get($businessPrice, 'deposit_percent', 0);
-
-        $bookable = ($booking->bookable instanceof BookableItem) ? $booking->bookable : null;
-
-        $effectiveDepositEnabled = $businessDepositEnabled;
-        $effectiveDepositPercent = $businessDepositPercent;
-        $source = 'business_service_price';
-
-        if ($bookable && (bool) $bookable->deposit_enabled) {
-            $effectiveDepositEnabled = true;
-            $effectiveDepositPercent = (int) $bookable->deposit_percent;
-            $source = 'bookable_item';
-        }
-
-        if ($effectiveDepositPercent > $serviceMaxPercent) {
-            $effectiveDepositPercent = $serviceMaxPercent;
-        }
-
-        $required = $serviceSupportsDeposit
-            && $effectiveDepositEnabled
-            && $effectiveDepositPercent > 0;
-
-        $maxAllowed = round(((float) $booking->price) * ($serviceMaxPercent / 100), 2);
-        $hold = $required
-            ? round(((float) $booking->price) * ($effectiveDepositPercent / 100), 2)
-            : 0.00;
-
-        return [
-            'required' => $required,
-            'hold' => $hold,
-            'max' => $maxAllowed,
-            'percent' => $serviceMaxPercent,
-            'configured_percent' => $effectiveDepositPercent,
-            'source' => $source,
-            'service_supports_deposit' => $serviceSupportsDeposit,
-            'business_deposit_enabled' => $businessDepositEnabled,
-            'business_deposit_percent' => $businessDepositPercent,
-            'bookable_deposit_enabled' => $bookable ? (bool) $bookable->deposit_enabled : false,
-            'bookable_deposit_percent' => $bookable ? (int) $bookable->deposit_percent : 0,
-        ];
+        return $this->serviceExecutionEngine->depositPolicy($booking);
     }
 
     protected function handleMoveToInProgress(Booking $booking): void
     {
-        $deposit = $this->latestDeposit($booking);
-        $depositPolicy = $this->depositPolicy($booking);
-        [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
-
-        if (! $clientConfirmed || ! $businessConfirmed) {
-            throw ValidationException::withMessages([
-                'status' => 'يجب تأكيد الطرفين قبل بدء التنفيذ.',
-            ]);
-        }
-
-        if ($depositPolicy['required']) {
-            if (! $deposit) {
-                throw ValidationException::withMessages([
-                    'status' => 'Deposit مطلوب لهذا الحجز قبل بدء التنفيذ.',
-                ]);
-            }
-
-            if (! $deposit->isFrozen()) {
-                throw ValidationException::withMessages([
-                    'status' => 'يجب أن تكون حالة الـ Deposit مجمدة قبل بدء التنفيذ.',
-                ]);
-            }
-        }
-
-        $this->chargeExecutionFeeSplitOnce($booking);
+        $this->serviceExecutionEngine->moveBookingToInProgress($booking);
     }
 
     protected function chargeExecutionFeeSplitOnce(Booking $booking): void
     {
-        $booking->refresh();
-
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-        $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
-
-        if (! empty($meta['_execution_fee']['charged_at'])) {
-            return;
-        }
-
-        /** @var WalletFeeService $feeService */
-        $feeService = app(WalletFeeService::class);
-
-        /*
-        |----------------------------------------------------------------------
-        | ملاحظة:
-        | WalletFeeService ما زال هو المنفذ الفعلي للخصم.
-        | هنا فقط نحافظ على snapshot أوضح داخل booking meta.
-        |----------------------------------------------------------------------
-        */
-        $transactions = $feeService->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
-
-        $clientAmount = 0.0;
-        $businessAmount = 0.0;
-        $txMap = [];
-
-        foreach ($transactions as $tx) {
-            $amount = (float) $tx->amount;
-            $payer  = (string) data_get($tx->meta, 'payer', '');
-
-            if ($payer === 'client') {
-                $clientAmount += $amount;
-            } elseif ($payer === 'business') {
-                $businessAmount += $amount;
-            }
-
-            $txMap[] = [
-                'id' => (int) $tx->id,
-                'user_id' => (int) $tx->user_id,
-                'payer' => $payer,
-                'amount' => $amount,
-                'type' => (string) $tx->type,
-                'direction' => (string) $tx->direction,
-                'status' => (string) ($tx->status ?? ''),
-            ];
-        }
-
-        $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
-        $meta['_execution_fee']['client_amount'] = round($clientAmount, 2);
-        $meta['_execution_fee']['business_amount'] = round($businessAmount, 2);
-        $meta['_execution_fee']['charged_at'] = now()->toDateTimeString();
-        $meta['_execution_fee']['transactions'] = $txMap;
-
-        $booking->meta = $meta;
-        $booking->save();
+        $this->serviceExecutionEngine->chargeExecutionFeeOnce($booking);
     }
 
     protected function resolveSelectedBookable(
@@ -1135,183 +859,6 @@ class BookingController extends Controller
         return $data;
     }
 
-    protected function resolveBookingPriceBreakdown(array $calc, ?BookableItem $bookable, int $quantity = 1): array
-    {
-        $quantity = max($quantity, 1);
-
-        if ($bookable && (float) $bookable->price > 0) {
-            $unitPrice = round((float) $bookable->price, 2);
-            $originalPrice = round($unitPrice * $quantity, 2);
-            $feeSnapshot = $calc['fee_snapshot'] ?? [];
-            $platformFee = (float) ($calc['platform_fee'] ?? 0);
-
-            return [
-                'unit_price' => $unitPrice,
-                'quantity' => $quantity,
-                'original_price' => $originalPrice,
-                'discount_enabled' => false,
-                'discount_percent' => 0,
-                'discount_amount' => 0.00,
-                'final_price' => $originalPrice,
-                'platform_fee' => round($platformFee * $quantity, 2),
-            ];
-        }
-
-        $businessPrice = $calc['business_price'] ?? null;
-
-        $unitPrice = round((float) ($businessPrice->price ?? $calc['price'] ?? 0), 2);
-        $originalPrice = round($unitPrice * $quantity, 2);
-
-        $discountEnabled = (bool) ($businessPrice->discount_enabled ?? false);
-        $discountPercent = $discountEnabled ? (int) ($businessPrice->discount_percent ?? 0) : 0;
-        $discountPercent = max(0, min($discountPercent, 100));
-
-        $discountAmount = $discountEnabled
-            ? round($originalPrice * ($discountPercent / 100), 2)
-            : 0.00;
-
-        $finalPrice = round($originalPrice - $discountAmount, 2);
-        if ($finalPrice < 0) {
-            $finalPrice = 0.00;
-        }
-
-        $platformFee = (float) ($calc['platform_fee'] ?? 0);
-
-        return [
-            'unit_price' => $unitPrice,
-            'quantity' => $quantity,
-            'original_price' => $originalPrice,
-            'discount_enabled' => $discountEnabled,
-            'discount_percent' => $discountPercent,
-            'discount_amount' => $discountAmount,
-            'final_price' => $finalPrice,
-            'platform_fee' => $platformFee,
-        ];
-    }
-
-    protected function buildDepositPolicyFromSources(array $calc, float $price, ?BookableItem $bookable): array
-    {
-        $serviceSupportsDeposit = (bool) ($calc['service']->supports_deposit ?? false);
-        $serviceMaxPercent = (int) ($calc['service']->max_deposit_percent ?? 0);
-
-        $businessDepositEnabled = (bool) ($calc['business_price']->deposit_enabled ?? false);
-        $businessDepositPercent = (int) ($calc['business_price']->deposit_percent ?? 0);
-
-        $effectiveDepositEnabled = $businessDepositEnabled;
-        $effectiveDepositPercent = $businessDepositPercent;
-        $source = 'business_service_price';
-
-        if ($bookable && (bool) $bookable->deposit_enabled) {
-            $effectiveDepositEnabled = true;
-            $effectiveDepositPercent = (int) $bookable->deposit_percent;
-            $source = 'bookable_item';
-        }
-
-        if ($effectiveDepositPercent > $serviceMaxPercent) {
-            throw ValidationException::withMessages([
-                'deposit_percent' => "نسبة الديبوزت تتجاوز الحد الأقصى المسموح للخدمة ({$serviceMaxPercent}%).",
-            ]);
-        }
-
-        $required = $serviceSupportsDeposit
-            && $effectiveDepositEnabled
-            && $effectiveDepositPercent > 0;
-
-        $amount = $required
-            ? round($price * ($effectiveDepositPercent / 100), 2)
-            : 0.00;
-
-        return [
-            'service_supports_deposit' => $serviceSupportsDeposit,
-            'service_max_percent' => $serviceMaxPercent,
-            'business_deposit_enabled' => $businessDepositEnabled,
-            'business_deposit_percent' => $businessDepositPercent,
-            'bookable_deposit_enabled' => $bookable ? (bool) $bookable->deposit_enabled : false,
-            'bookable_deposit_percent' => $bookable ? (int) $bookable->deposit_percent : 0,
-            'required' => $required,
-            'amount' => $amount,
-            'source' => $source,
-            'configured_percent' => $effectiveDepositPercent,
-        ];
-    }
-
-    protected function buildBookingMeta(
-        array $existingMeta,
-        array $calc,
-        array $priceBreakdown,
-        array $depositPolicy,
-        ?BookableItem $bookable
-    ): array {
-        $meta = $existingMeta;
-        $feeSnapshot = $calc['fee_snapshot'] ?? [];
-        $businessPrice = $calc['business_price'] ?? null;
-
-        $meta['platform_service'] = [
-            'id' => (int) $calc['service']->id,
-            'key' => (string) $calc['service']->key,
-            'name_ar' => (string) ($calc['service']->name_ar ?? ''),
-            'name_en' => (string) ($calc['service']->name_en ?? ''),
-        ];
-
-        $meta['business_context'] = [
-            'business_id' => (int) ($calc['business']->id ?? 0),
-            'category_id' => (int) ($calc['business']->category_id ?? 0),
-            'category_child_id' => (int) ($calc['business']->category_child_id ?? 0),
-        ];
-  
-        $meta['pricing'] = [
-            'original_price' => (float) $priceBreakdown['original_price'],
-            'discount_enabled' => (bool) $priceBreakdown['discount_enabled'],
-            'discount_percent' => (int) $priceBreakdown['discount_percent'],
-            'discount_amount' => (float) $priceBreakdown['discount_amount'],
-            'final_price' => (float) $priceBreakdown['final_price'],
-            'price' => (float) $priceBreakdown['final_price'],
-            'fee_type' => (string) ($calc['service']->fee_type ?? ''),
-            'fee_value' => $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null,
-            'source' => $bookable ? 'bookable_item' : 'business_service_price',
-            'unit_price' => (float) $priceBreakdown['unit_price'],
-            'quantity' => (int) $priceBreakdown['quantity'],
-            'platform_fee' => (float) $priceBreakdown['platform_fee'],
-            'business_service_price_id' => (int) ($businessPrice->id ?? 0),
-            'business_service_price_child_id' => (int) ($businessPrice->child_id ?? 0),
-        ];
-
-        $meta['service_fees_snapshot'] = $feeSnapshot;
-        $meta['deposit_policy'] = $depositPolicy;
-
-        if ($bookable) {
-            $meta['bookable_item'] = [
-                'id' => (int) $bookable->id,
-                'title' => (string) $bookable->title,
-                'code' => (string) ($bookable->code ?? ''),
-                'item_type' => (string) ($bookable->item_type ?? ''),
-                'price' => (float) $bookable->price,
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
-            ];
-        } else {
-            unset($meta['bookable_item']);
-        }
-
-        $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
-        $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
-        $meta['_execution_fee']['fee_type'] = (string) ($calc['service']->fee_type ?? '');
-        $meta['_execution_fee']['fee_value'] = $calc['service']->fee_value !== null ? (float) $calc['service']->fee_value : null;
-        $meta['_execution_fee']['platform_amount'] = (float) $priceBreakdown['platform_fee'];
-        $meta['_execution_fee']['client_amount'] = (float) ($meta['_execution_fee']['client_amount'] ?? 0);
-        $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
-        $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
-        $meta['_execution_fee']['transactions'] = $meta['_execution_fee']['transactions'] ?? [];
-        $meta['_execution_fee']['child_id'] = (int) ($calc['business']->category_child_id ?? 0);
-
-        return $meta;
-    }
-
-    protected function applyExecutionPlatformFees(Booking $booking): void
-    {
-        app(WalletFeeService::class)->applyBookingFees($booking, self::EXECUTION_FEE_CODE);
-    }
-
     protected function resolveBusinessContext(int $businessId): array
     {
         if (! $businessId) {
@@ -1341,7 +888,6 @@ class BookingController extends Controller
             return null;
         }
 
-        // 🔥 أولوية child
         if ($childId > 0) {
             $row = BusinessServicePrice::query()
                 ->where('business_id', $businessId)
@@ -1356,7 +902,6 @@ class BookingController extends Controller
             }
         }
 
-        // fallback قديم
         return BusinessServicePrice::query()
             ->where('business_id', $businessId)
             ->where('service_id', $serviceId)
@@ -1364,114 +909,4 @@ class BookingController extends Controller
             ->orderByDesc('id')
             ->first();
     }
-
-    protected function enrichCalcWithContext(array $calc, int $businessId, int $serviceId): array
-    {
-        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
-
-        $calc['business'] = $business;
-        $calc['business_category_id'] = $categoryId;
-        $calc['business_child_id'] = $childId;
-
-        $businessPrice = $this->resolveBusinessServicePrice($businessId, $serviceId, $childId);
-        if ($businessPrice) {
-            $calc['business_price'] = $businessPrice;
-            $calc['price'] = (float) $businessPrice->price;
-        }
-
-        $feeSnapshot = $this->resolveExecutionFeeSnapshot($businessId, $serviceId, $childId);
-
-        $calc['service_fee_rows'] = [
-            'business' => $feeSnapshot['business'],
-            'client' => $feeSnapshot['client'],
-        ];
-
-        $calc['fee_snapshot'] = $feeSnapshot;
-
-        return $calc;
-    }
-    
-
-
-    
-
-    protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
-    {
-        if ($childId <= 0 || $serviceId <= 0) {
-            return null;
-        }
-
-        return CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->where('is_active', 1)
-            ->first();
-    }
-
-    protected function mapChildFeeRowForSnapshot(?CategoryChildServiceFee $row, string $payer): ?array
-    {
-        if (! $row) {
-            return null;
-        }
-
-        if ($payer === 'business') {
-            if (! $row->hasBusinessFee()) {
-                return null;
-            }
-
-            return [
-                'id' => (int) $row->id,
-                'payer' => 'business',
-                'fee_type' => 'business_fee',
-                'calc_type' => 'fixed',
-                'amount' => (float) ($row->business_fee_amount ?? 0),
-                'currency' => (string) ($row->currency ?? 'EGP'),
-                'child_id' => (int) ($row->child_id ?? 0),
-                'service_id' => (int) ($row->platform_service_id ?? 0),
-                'is_active' => (bool) ($row->is_active ?? false),
-                'sort_order' => (int) ($row->sort_order ?? 0),
-                'notes' => $row->notes,
-            ];
-        }
-
-        if ($payer === 'client') {
-            if (! $row->hasClientFee()) {
-                return null;
-            }
-
-            return [
-                'id' => (int) $row->id,
-                'payer' => 'client',
-                'fee_type' => 'client_fee',
-                'calc_type' => 'fixed',
-                'amount' => (float) ($row->client_fee_amount ?? 0),
-                'currency' => (string) ($row->currency ?? 'EGP'),
-                'child_id' => (int) ($row->child_id ?? 0),
-                'service_id' => (int) ($row->platform_service_id ?? 0),
-                'is_active' => (bool) ($row->is_active ?? false),
-                'sort_order' => (int) ($row->sort_order ?? 0),
-                'notes' => $row->notes,
-            ];
-        }
-
-        return null;
-    }
-
-    protected function resolveExecutionFeeSnapshot(int $businessId, int $serviceId, int $childId = 0): array
-    {
-        $row = $this->resolveChildServiceFeeRow($childId, $serviceId);
-
-        return [
-            'business_id' => $businessId,
-            'child_id' => $childId,
-            'service_id' => $serviceId,
-            'fee_code' => self::EXECUTION_FEE_CODE,
-            'business' => $this->mapChildFeeRowForSnapshot($row, 'business'),
-            'client' => $this->mapChildFeeRowForSnapshot($row, 'client'),
-        ];
-    }
-
-
-
-
 }

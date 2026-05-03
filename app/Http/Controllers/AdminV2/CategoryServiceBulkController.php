@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
+use App\Models\CategoryChildServiceFee;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
@@ -35,6 +36,11 @@ class CategoryServiceBulkController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function money($value): float
+    {
+        return round(max((float) $value, 0), 2);
     }
 
     private function bookingConfigPayload(Request $request): array
@@ -82,6 +88,31 @@ class CategoryServiceBulkController extends Controller
         };
     }
 
+    private function serviceFeePayload(Request $request, int $sortOrder = 1): array
+    {
+        $businessFeeEnabled = $this->toBool($request->input('business_fee_enabled'));
+        $clientFeeEnabled   = $this->toBool($request->input('client_fee_enabled'));
+
+        $businessFeeAmount = $businessFeeEnabled
+            ? $this->money($request->input('business_fee_amount', 0))
+            : 0.00;
+
+        $clientFeeAmount = $clientFeeEnabled
+            ? $this->money($request->input('client_fee_amount', 0))
+            : 0.00;
+
+        return [
+            'business_fee_enabled' => $businessFeeEnabled,
+            'business_fee_amount'  => $businessFeeAmount,
+            'client_fee_enabled'   => $clientFeeEnabled,
+            'client_fee_amount'    => $clientFeeAmount,
+            'currency'             => trim((string) $request->input('currency', 'EGP')) ?: 'EGP',
+            'is_active'            => true,
+            'sort_order'           => $sortOrder,
+            'notes'                => trim((string) $request->input('fee_notes', '')) ?: null,
+        ];
+    }
+
     public function index(Request $request)
     {
         $rootId = (int) $request->get('root_id', 0);
@@ -102,6 +133,14 @@ class CategoryServiceBulkController extends Controller
             'platform_service_ids.*' => ['integer', 'exists:platform_services,id'],
 
             'mode' => ['required', 'in:append,replace,remove'],
+
+            // Service fees bulk fields
+            'business_fee_enabled' => ['nullable'],
+            'business_fee_amount' => ['nullable', 'numeric', 'min:0'],
+            'client_fee_enabled' => ['nullable'],
+            'client_fee_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'max:10'],
+            'fee_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $root = Category::query()
@@ -145,8 +184,15 @@ class CategoryServiceBulkController extends Controller
 
         $services = PlatformService::query()
             ->whereIn('id', $serviceIds)
+            ->where('is_active', 1)
             ->get()
             ->keyBy('id');
+
+        if ($services->isEmpty()) {
+            return back()
+                ->withErrors(['platform_service_ids' => 'اختر خدمة مفعلة واحدة على الأقل.'])
+                ->withInput();
+        }
 
         $mode = (string) $data['mode'];
 
@@ -161,9 +207,19 @@ class CategoryServiceBulkController extends Controller
                         ->where('child_id', $childId)
                         ->delete();
 
+                    CategoryChildServiceFee::query()
+                        ->where('child_id', $childId)
+                        ->delete();
+
                     $order = 1;
 
                     foreach ($serviceIds as $serviceId) {
+                        $service = $services->get($serviceId);
+
+                        if (! $service) {
+                            continue;
+                        }
+
                         CategoryPlatformService::query()->create([
                             'category_id' => $root->id,
                             'child_id' => $childId,
@@ -173,17 +229,19 @@ class CategoryServiceBulkController extends Controller
                             'meta' => null,
                         ]);
 
-                        $service = $services->get($serviceId);
-                        if ($service) {
-                            CategoryServiceConfig::query()->create([
-                                'category_id' => $root->id,
-                                'child_id' => $childId,
-                                'platform_service_id' => $serviceId,
-                                'config' => $this->serviceConfigPayload($request, $service),
-                                'is_active' => true,
-                                'sort_order' => $order,
-                            ]);
-                        }
+                        CategoryServiceConfig::query()->create([
+                            'category_id' => $root->id,
+                            'child_id' => $childId,
+                            'platform_service_id' => $serviceId,
+                            'config' => $this->serviceConfigPayload($request, $service),
+                            'is_active' => true,
+                            'sort_order' => $order,
+                        ]);
+
+                        CategoryChildServiceFee::query()->create(array_merge([
+                            'child_id' => $childId,
+                            'platform_service_id' => $serviceId,
+                        ], $this->serviceFeePayload($request, $order)));
 
                         $order++;
                     }
@@ -203,6 +261,12 @@ class CategoryServiceBulkController extends Controller
                         ->max('sort_order');
 
                     foreach ($serviceIds as $serviceId) {
+                        $service = $services->get($serviceId);
+
+                        if (! $service) {
+                            continue;
+                        }
+
                         if (! in_array($serviceId, $existingServiceIds, true)) {
                             $currentMaxSort++;
 
@@ -216,21 +280,28 @@ class CategoryServiceBulkController extends Controller
                             ]);
                         }
 
-                        $service = $services->get($serviceId);
-                        if ($service) {
-                            CategoryServiceConfig::query()->updateOrCreate(
-                                [
-                                    'child_id' => $childId,
-                                    'platform_service_id' => $serviceId,
-                                ],
-                                [
-                                    'category_id' => $root->id,
-                                    'config' => $this->serviceConfigPayload($request, $service),
-                                    'is_active' => true,
-                                    'sort_order' => max($currentMaxSort, 1),
-                                ]
-                            );
-                        }
+                        $sortOrder = max($currentMaxSort, 1);
+
+                        CategoryServiceConfig::query()->updateOrCreate(
+                            [
+                                'child_id' => $childId,
+                                'platform_service_id' => $serviceId,
+                            ],
+                            [
+                                'category_id' => $root->id,
+                                'config' => $this->serviceConfigPayload($request, $service),
+                                'is_active' => true,
+                                'sort_order' => $sortOrder,
+                            ]
+                        );
+
+                        CategoryChildServiceFee::query()->updateOrCreate(
+                            [
+                                'child_id' => $childId,
+                                'platform_service_id' => $serviceId,
+                            ],
+                            $this->serviceFeePayload($request, $sortOrder)
+                        );
                     }
 
                     continue;
@@ -246,12 +317,17 @@ class CategoryServiceBulkController extends Controller
                         ->where('child_id', $childId)
                         ->whereIn('platform_service_id', $serviceIds)
                         ->delete();
+
+                    CategoryChildServiceFee::query()
+                        ->where('child_id', $childId)
+                        ->whereIn('platform_service_id', $serviceIds)
+                        ->delete();
                 }
             }
         });
 
         return redirect()
             ->route('admin.categories.index', ['root_id' => $root->id])
-            ->with('success', 'تم تطبيق الخدمات وإعداداتها على الأقسام الفرعية المختارة بنجاح.');
+            ->with('success', 'تم تطبيق الخدمات وإعداداتها ورسومها على الأقسام الفرعية المختارة بنجاح.');
     }
 }

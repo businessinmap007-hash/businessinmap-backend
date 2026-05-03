@@ -36,7 +36,6 @@ use App\Http\Controllers\Api\V1\{
     CouponController,
     TransactionController,
     NotificationController,
-    BookingController,
     DeliveryController,
     RideController,
     ChatController,
@@ -267,16 +266,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('conversations/{id}',        [ChatController::class, 'deleteConversation']);
         });
 
-        // Booking
-        Route::prefix('booking')->group(function () {
-            Route::post('create',        [BookingController::class, 'store']);
-            Route::post('update-status', [BookingController::class, 'updateStatus']);
-            Route::get('my',             [BookingController::class, 'myBookings']);
-
-            Route::middleware('business')->group(function () {
-                Route::get('business', [BookingController::class, 'businessBookings']);
-            });
-        });
+     
 
         // Payments
         Route::post('payment/charge/account', [PaymentController::class, 'chargeAccount']);

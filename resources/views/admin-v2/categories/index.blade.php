@@ -9,48 +9,39 @@
     $qVal = (string) ($q ?? '');
     $activeVal = (string) ($active ?? '');
     $perPageVal = (int) ($perPage ?? 50);
-
     $sortNow = (string) ($sort ?? 'reorder');
     $dirNow  = (string) ($dir ?? 'asc');
 
+    $rootsSafe = collect($roots ?? []);
     $childrenSafe = $children ?? collect();
+    $servicesSafe = collect($services ?? $platformServices ?? []);
 
-    $qsKeep = [
-        'root_id'  => $rootIdInt,
-        'q'        => $qVal,
-        'active'   => $activeVal,
-        'per_page' => $perPageVal,
-        'sort'     => $sortNow,
-        'dir'      => $dirNow,
-    ];
-
-    $sortUrl = function (string $col) use ($qsKeep, $sortNow, $dirNow) {
-        $nextDir = ($sortNow === $col && $dirNow === 'asc') ? 'desc' : 'asc';
-
-        return route('admin.categories.index', array_merge($qsKeep, [
-            'sort' => $col,
-            'dir'  => $nextDir,
-        ]));
-    };
-
-    $arrow = function (string $col) use ($sortNow, $dirNow) {
-        if ($sortNow !== $col) {
-            return '';
-        }
-
-        return $dirNow === 'asc' ? ' ▲' : ' ▼';
-    };
-
-    $nameOf = function ($cat) {
-        $ar = (string) ($cat->name_ar ?? '');
-        $en = (string) ($cat->name_en ?? '');
+    $nameOf = function ($item) {
+        $ar = (string) ($item->name_ar ?? '');
+        $en = (string) ($item->name_en ?? '');
         return $ar !== '' ? $ar : ($en !== '' ? $en : '—');
     };
 
-    $rootsCount = collect($roots ?? [])->count();
     $childrenCount = method_exists($childrenSafe, 'total')
         ? $childrenSafe->total()
         : collect($childrenSafe)->count();
+
+    $sortUrl = function (string $col) use ($rootIdInt, $qVal, $activeVal, $perPageVal, $sortNow, $dirNow) {
+        $nextDir = ($sortNow === $col && $dirNow === 'asc') ? 'desc' : 'asc';
+
+        return route('admin.categories.index', [
+            'root_id' => $rootIdInt,
+            'q' => $qVal,
+            'active' => $activeVal,
+            'per_page' => $perPageVal,
+            'sort' => $col,
+            'dir' => $nextDir,
+        ]);
+    };
+
+    $arrow = function (string $col) use ($sortNow, $dirNow) {
+        return $sortNow === $col ? ($dirNow === 'asc' ? ' ▲' : ' ▼') : '';
+    };
 @endphp
 
 <div class="a2-page">
@@ -58,7 +49,7 @@
         <div>
             <h1 class="a2-page-title">الأقسام</h1>
             <div class="a2-page-subtitle">
-                إدارة الأقسام الرئيسية، والأقسام الفرعية الموحدة، ومراجعة الفروع القديمة قبل الاستيراد
+                إدارة الأقسام الرئيسية، الفروع الموحدة، وربط الخدمات والرسوم
             </div>
         </div>
 
@@ -74,111 +65,63 @@
             @if($rootIdInt > 0)
                 <a href="{{ route('admin.category-children.create', ['parent_id' => $rootIdInt]) }}"
                    class="a2-btn a2-btn-primary">
-                    + إضافة قسم فرعي موحّد
+                    + إضافة قسم فرعي
                 </a>
             @endif
         </div>
     </div>
 
     @if(session('success'))
-        <div class="a2-alert a2-alert-success">
-            {{ session('success') }}
-        </div>
+        <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="a2-alert a2-alert-danger">{{ session('error') }}</div>
     @endif
 
     @if($errors->any())
-        <div class="a2-alert a2-alert-danger">
-            {{ $errors->first() }}
-        </div>
+        <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
     @endif
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">عدد الأقسام الرئيسية</div>
-            <div class="a2-stat-value">{{ $rootsCount }}</div>
-            <div class="a2-stat-note">المسجلة بالنظام</div>
+            <div class="a2-stat-label">الأقسام الرئيسية</div>
+            <div class="a2-stat-value">{{ $rootsSafe->count() }}</div>
+            <div class="a2-stat-note">Root Categories</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">القسم الرئيسي المحدد</div>
+            <div class="a2-stat-label">القسم المحدد</div>
             <div class="a2-stat-value">{{ $rootIdInt > 0 ? '#'.$rootIdInt : '—' }}</div>
             <div class="a2-stat-note">
-                {{ $rootIdInt > 0 && !empty($root) ? $nameOf($root) : 'لا يوجد تحديد' }}
+                {{ $rootIdInt > 0 && !empty($root) ? $nameOf($root) : 'عرض الأقسام الرئيسية' }}
             </div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">عدد الفروع المعروضة</div>
+            <div class="a2-stat-label">الفروع المعروضة</div>
             <div class="a2-stat-value">{{ $rootIdInt > 0 ? $childrenCount : 0 }}</div>
-            <div class="a2-stat-note">ضمن العرض الحالي</div>
+            <div class="a2-stat-note">Category Children</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">وضع العرض الحالي</div>
-            <div class="a2-stat-value">{{ $rootIdInt > 0 ? 'Children' : 'Roots' }}</div>
-            <div class="a2-stat-note">
-                {{ $rootIdInt > 0 ? 'عرض الأقسام الفرعية الموحدة' : 'عرض الأقسام الرئيسية' }}
-            </div>
+            <div class="a2-stat-label">الخدمات المتاحة</div>
+            <div class="a2-stat-value">{{ $servicesSafe->count() }}</div>
+            <div class="a2-stat-note">Platform Services</div>
         </div>
     </div>
 
-    <div class="a2-card a2-card--section a2-mb-16">
-        <div class="a2-card-head">
-            <div>
-                <div class="a2-section-title a2-mb-0">مراكز الإدارة</div>
-                <div class="a2-section-subtitle">
-                    تنقل سريع بين الشاشات الأساسية الخاصة بالأقسام والتنظيم الجديد
-                </div>
-            </div>
-        </div>
-
-        <div class="a2-option-chip-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
-            <div class="a2-option-chip-card">
-                <div class="a2-option-chip-title">الأقسام الرئيسية</div>
-                <div class="a2-option-chip-sub">
-                    إدارة بيانات القسم الرئيسي والخدمات المرتبطة به
-                </div>
-                <div class="a2-page-actions a2-mt-12">
-                    <a href="{{ route('admin.categories.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">
-                        فتح القائمة
-                    </a>
-                    <a href="{{ route('admin.categories.create') }}" class="a2-btn a2-btn-primary a2-btn-sm">
-                        إضافة جديد
-                    </a>
-                </div>
-            </div>
-
-            <div class="a2-option-chip-card">
-                <div class="a2-option-chip-title">الأقسام الفرعية الموحدة</div>
-                <div class="a2-option-chip-sub">
-                    إدارة الفروع الجديدة وربطها بالأقسام الرئيسية وترتيبها
-                </div>
-                <div class="a2-page-actions a2-mt-12">
-                    <a href="{{ route('admin.category-children.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">
-                        إدارة الفروع
-                    </a>
-                    @if($rootIdInt > 0)
-                        <a href="{{ route('admin.category-children.create', ['parent_id' => $rootIdInt]) }}"
-                           class="a2-btn a2-btn-primary a2-btn-sm">
-                            إضافة لهذا القسم
-                        </a>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="a2-card">
+    <div class="a2-card a2-mb-16">
         <form method="GET" action="{{ route('admin.categories.index') }}" class="a2-filterbar">
             <input class="a2-input a2-filter-search"
                    type="text"
                    name="q"
                    value="{{ $qVal }}"
-                   placeholder="{{ $rootIdInt > 0 ? 'بحث داخل الأقسام الفرعية الموحّدة' : 'بحث داخل الأقسام الرئيسية' }}">
+                   placeholder="{{ $rootIdInt > 0 ? 'بحث داخل الفروع' : 'بحث داخل الأقسام الرئيسية' }}">
 
             <select class="a2-select a2-filter-md" name="root_id">
                 <option value="0" @selected($rootIdInt === 0)>كل الأقسام الرئيسية</option>
-                @foreach(($roots ?? []) as $r)
+                @foreach($rootsSafe as $r)
                     <option value="{{ $r->id }}" @selected($rootIdInt === (int) $r->id)>
                         #{{ $r->id }} - {{ $nameOf($r) }}
                     </option>
@@ -198,7 +141,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="active">
-                @foreach(($activeOptions ?? []) as $k => $label)
+                @foreach(($activeOptions ?? ['' => 'الكل', '1' => 'Active', '0' => 'Inactive']) as $k => $label)
                     <option value="{{ $k }}" @selected((string) $activeVal === (string) $k)>
                         {{ $label }}
                     </option>
@@ -206,7 +149,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="per_page">
-                @foreach(($perPageOptions ?? []) as $n)
+                @foreach(($perPageOptions ?? [20, 50, 100]) as $n)
                     <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>
                         {{ $n }} / صفحة
                     </option>
@@ -215,7 +158,6 @@
 
             <div class="a2-filter-actions">
                 <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-
                 <a class="a2-btn a2-btn-ghost"
                    href="{{ route('admin.categories.index', $rootIdInt > 0 ? ['root_id' => $rootIdInt] : []) }}">
                     تفريغ
@@ -225,372 +167,269 @@
     </div>
 
     @if($rootIdInt > 0 && !empty($root))
-        <div class="a2-card a2-card--section a2-mt-16">
+        <div class="a2-card a2-card--section a2-mb-16">
             <div class="a2-card-head">
                 <div>
                     <div class="a2-section-title a2-mb-0">القسم الرئيسي المختار</div>
-                    <div class="a2-section-subtitle">
-                        معلومات القسم الذي يتم عرض الأقسام الفرعية الموحدة الخاصة به الآن
-                    </div>
+                    <div class="a2-section-subtitle">{{ $nameOf($root) }} #{{ $root->id }}</div>
                 </div>
 
                 <div class="a2-page-actions">
                     <a class="a2-btn a2-btn-ghost"
                        href="{{ route('admin.categories.edit', ['category' => $root->id]) }}">
-                        تعديل القسم الرئيسي
+                        تعديل القسم
                     </a>
 
                     <a class="a2-btn a2-btn-primary"
                        href="{{ route('admin.category-children.create', ['parent_id' => $root->id]) }}">
-                        + إضافة قسم فرعي موحّد
+                        + إضافة فرع
                     </a>
                 </div>
             </div>
 
-            <div class="a2-form-grid">
-                <div style="display:flex;align-items:flex-start;gap:14px;">
-                    <x-admin-v2.image :path="$root->image" size="68" radius="16px" />
-
-                    <div>
-                        <div class="a2-fw-900" style="font-size:18px;">
-                            {{ $root->name_ar ?: ($root->name_en ?: '—') }}
-                            <span class="a2-muted">#{{ $root->id }}</span>
-                        </div>
-
-                        @if(!empty($root->name_en))
-                            <div class="a2-page-subtitle">
-                                EN: {{ $root->name_en }}
-                            </div>
-                        @endif
-
-                        @if(!empty($root->slug))
-                            <div class="a2-page-subtitle">
-                                Slug: <span dir="ltr">{{ $root->slug }}</span>
-                            </div>
-                        @endif
+            <div style="display:flex;gap:14px;align-items:center;">
+                <x-admin-v2.image :path="$root->image" size="68" radius="16px" />
+                <div>
+                    <div class="a2-fw-900" style="font-size:18px;">
+                        {{ $root->name_ar ?: ($root->name_en ?: '—') }}
                     </div>
-                </div>
-
-                <div class="a2-form-grid">
-                    <div class="a2-card a2-card--soft">
-                        <div class="a2-stat-label">السعر الشهري</div>
-                        <div class="a2-stat-value">{{ $root->per_month ?? '—' }}</div>
-                    </div>
-
-                    <div class="a2-card a2-card--soft">
-                        <div class="a2-stat-label">السعر السنوي</div>
-                        <div class="a2-stat-value">{{ $root->per_year ?? '—' }}</div>
-                    </div>
+                    @if(!empty($root->name_en))
+                        <div class="a2-muted">{{ $root->name_en }}</div>
+                    @endif
                 </div>
             </div>
         </div>
 
         <form method="POST"
-              action="{{ route('admin.category-children.store') }}"
-              class="a2-card a2-mt-16">
+              action="{{ route('admin.categories.services-bulk.apply') }}"
+              class="a2-card a2-card--section a2-mb-16">
             @csrf
-            <input type="hidden" name="parent_id" value="{{ $rootIdInt }}">
+
             <input type="hidden" name="root_id" value="{{ $rootIdInt }}">
-        <input type="hidden" name="q" value="{{ $qVal }}">
-        <input type="hidden" name="active" value="{{ $activeVal }}">
-        <input type="hidden" name="per_page" value="{{ $perPageVal }}">
-        <input type="hidden" name="sort" value="{{ $sortNow }}">
-        <input type="hidden" name="dir" value="{{ $dirNow }}">
 
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-section-title a2-mb-0">الأقسام الفرعية الموحدة</div>
+                    <div class="a2-section-title a2-mb-0">Bulk Services + Fees</div>
                     <div class="a2-section-subtitle">
-                        يمكنك تعديل reorder لعنصر واحد أو عدة عناصر دفعة واحدة
+                        تطبيق الخدمات والرسوم على الفروع المحددة دفعة واحدة
+                    </div>
+                </div>
+            </div>
+
+            @if($childrenCount > 0)
+                <div class="a2-form-grid">
+                    <div>
+                        <label class="a2-label">الأقسام الفرعية</label>
+                        <select name="category_ids[]" multiple class="a2-select" required style="min-height:140px;">
+                            @foreach($childrenSafe as $child)
+                                <option value="{{ $child->id }}">
+                                    #{{ $child->id }} - {{ $child->name_ar ?: ($child->name_en ?: '—') }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="a2-muted a2-mt-8">يمكن اختيار أكثر من فرع.</div>
+                    </div>
+
+                    <div>
+                        <label class="a2-label">الخدمات</label>
+                        <select name="platform_service_ids[]" multiple class="a2-select" required style="min-height:140px;">
+                            @foreach($servicesSafe as $service)
+                                <option value="{{ $service->id }}">
+                                    #{{ $service->id }} - {{ $service->name_ar ?: ($service->name_en ?: $service->key) }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="a2-muted a2-mt-8">الخدمات المختارة سيتم ربطها بالفروع.</div>
                     </div>
                 </div>
 
-               <div class="a2-page-actions">
-                    <button type="submit" class="a2-btn a2-btn-primary">
-                        حفظ كل التعديلات
-                    </button>
+                <div class="a2-divider"></div>
 
-                    <button type="submit"
-                            class="a2-btn a2-btn-dark"
-                            formaction="{{ route('admin.category-child-service-fees.bulk.edit') }}"
-                            formmethod="GET">
-                        رسوم الخدمات للمحدد
-                    </button>
+                <div class="a2-form-grid">
+                    <div>
+                        <label class="a2-label">طريقة التطبيق</label>
+                        <select name="mode" class="a2-select" required>
+                            <option value="append">إضافة / تحديث</option>
+                            <option value="replace">استبدال كامل</option>
+                            <option value="remove">حذف الربط</option>
+                        </select>
+                    </div>
 
-                    <a href="{{ route('admin.category-children.index', ['parent_id' => $rootIdInt]) }}"
-                    class="a2-btn a2-btn-ghost a2-btn-sm">
-                        إدارة كاملة
-                    </a>
-                </div>
-            </div>
-
-            <div class="a2-resultsbar">
-                <div class="a2-resultsbar-meta">
-                    <strong>النتائج:</strong>
-                    <span>{{ $childrenCount }}</span>
+                    <div>
+                        <label class="a2-label">العملة</label>
+                        <input type="text" name="currency" class="a2-input" value="EGP">
+                    </div>
                 </div>
 
-                <div class="a2-resultsbar-links">
-                    <a href="{{ route('admin.category-children.create', ['parent_id' => $rootIdInt]) }}"
-                       class="a2-resultsbar-btn">
-                        + إضافة فرعي
-                    </a>
+                <div class="a2-form-grid a2-mt-12">
+                    <div class="a2-card a2-card--soft" style="padding:14px;">
+                        <label class="a2-label">رسوم البزنس</label>
+
+                        <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                            <input type="checkbox" name="business_fee_enabled" value="1">
+                            <span>تفعيل رسوم البزنس</span>
+                        </label>
+
+                        <input type="number"
+                               step="0.01"
+                               min="0"
+                               name="business_fee_amount"
+                               class="a2-input"
+                               placeholder="مثال: 5">
+                    </div>
+
+                    <div class="a2-card a2-card--soft" style="padding:14px;">
+                        <label class="a2-label">رسوم العميل</label>
+
+                        <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                            <input type="checkbox" name="client_fee_enabled" value="1">
+                            <span>تفعيل رسوم العميل</span>
+                        </label>
+
+                        <input type="number"
+                               step="0.01"
+                               min="0"
+                               name="client_fee_amount"
+                               class="a2-input"
+                               placeholder="مثال: 3">
+                    </div>
                 </div>
-            </div>
 
-            <div class="a2-table-wrap">
-                <table class="a2-table">
-                    <thead>
-                    <tr>
-                        <th style="width:60px;">
-                            <input type="checkbox" class="a2-checkbox" id="js-check-all-children">
-                        </th>
-                        <th style="width:90px;">
-                            <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
-                        </th>
-                        
-                        <th style="width:150px;">
-                            <a class="a2-link" href="{{ $sortUrl('reorder') }}">Reorder{!! $arrow('reorder') !!}</a>
-                        </th>
-                        <th>
-                            <a class="a2-link" href="{{ $sortUrl('name_ar') }}">الاسم (AR){!! $arrow('name_ar') !!}</a>
-                        </th>
-                        <th>
-                            <a class="a2-link" href="{{ $sortUrl('name_en') }}">الاسم (EN){!! $arrow('name_en') !!}</a>
-                        </th>
-                        <th style="width:120px;">الخيارات</th>
-                        <th style="width:320px;">الإجراءات</th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    @forelse(($childrenSafe ?? []) as $c)
-                        @php
-                            $optCount = isset($c->options_count)
-                                ? (int) $c->options_count
-                                : (($c->relationLoaded('options') && $c->options) ? $c->options->count() : 0);
-                        @endphp
-                        <tr>
-                            <td>
-                                    <input
-                                        type="checkbox"
-                                        class="a2-checkbox js-child-check"
-                                        name="child_ids[]"
-                                        value="{{ $c->id }}"
-                                    >
-                                </td>
-                            <td>{{ $c->id }}</td>
-
-                            <td>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <input class="a2-input"
-                                           type="number"
-                                           name="rows[{{ $loop->index }}][reorder]"
-                                           value="{{ (int) ($c->reorder ?? 0) }}"
-                                           min="0"
-                                           step="1"
-                                           style="max-width:90px;">
-
-                                    <input type="hidden"
-                                           name="rows[{{ $loop->index }}][id]"
-                                           value="{{ $c->id }}">
-
-                                    <button type="submit"
-                                            class="a2-btn a2-btn-ghost a2-btn-sm">
-                                        حفظ
-                                    </button>
-                                </div>
-                            </td>
-
-                            <td class="a2-fw-700">{{ $c->name_ar ?: '—' }}</td>
-                            <td dir="ltr">{{ $c->name_en ?: '—' }}</td>
-
-                            <td>
-                                <span class="a2-pill a2-pill-success">{{ $optCount }}</span>
-
-                                @if($c->relationLoaded('options') && $c->options->isNotEmpty())
-                                    <div class="a2-mt-8" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
-                                        @foreach($c->options->take(3) as $opt)
-                                            <span class="a2-pill a2-pill-gray">
-                                                {{ $opt->name_ar ?: ($opt->name_en ?: ('#' . $opt->id)) }}
-                                            </span>
-                                        @endforeach
-
-                                        @if($c->options->count() > 3)
-                                            <span class="a2-pill a2-pill-warning">
-                                                +{{ $c->options->count() - 3 }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                @endif
-                            </td>
-
-                    <td>
-                        <div class="a2-actions">
-                            <a
-                                class="a2-btn a2-btn-ghost a2-btn-sm"
-                                href="{{ route('admin.category-children.edit', ['categoryChild' => $c->id, 'parent_id' => $rootIdInt]) }}"
-                            >
-                                تعديل
-                            </a>
-
-                            <a
-                                class="a2-btn a2-btn-ghost a2-btn-sm"
-                                href="{{ route('admin.category-child-options.edit', ['categoryChild' => $c->id]) }}"
-                            >
-                                الخيارات
-                            </a>
-
-                        </div>
-                    </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="a2-empty-cell">لا توجد أقسام فرعية مرتبطة</td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            @if(!empty($childrenSafe) && method_exists($childrenSafe, 'links'))
-                <div class="a2-mt-16">
-                    {{ $childrenSafe->links() }}
+                <div class="a2-mt-12">
+                    <label class="a2-label">ملاحظات الرسوم</label>
+                    <input type="text"
+                           name="fee_notes"
+                           class="a2-input"
+                           placeholder="اختياري">
                 </div>
-            @endif
 
-            @if($childrenCount)
                 <div class="a2-page-actions a2-mt-16" style="justify-content:flex-end;">
                     <button type="submit" class="a2-btn a2-btn-primary">
-                        حفظ كل التعديلات
+                        تطبيق الخدمات والرسوم
                     </button>
+                </div>
+            @else
+                <div class="a2-alert a2-alert-warning">
+                    لا توجد فروع لهذا القسم الرئيسي حتى الآن.
                 </div>
             @endif
         </form>
-    @else
-        <div class="a2-card a2-mt-16">
-            <div class="a2-card-head">
-                <div>
-                    <div class="a2-section-title a2-mb-0">الأقسام الرئيسية</div>
-                    <div class="a2-section-subtitle">
-                        اختر قسمًا رئيسيًا لعرض وإدارة الأقسام الفرعية الموحدة المرتبطة به
-                    </div>
+    @endif
+
+    <div class="a2-card a2-mt-16">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-section-title a2-mb-0">
+                    {{ $rootIdInt > 0 ? 'الأقسام الفرعية' : 'الأقسام الرئيسية' }}
+                </div>
+                <div class="a2-section-subtitle">
+                    {{ $rootIdInt > 0 ? 'الفروع المرتبطة بالقسم المحدد' : 'اختر قسمًا رئيسيًا لعرض فروعه' }}
                 </div>
             </div>
-
-            <div class="a2-table-wrap">
-                <table class="a2-table">
-                    <thead>
-                    <tr>
-                        <th style="width:90px;">
-                            <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
-                        </th>
-                        <th style="width:96px;">الصورة</th>
-                        <th>
-                            <a class="a2-link" href="{{ $sortUrl('name_ar') }}">الاسم (AR){!! $arrow('name_ar') !!}</a>
-                        </th>
-                        <th>
-                            <a class="a2-link" href="{{ $sortUrl('name_en') }}">الاسم (EN){!! $arrow('name_en') !!}</a>
-                        </th>
-                        <th style="width:160px;">
-                            <a class="a2-link" href="{{ $sortUrl('reorder') }}">Order{!! $arrow('reorder') !!}</a>
-                        </th>
-                        <th style="width:120px;">Status</th>
-                        <th style="width:290px;">Actions</th>
-                    </tr>
-                    </thead>
-
-                    <tbody>
-                    @forelse(($roots ?? []) as $r)
-                        @php
-                            $isActive = (int) ($r->is_active ?? 0) === 1;
-                        @endphp
-                        <tr>
-                            <td>{{ $r->id }}</td>
-
-                            <td>
-                                <div style="display:flex;justify-content:center;">
-                                    <x-admin-v2.image :path="$r->image" size="46" radius="12px" />
-                                </div>
-                            </td>
-
-                            <td class="a2-fw-700">{{ $r->name_ar ?: '—' }}</td>
-                            <td dir="ltr">{{ $r->name_en ?: '—' }}</td>
-                            <td>{{ (int) ($r->reorder ?? 0) }}</td>
-
-                            <td>
-                                <span class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }}">
-                                    {{ $isActive ? 'Active' : 'Inactive' }}
-                                </span>
-                            </td>
-
-                            <td>
-                                <div class="a2-actions">
-                                    <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                       href="{{ route('admin.categories.index', ['root_id' => $r->id]) }}">
-                                        View Children
-                                    </a>
-
-                                    <a class="a2-btn a2-btn-ghost a2-btn-sm"
-                                       href="{{ route('admin.categories.edit', ['category' => $r->id]) }}">
-                                        Edit
-                                    </a>
-
-                                    <a class="a2-btn a2-btn-primary a2-btn-sm"
-                                       href="{{ route('admin.category-children.create', ['parent_id' => $r->id]) }}">
-                                        Add Child
-                                    </a>
-
-                                    <form method="POST"
-                                          action="{{ route('admin.categories.destroy', $r->id) }}"
-                                          onsubmit="return confirm('تأكيد حذف القسم الرئيسي؟');">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button type="submit" class="a2-btn a2-btn-danger a2-btn-sm">
-                                            Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="a2-empty-cell">لا توجد أقسام رئيسية</td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
         </div>
-    @endif
+
+        <div class="a2-table-wrap">
+            <table class="a2-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
+                        </th>
+                        <th>الصورة</th>
+                        <th>
+                            <a href="{{ $sortUrl('name_ar') }}">الاسم العربي{!! $arrow('name_ar') !!}</a>
+                        </th>
+                        <th>
+                            <a href="{{ $sortUrl('name_en') }}">الاسم الإنجليزي{!! $arrow('name_en') !!}</a>
+                        </th>
+                        <th>
+                            <a href="{{ $sortUrl('reorder') }}">الترتيب{!! $arrow('reorder') !!}</a>
+                        </th>
+                        <th>الحالة</th>
+                        <th style="width:260px;">إجراءات</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @if($rootIdInt > 0)
+                        @forelse($childrenSafe as $child)
+                            <tr>
+                                <td>#{{ $child->id }}</td>
+                                <td>{{ $child->name_ar ?: '—' }}</td>
+                                <td>{{ $child->name_en ?: '—' }}</td>
+                                <td>{{ $child->reorder ?? 0 }}</td>
+                                <td>
+                                    <span class="a2-badge a2-badge-success">Active</span>
+                                </td>
+                                <td>
+                                    <div class="a2-row-actions">
+                                        <a class="a2-btn a2-btn-sm a2-btn-ghost"
+                                           href="{{ route('admin.category-children.edit', $child->id) }}">
+                                            تعديل
+                                        </a>
+
+                                        @if(Route::has('admin.category-child-options.edit'))
+                                            <a class="a2-btn a2-btn-sm a2-btn-ghost"
+                                               href="{{ route('admin.category-child-options.edit', $child->id) }}">
+                                                Options
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6">
+                                    <div class="a2-empty">لا توجد أقسام فرعية.</div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    @else
+                        @forelse($rootsSafe as $cat)
+                            <tr>
+                                <td>#{{ $cat->id }}</td>
+                                <td><x-admin-v2.image :path="$cat->image" size="48" radius="12px" /></td>
+                                <td>{{ $cat->name_ar ?: '—' }}</td>
+                                <td>{{ $cat->name_en ?: '—' }}</td>
+                                <td>{{ $cat->reorder ?? 0 }}</td>
+                                <td>
+                                    @if((bool)($cat->is_active ?? true))
+                                        <span class="a2-badge a2-badge-success">Active</span>
+                                    @else
+                                        <span class="a2-badge a2-badge-muted">Inactive</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="a2-row-actions">
+                                        <a class="a2-btn a2-btn-sm a2-btn-primary"
+                                           href="{{ route('admin.categories.index', ['root_id' => $cat->id]) }}">
+                                            الفروع
+                                        </a>
+
+                                        <a class="a2-btn a2-btn-sm a2-btn-ghost"
+                                           href="{{ route('admin.categories.edit', $cat->id) }}">
+                                            تعديل
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6">
+                                    <div class="a2-empty">لا توجد أقسام رئيسية.</div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    @endif
+                </tbody>
+            </table>
+        </div>
+
+        @if($rootIdInt > 0 && method_exists($childrenSafe, 'links'))
+            <div class="a2-mt-16">
+                {{ $childrenSafe->links() }}
+            </div>
+        @endif
+    </div>
 </div>
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const checkAll = document.getElementById('js-check-all-children');
-    const items = Array.from(document.querySelectorAll('.js-child-check'));
-
-    if (!checkAll || !items.length) {
-        return;
-    }
-
-    checkAll.addEventListener('change', function () {
-        items.forEach(function (item) {
-            item.checked = checkAll.checked;
-        });
-    });
-
-    items.forEach(function (item) {
-        item.addEventListener('change', function () {
-            const allChecked = items.every(i => i.checked);
-            const anyChecked = items.some(i => i.checked);
-
-            checkAll.checked = allChecked;
-            checkAll.indeterminate = anyChecked && !allChecked;
-        });
-    });
-});
-</script>
-@endpush
 @endsection

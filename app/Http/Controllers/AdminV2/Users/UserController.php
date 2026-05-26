@@ -523,7 +523,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function show(int $id)
+   public function show(int $id)
     {
         $user = User::withTrashed()
             ->with([
@@ -532,6 +532,9 @@ class UserController extends Controller
                 'category:id,name_ar,name_en',
                 'categoryChild:id,name_ar,name_en',
                 'options:id,name_ar,name_en,group_id',
+                'wallet:id,user_id,balance,locked_balance,status,total_in,total_out',
+                'serviceFeeConsent',
+                'activePlatformServices:id,key,name_ar,name_en',
             ])
             ->findOrFail($id);
 
@@ -544,6 +547,7 @@ class UserController extends Controller
             ->groupBy(fn ($opt) => $opt->group_id ?: 'ungrouped');
 
         $childServices = collect();
+
         if ((int) ($user->category_child_id ?? 0) > 0) {
             $childId = (int) $user->category_child_id;
 
@@ -557,7 +561,7 @@ class UserController extends Controller
                 })
                 ->orderBy('name_ar')
                 ->orderBy('id')
-                ->get(['id', 'name_ar', 'name_en']);
+                ->get(['id', 'key', 'name_ar', 'name_en']);
         }
 
         return view('admin-v2.users.show', [

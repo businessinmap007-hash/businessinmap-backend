@@ -30,6 +30,7 @@ use App\Http\Controllers\AdminV2\{
     WalletNoteTemplateController,
     WalletOpsController,
     WalletTransactionController,
+    UserServiceFeeConsentController,
     Users\UserController,
     Auth\LoginController
 };
@@ -438,20 +439,52 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         | Category Child Service Fees
         |--------------------------------------------------------------------------
+        | مهم جدًا:
+        | bulk routes يجب أن تكون قبل {categoryChild}
+        | حتى لا يفسر Laravel كلمة bulk كـ route model binding.
+        |--------------------------------------------------------------------------
         */
         Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->group(function () {
-            Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->name('edit');
-            Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->name('update');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Bulk Edit
+            |--------------------------------------------------------------------------
+            | URLs:
+            | GET  /admin/category-child-service-fees/bulk/edit
+            | POST /admin/category-child-service-fees/bulk/update
+            |
+            | Route names:
+            | admin.category-child-service-fees.bulk.edit
+            | admin.category-child-service-fees.bulk.update
+            */
+            Route::prefix('bulk')->name('bulk.')->group(function () {
+                Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('edit');
+                Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('update');
+            });
+
+            /*
+            |--------------------------------------------------------------------------
+            | Single Child Edit
+            |--------------------------------------------------------------------------
+            | URLs:
+            | GET /admin/category-child-service-fees/{categoryChild}?parent_id=...
+            | PUT /admin/category-child-service-fees/{categoryChild}?parent_id=...
+            */
+        Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
+        Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
         /*
         |--------------------------------------------------------------------------
-        | Category Child Service Fees Bulk
+        | User Service Fee Consents
         |--------------------------------------------------------------------------
         */
-        Route::prefix('category-child-service-fees/bulk')->name('category-child-service-fees.bulk.')->group(function () {
-            Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('edit');
-            Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('update');
+        Route::prefix('user-service-fee-consents')->name('user-service-fee-consents.')->group(function () {
+            Route::get('{user}/edit', [UserServiceFeeConsentController::class, 'edit'])->whereNumber('user')->name('edit');
+            Route::put('{user}', [UserServiceFeeConsentController::class, 'update'])->whereNumber('user')->name('update');
+            Route::post('{user}/enable-charging', [UserServiceFeeConsentController::class, 'enableCharging'])->whereNumber('user')->name('enable-charging');
+            Route::post('{user}/disable-charging', [UserServiceFeeConsentController::class, 'disableCharging'])->whereNumber('user')->name('disable-charging');
         });
     });
 });

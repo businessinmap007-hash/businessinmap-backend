@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WalletTransaction extends Model
@@ -25,6 +25,8 @@ class WalletTransaction extends Model
     public const TYPE_REFUND       = 'refund';
     public const TYPE_PLATFORM_FEE = 'platform_fee';
 
+    public const REFERENCE_TYPE_BOOKING = 'booking';
+
     protected $fillable = [
         'wallet_id',
         'user_id',
@@ -45,15 +47,26 @@ class WalletTransaction extends Model
     ];
 
     protected $casts = [
+        'wallet_id' => 'integer',
+        'user_id' => 'integer',
+        'note_id' => 'integer',
+
         'amount' => 'decimal:2',
         'balance_before' => 'decimal:2',
         'balance_after' => 'decimal:2',
         'locked_before' => 'decimal:2',
         'locked_after' => 'decimal:2',
+
         'meta' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relations
+    |--------------------------------------------------------------------------
+    */
 
     public function wallet(): BelongsTo
     {
@@ -72,13 +85,24 @@ class WalletTransaction extends Model
 
     /**
      * علاقة اختيارية للحجز عندما تكون العملية مربوطة بـ booking
-     * عبر reference_type / reference_id
+     * عبر reference_type / reference_id.
      */
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class, 'reference_id', 'id')
-            ->where('wallet_transactions.reference_type', 'booking');
+            ->where('wallet_transactions.reference_type', self::REFERENCE_TYPE_BOOKING);
     }
+
+    public function categoryChildServiceFee(): BelongsTo
+    {
+        return $this->belongsTo(CategoryChildServiceFee::class, 'category_child_service_fee_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
 
     public function scopeCompleted(Builder $query): Builder
     {
@@ -102,7 +126,7 @@ class WalletTransaction extends Model
 
     public function scopeOfType(Builder $query, ?string $type): Builder
     {
-        if (!$type) {
+        if (! $type) {
             return $query;
         }
 
@@ -111,7 +135,7 @@ class WalletTransaction extends Model
 
     public function scopeForUser(Builder $query, ?int $userId): Builder
     {
-        if (!$userId) {
+        if (! $userId) {
             return $query;
         }
 
@@ -120,7 +144,7 @@ class WalletTransaction extends Model
 
     public function scopeForWallet(Builder $query, ?int $walletId): Builder
     {
-        if (!$walletId) {
+        if (! $walletId) {
             return $query;
         }
 
@@ -129,7 +153,7 @@ class WalletTransaction extends Model
 
     public function scopeForReference(Builder $query, ?string $referenceType, $referenceId = null): Builder
     {
-        if (!$referenceType) {
+        if (! $referenceType) {
             return $query;
         }
 
@@ -142,19 +166,186 @@ class WalletTransaction extends Model
         return $query;
     }
 
+    public function scopeForBooking(Builder $query, ?int $bookingId): Builder
+    {
+        if (! $bookingId) {
+            return $query;
+        }
+
+        return $query->forReference(self::REFERENCE_TYPE_BOOKING, $bookingId);
+    }
+
     public function scopePlatformFees(Builder $query): Builder
     {
         return $query->where('type', self::TYPE_PLATFORM_FEE);
     }
 
-    public function getIsIncomingAttribute(): bool
+    public function scopeForFeeCode(Builder $query, ?string $feeCode): Builder
+    {
+        $feeCode = trim((string) $feeCode);
+
+        if ($feeCode === '') {
+            return $query;
+        }
+
+        return $query->where('meta->fee_code', $feeCode);
+    }
+
+    public function scopeForPayer(Builder $query, ?string $payer): Builder
+    {
+        $payer = trim((string) $payer);
+
+        if ($payer === '') {
+            return $query;
+        }
+
+        return $query->where('meta->payer', $payer);
+    }
+
+    public function scopeBookingFees(Builder $query): Builder
+    {
+        return $query
+            ->platformFees()
+            ->forReference(self::REFERENCE_TYPE_BOOKING);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Meta Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function metaArray(): array
+    {
+        return is_array($this->meta ?? null) ? $this->meta : [];
+    }
+
+    public function metaValue(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->metaArray(), $key, $default);
+    }
+
+    public function payer(): ?string
+    {
+        $payer = $this->metaValue('payer');
+
+        return $payer ? (string) $payer : null;
+    }
+
+    public function feeCode(): ?string
+    {
+        $code = $this->metaValue('fee_code');
+
+        return $code ? (string) $code : null;
+    }
+
+    public function feeType(): ?string
+    {
+        $type = $this->metaValue('fee_type');
+
+        return $type ? (string) $type : null;
+    }
+
+    public function bookingId(): ?int
+    {
+        $bookingId = $this->metaValue('booking_id');
+
+        if ($bookingId) {
+            return (int) $bookingId;
+        }
+
+        if ($this->reference_type === self::REFERENCE_TYPE_BOOKING && $this->reference_id) {
+            return (int) $this->reference_id;
+        }
+
+        return null;
+    }
+
+    public function serviceId(): ?int
+    {
+        $id = $this->metaValue('service_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public function businessId(): ?int
+    {
+        $id = $this->metaValue('business_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public function clientId(): ?int
+    {
+        $id = $this->metaValue('client_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public function childId(): ?int
+    {
+        $id = $this->metaValue('child_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public function categoryChildServiceFeeId(): ?int
+    {
+        $id = $this->metaValue('category_child_service_fee_id');
+
+        if (! $id) {
+            $id = $this->metaValue('service_fee_id');
+        }
+
+        return $id ? (int) $id : null;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Boolean Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isIncoming(): bool
     {
         return $this->direction === self::DIRECTION_IN;
     }
 
-    public function getIsOutgoingAttribute(): bool
+    public function isOutgoing(): bool
     {
         return $this->direction === self::DIRECTION_OUT;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isPlatformFee(): bool
+    {
+        return $this->type === self::TYPE_PLATFORM_FEE;
+    }
+
+    public function isBookingFee(): bool
+    {
+        return $this->isPlatformFee()
+            && $this->reference_type === self::REFERENCE_TYPE_BOOKING;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accessors
+    |--------------------------------------------------------------------------
+    */
+
+    public function getIsIncomingAttribute(): bool
+    {
+        return $this->isIncoming();
+    }
+
+    public function getIsOutgoingAttribute(): bool
+    {
+        return $this->isOutgoing();
     }
 
     public function getStatusLabelAttribute(): string
@@ -187,6 +378,15 @@ class WalletTransaction extends Model
             self::TYPE_REFUND       => 'Refund',
             self::TYPE_PLATFORM_FEE => 'Platform Fee',
             default => (string) $this->type,
+        };
+    }
+
+    public function getPayerLabelAttribute(): string
+    {
+        return match ($this->payer()) {
+            CategoryChildServiceFee::PAYER_CLIENT => 'Client',
+            CategoryChildServiceFee::PAYER_BUSINESS => 'Business',
+            default => (string) ($this->payer() ?: '—'),
         };
     }
 }

@@ -14,18 +14,37 @@ use RuntimeException;
 class WalletFeeService
 {
     public const REFERENCE_TYPE_BOOKING = 'booking';
+
     public const TX_STATUS_COMPLETED = 'completed';
     public const TX_DIRECTION_OUT = 'out';
     public const TX_TYPE_PLATFORM_FEE = 'platform_fee';
 
+    public const DEFAULT_FEE_CODE = 'booking_execution';
+
+    /*
+    |--------------------------------------------------------------------------
+    | Public API
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * يجلب رسوم التنفيذ الفعالة الخاصة بالحجز
-     * من category_child_service_fees ويعيد line لكل payer (business / client)
+     * يجلب رسوم التنفيذ الفعالة الخاصة بالحجز.
      *
-     * ملاحظة مهمة:
-     * لا يتم إرجاع رسوم لأي طرف إلا إذا كان مفعّل fee_auto_charge_enabled.
+     * المصدر الحالي:
+     * category_child_service_fees
+     *
+     * الناتج:
+     * Collection تحتوي line لكل payer:
+     * - business
+     * - client
+     *
+     * ملاحظة تشغيلية:
+     * لا يتم إرجاع رسوم لأي طرف إلا إذا كان:
+     * 1) الصف active
+     * 2) رسوم الطرف مفعلة وقيمتها أكبر من صفر
+     * 3) المستخدم وافق على fee_auto_charge_enabled
      */
-    public function resolveBookingFees(Booking $booking, string $feeCode = 'booking_execution'): Collection
+    public function resolveBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
     {
         $booking->loadMissing([
             'business:id,name,category_child_id',
@@ -43,87 +62,60 @@ class WalletFeeService
             return collect();
         }
 
-        $row = CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->where('is_active', 1)
+        $feeRow = CategoryChildServiceFee::query()
+            ->forPair($childId, $serviceId)
+            ->active(1)
             ->first();
 
-        if (! $row) {
+        if (! $feeRow || ! $feeRow->isChargeable()) {
             return collect();
         }
 
         $lines = collect();
 
-        if ($row->hasBusinessFee()) {
-            $business = $booking->business;
+        $business = $booking->business;
+        if (
+            $business
+            && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_BUSINESS)
+            && $this->canAutoChargeFees($business)
+        ) {
+            $line = $feeRow->toWalletFeeLine(
+                payer: CategoryChildServiceFee::PAYER_BUSINESS,
+                userId: (int) $booking->business_id,
+                baseAmount: $baseAmount,
+                bookingId: (int) $booking->id,
+                businessId: (int) $booking->business_id,
+                clientId: (int) $booking->user_id,
+                feeCode: $feeCode
+            );
 
-            if ($business && $this->canAutoChargeFees($business)) {
-                $amount = round((float) $row->business_fee_amount, 2);
-
-                if ($amount > 0) {
-                    $lines->push([
-                        'payer' => 'business',
-                        'user_id' => (int) $booking->business_id,
-
-                        'category_child_service_fee_id' => (int) $row->id,
-                        'service_fee_id' => (int) $row->id, // توافق مؤقت مع أي meta قديم
-                        'fee_code' => (string) $feeCode,
-                        'fee_type' => 'business_fee',
-                        'calc_type' => 'fixed',
-                        'amount' => $amount,
-                        'currency' => (string) ($row->currency ?: 'EGP'),
-                        'base_amount' => $baseAmount,
-
-                        'booking_id' => (int) $booking->id,
-                        'service_id' => $serviceId,
-                        'business_id' => (int) $booking->business_id,
-                        'client_id' => (int) $booking->user_id,
-                        'child_id' => $childId,
-
-                        'consent_checked' => true,
-                        'consent_enabled' => true,
-
-                        'rules' => null,
-                        'notes' => $row->notes,
-                    ]);
-                }
+            if ($line) {
+                $line['consent_checked'] = true;
+                $line['consent_enabled'] = true;
+                $lines->push($line);
             }
         }
 
-        if ($row->hasClientFee()) {
-            $client = $booking->user;
+        $client = $booking->user;
+        if (
+            $client
+            && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT)
+            && $this->canAutoChargeFees($client)
+        ) {
+            $line = $feeRow->toWalletFeeLine(
+                payer: CategoryChildServiceFee::PAYER_CLIENT,
+                userId: (int) $booking->user_id,
+                baseAmount: $baseAmount,
+                bookingId: (int) $booking->id,
+                businessId: (int) $booking->business_id,
+                clientId: (int) $booking->user_id,
+                feeCode: $feeCode
+            );
 
-            if ($client && $this->canAutoChargeFees($client)) {
-                $amount = round((float) $row->client_fee_amount, 2);
-
-                if ($amount > 0) {
-                    $lines->push([
-                        'payer' => 'client',
-                        'user_id' => (int) $booking->user_id,
-
-                        'category_child_service_fee_id' => (int) $row->id,
-                        'service_fee_id' => (int) $row->id, // توافق مؤقت مع أي meta قديم
-                        'fee_code' => (string) $feeCode,
-                        'fee_type' => 'client_fee',
-                        'calc_type' => 'fixed',
-                        'amount' => $amount,
-                        'currency' => (string) ($row->currency ?: 'EGP'),
-                        'base_amount' => $baseAmount,
-
-                        'booking_id' => (int) $booking->id,
-                        'service_id' => $serviceId,
-                        'business_id' => (int) $booking->business_id,
-                        'client_id' => (int) $booking->user_id,
-                        'child_id' => $childId,
-
-                        'consent_checked' => true,
-                        'consent_enabled' => true,
-
-                        'rules' => null,
-                        'notes' => $row->notes,
-                    ]);
-                }
+            if ($line) {
+                $line['consent_checked'] = true;
+                $line['consent_enabled'] = true;
+                $lines->push($line);
             }
         }
 
@@ -131,9 +123,12 @@ class WalletFeeService
     }
 
     /**
-     * يطبق الرسوم على المحافظ ويعيد wallet transactions التي أُنشئت
+     * يطبق رسوم الحجز على المحافظ.
+     *
+     * يتم الخصم مرة واحدة لكل:
+     * booking_id + fee_code + payer
      */
-    public function applyBookingFees(Booking $booking, string $feeCode = 'booking_execution'): Collection
+    public function applyBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
     {
         $booking->loadMissing([
             'user:id,name',
@@ -169,8 +164,14 @@ class WalletFeeService
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Transaction Creation
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * ينشئ wallet transaction واحدة مع منع التكرار عبر idempotency_key
+     * ينشئ wallet transaction واحدة مع منع التكرار عبر idempotency_key.
      */
     protected function createWalletFeeTransaction(
         Booking $booking,
@@ -198,7 +199,11 @@ class WalletFeeService
             ->with('serviceFeeConsent')
             ->find($userId);
 
-        if (! $user || ! $this->canAutoChargeFees($user)) {
+        if (! $user) {
+            throw new RuntimeException("المستخدم رقم {$userId} غير موجود.");
+        }
+
+        if (! $this->canAutoChargeFees($user)) {
             throw new RuntimeException("المستخدم رقم {$userId} لم يوافق على خصم رسوم الخدمة تلقائيًا.");
         }
 
@@ -246,32 +251,55 @@ class WalletFeeService
 
             'note' => $this->buildHumanNote($feeCode, $payer, $booking),
 
-            'meta' => [
-                'context' => 'booking_fee',
-                'payer' => $payer,
-                'fee_code' => $feeCode,
-                'fee_type' => $line['fee_type'] ?? null,
-                'calc_type' => $line['calc_type'] ?? null,
-                'currency' => $line['currency'] ?? 'EGP',
-                'base_amount' => round((float) ($line['base_amount'] ?? 0), 2),
-
-                'category_child_service_fee_id' => $line['category_child_service_fee_id'] ?? null,
-                'service_fee_id' => $line['service_fee_id'] ?? null, // توافق مؤقت
-
-                'booking_id' => (int) $booking->id,
-                'service_id' => (int) $booking->service_id,
-                'business_id' => (int) $booking->business_id,
-                'client_id' => (int) $booking->user_id,
-                'child_id' => (int) ($line['child_id'] ?? $this->resolveBookingChildId($booking)),
-
-                'consent_checked' => true,
-                'consent_enabled' => true,
-
-                'rules' => $line['rules'] ?? null,
-                'notes' => $line['notes'] ?? null,
-            ],
+            'meta' => $this->buildTransactionMeta(
+                booking: $booking,
+                feeCode: $feeCode,
+                payer: $payer,
+                line: $line
+            ),
         ]);
     }
+
+    protected function buildTransactionMeta(
+        Booking $booking,
+        string $feeCode,
+        string $payer,
+        array $line
+    ): array {
+        return [
+            'context' => 'booking_fee',
+            'payer' => $payer,
+
+            'fee_code' => $feeCode,
+            'fee_type' => $line['fee_type'] ?? null,
+            'calc_type' => $line['calc_type'] ?? 'fixed',
+            'currency' => $line['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
+            'base_amount' => round((float) ($line['base_amount'] ?? 0), 2),
+
+            'category_child_service_fee_id' => $line['category_child_service_fee_id'] ?? null,
+            'service_fee_id' => $line['service_fee_id'] ?? null,
+
+            'booking_id' => (int) $booking->id,
+            'service_id' => (int) $booking->service_id,
+            'platform_service_id' => (int) ($line['platform_service_id'] ?? $booking->service_id),
+
+            'business_id' => (int) $booking->business_id,
+            'client_id' => (int) $booking->user_id,
+            'child_id' => (int) ($line['child_id'] ?? $this->resolveBookingChildId($booking)),
+
+            'consent_checked' => (bool) ($line['consent_checked'] ?? true),
+            'consent_enabled' => (bool) ($line['consent_enabled'] ?? true),
+
+            'rules' => $line['rules'] ?? null,
+            'notes' => $line['notes'] ?? null,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Consent / Wallet Helpers
+    |--------------------------------------------------------------------------
+    */
 
     protected function canAutoChargeFees(User $user): bool
     {
@@ -285,6 +313,29 @@ class WalletFeeService
 
         return (bool) optional($user->serviceFeeConsent)->fee_auto_charge_enabled;
     }
+
+    protected function getActiveWalletForUser(int $userId): Wallet
+    {
+        $wallet = Wallet::query()
+            ->where('user_id', $userId)
+            ->first();
+
+        if (! $wallet) {
+            throw new RuntimeException("لا توجد محفظة للمستخدم رقم {$userId}");
+        }
+
+        if ((string) $wallet->status === 'blocked') {
+            throw new RuntimeException("محفظة المستخدم رقم {$userId} محظورة");
+        }
+
+        return $wallet;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Booking Helpers
+    |--------------------------------------------------------------------------
+    */
 
     protected function resolveBookingChildId(Booking $booking): int
     {
@@ -306,23 +357,6 @@ class WalletFeeService
         return 0;
     }
 
-    protected function getActiveWalletForUser(int $userId): Wallet
-    {
-        $wallet = Wallet::query()
-            ->where('user_id', $userId)
-            ->first();
-
-        if (! $wallet) {
-            throw new RuntimeException("لا توجد محفظة للمستخدم رقم {$userId}");
-        }
-
-        if ((string) $wallet->status === 'blocked') {
-            throw new RuntimeException("محفظة المستخدم رقم {$userId} محظورة");
-        }
-
-        return $wallet;
-    }
-
     protected function buildIdempotencyKey(int $bookingId, string $feeCode, string $payer): string
     {
         return 'booking_fee:' . $bookingId . ':' . $feeCode . ':' . $payer;
@@ -338,9 +372,9 @@ class WalletFeeService
         );
 
         $payerLabel = match ($payer) {
-            'business' => 'البزنس',
-            'client' => 'العميل',
-            default => $payer,
+            CategoryChildServiceFee::PAYER_BUSINESS => 'البزنس',
+            CategoryChildServiceFee::PAYER_CLIENT   => 'العميل',
+            default                                 => $payer,
         };
 
         return "خصم رسوم {$feeCode} ({$payerLabel}) للحجز #{$booking->id} - {$serviceName}";

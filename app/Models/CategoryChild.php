@@ -20,6 +20,12 @@ class CategoryChild extends Model
         'reorder' => 'integer',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Parent Categories
+    |--------------------------------------------------------------------------
+    */
+
     public function parents(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -30,6 +36,12 @@ class CategoryChild extends Model
         )->withTimestamps();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Options
+    |--------------------------------------------------------------------------
+    */
+
     public function options(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -37,7 +49,9 @@ class CategoryChild extends Model
             'category_child_option',
             'child_id',
             'option_id'
-        )->orderBy('category_child_option.reorder')->orderBy('options.id');
+        )
+            ->orderBy('category_child_option.reorder')
+            ->orderBy('options.id');
     }
 
     public function activeOptions(): BelongsToMany
@@ -61,7 +75,7 @@ class CategoryChild extends Model
     }
 
     /**
-     * الجروبات المستخدمة فعليًا داخل options الخاصة بهذا child
+     * الجروبات المستخدمة فعليًا داخل options الخاصة بهذا child.
      */
     public function optionGroups()
     {
@@ -78,7 +92,7 @@ class CategoryChild extends Model
     }
 
     /**
-     * الجروبات النشطة المستخدمة فعليًا داخل options الخاصة بهذا child
+     * الجروبات النشطة المستخدمة فعليًا داخل options الخاصة بهذا child.
      */
     public function activeOptionGroups()
     {
@@ -95,6 +109,12 @@ class CategoryChild extends Model
             ->orderBy('reorder')
             ->orderBy('id');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Platform Services
+    |--------------------------------------------------------------------------
+    */
 
     public function platformServices(): BelongsToMany
     {
@@ -123,6 +143,103 @@ class CategoryChild extends Model
             ->orderBy('platform_services.id');
     }
 
+    public function platformServicesForParent(?int $parentId): BelongsToMany
+    {
+        $relation = $this->platformServices();
+
+        if ($parentId && $parentId > 0) {
+            $relation->wherePivot('category_id', (int) $parentId);
+        }
+
+        return $relation
+            ->orderBy('category_platform_services.sort_order')
+            ->orderBy('platform_services.id');
+    }
+
+    public function activePlatformServicesForParent(?int $parentId): BelongsToMany
+    {
+        $relation = $this->activePlatformServices();
+
+        if ($parentId && $parentId > 0) {
+            $relation->wherePivot('category_id', (int) $parentId);
+        }
+
+        return $relation;
+    }
+
+    public function hasPlatformService(int|string $serviceIdOrKey, ?int $parentId = null): bool
+    {
+        $services = $this->activePlatformServicesForParent($parentId)->get();
+
+        return $services->contains(function ($service) use ($serviceIdOrKey) {
+            if (is_numeric($serviceIdOrKey)) {
+                return (int) $service->id === (int) $serviceIdOrKey;
+            }
+
+            return (string) $service->key === (string) $serviceIdOrKey;
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Service Fees
+    |--------------------------------------------------------------------------
+    */
+
+    public function serviceFees(): HasMany
+    {
+        return $this->hasMany(CategoryChildServiceFee::class, 'child_id')
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id');
+    }
+
+    public function activeServiceFees(): HasMany
+    {
+        return $this->hasMany(CategoryChildServiceFee::class, 'child_id')
+            ->where('is_active', 1)
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id');
+    }
+
+    public function serviceFeeFor(?int $serviceId): ?CategoryChildServiceFee
+    {
+        if (! $serviceId) {
+            return null;
+        }
+
+        if ($this->relationLoaded('activeServiceFees')) {
+            return $this->activeServiceFees
+                ->firstWhere('platform_service_id', (int) $serviceId);
+        }
+
+        return $this->activeServiceFees()
+            ->where('platform_service_id', (int) $serviceId)
+            ->first();
+    }
+
+    public function feeSnapshotFor(?int $serviceId): array
+    {
+        $row = $this->serviceFeeFor($serviceId);
+
+        return [
+            'child_id' => (int) $this->id,
+            'service_id' => (int) ($serviceId ?? 0),
+            'platform_service_id' => (int) ($serviceId ?? 0),
+            'business' => $row
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
+                : null,
+            'client' => $row
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT)
+                : null,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Display Helpers
+    |--------------------------------------------------------------------------
+    */
+
     public function displayName(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
@@ -137,34 +254,5 @@ class CategoryChild extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->displayName();
-    }
-    public function serviceFees(): HasMany
-    {
-        return $this->hasMany(CategoryChildServiceFee::class, 'child_id')
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
-
-    public function activeServiceFees(): HasMany
-    {
-        return $this->hasMany(CategoryChildServiceFee::class, 'child_id')
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
-
-    public function serviceFeeFor(?int $serviceId): ?CategoryChildServiceFee
-    {
-        if (! $serviceId) {
-            return null;
-        }
-
-        if ($this->relationLoaded('activeServiceFees')) {
-            return $this->activeServiceFees->firstWhere('platform_service_id', (int) $serviceId);
-        }
-
-        return $this->activeServiceFees()
-            ->where('platform_service_id', (int) $serviceId)
-            ->first();
     }
 }

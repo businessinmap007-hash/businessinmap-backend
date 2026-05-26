@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceExecutionEngine
 {
-    public const EXECUTION_FEE_CODE = 'booking_execution';
+    public const EXECUTION_FEE_CODE = WalletFeeService::DEFAULT_FEE_CODE;
 
     public function __construct(
         protected WalletFeeService $walletFeeService,
@@ -23,6 +23,12 @@ class ServiceExecutionEngine
         protected BookableAvailabilityService $bookableAvailabilityService,
     ) {
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prepare / Preview
+    |--------------------------------------------------------------------------
+    */
 
     public function prepare(int $businessId, int $serviceId, ?int $bookableId = null, int $quantity = 1): array
     {
@@ -90,11 +96,19 @@ class ServiceExecutionEngine
             'business_id' => $businessId,
             'business_category_id' => $categoryId,
             'business_child_id' => $childId,
+            'child_id' => $childId,
             'service_id' => $serviceId,
+            'platform_service_id' => $serviceId,
 
             'price' => (float) $priceBreakdown['final_price'],
             'price_breakdown' => $priceBreakdown,
             'deposit_policy' => $depositPolicy,
+
+            'service_fee_row' => $feeSnapshot['row'] ?? null,
+            'service_fee_rows' => [
+                'business' => $feeSnapshot['business'] ?? null,
+                'client' => $feeSnapshot['client'] ?? null,
+            ],
             'fee_snapshot' => $feeSnapshot,
         ];
     }
@@ -123,6 +137,12 @@ class ServiceExecutionEngine
             'availability' => $availability,
         ]);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Booking Meta
+    |--------------------------------------------------------------------------
+    */
 
     public function buildBookingMeta(
         array $existingMeta,
@@ -186,6 +206,14 @@ class ServiceExecutionEngine
         $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
         $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
         $meta['_execution_fee']['child_id'] = (int) ($calc['business_child_id'] ?? 0);
+        $meta['_execution_fee']['service_id'] = (int) ($calc['service_id'] ?? 0);
+        $meta['_execution_fee']['platform_service_id'] = (int) ($calc['platform_service_id'] ?? $calc['service_id'] ?? 0);
+
+        $meta['_execution_fee']['snapshot'] = [
+            'business' => $feeSnapshot['business'] ?? null,
+            'client' => $feeSnapshot['client'] ?? null,
+        ];
+
         $meta['_execution_fee']['client_amount'] = (float) ($meta['_execution_fee']['client_amount'] ?? 0);
         $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
         $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
@@ -193,6 +221,12 @@ class ServiceExecutionEngine
 
         return $meta;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Move To In Progress
+    |--------------------------------------------------------------------------
+    */
 
     public function moveBookingToInProgress(Booking $booking): void
     {
@@ -254,11 +288,11 @@ class ServiceExecutionEngine
             $amount = (float) $tx->amount;
             $payer = (string) data_get($tx->meta, 'payer', '');
 
-            if ($payer === 'client') {
+            if ($payer === CategoryChildServiceFee::PAYER_CLIENT) {
                 $clientAmount += $amount;
             }
 
-            if ($payer === 'business') {
+            if ($payer === CategoryChildServiceFee::PAYER_BUSINESS) {
                 $businessAmount += $amount;
             }
 
@@ -270,6 +304,7 @@ class ServiceExecutionEngine
                 'type' => (string) $tx->type,
                 'direction' => (string) $tx->direction,
                 'status' => (string) $tx->status,
+                'category_child_service_fee_id' => data_get($tx->meta, 'category_child_service_fee_id'),
             ];
         }
 
@@ -282,6 +317,12 @@ class ServiceExecutionEngine
         $booking->meta = $meta;
         $booking->save();
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pricing
+    |--------------------------------------------------------------------------
+    */
 
     public function resolvePriceBreakdown(
         PlatformService $service,
@@ -333,6 +374,12 @@ class ServiceExecutionEngine
             'currency' => (string) ($businessPrice->currency ?: 'EGP'),
         ];
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deposit
+    |--------------------------------------------------------------------------
+    */
 
     public function resolveDepositPolicy(
         PlatformService $service,
@@ -421,6 +468,12 @@ class ServiceExecutionEngine
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Business / Bookable Resolution
+    |--------------------------------------------------------------------------
+    */
+
     protected function resolveBusinessContext(int $businessId): array
     {
         if ($businessId <= 0) {
@@ -490,17 +543,25 @@ class ServiceExecutionEngine
         return $bookable;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Service Fees
+    |--------------------------------------------------------------------------
+    */
+
     protected function resolveExecutionFeeSnapshot(int $businessId, int $serviceId, int $childId = 0): array
     {
         $row = $this->resolveChildServiceFeeRow($childId, $serviceId);
 
         return [
+            'row' => $row,
             'business_id' => $businessId,
             'child_id' => $childId,
             'service_id' => $serviceId,
+            'platform_service_id' => $serviceId,
             'fee_code' => self::EXECUTION_FEE_CODE,
-            'business' => $this->mapChildFeeRowForSnapshot($row, 'business'),
-            'client' => $this->mapChildFeeRowForSnapshot($row, 'client'),
+            'business' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS) : null,
+            'client' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT) : null,
         ];
     }
 
@@ -511,60 +572,16 @@ class ServiceExecutionEngine
         }
 
         return CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->where('is_active', 1)
+            ->forPair($childId, $serviceId)
+            ->active(1)
             ->first();
     }
 
-    protected function mapChildFeeRowForSnapshot(?CategoryChildServiceFee $row, string $payer): ?array
-    {
-        if (! $row) {
-            return null;
-        }
-
-        if ($payer === 'business') {
-            if (! $row->hasBusinessFee()) {
-                return null;
-            }
-
-            return [
-                'id' => (int) $row->id,
-                'payer' => 'business',
-                'fee_type' => 'business_fee',
-                'calc_type' => 'fixed',
-                'amount' => (float) ($row->business_fee_amount ?? 0),
-                'currency' => (string) ($row->currency ?? 'EGP'),
-                'child_id' => (int) ($row->child_id ?? 0),
-                'service_id' => (int) ($row->platform_service_id ?? 0),
-                'is_active' => (bool) ($row->is_active ?? false),
-                'sort_order' => (int) ($row->sort_order ?? 0),
-                'notes' => $row->notes,
-            ];
-        }
-
-        if ($payer === 'client') {
-            if (! $row->hasClientFee()) {
-                return null;
-            }
-
-            return [
-                'id' => (int) $row->id,
-                'payer' => 'client',
-                'fee_type' => 'client_fee',
-                'calc_type' => 'fixed',
-                'amount' => (float) ($row->client_fee_amount ?? 0),
-                'currency' => (string) ($row->currency ?? 'EGP'),
-                'child_id' => (int) ($row->child_id ?? 0),
-                'service_id' => (int) ($row->platform_service_id ?? 0),
-                'is_active' => (bool) ($row->is_active ?? false),
-                'sort_order' => (int) ($row->sort_order ?? 0),
-                'notes' => $row->notes,
-            ];
-        }
-
-        return null;
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | Confirmations
+    |--------------------------------------------------------------------------
+    */
 
     protected function latestDeposit(Booking $booking): ?Deposit
     {

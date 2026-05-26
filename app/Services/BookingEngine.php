@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BusinessServicePrice;
+use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +13,8 @@ class BookingEngine
 {
     public function prepare(int $businessId, int $serviceId): array
     {
-        $service = PlatformService::query()->findOrFail($serviceId);
+        $service = PlatformService::query()
+            ->findOrFail($serviceId);
 
         [$business, $childId] = $this->resolveBusinessContext($businessId);
 
@@ -47,16 +49,65 @@ class BookingEngine
             price: $price
         );
 
+        $feeRow = $this->resolveChildServiceFeeRow(
+            childId: $childId,
+            serviceId: $serviceId
+        );
+
+        $feeSnapshot = $this->buildFeeSnapshot(
+            feeRow: $feeRow,
+            businessId: $businessId,
+            childId: $childId,
+            serviceId: $serviceId
+        );
+
         return [
             'service' => $service,
             'business' => $business,
+
             'business_child_id' => $childId,
+            'child_id' => $childId,
+
             'business_price' => $businessPrice,
             'price' => $price,
+
+            /*
+            |--------------------------------------------------------------------------
+            | Legacy / PlatformService Fee
+            |--------------------------------------------------------------------------
+            | هذا كان موجودًا قبل فصل رسوم البزنس والعميل.
+            | نبقيه مؤقتًا للتوافق مع أي واجهات أو meta قديمة.
+            */
             'platform_fee' => $platformFee,
+
+            /*
+            |--------------------------------------------------------------------------
+            | Deposit Snapshot
+            |--------------------------------------------------------------------------
+            */
             'deposit' => $deposit,
+
+            /*
+            |--------------------------------------------------------------------------
+            | New CategoryChild Service Fee Snapshot
+            |--------------------------------------------------------------------------
+            | المصدر الأساسي الجديد لرسوم التنفيذ:
+            | category_child_service_fees
+            */
+            'service_fee_row' => $feeRow,
+            'service_fee_rows' => [
+                'business' => $feeSnapshot['business'],
+                'client' => $feeSnapshot['client'],
+            ],
+            'fee_snapshot' => $feeSnapshot,
         ];
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Business Context
+    |--------------------------------------------------------------------------
+    */
 
     protected function resolveBusinessContext(int $businessId): array
     {
@@ -106,6 +157,53 @@ class BookingEngine
             ->first();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Fees
+    |--------------------------------------------------------------------------
+    */
+
+    protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
+    {
+        if ($childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return CategoryChildServiceFee::query()
+            ->forPair($childId, $serviceId)
+            ->active(1)
+            ->first();
+    }
+
+    protected function buildFeeSnapshot(
+        ?CategoryChildServiceFee $feeRow,
+        int $businessId,
+        int $childId,
+        int $serviceId
+    ): array {
+        return [
+            'business_id' => $businessId,
+            'child_id' => $childId,
+            'service_id' => $serviceId,
+            'platform_service_id' => $serviceId,
+            'fee_code' => WalletFeeService::DEFAULT_FEE_CODE,
+
+            'business' => $feeRow
+                ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
+                : null,
+
+            'client' => $feeRow
+                ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT)
+                : null,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Legacy Platform Fee
+    |--------------------------------------------------------------------------
+    */
+
     protected function calculatePlatformFee(PlatformService $service, float $price): float
     {
         $feeType = (string) ($service->fee_type ?? '');
@@ -125,6 +223,12 @@ class BookingEngine
 
         return 0.00;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deposit
+    |--------------------------------------------------------------------------
+    */
 
     protected function calculateDeposit(
         PlatformService $service,

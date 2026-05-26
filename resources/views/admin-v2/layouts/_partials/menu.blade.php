@@ -54,12 +54,42 @@
         ['label' => 'Sponsors', 'route' => 'admin.sponsors.index', 'icon' => 'megaphone', 'active' => 'admin.sponsors.'],
         ['label' => 'Albums', 'route' => 'admin.albums.index', 'icon' => 'image', 'active' => 'admin.albums.'],
 
-        ['type' => 'section', 'label' => 'Services'],
-        ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => 'admin.platform-services.'],
-        ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'icon' => 'settings', 'active' => 'admin.business_service_prices.'],
-        ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'icon' => 'folder', 'active' => 'admin.bookable-items.'],
-        ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'icon' => 'settings', 'active' => 'admin.option-groups.'],
+      ['type' => 'section', 'label' => 'Services'],
 
+        [
+            'label' => 'Platform Services',
+            'route' => 'admin.platform-services.index',
+            'icon' => 'settings',
+            'active' => 'admin.platform-services.',
+        ],
+
+        [
+            'label' => 'Business Service Prices',
+            'route' => 'admin.business_service_prices.index',
+            'icon' => 'settings',
+            'active' => 'admin.business_service_prices.',
+        ],
+
+        [
+            'label' => 'Service Fees',
+            'route' => 'admin.category-child-service-fees.bulk.edit',
+            'icon' => 'settings',
+            'active' => 'admin.category-child-service-fees.',
+        ],
+
+        [
+            'label' => 'Bookable Items',
+            'route' => 'admin.bookable-items.index',
+            'icon' => 'folder',
+            'active' => 'admin.bookable-items.',
+        ],
+
+        [
+            'label' => 'Option Groups',
+            'route' => 'admin.option-groups.index',
+            'icon' => 'settings',
+            'active' => 'admin.option-groups.',
+        ],
         ['type' => 'section', 'label' => 'Bookings & Wallet'],
         [
             'label' => 'Bookings',

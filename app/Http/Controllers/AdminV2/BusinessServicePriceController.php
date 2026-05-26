@@ -5,7 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
 use App\Models\CategoryChild;
-use App\Models\CategoryChildServiceFee;
+use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -343,8 +343,10 @@ class BusinessServicePriceController extends Controller
             'discount_percent' => 'نسبة الخصم',
         ]);
 
-        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? ''));
-        $data['currency'] = trim((string) ($data['currency'] ?? 'EGP')) ?: 'EGP';
+        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? 'category')) ?: 'category';
+        $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP';
+
+        $data['price'] = round((float) $data['price'], 2);
 
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
@@ -354,7 +356,7 @@ class BusinessServicePriceController extends Controller
         $data['discount_percent'] = (int) ($data['discount_percent'] ?? 0);
 
         $business = User::query()
-            ->select(['id', 'type', 'category_child_id', 'name'])
+            ->select(['id', 'type', 'category_id', 'category_child_id', 'name'])
             ->where('id', $data['business_id'])
             ->where('type', 'business')
             ->first();
@@ -402,7 +404,14 @@ class BusinessServicePriceController extends Controller
             ]);
         }
 
-        $serviceAllowedForChild = CategoryChildServiceFee::query()
+        /*
+        |--------------------------------------------------------------------------
+        | الأصح معماريًا:
+        |--------------------------------------------------------------------------
+        | إتاحة الخدمة للقسم الفرعي تعتمد على category_platform_services،
+        | وليس على category_child_service_fees، لأن الخدمة قد تكون متاحة بدون رسوم.
+        */
+        $serviceAllowedForChild = CategoryPlatformService::query()
             ->where('child_id', $submittedChildId)
             ->where('platform_service_id', (int) $data['service_id'])
             ->where('is_active', 1)
@@ -410,7 +419,7 @@ class BusinessServicePriceController extends Controller
 
         if (! $serviceAllowedForChild) {
             throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير متاحة لهذا القسم الفرعي. يجب ربط الخدمة بالقسم الفرعي وتفعيل رسومها أولاً.',
+                'service_id' => 'هذه الخدمة غير متاحة لهذا القسم الفرعي. يجب ربط الخدمة بالقسم الفرعي أولًا.',
             ]);
         }
 

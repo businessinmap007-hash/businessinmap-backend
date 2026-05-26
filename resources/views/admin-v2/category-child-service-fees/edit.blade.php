@@ -1,11 +1,10 @@
 @extends('admin-v2.layouts.master')
 
 @section('title', 'رسوم خدمات القسم الفرعي')
-@section('body_class', 'admin-v2-category-child-service-fees')
+@section('body_class', 'admin-v2 admin-v2-category-child-service-fees-edit')
 
 @section('content')
 @php
-   
     $parentIdInt = (int) ($parentId ?? 0);
 
     $childName = $categoryChild->name_ar
@@ -16,21 +15,23 @@
         : null;
 @endphp
 
-@if($parentName)
-    <div class="a2-mt-8"><strong>القسم الرئيسي:</strong> {{ $parentName }}</div>
-@endif
-
-
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">رسوم خدمات القسم الفرعي</h1>
+
             <div class="a2-page-subtitle">
-                <div><strong>القسم الفرعي:</strong> {{ $childName }}</div>
+                <div>
+                    <strong>القسم الفرعي:</strong>
+                    {{ $childName }}
+                </div>
 
                 @if($parentName)
-    <div class="a2-mt-8"><strong>القسم الرئيسي:</strong> {{ $parentName }}</div>
-@endif
+                    <div class="a2-mt-8">
+                        <strong>القسم الرئيسي:</strong>
+                        {{ $parentName }}
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -59,9 +60,16 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="a2-alert a2-alert-danger">
+            {{ session('error') }}
+        </div>
+    @endif
+
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
             <div class="a2-fw-900 a2-mb-8">يوجد بعض الأخطاء، راجع البيانات التالية:</div>
+
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -71,25 +79,35 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">ملاحظات مهمة</div>
+        <div class="a2-section-title">تعريف هذه الصفحة</div>
         <div class="a2-section-subtitle">
-            يتم هنا تحديد رسوم كل خدمة متاحة لهذا القسم الفرعي.
+            من هنا يتم تحديد رسوم كل خدمة متاحة لهذا القسم الفرعي داخل القسم الرئيسي المحدد.
+            هذه الرسوم هي التي يتم استخدامها لاحقًا عند دخول الحجز مرحلة التنفيذ.
         </div>
 
-        <div class="a2-kv">
+        <div class="a2-kv a2-mt-16">
             <div class="a2-kv-row">
                 <div class="a2-kv-key">رسوم البزنس</div>
-                <div class="a2-kv-val">المبلغ الذي يخصم من صاحب البزنس عند التنفيذ إذا كان التفعيل والموافقة موجودين.</div>
+                <div class="a2-kv-val">
+                    مبلغ ثابت يتم خصمه من صاحب البزنس عند تنفيذ الخدمة إذا كانت الرسوم مفعلة وكان لديه موافقة خصم تلقائي.
+                </div>
             </div>
 
             <div class="a2-kv-row">
                 <div class="a2-kv-key">رسوم المستخدم</div>
-                <div class="a2-kv-val">المبلغ الذي يخصم من العميل عند التنفيذ إذا كان التفعيل والموافقة موجودين.</div>
+                <div class="a2-kv-val">
+                    مبلغ ثابت يتم خصمه من العميل عند تنفيذ الخدمة إذا كانت الرسوم مفعلة وكان لديه موافقة خصم تلقائي.
+                </div>
             </div>
 
             <div class="a2-kv-row">
-                <div class="a2-kv-key">إلغاء بعد التنفيذ</div>
-                <div class="a2-kv-val">إذا دخل الطلب حالة <span dir="ltr">in_progress</span> ثم أُلغي لاحقًا فلا يتم رد رسوم الخدمة.</div>
+                <div class="a2-kv-key">وقت الخصم</div>
+                <div class="a2-kv-val">
+                    الخصم يتم مرة واحدة فقط عند انتقال الحجز إلى
+                    <span dir="ltr">in_progress</span>
+                    ويتم منع التكرار بواسطة
+                    <span dir="ltr">idempotency_key</span>.
+                </div>
             </div>
         </div>
     </div>
@@ -104,7 +122,18 @@
 
         @if(($services ?? collect())->isEmpty())
             <div class="a2-empty-cell">
-                لا توجد خدمات مرتبطة بهذا القسم الفرعي حاليًا.
+                لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي حاليًا.
+            </div>
+
+            <div class="a2-page-actions a2-mt-16">
+                @if($parentIdInt > 0)
+                    <a
+                        href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
+                        class="a2-btn a2-btn-ghost"
+                    >
+                        رجوع
+                    </a>
+                @endif
             </div>
         @else
             <div class="a2-table-wrap">
@@ -112,18 +141,18 @@
                     <thead>
                         <tr>
                             <th style="min-width:70px;">#</th>
-                            <th style="min-width:180px;">الخدمة</th>
-                            <th style="min-width:110px;">مفعلة</th>
+                            <th style="min-width:210px;">الخدمة</th>
+                            <th style="min-width:110px;">تفعيل الرسوم</th>
 
                             <th style="min-width:120px;">رسوم البزنس</th>
-                            <th style="min-width:130px;">قيمة رسوم البزنس</th>
+                            <th style="min-width:140px;">قيمة البزنس</th>
 
                             <th style="min-width:120px;">رسوم المستخدم</th>
-                            <th style="min-width:130px;">قيمة رسوم المستخدم</th>
+                            <th style="min-width:140px;">قيمة المستخدم</th>
 
                             <th style="min-width:90px;">العملة</th>
                             <th style="min-width:90px;">الترتيب</th>
-                            <th style="min-width:240px;">ملاحظات</th>
+                            <th style="min-width:260px;">ملاحظات</th>
                         </tr>
                     </thead>
 
@@ -140,7 +169,7 @@
 
                                 $isActive = array_key_exists('is_active', $rowOld)
                                     ? 1
-                                    : ((int) ($fee->is_active ?? 1));
+                                    : ((int) ($fee->is_active ?? 0));
 
                                 $businessFeeEnabled = array_key_exists('business_fee_enabled', $rowOld)
                                     ? 1
@@ -174,6 +203,9 @@
                                     'rows.' . $serviceId . '.notes',
                                     isset($fee) ? (string) $fee->notes : ''
                                 );
+
+                                $hasAnyFee = ((int) $businessFeeEnabled === 1 && (float) $businessFeeAmount > 0)
+                                    || ((int) $clientFeeEnabled === 1 && (float) $clientFeeAmount > 0);
                             @endphp
 
                             <tr>
@@ -189,12 +221,19 @@
                                         {{ $service->key ?: '—' }}
                                     </div>
 
-                                    @if(isset($service->supports_deposit))
-                                        <div class="a2-mt-8">
+                                    <div class="a2-mt-8">
+                                        @if($hasAnyFee && (int) $isActive === 1)
+                                            <span class="a2-pill a2-pill-success">Fees ON</span>
+                                        @else
+                                            <span class="a2-pill a2-pill-gray">Fees OFF</span>
+                                        @endif
+
+                                        @if(isset($service->supports_deposit))
                                             @if($service->supports_deposit)
                                                 <span class="a2-pill a2-pill-success">
                                                     Deposit ON
                                                 </span>
+
                                                 @if(isset($service->max_deposit_percent))
                                                     <span class="a2-pill a2-pill-gray">
                                                         Max: {{ (int) $service->max_deposit_percent }}%
@@ -205,8 +244,8 @@
                                                     Deposit OFF
                                                 </span>
                                             @endif
-                                        </div>
-                                    @endif
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td>

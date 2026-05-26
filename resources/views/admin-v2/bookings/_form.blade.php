@@ -229,6 +229,21 @@
                 <div class="bk-kv"><span>الإجمالي النهائي</span><strong id="summary_total_cost">0.00 EGP</strong></div>
             </div>
         </div>
+        <div class="a2-card" style="padding:18px;">
+            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص رسوم التنفيذ</div>
+            <div class="a2-section-subtitle" style="margin-bottom:12px;">
+                هذه الرسوم تُخصم لاحقًا من المحافظ عند انتقال الحجز إلى
+                <span dir="ltr">in_progress</span>
+                إذا كانت مفعلة ويوجد موافقة خصم تلقائي.
+            </div>
+
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>رسوم العميل</span><strong id="summary_client_fee">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>رسوم البزنس</span><strong id="summary_business_fee">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>Fee Code</span><strong id="summary_fee_code">—</strong></div>
+                <div class="bk-kv"><span>Fee Row ID</span><strong id="summary_fee_row_id">—</strong></div>
+            </div>
+        </div>
 
         <div class="a2-card" style="padding:18px;">
             <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص الديبوزت</div>
@@ -377,8 +392,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const summaryOriginalPrice = document.getElementById('summary_original_price');
     const summaryDiscount = document.getElementById('summary_discount');
     const summaryFinalPrice = document.getElementById('summary_final_price');
-    const summaryPlatformFee = document.getElementById('summary_platform_fee');
+   const summaryPriceSource = document.getElementById('summary_price_source');
     const summaryTotalCost = document.getElementById('summary_total_cost');
+
+    const summaryClientFee = document.getElementById('summary_client_fee');
+    const summaryBusinessFee = document.getElementById('summary_business_fee');
+    const summaryFeeCode = document.getElementById('summary_fee_code');
+    const summaryFeeRowId = document.getElementById('summary_fee_row_id');
     const summarySupportsDeposit = document.getElementById('summary_supports_deposit');
     const summaryMaxDepositPercent = document.getElementById('summary_max_deposit_percent');
     const summaryAppliedDepositPercent = document.getElementById('summary_applied_deposit_percent');
@@ -579,12 +599,18 @@ document.addEventListener('DOMContentLoaded', function () {
             summaryOriginalPrice.textContent = money(0);
             summaryDiscount.textContent = money(0);
             summaryFinalPrice.textContent = money(0);
-            summaryPlatformFee.textContent = money(0);
+            summaryPriceSource.textContent = '—';
             summaryTotalCost.textContent = money(0);
+
             summarySupportsDeposit.textContent = '—';
             summaryMaxDepositPercent.textContent = '—';
             summaryAppliedDepositPercent.textContent = '—';
             summaryDepositAmount.textContent = money(0);
+
+            summaryClientFee.textContent = money(0);
+            summaryBusinessFee.textContent = money(0);
+            summaryFeeCode.textContent = '—';
+            summaryFeeRowId.textContent = '—';
             return;
         }
 
@@ -607,18 +633,27 @@ document.addEventListener('DOMContentLoaded', function () {
             const pricing = data.pricing || {};
             const deposit = data.deposit_policy || {};
             const service = data.service || {};
+            const feeSnapshot = data.fee_snapshot || {};
+
+            const clientFee = feeSnapshot.client || null;
+            const businessFee = feeSnapshot.business || null;
 
             summaryUnitPrice.textContent = money(pricing.unit_price || 0);
             summaryOriginalPrice.textContent = money(pricing.original_price || 0);
             summaryDiscount.textContent = money(pricing.discount_amount || 0);
             summaryFinalPrice.textContent = money(pricing.final_price || 0);
-            summaryPlatformFee.textContent = money(pricing.platform_fee || 0);
+            summaryPriceSource.textContent = pricing.source || '—';
             summaryTotalCost.textContent = money(pricing.final_price || 0);
 
             summarySupportsDeposit.textContent = service.supports_deposit ? 'نعم' : 'لا';
             summaryMaxDepositPercent.textContent = (service.max_deposit_percent ?? 0) + '%';
             summaryAppliedDepositPercent.textContent = (deposit.configured_percent ?? 0) + '%';
             summaryDepositAmount.textContent = money(deposit.amount || 0);
+
+            summaryClientFee.textContent = clientFee ? money(clientFee.amount || 0) : money(0);
+            summaryBusinessFee.textContent = businessFee ? money(businessFee.amount || 0) : money(0);
+            summaryFeeCode.textContent = feeSnapshot.fee_code || '—';
+            summaryFeeRowId.textContent = (clientFee && clientFee.id) || (businessFee && businessFee.id) || '—';
         } catch (e) {
             console.error(e);
         }

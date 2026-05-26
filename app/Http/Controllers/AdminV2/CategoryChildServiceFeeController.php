@@ -17,11 +17,9 @@ class CategoryChildServiceFeeController extends Controller
     {
         abort_if($parentId <= 0, 404);
 
-        $parent = Category::query()
+        return Category::query()
             ->where('parent_id', 0)
             ->findOrFail($parentId, ['id', 'name_ar', 'name_en', 'parent_id']);
-
-        return $parent;
     }
 
     private function ensureChildBelongsToParent(CategoryChild $categoryChild, int $parentId): void
@@ -33,6 +31,19 @@ class CategoryChildServiceFeeController extends Controller
         abort_if(! $belongs, 404);
     }
 
+    private function activeServiceIdsForChildAndParent(CategoryChild $categoryChild, int $parentId): array
+    {
+        return DB::table('category_platform_services')
+            ->where('category_id', $parentId)
+            ->where('child_id', (int) $categoryChild->id)
+            ->where('is_active', 1)
+            ->pluck('platform_service_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function edit(Request $request, CategoryChild $categoryChild): View
     {
         $parentId = (int) $request->get('parent_id', 0);
@@ -40,20 +51,34 @@ class CategoryChildServiceFeeController extends Controller
         $parent = $this->resolveParentOrAbort($parentId);
         $this->ensureChildBelongsToParent($categoryChild, $parentId);
 
+        $serviceIds = $this->activeServiceIdsForChildAndParent($categoryChild, $parentId);
+
         $categoryChild->load([
-            'platformServices:id,key,name_ar,name_en,is_active,supports_deposit,max_deposit_percent',
             'serviceFees',
         ]);
 
-        $feeRows = $categoryChild->serviceFees
-            ->keyBy(fn ($row) => (int) $row->platform_service_id);
-
-        $services = $categoryChild->platformServices
-            ->sortBy([
-                fn ($row) => (string) ($row->name_ar ?? ''),
-                fn ($row) => (int) $row->id,
+        $services = $categoryChild->platformServices()
+            ->wherePivot('category_id', $parentId)
+            ->wherePivot('is_active', 1)
+            ->whereIn('platform_services.id', $serviceIds)
+            ->select([
+                'platform_services.id',
+                'platform_services.key',
+                'platform_services.name_ar',
+                'platform_services.name_en',
+                'platform_services.is_active',
+                'platform_services.supports_deposit',
+                'platform_services.max_deposit_percent',
             ])
-            ->values();
+            ->orderBy('category_platform_services.sort_order')
+            ->orderBy('platform_services.id')
+            ->get();
+
+        $feeRows = CategoryChildServiceFee::query()
+            ->where('child_id', (int) $categoryChild->id)
+            ->whereIn('platform_service_id', $serviceIds)
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->platform_service_id);
 
         return view('admin-v2.category-child-service-fees.edit', [
             'categoryChild' => $categoryChild,
@@ -71,35 +96,44 @@ class CategoryChildServiceFeeController extends Controller
         $parent = $this->resolveParentOrAbort($parentId);
         $this->ensureChildBelongsToParent($categoryChild, $parentId);
 
-        $serviceIds = $categoryChild->platformServices()
-            ->pluck('platform_services.id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
+        $serviceIds = $this->activeServiceIdsForChildAndParent($categoryChild, $parentId);
 
         if (empty($serviceIds)) {
             return back()->withErrors([
-                'services' => 'لا توجد خدمات مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.',
+                'services' => 'لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.',
             ]);
         }
 
         $request->validate([
             'rows' => ['nullable', 'array'],
+
             'rows.*.business_fee_enabled' => ['nullable'],
             'rows.*.business_fee_amount' => ['nullable', 'numeric', 'min:0'],
+
             'rows.*.client_fee_enabled' => ['nullable'],
             'rows.*.client_fee_amount' => ['nullable', 'numeric', 'min:0'],
+
             'rows.*.currency' => ['nullable', 'string', 'size:3'],
             'rows.*.is_active' => ['nullable'],
             'rows.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'rows.*.notes' => ['nullable', 'string', 'max:500'],
+        ], [], [
+            'rows.*.business_fee_amount' => 'قيمة رسوم البزنس',
+            'rows.*.client_fee_amount' => 'قيمة رسوم المستخدم',
+            'rows.*.currency' => 'العملة',
+            'rows.*.sort_order' => 'الترتيب',
+            'rows.*.notes' => 'الملاحظات',
         ]);
 
-        $rowsInput = is_array($request->input('rows')) ? $request->input('rows') : [];
+        $rowsInput = is_array($request->input('rows'))
+            ? $request->input('rows')
+            : [];
 
         DB::transaction(function () use ($categoryChild, $serviceIds, $rowsInput) {
             foreach ($serviceIds as $serviceId) {
-                $payload = is_array($rowsInput[$serviceId] ?? null) ? $rowsInput[$serviceId] : [];
+                $payload = is_array($rowsInput[$serviceId] ?? null)
+                    ? $rowsInput[$serviceId]
+                    : [];
 
                 $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
                 $clientFeeEnabled   = (bool) ($payload['client_fee_enabled'] ?? false);
@@ -108,6 +142,20 @@ class CategoryChildServiceFeeController extends Controller
                 $businessFeeAmount = round((float) ($payload['business_fee_amount'] ?? 0), 2);
                 $clientFeeAmount   = round((float) ($payload['client_fee_amount'] ?? 0), 2);
 
+                if ($businessFeeAmount <= 0) {
+                    $businessFeeEnabled = false;
+                    $businessFeeAmount = 0.00;
+                }
+
+                if ($clientFeeAmount <= 0) {
+                    $clientFeeEnabled = false;
+                    $clientFeeAmount = 0.00;
+                }
+
+                if (! $businessFeeEnabled && ! $clientFeeEnabled) {
+                    $isActive = false;
+                }
+
                 CategoryChildServiceFee::query()->updateOrCreate(
                     [
                         'child_id' => (int) $categoryChild->id,
@@ -115,10 +163,12 @@ class CategoryChildServiceFeeController extends Controller
                     ],
                     [
                         'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
-                        'business_fee_amount'  => $businessFeeEnabled ? $businessFeeAmount : 0,
+                        'business_fee_amount'  => $businessFeeAmount,
+
                         'client_fee_enabled'   => $clientFeeEnabled ? 1 : 0,
-                        'client_fee_amount'    => $clientFeeEnabled ? $clientFeeAmount : 0,
-                        'currency'             => strtoupper(trim((string) ($payload['currency'] ?? 'EGP'))) ?: 'EGP',
+                        'client_fee_amount'    => $clientFeeAmount,
+
+                        'currency'             => strtoupper(trim((string) ($payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY))) ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
                         'is_active'            => $isActive ? 1 : 0,
                         'sort_order'           => (int) ($payload['sort_order'] ?? 0),
                         'notes'                => trim((string) ($payload['notes'] ?? '')) ?: null,
@@ -132,6 +182,6 @@ class CategoryChildServiceFeeController extends Controller
                 'categoryChild' => $categoryChild->id,
                 'parent_id' => $parent->id,
             ])
-            ->with('success', 'تم حفظ رسوم الخدمات لهذا الابن داخل القسم الرئيسي المحدد بنجاح.');
+            ->with('success', 'تم حفظ رسوم الخدمات لهذا القسم الفرعي بنجاح.');
     }
 }

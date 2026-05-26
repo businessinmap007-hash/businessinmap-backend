@@ -2,17 +2,12 @@
 
 namespace App\Providers;
 
-use App\Models\Deposit; // ✅ مهم
+use App\Models\Deposit;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
-
-// ✅ imports مهمة جدًا
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Contracts\Pagination\Paginator as PaginatorContract;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,41 +22,59 @@ class AppServiceProvider extends ServiceProvider
 
         Carbon::setLocale('ar');
 
-        if (! $this->app->runningInConsole()) {
-            $segment = request()->segment(1);
-            app()->setLocale(in_array($segment, ['ar', 'en'], true) ? $segment : 'ar');
+        $this->configureLocale();
+        $this->configureUrl();
+        $this->shareAdminV2Data();
+    }
+
+    private function configureLocale(): void
+    {
+        if ($this->app->runningInConsole()) {
+            app()->setLocale(config('app.locale', 'ar'));
+            return;
         }
 
+        $segment = request()->segment(1);
+
+        app()->setLocale(
+            in_array($segment, ['ar', 'en'], true)
+                ? $segment
+                : 'ar'
+        );
+    }
+
+    private function configureUrl(): void
+    {
         $appUrl = config('app.url');
-        if (is_string($appUrl) && $appUrl !== '') {
-            URL::forceRootUrl($appUrl);
 
-            if ($this->app->environment('production') && str_starts_with($appUrl, 'https://')) {
-                URL::forceScheme('https');
-            }
+        if (! is_string($appUrl) || trim($appUrl) === '') {
+            return;
         }
 
-        // ✅ Disputes counter for Admin-V2 layouts
-           View::share('openDisputesCount', (int)\App\Models\Deposit::where('status', 'dispute')->count());
+        URL::forceRootUrl($appUrl);
 
-        // ✅ Admin V2 Menu
+        if (
+            $this->app->environment('production') &&
+            str_starts_with($appUrl, 'https://')
+        ) {
+            URL::forceScheme('https');
+        }
+    }
+
+    private function shareAdminV2Data(): void
+    {
         View::composer('admin-v2.*', function ($view) {
-            $user = auth()->user();
-           
-        });
+            $openDisputesCount = 0;
 
-        // ✅ Admin V2 Auto Paginator (يحقن $__a2_paginator لكل صفحات admin-v2.*)
-        View::composer('admin-v2.*', function ($view) {
-            $p = null;
-
-            foreach ($view->getData() as $v) {
-                if ($v instanceof LengthAwarePaginator || $v instanceof PaginatorContract) {
-                    $p = $v;
-                    break;
-                }
+            try {
+                $openDisputesCount = (int) Deposit::query()
+                    ->where('status', 'dispute')
+                    ->count();
+            } catch (\Throwable $e) {
+                $openDisputesCount = 0;
             }
 
-            $view->with('__a2_paginator', $p);
+            $view->with('openDisputesCount', $openDisputesCount);
         });
     }
 }

@@ -19,7 +19,12 @@ class CategoryChildServiceFeeController extends Controller
 
         return Category::query()
             ->where('parent_id', 0)
-            ->findOrFail($parentId, ['id', 'name_ar', 'name_en', 'parent_id']);
+            ->findOrFail($parentId, [
+                'id',
+                'name_ar',
+                'name_en',
+                'parent_id',
+            ]);
     }
 
     private function ensureChildBelongsToParent(CategoryChild $categoryChild, int $parentId): void
@@ -33,12 +38,17 @@ class CategoryChildServiceFeeController extends Controller
 
     private function activeServiceIdsForChildAndParent(CategoryChild $categoryChild, int $parentId): array
     {
+        if ($parentId <= 0 || (int) $categoryChild->id <= 0) {
+            return [];
+        }
+
         return DB::table('category_platform_services')
             ->where('category_id', $parentId)
             ->where('child_id', (int) $categoryChild->id)
             ->where('is_active', 1)
             ->pluck('platform_service_id')
             ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
@@ -49,12 +59,14 @@ class CategoryChildServiceFeeController extends Controller
         $parentId = (int) $request->get('parent_id', 0);
 
         $parent = $this->resolveParentOrAbort($parentId);
+
         $this->ensureChildBelongsToParent($categoryChild, $parentId);
 
         $serviceIds = $this->activeServiceIdsForChildAndParent($categoryChild, $parentId);
 
         $categoryChild->load([
-            'serviceFees',
+            'parents:id,name_ar,name_en,parent_id',
+            'serviceFees.platformService:id,key,name_ar,name_en,is_active',
         ]);
 
         $services = $categoryChild->platformServices()
@@ -75,8 +87,10 @@ class CategoryChildServiceFeeController extends Controller
             ->get();
 
         $feeRows = CategoryChildServiceFee::query()
-            ->where('child_id', (int) $categoryChild->id)
+            ->with(['platformService:id,key,name_ar,name_en,is_active'])
+            ->forChild((int) $categoryChild->id)
             ->whereIn('platform_service_id', $serviceIds)
+            ->ordered()
             ->get()
             ->keyBy(fn ($row) => (int) $row->platform_service_id);
 
@@ -94,14 +108,17 @@ class CategoryChildServiceFeeController extends Controller
         $parentId = (int) $request->get('parent_id', 0);
 
         $parent = $this->resolveParentOrAbort($parentId);
+
         $this->ensureChildBelongsToParent($categoryChild, $parentId);
 
         $serviceIds = $this->activeServiceIdsForChildAndParent($categoryChild, $parentId);
 
         if (empty($serviceIds)) {
-            return back()->withErrors([
-                'services' => 'لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.',
-            ]);
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'services' => 'لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.',
+                ]);
         }
 
         $request->validate([
@@ -135,26 +152,29 @@ class CategoryChildServiceFeeController extends Controller
                     ? $rowsInput[$serviceId]
                     : [];
 
-                $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
-                $clientFeeEnabled   = (bool) ($payload['client_fee_enabled'] ?? false);
-                $isActive           = (bool) ($payload['is_active'] ?? false);
-
                 $businessFeeAmount = round((float) ($payload['business_fee_amount'] ?? 0), 2);
-                $clientFeeAmount   = round((float) ($payload['client_fee_amount'] ?? 0), 2);
+                $clientFeeAmount = round((float) ($payload['client_fee_amount'] ?? 0), 2);
+
+                $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
+                $clientFeeEnabled = (bool) ($payload['client_fee_enabled'] ?? false);
 
                 if ($businessFeeAmount <= 0) {
-                    $businessFeeEnabled = false;
                     $businessFeeAmount = 0.00;
+                    $businessFeeEnabled = false;
                 }
 
                 if ($clientFeeAmount <= 0) {
-                    $clientFeeEnabled = false;
                     $clientFeeAmount = 0.00;
+                    $clientFeeEnabled = false;
                 }
 
-                if (! $businessFeeEnabled && ! $clientFeeEnabled) {
-                    $isActive = false;
-                }
+                $hasAnyFee = $businessFeeEnabled || $clientFeeEnabled;
+
+                $isActive = (bool) ($payload['is_active'] ?? false);
+                $isActive = $hasAnyFee && $isActive;
+
+                $currency = strtoupper(trim((string) ($payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY)));
+                $currency = $currency !== '' ? mb_substr($currency, 0, 3) : CategoryChildServiceFee::DEFAULT_CURRENCY;
 
                 CategoryChildServiceFee::query()->updateOrCreate(
                     [
@@ -163,15 +183,15 @@ class CategoryChildServiceFeeController extends Controller
                     ],
                     [
                         'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
-                        'business_fee_amount'  => $businessFeeAmount,
+                        'business_fee_amount' => $businessFeeAmount,
 
-                        'client_fee_enabled'   => $clientFeeEnabled ? 1 : 0,
-                        'client_fee_amount'    => $clientFeeAmount,
+                        'client_fee_enabled' => $clientFeeEnabled ? 1 : 0,
+                        'client_fee_amount' => $clientFeeAmount,
 
-                        'currency'             => strtoupper(trim((string) ($payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY))) ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
-                        'is_active'            => $isActive ? 1 : 0,
-                        'sort_order'           => (int) ($payload['sort_order'] ?? 0),
-                        'notes'                => trim((string) ($payload['notes'] ?? '')) ?: null,
+                        'currency' => $currency,
+                        'is_active' => $isActive ? 1 : 0,
+                        'sort_order' => max(0, (int) ($payload['sort_order'] ?? 0)),
+                        'notes' => trim((string) ($payload['notes'] ?? '')) ?: null,
                     ]
                 );
             }

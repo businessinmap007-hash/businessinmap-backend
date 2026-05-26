@@ -1,32 +1,14 @@
-@php
-    $user = auth()->user();
-@endphp
+{{-- 
+    Admin V2 Header Partial
 
+    ملاحظة:
+    الـ Topbar الأساسي موجود داخل:
+    resources/views/admin-v2/layouts/master.blade.php
 
+    هذا الملف متروك كـ backward-compatible partial فقط
+    لأي صفحات قديمة قد تستدعي header مباشرة.
+--}}
 
-
-<div class="a2-userbar">
-    <div class="a2-user-meta">
-        <div class="a2-user-name">
-            {{ $user?->name ?? '—' }}
-        </div>
-        <div class="a2-user-role">
-            {{ ucfirst($user?->type ?? '') }}
-        </div>
-    </div>
-
-    <div class="a2-avatar">
-        @if(!empty($user?->avatar))
-            <img src="{{ asset($user->avatar) }}" alt="avatar">
-        @else
-            {{ strtoupper(substr($user?->name ?? 'A',0,1)) }}
-        @endif
-    </div>
-
-    <form method="POST" action="{{ route('admin.logout') }}">
-        @csrf
-        <button class="a2-btn a2-btn-ghost" type="submit">
-            تسجيل الخروج
-        </button>
-    </form>
+<div class="a2-header-partial">
+    @includeIf('admin-v2.layouts._partials.userbar')
 </div>

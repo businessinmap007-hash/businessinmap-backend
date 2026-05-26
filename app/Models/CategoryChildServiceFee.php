@@ -13,18 +13,29 @@ class CategoryChildServiceFee extends Model
     public const PAYER_BUSINESS = 'business';
     public const PAYER_CLIENT   = 'client';
 
+    public const PAYERS = [
+        self::PAYER_BUSINESS,
+        self::PAYER_CLIENT,
+    ];
+
     public const FEE_TYPE_BUSINESS = 'business_fee';
     public const FEE_TYPE_CLIENT   = 'client_fee';
 
+    public const CALC_TYPE_FIXED = 'fixed';
+
     public const DEFAULT_CURRENCY = 'EGP';
+    public const DEFAULT_FEE_CODE = 'booking_execution';
 
     protected $fillable = [
         'child_id',
         'platform_service_id',
+
         'business_fee_enabled',
         'business_fee_amount',
+
         'client_fee_enabled',
         'client_fee_amount',
+
         'currency',
         'is_active',
         'sort_order',
@@ -34,10 +45,13 @@ class CategoryChildServiceFee extends Model
     protected $casts = [
         'child_id'              => 'integer',
         'platform_service_id'   => 'integer',
+
         'business_fee_enabled'  => 'boolean',
         'business_fee_amount'   => 'decimal:2',
+
         'client_fee_enabled'    => 'boolean',
         'client_fee_amount'     => 'decimal:2',
+
         'is_active'             => 'boolean',
         'sort_order'            => 'integer',
     ];
@@ -89,7 +103,7 @@ class CategoryChildServiceFee extends Model
             return $query;
         }
 
-        return $query->where('child_id', $childId);
+        return $query->where('child_id', (int) $childId);
     }
 
     public function scopeForService(Builder $query, ?int $serviceId): Builder
@@ -98,7 +112,7 @@ class CategoryChildServiceFee extends Model
             return $query;
         }
 
-        return $query->where('platform_service_id', $serviceId);
+        return $query->where('platform_service_id', (int) $serviceId);
     }
 
     public function scopeForPair(Builder $query, ?int $childId, ?int $serviceId): Builder
@@ -106,6 +120,29 @@ class CategoryChildServiceFee extends Model
         return $query
             ->forChild($childId)
             ->forService($serviceId);
+    }
+
+    public function scopeForPayer(Builder $query, ?string $payer): Builder
+    {
+        $payer = self::normalizePayer($payer);
+
+        if (! $payer) {
+            return $query;
+        }
+
+        if ($payer === self::PAYER_BUSINESS) {
+            return $query
+                ->where('business_fee_enabled', 1)
+                ->where('business_fee_amount', '>', 0);
+        }
+
+        if ($payer === self::PAYER_CLIENT) {
+            return $query
+                ->where('client_fee_enabled', 1)
+                ->where('client_fee_amount', '>', 0);
+        }
+
+        return $query;
     }
 
     public function scopeOrdered(Builder $query): Builder
@@ -131,9 +168,35 @@ class CategoryChildServiceFee extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Mutators
+    | Finders
     |--------------------------------------------------------------------------
     */
+
+    public static function activeForPair(int $childId, int $serviceId): ?self
+    {
+        if ($childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return static::query()
+            ->active(1)
+            ->forPair($childId, $serviceId)
+            ->ordered()
+            ->first();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Normalizers / Mutators
+    |--------------------------------------------------------------------------
+    */
+
+    public static function normalizePayer(?string $payer): ?string
+    {
+        $payer = strtolower(trim((string) $payer));
+
+        return in_array($payer, self::PAYERS, true) ? $payer : null;
+    }
 
     public function setCurrencyAttribute($value): void
     {
@@ -174,6 +237,8 @@ class CategoryChildServiceFee extends Model
 
     public function isChargeableFor(string $payer): bool
     {
+        $payer = self::normalizePayer($payer);
+
         return match ($payer) {
             self::PAYER_BUSINESS => (bool) $this->is_active && $this->hasBusinessFee(),
             self::PAYER_CLIENT   => (bool) $this->is_active && $this->hasClientFee(),
@@ -183,6 +248,8 @@ class CategoryChildServiceFee extends Model
 
     public function amountFor(string $payer): float
     {
+        $payer = self::normalizePayer($payer);
+
         return match ($payer) {
             self::PAYER_BUSINESS => $this->hasBusinessFee()
                 ? round((float) $this->business_fee_amount, 2)
@@ -198,6 +265,8 @@ class CategoryChildServiceFee extends Model
 
     public function feeTypeFor(string $payer): ?string
     {
+        $payer = self::normalizePayer($payer);
+
         return match ($payer) {
             self::PAYER_BUSINESS => self::FEE_TYPE_BUSINESS,
             self::PAYER_CLIENT   => self::FEE_TYPE_CLIENT,
@@ -220,15 +289,20 @@ class CategoryChildServiceFee extends Model
 
     public function toFeeSnapshot(string $payer): ?array
     {
-        if (! $this->isChargeableFor($payer)) {
+        $payer = self::normalizePayer($payer);
+
+        if (! $payer || ! $this->isChargeableFor($payer)) {
             return null;
         }
 
         return [
             'id' => (int) $this->id,
+            'fee_row_id' => (int) $this->id,
+
             'payer' => $payer,
             'fee_type' => $this->feeTypeFor($payer),
-            'calc_type' => 'fixed',
+            'calc_type' => self::CALC_TYPE_FIXED,
+
             'amount' => $this->amountFor($payer),
             'currency' => $this->currencyCode(),
 
@@ -249,33 +323,38 @@ class CategoryChildServiceFee extends Model
         int $bookingId,
         int $businessId,
         int $clientId,
-        string $feeCode = 'booking_execution'
+        ?string $feeCode = null
     ): ?array {
-        if (! $this->isChargeableFor($payer)) {
+        $payer = self::normalizePayer($payer);
+
+        if (! $payer || ! $this->isChargeableFor($payer)) {
             return null;
         }
 
+        $feeCode = trim((string) ($feeCode ?: self::DEFAULT_FEE_CODE));
+
         return [
             'payer' => $payer,
-            'user_id' => $userId,
+            'user_id' => (int) $userId,
 
             'category_child_service_fee_id' => (int) $this->id,
             'service_fee_id' => (int) $this->id,
+            'fee_row_id' => (int) $this->id,
 
             'fee_code' => $feeCode,
             'fee_type' => $this->feeTypeFor($payer),
-            'calc_type' => 'fixed',
+            'calc_type' => self::CALC_TYPE_FIXED,
 
             'amount' => $this->amountFor($payer),
             'currency' => $this->currencyCode(),
             'base_amount' => round((float) $baseAmount, 2),
 
-            'booking_id' => $bookingId,
+            'booking_id' => (int) $bookingId,
             'service_id' => (int) $this->platform_service_id,
             'platform_service_id' => (int) $this->platform_service_id,
 
-            'business_id' => $businessId,
-            'client_id' => $clientId,
+            'business_id' => (int) $businessId,
+            'client_id' => (int) $clientId,
             'child_id' => (int) $this->child_id,
 
             'rules' => null,

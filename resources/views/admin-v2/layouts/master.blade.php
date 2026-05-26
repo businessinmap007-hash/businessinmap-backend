@@ -8,7 +8,9 @@
     <title>@yield('title', 'Admin V2')</title>
 
     <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}">
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+
+    @yield('head')
     @stack('styles')
 </head>
 
@@ -16,11 +18,11 @@
 
     <div class="a2-shell">
 
-        {{-- Overlay --}}
-        <div class="a2-overlay" id="a2Overlay"></div>
+        {{-- Mobile Overlay --}}
+        <div class="a2-overlay" id="a2Overlay" aria-hidden="true"></div>
 
         {{-- Sidebar --}}
-        <aside class="a2-sidebar" id="a2Sidebar">
+        <aside class="a2-sidebar" id="a2Sidebar" aria-label="Admin navigation">
             <div class="a2-side-top">
                 <a class="a2-brand" href="{{ route('admin.dashboard') }}">
                     <span class="a2-brand-badge">BIM</span>
@@ -31,13 +33,13 @@
                     class="a2-burger"
                     type="button"
                     id="a2CloseSidebar"
-                    aria-label="Close Menu"
+                    aria-label="Close menu"
                 >
                     ✕
                 </button>
             </div>
 
-            <nav class="a2-nav">
+            <nav class="a2-nav" aria-label="Admin menu">
                 @include('admin-v2.layouts._partials.menu')
             </nav>
         </aside>
@@ -52,7 +54,7 @@
                         class="a2-burger a2-burger--mobile"
                         type="button"
                         id="a2OpenSidebar"
-                        aria-label="Open Menu"
+                        aria-label="Open menu"
                     >
                         ☰
                     </button>
@@ -63,27 +65,35 @@
                 </div>
 
                 <div class="a2-topbar-right">
-                    @include('admin-v2.layouts._partials.userbar')
+                    @includeIf('admin-v2.layouts._partials.userbar')
                 </div>
             </header>
 
             {{-- Content --}}
             <main class="a2-content">
+                @yield('before_content')
+
                 @yield('content')
-                @include('admin-v2.layouts._partials.resultsbar-auto')
+
+                @yield('after_content')
+
+                @includeIf('admin-v2.layouts._partials.resultsbar-auto')
             </main>
 
         </div>
     </div>
 
-    {{-- Toggle Active --}}
+    {{-- Global: Toggle Active --}}
     <script>
     (function () {
         const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         async function toggle(btn) {
             const url = btn.dataset.url;
-            if (!url || btn.dataset.loading === '1') return;
+
+            if (!url || btn.dataset.loading === '1') {
+                return;
+            }
 
             btn.dataset.loading = '1';
             btn.style.opacity = '.65';
@@ -112,6 +122,9 @@
 
                 btn.classList.toggle('a2-pill-active', isActive);
                 btn.classList.toggle('a2-pill-inactive', !isActive);
+
+                btn.classList.toggle('a2-pill-success', isActive);
+                btn.classList.toggle('a2-pill-gray', !isActive);
             } catch (e) {
                 console.error(e);
                 alert('حدث خطأ أثناء تغيير الحالة');
@@ -123,7 +136,10 @@
 
         document.addEventListener('click', function (e) {
             const btn = e.target.closest('.js-toggle-active');
-            if (!btn) return;
+
+            if (!btn) {
+                return;
+            }
 
             e.preventDefault();
             toggle(btn);
@@ -131,7 +147,7 @@
     })();
     </script>
 
-    {{-- Sidebar / Mobile --}}
+    {{-- Global: Sidebar / Mobile --}}
     <script>
     (function () {
         const body = document.body;
@@ -140,7 +156,9 @@
         const btnOpen = document.getElementById('a2OpenSidebar');
         const btnClose = document.getElementById('a2CloseSidebar');
 
-        const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+        const isMobile = function () {
+            return window.matchMedia('(max-width: 768px)').matches;
+        };
 
         function openMobile() {
             body.classList.add('a2-sidebar-open');
@@ -178,9 +196,15 @@
 
         sidebar?.addEventListener('click', function (e) {
             const link = e.target.closest('a');
-            if (!link) return;
 
-            if (link.getAttribute('aria-disabled') === 'true') return;
+            if (!link) {
+                return;
+            }
+
+            if (link.getAttribute('aria-disabled') === 'true') {
+                e.preventDefault();
+                return;
+            }
 
             if (isMobile()) {
                 closeMobile();
@@ -201,9 +225,11 @@
     })();
     </script>
 
- @include('admin-v2.layouts._partials.date-range-script')
- <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    {{-- Optional shared scripts --}}
+    @includeIf('admin-v2.layouts._partials.date-range-script')
+
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
     @stack('scripts')
-   
 </body>
 </html>

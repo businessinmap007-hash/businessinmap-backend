@@ -1,8 +1,14 @@
 @extends('admin-v2.layouts.auth')
 
 @section('title', 'Admin Login')
+@section('body_class', 'admin-v2-auth-login')
 
 @section('content')
+@php
+    $logoPath = public_path('assets/images/logo.png');
+    $hasLogo = file_exists($logoPath);
+@endphp
+
 <div class="a2-auth a2-auth--luxe">
 
     <div class="a2-auth-card a2-auth-card--luxe">
@@ -14,7 +20,11 @@
             </div>
 
             <div class="a2-auth-logo-wrap">
-                <img src="{{ asset('assets/images/logo.png') }}" alt="BIM Admin">
+                @if($hasLogo)
+                    <img src="{{ asset('assets/images/logo.png') }}" alt="BIM Admin">
+                @else
+                    <div class="a2-brand-badge" style="color:#fff;background:#0b1220;">BIM</div>
+                @endif
             </div>
         </div>
 
@@ -25,9 +35,25 @@
             </p>
         </div>
 
+        @if(session('success'))
+            <div class="a2-alert a2-alert-success a2-auth-alert">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="a2-alert a2-alert-danger a2-auth-alert">
+                {{ session('error') }}
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="a2-alert a2-alert-danger a2-auth-alert">
-                {{ $errors->first() }}
+                <ul style="margin:0;padding-inline-start:18px;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
             </div>
         @endif
 
@@ -35,8 +61,9 @@
             @csrf
 
             <div class="a2-form-group">
-                <label class="a2-label a2-auth-label">البريد الإلكتروني</label>
+                <label for="admin_login_email" class="a2-label a2-auth-label">البريد الإلكتروني</label>
                 <input
+                    id="admin_login_email"
                     type="email"
                     name="email"
                     class="a2-input a2-auth-input a2-auth-input--luxe"
@@ -44,18 +71,21 @@
                     placeholder="name@example.com"
                     required
                     autofocus
+                    autocomplete="email"
                     dir="ltr"
                 >
             </div>
 
             <div class="a2-form-group">
-                <label class="a2-label a2-auth-label">كلمة المرور</label>
+                <label for="admin_login_password" class="a2-label a2-auth-label">كلمة المرور</label>
                 <input
+                    id="admin_login_password"
                     type="password"
                     name="password"
                     class="a2-input a2-auth-input a2-auth-input--luxe"
                     placeholder="••••••••"
                     required
+                    autocomplete="current-password"
                 >
             </div>
 

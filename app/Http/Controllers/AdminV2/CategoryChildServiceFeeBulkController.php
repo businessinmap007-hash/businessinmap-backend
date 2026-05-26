@@ -21,7 +21,12 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         return Category::query()
             ->where('parent_id', 0)
-            ->findOrFail($parentId, ['id', 'name_ar', 'name_en', 'parent_id']);
+            ->findOrFail($parentId, [
+                'id',
+                'name_ar',
+                'name_en',
+                'parent_id',
+            ]);
     }
 
     /**
@@ -46,13 +51,17 @@ class CategoryChildServiceFeeBulkController extends Controller
      */
     private function childrenForParent(int $parentId, array $childIds): Collection
     {
+        if ($parentId <= 0 || empty($childIds)) {
+            return collect();
+        }
+
         return CategoryChild::query()
             ->whereIn('id', $childIds)
             ->whereHas('parents', function ($q) use ($parentId) {
                 $q->where('categories.id', $parentId);
             })
             ->with([
-                'parents:id,name_ar,name_en',
+                'parents:id,name_ar,name_en,parent_id',
                 'platformServices:id,key,name_ar,name_en,is_active,supports_deposit,max_deposit_percent',
             ])
             ->orderByRaw('COALESCE(reorder, 999999) ASC')
@@ -63,6 +72,7 @@ class CategoryChildServiceFeeBulkController extends Controller
     public function edit(Request $request): View|RedirectResponse
     {
         $parentId = (int) $request->get('parent_id', 0);
+
         $parent = $this->resolveParentOrAbort($parentId);
 
         $childIds = $this->normalizeIds($request->get('child_ids', []));
@@ -70,7 +80,9 @@ class CategoryChildServiceFeeBulkController extends Controller
         if (empty($childIds)) {
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
-                ->withErrors(['child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.']);
+                ->withErrors([
+                    'child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.',
+                ]);
         }
 
         $children = $this->childrenForParent($parentId, $childIds);
@@ -78,7 +90,9 @@ class CategoryChildServiceFeeBulkController extends Controller
         if ($children->isEmpty()) {
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
-                ->withErrors(['child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.']);
+                ->withErrors([
+                    'child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.',
+                ]);
         }
 
         $validChildIds = $children
@@ -90,6 +104,7 @@ class CategoryChildServiceFeeBulkController extends Controller
         $services = PlatformService::query()
             ->where('is_active', 1)
             ->orderBy('name_ar')
+            ->orderBy('name_en')
             ->orderBy('id')
             ->get([
                 'id',
@@ -101,25 +116,18 @@ class CategoryChildServiceFeeBulkController extends Controller
                 'is_active',
             ]);
 
-        $activeChildServiceMap = DB::table('category_platform_services')
-            ->where('category_id', $parentId)
-            ->whereIn('child_id', $validChildIds)
-            ->where('is_active', 1)
-            ->get(['child_id', 'platform_service_id'])
-            ->groupBy('child_id')
-            ->map(function ($rows) {
-                return collect($rows)
-                    ->pluck('platform_service_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->values()
-                    ->all();
-            });
+        $activeChildServiceMap = $this->activeChildServiceMap(
+            parentId: $parentId,
+            childIds: $validChildIds
+        );
 
         $existingFees = CategoryChildServiceFee::query()
+            ->with(['platformService:id,key,name_ar,name_en,is_active'])
             ->whereIn('child_id', $validChildIds)
-            ->whereIn('platform_service_id', $services->pluck('id')->all())
+            ->whereIn('platform_service_id', $services->pluck('id')->map(fn ($id) => (int) $id)->all())
+            ->ordered()
             ->get()
-            ->groupBy(function ($row) {
+            ->groupBy(function (CategoryChildServiceFee $row) {
                 return (int) $row->child_id . ':' . (int) $row->platform_service_id;
             });
 
@@ -137,6 +145,7 @@ class CategoryChildServiceFeeBulkController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $parentId = (int) $request->input('parent_id', 0);
+
         $parent = $this->resolveParentOrAbort($parentId);
 
         $childIds = $this->normalizeIds($request->input('child_ids', []));
@@ -144,7 +153,9 @@ class CategoryChildServiceFeeBulkController extends Controller
         if (empty($childIds)) {
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
-                ->withErrors(['child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.']);
+                ->withErrors([
+                    'child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.',
+                ]);
         }
 
         $children = $this->childrenForParent($parentId, $childIds);
@@ -152,10 +163,16 @@ class CategoryChildServiceFeeBulkController extends Controller
         if ($children->isEmpty()) {
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
-                ->withErrors(['child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.']);
+                ->withErrors([
+                    'child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.',
+                ]);
         }
 
         $request->validate([
+            'parent_id' => ['required', 'integer', 'min:1'],
+            'child_ids' => ['required', 'array'],
+            'child_ids.*' => ['integer', 'min:1'],
+
             'rows' => ['nullable', 'array'],
 
             'rows.*.*.row_enabled' => ['nullable'],
@@ -171,6 +188,8 @@ class CategoryChildServiceFeeBulkController extends Controller
             'rows.*.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'rows.*.*.notes' => ['nullable', 'string', 'max:500'],
         ], [], [
+            'parent_id' => 'القسم الرئيسي',
+            'child_ids' => 'الأقسام الفرعية',
             'rows.*.*.business_fee_amount' => 'قيمة رسوم البزنس',
             'rows.*.*.client_fee_amount' => 'قيمة رسوم المستخدم',
             'rows.*.*.currency' => 'العملة',
@@ -186,6 +205,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             ->where('is_active', 1)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->values()
             ->all();
 
@@ -197,12 +217,7 @@ class CategoryChildServiceFeeBulkController extends Controller
                     ? $rowsInput[$childId]
                     : [];
 
-                $currentMaxSort = (int) DB::table('category_platform_services')
-                    ->where('category_id', $parentId)
-                    ->where('child_id', $childId)
-                    ->max('sort_order');
-
-                $nextSort = $currentMaxSort > 0 ? $currentMaxSort + 1 : 1;
+                $nextSort = $this->nextChildServiceSort($parentId, $childId);
 
                 foreach ($serviceIds as $serviceId) {
                     $payload = is_array($childRows[$serviceId] ?? null)
@@ -268,14 +283,46 @@ class CategoryChildServiceFeeBulkController extends Controller
             ->with('success', 'تم تحديث الخدمات ورسومها للأقسام الفرعية المحددة بنجاح.');
     }
 
+    private function activeChildServiceMap(int $parentId, array $childIds): Collection
+    {
+        if ($parentId <= 0 || empty($childIds)) {
+            return collect();
+        }
+
+        return DB::table('category_platform_services')
+            ->where('category_id', $parentId)
+            ->whereIn('child_id', $childIds)
+            ->where('is_active', 1)
+            ->get(['child_id', 'platform_service_id'])
+            ->groupBy('child_id')
+            ->map(function ($rows) {
+                return collect($rows)
+                    ->pluck('platform_service_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+            });
+    }
+
+    private function nextChildServiceSort(int $parentId, int $childId): int
+    {
+        $currentMaxSort = (int) DB::table('category_platform_services')
+            ->where('category_id', $parentId)
+            ->where('child_id', $childId)
+            ->max('sort_order');
+
+        return $currentMaxSort > 0 ? $currentMaxSort + 1 : 1;
+    }
+
     private function upsertFeeRow(int $childId, int $serviceId, array $payload): void
     {
         $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
-        $clientFeeEnabled   = (bool) ($payload['client_fee_enabled'] ?? false);
-        $isActive           = (bool) ($payload['is_active'] ?? false);
+        $clientFeeEnabled = (bool) ($payload['client_fee_enabled'] ?? false);
 
         $businessFeeAmount = round((float) ($payload['business_fee_amount'] ?? 0), 2);
-        $clientFeeAmount   = round((float) ($payload['client_fee_amount'] ?? 0), 2);
+        $clientFeeAmount = round((float) ($payload['client_fee_amount'] ?? 0), 2);
 
         if ($businessFeeAmount <= 0) {
             $businessFeeEnabled = false;
@@ -287,9 +334,14 @@ class CategoryChildServiceFeeBulkController extends Controller
             $clientFeeAmount = 0.00;
         }
 
-        if (! $businessFeeEnabled && ! $clientFeeEnabled) {
-            $isActive = false;
-        }
+        $hasAnyFee = $businessFeeEnabled || $clientFeeEnabled;
+
+        $isActive = (bool) ($payload['is_active'] ?? false);
+        $isActive = $hasAnyFee && $isActive;
+
+        $currency = $this->normalizeCurrency(
+            $payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY
+        );
 
         CategoryChildServiceFee::query()->updateOrCreate(
             [
@@ -298,15 +350,15 @@ class CategoryChildServiceFeeBulkController extends Controller
             ],
             [
                 'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
-                'business_fee_amount'  => $businessFeeAmount,
+                'business_fee_amount' => $businessFeeAmount,
 
-                'client_fee_enabled'   => $clientFeeEnabled ? 1 : 0,
-                'client_fee_amount'    => $clientFeeAmount,
+                'client_fee_enabled' => $clientFeeEnabled ? 1 : 0,
+                'client_fee_amount' => $clientFeeAmount,
 
-                'currency'             => strtoupper(trim((string) ($payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY))) ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
-                'is_active'            => $isActive ? 1 : 0,
-                'sort_order'           => (int) ($payload['sort_order'] ?? 0),
-                'notes'                => trim((string) ($payload['notes'] ?? '')) ?: null,
+                'currency' => $currency,
+                'is_active' => $isActive ? 1 : 0,
+                'sort_order' => max(0, (int) ($payload['sort_order'] ?? 0)),
+                'notes' => trim((string) ($payload['notes'] ?? '')) ?: null,
             ]
         );
     }
@@ -336,8 +388,8 @@ class CategoryChildServiceFeeBulkController extends Controller
         }
 
         CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
+            ->forChild($childId)
+            ->forService($serviceId)
             ->update([
                 'is_active' => 0,
                 'business_fee_enabled' => 0,
@@ -346,5 +398,14 @@ class CategoryChildServiceFeeBulkController extends Controller
                 'client_fee_amount' => 0,
                 'updated_at' => now(),
             ]);
+    }
+
+    private function normalizeCurrency($value): string
+    {
+        $currency = strtoupper(trim((string) $value));
+
+        return $currency !== ''
+            ? mb_substr($currency, 0, 3)
+            : CategoryChildServiceFee::DEFAULT_CURRENCY;
     }
 }

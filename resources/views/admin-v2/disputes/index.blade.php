@@ -8,6 +8,9 @@
 @php
   $money = fn($v) => $v === null ? '—' : number_format((float)$v, 2);
 @endphp
+@php
+    $rows = $rows ?? ($disputes ?? collect());
+@endphp
 
 <div class="a2-page">
   <div class="a2-card">

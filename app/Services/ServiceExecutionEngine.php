@@ -30,8 +30,13 @@ class ServiceExecutionEngine
     |--------------------------------------------------------------------------
     */
 
-    public function prepare(int $businessId, int $serviceId, ?int $bookableId = null, int $quantity = 1): array
-    {
+    public function prepare(
+        int $businessId,
+        int $serviceId,
+        ?int $bookableId = null,
+        int $quantity = 1,
+        mixed $pricingDate = null
+    ): array {
         $quantity = max($quantity, 1);
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
@@ -71,7 +76,8 @@ class ServiceExecutionEngine
             service: $service,
             businessPrice: $businessPrice,
             bookable: $bookable,
-            quantity: $quantity
+            quantity: $quantity,
+            pricingDate: $pricingDate
         );
 
         $depositPolicy = $this->resolveDepositPolicy(
@@ -184,6 +190,10 @@ class ServiceExecutionEngine
             'source' => (string) $priceBreakdown['source'],
             'business_service_price_id' => (int) $businessPrice->id,
             'business_service_price_child_id' => (int) ($businessPrice->child_id ?? 0),
+            'pricing_source' => (string) ($priceBreakdown['pricing_source'] ?? $priceBreakdown['source'] ?? ''),
+            'bookable_rule' => $priceBreakdown['bookable_rule'] ?? null,
+            'bookable_rules' => $priceBreakdown['bookable_rules'] ?? [],
+            'bookable_breakdown' => $priceBreakdown['bookable_breakdown'] ?? [],
         ];
 
         $meta['service_fees_snapshot'] = $feeSnapshot;
@@ -334,7 +344,8 @@ class ServiceExecutionEngine
         PlatformService $service,
         BusinessServicePrice $businessPrice,
         ?BookableItem $bookable = null,
-        int $quantity = 1
+        int $quantity = 1,
+        mixed $pricingDate = null
     ): array {
         $quantity = max($quantity, 1);
 

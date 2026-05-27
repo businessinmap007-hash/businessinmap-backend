@@ -602,7 +602,7 @@ class CategoryController extends Controller
                 $q->select('options.id', 'options.name_ar', 'options.name_en', 'options.group_id')
                     ->orderBy('options.id');
             },
-            'platformServices:id,key,name_ar,name_en',
+            'activePlatformServices:id,key,name_ar,name_en',
         ])->loadCount('options');
 
         $selectedParentIds = $categoryChild->parents
@@ -610,7 +610,7 @@ class CategoryController extends Controller
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        $selectedServiceIds = $categoryChild->platformServices
+        $selectedServiceIds = $categoryChild->activePlatformServices
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Services\Wallet\WalletLedgerService;
+use App\Services\WalletLedgerService;
 use Illuminate\Http\Request;
 
 final class WalletOpsController extends Controller
@@ -41,7 +41,7 @@ final class WalletOpsController extends Controller
             op: [
                 'reference_type'  => 'admin_recharge',
                 'reference_id'    => (string)$user->id,
-                'idempotency_key' => (string)($request->get('idempotency_key') ?? ''),
+                'idempotency_key' => 'admin_recharge:' . $user->id . ':' . now()->format('YmdHis') . ':' . uniqid(),
                 'meta' => [
                     'source' => 'admin-v2',
                     'admin_id' => auth()->id(),
@@ -60,6 +60,6 @@ final class WalletOpsController extends Controller
 
         return redirect()
             ->route('admin.wallet-transactions.show', ['walletTransaction' => $tx->id])
-            ->with('success', 'تم الشحن بنجاح');
+            ->with('success', 'تم شحن المحفظة بنجاح.');
     }
 }

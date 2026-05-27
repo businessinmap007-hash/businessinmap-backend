@@ -25,8 +25,15 @@
             <div class="a2-page-subtitle">{{ $name ?: '—' }}</div>
         </div>
 
-        <div class="a2-page-actions">
+       <div class="a2-page-actions">
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.users.edit', $user->id) }}">تعديل</a>
+
+            @if(Route::has('admin.user-service-fee-consents.edit'))
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.user-service-fee-consents.edit', $user) }}">
+                    موافقات رسوم الخدمة
+                </a>
+            @endif
+
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">رجوع</a>
         </div>
     </div>

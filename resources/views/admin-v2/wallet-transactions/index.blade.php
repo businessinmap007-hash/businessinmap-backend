@@ -110,7 +110,7 @@
                     class="a2-input"
                     name="q"
                     value="{{ $qVal }}"
-                    placeholder="ID / user / wallet / note / fee_code / payer"
+                    placeholder="ID / user / wallet / note / fee_code / payer / fee_row_id"
                 >
             </div>
 
@@ -252,8 +252,11 @@
                         $payerTxt = method_exists($tx, 'payer') ? ($tx->payer() ?: '—') : data_get($tx->meta, 'payer', '—');
                         $feeCodeTxt = method_exists($tx, 'feeCode') ? ($tx->feeCode() ?: '—') : data_get($tx->meta, 'fee_code', '—');
                         $bookingIdTxt = method_exists($tx, 'bookingId') ? ($tx->bookingId() ?: null) : data_get($tx->meta, 'booking_id');
-                        $feeRowIdTxt = method_exists($tx, 'categoryChildServiceFeeId') ? ($tx->categoryChildServiceFeeId() ?: null) : data_get($tx->meta, 'category_child_service_fee_id');
-                    @endphp
+                        $feeRowIdTxt = method_exists($tx, 'feeRowId')? ($tx->feeRowId() ?: null)
+                        : (method_exists($tx, 'categoryChildServiceFeeId') ? ($tx->categoryChildServiceFeeId() ?: null) : (data_get($tx->meta, 'fee_row_id')
+                        ?: data_get($tx->meta, 'category_child_service_fee_id')
+                        ?: data_get($tx->meta, 'service_fee_id')));
+                        @endphp
 
                     <tr>
                         <td>

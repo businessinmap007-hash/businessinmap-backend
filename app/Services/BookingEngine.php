@@ -36,7 +36,7 @@ class BookingEngine
             ]);
         }
 
-        $price = round((float) $businessPrice->price, 2);
+        $price = $this->resolvePrice($businessPrice);
 
         $platformFee = $this->calculatePlatformFee(
             service: $service,
@@ -157,6 +157,17 @@ class BookingEngine
             ->first();
     }
 
+    protected function resolvePrice(BusinessServicePrice $businessPrice): float
+    {
+        $price = $businessPrice->price ?? null;
+
+        if ($price === null || (float) $price <= 0) {
+            $price = $businessPrice->base_price ?? 0;
+        }
+
+        return round((float) $price, 2);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Fees
@@ -165,14 +176,7 @@ class BookingEngine
 
     protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
     {
-        if ($childId <= 0 || $serviceId <= 0) {
-            return null;
-        }
-
-        return CategoryChildServiceFee::query()
-            ->forPair($childId, $serviceId)
-            ->active(1)
-            ->first();
+        return CategoryChildServiceFee::activeForPair($childId, $serviceId);
     }
 
     protected function buildFeeSnapshot(
@@ -181,20 +185,26 @@ class BookingEngine
         int $childId,
         int $serviceId
     ): array {
+        $businessSnapshot = $feeRow
+            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
+            : null;
+
+        $clientSnapshot = $feeRow
+            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT)
+            : null;
+
         return [
             'business_id' => $businessId,
             'child_id' => $childId,
             'service_id' => $serviceId,
             'platform_service_id' => $serviceId,
-            'fee_code' => WalletFeeService::DEFAULT_FEE_CODE,
 
-            'business' => $feeRow
-                ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
-                : null,
+            'fee_code' => CategoryChildServiceFee::DEFAULT_FEE_CODE,
+            'fee_row_id' => $feeRow ? (int) $feeRow->id : null,
+            'category_child_service_fee_id' => $feeRow ? (int) $feeRow->id : null,
 
-            'client' => $feeRow
-                ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT)
-                : null,
+            'business' => $businessSnapshot,
+            'client' => $clientSnapshot,
         ];
     }
 

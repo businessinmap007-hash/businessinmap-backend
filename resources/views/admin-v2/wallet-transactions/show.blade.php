@@ -41,8 +41,12 @@
     $businessId = method_exists($tx, 'businessId') ? ($tx->businessId() ?: null) : data_get($metaArr, 'business_id');
     $clientId = method_exists($tx, 'clientId') ? ($tx->clientId() ?: null) : data_get($metaArr, 'client_id');
     $childId = method_exists($tx, 'childId') ? ($tx->childId() ?: null) : data_get($metaArr, 'child_id');
-    $feeRowId = method_exists($tx, 'categoryChildServiceFeeId') ? ($tx->categoryChildServiceFeeId() ?: null) : data_get($metaArr, 'category_child_service_fee_id');
-
+$feeRowId = method_exists($tx, 'feeRowId')
+    ? ($tx->feeRowId() ?: null)
+    : (
+        method_exists($tx, 'categoryChildServiceFeeId') ? ($tx->categoryChildServiceFeeId() ?: null): (data_get($metaArr, 'fee_row_id')
+                ?: data_get($metaArr, 'category_child_service_fee_id')
+                ?: data_get($metaArr, 'service_fee_id')));
     $bookingUrl = $bookingId ? route('admin.bookings.show', $bookingId) : null;
 
     $metaPretty = !empty($metaArr)
@@ -254,76 +258,6 @@
     </div>
 </div>
 
-<style>
-.tx-grid{
-    display:grid;
-    grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr);
-    gap:16px;
-}
-.tx-card{
-    padding:18px;
-}
-.tx-kv{
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px;
-    margin-top:12px;
-}
-.tx-kv-4{
-    grid-template-columns:repeat(4,minmax(0,1fr));
-}
-.tx-kv > div{
-    background:#f8fafc;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:12px 14px;
-    min-width:0;
-}
-.tx-kv span{
-    display:block;
-    font-size:12px;
-    color:#6b7280;
-    margin-bottom:6px;
-}
-.tx-kv strong{
-    display:block;
-    font-size:14px;
-    font-weight:800;
-    line-height:1.5;
-    word-break:break-word;
-}
-.tx-note{
-    background:#f8fafc;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:14px;
-    margin-top:12px;
-    white-space:pre-wrap;
-}
-.tx-json{
-    margin-top:12px;
-    padding:14px;
-    background:#0f172a;
-    color:#e5e7eb;
-    border-radius:14px;
-    overflow:auto;
-    direction:ltr;
-    text-align:left;
-    font-size:13px;
-    line-height:1.6;
-}
-@media(max-width:1100px){
-    .tx-grid,
-    .tx-kv-4{
-        grid-template-columns:1fr;
-    }
-}
-@media(max-width:700px){
-    .tx-kv{
-        grid-template-columns:1fr;
-    }
-}
-</style>
 
 <script>
 document.addEventListener('click', function(e){

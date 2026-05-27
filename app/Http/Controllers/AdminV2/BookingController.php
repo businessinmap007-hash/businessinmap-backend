@@ -11,6 +11,7 @@ use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
 use App\Services\BookingDepositService;
 use App\Services\ServiceExecutionEngine;
+use App\Models\CategoryChildServiceFee;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
-    private const EXECUTION_FEE_CODE = 'booking_execution';
+    private const EXECUTION_FEE_CODE = CategoryChildServiceFee::DEFAULT_FEE_CODE;
 
     public function __construct(
         protected BookingDepositService $bookingDepositService,
@@ -813,12 +814,12 @@ class BookingController extends Controller
     {
         $this->serviceExecutionEngine->moveBookingToInProgress($booking);
     }
-
+////////////////
     protected function chargeExecutionFeeSplitOnce(Booking $booking): void
     {
         $this->serviceExecutionEngine->chargeExecutionFeeOnce($booking);
     }
-
+/////////////////
     protected function resolveSelectedBookable(
         int $businessId,
         int $serviceId,

@@ -297,6 +297,21 @@ class WalletTransaction extends Model
             $id = $this->metaValue('service_fee_id');
         }
 
+        if (! $id) {
+            $id = $this->metaValue('fee_row_id');
+        }
+
+        return $id ? (int) $id : null;
+    }
+
+    public function feeRowId(): ?int
+    {
+        $id = $this->metaValue('fee_row_id');
+
+        if (! $id) {
+            $id = $this->categoryChildServiceFeeId();
+        }
+
         return $id ? (int) $id : null;
     }
 

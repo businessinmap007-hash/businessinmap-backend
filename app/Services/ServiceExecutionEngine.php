@@ -204,10 +204,14 @@ class ServiceExecutionEngine
         }
 
         $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
+
         $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
         $meta['_execution_fee']['child_id'] = (int) ($calc['business_child_id'] ?? 0);
         $meta['_execution_fee']['service_id'] = (int) ($calc['service_id'] ?? 0);
         $meta['_execution_fee']['platform_service_id'] = (int) ($calc['platform_service_id'] ?? $calc['service_id'] ?? 0);
+
+        $meta['_execution_fee']['fee_row_id'] = $feeSnapshot['fee_row_id'] ?? null;
+        $meta['_execution_fee']['category_child_service_fee_id'] = $feeSnapshot['category_child_service_fee_id'] ?? null;
 
         $meta['_execution_fee']['snapshot'] = [
             'business' => $feeSnapshot['business'] ?? null,
@@ -305,6 +309,8 @@ class ServiceExecutionEngine
                 'direction' => (string) $tx->direction,
                 'status' => (string) $tx->status,
                 'category_child_service_fee_id' => data_get($tx->meta, 'category_child_service_fee_id'),
+                'service_fee_id' => data_get($tx->meta, 'service_fee_id'),
+                'fee_row_id' => data_get($tx->meta, 'fee_row_id'),
             ];
         }
 
@@ -350,6 +356,11 @@ class ServiceExecutionEngine
         }
 
         $unitPrice = round((float) ($businessPrice->price ?? 0), 2);
+
+        if ($unitPrice <= 0 && isset($businessPrice->base_price)) {
+            $unitPrice = round((float) ($businessPrice->base_price ?? 0), 2);
+        }
+
         $originalPrice = round($unitPrice * $quantity, 2);
 
         $discountEnabled = (bool) ($businessPrice->discount_enabled ?? false);
@@ -460,10 +471,16 @@ class ServiceExecutionEngine
             ? $booking->bookable
             : null;
 
+        $price = (float) ($booking->price ?? 0);
+
+        if ($price <= 0) {
+            $price = (float) ($booking->total_price ?? 0);
+        }
+
         return $this->resolveDepositPolicy(
             service: $booking->service,
             businessPrice: $businessPrice,
-            price: (float) $booking->price,
+            price: $price,
             bookable: $bookable
         );
     }
@@ -559,7 +576,11 @@ class ServiceExecutionEngine
             'child_id' => $childId,
             'service_id' => $serviceId,
             'platform_service_id' => $serviceId,
+
             'fee_code' => self::EXECUTION_FEE_CODE,
+            'fee_row_id' => $row ? (int) $row->id : null,
+            'category_child_service_fee_id' => $row ? (int) $row->id : null,
+
             'business' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS) : null,
             'client' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT) : null,
         ];
@@ -567,14 +588,7 @@ class ServiceExecutionEngine
 
     protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
     {
-        if ($childId <= 0 || $serviceId <= 0) {
-            return null;
-        }
-
-        return CategoryChildServiceFee::query()
-            ->forPair($childId, $serviceId)
-            ->active(1)
-            ->first();
+        return CategoryChildServiceFee::activeForPair($childId, $serviceId);
     }
 
     /*

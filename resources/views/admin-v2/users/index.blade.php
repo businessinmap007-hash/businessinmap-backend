@@ -235,6 +235,11 @@
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.users.edit', $row->id) }}">
                                         تعديل
                                     </a>
+                                    @if(Route::has('admin.user-service-fee-consents.edit'))
+                                        <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.user-service-fee-consents.edit', $row) }}">
+                                            الرسوم
+                                        </a>
+                                    @endif
 
                                     <form method="POST" action="{{ route('admin.users.destroy', $row->id) }}" onsubmit="return confirm('حذف المستخدم؟');">
                                         @csrf

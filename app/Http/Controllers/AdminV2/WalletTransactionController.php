@@ -124,6 +124,10 @@ final class WalletTransactionController extends Controller
                 ->orWhere('meta->fee_code', 'like', "%{$q}%")
                 ->orWhere('meta->payer', 'like', "%{$q}%")
                 ->orWhere('meta->context', 'like', "%{$q}%")
+                ->orWhere('meta->fee_row_id', 'like', "%{$q}%")
+                ->orWhere('meta->service_fee_id', 'like', "%{$q}%")
+                ->orWhere('meta->category_child_service_fee_id', 'like', "%{$q}%")
+                
                 ->orWhereHas('user', function ($u) use ($q) {
                     $u->where('name', 'like', "%{$q}%");
                 })

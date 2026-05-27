@@ -222,30 +222,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
         | Category Child Options
         |--------------------------------------------------------------------------
         */
-        Route::prefix('category-child-options')
-    ->name('category-child-options.')
-    ->group(function () {
+       Route::prefix('category-child-options')
+        ->name('category-child-options.')
+        ->group(function () {
 
-        Route::get(
-            '{categoryChild}/edit',
-            [CategoryChildOptionController::class, 'edit']
-        )->name('edit');
+            Route::get('bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])
+                ->name('bulk.edit');
 
-        Route::put(
-            '{categoryChild}',
-            [CategoryChildOptionController::class, 'update']
-        )->name('update');
+            Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])
+                ->name('bulk.update');
 
-        Route::get(
-            'bulk/edit',
-            [CategoryChildOptionController::class, 'bulkEdit']
-        )->name('bulk.edit');
+            Route::get('{categoryChild}/edit', [CategoryChildOptionController::class, 'edit'])
+                ->whereNumber('categoryChild')
+                ->name('edit');
 
-        Route::post(
-            'bulk/update',
-            [CategoryChildOptionController::class, 'bulkUpdate']
-        )->name('bulk.update');
-    });
+            Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])
+                ->whereNumber('categoryChild')
+                ->name('update');
+        });
 
         /*
         |--------------------------------------------------------------------------

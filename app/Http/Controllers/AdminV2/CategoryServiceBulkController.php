@@ -138,7 +138,39 @@ class CategoryServiceBulkController extends Controller
     {
         $rootId = (int) $request->get('root_id', 0);
 
-        return redirect()->route('admin.categories.index', $rootId > 0 ? ['root_id' => $rootId] : []);
+        $roots = Category::query()
+            ->where('parent_id', 0)
+            ->with([
+                'children' => function ($q) {
+                    $q->select('category_children_master.id', 'name_ar', 'name_en', 'reorder')
+                        ->orderByRaw('COALESCE(category_children_master.reorder, 999999) ASC')
+                        ->orderBy('category_children_master.name_ar')
+                        ->orderBy('category_children_master.id');
+                },
+            ])
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->filter(fn ($root) => $root->children->isNotEmpty())
+            ->values();
+
+        $activeRootId = $rootId > 0
+            ? $rootId
+            : (int) optional($roots->first())->id;
+
+        $services = PlatformService::query()
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->orderBy('name_en')
+            ->orderBy('id')
+            ->get(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent']);
+
+        return view('admin-v2.categories.services-bulk', [
+            'roots' => $roots,
+            'services' => $services,
+            'rootId' => $activeRootId,
+        ]);
     }
 
     public function apply(Request $request): RedirectResponse

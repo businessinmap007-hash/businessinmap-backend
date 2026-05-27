@@ -73,15 +73,47 @@ class CategoryChildServiceFeeBulkController extends Controller
     {
         $parentId = (int) $request->get('parent_id', 0);
 
+        $childIds = $this->normalizeIds($request->get('child_ids', []));
+
+        if ($parentId <= 0) {
+            $parent = Category::query()
+                ->where('parent_id', 0)
+                ->orderByRaw('COALESCE(reorder, 999999) ASC')
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->first(['id', 'name_ar', 'name_en', 'parent_id']);
+
+            if (! $parent) {
+                return redirect()
+                    ->route('admin.categories.index')
+                    ->withErrors([
+                        'parent_id' => 'لا يوجد أي قسم رئيسي متاح.',
+                    ]);
+            }
+
+            $parentId = (int) $parent->id;
+        }
+
         $parent = $this->resolveParentOrAbort($parentId);
 
-        $childIds = $this->normalizeIds($request->get('child_ids', []));
+        if (empty($childIds)) {
+            $childIds = CategoryChild::query()
+                ->whereHas('parents', function ($q) use ($parentId) {
+                    $q->where('categories.id', $parentId);
+                })
+                ->orderByRaw('COALESCE(reorder, 999999) ASC')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
 
         if (empty($childIds)) {
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
                 ->withErrors([
-                    'child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.',
+                    'child_ids' => 'لا توجد أقسام فرعية مرتبطة بهذا القسم الرئيسي.',
                 ]);
         }
 

@@ -8,6 +8,7 @@ use App\Models\BusinessServicePrice;
 use App\Models\CategoryChildServiceFee;
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -90,19 +91,51 @@ class PlatformServiceController extends Controller
 
     public function destroy(PlatformService $platformService)
     {
-        $usage = $this->serviceUsageCounts($platformService);
+        $serviceId = (int) $platformService->id;
 
-        if ($usage['total'] > 0) {
+        $bookingsCount = Booking::query()
+            ->where('service_id', $serviceId)
+            ->count();
+
+        if ($bookingsCount > 0) {
             return redirect()
                 ->route('admin.platform-services.index')
-                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مستخدمة حاليًا. يمكنك تعطيلها بدلًا من حذفها.');
+                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مرتبطة بحجوزات. يمكنك تعطيلها بدلًا من حذفها.');
         }
 
-        $platformService->delete();
+        $businessPricesCount = BusinessServicePrice::query()
+            ->where('service_id', $serviceId)
+            ->count();
+
+        if ($businessPricesCount > 0) {
+            return redirect()
+                ->route('admin.platform-services.index')
+                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مرتبطة بأسعار بزنس. احذف أسعار البزنس أولًا أو عطّل الخدمة.');
+        }
+
+        DB::transaction(function () use ($platformService, $serviceId) {
+            DB::table('category_service_configs')
+                ->where('platform_service_id', $serviceId)
+                ->delete();
+
+            DB::table('user_platform_service')
+                ->where('platform_service_id', $serviceId)
+                ->delete();
+
+            CategoryPlatformService::query()
+                ->where('platform_service_id', $serviceId)
+                ->delete();
+
+            CategoryChildServiceFee::query()
+                ->where('platform_service_id', $serviceId)
+                ->delete();
+
+            $platformService->delete();
+        });
 
         return redirect()
             ->route('admin.platform-services.index')
-            ->with('success', 'تم حذف خدمة النظام بنجاح.');
+            ->with('success', 'تم حذف خدمة النظام وتنظيف كل روابطها بنجاح.');
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array

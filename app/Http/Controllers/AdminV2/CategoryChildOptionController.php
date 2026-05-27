@@ -166,35 +166,75 @@ class CategoryChildOptionController extends Controller
             ->values()
             ->all();
 
-        if (empty($childIds)) {
-            abort(404);
-        }
-
-        $children = CategoryChild::query()
-            ->with('parents:id,name_ar,name_en')
-            ->whereIn('id', $childIds)
+        /*
+        |--------------------------------------------------------------------------
+        | Root Categories + Children
+        |--------------------------------------------------------------------------
+        */
+        $roots = Category::query()
+            ->where('parent_id', 0)
+            ->with([
+                'children' => function ($q) use ($childIds) {
+                    $q->select('category_children_master.id', 'name_ar', 'name_en', 'reorder')
+                        ->when(! empty($childIds), function ($sub) use ($childIds) {
+                            $sub->whereIn('category_children_master.id', $childIds);
+                        })
+                        ->orderByRaw('COALESCE(category_children_master.reorder, 999999) ASC')
+                        ->orderBy('category_children_master.name_ar')
+                        ->orderBy('category_children_master.id');
+                },
+            ])
             ->orderByRaw('COALESCE(reorder, 999999) ASC')
             ->orderBy('name_ar')
             ->orderBy('id')
-            ->get(['id', 'name_ar', 'name_en', 'reorder']);
+            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->filter(fn ($root) => $root->children->isNotEmpty())
+            ->values();
 
-        $options = Option::query()
-            ->when($this->hasIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-            ->ordered()
-            ->get(['id', 'name_ar', 'name_en']);
+        $activeRootId = $parentId > 0
+            ? $parentId
+            : (int) optional($roots->first())->id;
 
         $parent = null;
-        if ($parentId > 0) {
+        if ($activeRootId > 0) {
             $parent = Category::query()
                 ->where('parent_id', 0)
-                ->find($parentId, ['id', 'name_ar', 'name_en']);
+                ->find($activeRootId, ['id', 'name_ar', 'name_en']);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Option Groups + Options
+        |--------------------------------------------------------------------------
+        */
+        $optionGroups = OptionGroup::query()
+            ->where('is_active', 1)
+            ->with([
+                'options' => function ($q) {
+                    $q->select('id', 'group_id', 'name_ar', 'name_en')
+                        ->when($this->hasIsActiveColumn(), fn ($sub) => $sub->where('is_active', 1))
+                        ->orderBy('id');
+                },
+            ])
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->filter(fn ($group) => $group->options->isNotEmpty())
+            ->values();
+
+        $ungroupedOptions = Option::query()
+            ->when($this->hasIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
+            ->whereNull('group_id')
+            ->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en', 'group_id']);
+
         return view('admin-v2.category-children.options.bulk', [
-            'children' => $children,
-            'options' => $options,
-            'parentId' => $parentId,
+            'roots' => $roots,
+            'optionGroups' => $optionGroups,
+            'ungroupedOptions' => $ungroupedOptions,
+            'parentId' => $activeRootId,
             'parent' => $parent,
+            'selectedChildIds' => $childIds,
         ]);
     }
 

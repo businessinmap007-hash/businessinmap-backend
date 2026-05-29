@@ -1,24 +1,54 @@
 @php
     use Illuminate\Support\Facades\Route;
 
-    $currentRoute = Route::currentRouteName();
+    $currentRoute = (string) Route::currentRouteName();
 
-    $isActive = function (array $item) use ($currentRoute) {
+    $startsWithAny = function (string $value, array $prefixes): bool {
+        foreach ($prefixes as $prefix) {
+            $prefix = (string) $prefix;
+
+            if ($prefix !== '' && str_starts_with($value, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    $matchesAnyRoute = function (string $value, array $routes): bool {
+        foreach ($routes as $route) {
+            if ($value === (string) $route) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    $isActive = function (array $item) use ($currentRoute, $startsWithAny, $matchesAnyRoute) {
+        if (! empty($item['active_routes']) && is_array($item['active_routes'])) {
+            return $matchesAnyRoute($currentRoute, $item['active_routes']);
+        }
+
+        if (! empty($item['active']) && is_array($item['active'])) {
+            return $startsWithAny($currentRoute, $item['active']);
+        }
+
+        if (! empty($item['active']) && is_string($item['active'])) {
+            return str_starts_with($currentRoute, (string) $item['active']);
+        }
+
         $route = $item['route'] ?? null;
 
         if (! $route) {
             return false;
         }
 
-        if (! empty($item['active']) && is_string($item['active'])) {
-            return str_starts_with((string) $currentRoute, (string) $item['active']);
-        }
-
         if ($currentRoute === $route) {
             return true;
         }
 
-        return str_starts_with((string) $currentRoute, rtrim($route, '.') . '.');
+        return str_starts_with($currentRoute, rtrim((string) $route, '.') . '.');
     };
 
     $ico = function (?string $key) {
@@ -37,6 +67,7 @@
             'shield' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M12 2 20 6v6c0 5-3.4 9.7-8 10-4.6-.3-8-5-8-10V6l8-4Z"/></svg>',
             'settings' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.21.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>',
             'money' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm2 3a3 3 0 0 1-3 3v2a3 3 0 0 1 3 3h14a3 3 0 0 1 3-3v-2a3 3 0 0 1-3-3H5Zm7 7a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>',
+            'wallet' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M3 6a3 3 0 0 1 3-3h13a2 2 0 0 1 2 2v3h-2V5H6a1 1 0 0 0 0 2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V6Zm15 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',
             'dot' => '<span class="a2-nav-dot"></span>',
         ];
 
@@ -44,162 +75,243 @@
     };
 
     $menu = [
-        ['type' => 'section', 'label' => 'Main'],
         [
             'label' => 'Dashboard',
             'route' => 'admin.dashboard',
             'icon' => 'dashboard',
-            'active' => 'admin.dashboard',
+            'active_routes' => ['admin.dashboard'],
         ],
 
-        ['type' => 'section', 'label' => 'Users'],
         [
             'label' => 'Users',
             'route' => 'admin.users.index',
             'icon' => 'users',
             'active' => 'admin.users.',
+            'children' => [
+                [
+                    'label' => 'All Users',
+                    'route' => 'admin.users.index',
+                    'active_routes' => [
+                        'admin.users.index',
+                        'admin.users.show',
+                        'admin.users.edit',
+                    ],
+                ],
+            ],
         ],
 
-        ['type' => 'section', 'label' => 'Categories & Options'],
         [
             'label' => 'Categories',
             'route' => 'admin.categories.index',
             'icon' => 'folder',
-            'active' => 'admin.categories.',
-            'children' => [
-                ['label' => 'Root Categories', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
-                ['label' => 'Category Children', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
-                ['label' => 'Category Services Bulk', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
-                ['label' => 'Category Child Options', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+            'active' => [
+                'admin.categories.',
+                'admin.category-children.',
+                'admin.category-child-options.',
+                'admin.category-child-service-fees.',
+                'admin.options.',
+                'admin.option-groups.',
             ],
-        ],
-        [
-            'label' => 'Options',
-            'route' => 'admin.options.index',
-            'icon' => 'settings',
-            'active' => 'admin.options.',
             'children' => [
-                ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
-                ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
+                [
+                    'label' => 'Root Categories',
+                    'route' => 'admin.categories.index',
+                    'active_routes' => [
+                        'admin.categories.index',
+                        'admin.categories.create',
+                        'admin.categories.edit',
+                    ],
+                ],
+                [
+                    'label' => 'Category Children',
+                    'route' => 'admin.category-children.index',
+                    'active' => 'admin.category-children.',
+                ],
+                [
+                    'label' => 'Category Services Bulk',
+                    'route' => 'admin.categories.services-bulk.index',
+                    'active' => 'admin.categories.services-bulk.',
+                ],
+                [
+                    'label' => 'Category Child Options',
+                    'route' => 'admin.category-child-options.bulk.edit',
+                    'active' => 'admin.category-child-options.',
+                ],
+                [
+                    'label' => 'Options',
+                    'route' => 'admin.options.index',
+                    'active' => 'admin.options.',
+                ],
+                [
+                    'label' => 'Option Groups',
+                    'route' => 'admin.option-groups.index',
+                    'active' => 'admin.option-groups.',
+                ],
             ],
         ],
 
-        ['type' => 'section', 'label' => 'Platform & Services'],
         [
-            'label' => 'Platform Services',
+            'label' => 'Services',
             'route' => 'admin.platform-services.index',
             'icon' => 'settings',
-            'active' => 'admin.platform-services.',
-            'children' => [
-                ['label' => 'All Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.index'],
-                ['label' => 'Create Platform Service', 'route' => 'admin.platform-services.create', 'active' => 'admin.platform-services.create'],
+            'active' => [
+                'admin.platform-services.',
+                'admin.business_service_prices.',
             ],
-        ],
-        [
-            'label' => 'Service Fees',
-            'route' => 'admin.category-child-service-fees.bulk.edit',
-            'icon' => 'money',
-            'active' => 'admin.category-child-service-fees.',
             'children' => [
-                ['label' => 'Bulk Service Fees', 'route' => 'admin.category-child-service-fees.bulk.edit', 'active' => 'admin.category-child-service-fees.bulk.'],
-            ],
-        ],
-        [
-            'label' => 'Business Service Prices',
-            'route' => 'admin.business_service_prices.index',
-            'icon' => 'money',
-            'active' => 'admin.business_service_prices.',
-            'children' => [
-                ['label' => 'All Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.index'],
-                ['label' => 'Create Price', 'route' => 'admin.business_service_prices.create', 'active' => 'admin.business_service_prices.create'],
-            ],
-        ],
-        [
-            'label' => 'Bookable Items',
-            'route' => 'admin.bookable-items.index',
-            'icon' => 'folder',
-            'active' => 'admin.bookable-items.',
-            'children' => [
-                ['label' => 'All Bookable Items', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.index'],
-                ['label' => 'Create Bookable Item', 'route' => 'admin.bookable-items.create', 'active' => 'admin.bookable-items.create'],
-                ['label' => 'Bulk Operations', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
+                [
+                    'label' => 'Platform Services',
+                    'route' => 'admin.platform-services.index',
+                    'active_routes' => [
+                        'admin.platform-services.index',
+                        'admin.platform-services.edit',
+                    ],
+                ],
+                [
+                    'label' => 'Create Platform Service',
+                    'route' => 'admin.platform-services.create',
+                    'active_routes' => ['admin.platform-services.create'],
+                ],
+                [
+                    'label' => 'Business Service Prices',
+                    'route' => 'admin.business_service_prices.index',
+                    'active_routes' => [
+                        'admin.business_service_prices.index',
+                        'admin.business_service_prices.edit',
+                    ],
+                ],
+                [
+                    'label' => 'Create Business Price',
+                    'route' => 'admin.business_service_prices.create',
+                    'active_routes' => ['admin.business_service_prices.create'],
+                ],
             ],
         ],
 
-        ['type' => 'section', 'label' => 'Bookings'],
         [
             'label' => 'Bookings',
             'route' => 'admin.bookings.index',
             'icon' => 'ticket',
-            'active' => 'admin.bookings.',
+            'active' => [
+                'admin.bookings.',
+                'admin.bookable-items.',
+                'admin.disputes.',
+            ],
             'children' => [
-                ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.index'],
-                ['label' => 'Create Booking', 'route' => 'admin.bookings.create', 'active' => 'admin.bookings.create'],
+                [
+                    'label' => 'All Bookings',
+                    'route' => 'admin.bookings.index',
+                    'active_routes' => [
+                        'admin.bookings.index',
+                        'admin.bookings.show',
+                        'admin.bookings.edit',
+                    ],
+                ],
+                [
+                    'label' => 'Create Booking',
+                    'route' => 'admin.bookings.create',
+                    'active_routes' => ['admin.bookings.create'],
+                ],
+                [
+                    'label' => 'Bookable Items',
+                    'route' => 'admin.bookable-items.index',
+                    'active_routes' => [
+                        'admin.bookable-items.index',
+                        'admin.bookable-items.show',
+                        'admin.bookable-items.edit',
+                    ],
+                ],
+                [
+                    'label' => 'Create Bookable Item',
+                    'route' => 'admin.bookable-items.create',
+                    'active_routes' => ['admin.bookable-items.create'],
+                ],
+                [
+                    'label' => 'Bookable Bulk Operations',
+                    'route' => 'admin.bookable-items.bulk.index',
+                    'active' => 'admin.bookable-items.bulk.',
+                ],
+                [
+                    'label' => 'Disputes',
+                    'route' => 'admin.disputes.index',
+                    'active' => 'admin.disputes.',
+                ],
             ],
         ],
-        [
-            'label' => 'Disputes',
-            'route' => 'admin.disputes.index',
-            'icon' => 'shield',
-            'active' => 'admin.disputes.',
-        ],
 
-        ['type' => 'section', 'label' => 'Wallet & Finance'],
         [
-            'label' => 'Wallet Transactions',
+            'label' => 'Wallet & Finance',
             'route' => 'admin.wallet-transactions.index',
-            'icon' => 'credit',
-            'active' => 'admin.wallet-transactions.',
-        ],
-        [
-            'label' => 'Wallet Recharge',
-            'route' => 'admin.wallet-ops.recharge.form',
-            'icon' => 'money',
-            'active' => 'admin.wallet-ops.',
-        ],
-        [
-            'label' => 'Wallet Notes',
-            'route' => 'admin.wallet-notes.index',
-            'icon' => 'file',
-            'active' => 'admin.wallet-notes.',
-        ],
-        [
-            'label' => 'Payments',
-            'route' => 'admin.payments.index',
-            'icon' => 'credit',
-            'active' => 'admin.payments.',
-        ],
-        [
-            'label' => 'Subscriptions',
-            'route' => 'admin.subscriptions.index',
-            'icon' => 'file',
-            'active' => 'admin.subscriptions.',
+            'icon' => 'wallet',
+            'active' => [
+                'admin.wallet-transactions.',
+                'admin.wallet-ops.',
+                'admin.wallet-notes.',
+                'admin.payments.',
+                'admin.subscriptions.',
+            ],
+            'children' => [
+                [
+                    'label' => 'Wallet Transactions',
+                    'route' => 'admin.wallet-transactions.index',
+                    'active' => 'admin.wallet-transactions.',
+                ],
+                [
+                    'label' => 'Wallet Recharge',
+                    'route' => 'admin.wallet-ops.recharge.form',
+                    'active' => 'admin.wallet-ops.',
+                ],
+                [
+                    'label' => 'Wallet Notes',
+                    'route' => 'admin.wallet-notes.index',
+                    'active' => 'admin.wallet-notes.',
+                ],
+                [
+                    'label' => 'Payments',
+                    'route' => 'admin.payments.index',
+                    'active' => 'admin.payments.',
+                ],
+                [
+                    'label' => 'Subscriptions',
+                    'route' => 'admin.subscriptions.index',
+                    'active' => 'admin.subscriptions.',
+                ],
+            ],
         ],
 
-        ['type' => 'section', 'label' => 'Content'],
+
         [
-            'label' => 'Posts',
+            'label' => 'Content',
             'route' => 'admin.posts.index',
             'icon' => 'file',
-            'active' => 'admin.posts.',
-        ],
-        [
-            'label' => 'Jobs',
-            'route' => 'admin.jobs.index',
-            'icon' => 'briefcase',
-            'active' => 'admin.jobs.',
-        ],
-        [
-            'label' => 'Sponsors',
-            'route' => 'admin.sponsors.index',
-            'icon' => 'megaphone',
-            'active' => 'admin.sponsors.',
-        ],
-        [
-            'label' => 'Albums',
-            'route' => 'admin.albums.index',
-            'icon' => 'image',
-            'active' => 'admin.albums.',
+            'active' => [
+                'admin.posts.',
+                'admin.jobs.',
+                'admin.sponsors.',
+                'admin.albums.',
+            ],
+            'children' => [
+                [
+                    'label' => 'Posts',
+                    'route' => 'admin.posts.index',
+                    'active' => 'admin.posts.',
+                ],
+                [
+                    'label' => 'Jobs',
+                    'route' => 'admin.jobs.index',
+                    'active' => 'admin.jobs.',
+                ],
+                [
+                    'label' => 'Sponsors',
+                    'route' => 'admin.sponsors.index',
+                    'active' => 'admin.sponsors.',
+                ],
+                [
+                    'label' => 'Albums',
+                    'route' => 'admin.albums.index',
+                    'active' => 'admin.albums.',
+                ],
+            ],
         ],
     ];
 @endphp

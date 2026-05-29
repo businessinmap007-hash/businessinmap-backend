@@ -28,6 +28,12 @@ class CategoryServiceConfig extends Model
         'sort_order' => 'integer',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Relations
+    |--------------------------------------------------------------------------
+    */
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'category_id');
@@ -48,6 +54,17 @@ class CategoryServiceConfig extends Model
         return $this->belongsTo(PlatformService::class, 'platform_service_id');
     }
 
+    public function service(): BelongsTo
+    {
+        return $this->platformService();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
+
     public function scopeActive(Builder $query, $value = true): Builder
     {
         if ($value === null || $value === '') {
@@ -63,7 +80,7 @@ class CategoryServiceConfig extends Model
             return $query;
         }
 
-        return $query->where('category_id', $categoryId);
+        return $query->where('category_id', (int) $categoryId);
     }
 
     public function scopeForChild(Builder $query, ?int $childId): Builder
@@ -72,7 +89,23 @@ class CategoryServiceConfig extends Model
             return $query;
         }
 
-        return $query->where('child_id', $childId);
+        return $query->where('child_id', (int) $childId);
+    }
+
+    public function scopeForChildren(Builder $query, array $childIds): Builder
+    {
+        $childIds = collect($childIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($childIds)) {
+            return $query;
+        }
+
+        return $query->whereIn('child_id', $childIds);
     }
 
     public function scopeForService(Builder $query, ?int $serviceId): Builder
@@ -81,19 +114,150 @@ class CategoryServiceConfig extends Model
             return $query;
         }
 
-        return $query->where('platform_service_id', $serviceId);
+        return $query->where('platform_service_id', (int) $serviceId);
+    }
+
+    public function scopeForServices(Builder $query, array $serviceIds): Builder
+    {
+        $serviceIds = collect($serviceIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($serviceIds)) {
+            return $query;
+        }
+
+        return $query->whereIn('platform_service_id', $serviceIds);
+    }
+
+    public function scopeForPair(Builder $query, ?int $childId, ?int $serviceId): Builder
+    {
+        return $query
+            ->forChild($childId)
+            ->forService($serviceId);
+    }
+
+    public function scopeForRootChild(Builder $query, ?int $rootId, ?int $childId): Builder
+    {
+        return $query
+            ->forCategory($rootId)
+            ->forChild($childId);
     }
 
     public function scopeOrdered(Builder $query): Builder
     {
-        return $query->orderBy('sort_order')->orderBy('id');
+        return $query
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Finders
+    |--------------------------------------------------------------------------
+    */
+
+    public static function activeForPair(int $childId, int $serviceId): ?self
+    {
+        if ($childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return static::query()
+            ->active(1)
+            ->forPair($childId, $serviceId)
+            ->ordered()
+            ->first();
+    }
+
+    public static function activeForRootChild(int $rootId, int $childId, int $serviceId): ?self
+    {
+        if ($rootId <= 0 || $childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return static::query()
+            ->active(1)
+            ->forCategory($rootId)
+            ->forPair($childId, $serviceId)
+            ->ordered()
+            ->first();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Config Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function configArray(): array
+    {
+        return is_array($this->config) ? $this->config : [];
     }
 
     public function getValue(string $key, mixed $default = null): mixed
     {
-        $config = is_array($this->config) ? $this->config : [];
+        return data_get($this->configArray(), $key, $default);
+    }
 
-        return data_get($config, $key, $default);
+    public function hasValue(string $key): bool
+    {
+        return data_get($this->configArray(), $key) !== null;
+    }
+
+    public function boolValue(string $key, bool $default = false): bool
+    {
+        $value = $this->getValue($key, $default);
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    public function intValue(string $key, int $default = 0): int
+    {
+        return (int) $this->getValue($key, $default);
+    }
+
+    public function stringValue(string $key, ?string $default = null): ?string
+    {
+        $value = $this->getValue($key, $default);
+
+        if ($value === null) {
+            return $default;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : $default;
+    }
+
+    public function arrayValue(string $key, array $default = []): array
+    {
+        $value = $this->getValue($key, $default);
+
+        if (! is_array($value)) {
+            return $default;
+        }
+
+        return collect($value)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter(fn ($item) => $item !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
     }
 
     public function isChildLevel(): bool
@@ -104,5 +268,25 @@ class CategoryServiceConfig extends Model
     public function isCategoryLevel(): bool
     {
         return (int) ($this->category_id ?? 0) > 0;
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        $root = $this->category?->name_ar
+            ?: $this->category?->name_en
+            ?: ('Root #' . $this->category_id);
+
+        $child = $this->child?->display_name
+            ?: $this->child?->name_ar
+            ?: $this->child?->name_en
+            ?: ('Child #' . $this->child_id);
+
+        $service = $this->platformService?->display_name
+            ?: $this->platformService?->name_ar
+            ?: $this->platformService?->name_en
+            ?: $this->platformService?->key
+            ?: ('Service #' . $this->platform_service_id);
+
+        return "{$root} / {$child} / {$service}";
     }
 }

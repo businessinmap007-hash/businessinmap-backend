@@ -11,7 +11,7 @@ class CategoryChildServiceFee extends Model
     protected $table = 'category_child_service_fees';
 
     public const PAYER_BUSINESS = 'business';
-    public const PAYER_CLIENT   = 'client';
+    public const PAYER_CLIENT = 'client';
 
     public const PAYERS = [
         self::PAYER_BUSINESS,
@@ -19,11 +19,26 @@ class CategoryChildServiceFee extends Model
     ];
 
     public const FEE_TYPE_BUSINESS = 'business_fee';
-    public const FEE_TYPE_CLIENT   = 'client_fee';
+    public const FEE_TYPE_CLIENT = 'client_fee';
 
     public const CALC_TYPE_FIXED = 'fixed';
     public const CALC_TYPE_PERCENT = 'percent';
+
+    public const CALC_TYPES = [
+        self::CALC_TYPE_FIXED,
+        self::CALC_TYPE_PERCENT,
+    ];
+
     public const DEFAULT_CURRENCY = 'EGP';
+
+    /*
+    |--------------------------------------------------------------------------
+    | ملاحظة
+    |--------------------------------------------------------------------------
+    | لا نغيّر الكود الآن إلى platform_service_fee حتى لا نكسر أي WalletFeeService
+    | يعتمد على booking_execution. سنراجعه في BIM-6.4.
+    |--------------------------------------------------------------------------
+    */
     public const DEFAULT_FEE_CODE = 'booking_execution';
 
     protected $fillable = [
@@ -45,19 +60,21 @@ class CategoryChildServiceFee extends Model
     ];
 
     protected $casts = [
-        'child_id'              => 'integer',
-        'platform_service_id'   => 'integer',
+        'child_id' => 'integer',
+        'platform_service_id' => 'integer',
 
-        'business_fee_enabled'  => 'boolean',
-        'business_fee_amount'   => 'decimal:2',
+        'business_fee_enabled' => 'boolean',
+        'business_fee_type' => 'string',
+        'business_fee_amount' => 'decimal:2',
 
-        'client_fee_enabled'    => 'boolean',
-        'client_fee_amount'     => 'decimal:2',
+        'client_fee_enabled' => 'boolean',
+        'client_fee_type' => 'string',
+        'client_fee_amount' => 'decimal:2',
 
-        
-
-        'is_active'             => 'boolean',
-        'sort_order'            => 'integer',
+        'currency' => 'string',
+        'is_active' => 'boolean',
+        'sort_order' => 'integer',
+        'notes' => 'string',
     ];
 
     /*
@@ -158,7 +175,8 @@ class CategoryChildServiceFee extends Model
 
     public function scopeChargeable(Builder $query): Builder
     {
-        return $query->where('is_active', 1)
+        return $query
+            ->where('is_active', 1)
             ->where(function ($sub) {
                 $sub->where(function ($q) {
                     $q->where('business_fee_enabled', 1)
@@ -201,14 +219,22 @@ class CategoryChildServiceFee extends Model
 
         return in_array($payer, self::PAYERS, true) ? $payer : null;
     }
+
     public static function normalizeCalcType(?string $type): ?string
     {
         $type = strtolower(trim((string) $type));
 
-        return in_array($type, [
-            self::CALC_TYPE_FIXED,
-            self::CALC_TYPE_PERCENT,
-        ], true) ? $type : null;
+        return in_array($type, self::CALC_TYPES, true) ? $type : null;
+    }
+
+    public function setBusinessFeeTypeAttribute($value): void
+    {
+        $this->attributes['business_fee_type'] = self::normalizeCalcType($value);
+    }
+
+    public function setClientFeeTypeAttribute($value): void
+    {
+        $this->attributes['client_fee_type'] = self::normalizeCalcType($value);
     }
 
     public function setCurrencyAttribute($value): void
@@ -218,6 +244,16 @@ class CategoryChildServiceFee extends Model
         $this->attributes['currency'] = $currency !== ''
             ? mb_substr($currency, 0, 3)
             : self::DEFAULT_CURRENCY;
+    }
+
+    public function setBusinessFeeAmountAttribute($value): void
+    {
+        $this->attributes['business_fee_amount'] = round(max((float) $value, 0), 2);
+    }
+
+    public function setClientFeeAmountAttribute($value): void
+    {
+        $this->attributes['client_fee_amount'] = round(max((float) $value, 0), 2);
     }
 
     /*
@@ -254,8 +290,8 @@ class CategoryChildServiceFee extends Model
 
         return match ($payer) {
             self::PAYER_BUSINESS => (bool) $this->is_active && $this->hasBusinessFee(),
-            self::PAYER_CLIENT   => (bool) $this->is_active && $this->hasClientFee(),
-            default              => false,
+            self::PAYER_CLIENT => (bool) $this->is_active && $this->hasClientFee(),
+            default => false,
         };
     }
 
@@ -290,6 +326,7 @@ class CategoryChildServiceFee extends Model
 
         return 0.00;
     }
+
     protected function calculateAmountByType(?string $type, float $value, float $baseAmount = 0): float
     {
         $type = self::normalizeCalcType($type) ?: self::CALC_TYPE_FIXED;
@@ -331,14 +368,15 @@ class CategoryChildServiceFee extends Model
 
         return self::CALC_TYPE_FIXED;
     }
+
     public function feeTypeFor(string $payer): ?string
     {
         $payer = self::normalizePayer($payer);
 
         return match ($payer) {
             self::PAYER_BUSINESS => self::FEE_TYPE_BUSINESS,
-            self::PAYER_CLIENT   => self::FEE_TYPE_CLIENT,
-            default              => null,
+            self::PAYER_CLIENT => self::FEE_TYPE_CLIENT,
+            default => null,
         };
     }
 
@@ -388,14 +426,14 @@ class CategoryChildServiceFee extends Model
         ];
     }
 
-   public function toWalletFeeLine(
-    string $payer,
-    int $userId,
-    float $baseAmount,
-    int $bookingId,
-    int $businessId,
-    int $clientId,
-    ?string $feeCode = null
+    public function toWalletFeeLine(
+        string $payer,
+        int $userId,
+        float $baseAmount,
+        int $bookingId,
+        int $businessId,
+        int $clientId,
+        ?string $feeCode = null
     ): ?array {
         $payer = self::normalizePayer($payer);
 

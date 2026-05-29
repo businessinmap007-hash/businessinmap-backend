@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AdminV2\{
     AlbumController,
+    Auth\LoginController,
     BookableItemBlockedSlotController,
     BookableItemBulkController,
     BookableItemCalendarController,
@@ -27,12 +28,10 @@ use App\Http\Controllers\AdminV2\{
     SponsorController,
     SubscriptionController,
     UploadController,
-    UserServiceFeeConsentController,
+    Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
-    WalletTransactionController,
-    Users\UserController,
-    Auth\LoginController
+    WalletTransactionController
 };
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -42,13 +41,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
     | Auth (Public)
     |--------------------------------------------------------------------------
     */
-    Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('login', [LoginController::class, 'login'])->name('login.post');
-    Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('login', [LoginController::class, 'showLoginForm'])
+        ->name('login');
+
+    Route::post('login', [LoginController::class, 'login'])
+        ->name('login.post');
+
+    Route::post('logout', [LoginController::class, 'logout'])
+        ->name('logout');
 
     /*
     |--------------------------------------------------------------------------
     | Payments Callback (Public)
+    |--------------------------------------------------------------------------
+    | الأفضل لاحقًا حمايته بتوقيع/secret
     |--------------------------------------------------------------------------
     */
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
@@ -56,12 +62,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Protected Routes (admin.v2)
+    | Protected Routes (Admin V2)
     |--------------------------------------------------------------------------
     */
     Route::middleware(['admin.v2'])->group(function () {
 
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        /*
+        |--------------------------------------------------------------------------
+        | Dashboard
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/', [DashboardController::class, 'index'])
+            ->name('dashboard');
 
         /*
         |--------------------------------------------------------------------------
@@ -77,11 +89,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('users')->name('users.')->group(function () {
-            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::get('/', [UserController::class, 'index'])
+                ->name('index');
 
-            Route::delete('/', [UserController::class, 'bulkDestroy'])->name('bulkDestroy');
-            Route::post('restore', [UserController::class, 'bulkRestore'])->name('bulkRestore');
-            Route::delete('force', [UserController::class, 'bulkForceDelete'])->name('bulkForceDelete');
+            Route::delete('/', [UserController::class, 'bulkDestroy'])
+                ->name('bulkDestroy');
+
+            Route::post('restore', [UserController::class, 'bulkRestore'])
+                ->name('bulkRestore');
+
+            Route::delete('force', [UserController::class, 'bulkForceDelete'])
+                ->name('bulkForceDelete');
 
             Route::get('{user}', [UserController::class, 'show'])
                 ->whereNumber('user')
@@ -114,38 +132,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         /*
         |--------------------------------------------------------------------------
-        | User Service Fee Consents
-        |--------------------------------------------------------------------------
-        */
-        Route::prefix('user-service-fee-consents')
-            ->name('user-service-fee-consents.')
-            ->group(function () {
-                Route::get('{user}/edit', [UserServiceFeeConsentController::class, 'edit'])
-                    ->whereNumber('user')
-                    ->name('edit');
-
-                Route::put('{user}', [UserServiceFeeConsentController::class, 'update'])
-                    ->whereNumber('user')
-                    ->name('update');
-
-                Route::post('{user}/enable-charging', [UserServiceFeeConsentController::class, 'enableCharging'])
-                    ->whereNumber('user')
-                    ->name('enable-charging');
-
-                Route::post('{user}/disable-charging', [UserServiceFeeConsentController::class, 'disableCharging'])
-                    ->whereNumber('user')
-                    ->name('disable-charging');
-            });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Categories
+        | Categories - Root Categories
         |--------------------------------------------------------------------------
         */
         Route::prefix('categories')->name('categories.')->group(function () {
-            Route::get('/', [CategoryController::class, 'index'])->name('index');
-            Route::get('create', [CategoryController::class, 'create'])->name('create');
-            Route::post('/', [CategoryController::class, 'store'])->name('store');
+            Route::get('/', [CategoryController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [CategoryController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [CategoryController::class, 'store'])
+                ->name('store');
 
             Route::get('{category}/edit', [CategoryController::class, 'edit'])
                 ->whereNumber('category')
@@ -174,9 +172,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('category-children')->name('category-children.')->group(function () {
-            Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])->name('index');
-            Route::get('create', [CategoryController::class, 'categoryChildrenCreate'])->name('create');
-            Route::post('/', [CategoryController::class, 'categoryChildrenStore'])->name('store');
+            Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])
+                ->name('index');
+
+            Route::get('create', [CategoryController::class, 'categoryChildrenCreate'])
+                ->name('create');
+
+            Route::post('/', [CategoryController::class, 'categoryChildrenStore'])
+                ->name('store');
 
             Route::post('{parent}/sync', [CategoryController::class, 'syncChildren'])
                 ->whereNumber('parent')
@@ -208,42 +211,41 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('categories/services-bulk')
             ->name('categories.services-bulk.')
             ->group(function () {
-                Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
+                Route::get('/', [CategoryServiceBulkController::class, 'index'])
+                    ->name('index');
 
                 Route::get('apply', function () {
                     return redirect()->route('admin.categories.index');
                 })->name('apply.get');
 
-                Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
+                Route::post('apply', [CategoryServiceBulkController::class, 'apply'])
+                    ->name('apply');
             });
 
-       /*
+        /*
         |--------------------------------------------------------------------------
         | Category Child Options
+        |--------------------------------------------------------------------------
+        | مهم: bulk قبل {categoryChild}
         |--------------------------------------------------------------------------
         */
         Route::prefix('category-child-options')
             ->name('category-child-options.')
             ->group(function () {
-
-                Route::get('bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])
+                Route::get('bulk/edit', function () {return redirect()->route('admin.categories.services-bulk.index');})
                     ->name('bulk.edit');
 
                 Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])
                     ->name('bulk.update');
 
-                Route::get('{categoryChild}/edit', [CategoryChildOptionController::class, 'edit'])
+                Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])
                     ->whereNumber('categoryChild')
                     ->name('edit');
 
                 Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])
                     ->whereNumber('categoryChild')
                     ->name('update');
-                    Route::get('route-test-category-child-options-bulk', function () {
-    return 'admin_v2 loaded';
-});
             });
-            
 
         /*
         |--------------------------------------------------------------------------
@@ -274,8 +276,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('posts')->name('posts.')->group(function () {
-            Route::get('/', [PostController::class, 'index'])->name('index');
-            Route::post('/', [PostController::class, 'store'])->name('store');
+            Route::get('/', [PostController::class, 'index'])
+                ->name('index');
+
+            Route::post('/', [PostController::class, 'store'])
+                ->name('store');
 
             Route::get('{post}', [PostController::class, 'show'])
                 ->whereNumber('post')
@@ -313,8 +318,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('jobs')->name('jobs.')->group(function () {
-            Route::get('/', [JobPostController::class, 'index'])->name('index');
-            Route::post('/', [JobPostController::class, 'store'])->name('store');
+            Route::get('/', [JobPostController::class, 'index'])
+                ->name('index');
+
+            Route::post('/', [JobPostController::class, 'store'])
+                ->name('store');
 
             Route::get('{post}', [JobPostController::class, 'show'])
                 ->whereNumber('post')
@@ -343,9 +351,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('sponsors')->name('sponsors.')->group(function () {
-            Route::get('/', [SponsorController::class, 'index'])->name('index');
-            Route::get('create', [SponsorController::class, 'create'])->name('create');
-            Route::post('/', [SponsorController::class, 'store'])->name('store');
+            Route::get('/', [SponsorController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [SponsorController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [SponsorController::class, 'store'])
+                ->name('store');
 
             Route::get('{sponsor}/edit', [SponsorController::class, 'edit'])
                 ->whereNumber('sponsor')
@@ -366,11 +379,54 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         /*
         |--------------------------------------------------------------------------
+        | Albums
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('albums')->name('albums.')->group(function () {
+            Route::get('/', [AlbumController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [AlbumController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [AlbumController::class, 'store'])
+                ->name('store');
+
+            Route::get('{album}', [AlbumController::class, 'show'])
+                ->whereNumber('album')
+                ->name('show');
+
+            Route::get('{album}/edit', [AlbumController::class, 'edit'])
+                ->whereNumber('album')
+                ->name('edit');
+
+            Route::put('{album}', [AlbumController::class, 'update'])
+                ->whereNumber('album')
+                ->name('update');
+
+            Route::delete('{album}', [AlbumController::class, 'destroy'])
+                ->whereNumber('album')
+                ->name('destroy');
+
+            Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])
+                ->whereNumber('album')
+                ->whereNumber('imageId')
+                ->name('images.set-cover');
+
+            Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])
+                ->whereNumber('album')
+                ->whereNumber('imageId')
+                ->name('images.delete');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
         | Wallet Transactions
         |--------------------------------------------------------------------------
         */
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
-            Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
+            Route::get('/', [WalletTransactionController::class, 'index'])
+                ->name('index');
 
             Route::get('user/{user}', [WalletTransactionController::class, 'user'])
                 ->whereNumber('user')
@@ -407,7 +463,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
-            Route::get('/', [SubscriptionController::class, 'index'])->name('index');
+            Route::get('/', [SubscriptionController::class, 'index'])
+                ->name('index');
 
             Route::get('{subscription}', [SubscriptionController::class, 'show'])
                 ->whereNumber('subscription')
@@ -432,7 +489,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('payments')->name('payments.')->group(function () {
-            Route::get('/', [PaymentController::class, 'index'])->name('index');
+            Route::get('/', [PaymentController::class, 'index'])
+                ->name('index');
 
             Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])
                 ->whereNumber('paymentId')
@@ -441,54 +499,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         /*
         |--------------------------------------------------------------------------
-        | Albums
-        |--------------------------------------------------------------------------
-        */
-        Route::prefix('albums')->name('albums.')->group(function () {
-            Route::get('/', [AlbumController::class, 'index'])->name('index');
-            Route::get('create', [AlbumController::class, 'create'])->name('create');
-            Route::post('/', [AlbumController::class, 'store'])->name('store');
-
-            Route::get('{album}', [AlbumController::class, 'show'])
-                ->whereNumber('album')
-                ->name('show');
-
-            Route::get('{album}/edit', [AlbumController::class, 'edit'])
-                ->whereNumber('album')
-                ->name('edit');
-
-            Route::put('{album}', [AlbumController::class, 'update'])
-                ->whereNumber('album')
-                ->name('update');
-
-            Route::delete('{album}', [AlbumController::class, 'destroy'])
-                ->whereNumber('album')
-                ->name('destroy');
-
-            Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])
-                ->whereNumber('album')
-                ->whereNumber('imageId')
-                ->name('images.set-cover');
-
-            Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])
-                ->whereNumber('album')
-                ->whereNumber('imageId')
-                ->name('images.delete');
-        });
-
-        /*
-        |--------------------------------------------------------------------------
         | Bookings
         |--------------------------------------------------------------------------
         */
         Route::prefix('bookings')->name('bookings.')->group(function () {
-            Route::get('/', [BookingController::class, 'index'])->name('index');
-            Route::get('create', [BookingController::class, 'create'])->name('create');
-            Route::post('/', [BookingController::class, 'store'])->name('store');
+            Route::get('/', [BookingController::class, 'index'])
+                ->name('index');
 
-            Route::get('service-lookup', [BookingController::class, 'serviceLookup'])->name('serviceLookup');
-            Route::get('bookable-items-lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookableItemsLookup');
-            Route::get('pricing-preview', [BookingController::class, 'pricingPreview'])->name('pricingPreview');
+            Route::get('create', [BookingController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [BookingController::class, 'store'])
+                ->name('store');
+
+            Route::get('service-lookup', [BookingController::class, 'serviceLookup'])
+                ->name('serviceLookup');
+
+            Route::get('bookable-items-lookup', [BookingController::class, 'bookableItemsLookup'])
+                ->name('bookableItemsLookup');
+
+            Route::get('pricing-preview', [BookingController::class, 'pricingPreview'])
+                ->name('pricingPreview');
 
             Route::post('{booking}/start-confirm-client', [BookingController::class, 'startConfirmClient'])
                 ->whereNumber('booking')
@@ -553,8 +584,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('disputes')->name('disputes.')->group(function () {
-            Route::get('/', [DisputeController::class, 'index'])->name('index');
-            Route::post('/', [DisputeController::class, 'store'])->name('store');
+            Route::get('/', [DisputeController::class, 'index'])
+                ->name('index');
+
+            Route::post('/', [DisputeController::class, 'store'])
+                ->name('store');
 
             Route::post('bookings/{booking}/open', [DisputeController::class, 'openForBooking'])
                 ->whereNumber('booking')
@@ -598,23 +632,30 @@ Route::prefix('admin')->name('admin.')->group(function () {
         | Business Service Prices
         |--------------------------------------------------------------------------
         */
-        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
-            Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
-            Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
-            Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
+        Route::prefix('business-service-prices')
+            ->name('business_service_prices.')
+            ->group(function () {
+                Route::get('/', [BusinessServicePriceController::class, 'index'])
+                    ->name('index');
 
-            Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])
-                ->whereNumber('row')
-                ->name('edit');
+                Route::get('create', [BusinessServicePriceController::class, 'create'])
+                    ->name('create');
 
-            Route::put('{row}', [BusinessServicePriceController::class, 'update'])
-                ->whereNumber('row')
-                ->name('update');
+                Route::post('/', [BusinessServicePriceController::class, 'store'])
+                    ->name('store');
 
-            Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])
-                ->whereNumber('row')
-                ->name('destroy');
-        });
+                Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])
+                    ->whereNumber('row')
+                    ->name('edit');
+
+                Route::put('{row}', [BusinessServicePriceController::class, 'update'])
+                    ->whereNumber('row')
+                    ->name('update');
+
+                Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])
+                    ->whereNumber('row')
+                    ->name('destroy');
+            });
 
         /*
         |--------------------------------------------------------------------------
@@ -622,9 +663,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('platform-services')->name('platform-services.')->group(function () {
-            Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
-            Route::get('create', [PlatformServiceController::class, 'create'])->name('create');
-            Route::post('/', [PlatformServiceController::class, 'store'])->name('store');
+            Route::get('/', [PlatformServiceController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [PlatformServiceController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [PlatformServiceController::class, 'store'])
+                ->name('store');
 
             Route::get('{platformService}/edit', [PlatformServiceController::class, 'edit'])
                 ->whereNumber('platformService')
@@ -646,11 +692,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         | مهم: هذا البلوك قبل bookable-items/{bookableItem}
         |--------------------------------------------------------------------------
         */
-        Route::prefix('bookable-items/bulk')->name('bookable-items.bulk.')->group(function () {
-            Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
-            Route::post('block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
-            Route::post('price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
-        });
+        Route::prefix('bookable-items/bulk')
+            ->name('bookable-items.bulk.')
+            ->group(function () {
+                Route::get('/', [BookableItemBulkController::class, 'index'])
+                    ->name('index');
+
+                Route::post('block', [BookableItemBulkController::class, 'applyBlock'])
+                    ->name('block');
+
+                Route::post('price', [BookableItemBulkController::class, 'applyPrice'])
+                    ->name('price');
+            });
 
         /*
         |--------------------------------------------------------------------------
@@ -658,9 +711,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
-            Route::get('/', [BookableItemController::class, 'index'])->name('index');
-            Route::get('create', [BookableItemController::class, 'create'])->name('create');
-            Route::post('/', [BookableItemController::class, 'store'])->name('store');
+            Route::get('/', [BookableItemController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [BookableItemController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [BookableItemController::class, 'store'])
+                ->name('store');
 
             Route::get('{bookableItem}', [BookableItemController::class, 'show'])
                 ->whereNumber('bookableItem')
@@ -678,6 +736,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->whereNumber('bookableItem')
                 ->name('destroy');
 
+            /*
+            |--------------------------------------------------------------------------
+            | Bookable Calendar
+            |--------------------------------------------------------------------------
+            */
             Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])
                 ->whereNumber('bookableItem')
                 ->name('calendar');
@@ -690,6 +753,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->whereNumber('bookableItem')
                 ->name('calendar.price-rule.store');
 
+            /*
+            |--------------------------------------------------------------------------
+            | Bookable Blocked Slots
+            |--------------------------------------------------------------------------
+            */
             Route::get('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'index'])
                 ->whereNumber('bookableItem')
                 ->name('blocked-slots.index');
@@ -717,6 +785,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->whereNumber('slot')
                 ->name('blocked-slots.destroy');
 
+            /*
+            |--------------------------------------------------------------------------
+            | Bookable Price Rules
+            |--------------------------------------------------------------------------
+            */
             Route::get('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'index'])
                 ->whereNumber('bookableItem')
                 ->name('price-rules.index');
@@ -749,28 +822,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
         |--------------------------------------------------------------------------
         | Category Child Service Fees
         |--------------------------------------------------------------------------
-        | مهم: bulk routes قبل {categoryChild}
+        | مهم: bulk قبل {categoryChild}
         |--------------------------------------------------------------------------
         */
         Route::prefix('category-child-service-fees')
-    ->name('category-child-service-fees.')
-    ->group(function () {
+            ->name('category-child-service-fees.')
+            ->group(function () {
+                Route::prefix('bulk')->name('bulk.')->group(function () {
+                    Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])
+                        ->name('edit');
 
-        Route::prefix('bulk')->name('bulk.')->group(function () {
-            Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])
-                ->name('edit');
+                    Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])
+                        ->name('update');
+                });
 
-            Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])
-                ->name('update');
-        });
+                Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])
+                    ->whereNumber('categoryChild')
+                    ->name('edit');
 
-        Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])
-            ->whereNumber('categoryChild')
-            ->name('edit');
-
-        Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])
-            ->whereNumber('categoryChild')
-            ->name('update');
-    });
+                Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])
+                    ->whereNumber('categoryChild')
+                    ->name('update');
+            });
     });
 });

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\CategoryChildServiceFee;
+use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
@@ -28,7 +29,7 @@ class WalletFeeService
         $booking->loadMissing([
             'business:id,name,category_child_id',
             'business.serviceFeeConsent',
-            'service:id,key,name_ar,name_en',
+            'service:id,key,name_ar,name_en,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
             'user:id,name',
             'user.serviceFeeConsent',
         ]);
@@ -37,32 +38,39 @@ class WalletFeeService
         $childId = $this->resolveBookingChildId($booking);
         $serviceId = (int) $booking->service_id;
 
-        if ($childId <= 0 || $serviceId <= 0) {
+        if ($serviceId <= 0) {
             return collect();
         }
 
-        $feeRow = CategoryChildServiceFee::activeForPair($childId, $serviceId);
+        $service = $booking->service;
 
-        if (! $feeRow || ! $feeRow->isChargeable()) {
+        if (! $service) {
+            $service = PlatformService::query()
+                ->find($serviceId);
+        }
+
+        if (! $service || ! (bool) ($service->is_active ?? false)) {
             return collect();
+        }
+
+        $feeRow = null;
+
+        if ($childId > 0) {
+            $feeRow = CategoryChildServiceFee::activeForPair($childId, $serviceId);
         }
 
         $lines = collect();
 
         $business = $booking->business;
 
-        if (
-            $business &&
-            $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_BUSINESS) &&
-            $this->canAutoChargeFees($business)
-        ) {
-            $line = $feeRow->toWalletFeeLine(
+        if ($business && $this->canAutoChargeFees($business)) {
+            $line = $this->resolveFeeLineForPayer(
                 payer: CategoryChildServiceFee::PAYER_BUSINESS,
-                userId: (int) $booking->business_id,
+                booking: $booking,
+                service: $service,
+                feeRow: $feeRow,
                 baseAmount: $baseAmount,
-                bookingId: (int) $booking->id,
-                businessId: (int) $booking->business_id,
-                clientId: (int) $booking->user_id,
+                childId: $childId,
                 feeCode: $feeCode
             );
 
@@ -75,18 +83,14 @@ class WalletFeeService
 
         $client = $booking->user;
 
-        if (
-            $client &&
-            $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT) &&
-            $this->canAutoChargeFees($client)
-        ) {
-            $line = $feeRow->toWalletFeeLine(
+        if ($client && $this->canAutoChargeFees($client)) {
+            $line = $this->resolveFeeLineForPayer(
                 payer: CategoryChildServiceFee::PAYER_CLIENT,
-                userId: (int) $booking->user_id,
+                booking: $booking,
+                service: $service,
+                feeRow: $feeRow,
                 baseAmount: $baseAmount,
-                bookingId: (int) $booking->id,
-                businessId: (int) $booking->business_id,
-                clientId: (int) $booking->user_id,
+                childId: $childId,
                 feeCode: $feeCode
             );
 
@@ -100,6 +104,93 @@ class WalletFeeService
         return $lines->values();
     }
 
+        protected function resolveFeeLineForPayer(
+        string $payer,
+        Booking $booking,
+        PlatformService $service,
+        ?CategoryChildServiceFee $feeRow,
+        float $baseAmount,
+        int $childId,
+        string $feeCode
+    ): ?array {
+        $payer = CategoryChildServiceFee::normalizePayer($payer);
+
+        if (! $payer) {
+            return null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1) Category Child Override First
+        |--------------------------------------------------------------------------
+        */
+        if ($feeRow && $feeRow->isChargeableFor($payer)) {
+            return $feeRow->toWalletFeeLine(
+                payer: $payer,
+                userId: $payer === CategoryChildServiceFee::PAYER_BUSINESS
+                    ? (int) $booking->business_id
+                    : (int) $booking->user_id,
+                baseAmount: $baseAmount,
+                bookingId: (int) $booking->id,
+                businessId: (int) $booking->business_id,
+                clientId: (int) $booking->user_id,
+                feeCode: $feeCode
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2) Platform Service Default Fallback
+        |--------------------------------------------------------------------------
+        */
+        $snapshot = $service->defaultFeeSnapshotFor(
+            payer: $payer,
+            baseAmount: $baseAmount
+        );
+
+        if (! $snapshot) {
+            return null;
+        }
+
+        $amount = round((float) ($snapshot['amount'] ?? 0), 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return [
+            'payer' => $payer,
+            'user_id' => $payer === CategoryChildServiceFee::PAYER_BUSINESS
+                ? (int) $booking->business_id
+                : (int) $booking->user_id,
+
+            'category_child_service_fee_id' => null,
+            'service_fee_id' => null,
+            'fee_row_id' => null,
+            'source' => 'platform_service_default',
+
+            'fee_code' => $feeCode,
+            'fee_type' => $snapshot['fee_type'] ?? null,
+            'calc_type' => $snapshot['calc_type'] ?? CategoryChildServiceFee::CALC_TYPE_FIXED,
+            'rate_value' => $snapshot['rate_value'] ?? null,
+
+            'amount' => $amount,
+            'currency' => $snapshot['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
+            'base_amount' => round((float) $baseAmount, 2),
+
+            'booking_id' => (int) $booking->id,
+            'service_id' => (int) $booking->service_id,
+            'platform_service_id' => (int) $booking->service_id,
+
+            'business_id' => (int) $booking->business_id,
+            'client_id' => (int) $booking->user_id,
+            'child_id' => $childId > 0 ? $childId : null,
+
+            'rules' => null,
+            'notes' => $snapshot['notes'] ?? null,
+        ];
+    }
+
     public function applyBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
     {
         $feeCode = $this->normalizeFeeCode($feeCode);
@@ -109,7 +200,7 @@ class WalletFeeService
             'user.serviceFeeConsent',
             'business:id,name,category_child_id',
             'business.serviceFeeConsent',
-            'service:id,name_ar,name_en,key',
+            'service:id,name_ar,name_en,key,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
         ]);
 
         $lines = $this->resolveBookingFees($booking, $feeCode);
@@ -240,6 +331,8 @@ class WalletFeeService
             'fee_code' => $feeCode,
             'fee_type' => $line['fee_type'] ?? null,
             'calc_type' => $line['calc_type'] ?? CategoryChildServiceFee::CALC_TYPE_FIXED,
+            'rate_value' => $line['rate_value'] ?? null,
+            'source' => $line['source'] ?? 'category_child_override',
             'currency' => $line['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
             'base_amount' => round((float) ($line['base_amount'] ?? 0), 2),
 

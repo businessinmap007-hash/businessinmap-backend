@@ -97,40 +97,62 @@ class CategoryServiceBulkController extends Controller
         };
     }
 
-    private function serviceFeePayload(Request $request, int $sortOrder = 1): array
+   private function serviceFeePayload(Request $request, int $sortOrder = 1, ?int $serviceId = null): array
     {
-        $businessFeeEnabled = $this->toBool($request->input('business_fee_enabled'));
-        $clientFeeEnabled = $this->toBool($request->input('client_fee_enabled'));
+        $serviceFeeInput = [];
+
+        if ($serviceId) {
+            $serviceFeeInput = $request->input("service_fees.{$serviceId}", []);
+        }
+
+        if (! is_array($serviceFeeInput)) {
+            $serviceFeeInput = [];
+        }
+
+        $businessFeeEnabled = $this->toBool($serviceFeeInput['business_fee_enabled'] ?? null);
+        $clientFeeEnabled = $this->toBool($serviceFeeInput['client_fee_enabled'] ?? null);
+
+        $businessFeeType = PlatformService::normalizeFeeType($serviceFeeInput['business_fee_type'] ?? null)
+            ?: PlatformService::FEE_TYPE_FIXED;
+
+        $clientFeeType = PlatformService::normalizeFeeType($serviceFeeInput['client_fee_type'] ?? null)
+            ?: PlatformService::FEE_TYPE_FIXED;
 
         $businessFeeAmount = $businessFeeEnabled
-            ? $this->money($request->input('business_fee_amount', 0))
+            ? $this->money($serviceFeeInput['business_fee_amount'] ?? 0)
             : 0.00;
 
         $clientFeeAmount = $clientFeeEnabled
-            ? $this->money($request->input('client_fee_amount', 0))
+            ? $this->money($serviceFeeInput['client_fee_amount'] ?? 0)
             : 0.00;
 
         if ($businessFeeAmount <= 0) {
             $businessFeeEnabled = false;
             $businessFeeAmount = 0.00;
+            $businessFeeType = null;
         }
 
         if ($clientFeeAmount <= 0) {
             $clientFeeEnabled = false;
             $clientFeeAmount = 0.00;
+            $clientFeeType = null;
         }
 
         $isActive = $businessFeeEnabled || $clientFeeEnabled;
 
         return [
             'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
+            'business_fee_type' => $businessFeeType,
             'business_fee_amount' => $businessFeeAmount,
+
             'client_fee_enabled' => $clientFeeEnabled ? 1 : 0,
+            'client_fee_type' => $clientFeeType,
             'client_fee_amount' => $clientFeeAmount,
-            'currency' => $this->currency($request->input('currency', CategoryChildServiceFee::DEFAULT_CURRENCY)),
+
+            'currency' => $this->currency($serviceFeeInput['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY),
             'is_active' => $isActive ? 1 : 0,
             'sort_order' => $sortOrder,
-            'notes' => trim((string) $request->input('fee_notes', '')) ?: null,
+            'notes' => trim((string) ($serviceFeeInput['fee_notes'] ?? '')) ?: null,
         ];
     }
 
@@ -138,11 +160,22 @@ class CategoryServiceBulkController extends Controller
     {
         $rootId = (int) $request->get('root_id', 0);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Root Categories + Children
+        |--------------------------------------------------------------------------
+        */
         $roots = Category::query()
             ->where('parent_id', 0)
             ->with([
-                'children' => function ($q) {
-                    $q->select('category_children_master.id', 'name_ar', 'name_en', 'reorder')
+                'children' => function ($query) {
+                    $query
+                        ->select([
+                            'category_children_master.id',
+                            'category_children_master.name_ar',
+                            'category_children_master.name_en',
+                            'category_children_master.reorder',
+                        ])
                         ->orderByRaw('COALESCE(category_children_master.reorder, 999999) ASC')
                         ->orderBy('category_children_master.name_ar')
                         ->orderBy('category_children_master.id');
@@ -159,18 +192,149 @@ class CategoryServiceBulkController extends Controller
             ? $rootId
             : (int) optional($roots->first())->id;
 
+        $activeRootChildren = $roots
+            ->firstWhere('id', $activeRootId)?->children ?? collect();
+
+        $activeChildIds = collect($activeRootChildren)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->values()
+            ->all();
+
+        $activeChildrenCount = count($activeChildIds);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Active Platform Services
+        |--------------------------------------------------------------------------
+        */
         $services = PlatformService::query()
             ->where('is_active', 1)
             ->orderBy('name_ar')
             ->orderBy('name_en')
             ->orderBy('id')
-            ->get(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent']);
+            ->get([
+                'id',
+                'key',
+                'name_ar',
+                'name_en',
+                'supports_deposit',
+                'max_deposit_percent',
+
+                'business_fee_enabled',
+                'business_fee_type',
+                'business_fee_value',
+
+                'client_fee_enabled',
+                'client_fee_type',
+                'client_fee_value',
+
+                'fee_currency',
+                'fee_notes',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Active Service Counts Per Root
+        |--------------------------------------------------------------------------
+        | لمعرفة كل خدمة مفعلة في كم فرع داخل الروت الحالي.
+        |--------------------------------------------------------------------------
+        */
+        $activeServiceCounts = $this->activeServiceCountsForRoot(
+            rootId: $activeRootId,
+            childIds: $activeChildIds
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Existing Fee Matrix
+        |--------------------------------------------------------------------------
+        | تستخدم في الـ Blade / JavaScript لعرض الأسعار المحفوظة سابقًا.
+        |--------------------------------------------------------------------------
+        */
+        $feeMatrix = $this->feeMatrixForChildren($activeChildIds);
 
         return view('admin-v2.categories.services-bulk', [
             'roots' => $roots,
             'services' => $services,
             'rootId' => $activeRootId,
+
+            'activeServiceCounts' => $activeServiceCounts,
+            'activeChildrenCount' => $activeChildrenCount,
+
+            'feeMatrix' => $feeMatrix,
         ]);
+    }
+    private function activeServiceCountsForRoot(int $rootId, array $childIds): array
+    {
+        if ($rootId <= 0 || empty($childIds)) {
+            return [];
+        }
+
+        return CategoryPlatformService::query()
+            ->where('category_id', $rootId)
+            ->whereIn('child_id', $childIds)
+            ->where('is_active', 1)
+            ->select('platform_service_id', DB::raw('COUNT(DISTINCT child_id) as total'))
+            ->groupBy('platform_service_id')
+            ->pluck('total', 'platform_service_id')
+            ->mapWithKeys(fn ($total, $serviceId) => [
+                (int) $serviceId => (int) $total,
+            ])
+            ->all();
+    }
+    private function feeMatrixForChildren(array $childIds): array
+    {
+        if (empty($childIds)) {
+            return [];
+        }
+
+        $matrix = [];
+
+        $feeRows = CategoryChildServiceFee::query()
+            ->whereIn('child_id', $childIds)
+            ->get([
+                'child_id',
+                'platform_service_id',
+
+                'business_fee_enabled',
+                'business_fee_type',
+                'business_fee_amount',
+
+                'client_fee_enabled',
+                'client_fee_type',
+                'client_fee_amount',
+
+                'currency',
+                'is_active',
+                'notes',
+            ]);
+
+        foreach ($feeRows as $feeRow) {
+            $childId = (int) $feeRow->child_id;
+            $serviceId = (int) $feeRow->platform_service_id;
+
+            if ($childId <= 0 || $serviceId <= 0) {
+                continue;
+            }
+
+            $matrix[$childId][$serviceId] = [
+                'business_fee_enabled' => (bool) $feeRow->business_fee_enabled,
+                'business_fee_type' => $feeRow->business_fee_type ?: PlatformService::FEE_TYPE_FIXED,
+                'business_fee_amount' => round((float) $feeRow->business_fee_amount, 2),
+
+                'client_fee_enabled' => (bool) $feeRow->client_fee_enabled,
+                'client_fee_type' => $feeRow->client_fee_type ?: PlatformService::FEE_TYPE_FIXED,
+                'client_fee_amount' => round((float) $feeRow->client_fee_amount, 2),
+
+                'currency' => $feeRow->currency ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
+                'is_active' => (bool) $feeRow->is_active,
+                'fee_notes' => $feeRow->notes,
+            ];
+        }
+
+        return $matrix;
     }
 
     public function apply(Request $request): RedirectResponse
@@ -197,12 +361,18 @@ class CategoryServiceBulkController extends Controller
             | Default Service Fees applied with the selected services
             |--------------------------------------------------------------------------
             */
-            'business_fee_enabled' => ['nullable'],
-            'business_fee_amount' => ['nullable', 'numeric', 'min:0'],
-            'client_fee_enabled' => ['nullable'],
-            'client_fee_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'max:10'],
-            'fee_notes' => ['nullable', 'string', 'max:1000'],
+            'service_fees' => ['nullable', 'array'],
+
+            'service_fees.*.business_fee_enabled' => ['nullable'],
+            'service_fees.*.business_fee_type' => ['nullable', 'in:fixed,percent'],
+            'service_fees.*.business_fee_amount' => ['nullable', 'numeric', 'min:0'],
+
+            'service_fees.*.client_fee_enabled' => ['nullable'],
+            'service_fees.*.client_fee_type' => ['nullable', 'in:fixed,percent'],
+            'service_fees.*.client_fee_amount' => ['nullable', 'numeric', 'min:0'],
+
+            'service_fees.*.currency' => ['nullable', 'string', 'max:10'],
+            'service_fees.*.fee_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $root = Category::query()
@@ -364,7 +534,7 @@ class CategoryServiceBulkController extends Controller
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
-                $this->serviceFeePayload($request, $order)
+                $this->serviceFeePayload($request, $order, (int) $serviceId)
             );
 
             $order++;
@@ -474,6 +644,7 @@ class CategoryServiceBulkController extends Controller
                 'client_fee_enabled' => 0,
                 'client_fee_amount' => 0,
                 'updated_at' => now(),
+                
             ]);
     }
 }

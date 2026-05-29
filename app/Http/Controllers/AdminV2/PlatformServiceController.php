@@ -50,12 +50,25 @@ class PlatformServiceController extends Controller
 
     public function create()
     {
-        $row = new PlatformService([
+       $row = new PlatformService([
             'is_active' => 1,
             'supports_deposit' => 0,
             'max_deposit_percent' => 0,
+
             'fee_type' => null,
             'fee_value' => null,
+
+            'business_fee_enabled' => 0,
+            'business_fee_type' => PlatformService::FEE_TYPE_FIXED,
+            'business_fee_value' => 0,
+
+            'client_fee_enabled' => 0,
+            'client_fee_type' => PlatformService::FEE_TYPE_FIXED,
+            'client_fee_value' => 0,
+
+            'fee_currency' => 'EGP',
+            'fee_notes' => null,
+
             'rules' => null,
         ]);
 
@@ -168,6 +181,23 @@ class PlatformServiceController extends Controller
             ],
             'fee_value' => ['nullable', 'numeric', 'min:0'],
 
+            'business_fee_enabled' => ['nullable'],
+            'business_fee_type' => ['nullable', Rule::in([
+                PlatformService::FEE_TYPE_FIXED,
+                PlatformService::FEE_TYPE_PERCENT,
+            ])],
+            'business_fee_value' => ['nullable', 'numeric', 'min:0'],
+
+            'client_fee_enabled' => ['nullable'],
+            'client_fee_type' => ['nullable', Rule::in([
+                PlatformService::FEE_TYPE_FIXED,
+                PlatformService::FEE_TYPE_PERCENT,
+            ])],
+            'client_fee_value' => ['nullable', 'numeric', 'min:0'],
+
+            'fee_currency' => ['nullable', 'string', 'max:3'],
+            'fee_notes' => ['nullable', 'string', 'max:1000'],
+
             'rules' => ['nullable'],
         ], [
             'key.regex' => 'مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
@@ -175,6 +205,8 @@ class PlatformServiceController extends Controller
 
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['supports_deposit'] = (int) $request->boolean('supports_deposit');
+        $data['business_fee_enabled'] = (int) $request->boolean('business_fee_enabled');
+        $data['client_fee_enabled'] = (int) $request->boolean('client_fee_enabled');
 
         if (! $data['supports_deposit']) {
             $data['max_deposit_percent'] = 0;
@@ -192,6 +224,36 @@ class PlatformServiceController extends Controller
             $data['fee_type'] = $feeType;
             $data['fee_value'] = $feeValue > 0 ? $feeValue : 0;
         }
+        $businessFeeType = PlatformService::normalizeFeeType($data['business_fee_type'] ?? null);
+        $businessFeeValue = round((float) ($data['business_fee_value'] ?? 0), 2);
+
+        if (! $data['business_fee_enabled'] || ! $businessFeeType || $businessFeeValue <= 0) {
+            $data['business_fee_enabled'] = 0;
+            $data['business_fee_type'] = null;
+            $data['business_fee_value'] = 0;
+        } else {
+            $data['business_fee_type'] = $businessFeeType;
+            $data['business_fee_value'] = $businessFeeValue;
+        }
+
+        $clientFeeType = PlatformService::normalizeFeeType($data['client_fee_type'] ?? null);
+        $clientFeeValue = round((float) ($data['client_fee_value'] ?? 0), 2);
+
+        if (! $data['client_fee_enabled'] || ! $clientFeeType || $clientFeeValue <= 0) {
+            $data['client_fee_enabled'] = 0;
+            $data['client_fee_type'] = null;
+            $data['client_fee_value'] = 0;
+        } else {
+            $data['client_fee_type'] = $clientFeeType;
+            $data['client_fee_value'] = $clientFeeValue;
+        }
+
+        $currency = strtoupper(trim((string) ($data['fee_currency'] ?? '')));
+        $data['fee_currency'] = $currency !== ''
+            ? mb_substr($currency, 0, 3)
+            : CategoryChildServiceFee::DEFAULT_CURRENCY;
+
+        $data['fee_notes'] = trim((string) ($data['fee_notes'] ?? '')) ?: null;
 
         $data['rules'] = $this->normalizeRules($request->input('rules'));
 

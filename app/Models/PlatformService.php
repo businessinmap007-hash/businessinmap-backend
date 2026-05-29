@@ -18,24 +18,47 @@ class PlatformService extends Model
     public const FEE_TYPE_FIXED   = 'fixed';
     public const FEE_TYPE_PERCENT = 'percent';
 
-    protected $fillable = [
+   protected $fillable = [
         'key',
         'name_ar',
         'name_en',
         'is_active',
         'supports_deposit',
         'max_deposit_percent',
+
+        // Legacy platform fee
         'fee_type',
         'fee_value',
+
+        // New default service fees
+        'business_fee_enabled',
+        'business_fee_type',
+        'business_fee_value',
+
+        'client_fee_enabled',
+        'client_fee_type',
+        'client_fee_value',
+
+        'fee_currency',
+        'fee_notes',
+
         'rules',
     ];
 
     protected $casts = [
-        'is_active'           => 'boolean',
-        'supports_deposit'    => 'boolean',
-        'max_deposit_percent' => 'integer',
-        'fee_value'           => 'decimal:2',
-        'rules'               => 'array',
+        'is_active'             => 'boolean',
+        'supports_deposit'      => 'boolean',
+        'max_deposit_percent'   => 'integer',
+
+        'fee_value'             => 'decimal:2',
+
+        'business_fee_enabled'  => 'boolean',
+        'business_fee_value'    => 'decimal:2',
+
+        'client_fee_enabled'    => 'boolean',
+        'client_fee_value'      => 'decimal:2',
+
+        'rules'                 => 'array',
     ];
 
     /*
@@ -348,6 +371,164 @@ class PlatformService extends Model
             self::FEE_TYPE_PERCENT => round($price * ($feeValue / 100), 2),
             default => 0.00,
         };
+    }
+
+    public static function normalizeFeeType(?string $type): ?string
+    {
+        $type = strtolower(trim((string) $type));
+
+        return in_array($type, [
+            self::FEE_TYPE_FIXED,
+            self::FEE_TYPE_PERCENT,
+        ], true) ? $type : null;
+    }
+
+    public function defaultFeeCurrency(): string
+    {
+        $currency = strtoupper(trim((string) ($this->fee_currency ?? '')));
+
+        return $currency !== ''
+            ? mb_substr($currency, 0, 3)
+            : CategoryChildServiceFee::DEFAULT_CURRENCY;
+    }
+
+    public function hasDefaultBusinessFee(): bool
+    {
+        return (bool) ($this->business_fee_enabled ?? false)
+            && static::normalizeFeeType($this->business_fee_type) !== null
+            && round((float) ($this->business_fee_value ?? 0), 2) > 0;
+    }
+
+    public function hasDefaultClientFee(): bool
+    {
+        return (bool) ($this->client_fee_enabled ?? false)
+            && static::normalizeFeeType($this->client_fee_type) !== null
+            && round((float) ($this->client_fee_value ?? 0), 2) > 0;
+    }
+
+    public function hasAnyDefaultFee(): bool
+    {
+        return $this->hasDefaultBusinessFee() || $this->hasDefaultClientFee();
+    }
+
+    public function calculateDefaultFeeFor(string $payer, float $baseAmount = 0): float
+    {
+        $payer = CategoryChildServiceFee::normalizePayer($payer);
+        $baseAmount = round(max((float) $baseAmount, 0), 2);
+
+        if ($payer === CategoryChildServiceFee::PAYER_BUSINESS) {
+            if (! $this->hasDefaultBusinessFee()) {
+                return 0.00;
+            }
+
+            return $this->calculateFeeAmount(
+                type: (string) $this->business_fee_type,
+                value: (float) $this->business_fee_value,
+                baseAmount: $baseAmount
+            );
+        }
+
+        if ($payer === CategoryChildServiceFee::PAYER_CLIENT) {
+            if (! $this->hasDefaultClientFee()) {
+                return 0.00;
+            }
+
+            return $this->calculateFeeAmount(
+                type: (string) $this->client_fee_type,
+                value: (float) $this->client_fee_value,
+                baseAmount: $baseAmount
+            );
+        }
+
+        return 0.00;
+    }
+
+    protected function calculateFeeAmount(string $type, float $value, float $baseAmount = 0): float
+    {
+        $type = static::normalizeFeeType($type);
+        $value = round(max((float) $value, 0), 2);
+        $baseAmount = round(max((float) $baseAmount, 0), 2);
+
+        if (! $type || $value <= 0) {
+            return 0.00;
+        }
+
+        if ($type === self::FEE_TYPE_FIXED) {
+            return $value;
+        }
+
+        if ($type === self::FEE_TYPE_PERCENT) {
+            if ($baseAmount <= 0) {
+                return 0.00;
+            }
+
+            return round($baseAmount * ($value / 100), 2);
+        }
+
+        return 0.00;
+    }
+
+    public function defaultFeeSnapshotFor(string $payer, float $baseAmount = 0): ?array
+    {
+        $payer = CategoryChildServiceFee::normalizePayer($payer);
+
+        if (! $payer) {
+            return null;
+        }
+
+        $type = null;
+        $value = 0.00;
+        $enabled = false;
+
+        if ($payer === CategoryChildServiceFee::PAYER_BUSINESS) {
+            $enabled = (bool) ($this->business_fee_enabled ?? false);
+            $type = static::normalizeFeeType($this->business_fee_type);
+            $value = (float) ($this->business_fee_value ?? 0);
+        }
+
+        if ($payer === CategoryChildServiceFee::PAYER_CLIENT) {
+            $enabled = (bool) ($this->client_fee_enabled ?? false);
+            $type = static::normalizeFeeType($this->client_fee_type);
+            $value = (float) ($this->client_fee_value ?? 0);
+        }
+
+        if (! $enabled || ! $type || $value <= 0) {
+            return null;
+        }
+
+        $amount = $this->calculateFeeAmount(
+            type: $type,
+            value: $value,
+            baseAmount: $baseAmount
+        );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return [
+            'id' => null,
+            'fee_row_id' => null,
+            'source' => 'platform_service_default',
+
+            'payer' => $payer,
+            'fee_type' => $payer === CategoryChildServiceFee::PAYER_BUSINESS
+                ? CategoryChildServiceFee::FEE_TYPE_BUSINESS
+                : CategoryChildServiceFee::FEE_TYPE_CLIENT,
+
+            'calc_type' => $type,
+            'rate_value' => round($value, 2),
+            'amount' => $amount,
+            'currency' => $this->defaultFeeCurrency(),
+
+            'child_id' => null,
+            'service_id' => (int) $this->id,
+            'platform_service_id' => (int) $this->id,
+
+            'is_active' => (bool) $this->is_active,
+            'sort_order' => 0,
+            'notes' => $this->fee_notes,
+        ];
     }
 
     public function displayName(?string $locale = null): string

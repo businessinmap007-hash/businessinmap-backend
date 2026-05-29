@@ -22,7 +22,7 @@ class CategoryChildServiceFee extends Model
     public const FEE_TYPE_CLIENT   = 'client_fee';
 
     public const CALC_TYPE_FIXED = 'fixed';
-
+    public const CALC_TYPE_PERCENT = 'percent';
     public const DEFAULT_CURRENCY = 'EGP';
     public const DEFAULT_FEE_CODE = 'booking_execution';
 
@@ -31,9 +31,11 @@ class CategoryChildServiceFee extends Model
         'platform_service_id',
 
         'business_fee_enabled',
+        'business_fee_type',
         'business_fee_amount',
 
         'client_fee_enabled',
+        'client_fee_type',
         'client_fee_amount',
 
         'currency',
@@ -51,6 +53,8 @@ class CategoryChildServiceFee extends Model
 
         'client_fee_enabled'    => 'boolean',
         'client_fee_amount'     => 'decimal:2',
+
+        
 
         'is_active'             => 'boolean',
         'sort_order'            => 'integer',
@@ -197,6 +201,15 @@ class CategoryChildServiceFee extends Model
 
         return in_array($payer, self::PAYERS, true) ? $payer : null;
     }
+    public static function normalizeCalcType(?string $type): ?string
+    {
+        $type = strtolower(trim((string) $type));
+
+        return in_array($type, [
+            self::CALC_TYPE_FIXED,
+            self::CALC_TYPE_PERCENT,
+        ], true) ? $type : null;
+    }
 
     public function setCurrencyAttribute($value): void
     {
@@ -246,23 +259,78 @@ class CategoryChildServiceFee extends Model
         };
     }
 
-    public function amountFor(string $payer): float
+    public function amountFor(string $payer, float $baseAmount = 0): float
+    {
+        $payer = self::normalizePayer($payer);
+        $baseAmount = round(max((float) $baseAmount, 0), 2);
+
+        if ($payer === self::PAYER_BUSINESS) {
+            if (! $this->hasBusinessFee()) {
+                return 0.00;
+            }
+
+            return $this->calculateAmountByType(
+                type: $this->business_fee_type ?: self::CALC_TYPE_FIXED,
+                value: (float) $this->business_fee_amount,
+                baseAmount: $baseAmount
+            );
+        }
+
+        if ($payer === self::PAYER_CLIENT) {
+            if (! $this->hasClientFee()) {
+                return 0.00;
+            }
+
+            return $this->calculateAmountByType(
+                type: $this->client_fee_type ?: self::CALC_TYPE_FIXED,
+                value: (float) $this->client_fee_amount,
+                baseAmount: $baseAmount
+            );
+        }
+
+        return 0.00;
+    }
+    protected function calculateAmountByType(?string $type, float $value, float $baseAmount = 0): float
+    {
+        $type = self::normalizeCalcType($type) ?: self::CALC_TYPE_FIXED;
+        $value = round(max((float) $value, 0), 2);
+        $baseAmount = round(max((float) $baseAmount, 0), 2);
+
+        if ($value <= 0) {
+            return 0.00;
+        }
+
+        if ($type === self::CALC_TYPE_FIXED) {
+            return $value;
+        }
+
+        if ($type === self::CALC_TYPE_PERCENT) {
+            if ($baseAmount <= 0) {
+                return 0.00;
+            }
+
+            return round($baseAmount * ($value / 100), 2);
+        }
+
+        return 0.00;
+    }
+
+    public function calcTypeFor(string $payer): string
     {
         $payer = self::normalizePayer($payer);
 
-        return match ($payer) {
-            self::PAYER_BUSINESS => $this->hasBusinessFee()
-                ? round((float) $this->business_fee_amount, 2)
-                : 0.00,
+        if ($payer === self::PAYER_BUSINESS) {
+            return self::normalizeCalcType($this->business_fee_type)
+                ?: self::CALC_TYPE_FIXED;
+        }
 
-            self::PAYER_CLIENT => $this->hasClientFee()
-                ? round((float) $this->client_fee_amount, 2)
-                : 0.00,
+        if ($payer === self::PAYER_CLIENT) {
+            return self::normalizeCalcType($this->client_fee_type)
+                ?: self::CALC_TYPE_FIXED;
+        }
 
-            default => 0.00,
-        };
+        return self::CALC_TYPE_FIXED;
     }
-
     public function feeTypeFor(string $payer): ?string
     {
         $payer = self::normalizePayer($payer);
@@ -287,7 +355,7 @@ class CategoryChildServiceFee extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function toFeeSnapshot(string $payer): ?array
+    public function toFeeSnapshot(string $payer, float $baseAmount = 0): ?array
     {
         $payer = self::normalizePayer($payer);
 
@@ -298,12 +366,16 @@ class CategoryChildServiceFee extends Model
         return [
             'id' => (int) $this->id,
             'fee_row_id' => (int) $this->id,
+            'source' => 'category_child_override',
 
             'payer' => $payer,
             'fee_type' => $this->feeTypeFor($payer),
-            'calc_type' => self::CALC_TYPE_FIXED,
+            'calc_type' => $this->calcTypeFor($payer),
+            'rate_value' => $payer === self::PAYER_BUSINESS
+                ? round((float) $this->business_fee_amount, 2)
+                : round((float) $this->client_fee_amount, 2),
 
-            'amount' => $this->amountFor($payer),
+            'amount' => $this->amountFor($payer, $baseAmount),
             'currency' => $this->currencyCode(),
 
             'child_id' => (int) $this->child_id,
@@ -316,14 +388,14 @@ class CategoryChildServiceFee extends Model
         ];
     }
 
-    public function toWalletFeeLine(
-        string $payer,
-        int $userId,
-        float $baseAmount,
-        int $bookingId,
-        int $businessId,
-        int $clientId,
-        ?string $feeCode = null
+   public function toWalletFeeLine(
+    string $payer,
+    int $userId,
+    float $baseAmount,
+    int $bookingId,
+    int $businessId,
+    int $clientId,
+    ?string $feeCode = null
     ): ?array {
         $payer = self::normalizePayer($payer);
 
@@ -340,12 +412,16 @@ class CategoryChildServiceFee extends Model
             'category_child_service_fee_id' => (int) $this->id,
             'service_fee_id' => (int) $this->id,
             'fee_row_id' => (int) $this->id,
+            'source' => 'category_child_override',
 
             'fee_code' => $feeCode,
             'fee_type' => $this->feeTypeFor($payer),
-            'calc_type' => self::CALC_TYPE_FIXED,
+            'calc_type' => $this->calcTypeFor($payer),
+            'rate_value' => $payer === self::PAYER_BUSINESS
+                ? round((float) $this->business_fee_amount, 2)
+                : round((float) $this->client_fee_amount, 2),
 
-            'amount' => $this->amountFor($payer),
+            'amount' => $this->amountFor($payer, $baseAmount),
             'currency' => $this->currencyCode(),
             'base_amount' => round((float) $baseAmount, 2),
 
@@ -358,7 +434,6 @@ class CategoryChildServiceFee extends Model
             'child_id' => (int) $this->child_id,
 
             'rules' => null,
-            'notes' => $this->notes,
         ];
     }
 

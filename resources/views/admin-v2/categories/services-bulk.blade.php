@@ -121,12 +121,12 @@
                             @foreach($children as $child)
                                 <label class="a2-check-card">
                                     <input
-                                        type="checkbox"
-                                        name="category_ids[]"
-                                        value="{{ $child->id }}"
-                                        class="js-child-checkbox"
-                                        {{ $isActive ? '' : 'disabled' }}
-                                    >
+                                    type="checkbox"
+                                    name="category_ids[]"
+                                    value="{{ $child->id }}"
+                                    class="js-child-checkbox"
+                                    {{ $isActive ? 'checked' : 'disabled' }}
+                                >
                                     <span>{{ $nameOf($child) }}</span>
                                 </label>
                             @endforeach
@@ -200,12 +200,12 @@
 
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
                 <label class="a2-check-card">
-                    <input type="radio" name="mode" value="append" checked>
+                    <input type="radio" name="mode" value="append">
                     <span>إضافة / تحديث</span>
                 </label>
 
                 <label class="a2-check-card">
-                    <input type="radio" name="mode" value="replace">
+                    <input type="radio" name="mode" value="replace" checked>
                     <span>استبدال خدمات الفروع المختارة</span>
                 </label>
 
@@ -266,6 +266,9 @@
                             </h3>
                             <div class="a2-section-subtitle">
                                 Override خاص بهذه الخدمة فقط
+                            </div>
+                            <div class="a2-alert a2-alert-warning js-fee-mixed-warning" style="display:none;margin-top:10px;">
+                                الفروع المختارة تحتوي قيم رسوم مختلفة لهذه الخدمة. سيتم عرض أول قيمة موجودة، وأي حفظ جديد سيطبق القيمة الجديدة على كل الفروع المختارة.
                             </div>
                         </div>
                     </div>
@@ -399,7 +402,7 @@
 </div>
 
 <script>
-window.BIM_SERVICE_FEE_MATRIX = @json($feeMatrixSafe);
+window.BIM_SERVICE_FEE_MATRIX = @json($feeMatrixSafe ?? []);
 </script>
 
 <script>
@@ -414,28 +417,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const feeMatrix = window.BIM_SERVICE_FEE_MATRIX || {};
     const serviceDefaults = {};
-
-    /*
-    |--------------------------------------------------------------------------
-    | Store initial default values from Platform Service fields
-    |--------------------------------------------------------------------------
-    */
-    serviceFeeCards.forEach(function (card) {
-        const serviceId = String(card.dataset.serviceId || '');
-
-        serviceDefaults[serviceId] = {
-            currency: getFieldValue(card, serviceId, 'currency') || 'EGP',
-            fee_notes: getFieldValue(card, serviceId, 'fee_notes') || '',
-
-            business_fee_enabled: getCheckboxValue(card, serviceId, 'business_fee_enabled'),
-            business_fee_type: getFieldValue(card, serviceId, 'business_fee_type') || 'fixed',
-            business_fee_amount: getFieldValue(card, serviceId, 'business_fee_amount') || '',
-
-            client_fee_enabled: getCheckboxValue(card, serviceId, 'client_fee_enabled'),
-            client_fee_type: getFieldValue(card, serviceId, 'client_fee_type') || 'fixed',
-            client_fee_amount: getFieldValue(card, serviceId, 'client_fee_amount') || ''
-        };
-    });
 
     function fieldName(serviceId, field) {
         return 'service_fees[' + serviceId + '][' + field + ']';
@@ -462,17 +443,29 @@ document.addEventListener('DOMContentLoaded', function () {
     function setFieldValue(card, serviceId, field, value) {
         const input = getField(card, serviceId, field);
 
-        if (input) {
-            input.value = value ?? '';
+        if (!input) {
+            return;
         }
+
+        if (input.dataset.userEdited === '1') {
+            return;
+        }
+
+        input.value = value ?? '';
     }
 
     function setCheckboxValue(card, serviceId, field, checked) {
         const input = getField(card, serviceId, field);
 
-        if (input) {
-            input.checked = !!checked;
+        if (!input) {
+            return;
         }
+
+        if (input.dataset.userEdited === '1') {
+            return;
+        }
+
+        input.checked = !!checked;
     }
 
     function normalizeFeeValue(value) {
@@ -489,19 +482,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return numberValue.toFixed(2);
     }
 
-    function resetServiceFeeCardToDefault(card, serviceId) {
-        const defaults = serviceDefaults[String(serviceId)] || {};
+    function visibleChildren() {
+        const activePanel = Array.from(rootPanels).find(function (panel) {
+            return panel.style.display !== 'none';
+        });
 
-        setFieldValue(card, serviceId, 'currency', defaults.currency || 'EGP');
-        setFieldValue(card, serviceId, 'fee_notes', defaults.fee_notes || '');
+        if (!activePanel) {
+            return [];
+        }
 
-        setCheckboxValue(card, serviceId, 'business_fee_enabled', !!defaults.business_fee_enabled);
-        setFieldValue(card, serviceId, 'business_fee_type', defaults.business_fee_type || 'fixed');
-        setFieldValue(card, serviceId, 'business_fee_amount', defaults.business_fee_amount || '');
+        return activePanel.querySelectorAll('.js-child-checkbox:not(:disabled)');
+    }
 
-        setCheckboxValue(card, serviceId, 'client_fee_enabled', !!defaults.client_fee_enabled);
-        setFieldValue(card, serviceId, 'client_fee_type', defaults.client_fee_type || 'fixed');
-        setFieldValue(card, serviceId, 'client_fee_amount', defaults.client_fee_amount || '');
+    function getSelectedChildIds() {
+        const checked = Array.from(document.querySelectorAll('.js-child-checkbox:not(:disabled):checked'))
+            .map(function (input) {
+                return String(input.value);
+            });
+
+        if (checked.length > 0) {
+            return checked;
+        }
+
+        return Array.from(document.querySelectorAll('.js-child-checkbox:not(:disabled)'))
+            .map(function (input) {
+                return String(input.value);
+            });
     }
 
     function getServiceInput(serviceId) {
@@ -516,23 +522,57 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function visibleChildren() {
-        const activePanel = Array.from(rootPanels).find(function (panel) {
-            return panel.style.display !== 'none';
+    /*
+    |--------------------------------------------------------------------------
+    | Store default values from Blade before any matrix fill
+    |--------------------------------------------------------------------------
+    */
+    serviceFeeCards.forEach(function (card) {
+        const serviceId = String(card.dataset.serviceId || '');
+
+        serviceDefaults[serviceId] = {
+            currency: getFieldValue(card, serviceId, 'currency') || 'EGP',
+            fee_notes: getFieldValue(card, serviceId, 'fee_notes') || '',
+
+            business_fee_enabled: getCheckboxValue(card, serviceId, 'business_fee_enabled'),
+            business_fee_type: getFieldValue(card, serviceId, 'business_fee_type') || 'fixed',
+            business_fee_amount: getFieldValue(card, serviceId, 'business_fee_amount') || '',
+
+            client_fee_enabled: getCheckboxValue(card, serviceId, 'client_fee_enabled'),
+            client_fee_type: getFieldValue(card, serviceId, 'client_fee_type') || 'fixed',
+            client_fee_amount: getFieldValue(card, serviceId, 'client_fee_amount') || ''
+        };
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prevent overwrite after manual editing
+    |--------------------------------------------------------------------------
+    */
+    document.querySelectorAll('.js-service-fee-card input, .js-service-fee-card select, .js-service-fee-card textarea')
+        .forEach(function (field) {
+            field.addEventListener('input', function () {
+                field.dataset.userEdited = '1';
+            });
+
+            field.addEventListener('change', function () {
+                field.dataset.userEdited = '1';
+            });
         });
 
-        if (!activePanel) {
-            return [];
-        }
+    function resetServiceFeeCardToDefault(card, serviceId) {
+        const defaults = serviceDefaults[String(serviceId)] || {};
 
-        return activePanel.querySelectorAll('.js-child-checkbox:not(:disabled)');
-    }
+        setFieldValue(card, serviceId, 'currency', defaults.currency || 'EGP');
+        setFieldValue(card, serviceId, 'fee_notes', defaults.fee_notes || '');
 
-    function getSelectedChildIds() {
-        return Array.from(document.querySelectorAll('.js-child-checkbox:not(:disabled):checked'))
-            .map(function (input) {
-                return String(input.value);
-            });
+        setCheckboxValue(card, serviceId, 'business_fee_enabled', !!defaults.business_fee_enabled);
+        setFieldValue(card, serviceId, 'business_fee_type', defaults.business_fee_type || 'fixed');
+        setFieldValue(card, serviceId, 'business_fee_amount', defaults.business_fee_amount || '');
+
+        setCheckboxValue(card, serviceId, 'client_fee_enabled', !!defaults.client_fee_enabled);
+        setFieldValue(card, serviceId, 'client_fee_type', defaults.client_fee_type || 'fixed');
+        setFieldValue(card, serviceId, 'client_fee_amount', defaults.client_fee_amount || '');
     }
 
     function getCommonServiceFee(serviceId) {
@@ -558,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const keys = [
+            [
                 'business_fee_enabled',
                 'business_fee_type',
                 'business_fee_amount',
@@ -567,16 +607,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 'client_fee_amount',
                 'currency',
                 'fee_notes'
-            ];
-
-            keys.forEach(function (key) {
+            ].forEach(function (key) {
                 if (String(first[key] ?? '') !== String(row[key] ?? '')) {
                     mixed = true;
                 }
             });
         });
 
-        if (first && rowsFound < selectedChildIds.length) {
+        if (first && selectedChildIds.length > 0 && rowsFound < selectedChildIds.length) {
             mixed = true;
         }
 
@@ -597,6 +635,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const result = getCommonServiceFee(serviceId);
         const row = result.row;
+
         const mixedBox = card.querySelector('.js-fee-mixed-warning');
 
         if (mixedBox) {
@@ -655,30 +694,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function activateRootLocally(rootId) {
-        rootTabs.forEach(function (tab) {
-            const active = tab.dataset.rootId === rootId;
-            tab.classList.toggle('a2-btn-primary', active);
-            tab.classList.toggle('a2-btn-ghost', !active);
-        });
-
-        rootPanels.forEach(function (panel) {
-            const active = panel.dataset.rootId === rootId;
-            panel.style.display = active ? '' : 'none';
-
-            panel.querySelectorAll('.js-child-checkbox').forEach(function (input) {
-                input.disabled = !active;
-                input.checked = false;
-            });
-        });
-
-        if (rootInput) {
-            rootInput.value = rootId;
-        }
-
-        fillVisibleServiceFeeCards();
-    }
-
     function reloadForRoot(rootId) {
         const url = new URL(window.location.href);
         url.searchParams.set('root_id', rootId);
@@ -689,15 +704,12 @@ document.addEventListener('DOMContentLoaded', function () {
     |--------------------------------------------------------------------------
     | Root tabs
     |--------------------------------------------------------------------------
-    | الأفضل إعادة تحميل الصفحة عند تغيير Root حتى يتم تحميل activeServiceCounts
-    | و feeMatrix الخاصة بالتصنيف الصحيح من الكنترول.
     */
     rootTabs.forEach(function (tab) {
         tab.addEventListener('click', function () {
             const rootId = tab.dataset.rootId;
 
             if (rootInput && String(rootInput.value) === String(rootId)) {
-                activateRootLocally(rootId);
                 return;
             }
 

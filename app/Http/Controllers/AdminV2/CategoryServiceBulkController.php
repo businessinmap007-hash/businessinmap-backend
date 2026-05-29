@@ -97,7 +97,7 @@ class CategoryServiceBulkController extends Controller
         };
     }
 
-   private function serviceFeePayload(Request $request, int $sortOrder = 1, ?int $serviceId = null): array
+    private function serviceFeePayload(Request $request, int $sortOrder = 1, ?int $serviceId = null): array
     {
         $serviceFeeInput = [];
 
@@ -118,27 +118,20 @@ class CategoryServiceBulkController extends Controller
         $clientFeeType = PlatformService::normalizeFeeType($serviceFeeInput['client_fee_type'] ?? null)
             ?: PlatformService::FEE_TYPE_FIXED;
 
-        $businessFeeAmount = $businessFeeEnabled
-            ? $this->money($serviceFeeInput['business_fee_amount'] ?? 0)
-            : 0.00;
+        $businessFeeAmount = $this->money($serviceFeeInput['business_fee_amount'] ?? 0);
+        $clientFeeAmount = $this->money($serviceFeeInput['client_fee_amount'] ?? 0);
 
-        $clientFeeAmount = $clientFeeEnabled
-            ? $this->money($serviceFeeInput['client_fee_amount'] ?? 0)
-            : 0.00;
-
-        if ($businessFeeAmount <= 0) {
+        if (! $businessFeeEnabled || $businessFeeAmount <= 0) {
             $businessFeeEnabled = false;
-            $businessFeeAmount = 0.00;
             $businessFeeType = null;
+            $businessFeeAmount = 0.00;
         }
 
-        if ($clientFeeAmount <= 0) {
+        if (! $clientFeeEnabled || $clientFeeAmount <= 0) {
             $clientFeeEnabled = false;
-            $clientFeeAmount = 0.00;
             $clientFeeType = null;
+            $clientFeeAmount = 0.00;
         }
-
-        $isActive = $businessFeeEnabled || $clientFeeEnabled;
 
         return [
             'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
@@ -150,7 +143,7 @@ class CategoryServiceBulkController extends Controller
             'client_fee_amount' => $clientFeeAmount,
 
             'currency' => $this->currency($serviceFeeInput['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY),
-            'is_active' => $isActive ? 1 : 0,
+            'is_active' => ($businessFeeEnabled || $clientFeeEnabled) ? 1 : 0,
             'sort_order' => $sortOrder,
             'notes' => trim((string) ($serviceFeeInput['fee_notes'] ?? '')) ?: null,
         ];
@@ -375,6 +368,7 @@ class CategoryServiceBulkController extends Controller
             'service_fees.*.fee_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
+
         $root = Category::query()
             ->where('id', (int) $data['root_id'])
             ->where('parent_id', 0)
@@ -491,16 +485,18 @@ class CategoryServiceBulkController extends Controller
         | نعطل فقط رسوم الخدمات التي لم تعد موجودة ضمن replace الحالي.
         */
         CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->whereNotIn('platform_service_id', $serviceIds)
-            ->update([
-                'is_active' => 0,
-                'business_fee_enabled' => 0,
-                'business_fee_amount' => 0,
-                'client_fee_enabled' => 0,
-                'client_fee_amount' => 0,
-                'updated_at' => now(),
-            ]);
+        ->where('child_id', $childId)
+        ->whereNotIn('platform_service_id', $serviceIds)
+        ->update([
+            'is_active' => 0,
+            'business_fee_enabled' => 0,
+            'business_fee_type' => null,
+            'business_fee_amount' => 0,
+            'client_fee_enabled' => 0,
+            'client_fee_type' => null,
+            'client_fee_amount' => 0,
+            'updated_at' => now(),
+        ]);
 
         $order = 1;
 
@@ -609,7 +605,7 @@ class CategoryServiceBulkController extends Controller
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
-                $this->serviceFeePayload($request, $sortOrder)
+                $this->serviceFeePayload($request, $order, (int) $serviceId)
             );
         }
     }
@@ -635,16 +631,17 @@ class CategoryServiceBulkController extends Controller
             ]);
 
         CategoryChildServiceFee::query()
-            ->where('child_id', $childId)
-            ->whereIn('platform_service_id', $serviceIds)
-            ->update([
-                'is_active' => 0,
-                'business_fee_enabled' => 0,
-                'business_fee_amount' => 0,
-                'client_fee_enabled' => 0,
-                'client_fee_amount' => 0,
-                'updated_at' => now(),
-                
-            ]);
+        ->where('child_id', $childId)
+        ->whereIn('platform_service_id', $serviceIds)
+        ->update([
+            'is_active' => 0,
+            'business_fee_enabled' => 0,
+            'business_fee_type' => null,
+            'business_fee_amount' => 0,
+            'client_fee_enabled' => 0,
+            'client_fee_type' => null,
+            'client_fee_amount' => 0,
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -54,7 +54,13 @@ class BookingDepositService
         if ($existing && ! $existing->isFinal()) {
             $this->syncDepositConfirmationsFromBookingMeta($booking, $existing);
 
-            return $existing;
+            if (method_exists($existing, 'isFrozen') && $existing->isFrozen()) {
+                return $existing;
+            }
+
+            throw ValidationException::withMessages([
+                'deposit' => 'يوجد Deposit غير نهائي لكنه غير مجمد. لا يمكن بدء التنفيذ قبل معالجة حالة الـ Deposit.',
+            ]);
         }
 
         $total = round($holdAmount * 2, 2);

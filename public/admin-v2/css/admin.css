@@ -4263,297 +4263,43 @@ body.admin-v2-auth{
     break-inside: avoid;
   }
 }
+
 /* =======================================================================
-   Booking Operation Center
+   12) BOOKINGS UX - BIM-2.4.2 FINAL
+   Notes:
+   - All Booking CSS is consolidated here.
+   - Do not add Booking CSS inside Blade files.
+   - This block intentionally overrides the generic .a2-table min-width / nowrap
+     only inside Booking screens.
    ======================================================================= */
 
-body.admin-v2-booking-show .booking-op{
-  display: block;
+/* -----------------------------------------------------------------------
+   Booking Create / Edit Form Shell
+   body classes:
+   - admin-v2-bookings-create
+   - admin-v2-bookings-edit
+   ----------------------------------------------------------------------- */
+
+.admin-v2-bookings-create .bk-error-list,
+.admin-v2-bookings-edit .bk-error-list,
+.admin-v2-bookings-index .bk-error-list,
+.admin-v2-bookings-index-compact .bk-error-list {
+    margin: 0;
+    padding-inline-start: 18px;
 }
 
-.booking-op-head-pills{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
+.admin-v2-bookings-create .bk-form-errors,
+.admin-v2-bookings-edit .bk-form-errors {
+    margin-bottom: 12px;
 }
 
-.booking-op-hero{
-  display: grid;
-  grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+.admin-v2-bookings-create .bk-form-shell,
+.admin-v2-bookings-edit .bk-form-shell {
+    display: block;
 }
-
-.booking-op-next,
-.booking-op-mini,
-.booking-op-section{
-  min-width: 0;
-}
-
-.booking-op-card-head,
-.booking-op-section-head{
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.booking-op-eyebrow{
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  margin-bottom: 6px;
-}
-
-.booking-op-main-title{
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.25;
-  font-weight: 950;
-  color: var(--a2-text);
-}
-
-.booking-op-next-desc{
-  margin-top: 10px;
-  color: var(--a2-muted);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.7;
-}
-
-.booking-op-reasons,
-.booking-op-warnings{
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.booking-op-reason,
-.booking-op-warning{
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.7;
-}
-
-.booking-op-reason{
-  background: var(--a2-danger-bg);
-  border: 1px solid var(--a2-danger-br);
-  color: var(--a2-danger);
-}
-
-.booking-op-warning{
-  background: var(--a2-warning-bg);
-  border: 1px solid var(--a2-warning-br);
-  color: var(--a2-warning);
-}
-
-.booking-op-mini{
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.booking-op-mini-label{
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-
-.booking-op-mini-value{
-  color: var(--a2-text);
-  font-size: 22px;
-  line-height: 1.25;
-  font-weight: 950;
-  word-break: break-word;
-}
-
-.booking-op-mini-note{
-  margin-top: 8px;
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.6;
-}
-
-.booking-op-section{
-  margin-bottom: 16px;
-}
-
-.booking-op-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.booking-op-actions{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.booking-op-actions form{
-  margin: 0;
-}
-
-.booking-op-empty{
-  background: var(--a2-gray-bg);
-  border: 1px solid var(--a2-gray-br);
-  color: var(--a2-muted);
-  border-radius: 14px;
-  padding: 12px;
-  font-weight: 800;
-}
-
-.booking-op-timeline{
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.booking-op-step{
-  position: relative;
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  background: var(--a2-card-soft);
-  border: 1px solid var(--a2-border);
-  border-radius: 14px;
-  padding: 12px;
-  min-width: 0;
-}
-
-.booking-op-step-dot{
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #d0d5dd;
-  margin-top: 5px;
-  flex: 0 0 12px;
-}
-
-.booking-op-step.is-done .booking-op-step-dot{
-  background: var(--a2-success);
-}
-
-.booking-op-step-body{
-  min-width: 0;
-}
-
-.booking-op-step-body strong{
-  display: block;
-  color: var(--a2-text);
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.5;
-}
-
-.booking-op-step-body span{
-  display: block;
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.6;
-  word-break: break-word;
-}
-
-.booking-op-kv-grid{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.booking-op-kv-grid-4{
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.booking-op-kv{
-  background: #f8fafc;
-  border: 1px solid var(--a2-border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  min-width: 0;
-}
-
-.booking-op-kv span{
-  display: block;
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 900;
-  margin-bottom: 6px;
-}
-
-.booking-op-kv strong{
-  display: block;
-  color: var(--a2-text);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.booking-op-kv small{
-  display: block;
-  color: var(--a2-muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.6;
-  margin-top: 4px;
-  word-break: break-word;
-}
-
-.booking-op-debug{
-  border-style: dashed;
-}
-
-@media (max-width: 1280px){
-  .booking-op-hero{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .booking-op-next{
-    grid-column: 1 / -1;
-  }
-
-  .booking-op-timeline,
-  .booking-op-actions,
-  .booking-op-kv-grid-4{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px){
-  .booking-op-grid,
-  .booking-op-hero{
-    grid-template-columns: 1fr;
-  }
-
-  .booking-op-actions,
-  .booking-op-timeline,
-  .booking-op-kv-grid,
-  .booking-op-kv-grid-4{
-    grid-template-columns: 1fr;
-  }
-
-  .booking-op-main-title{
-    font-size: 20px;
-  }
-}
-/* =========================================================
-   Admin V2 - Booking Form UX
-   BIM-2.4.2
-========================================================= */
 
 .admin-v2-bookings-create .bk-form-layout,
-.admin-v2-bookings-edit .bk-form-layout,
-.admin-v2 .bk-form-layout {
+.admin-v2-bookings-edit .bk-form-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 390px;
     gap: 16px;
@@ -4563,29 +4309,25 @@ body.admin-v2-booking-show .booking-op{
 .admin-v2-bookings-create .bk-main,
 .admin-v2-bookings-edit .bk-main,
 .admin-v2-bookings-create .bk-side,
-.admin-v2-bookings-edit .bk-side,
-.admin-v2 .bk-main,
-.admin-v2 .bk-side {
+.admin-v2-bookings-edit .bk-side {
     display: grid;
     gap: 16px;
+    min-width: 0;
 }
 
 .admin-v2-bookings-create .bk-side,
-.admin-v2-bookings-edit .bk-side,
-.admin-v2 .bk-side {
+.admin-v2-bookings-edit .bk-side {
     position: sticky;
     top: 90px;
 }
 
 .admin-v2-bookings-create .bk-card,
-.admin-v2-bookings-edit .bk-card,
-.admin-v2 .bk-card {
+.admin-v2-bookings-edit .bk-card {
     padding: 18px;
 }
 
 .admin-v2-bookings-create .bk-card-head,
-.admin-v2-bookings-edit .bk-card-head,
-.admin-v2 .bk-card-head {
+.admin-v2-bookings-edit .bk-card-head {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -4594,17 +4336,28 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-form-grid,
-.admin-v2-bookings-edit .bk-form-grid,
-.admin-v2 .bk-form-grid {
+.admin-v2-bookings-edit .bk-form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(260px, 1fr));
     gap: 16px;
     align-items: end;
 }
 
+.admin-v2-bookings-create .bk-form-span-full,
+.admin-v2-bookings-edit .bk-form-span-full {
+    grid-column: 1 / -1;
+}
+
+.admin-v2-bookings-create .bk-form-actions,
+.admin-v2-bookings-edit .bk-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .admin-v2-bookings-create .bk-kv-grid,
-.admin-v2-bookings-edit .bk-kv-grid,
-.admin-v2 .bk-kv-grid {
+.admin-v2-bookings-edit .bk-kv-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
@@ -4612,26 +4365,24 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-kv,
-.admin-v2-bookings-edit .bk-kv,
-.admin-v2 .bk-kv {
+.admin-v2-bookings-edit .bk-kv {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
     border-radius: 14px;
     padding: 10px 12px;
+    min-width: 0;
 }
 
 .admin-v2-bookings-create .bk-kv span,
-.admin-v2-bookings-edit .bk-kv span,
-.admin-v2 .bk-kv span {
+.admin-v2-bookings-edit .bk-kv span {
     display: block;
     font-size: 12px;
-    color: #6b7280;
+    color: var(--a2-muted);
     margin-bottom: 5px;
 }
 
 .admin-v2-bookings-create .bk-kv strong,
-.admin-v2-bookings-edit .bk-kv strong,
-.admin-v2 .bk-kv strong {
+.admin-v2-bookings-edit .bk-kv strong {
     display: block;
     font-size: 14px;
     font-weight: 900;
@@ -4640,14 +4391,12 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-field-search,
-.admin-v2-bookings-edit .bk-field-search,
-.admin-v2 .bk-field-search {
+.admin-v2-bookings-edit .bk-field-search {
     position: relative;
 }
 
 .admin-v2-bookings-create .bk-dropdown,
-.admin-v2-bookings-edit .bk-dropdown,
-.admin-v2 .bk-dropdown {
+.admin-v2-bookings-edit .bk-dropdown {
     display: none;
     position: absolute;
     inset-inline: 0;
@@ -4662,8 +4411,7 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-option,
-.admin-v2-bookings-edit .bk-option,
-.admin-v2 .bk-option {
+.admin-v2-bookings-edit .bk-option {
     width: 100%;
     text-align: right;
     padding: 12px 14px;
@@ -4674,23 +4422,20 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-option:hover,
-.admin-v2-bookings-edit .bk-option:hover,
-.admin-v2 .bk-option:hover {
+.admin-v2-bookings-edit .bk-option:hover {
     background: #f8fafc;
 }
 
 .admin-v2-bookings-create .bk-option-sub,
-.admin-v2-bookings-edit .bk-option-sub,
-.admin-v2 .bk-option-sub {
+.admin-v2-bookings-edit .bk-option-sub {
     display: block;
-    color: #6b7280;
+    color: var(--a2-muted);
     font-size: 12px;
     margin-top: 3px;
 }
 
 .admin-v2-bookings-create .bk-mini-badge,
-.admin-v2-bookings-edit .bk-mini-badge,
-.admin-v2 .bk-mini-badge {
+.admin-v2-bookings-edit .bk-mini-badge {
     display: inline-flex;
     padding: 2px 8px;
     border-radius: 999px;
@@ -4703,32 +4448,35 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-create .bk-check-wrap,
-.admin-v2-bookings-edit .bk-check-wrap,
-.admin-v2 .bk-check-wrap {
+.admin-v2-bookings-edit .bk-check-wrap {
     display: flex;
     align-items: end;
     min-height: 62px;
 }
 
 .admin-v2-bookings-create .bk-check,
-.admin-v2-bookings-edit .bk-check,
-.admin-v2 .bk-check {
+.admin-v2-bookings-edit .bk-check {
     display: flex;
     gap: 8px;
     align-items: center;
     font-weight: 900;
 }
 
+.admin-v2-bookings-create .is-hidden,
+.admin-v2-bookings-edit .is-hidden,
+.admin-v2-booking-show-ux .is-hidden,
+.admin-v2-bookings-index-compact .is-hidden {
+    display: none !important;
+}
+
 @media (max-width: 1200px) {
     .admin-v2-bookings-create .bk-form-layout,
-    .admin-v2-bookings-edit .bk-form-layout,
-    .admin-v2 .bk-form-layout {
+    .admin-v2-bookings-edit .bk-form-layout {
         grid-template-columns: 1fr;
     }
 
     .admin-v2-bookings-create .bk-side,
-    .admin-v2-bookings-edit .bk-side,
-    .admin-v2 .bk-side {
+    .admin-v2-bookings-edit .bk-side {
         position: static;
     }
 }
@@ -4736,47 +4484,17 @@ body.admin-v2-booking-show .booking-op{
 @media (max-width: 800px) {
     .admin-v2-bookings-create .bk-form-grid,
     .admin-v2-bookings-edit .bk-form-grid,
-    .admin-v2 .bk-form-grid,
     .admin-v2-bookings-create .bk-kv-grid,
-    .admin-v2-bookings-edit .bk-kv-grid,
-    .admin-v2 .bk-kv-grid {
+    .admin-v2-bookings-edit .bk-kv-grid {
         grid-template-columns: 1fr;
     }
 }
-/* =========================================================
-   Admin V2 - Bookings Index UX
-   BIM-2.4.2
-========================================================= */
 
-.admin-v2-bookings-index .bk-error-list {
-    margin: 0;
-    padding-inline-start: 18px;
-}
-
-.admin-v2-bookings-index .bk-list-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.admin-v2-bookings-index .bk-list-count {
-    color: var(--muted, #6b7280);
-    font-size: 13px;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-/* =========================================================
-   Admin V2 - Bookings Index Compact
-   BIM-2.4.2
-========================================================= */
-
-.admin-v2-bookings-index-compact .bk-error-list {
-    margin: 0;
-    padding-inline-start: 18px;
-}
+/* -----------------------------------------------------------------------
+   Bookings Index Compact
+   body class:
+   - admin-v2-bookings-index-compact
+   ----------------------------------------------------------------------- */
 
 .admin-v2-bookings-index-compact .bk-list-head {
     display: flex;
@@ -4787,7 +4505,7 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-bookings-index-compact .bk-list-count {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 13px;
     font-weight: 800;
     white-space: nowrap;
@@ -4797,104 +4515,114 @@ body.admin-v2-booking-show .booking-op{
     grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.admin-v2-bookings-index-compact .a2-table-wrap {
+    overflow-x: hidden;
+}
+
 .admin-v2-bookings-index-compact .bk-bookings-table-compact {
     width: 100%;
-    min-width: 0;
+    min-width: 0 !important;
     table-layout: fixed;
 }
 
 .admin-v2-bookings-index-compact .bk-bookings-table-compact th,
 .admin-v2-bookings-index-compact .bk-bookings-table-compact td {
-    padding: 10px 8px;
+    padding: 7px 5px !important;
+    line-height: 1.3;
     vertical-align: top;
+    text-align: center;
+}
+
+.admin-v2-bookings-index-compact .bk-bookings-table-compact tbody td {
+    white-space: normal;
 }
 
 .admin-v2-bookings-index-compact .bk-col-id {
-    width: 68px;
+    width: 58px;
 }
 
 .admin-v2-bookings-index-compact .bk-col-operation {
-    width: 18%;
+    width: 15%;
 }
 
 .admin-v2-bookings-index-compact .bk-col-parties {
-    width: 22%;
+    width: 19%;
 }
 
 .admin-v2-bookings-index-compact .bk-col-date {
-    width: 16%;
+    width: 14%;
 }
 
 .admin-v2-bookings-index-compact .bk-col-finance {
-    width: 16%;
+    width: 14%;
 }
 
 .admin-v2-bookings-index-compact .bk-col-status {
-    width: 11%;
+    width: 9%;
 }
 
 .admin-v2-bookings-index-compact .bk-col-actions {
-    width: 140px;
+    width: 210px;
 }
 
 .admin-v2-bookings-index-compact .bk-booking-id {
     display: inline-flex;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
     text-decoration: none;
 }
 
 .admin-v2-bookings-index-compact .bk-booking-id:hover {
-    color: var(--primary, #2563eb);
+    color: var(--a2-info);
+}
+
+.admin-v2-bookings-index-compact .bk-row-title,
+.admin-v2-bookings-index-compact .bk-row-sub,
+.admin-v2-bookings-index-compact .bk-row-muted,
+.admin-v2-bookings-index-compact .bk-row-pair strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-v2-bookings-index-compact .bk-row-title {
     font-weight: 950;
-    color: var(--text, #111827);
-    line-height: 1.35;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--a2-text);
+    line-height: 1.3;
 }
 
 .admin-v2-bookings-index-compact .bk-row-sub {
-    color: var(--text, #111827);
+    color: var(--a2-text);
     font-size: 12px;
     font-weight: 800;
-    line-height: 1.45;
-    margin-top: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.4;
+    margin-top: 3px;
 }
 
 .admin-v2-bookings-index-compact .bk-row-muted {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 11px;
-    line-height: 1.45;
-    margin-top: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+    margin-top: 3px;
 }
 
 .admin-v2-bookings-index-compact .bk-row-pair {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .admin-v2-bookings-index-compact .bk-row-pair span {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 38px;
-    height: 20px;
-    padding: 0 7px;
+    min-width: 34px;
+    height: 19px;
+    padding: 0 6px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 900;
     background: #f1f5f9;
     color: #334155;
@@ -4904,23 +4632,41 @@ body.admin-v2-booking-show .booking-op{
 .admin-v2-bookings-index-compact .bk-row-pair strong {
     font-weight: 950;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .admin-v2-bookings-index-compact .bk-finance-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 7px;
+    gap: 4px;
+    margin-top: 6px;
+    justify-content: center;
+}
+
+.admin-v2-bookings-index-compact .bk-finance-tags .a2-pill {
+    padding-inline: 7px;
+    font-size: 11px;
 }
 
 .admin-v2-bookings-index-compact .bk-table-actions-compact {
     display: flex;
     gap: 5px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.admin-v2-bookings-index-compact .bk-table-actions-compact form {
+    margin: 0;
+    display: inline-flex;
+}
+
+.admin-v2-bookings-index-compact .bk-table-actions-compact .a2-btn {
+    min-width: 48px;
+    height: 32px;
+    padding-inline: 8px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 @media (max-width: 1300px) {
@@ -4933,7 +4679,7 @@ body.admin-v2-booking-show .booking-op{
     }
 
     .admin-v2-bookings-index-compact .bk-col-actions {
-        width: 118px;
+        width: 220px;
     }
 }
 
@@ -4942,217 +4688,21 @@ body.admin-v2-booking-show .booking-op{
         grid-template-columns: 1fr;
     }
 
+    .admin-v2-bookings-index-compact .a2-table-wrap {
+        overflow-x: auto;
+    }
+
     .admin-v2-bookings-index-compact .bk-bookings-table-compact {
-        min-width: 860px;
+        min-width: 860px !important;
     }
 }
 
-.admin-v2-bookings-index .bk-col-id {
-    min-width: 76px;
-}
-
-
-.admin-v2-bookings-index .bk-col-service {
-    min-width: 190px;
-}
-
-.admin-v2-bookings-index .bk-col-money {
-    min-width: 145px;
-}
-
-.admin-v2-bookings-index .bk-col-date {
-    min-width: 165px;
-}
-
-.admin-v2-bookings-index .bk-col-status {
-    min-width: 130px;
-}
-
-.admin-v2-bookings-index .bk-col-actions {
-    min-width: 165px;
-}
-
-.admin-v2-bookings-index .bk-booking-id {
-    display: inline-flex;
-    align-items: center;
-    font-weight: 950;
-    color: var(--text, #111827);
-    text-decoration: none;
-}
-
-.admin-v2-bookings-index .bk-booking-id:hover {
-    color: var(--primary, #2563eb);
-}
-
-.admin-v2-bookings-index .bk-small {
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-.admin-v2-bookings-index .bk-entity {
-    display: grid;
-    gap: 4px;
-}
-
-.admin-v2-bookings-index .bk-entity-name {
-    font-weight: 950;
-    color: var(--text, #111827);
-    line-height: 1.45;
-}
-
-.admin-v2-bookings-index .bk-entity-meta {
-    color: var(--muted, #6b7280);
-    font-size: 12px;
-    line-height: 1.45;
-}
-
-.admin-v2-bookings-index .bk-entity-id {
-    color: var(--muted, #6b7280);
-    font-size: 11px;
-    line-height: 1.45;
-}
-
-.admin-v2-bookings-index .bk-bookable-line {
-    color: var(--text, #111827);
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.45;
-    padding: 4px 8px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 999px;
-    width: fit-content;
-    max-width: 100%;
-}
-
-.admin-v2-bookings-index .bk-money-main {
-    font-weight: 950;
-    color: var(--text, #111827);
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index .bk-money-meta {
-    color: var(--muted, #6b7280);
-    font-size: 12px;
-    line-height: 1.5;
-    margin-top: 4px;
-}
-
-.admin-v2-bookings-index .bk-date-main {
-    font-weight: 900;
-    color: var(--text, #111827);
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index .bk-date-meta {
-    color: var(--muted, #6b7280);
-    font-size: 12px;
-    line-height: 1.5;
-    margin-top: 4px;
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index .bk-status-hint {
-    color: var(--muted, #6b7280);
-    font-size: 12px;
-    margin-top: 6px;
-}
-
-.admin-v2-bookings-index .bk-table-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-/* =========================================================
-   Admin V2 - Bookings Index Compact Width Fix
-========================================================= */
-
-.admin-v2-bookings-index-compact .a2-table-wrap {
-    overflow-x: hidden;
-}
-
-.admin-v2-bookings-index-compact .bk-bookings-table-compact {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
-}
-
-.admin-v2-bookings-index-compact .bk-bookings-table-compact th,
-.admin-v2-bookings-index-compact .bk-bookings-table-compact td {
-    padding: 8px 6px;
-    line-height: 1.35;
-}
-
-.admin-v2-bookings-index-compact .bk-col-id {
-    width: 62px;
-}
-
-.admin-v2-bookings-index-compact .bk-col-operation {
-    width: 15%;
-}
-
-.admin-v2-bookings-index-compact .bk-col-parties {
-    width: 20%;
-}
-
-.admin-v2-bookings-index-compact .bk-col-date {
-    width: 15%;
-}
-
-.admin-v2-bookings-index-compact .bk-col-finance {
-    width: 15%;
-}
-
-.admin-v2-bookings-index-compact .bk-col-status {
-    width: 10%;
-}
-
-.admin-v2-bookings-index-compact .bk-col-actions {
-    width: 190px;
-}
-
-.admin-v2-bookings-index-compact .bk-table-actions-compact {
-    display: flex;
-    gap: 6px;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: flex-start;
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index-compact .bk-table-actions-compact form {
-    margin: 0;
-    display: inline-flex;
-}
-
-.admin-v2-bookings-index-compact .bk-table-actions-compact .a2-btn {
-    min-width: 52px;
-    padding-inline: 10px;
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index-compact .bk-row-title,
-.admin-v2-bookings-index-compact .bk-row-sub,
-.admin-v2-bookings-index-compact .bk-row-muted,
-.admin-v2-bookings-index-compact .bk-row-pair strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.admin-v2-bookings-index-compact .bk-finance-tags {
-    gap: 4px;
-}
-
-.admin-v2-bookings-index-compact .bk-finance-tags .a2-pill {
-    padding-inline: 8px;
-    font-size: 12px;
-}
-/* =========================================================
-   Admin V2 - Booking Show UX
-   BIM-2.4.2
-========================================================= */
+/* -----------------------------------------------------------------------
+   Booking Show UX
+   body classes:
+   - admin-v2-booking-show
+   - admin-v2-booking-show-ux
+   ----------------------------------------------------------------------- */
 
 .admin-v2-booking-show-ux .booking-show-pills {
     display: flex;
@@ -5203,7 +4753,7 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-booking-show-ux .booking-show-eyebrow {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 12px;
     font-weight: 950;
     text-transform: uppercase;
@@ -5215,11 +4765,11 @@ body.admin-v2-booking-show .booking-op{
     font-size: 26px;
     line-height: 1.25;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
 }
 
 .admin-v2-booking-show-ux .booking-show-desc {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 14px;
     line-height: 1.7;
 }
@@ -5256,7 +4806,7 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-booking-show-ux .booking-show-mini-card span {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 12px;
     font-weight: 900;
 }
@@ -5264,12 +4814,12 @@ body.admin-v2-booking-show .booking-op{
 .admin-v2-booking-show-ux .booking-show-mini-card strong {
     font-size: 20px;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
     line-height: 1.3;
 }
 
 .admin-v2-booking-show-ux .booking-show-mini-card small {
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 12px;
     line-height: 1.4;
 }
@@ -5300,7 +4850,7 @@ body.admin-v2-booking-show .booking-op{
 }
 
 .admin-v2-booking-show-ux .booking-show-step.is-done .booking-show-step-dot {
-    background: #16a34a;
+    background: var(--a2-success);
 }
 
 .admin-v2-booking-show-ux .booking-show-step-body {
@@ -5312,12 +4862,12 @@ body.admin-v2-booking-show .booking-op{
 .admin-v2-booking-show-ux .booking-show-step-body strong {
     font-size: 13px;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
 }
 
 .admin-v2-booking-show-ux .booking-show-step-body span {
     font-size: 11px;
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5350,7 +4900,7 @@ body.admin-v2-booking-show .booking-op{
 
 .admin-v2-booking-show-ux .booking-show-kv span {
     display: block;
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 12px;
     font-weight: 800;
     margin-bottom: 5px;
@@ -5360,14 +4910,14 @@ body.admin-v2-booking-show .booking-op{
     display: block;
     font-size: 14px;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
     line-height: 1.45;
     word-break: break-word;
 }
 
 .admin-v2-booking-show-ux .booking-show-kv small {
     display: block;
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     font-size: 11px;
     line-height: 1.45;
     margin-top: 4px;
@@ -5387,7 +4937,7 @@ body.admin-v2-booking-show .booking-op{
     border: 1px dashed #cbd5e1;
     border-radius: 14px;
     padding: 12px;
-    color: var(--muted, #6b7280);
+    color: var(--a2-muted);
     text-align: center;
     font-weight: 800;
 }
@@ -5395,7 +4945,7 @@ body.admin-v2-booking-show .booking-op{
 .admin-v2-booking-show-ux .booking-show-debug summary {
     cursor: pointer;
     font-weight: 950;
-    color: var(--text, #111827);
+    color: var(--a2-text);
 }
 
 .admin-v2-booking-show-ux .booking-show-debug .booking-show-kv-grid {
@@ -5428,42 +4978,4 @@ body.admin-v2-booking-show .booking-op{
     .admin-v2-booking-show-ux .booking-show-timeline {
         grid-template-columns: 1fr;
     }
-}
-/* =========================================================
-   Admin V2 - Booking Form Cleanup
-   BIM-2.4.2
-========================================================= */
-
-.admin-v2-bookings-create .bk-form-span-full,
-.admin-v2-bookings-edit .bk-form-span-full {
-    grid-column: 1 / -1;
-}
-
-.admin-v2-bookings-create .bk-form-actions,
-.admin-v2-bookings-edit .bk-form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.admin-v2-bookings-create .is-hidden,
-.admin-v2-bookings-edit .is-hidden,
-.admin-v2-booking-show-ux .is-hidden,
-.admin-v2-bookings-index-compact .is-hidden {
-    display: none !important;
-}
-/* =========================================================
-   Admin V2 - Booking Form Errors
-========================================================= */
-
-.admin-v2-bookings-create .bk-form-errors,
-.admin-v2-bookings-edit .bk-form-errors {
-    margin-bottom: 12px;
-}
-
-.admin-v2-bookings-create .bk-error-list,
-.admin-v2-bookings-edit .bk-error-list {
-    margin: 0;
-    padding-inline-start: 18px;
 }

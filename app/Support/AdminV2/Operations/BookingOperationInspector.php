@@ -3,13 +3,17 @@
 namespace App\Support\AdminV2\Operations;
 
 use App\Models\Booking;
-use App\Models\BookableItem;
-use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
-use App\Models\PlatformService;
+use App\Services\ServiceExecutionEngine;
+use Throwable;
 
 final class BookingOperationInspector
 {
+    public function __construct(
+        protected ServiceExecutionEngine $serviceExecutionEngine
+    ) {
+    }
+
     public function inspect(Booking $booking): OperationWorkflowResult
     {
         $booking->loadMissing([
@@ -27,6 +31,7 @@ final class BookingOperationInspector
         $confirmState = $this->confirmState($booking, $deposit);
         $feeState = $this->feeState($booking);
         $disputeState = $this->disputeState($booking);
+        $financialState = $this->financialState($booking);
 
         $stage = $this->resolveStage(
             booking: $booking,
@@ -34,7 +39,8 @@ final class BookingOperationInspector
             depositPolicy: $depositPolicy,
             confirmState: $confirmState,
             feeState: $feeState,
-            disputeState: $disputeState
+            disputeState: $disputeState,
+            financialState: $financialState
         );
 
         $blockedReasons = $this->blockedReasons(
@@ -43,7 +49,8 @@ final class BookingOperationInspector
             depositPolicy: $depositPolicy,
             confirmState: $confirmState,
             feeState: $feeState,
-            disputeState: $disputeState
+            disputeState: $disputeState,
+            financialState: $financialState
         );
 
         $availableActions = $this->availableActions(
@@ -54,6 +61,7 @@ final class BookingOperationInspector
             confirmState: $confirmState,
             feeState: $feeState,
             disputeState: $disputeState,
+            financialState: $financialState,
             blockedReasons: $blockedReasons
         );
 
@@ -66,16 +74,22 @@ final class BookingOperationInspector
             nextAction: $nextAction,
             availableActions: $availableActions,
             blockedReasons: $blockedReasons,
-            warnings: $this->warnings($booking, $deposit, $depositPolicy, $feeState),
+            warnings: $this->warnings($booking, $deposit, $depositPolicy, $feeState, $financialState),
             flags: [
-                'ready' => $stage === OperationStage::READY_TO_START,
+                'ready' => $stage === OperationStage::READY_TO_START && empty($blockedReasons),
                 'final' => OperationStage::isFinal($stage),
                 'needs_action' => OperationStage::needsAction($stage),
+
                 'deposit_required' => (bool) ($depositPolicy['required'] ?? false),
                 'deposit_exists' => (bool) $deposit,
                 'deposit_frozen' => $deposit ? $this->depositIsFrozen($deposit) : false,
+                'deposit_auto_freeze_on_start' => (bool) ($depositPolicy['required'] ?? false)
+                    && ! ($deposit && $this->depositIsFrozen($deposit)),
+
                 'client_confirmed' => (bool) ($confirmState['client_confirmed'] ?? false),
                 'business_confirmed' => (bool) ($confirmState['business_confirmed'] ?? false),
+
+                'financial_ready' => (bool) ($financialState['ok'] ?? true),
                 'fees_charged' => (bool) ($feeState['charged'] ?? false),
                 'has_dispute' => (bool) ($disputeState['has_dispute'] ?? false),
             ],
@@ -84,6 +98,7 @@ final class BookingOperationInspector
                 'confirmations' => $confirmState,
                 'fees' => $feeState,
                 'dispute' => $disputeState,
+                'financial' => $financialState,
                 'raw_status' => (string) $booking->status,
             ],
         );
@@ -95,7 +110,8 @@ final class BookingOperationInspector
         array $depositPolicy,
         array $confirmState,
         array $feeState,
-        array $disputeState
+        array $disputeState,
+        array $financialState
     ): string {
         if ((bool) ($disputeState['has_dispute'] ?? false)) {
             return OperationStage::DISPUTED;
@@ -111,7 +127,8 @@ final class BookingOperationInspector
                 deposit: $deposit,
                 depositPolicy: $depositPolicy,
                 confirmState: $confirmState,
-                feeState: $feeState
+                feeState: $feeState,
+                financialState: $financialState
             ),
         };
     }
@@ -121,30 +138,18 @@ final class BookingOperationInspector
         ?Deposit $deposit,
         array $depositPolicy,
         array $confirmState,
-        array $feeState
+        array $feeState,
+        array $financialState
     ): string {
-        $depositRequired = (bool) ($depositPolicy['required'] ?? false);
-
-        if ($depositRequired) {
-            if (! $deposit) {
-                return OperationStage::DEPOSIT_REQUIRED;
-            }
-
-            if (! $this->depositIsFrozen($deposit)) {
-                return OperationStage::DEPOSIT_REQUIRED;
-            }
-
-            if (! $this->bothConfirmed($confirmState)) {
-                return OperationStage::AWAITING_CONFIRMATION;
-            }
-
-            return OperationStage::READY_TO_START;
-        }
-
         if (! $this->bothConfirmed($confirmState)) {
             return OperationStage::AWAITING_CONFIRMATION;
         }
 
+        /*
+         * مهم:
+         * لا نرجع DEPOSIT_REQUIRED لمجرد أن الديبوزت غير مجمد.
+         * لأن ServiceExecutionEngine يقوم بتجميد الـ Deposit تلقائيًا عند Start.
+         */
         return OperationStage::READY_TO_START;
     }
 
@@ -154,7 +159,8 @@ final class BookingOperationInspector
         array $depositPolicy,
         array $confirmState,
         array $feeState,
-        array $disputeState
+        array $disputeState,
+        array $financialState
     ): array {
         $reasons = [];
 
@@ -170,20 +176,27 @@ final class BookingOperationInspector
             $reasons[] = 'الحجز في حالة نهائية ولا يمكن بدء التنفيذ.';
         }
 
-        if ((bool) ($depositPolicy['required'] ?? false)) {
-            if (! $deposit) {
-                $reasons[] = 'الـ Deposit مطلوب ولم يتم إنشاؤه بعد.';
-            } elseif (! $this->depositIsFrozen($deposit)) {
-                $reasons[] = 'الـ Deposit موجود لكنه غير مجمد.';
-            }
-        }
-
         if (! (bool) ($confirmState['client_confirmed'] ?? false)) {
             $reasons[] = 'تأكيد العميل مطلوب قبل بدء التنفيذ.';
         }
 
         if (! (bool) ($confirmState['business_confirmed'] ?? false)) {
             $reasons[] = 'تأكيد البزنس مطلوب قبل بدء التنفيذ.';
+        }
+
+        /*
+         * Financial Guard:
+         * لا نمنع بسبب عدم وجود Deposit مجمد؛ لأنه سيتجمد تلقائيًا عند Start.
+         * نمنع فقط إذا الرصيد غير كافٍ أو financialPreview فشل.
+         */
+        if ($this->bothConfirmed($confirmState) && ! (bool) ($financialState['ok'] ?? true)) {
+            foreach (($financialState['messages'] ?? []) as $message) {
+                $reasons[] = (string) $message;
+            }
+
+            if (! empty($financialState['error'])) {
+                $reasons[] = 'تعذر فحص الجاهزية المالية: ' . (string) $financialState['error'];
+            }
         }
 
         return array_values(array_unique(array_filter($reasons)));
@@ -197,6 +210,7 @@ final class BookingOperationInspector
         array $confirmState,
         array $feeState,
         array $disputeState,
+        array $financialState,
         array $blockedReasons
     ): array {
         $actions = [
@@ -215,13 +229,9 @@ final class BookingOperationInspector
         }
 
         /*
-         * مهم:
-         * لا نعرض Freeze Deposit إلا إذا كان الديبوزت مطلوب فعلاً حسب إعداد الفندق/الغرفة الحالي.
+         * لا نعرض Freeze Deposit كخطوة مطلوبة.
+         * الـ Deposit يتم تجميده تلقائيًا داخل ServiceExecutionEngine عند Start.
          */
-        if ((bool) ($depositPolicy['required'] ?? false) && ! $deposit) {
-            $actions[] = OperationAction::FREEZE_DEPOSIT;
-        }
-
         if ($deposit && $this->depositIsFrozen($deposit)) {
             $actions[] = OperationAction::RELEASE_DEPOSIT;
             $actions[] = OperationAction::REFUND_DEPOSIT;
@@ -236,7 +246,11 @@ final class BookingOperationInspector
             $actions[] = OperationAction::CONFIRM_BUSINESS;
         }
 
-        if ($stage === OperationStage::READY_TO_START && empty($blockedReasons)) {
+        if (
+            $stage === OperationStage::READY_TO_START
+            && empty($blockedReasons)
+            && (bool) ($financialState['ok'] ?? true)
+        ) {
             $actions[] = OperationAction::START;
         }
 
@@ -258,7 +272,6 @@ final class BookingOperationInspector
     protected function nextAction(array $availableActions, array $blockedReasons, string $stage): ?string
     {
         foreach ([
-            OperationAction::FREEZE_DEPOSIT,
             OperationAction::CONFIRM_CLIENT,
             OperationAction::CONFIRM_BUSINESS,
             OperationAction::START,
@@ -284,7 +297,8 @@ final class BookingOperationInspector
         Booking $booking,
         ?Deposit $deposit,
         array $depositPolicy,
-        array $feeState
+        array $feeState,
+        array $financialState
     ): array {
         $warnings = [];
 
@@ -292,8 +306,16 @@ final class BookingOperationInspector
             $warnings[] = 'تم خصم رسوم التنفيذ لهذا الحجز بالفعل.';
         }
 
-        if ((bool) ($depositPolicy['required'] ?? false) && ! $deposit) {
-            $warnings[] = 'هذا الحجز يتطلب Deposit قبل بدء التنفيذ.';
+        if ((bool) ($depositPolicy['required'] ?? false) && ! ($deposit && $this->depositIsFrozen($deposit))) {
+            $warnings[] = 'سيتم تجميد الـ Deposit تلقائيًا عند بدء التنفيذ.';
+        }
+
+        if (! empty($financialState['deposit']['required']) && ! empty($financialState['deposit']['client_required'])) {
+            $warnings[] = 'بدء التنفيذ سيتطلب رصيدًا كافيًا لتجميد Deposit على الطرفين.';
+        }
+
+        if (! empty($financialState['fees']['non_refundable_after_in_progress'])) {
+            $warnings[] = 'رسوم استخدام الخدمة لا تسترد بعد دخول الحجز في حيز التنفيذ.';
         }
 
         return array_values(array_unique(array_filter($warnings)));
@@ -314,175 +336,52 @@ final class BookingOperationInspector
 
     protected function depositPolicy(Booking $booking): array
     {
-        /*
-         * لا نعتمد على booking.meta.deposit_policy هنا لأنه قد يكون snapshot قديم.
-         * المطلوب: إعادة حساب الديبوزت من إعداد الفندق/الغرفة الحالي:
-         * - PlatformService supports_deposit
-         * - BusinessServicePrice deposit_enabled / deposit_percent
-         * - BookableItem deposit_enabled / deposit_percent override
-         */
+        try {
+            return $this->serviceExecutionEngine->depositPolicy($booking);
+        } catch (Throwable $e) {
+            report($e);
 
-        $booking->loadMissing([
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
-            'business:id,name,type,category_id,category_child_id',
-            'bookable',
-        ]);
-
-        $service = $booking->service;
-
-        if (! $service && (int) $booking->service_id > 0) {
-            $service = PlatformService::query()
-                ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-                ->find((int) $booking->service_id);
+            return [
+                'required' => false,
+                'amount' => 0.00,
+                'hold' => 0.00,
+                'configured_percent' => 0,
+                'source' => 'deposit_policy_error',
+                'currency' => 'EGP',
+                'computed_live' => true,
+                'ignored_old_meta' => true,
+                'error' => $e->getMessage(),
+            ];
         }
-
-        if (! $service) {
-            return $this->emptyDepositPolicy('service_missing');
-        }
-
-        $businessId = (int) $booking->business_id;
-        $serviceId = (int) $booking->service_id;
-        $childId = (int) ($booking->business?->category_child_id ?? 0);
-
-        $businessPrice = $this->resolveBusinessServicePrice(
-            businessId: $businessId,
-            serviceId: $serviceId,
-            childId: $childId
-        );
-
-        if (! $businessPrice) {
-            return $this->emptyDepositPolicy('business_price_missing');
-        }
-
-        $bookable = $booking->bookable instanceof BookableItem
-            ? $booking->bookable
-            : null;
-
-        $serviceSupportsDeposit = (bool) ($service->supports_deposit ?? false);
-        $serviceMaxPercent = (int) ($service->max_deposit_percent ?? 0);
-
-        $businessDepositEnabled = (bool) ($businessPrice->deposit_enabled ?? false);
-        $businessDepositPercent = (int) ($businessPrice->deposit_percent ?? 0);
-
-        $effectiveDepositEnabled = $businessDepositEnabled;
-        $effectiveDepositPercent = $businessDepositPercent;
-        $source = 'business_service_price';
-
-        /*
-         * لو الفندق لم يشترط ديبوزت على السعر العام، لكن الغرفة نفسها اشترطت ديبوزت،
-         * الغرفة تكسب لأنها الاختيار الفعلي.
-         */
-        if ($bookable && (bool) ($bookable->deposit_enabled ?? false)) {
-            $effectiveDepositEnabled = true;
-            $effectiveDepositPercent = (int) ($bookable->deposit_percent ?? 0);
-            $source = 'bookable_item';
-        }
-
-        /*
-         * لو الخدمة نفسها لا تدعم ديبوزت، لا نطلب ديبوزت مهما كان موجودًا في meta قديم.
-         */
-        if (! $serviceSupportsDeposit) {
-            return $this->emptyDepositPolicy('platform_service_does_not_support_deposit', [
-                'service_supports_deposit' => false,
-                'service_max_percent' => $serviceMaxPercent,
-                'business_deposit_enabled' => $businessDepositEnabled,
-                'business_deposit_percent' => $businessDepositPercent,
-                'bookable_deposit_enabled' => $bookable ? (bool) ($bookable->deposit_enabled ?? false) : false,
-                'bookable_deposit_percent' => $bookable ? (int) ($bookable->deposit_percent ?? 0) : 0,
-            ]);
-        }
-
-        if ($serviceMaxPercent > 0 && $effectiveDepositPercent > $serviceMaxPercent) {
-            $effectiveDepositPercent = $serviceMaxPercent;
-        }
-
-        $required = $effectiveDepositEnabled && $effectiveDepositPercent > 0;
-
-        $price = $this->resolveBookingPrice($booking);
-
-        $amount = $required
-            ? round($price * ($effectiveDepositPercent / 100), 2)
-            : 0.00;
-
-        return [
-            'service_supports_deposit' => $serviceSupportsDeposit,
-            'service_max_percent' => $serviceMaxPercent,
-
-            'business_deposit_enabled' => $businessDepositEnabled,
-            'business_deposit_percent' => $businessDepositPercent,
-
-            'bookable_deposit_enabled' => $bookable ? (bool) ($bookable->deposit_enabled ?? false) : false,
-            'bookable_deposit_percent' => $bookable ? (int) ($bookable->deposit_percent ?? 0) : 0,
-
-            'required' => $required,
-            'amount' => $amount,
-            'hold' => $amount,
-            'configured_percent' => $required ? $effectiveDepositPercent : 0,
-            'source' => $required ? $source : 'none',
-            'currency' => (string) ($businessPrice->currency ?: 'EGP'),
-
-            'computed_live' => true,
-            'ignored_old_meta' => true,
-        ];
     }
 
-    protected function resolveBusinessServicePrice(int $businessId, int $serviceId, int $childId = 0): ?BusinessServicePrice
+    protected function financialState(Booking $booking): array
     {
-        if ($businessId <= 0 || $serviceId <= 0) {
-            return null;
-        }
+        try {
+            $preview = $this->serviceExecutionEngine->financialPreview($booking);
 
-        if ($childId > 0) {
-            $row = BusinessServicePrice::query()
-                ->where('business_id', $businessId)
-                ->where('child_id', $childId)
-                ->where('service_id', $serviceId)
-                ->where('is_active', 1)
-                ->orderByDesc('id')
-                ->first();
-
-            if ($row) {
-                return $row;
+            if (! is_array($preview)) {
+                return [
+                    'ok' => false,
+                    'messages' => ['تعذر قراءة نتيجة الجاهزية المالية.'],
+                    'error' => 'invalid_financial_preview',
+                ];
             }
+
+            return array_merge([
+                'ok' => true,
+                'messages' => [],
+                'error' => null,
+            ], $preview);
+        } catch (Throwable $e) {
+            report($e);
+
+            return [
+                'ok' => false,
+                'messages' => ['تعذر فحص الجاهزية المالية قبل بدء التنفيذ.'],
+                'error' => $e->getMessage(),
+            ];
         }
-
-        return BusinessServicePrice::query()
-            ->where('business_id', $businessId)
-            ->where('service_id', $serviceId)
-            ->where('is_active', 1)
-            ->orderByDesc('id')
-            ->first();
-    }
-
-    protected function resolveBookingPrice(Booking $booking): float
-    {
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-
-        $price = (float) data_get($meta, 'pricing.final_price', 0);
-
-        if ($price <= 0) {
-            $price = (float) ($booking->price ?? 0);
-        }
-
-        if ($price <= 0) {
-            $price = (float) data_get($meta, 'pricing.price', 0);
-        }
-
-        return round(max($price, 0), 2);
-    }
-
-    protected function emptyDepositPolicy(string $source = 'none', array $extra = []): array
-    {
-        return array_merge([
-            'required' => false,
-            'amount' => 0.00,
-            'hold' => 0.00,
-            'configured_percent' => 0,
-            'source' => $source,
-            'currency' => 'EGP',
-            'computed_live' => true,
-            'ignored_old_meta' => true,
-        ], $extra);
     }
 
     protected function confirmState(Booking $booking, ?Deposit $deposit): array

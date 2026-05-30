@@ -369,7 +369,7 @@ class WalletFeeService
             'source' => $line['source'] ?? 'category_child_override',
             'currency' => $line['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
             'base_amount' => round((float) ($line['base_amount'] ?? 0), 2),
-
+            'non_refundable_after_in_progress' => true,
             'category_child_service_fee_id' => $line['category_child_service_fee_id'] ?? null,
             'service_fee_id' => $line['service_fee_id'] ?? null,
             'fee_row_id' => $line['fee_row_id'] ?? null,
@@ -430,13 +430,27 @@ class WalletFeeService
 
     protected function resolveBookingBaseAmount(Booking $booking): float
     {
-        $price = $booking->price ?? null;
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
 
-        if ($price === null || (float) $price <= 0) {
-            $price = $booking->total_price ?? 0;
+        $price = (float) data_get($meta, 'pricing.final_price', 0);
+
+        if ($price <= 0) {
+            $price = (float) data_get($meta, 'pricing.price', 0);
         }
 
-        return round((float) $price, 2);
+        if ($price <= 0) {
+            $price = (float) data_get($meta, 'pricing.amount', 0);
+        }
+
+        if ($price <= 0) {
+            $price = (float) ($booking->price ?? 0);
+        }
+
+        if ($price <= 0) {
+            $price = (float) ($booking->total_price ?? 0);
+        }
+
+        return round(max($price, 0), 2);
     }
 
     protected function resolveBookingChildId(Booking $booking): int

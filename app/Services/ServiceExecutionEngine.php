@@ -130,7 +130,13 @@ class ServiceExecutionEngine
         mixed $startsAt = null,
         mixed $endsAt = null
     ): array {
-        $calc = $this->prepare($businessId, $serviceId, $bookableId, $quantity);
+        $calc = $this->prepare(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            bookableId: $bookableId,
+            quantity: $quantity,
+            pricingDate: $startsAt
+        );
 
         $availability = null;
 
@@ -681,7 +687,17 @@ class ServiceExecutionEngine
             ? $booking->bookable
             : null;
 
-        $price = (float) ($booking->price ?? 0);
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+
+        $price = (float) data_get($meta, 'pricing.final_price', 0);
+
+        if ($price <= 0) {
+            $price = (float) ($booking->price ?? 0);
+        }
+
+        if ($price <= 0) {
+            $price = (float) data_get($meta, 'pricing.price', 0);
+        }
 
         if ($price <= 0) {
             $price = (float) ($booking->total_price ?? 0);

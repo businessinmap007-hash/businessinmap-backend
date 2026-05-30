@@ -57,6 +57,7 @@ class Booking extends Model
         'quantity' => 'integer',
         'party_size' => 'integer',
         'duration_value' => 'integer',
+        'duration_unit' => 'string',
         'meta' => 'array',
         'deleted_at' => 'datetime',
     ];
@@ -102,6 +103,14 @@ class Booking extends Model
     public function isCancelled(): bool
     {
         return $this->status === self::STATUS_CANCELLED;
+    }
+    public function isFinalStatus(): bool
+    {
+        return in_array((string) $this->status, [
+            self::STATUS_COMPLETED,
+            self::STATUS_CANCELLED,
+            self::STATUS_REJECTED,
+        ], true);
     }
 
     public function canMoveToInProgress(): bool

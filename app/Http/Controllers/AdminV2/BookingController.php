@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookableItem;
 use App\Models\Booking;
+use App\Models\BusinessServicePrice;
+use App\Models\CategoryChildServiceFee;
+use App\Models\CategoryServiceConfig;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
-use App\Models\BusinessServicePrice;
-use App\Models\BookableItem;
 use App\Services\BookingDepositService;
-use App\Models\CategoryServiceConfig;
 use App\Services\ServiceExecutionEngine;
-use App\Models\CategoryChildServiceFee;
 use App\Support\AdminV2\Operations\OperationPresenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -38,7 +38,8 @@ class BookingController extends Controller
         $sort = (string) $request->get('sort', 'starts_at');
         $dir  = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $allowedSorts = ['id', 'starts_at', 'ends_at', 'status'];
+        $allowedSorts = ['id', 'starts_at', 'ends_at', 'status', 'price'];
+
         if (! in_array($sort, $allowedSorts, true)) {
             $sort = 'starts_at';
         }
@@ -131,38 +132,45 @@ class BookingController extends Controller
     }
 
     public function show(Booking $booking, OperationPresenter $operationPresenter)
-{
-    $booking = Booking::withTrashed()->findOrFail($booking->id);
+    {
+        $booking = Booking::withTrashed()->findOrFail($booking->id);
 
-    $booking->load([
-        'user:id,name,code,type,phone,email',
-        'business:id,name,code,type,phone,email,category_id,category_child_id',
-        'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
-        'bookable',
-        'latestDeposit',
-        'latestDispute',
-    ]);
+        $booking->load([
+            'user:id,name,code,type,phone,email',
+            'business:id,name,code,type,phone,email,category_id,category_child_id',
+            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+            'bookable',
+            'latestDeposit',
+            'latestDispute',
+        ]);
 
-    $deposit = $this->latestDeposit($booking);
-    [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
-    $depositPolicy = $this->depositPolicy($booking);
-    $latestDispute = $booking->latestDispute;
+        $deposit = $this->latestDeposit($booking);
+        [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
 
-    $operationUi = $operationPresenter->present($booking);
+        $depositPolicy = $this->depositPolicy($booking);
+        $latestDispute = $booking->latestDispute;
+        $operationUi = $operationPresenter->present($booking);
 
-    return view('admin-v2.bookings.show', compact(
-        'booking',
-        'deposit',
-        'clientConfirmed',
-        'businessConfirmed',
-        'depositPolicy',
-        'latestDispute',
-        'operationUi'
-    ));
-}
+        return view('admin-v2.bookings.show', compact(
+            'booking',
+            'deposit',
+            'clientConfirmed',
+            'businessConfirmed',
+            'depositPolicy',
+            'latestDispute',
+            'operationUi'
+        ));
+    }
 
     public function edit(Booking $booking)
     {
+        $booking->loadMissing([
+            'user:id,name,type,phone,email',
+            'business:id,name,type,phone,email,category_id,category_child_id',
+            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'bookable',
+        ]);
+
         return view('admin-v2.bookings.edit', array_merge(
             $this->formData(),
             ['booking' => $booking]
@@ -173,10 +181,22 @@ class BookingController extends Controller
     {
         $oldStatus = (string) $booking->status;
         $data = $this->validateBooking($request, true);
+        $newStatus = (string) ($data['status'] ?? $oldStatus);
+
+        /*
+         * ممنوع تحويل الحجز إلى in_progress من شاشة التعديل.
+         * الدخول إلى التنفيذ يجب أن يتم من زر "بدء التنفيذ" فقط؛
+         * لأنه يشغل Financial Guard + Auto Deposit Freeze + Execution Fees.
+         */
+        if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
+            throw ValidationException::withMessages([
+                'status' => 'لا يمكن تحويل الحجز إلى قيد التنفيذ من شاشة التعديل. استخدم زر بدء التنفيذ من صفحة عرض الحجز.',
+            ]);
+        }
 
         $serviceId  = (int) ($data['service_id'] ?? $booking->service_id);
         $businessId = (int) ($data['business_id'] ?? $booking->business_id);
-        $quantity   = (int) ($data['quantity'] ?? $booking->quantity ?? 1);
+        $quantity   = max((int) ($data['quantity'] ?? $booking->quantity ?? 1), 1);
 
         $bookableId = ! empty($data['bookable_id'] ?? $booking->bookable_id)
             ? (int) ($data['bookable_id'] ?? $booking->bookable_id)
@@ -199,21 +219,19 @@ class BookingController extends Controller
         $incomingMeta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
         $mergedMeta = array_replace_recursive($existingMeta, $incomingMeta);
 
+        /*
+         * buildBookingMeta يعيد حساب pricing/deposit_policy من الإعداد الحالي،
+         * ولا يعتمد على snapshot قديم.
+         */
         $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
             existingMeta: $mergedMeta,
             calc: $calc,
             bookable: $bookable
         );
 
-        DB::transaction(function () use ($booking, $data, $oldStatus) {
+        DB::transaction(function () use ($booking, $data) {
             $booking->fill($data);
             $booking->save();
-
-            $newStatus = (string) $booking->status;
-
-            if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
-                $this->handleMoveToInProgress($booking);
-            }
         });
 
         return redirect()
@@ -240,7 +258,8 @@ class BookingController extends Controller
                     ->orWhere('name_en', 'like', "%{$term}%")
                     ->orWhere('key', 'like', "%{$term}%");
             })
-            ->orderByDesc('id')
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
             ->limit(30)
             ->get([
                 'id',
@@ -313,7 +332,6 @@ class BookingController extends Controller
 
         return response()->json([
             'ok' => true,
-
             'service_config' => [
                 'exists' => (bool) $serviceConfig,
                 'id' => $serviceConfig ? (int) $serviceConfig->id : null,
@@ -327,7 +345,6 @@ class BookingController extends Controller
                 'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
                 'required_fields' => data_get($config, 'required_fields', []),
             ],
-
             'items' => $rows->map(function (BookableItem $item) {
                 return [
                     'id' => (int) $item->id,
@@ -453,9 +470,7 @@ class BookingController extends Controller
 
         return response()->json([
             'ok' => true,
-
             'service_config' => $this->serviceConfigPayload($serviceConfig),
-
             'service' => [
                 'id' => (int) $service->id,
                 'key' => (string) ($service->key ?? ''),
@@ -466,7 +481,6 @@ class BookingController extends Controller
                 'fee_type' => (string) ($service->fee_type ?? ''),
                 'fee_value' => $service->fee_value !== null ? (float) $service->fee_value : null,
             ],
-
             'business_price' => [
                 'id' => (int) ($businessPrice->id ?? 0),
                 'price' => (float) ($businessPrice->price ?? 0),
@@ -477,7 +491,6 @@ class BookingController extends Controller
                 'deposit_percent' => (int) ($businessPrice->deposit_percent ?? 0),
                 'child_id' => (int) ($businessPrice->child_id ?? 0),
             ],
-
             'bookable' => $bookable ? [
                 'id' => (int) $bookable->id,
                 'title' => (string) $bookable->title,
@@ -489,9 +502,7 @@ class BookingController extends Controller
                 'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
                 'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
             ] : null,
-
             'fee_snapshot' => $calc['fee_snapshot'] ?? [],
-
             'availability' => $availability ? [
                 'available' => (bool) ($availability['available'] ?? false),
                 'code' => (string) ($availability['code'] ?? ''),
@@ -499,7 +510,6 @@ class BookingController extends Controller
                 'starts_at' => $availability['starts_at'] ?? $startsAt,
                 'ends_at' => $availability['ends_at'] ?? $endsAt,
             ] : null,
-
             'pricing' => $calc['price_breakdown'] ?? [],
             'deposit_policy' => $calc['deposit_policy'] ?? [],
         ]);
@@ -513,8 +523,6 @@ class BookingController extends Controller
             if ($deposit) {
                 $deposit->client_confirmed = true;
                 $deposit->save();
-
-                return;
             }
 
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
@@ -537,8 +545,6 @@ class BookingController extends Controller
             if ($deposit) {
                 $deposit->business_confirmed = true;
                 $deposit->save();
-
-                return;
             }
 
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
@@ -665,6 +671,80 @@ class BookingController extends Controller
         }
     }
 
+    public function start(Booking $booking)
+    {
+        try {
+            $this->serviceExecutionEngine->moveBookingToInProgress($booking);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم بدء تنفيذ الحجز وخصم رسوم التنفيذ بنجاح.');
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->withErrors($e->errors())
+                ->with('error', 'لا يمكن بدء التنفيذ قبل استكمال المتطلبات.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر بدء التنفيذ: ' . $e->getMessage());
+        }
+    }
+
+    public function complete(Booking $booking)
+    {
+        try {
+            if ((string) $booking->status !== Booking::STATUS_IN_PROGRESS) {
+                return redirect()
+                    ->route('admin.bookings.show', $booking)
+                    ->with('error', 'لا يمكن إنهاء الحجز إلا إذا كان قيد التنفيذ.');
+            }
+
+            $booking->status = Booking::STATUS_COMPLETED;
+            $booking->save();
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم إنهاء الحجز بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر إنهاء الحجز: ' . $e->getMessage());
+        }
+    }
+
+    public function cancel(Booking $booking)
+    {
+        try {
+            if (in_array((string) $booking->status, [
+                Booking::STATUS_COMPLETED,
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_REJECTED,
+            ], true)) {
+                return redirect()
+                    ->route('admin.bookings.show', $booking)
+                    ->with('error', 'لا يمكن إلغاء حجز في حالة نهائية.');
+            }
+
+            $booking->status = Booking::STATUS_CANCELLED;
+            $booking->save();
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم إلغاء الحجز بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر إلغاء الحجز: ' . $e->getMessage());
+        }
+    }
+
     private function formData(): array
     {
         $services = PlatformService::query()
@@ -683,14 +763,6 @@ class BookingController extends Controller
             ->orderBy('name_ar')
             ->get();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Requesters
-        |--------------------------------------------------------------------------
-        | user_id في bookings يعني طالب الحجز، وليس عميل فقط.
-        | لذلك نعرض كل المستخدمين: عميل / بزنس / أي نوع آخر.
-        |--------------------------------------------------------------------------
-        */
         $clients = User::query()
             ->select([
                 'id',
@@ -703,13 +775,6 @@ class BookingController extends Controller
             ->limit(500)
             ->get();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Provider Businesses
-        |--------------------------------------------------------------------------
-        | business_id في bookings هو مقدم الخدمة، لذلك هنا نعرض البزنس فقط.
-        |--------------------------------------------------------------------------
-        */
         $businesses = User::query()
             ->select([
                 'id',
@@ -784,7 +849,6 @@ class BookingController extends Controller
         $data = $request->validate($rules);
 
         $data['all_day'] = (int) $request->boolean('all_day');
-        $data['quantity'] = max((int) ($data['quantity'] ?? 1), 1);
 
         if (empty($data['timezone'])) {
             $data['timezone'] = 'Africa/Cairo';
@@ -794,6 +858,8 @@ class BookingController extends Controller
 
         $durationUnit  = (string) ($data['duration_unit'] ?? 'day');
         $durationValue = max((int) ($data['duration_value'] ?? $data['quantity'] ?? 1), 1);
+
+        $data['quantity'] = max((int) ($data['quantity'] ?? $durationValue), 1);
 
         $date = $data['date'] ?? null;
         $time = $data['time'] ?? null;
@@ -834,7 +900,7 @@ class BookingController extends Controller
 
             if ($end) {
                 if ($durationUnit === 'day') {
-                    $data['duration_value'] = $start->diffInDays($end);
+                    $data['duration_value'] = max(1, $start->diffInDays($end));
                 } elseif ($durationUnit === 'hour') {
                     $data['duration_value'] = max(1, $start->diffInHours($end));
                 } elseif ($durationUnit === 'minute') {
@@ -847,6 +913,10 @@ class BookingController extends Controller
             }
 
             $data['duration_unit'] = $durationUnit;
+
+            if (in_array($durationUnit, ['day', 'hour', 'minute', 'week', 'month', 'year'], true)) {
+                $data['quantity'] = max((int) $data['duration_value'], 1);
+            }
         }
 
         if ($isUpdate) {
@@ -881,6 +951,7 @@ class BookingController extends Controller
                 'service_id' => 'الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.',
             ]);
         }
+
         $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
         $config = $serviceConfig ? $serviceConfig->configArray() : [];
 
@@ -930,19 +1001,22 @@ class BookingController extends Controller
 
     protected function resolveConfirmState(Booking $booking, ?Deposit $deposit): array
     {
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+        $sc = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+
+        $metaClientConfirmed = ! empty($sc['client']);
+        $metaBusinessConfirmed = ! empty($sc['business']);
+
         if ($deposit) {
             return [
-                (bool) $deposit->client_confirmed,
-                (bool) $deposit->business_confirmed,
+                ((bool) $deposit->client_confirmed) || $metaClientConfirmed,
+                ((bool) $deposit->business_confirmed) || $metaBusinessConfirmed,
             ];
         }
 
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-        $sc = $meta['_start_confirm'] ?? [];
-
         return [
-            ! empty($sc['client']),
-            ! empty($sc['business']),
+            $metaClientConfirmed,
+            $metaBusinessConfirmed,
         ];
     }
 
@@ -951,16 +1025,6 @@ class BookingController extends Controller
         return $this->serviceExecutionEngine->depositPolicy($booking);
     }
 
-    protected function handleMoveToInProgress(Booking $booking): void
-    {
-        $this->serviceExecutionEngine->moveBookingToInProgress($booking);
-    }
-////////////////
-    protected function chargeExecutionFeeSplitOnce(Booking $booking): void
-    {
-        $this->serviceExecutionEngine->chargeExecutionFeeOnce($booking);
-    }
-/////////////////
     protected function resolveSelectedBookable(
         int $businessId,
         int $serviceId,
@@ -1001,7 +1065,7 @@ class BookingController extends Controller
 
     protected function resolveBusinessContext(int $businessId): array
     {
-        if (! $businessId) {
+        if ($businessId <= 0) {
             return [null, 0, 0];
         }
 
@@ -1049,79 +1113,7 @@ class BookingController extends Controller
             ->orderByDesc('id')
             ->first();
     }
-    public function start(Booking $booking)
-    {
-        try {
-            $this->serviceExecutionEngine->moveBookingToInProgress($booking);
 
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم بدء تنفيذ الحجز وخصم رسوم التنفيذ بنجاح.');
-        } catch (ValidationException $e) {
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->withErrors($e->errors())
-                ->with('error', 'لا يمكن بدء التنفيذ قبل استكمال المتطلبات.');
-        } catch (\Throwable $e) {
-            report($e);
-
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر بدء التنفيذ: ' . $e->getMessage());
-        }
-    }
-
-    public function complete(Booking $booking)
-    {
-        try {
-            if ((string) $booking->status !== Booking::STATUS_IN_PROGRESS) {
-                return redirect()
-                    ->route('admin.bookings.show', $booking)
-                    ->with('error', 'لا يمكن إنهاء الحجز إلا إذا كان قيد التنفيذ.');
-            }
-
-            $booking->status = Booking::STATUS_COMPLETED;
-            $booking->save();
-
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم إنهاء الحجز بنجاح.');
-        } catch (\Throwable $e) {
-            report($e);
-
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر إنهاء الحجز: ' . $e->getMessage());
-        }
-    }
-
-    public function cancel(Booking $booking)
-    {
-        try {
-            if (in_array((string) $booking->status, [
-                Booking::STATUS_COMPLETED,
-                Booking::STATUS_CANCELLED,
-                Booking::STATUS_REJECTED,
-            ], true)) {
-                return redirect()
-                    ->route('admin.bookings.show', $booking)
-                    ->with('error', 'لا يمكن إلغاء حجز في حالة نهائية.');
-            }
-
-            $booking->status = Booking::STATUS_CANCELLED;
-            $booking->save();
-
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم إلغاء الحجز بنجاح.');
-        } catch (\Throwable $e) {
-            report($e);
-
-            return redirect()
-                ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر إلغاء الحجز: ' . $e->getMessage());
-        }
-    }
     protected function resolveServiceConfigForBusiness(int $businessId, int $serviceId): ?CategoryServiceConfig
     {
         if ($businessId <= 0 || $serviceId <= 0) {

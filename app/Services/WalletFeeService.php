@@ -36,6 +36,7 @@ class WalletFeeService
 
         $baseAmount = $this->resolveBookingBaseAmount($booking);
         $childId = $this->resolveBookingChildId($booking);
+        $categoryId = $this->resolveBookingCategoryId($booking);
         $serviceId = (int) $booking->service_id;
 
         if ($serviceId <= 0) {
@@ -55,7 +56,11 @@ class WalletFeeService
 
         $feeRow = null;
 
-        if ($childId > 0) {
+        if ($categoryId > 0 && $childId > 0) {
+            $feeRow = CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
+        }
+
+        if (! $feeRow && $childId > 0) {
             $feeRow = CategoryChildServiceFee::activeForPair($childId, $serviceId);
         }
 
@@ -64,12 +69,13 @@ class WalletFeeService
         $business = $booking->business;
 
         if ($business && $this->canAutoChargeFees($business)) {
-            $line = $this->resolveFeeLineForPayer(
+           $line = $this->resolveFeeLineForPayer(
                 payer: CategoryChildServiceFee::PAYER_BUSINESS,
                 booking: $booking,
                 service: $service,
                 feeRow: $feeRow,
                 baseAmount: $baseAmount,
+                categoryId: $categoryId,
                 childId: $childId,
                 feeCode: $feeCode
             );
@@ -90,6 +96,7 @@ class WalletFeeService
                 service: $service,
                 feeRow: $feeRow,
                 baseAmount: $baseAmount,
+                categoryId: $categoryId,
                 childId: $childId,
                 feeCode: $feeCode
             );
@@ -105,13 +112,14 @@ class WalletFeeService
     }
 
         protected function resolveFeeLineForPayer(
-        string $payer,
-        Booking $booking,
-        PlatformService $service,
-        ?CategoryChildServiceFee $feeRow,
-        float $baseAmount,
-        int $childId,
-        string $feeCode
+            string $payer,
+            Booking $booking,
+            PlatformService $service,
+            ?CategoryChildServiceFee $feeRow,
+            float $baseAmount,
+            int $categoryId,
+            int $childId,
+            string $feeCode
     ): ?array {
         $payer = CategoryChildServiceFee::normalizePayer($payer);
 
@@ -178,7 +186,14 @@ class WalletFeeService
             'currency' => $snapshot['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
             'base_amount' => round((float) $baseAmount, 2),
 
+            'reference_type' => self::REFERENCE_TYPE_BOOKING,
+            'reference_id' => (int) $booking->id,
+
+            'source_type' => self::REFERENCE_TYPE_BOOKING,
+            'source_id' => (int) $booking->id,
+
             'booking_id' => (int) $booking->id,
+            'category_id' => $categoryId > 0 ? $categoryId : null,
             'service_id' => (int) $booking->service_id,
             'platform_service_id' => (int) $booking->service_id,
 
@@ -340,7 +355,14 @@ class WalletFeeService
             'service_fee_id' => $line['service_fee_id'] ?? null,
             'fee_row_id' => $line['fee_row_id'] ?? null,
 
+            'reference_type' => self::REFERENCE_TYPE_BOOKING,
+            'reference_id' => (int) $booking->id,
+
+            'source_type' => $line['source_type'] ?? self::REFERENCE_TYPE_BOOKING,
+            'source_id' => (int) ($line['source_id'] ?? $booking->id),
+
             'booking_id' => (int) $booking->id,
+            'category_id' => (int) ($line['category_id'] ?? $this->resolveBookingCategoryId($booking)),
             'service_id' => (int) $booking->service_id,
             'platform_service_id' => (int) ($line['platform_service_id'] ?? $booking->service_id),
 
@@ -422,6 +444,34 @@ class WalletFeeService
 
         if ($metaPlatformFeeChildId > 0) {
             return $metaPlatformFeeChildId;
+        }
+
+        return 0;
+    }
+    protected function resolveBookingCategoryId(Booking $booking): int
+    {
+        $businessCategoryId = (int) ($booking->business?->category_id ?? 0);
+
+        if ($businessCategoryId > 0) {
+            return $businessCategoryId;
+        }
+
+        $metaCategoryId = (int) data_get($booking->meta, 'business_context.category_id', 0);
+
+        if ($metaCategoryId > 0) {
+            return $metaCategoryId;
+        }
+
+        $metaExecutionCategoryId = (int) data_get($booking->meta, '_execution_fee.category_id', 0);
+
+        if ($metaExecutionCategoryId > 0) {
+            return $metaExecutionCategoryId;
+        }
+
+        $metaPlatformFeeCategoryId = (int) data_get($booking->meta, 'platform_service_fee.category_id', 0);
+
+        if ($metaPlatformFeeCategoryId > 0) {
+            return $metaPlatformFeeCategoryId;
         }
 
         return 0;

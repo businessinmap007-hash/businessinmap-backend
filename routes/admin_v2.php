@@ -536,6 +536,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/deposit-confirm-business', [BookingController::class, 'depositConfirmBusiness'])
                 ->whereNumber('booking')
                 ->name('deposit.confirm.business');
+            Route::post('{booking}/start', [BookingController::class, 'start'])
+                ->whereNumber('booking')
+                ->name('start');
+
+            Route::post('{booking}/complete', [BookingController::class, 'complete'])
+                ->whereNumber('booking')
+                ->name('complete');
+
+            Route::post('{booking}/cancel', [BookingController::class, 'cancel'])
+                ->whereNumber('booking')
+                ->name('cancel');
 
             Route::post('{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])
                 ->whereNumber('booking')

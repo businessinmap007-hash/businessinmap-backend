@@ -50,13 +50,16 @@ class BookingDepositService
         }
 
         $existing = $this->latestDeposit($booking);
+
         if ($existing && ! $existing->isFinal()) {
+            $this->syncDepositConfirmationsFromBookingMeta($booking, $existing);
+
             return $existing;
         }
 
         $total = round($holdAmount * 2, 2);
 
-        return $this->depositsEscrowService->create(
+        $deposit = $this->depositsEscrowService->create(
             clientId: (int) $booking->user_id,
             businessId: (int) $booking->business_id,
             totalAmount: $total,
@@ -65,6 +68,10 @@ class BookingDepositService
             targetType: Booking::class,
             targetId: (int) $booking->id,
         );
+
+        $this->syncDepositConfirmationsFromBookingMeta($booking, $deposit);
+
+        return $deposit;
     }
 
     public function releaseForBooking(Booking $booking): Deposit
@@ -119,5 +126,26 @@ class BookingDepositService
             actorId: $actorId,
             payload: $payload
         );
+    }
+    protected function syncDepositConfirmationsFromBookingMeta(Booking $booking, Deposit $deposit): void
+    {
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+        $confirm = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+
+        $dirty = false;
+
+        if (! empty($confirm['client']) && ! (bool) $deposit->client_confirmed) {
+            $deposit->client_confirmed = true;
+            $dirty = true;
+        }
+
+        if (! empty($confirm['business']) && ! (bool) $deposit->business_confirmed) {
+            $deposit->business_confirmed = true;
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $deposit->save();
+        }
     }
 }

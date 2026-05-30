@@ -7,9 +7,9 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة حجز</h1>
+            <h1 class="a2-page-title">إضافة حجز جديد</h1>
             <div class="a2-page-subtitle">
-                إنشاء حجز جديد بنفس منطق الخدمات والأسعار والديبوزت ورسوم التنفيذ.
+                طالب الحجز قد يكون عميلًا عاديًا أو بزنس، ومقدم الخدمة يجب أن يكون بزنس مفعل.
             </div>
         </div>
 

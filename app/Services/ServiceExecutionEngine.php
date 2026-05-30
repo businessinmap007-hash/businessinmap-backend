@@ -647,19 +647,22 @@ class ServiceExecutionEngine
 
     protected function resolveConfirmState(Booking $booking, ?Deposit $deposit): array
     {
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+        $confirm = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+
+        $metaClientConfirmed = ! empty($confirm['client']);
+        $metaBusinessConfirmed = ! empty($confirm['business']);
+
         if ($deposit) {
             return [
-                (bool) $deposit->client_confirmed,
-                (bool) $deposit->business_confirmed,
+                ((bool) $deposit->client_confirmed) || $metaClientConfirmed,
+                ((bool) $deposit->business_confirmed) || $metaBusinessConfirmed,
             ];
         }
 
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-        $confirm = $meta['_start_confirm'] ?? [];
-
         return [
-            ! empty($confirm['client']),
-            ! empty($confirm['business']),
+            $metaClientConfirmed,
+            $metaBusinessConfirmed,
         ];
     }
 }

@@ -11,7 +11,7 @@
 @php
     $selectedServiceId = (string) old('service_id', $booking->service_id ?? '');
     $selectedBusinessId = (string) old('business_id', $booking->business_id ?? '');
-    $selectedClientId = (string) old('user_id', $booking->user_id ?? '');
+    $selectedRequesterId = (string) old('user_id', $booking->user_id ?? '');
     $selectedBookableId = (string) old('bookable_id', $booking->bookable_id ?? '');
 
     $startDateValue = old('date', optional($booking->date)->format('Y-m-d'));
@@ -21,7 +21,7 @@
     $durationValueOld = old('duration_value', $booking->duration_value ?? 1);
     $quantityValue = old('quantity', $booking->quantity ?? 1);
 
-    $selectedClient = $clients->firstWhere('id', (int) $selectedClientId);
+    $selectedRequester = $clients->firstWhere('id', (int) $selectedRequesterId);
     $selectedBusiness = $businesses->firstWhere('id', (int) $selectedBusinessId);
     $selectedService = $services->firstWhere('id', (int) $selectedServiceId);
 @endphp
@@ -33,30 +33,52 @@
 
         <div class="bk-form-grid">
 
-            {{-- العميل --}}
-            <div class="bk-field-search" id="client_search_box">
-                <label class="a2-label">العميل</label>
-                <input type="hidden" name="user_id" id="user_id" value="{{ $selectedClientId }}">
+            {{-- طالب الحجز --}}
+            <div class="bk-field-search" id="requester_search_box">
+                <label class="a2-label">طالب الحجز</label>
+                <input type="hidden" name="user_id" id="user_id" value="{{ $selectedRequesterId }}">
 
                 <input
                     type="text"
-                    id="client_search"
+                    id="requester_search"
                     class="a2-input"
-                    placeholder="ابحث باسم العميل..."
+                    placeholder="ابحث باسم طالب الحجز: عميل أو بزنس..."
                     autocomplete="off"
-                    value="{{ $selectedClient->name ?? '' }}"
+                    value="{{ $selectedRequester->name ?? '' }}"
                     required
                 >
 
-                <div class="bk-dropdown" id="client_dropdown">
+                <div class="a2-hint" style="margin-top:6px;">
+                    يمكن اختيار عميل عادي أو بزنس كطالب للحجز.
+                </div>
+
+                <div class="bk-dropdown" id="requester_dropdown">
                     @foreach($clients as $client)
+                        @php
+                            $clientType = (string) ($client->type ?? '');
+                            $typeLabel = $clientType === 'business' ? 'Business' : 'Client';
+                            $phone = (string) ($client->phone ?? '');
+                            $email = (string) ($client->email ?? '');
+                        @endphp
+
                         <button
                             type="button"
-                            class="bk-option client-option"
+                            class="bk-option requester-option"
                             data-id="{{ $client->id }}"
                             data-name="{{ $client->name }}"
+                            data-type="{{ $clientType }}"
+                            data-phone="{{ $phone }}"
+                            data-email="{{ $email }}"
                         >
-                            {{ $client->name }}
+                            <strong>{{ $client->name }}</strong>
+                            <span class="bk-option-sub">
+                                {{ $typeLabel }}
+                                @if($phone)
+                                    — {{ $phone }}
+                                @elseif($email)
+                                    — {{ $email }}
+                                @endif
+                            </span>
                         </button>
                     @endforeach
                 </div>
@@ -64,14 +86,14 @@
 
             {{-- البزنس --}}
             <div class="bk-field-search" id="business_search_box">
-                <label class="a2-label">البزنس</label>
+                <label class="a2-label">مقدم الخدمة</label>
                 <input type="hidden" name="business_id" id="business_id" value="{{ $selectedBusinessId }}">
 
                 <input
                     type="text"
                     id="business_search"
                     class="a2-input"
-                    placeholder="ابحث باسم البزنس..."
+                    placeholder="ابحث باسم البزنس مقدم الخدمة..."
                     autocomplete="off"
                     value="{{ $selectedBusiness->name ?? '' }}"
                     required
@@ -84,8 +106,20 @@
                             class="bk-option business-option"
                             data-id="{{ $business->id }}"
                             data-name="{{ $business->name }}"
+                            data-category-id="{{ (int) ($business->category_id ?? 0) }}"
+                            data-child-id="{{ (int) ($business->category_child_id ?? 0) }}"
+                            data-phone="{{ (string) ($business->phone ?? '') }}"
+                            data-email="{{ (string) ($business->email ?? '') }}"
                         >
-                            {{ $business->name }}
+                            <strong>{{ $business->name }}</strong>
+                            <span class="bk-option-sub">
+                                Provider Business
+                                @if(!empty($business->phone))
+                                    — {{ $business->phone }}
+                                @endif
+                                — Root: {{ (int) ($business->category_id ?? 0) }}
+                                / Child: {{ (int) ($business->category_child_id ?? 0) }}
+                            </span>
                         </button>
                     @endforeach
                 </div>
@@ -215,6 +249,15 @@
             </div>
         </div>
     </div>
+    
+            <div class="a2-card" style="padding:14px 16px;">
+                <div class="a2-section-title" style="margin-bottom:6px;">توضيح أطراف الحجز</div>
+                <div class="a2-section-subtitle">
+                    <strong>طالب الحجز</strong> هو المستخدم الذي يريد الخدمة، وقد يكون عميلًا أو بزنسًا.
+                    <strong>مقدم الخدمة</strong> هو البزنس الذي سيتم الحجز عنده.
+                    مثال: كابتن ليموزين يمكنه حجز غرفة في فندق، فيكون الكابتن طالب الحجز والفندق مقدم الخدمة.
+                </div>
+            </div>
 
     <div class="bk-summary-grid">
         <div class="a2-card" style="padding:18px;">
@@ -357,11 +400,21 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.querySelector('form');
+    function warnIfSameRequesterAndProvider() {
+    const requesterId = String(hiddenRequesterId?.value || '').trim();
+    const businessId = String(hiddenBusinessId?.value || '').trim();
 
-    const hiddenClientId = document.getElementById('user_id');
-    const clientSearch = document.getElementById('client_search');
-    const clientDropdown = document.getElementById('client_dropdown');
-    const clientBox = document.getElementById('client_search_box');
+        if (requesterId && businessId && requesterId === businessId) {
+            return confirm('طالب الحجز هو نفس مقدم الخدمة. هل تريد المتابعة؟');
+        }
+
+        return true;
+    }
+
+    const hiddenRequesterId = document.getElementById('user_id');
+    const requesterSearch = document.getElementById('requester_search');
+    const requesterDropdown = document.getElementById('requester_dropdown');
+    const requesterBox = document.getElementById('requester_search_box');
 
     const hiddenBusinessId = document.getElementById('business_id');
     const businessSearch = document.getElementById('business_search');
@@ -463,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    setupSearchable(clientSearch, hiddenClientId, clientDropdown, clientBox, '.client-option');
+    setupSearchable(requesterSearch, hiddenRequesterId, requesterDropdown, requesterBox, '.requester-option');
     setupSearchable(businessSearch, hiddenBusinessId, businessDropdown, businessBox, '.business-option');
     setupSearchable(serviceSearch, hiddenServiceId, serviceDropdown, serviceBox, '.service-option');
 
@@ -702,5 +755,13 @@ document.addEventListener('DOMContentLoaded', function () {
         await loadBookableItems();
         await refreshPreview();
     })();
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!warnIfSameRequesterAndProvider()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
 });
 </script>

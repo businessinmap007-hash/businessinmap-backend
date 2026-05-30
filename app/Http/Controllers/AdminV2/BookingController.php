@@ -12,6 +12,7 @@ use App\Models\BookableItem;
 use App\Services\BookingDepositService;
 use App\Services\ServiceExecutionEngine;
 use App\Models\CategoryChildServiceFee;
+use App\Support\AdminV2\Operations\OperationPresenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -128,32 +129,36 @@ class BookingController extends Controller
             ->with('success', 'تم إنشاء الحجز بنجاح.');
     }
 
-    public function show(Booking $booking)
-    {
-        $booking = Booking::withTrashed()->findOrFail($booking->id);
+    public function show(Booking $booking, OperationPresenter $operationPresenter)
+{
+    $booking = Booking::withTrashed()->findOrFail($booking->id);
 
-        $booking->load([
-            'user:id,name,code,type',
-            'business:id,name,code,type,category_id,category_child_id',
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
-            'bookable',
-            'latestDispute',
-        ]);
+    $booking->load([
+        'user:id,name,code,type,phone,email',
+        'business:id,name,code,type,phone,email,category_id,category_child_id',
+        'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+        'bookable',
+        'latestDeposit',
+        'latestDispute',
+    ]);
 
-        $deposit = $this->latestDeposit($booking);
-        [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
-        $depositPolicy = $this->depositPolicy($booking);
-        $latestDispute = $booking->latestDispute;
+    $deposit = $this->latestDeposit($booking);
+    [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
+    $depositPolicy = $this->depositPolicy($booking);
+    $latestDispute = $booking->latestDispute;
 
-        return view('admin-v2.bookings.show', compact(
-            'booking',
-            'deposit',
-            'clientConfirmed',
-            'businessConfirmed',
-            'depositPolicy',
-            'latestDispute'
-        ));
-    }
+    $operationUi = $operationPresenter->present($booking);
+
+    return view('admin-v2.bookings.show', compact(
+        'booking',
+        'deposit',
+        'clientConfirmed',
+        'businessConfirmed',
+        'depositPolicy',
+        'latestDispute',
+        'operationUi'
+    ));
+}
 
     public function edit(Booking $booking)
     {
@@ -575,7 +580,7 @@ class BookingController extends Controller
         }
     }
 
-    protected function formData(): array
+    private function formData(): array
     {
         $services = PlatformService::query()
             ->select([
@@ -593,41 +598,73 @@ class BookingController extends Controller
             ->orderBy('name_ar')
             ->get();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Requesters
+        |--------------------------------------------------------------------------
+        | user_id في bookings يعني طالب الحجز، وليس عميل فقط.
+        | لذلك نعرض كل المستخدمين: عميل / بزنس / أي نوع آخر.
+        |--------------------------------------------------------------------------
+        */
+        $clients = User::query()
+            ->select([
+                'id',
+                'name',
+                'type',
+                'phone',
+                'email',
+            ])
+            ->orderBy('name')
+            ->limit(500)
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Provider Businesses
+        |--------------------------------------------------------------------------
+        | business_id في bookings هو مقدم الخدمة، لذلك هنا نعرض البزنس فقط.
+        |--------------------------------------------------------------------------
+        */
         $businesses = User::query()
-            ->select(['id', 'name', 'category_child_id'])
+            ->select([
+                'id',
+                'name',
+                'type',
+                'phone',
+                'email',
+                'category_id',
+                'category_child_id',
+            ])
             ->where('type', 'business')
             ->orderBy('name')
             ->get();
 
-        $clients = User::query()
-            ->select(['id', 'name'])
-            ->where(function ($q) {
-                $q->whereNull('type')->orWhere('type', '!=', 'business');
-            })
-            ->orderBy('name')
-            ->limit(300)
-            ->get();
-
         $businessServicePrices = BusinessServicePrice::query()
             ->select([
+                'id',
                 'business_id',
-                'child_id',
                 'service_id',
+                'child_id',
                 'price',
-                'deposit_enabled',
-                'deposit_percent',
+                'currency',
+                'is_active',
                 'discount_enabled',
                 'discount_percent',
+                'deposit_enabled',
+                'deposit_percent',
             ])
+            ->where('is_active', 1)
             ->get();
 
-        return [
-            'statusOptions' => Booking::statusOptions(),
-            'services' => $services,
-            'businesses' => $businesses,
-            'clients' => $clients,
-            'businessServicePrices' => $businessServicePrices,
-        ];
+        $statusOptions = Booking::statusOptions();
+
+        return compact(
+            'services',
+            'clients',
+            'businesses',
+            'businessServicePrices',
+            'statusOptions'
+        );
     }
 
     protected function validateBooking(Request $request, bool $isUpdate = false): array
@@ -909,5 +946,78 @@ class BookingController extends Controller
             ->where('is_active', 1)
             ->orderByDesc('id')
             ->first();
+    }
+    public function start(Booking $booking)
+    {
+        try {
+            $this->serviceExecutionEngine->moveBookingToInProgress($booking);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم بدء تنفيذ الحجز وخصم رسوم التنفيذ بنجاح.');
+        } catch (ValidationException $e) {
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->withErrors($e->errors())
+                ->with('error', 'لا يمكن بدء التنفيذ قبل استكمال المتطلبات.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر بدء التنفيذ: ' . $e->getMessage());
+        }
+    }
+
+    public function complete(Booking $booking)
+    {
+        try {
+            if ((string) $booking->status !== Booking::STATUS_IN_PROGRESS) {
+                return redirect()
+                    ->route('admin.bookings.show', $booking)
+                    ->with('error', 'لا يمكن إنهاء الحجز إلا إذا كان قيد التنفيذ.');
+            }
+
+            $booking->status = Booking::STATUS_COMPLETED;
+            $booking->save();
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم إنهاء الحجز بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر إنهاء الحجز: ' . $e->getMessage());
+        }
+    }
+
+    public function cancel(Booking $booking)
+    {
+        try {
+            if (in_array((string) $booking->status, [
+                Booking::STATUS_COMPLETED,
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_REJECTED,
+            ], true)) {
+                return redirect()
+                    ->route('admin.bookings.show', $booking)
+                    ->with('error', 'لا يمكن إلغاء حجز في حالة نهائية.');
+            }
+
+            $booking->status = Booking::STATUS_CANCELLED;
+            $booking->save();
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('success', 'تم إلغاء الحجز بنجاح.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.bookings.show', $booking)
+                ->with('error', 'تعذر إلغاء الحجز: ' . $e->getMessage());
+        }
     }
 }

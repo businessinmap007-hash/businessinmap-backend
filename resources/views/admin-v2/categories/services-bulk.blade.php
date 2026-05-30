@@ -12,6 +12,7 @@
     $activeServiceCountsSafe = $activeServiceCounts ?? [];
     $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
     $feeMatrixSafe = $feeMatrix ?? [];
+    $hasOldInput = count(old()) > 0;
 
     $nameOf = function ($item) {
         $ar = (string) ($item->name_ar ?? '');
@@ -452,6 +453,7 @@
 
 <script>
 window.BIM_SERVICE_FEE_MATRIX = @json($feeMatrixSafe ?? []);
+window.BIM_HAS_OLD_INPUT = @json($hasOldInput);
 </script>
 
 <script>
@@ -470,6 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedModeLabel = document.getElementById('selectedModeLabel');
 
     const feeMatrix = window.BIM_SERVICE_FEE_MATRIX || {};
+    const hasOldInput = !!window.BIM_HAS_OLD_INPUT;
     const serviceDefaults = {};
 
     const modeLabels = {
@@ -694,6 +697,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const card = document.querySelector('.js-service-fee-card[data-service-id="' + serviceId + '"]');
 
         if (!card) {
+            return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Old input safety
+        |--------------------------------------------------------------------------
+        | عند الرجوع من validation error لا نعيد ملء الحقول من feeMatrix حتى لا
+        | نضيع القيم التي أدخلها المستخدم قبل الإرسال.
+        |--------------------------------------------------------------------------
+        */
+        if (hasOldInput) {
             return;
         }
 

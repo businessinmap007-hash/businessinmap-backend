@@ -89,6 +89,7 @@ class ServiceExecutionEngine
 
         $feeSnapshot = $this->resolveExecutionFeeSnapshot(
             businessId: $businessId,
+            categoryId: $categoryId,
             serviceId: $serviceId,
             childId: $childId
         );
@@ -216,6 +217,7 @@ class ServiceExecutionEngine
         $meta['_execution_fee'] = $meta['_execution_fee'] ?? [];
 
         $meta['_execution_fee']['code'] = self::EXECUTION_FEE_CODE;
+        $meta['_execution_fee']['category_id'] = (int) ($calc['business_category_id'] ?? 0);
         $meta['_execution_fee']['child_id'] = (int) ($calc['business_child_id'] ?? 0);
         $meta['_execution_fee']['service_id'] = (int) ($calc['service_id'] ?? 0);
         $meta['_execution_fee']['platform_service_id'] = (int) ($calc['platform_service_id'] ?? $calc['service_id'] ?? 0);
@@ -577,13 +579,18 @@ class ServiceExecutionEngine
     |--------------------------------------------------------------------------
     */
 
-    protected function resolveExecutionFeeSnapshot(int $businessId, int $serviceId, int $childId = 0): array
-    {
-        $row = $this->resolveChildServiceFeeRow($childId, $serviceId);
+    protected function resolveExecutionFeeSnapshot(
+        int $businessId,
+        int $categoryId,
+        int $serviceId,
+        int $childId = 0
+    ): array {
+        $row = $this->resolveChildServiceFeeRow($categoryId, $childId, $serviceId);
 
         return [
             'row' => $row,
             'business_id' => $businessId,
+            'category_id' => $categoryId,
             'child_id' => $childId,
             'service_id' => $serviceId,
             'platform_service_id' => $serviceId,
@@ -597,9 +604,34 @@ class ServiceExecutionEngine
         ];
     }
 
-    protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
+    protected function resolveChildServiceFeeRow(int $categoryId, int $childId, int $serviceId): ?CategoryChildServiceFee
     {
-        return CategoryChildServiceFee::activeForPair($childId, $serviceId);
+        if ($categoryId > 0 && $childId > 0 && $serviceId > 0) {
+            return CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Legacy-safe fallback
+        |--------------------------------------------------------------------------
+        | لا نستخدم activeForPair مباشرة إلا إذا كان هناك صف واحد فقط لهذا
+        | child/service، حتى لا نقرأ رسوم root آخر بالخطأ.
+        |--------------------------------------------------------------------------
+        */
+        if ($childId > 0 && $serviceId > 0) {
+            $rows = CategoryChildServiceFee::query()
+                ->active(1)
+                ->forPair($childId, $serviceId)
+                ->ordered()
+                ->limit(2)
+                ->get();
+
+            if ($rows->count() === 1) {
+                return $rows->first();
+            }
+        }
+
+        return null;
     }
 
     /*

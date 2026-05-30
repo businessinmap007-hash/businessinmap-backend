@@ -237,8 +237,10 @@ class CategoryServiceBulkController extends Controller
             childIds: $activeChildIds
         );
 
-        $feeMatrix = $this->feeMatrixForChildren($activeChildIds);
-
+        $feeMatrix = $this->feeMatrixForRootChildren(
+            rootId: $activeRootId,
+            childIds: $activeChildIds
+        );
         return view('admin-v2.categories.services-bulk', [
             'roots' => $roots,
             'services' => $services,
@@ -268,17 +270,19 @@ class CategoryServiceBulkController extends Controller
             ->all();
     }
 
-    private function feeMatrixForChildren(array $childIds): array
+    private function feeMatrixForRootChildren(int $rootId, array $childIds): array
     {
-        if (empty($childIds)) {
+        if ($rootId <= 0 || empty($childIds)) {
             return [];
         }
 
         $matrix = [];
 
         $feeRows = CategoryChildServiceFee::query()
+            ->where('category_id', $rootId)
             ->whereIn('child_id', $childIds)
             ->get([
+                'category_id',
                 'child_id',
                 'platform_service_id',
 
@@ -304,6 +308,8 @@ class CategoryServiceBulkController extends Controller
             }
 
             $matrix[$childId][$serviceId] = [
+                'category_id' => (int) $feeRow->category_id,
+
                 'business_fee_enabled' => (bool) $feeRow->business_fee_enabled,
                 'business_fee_type' => $feeRow->business_fee_type ?: CategoryChildServiceFee::CALC_TYPE_FIXED,
                 'business_fee_amount' => round((float) $feeRow->business_fee_amount, 2),
@@ -494,6 +500,7 @@ class CategoryServiceBulkController extends Controller
         */
 
         CategoryPlatformService::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereNotIn('platform_service_id', $serviceIds)
             ->update([
@@ -502,6 +509,7 @@ class CategoryServiceBulkController extends Controller
             ]);
 
         CategoryServiceConfig::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereNotIn('platform_service_id', $serviceIds)
             ->update([
@@ -510,6 +518,7 @@ class CategoryServiceBulkController extends Controller
             ]);
 
         CategoryChildServiceFee::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereNotIn('platform_service_id', $serviceIds)
             ->update([
@@ -535,11 +544,11 @@ class CategoryServiceBulkController extends Controller
 
             CategoryPlatformService::query()->updateOrCreate(
                 [
+                    'category_id' => $rootId,
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
                 [
-                    'category_id' => $rootId,
                     'is_active' => 1,
                     'sort_order' => $sortOrder,
                     'meta' => null,
@@ -549,11 +558,11 @@ class CategoryServiceBulkController extends Controller
 
             CategoryServiceConfig::query()->updateOrCreate(
                 [
+                    'category_id' => $rootId,
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
                 [
-                    'category_id' => $rootId,
                     'config' => $this->serviceConfigPayload($request, $service),
                     'is_active' => 1,
                     'sort_order' => $sortOrder,
@@ -561,13 +570,14 @@ class CategoryServiceBulkController extends Controller
                 ]
             );
 
-            CategoryChildServiceFee::query()->updateOrCreate(
-                [
-                    'child_id' => $childId,
-                    'platform_service_id' => $serviceId,
-                ],
-                $this->serviceFeePayload($request, $sortOrder, $serviceId)
-            );
+           CategoryChildServiceFee::query()->updateOrCreate(
+                    [
+                        'category_id' => $rootId,
+                        'child_id' => $childId,
+                        'platform_service_id' => $serviceId,
+                    ],
+                    $this->serviceFeePayload($request, $sortOrder, $serviceId)
+                );
 
             $sortOrder++;
         }
@@ -581,6 +591,7 @@ class CategoryServiceBulkController extends Controller
         Request $request
     ): void {
         $currentMaxSort = (int) CategoryPlatformService::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->max('sort_order');
 
@@ -594,7 +605,8 @@ class CategoryServiceBulkController extends Controller
                 continue;
             }
 
-            $link = CategoryPlatformService::query()
+           $link = CategoryPlatformService::query()
+                ->where('category_id', $rootId)
                 ->where('child_id', $childId)
                 ->where('platform_service_id', $serviceId)
                 ->first();
@@ -613,11 +625,11 @@ class CategoryServiceBulkController extends Controller
 
                 CategoryPlatformService::query()->updateOrCreate(
                     [
+                        'category_id' => $rootId,
                         'child_id' => $childId,
                         'platform_service_id' => $serviceId,
                     ],
                     [
-                        'category_id' => $rootId,
                         'is_active' => 1,
                         'sort_order' => $sortOrder,
                         'meta' => null,
@@ -630,11 +642,11 @@ class CategoryServiceBulkController extends Controller
 
             CategoryServiceConfig::query()->updateOrCreate(
                 [
+                    'category_id' => $rootId,
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
                 [
-                    'category_id' => $rootId,
                     'config' => $this->serviceConfigPayload($request, $service),
                     'is_active' => 1,
                     'sort_order' => $sortOrder,
@@ -644,6 +656,7 @@ class CategoryServiceBulkController extends Controller
 
             CategoryChildServiceFee::query()->updateOrCreate(
                 [
+                    'category_id' => $rootId,
                     'child_id' => $childId,
                     'platform_service_id' => $serviceId,
                 ],
@@ -655,24 +668,25 @@ class CategoryServiceBulkController extends Controller
     private function removeChildServices(int $rootId, int $childId, array $serviceIds): void
     {
         CategoryPlatformService::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereIn('platform_service_id', $serviceIds)
             ->update([
-                'category_id' => $rootId,
                 'is_active' => 0,
                 'updated_at' => now(),
             ]);
 
         CategoryServiceConfig::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereIn('platform_service_id', $serviceIds)
             ->update([
-                'category_id' => $rootId,
                 'is_active' => 0,
                 'updated_at' => now(),
             ]);
 
         CategoryChildServiceFee::query()
+            ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->whereIn('platform_service_id', $serviceIds)
             ->update([

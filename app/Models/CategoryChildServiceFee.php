@@ -42,6 +42,7 @@ class CategoryChildServiceFee extends Model
     public const DEFAULT_FEE_CODE = 'booking_execution';
 
     protected $fillable = [
+        'category_id',
         'child_id',
         'platform_service_id',
 
@@ -60,6 +61,7 @@ class CategoryChildServiceFee extends Model
     ];
 
     protected $casts = [
+        'category_id' => 'integer',
         'child_id' => 'integer',
         'platform_service_id' => 'integer',
 
@@ -82,6 +84,11 @@ class CategoryChildServiceFee extends Model
     | Relations
     |--------------------------------------------------------------------------
     */
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
 
     public function child(): BelongsTo
     {
@@ -187,6 +194,21 @@ class CategoryChildServiceFee extends Model
                 });
             });
     }
+    public function scopeForCategory(Builder $query, ?int $categoryId): Builder
+    {
+        if (! $categoryId) {
+            return $query;
+        }
+
+        return $query->where('category_id', (int) $categoryId);
+    }
+
+    public function scopeForRootChild(Builder $query, ?int $categoryId, ?int $childId): Builder
+    {
+        return $query
+            ->forCategory($categoryId)
+            ->forChild($childId);
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -202,6 +224,19 @@ class CategoryChildServiceFee extends Model
 
         return static::query()
             ->active(1)
+            ->forPair($childId, $serviceId)
+            ->ordered()
+            ->first();
+    }
+    public static function activeForRootChild(int $categoryId, int $childId, int $serviceId): ?self
+    {
+        if ($categoryId <= 0 || $childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        return static::query()
+            ->active(1)
+            ->forCategory($categoryId)
             ->forPair($childId, $serviceId)
             ->ordered()
             ->first();
@@ -417,6 +452,7 @@ class CategoryChildServiceFee extends Model
             'currency' => $this->currencyCode(),
 
             'child_id' => (int) $this->child_id,
+            'category_id' => (int) $this->category_id,
             'service_id' => (int) $this->platform_service_id,
             'platform_service_id' => (int) $this->platform_service_id,
 
@@ -464,6 +500,7 @@ class CategoryChildServiceFee extends Model
             'base_amount' => round((float) $baseAmount, 2),
 
             'booking_id' => (int) $bookingId,
+            'category_id' => (int) $this->category_id,
             'service_id' => (int) $this->platform_service_id,
             'platform_service_id' => (int) $this->platform_service_id,
 

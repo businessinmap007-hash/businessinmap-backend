@@ -499,14 +499,29 @@ class CategoryChildServiceFee extends Model
             'currency' => $this->currencyCode(),
             'base_amount' => round((float) $baseAmount, 2),
 
+            /*
+            |--------------------------------------------------------------------------
+            | Official wallet reference
+            |--------------------------------------------------------------------------
+            | الأعمدة الرسمية في wallet_transactions هي reference_type/reference_id.
+            | source_type/source_id نضعها داخل meta فقط كـ alias مستقبلي.
+            |--------------------------------------------------------------------------
+            */
+            'reference_type' => 'booking',
+            'reference_id' => (int) $bookingId,
+
+            'source_type' => 'booking',
+            'source_id' => (int) $bookingId,
+
             'booking_id' => (int) $bookingId,
             'category_id' => (int) $this->category_id,
+            'child_id' => (int) $this->child_id,
+
             'service_id' => (int) $this->platform_service_id,
             'platform_service_id' => (int) $this->platform_service_id,
 
             'business_id' => (int) $businessId,
             'client_id' => (int) $clientId,
-            'child_id' => (int) $this->child_id,
 
             'rules' => null,
         ];
@@ -520,6 +535,10 @@ class CategoryChildServiceFee extends Model
 
     public function getDisplayNameAttribute(): string
     {
+        $root = $this->category?->name_ar
+            ?: $this->category?->name_en
+            ?: ('Root #' . $this->category_id);
+
         $child = $this->child?->display_name
             ?: $this->child?->name_ar
             ?: $this->child?->name_en
@@ -531,6 +550,6 @@ class CategoryChildServiceFee extends Model
             ?: $this->platformService?->key
             ?: ('Service #' . $this->platform_service_id);
 
-        return "{$child} / {$service}";
+        return "{$root} / {$child} / {$service}";
     }
 }

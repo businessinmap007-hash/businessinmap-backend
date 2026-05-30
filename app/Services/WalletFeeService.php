@@ -27,7 +27,7 @@ class WalletFeeService
         $feeCode = $this->normalizeFeeCode($feeCode);
 
         $booking->loadMissing([
-            'business:id,name,category_child_id',
+            'business:id,name,category_id,category_child_id',
             'business.serviceFeeConsent',
             'service:id,key,name_ar,name_en,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
             'user:id,name',
@@ -60,8 +60,27 @@ class WalletFeeService
             $feeRow = CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Legacy-safe fallback
+        |--------------------------------------------------------------------------
+        | بعد جعل الرسوم root-specific، لا نستخدم activeForPair مباشرة لأنه قد يرجع
+        | رسوم root آخر لنفس child/service.
+        |--------------------------------------------------------------------------
+        | نستخدم fallback فقط إذا كان هناك صف نشط واحد فقط لهذا child/service.
+        |--------------------------------------------------------------------------
+        */
         if (! $feeRow && $childId > 0) {
-            $feeRow = CategoryChildServiceFee::activeForPair($childId, $serviceId);
+            $legacyRows = CategoryChildServiceFee::query()
+                ->active(1)
+                ->forPair($childId, $serviceId)
+                ->ordered()
+                ->limit(2)
+                ->get();
+
+            if ($legacyRows->count() === 1) {
+                $feeRow = $legacyRows->first();
+            }
         }
 
         $lines = collect();
@@ -111,15 +130,15 @@ class WalletFeeService
         return $lines->values();
     }
 
-        protected function resolveFeeLineForPayer(
-            string $payer,
-            Booking $booking,
-            PlatformService $service,
-            ?CategoryChildServiceFee $feeRow,
-            float $baseAmount,
-            int $categoryId,
-            int $childId,
-            string $feeCode
+    protected function resolveFeeLineForPayer(
+        string $payer,
+        Booking $booking,
+        PlatformService $service,
+        ?CategoryChildServiceFee $feeRow,
+        float $baseAmount,
+        int $categoryId,
+        int $childId,
+        string $feeCode
     ): ?array {
         $payer = CategoryChildServiceFee::normalizePayer($payer);
 
@@ -213,7 +232,7 @@ class WalletFeeService
         $booking->loadMissing([
             'user:id,name',
             'user.serviceFeeConsent',
-            'business:id,name,category_child_id',
+            'business:id,name,category_id,category_child_id',
             'business.serviceFeeConsent',
             'service:id,name_ar,name_en,key,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
         ]);
@@ -333,7 +352,7 @@ class WalletFeeService
             ),
         ]);
     }
-        protected function buildTransactionMeta(
+    protected function buildTransactionMeta(
         Booking $booking,
         string $feeCode,
         string $payer,

@@ -3,7 +3,10 @@
 namespace App\Support\AdminV2\Operations;
 
 use App\Models\Booking;
+use App\Models\BookableItem;
+use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
+use App\Models\PlatformService;
 
 final class BookingOperationInspector
 {
@@ -11,7 +14,8 @@ final class BookingOperationInspector
     {
         $booking->loadMissing([
             'business:id,name,category_id,category_child_id',
-            'service:id,key,name_ar,name_en',
+            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'bookable',
             'latestDeposit',
             'latestDispute',
         ]);
@@ -210,6 +214,10 @@ final class BookingOperationInspector
             return array_values(array_unique($actions));
         }
 
+        /*
+         * مهم:
+         * لا نعرض Freeze Deposit إلا إذا كان الديبوزت مطلوب فعلاً حسب إعداد الفندق/الغرفة الحالي.
+         */
         if ((bool) ($depositPolicy['required'] ?? false) && ! $deposit) {
             $actions[] = OperationAction::FREEZE_DEPOSIT;
         }
@@ -306,10 +314,175 @@ final class BookingOperationInspector
 
     protected function depositPolicy(Booking $booking): array
     {
-        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-        $policy = data_get($meta, 'deposit_policy', []);
+        /*
+         * لا نعتمد على booking.meta.deposit_policy هنا لأنه قد يكون snapshot قديم.
+         * المطلوب: إعادة حساب الديبوزت من إعداد الفندق/الغرفة الحالي:
+         * - PlatformService supports_deposit
+         * - BusinessServicePrice deposit_enabled / deposit_percent
+         * - BookableItem deposit_enabled / deposit_percent override
+         */
 
-        return is_array($policy) ? $policy : [];
+        $booking->loadMissing([
+            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'business:id,name,type,category_id,category_child_id',
+            'bookable',
+        ]);
+
+        $service = $booking->service;
+
+        if (! $service && (int) $booking->service_id > 0) {
+            $service = PlatformService::query()
+                ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
+                ->find((int) $booking->service_id);
+        }
+
+        if (! $service) {
+            return $this->emptyDepositPolicy('service_missing');
+        }
+
+        $businessId = (int) $booking->business_id;
+        $serviceId = (int) $booking->service_id;
+        $childId = (int) ($booking->business?->category_child_id ?? 0);
+
+        $businessPrice = $this->resolveBusinessServicePrice(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            childId: $childId
+        );
+
+        if (! $businessPrice) {
+            return $this->emptyDepositPolicy('business_price_missing');
+        }
+
+        $bookable = $booking->bookable instanceof BookableItem
+            ? $booking->bookable
+            : null;
+
+        $serviceSupportsDeposit = (bool) ($service->supports_deposit ?? false);
+        $serviceMaxPercent = (int) ($service->max_deposit_percent ?? 0);
+
+        $businessDepositEnabled = (bool) ($businessPrice->deposit_enabled ?? false);
+        $businessDepositPercent = (int) ($businessPrice->deposit_percent ?? 0);
+
+        $effectiveDepositEnabled = $businessDepositEnabled;
+        $effectiveDepositPercent = $businessDepositPercent;
+        $source = 'business_service_price';
+
+        /*
+         * لو الفندق لم يشترط ديبوزت على السعر العام، لكن الغرفة نفسها اشترطت ديبوزت،
+         * الغرفة تكسب لأنها الاختيار الفعلي.
+         */
+        if ($bookable && (bool) ($bookable->deposit_enabled ?? false)) {
+            $effectiveDepositEnabled = true;
+            $effectiveDepositPercent = (int) ($bookable->deposit_percent ?? 0);
+            $source = 'bookable_item';
+        }
+
+        /*
+         * لو الخدمة نفسها لا تدعم ديبوزت، لا نطلب ديبوزت مهما كان موجودًا في meta قديم.
+         */
+        if (! $serviceSupportsDeposit) {
+            return $this->emptyDepositPolicy('platform_service_does_not_support_deposit', [
+                'service_supports_deposit' => false,
+                'service_max_percent' => $serviceMaxPercent,
+                'business_deposit_enabled' => $businessDepositEnabled,
+                'business_deposit_percent' => $businessDepositPercent,
+                'bookable_deposit_enabled' => $bookable ? (bool) ($bookable->deposit_enabled ?? false) : false,
+                'bookable_deposit_percent' => $bookable ? (int) ($bookable->deposit_percent ?? 0) : 0,
+            ]);
+        }
+
+        if ($serviceMaxPercent > 0 && $effectiveDepositPercent > $serviceMaxPercent) {
+            $effectiveDepositPercent = $serviceMaxPercent;
+        }
+
+        $required = $effectiveDepositEnabled && $effectiveDepositPercent > 0;
+
+        $price = $this->resolveBookingPrice($booking);
+
+        $amount = $required
+            ? round($price * ($effectiveDepositPercent / 100), 2)
+            : 0.00;
+
+        return [
+            'service_supports_deposit' => $serviceSupportsDeposit,
+            'service_max_percent' => $serviceMaxPercent,
+
+            'business_deposit_enabled' => $businessDepositEnabled,
+            'business_deposit_percent' => $businessDepositPercent,
+
+            'bookable_deposit_enabled' => $bookable ? (bool) ($bookable->deposit_enabled ?? false) : false,
+            'bookable_deposit_percent' => $bookable ? (int) ($bookable->deposit_percent ?? 0) : 0,
+
+            'required' => $required,
+            'amount' => $amount,
+            'hold' => $amount,
+            'configured_percent' => $required ? $effectiveDepositPercent : 0,
+            'source' => $required ? $source : 'none',
+            'currency' => (string) ($businessPrice->currency ?: 'EGP'),
+
+            'computed_live' => true,
+            'ignored_old_meta' => true,
+        ];
+    }
+
+    protected function resolveBusinessServicePrice(int $businessId, int $serviceId, int $childId = 0): ?BusinessServicePrice
+    {
+        if ($businessId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        if ($childId > 0) {
+            $row = BusinessServicePrice::query()
+                ->where('business_id', $businessId)
+                ->where('child_id', $childId)
+                ->where('service_id', $serviceId)
+                ->where('is_active', 1)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row) {
+                return $row;
+            }
+        }
+
+        return BusinessServicePrice::query()
+            ->where('business_id', $businessId)
+            ->where('service_id', $serviceId)
+            ->where('is_active', 1)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function resolveBookingPrice(Booking $booking): float
+    {
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+
+        $price = (float) data_get($meta, 'pricing.final_price', 0);
+
+        if ($price <= 0) {
+            $price = (float) ($booking->price ?? 0);
+        }
+
+        if ($price <= 0) {
+            $price = (float) data_get($meta, 'pricing.price', 0);
+        }
+
+        return round(max($price, 0), 2);
+    }
+
+    protected function emptyDepositPolicy(string $source = 'none', array $extra = []): array
+    {
+        return array_merge([
+            'required' => false,
+            'amount' => 0.00,
+            'hold' => 0.00,
+            'configured_percent' => 0,
+            'source' => $source,
+            'currency' => 'EGP',
+            'computed_live' => true,
+            'ignored_old_meta' => true,
+        ], $extra);
     }
 
     protected function confirmState(Booking $booking, ?Deposit $deposit): array

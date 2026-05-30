@@ -9,6 +9,8 @@ use App\Models\CategoryChildServiceFee;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
+use App\Models\Wallet;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -147,6 +149,142 @@ class ServiceExecutionEngine
 
     /*
     |--------------------------------------------------------------------------
+    | Financial Preview / Guard
+    |--------------------------------------------------------------------------
+    | هذه الطبقة لا تخصم ولا تجمد أي مبالغ.
+    | الهدف منها عرض جاهزية التنفيذ قبل Start أو قبل تحويل الحجز إلى in_progress.
+    |--------------------------------------------------------------------------
+    */
+
+    public function financialPreview(Booking $booking): array
+    {
+        $booking->loadMissing([
+            'user:id,name,type',
+            'user.serviceFeeConsent',
+            'business:id,name,type,category_id,category_child_id',
+            'business.serviceFeeConsent',
+            'service:id,key,name_ar,name_en,is_active,supports_deposit,max_deposit_percent,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
+            'bookable',
+        ]);
+
+        $deposit = $this->latestDeposit($booking);
+        $depositPolicy = $this->depositPolicy($booking);
+        $feeLines = $this->walletFeeService->resolveBookingFees($booking, self::EXECUTION_FEE_CODE);
+
+        $clientId = (int) $booking->user_id;
+        $businessId = (int) $booking->business_id;
+
+        $clientDepositRequired = 0.0;
+        $businessDepositRequired = 0.0;
+
+        if (($depositPolicy['required'] ?? false) && ! ($deposit && $deposit->isFrozen())) {
+            /*
+             * BookingDepositService::freezeForBooking($booking, $hold)
+             * ينشئ total = hold * 2
+             * ثم clientPercent = 50 و businessPercent = 50
+             * لذلك كل طرف يحتاج نفس قيمة hold.
+             */
+            $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
+
+            $clientDepositRequired = $holdAmount;
+            $businessDepositRequired = $holdAmount;
+        }
+
+        $clientFeeRequired = 0.0;
+        $businessFeeRequired = 0.0;
+
+        foreach ($feeLines as $line) {
+            $amount = round((float) ($line['amount'] ?? 0), 2);
+            $payer = (string) ($line['payer'] ?? '');
+
+            if ($payer === CategoryChildServiceFee::PAYER_CLIENT) {
+                $clientFeeRequired += $amount;
+            }
+
+            if ($payer === CategoryChildServiceFee::PAYER_BUSINESS) {
+                $businessFeeRequired += $amount;
+            }
+        }
+
+        $clientRequiredTotal = round($clientDepositRequired + $clientFeeRequired, 2);
+        $businessRequiredTotal = round($businessDepositRequired + $businessFeeRequired, 2);
+
+        $clientWallet = $this->walletSnapshot($clientId);
+        $businessWallet = $this->walletSnapshot($businessId);
+
+        $clientReady = $clientWallet['active']
+            && $clientWallet['balance'] >= $clientRequiredTotal;
+
+        $businessReady = $businessWallet['active']
+            && $businessWallet['balance'] >= $businessRequiredTotal;
+
+        $messages = [];
+
+        if (! $clientReady && $clientRequiredTotal > 0) {
+            $messages[] = 'رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.';
+        }
+
+        if (! $businessReady && $businessRequiredTotal > 0) {
+            $messages[] = 'رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.';
+        }
+
+        return [
+            'ok' => empty($messages),
+
+            'booking_id' => (int) $booking->id,
+            'status' => (string) $booking->status,
+
+            'deposit' => [
+                'required' => (bool) ($depositPolicy['required'] ?? false),
+                'already_frozen' => (bool) ($deposit && $deposit->isFrozen()),
+                'existing_deposit_id' => $deposit ? (int) $deposit->id : null,
+                'policy' => $depositPolicy,
+
+                'client_required' => $clientDepositRequired,
+                'business_required' => $businessDepositRequired,
+            ],
+
+            'fees' => [
+                'code' => self::EXECUTION_FEE_CODE,
+                'lines' => $feeLines->values()->all(),
+                'client_required' => round($clientFeeRequired, 2),
+                'business_required' => round($businessFeeRequired, 2),
+                'non_refundable_after_in_progress' => true,
+            ],
+
+            'client' => [
+                'user_id' => $clientId,
+                'wallet' => $clientWallet,
+                'required_total' => $clientRequiredTotal,
+                'ready' => $clientReady || $clientRequiredTotal <= 0,
+            ],
+
+            'business' => [
+                'user_id' => $businessId,
+                'wallet' => $businessWallet,
+                'required_total' => $businessRequiredTotal,
+                'ready' => $businessReady || $businessRequiredTotal <= 0,
+            ],
+
+            'messages' => $messages,
+        ];
+    }
+
+    public function ensureFinancialReadiness(Booking $booking): array
+    {
+        $preview = $this->financialPreview($booking);
+
+        if (! ($preview['ok'] ?? false)) {
+            throw ValidationException::withMessages([
+                'balance' => $preview['messages'] ?: ['لا يمكن بدء التنفيذ بسبب عدم جاهزية الرصيد.'],
+            ]);
+        }
+
+        return $preview;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Booking Meta
     |--------------------------------------------------------------------------
     */
@@ -234,6 +372,7 @@ class ServiceExecutionEngine
         $meta['_execution_fee']['business_amount'] = (float) ($meta['_execution_fee']['business_amount'] ?? 0);
         $meta['_execution_fee']['charged_at'] = $meta['_execution_fee']['charged_at'] ?? null;
         $meta['_execution_fee']['transactions'] = $meta['_execution_fee']['transactions'] ?? [];
+        $meta['_execution_fee']['non_refundable_after_in_progress'] = true;
 
         return $meta;
     }
@@ -249,8 +388,15 @@ class ServiceExecutionEngine
         DB::transaction(function () use ($booking) {
             $booking->refresh();
 
+            if (! $booking->canMoveToInProgress()) {
+                throw ValidationException::withMessages([
+                    'status' => 'لا يمكن بدء التنفيذ من الحالة الحالية.',
+                ]);
+            }
+
             $deposit = $this->latestDeposit($booking);
             $depositPolicy = $this->depositPolicy($booking);
+
             [$clientConfirmed, $businessConfirmed] = $this->resolveConfirmState($booking, $deposit);
 
             if (! $clientConfirmed || ! $businessConfirmed) {
@@ -259,22 +405,71 @@ class ServiceExecutionEngine
                 ]);
             }
 
-            if ($depositPolicy['required']) {
-                if (! $deposit) {
-                    throw ValidationException::withMessages([
-                        'status' => 'Deposit مطلوب لهذا الحجز قبل بدء التنفيذ.',
-                    ]);
-                }
+            /*
+             * Financial Guard:
+             * - يتحقق من رصيد العميل والبزنس قبل أي خصم أو تجميد.
+             * - يراعي أن رسوم الخدمة لا تظهر إلا لمن فعّل consent داخل WalletFeeService.
+             */
+            $readiness = $this->ensureFinancialReadiness($booking);
 
-                if (! $deposit->isFrozen()) {
-                    throw ValidationException::withMessages([
-                        'status' => 'يجب أن تكون حالة الـ Deposit مجمدة قبل بدء التنفيذ.',
-                    ]);
+            /*
+             * Auto Deposit Freeze:
+             * إذا كان الديبوزت مطلوبًا ولم يكن مجمدًا، نقوم بتجميده هنا تلقائيًا.
+             */
+            if ((bool) ($depositPolicy['required'] ?? false)) {
+                if (! $deposit || ! $deposit->isFrozen()) {
+                    $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
+
+                    if ($holdAmount <= 0) {
+                        throw ValidationException::withMessages([
+                            'deposit' => 'قيمة الـ Deposit المطلوبة غير صالحة.',
+                        ]);
+                    }
+
+                    $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount);
+                    $deposit->refresh();
+
+                    if (! $deposit->isFrozen()) {
+                        throw ValidationException::withMessages([
+                            'deposit' => 'تعذر تجميد الـ Deposit تلقائيًا. راجع حالة الـ Deposit الحالية.',
+                        ]);
+                    }
                 }
             }
 
+            /*
+             * Non-refundable Service Fees:
+             * بمجرد نجاح الدخول في التنفيذ يتم خصم رسوم الخدمة.
+             * هذه الرسوم لا تسترد بعد in_progress.
+             */
             $this->chargeExecutionFeeOnce($booking);
 
+            $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+            $meta['_financial_guard'] = [
+                'checked_at' => now()->toDateTimeString(),
+                'ok' => true,
+                'deposit_required' => (bool) data_get($readiness, 'deposit.required', false),
+                'deposit_auto_freeze_enabled' => true,
+                'fees_non_refundable_after_in_progress' => true,
+                'client_required_total' => (float) data_get($readiness, 'client.required_total', 0),
+                'business_required_total' => (float) data_get($readiness, 'business.required_total', 0),
+            ];
+
+            $meta['_operation_stats_snapshot'] = [
+                'client' => [
+                    'user_id' => (int) $booking->user_id,
+                    'fees_resolved' => (float) data_get($readiness, 'fees.client_required', 0) > 0,
+                    'stats_candidate' => true,
+                ],
+                'business' => [
+                    'user_id' => (int) $booking->business_id,
+                    'fees_resolved' => (float) data_get($readiness, 'fees.business_required', 0) > 0,
+                    'stats_candidate' => true,
+                ],
+                'operation_started_at' => now()->toDateTimeString(),
+            ];
+
+            $booking->meta = $meta;
             $booking->status = Booking::STATUS_IN_PROGRESS;
             $booking->save();
         });
@@ -331,6 +526,8 @@ class ServiceExecutionEngine
         $meta['_execution_fee']['business_amount'] = round($businessAmount, 2);
         $meta['_execution_fee']['charged_at'] = now()->toDateTimeString();
         $meta['_execution_fee']['transactions'] = $txMap;
+        $meta['_execution_fee']['non_refundable'] = true;
+        $meta['_execution_fee']['non_refundable_reason'] = 'service_entered_in_progress';
 
         $booking->meta = $meta;
         $booking->save();
@@ -636,7 +833,7 @@ class ServiceExecutionEngine
 
     /*
     |--------------------------------------------------------------------------
-    | Confirmations
+    | Confirmations / Wallet Helpers
     |--------------------------------------------------------------------------
     */
 
@@ -663,6 +860,41 @@ class ServiceExecutionEngine
         return [
             $metaClientConfirmed,
             $metaBusinessConfirmed,
+        ];
+    }
+
+    protected function walletSnapshot(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [
+                'exists' => false,
+                'active' => false,
+                'balance' => 0.0,
+                'locked_balance' => 0.0,
+                'status' => null,
+            ];
+        }
+
+        $wallet = Wallet::query()
+            ->where('user_id', $userId)
+            ->first();
+
+        if (! $wallet) {
+            return [
+                'exists' => false,
+                'active' => false,
+                'balance' => 0.0,
+                'locked_balance' => 0.0,
+                'status' => null,
+            ];
+        }
+
+        return [
+            'exists' => true,
+            'active' => (string) ($wallet->status ?? '') === 'active',
+            'balance' => round((float) ($wallet->balance ?? 0), 2),
+            'locked_balance' => round((float) ($wallet->locked_balance ?? 0), 2),
+            'status' => (string) ($wallet->status ?? ''),
         ];
     }
 }

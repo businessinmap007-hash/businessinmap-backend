@@ -5,11 +5,12 @@
 
 @section('content')
 <div class="a2-page">
+
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">إضافة حجز جديد</h1>
             <div class="a2-page-subtitle">
-                طالب الحجز قد يكون عميلًا عاديًا أو بزنس، ومقدم الخدمة يجب أن يكون بزنس مفعل.
+                أنشئ حجزًا جديدًا مع اختيار طالب الحجز، مقدم الخدمة، الخدمة، والغرفة أو العنصر القابل للحجز.
             </div>
         </div>
 
@@ -36,7 +37,7 @@
         <div class="a2-alert a2-alert-danger">
             <div class="a2-fw-900 a2-mb-8">يوجد أخطاء في بيانات الحجز:</div>
 
-            <ul style="margin:0;padding-inline-start:18px;">
+            <ul class="bk-error-list">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -44,7 +45,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.bookings.store') }}">
+    <form method="POST" action="{{ route('admin.bookings.store') }}" class="bk-form-shell">
         @csrf
 
         @include('admin-v2.bookings._form', [

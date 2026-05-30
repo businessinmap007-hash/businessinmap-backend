@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\BusinessServicePrice;
 use App\Models\BookableItem;
 use App\Services\BookingDepositService;
+use App\Models\CategoryServiceConfig;
 use App\Services\ServiceExecutionEngine;
 use App\Models\CategoryChildServiceFee;
 use App\Support\AdminV2\Operations\OperationPresenter;
@@ -264,7 +265,14 @@ class BookingController extends Controller
         $serviceId  = (int) $request->get('service_id', 0);
         $term       = trim((string) $request->get('q', ''));
 
-        $query = BookableItem::query()->where('is_active', 1);
+        $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
+        $config = $serviceConfig ? $serviceConfig->configArray() : [];
+
+        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+        $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
+
+        $query = BookableItem::query()
+            ->where('is_active', 1);
 
         if ($businessId > 0) {
             $query->where('business_id', $businessId);
@@ -272,6 +280,10 @@ class BookingController extends Controller
 
         if ($serviceId > 0) {
             $query->where('service_id', $serviceId);
+        }
+
+        if (! empty($allowedItemTypes)) {
+            $query->whereIn('item_type', $allowedItemTypes);
         }
 
         if ($term !== '') {
@@ -301,7 +313,36 @@ class BookingController extends Controller
 
         return response()->json([
             'ok' => true,
-            'items' => $rows,
+
+            'service_config' => [
+                'exists' => (bool) $serviceConfig,
+                'id' => $serviceConfig ? (int) $serviceConfig->id : null,
+                'requires_bookable_item' => $requiresBookableItem,
+                'allowed_item_types' => $allowedItemTypes,
+                'booking_modes' => data_get($config, 'booking_modes', []),
+                'item_family' => data_get($config, 'item_family'),
+                'requires_start_end' => filter_var(data_get($config, 'requires_start_end', false), FILTER_VALIDATE_BOOLEAN),
+                'supports_quantity' => filter_var(data_get($config, 'supports_quantity', true), FILTER_VALIDATE_BOOLEAN),
+                'supports_guest_count' => filter_var(data_get($config, 'supports_guest_count', false), FILTER_VALIDATE_BOOLEAN),
+                'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
+                'required_fields' => data_get($config, 'required_fields', []),
+            ],
+
+            'items' => $rows->map(function (BookableItem $item) {
+                return [
+                    'id' => (int) $item->id,
+                    'business_id' => (int) $item->business_id,
+                    'service_id' => (int) $item->service_id,
+                    'item_type' => (string) ($item->item_type ?? ''),
+                    'title' => (string) ($item->title ?? ''),
+                    'code' => (string) ($item->code ?? ''),
+                    'price' => round((float) ($item->price ?? 0), 2),
+                    'capacity' => $item->capacity !== null ? (int) $item->capacity : null,
+                    'quantity' => $item->quantity !== null ? (int) $item->quantity : null,
+                    'deposit_enabled' => (bool) ($item->deposit_enabled ?? false),
+                    'deposit_percent' => (int) ($item->deposit_percent ?? 0),
+                ];
+            })->values(),
         ]);
     }
 
@@ -320,6 +361,38 @@ class BookingController extends Controller
                 'ok' => false,
                 'message' => 'business_id و service_id مطلوبان',
             ], 422);
+        }
+
+        $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
+        $config = $serviceConfig ? $serviceConfig->configArray() : [];
+
+        $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
+        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+
+        if ($requiresBookableItem && $bookableId <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.',
+                'code' => 'bookable_required',
+                'service_config' => $this->serviceConfigPayload($serviceConfig),
+            ], 422);
+        }
+
+        if ($bookableId > 0 && ! empty($allowedItemTypes)) {
+            $bookableType = BookableItem::query()
+                ->where('id', $bookableId)
+                ->where('business_id', $businessId)
+                ->where('service_id', $serviceId)
+                ->value('item_type');
+
+            if (! $bookableType || ! in_array((string) $bookableType, $allowedItemTypes, true)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'نوع العنصر المختار غير مسموح لهذه الخدمة.',
+                    'code' => 'bookable_type_not_allowed',
+                    'allowed_item_types' => $allowedItemTypes,
+                ], 422);
+            }
         }
 
         try {
@@ -380,6 +453,9 @@ class BookingController extends Controller
 
         return response()->json([
             'ok' => true,
+
+            'service_config' => $this->serviceConfigPayload($serviceConfig),
+
             'service' => [
                 'id' => (int) $service->id,
                 'key' => (string) ($service->key ?? ''),
@@ -390,24 +466,32 @@ class BookingController extends Controller
                 'fee_type' => (string) ($service->fee_type ?? ''),
                 'fee_value' => $service->fee_value !== null ? (float) $service->fee_value : null,
             ],
+
             'business_price' => [
+                'id' => (int) ($businessPrice->id ?? 0),
                 'price' => (float) ($businessPrice->price ?? 0),
+                'currency' => (string) ($businessPrice->currency ?? 'EGP'),
                 'discount_enabled' => (bool) ($businessPrice->discount_enabled ?? false),
                 'discount_percent' => (int) ($businessPrice->discount_percent ?? 0),
                 'deposit_enabled' => (bool) ($businessPrice->deposit_enabled ?? false),
                 'deposit_percent' => (int) ($businessPrice->deposit_percent ?? 0),
                 'child_id' => (int) ($businessPrice->child_id ?? 0),
             ],
+
             'bookable' => $bookable ? [
                 'id' => (int) $bookable->id,
                 'title' => (string) $bookable->title,
+                'code' => (string) ($bookable->code ?? ''),
+                'item_type' => (string) ($bookable->item_type ?? ''),
                 'price' => (float) $bookable->price,
                 'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
                 'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
                 'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
                 'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
             ] : null,
+
             'fee_snapshot' => $calc['fee_snapshot'] ?? [],
+
             'availability' => $availability ? [
                 'available' => (bool) ($availability['available'] ?? false),
                 'code' => (string) ($availability['code'] ?? ''),
@@ -415,6 +499,7 @@ class BookingController extends Controller
                 'starts_at' => $availability['starts_at'] ?? $startsAt,
                 'ends_at' => $availability['ends_at'] ?? $endsAt,
             ] : null,
+
             'pricing' => $calc['price_breakdown'] ?? [],
             'deposit_policy' => $calc['deposit_policy'] ?? [],
         ]);
@@ -796,6 +881,17 @@ class BookingController extends Controller
                 'service_id' => 'الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.',
             ]);
         }
+        $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
+        $config = $serviceConfig ? $serviceConfig->configArray() : [];
+
+        $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
+        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+
+        if ($requiresBookableItem && empty($data['bookable_id'])) {
+            throw ValidationException::withMessages([
+                'bookable_id' => 'هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.',
+            ]);
+        }
 
         if (! empty($data['bookable_id'])) {
             $bookable = BookableItem::query()
@@ -808,6 +904,12 @@ class BookingController extends Controller
             if (! $bookable) {
                 throw ValidationException::withMessages([
                     'bookable_id' => 'العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.',
+                ]);
+            }
+
+            if (! empty($allowedItemTypes) && ! in_array((string) $bookable->item_type, $allowedItemTypes, true)) {
+                throw ValidationException::withMessages([
+                    'bookable_id' => 'نوع العنصر القابل للحجز غير مسموح لهذه الخدمة.',
                 ]);
             }
 
@@ -1019,5 +1121,95 @@ class BookingController extends Controller
                 ->route('admin.bookings.show', $booking)
                 ->with('error', 'تعذر إلغاء الحجز: ' . $e->getMessage());
         }
+    }
+    protected function resolveServiceConfigForBusiness(int $businessId, int $serviceId): ?CategoryServiceConfig
+    {
+        if ($businessId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        if (! $business) {
+            return null;
+        }
+
+        if ($categoryId > 0 && $childId > 0) {
+            $config = CategoryServiceConfig::query()
+                ->active(1)
+                ->forCategory($categoryId)
+                ->forChild($childId)
+                ->forService($serviceId)
+                ->ordered()
+                ->first();
+
+            if ($config) {
+                return $config;
+            }
+        }
+
+        if ($childId > 0) {
+            $config = CategoryServiceConfig::query()
+                ->active(1)
+                ->forChild($childId)
+                ->forService($serviceId)
+                ->ordered()
+                ->first();
+
+            if ($config) {
+                return $config;
+            }
+        }
+
+        if ($categoryId > 0) {
+            return CategoryServiceConfig::query()
+                ->active(1)
+                ->forCategory($categoryId)
+                ->forService($serviceId)
+                ->ordered()
+                ->first();
+        }
+
+        return null;
+    }
+
+    protected function serviceConfigPayload(?CategoryServiceConfig $serviceConfig): array
+    {
+        $config = $serviceConfig ? $serviceConfig->configArray() : [];
+
+        return [
+            'exists' => (bool) $serviceConfig,
+            'id' => $serviceConfig ? (int) $serviceConfig->id : null,
+            'requires_bookable_item' => $this->requiresBookableItemFromConfig($config),
+            'allowed_item_types' => $this->allowedItemTypesFromConfig($config),
+            'booking_modes' => data_get($config, 'booking_modes', []),
+            'item_family' => data_get($config, 'item_family'),
+            'requires_start_end' => filter_var(data_get($config, 'requires_start_end', false), FILTER_VALIDATE_BOOLEAN),
+            'supports_quantity' => filter_var(data_get($config, 'supports_quantity', true), FILTER_VALIDATE_BOOLEAN),
+            'supports_guest_count' => filter_var(data_get($config, 'supports_guest_count', false), FILTER_VALIDATE_BOOLEAN),
+            'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
+            'required_fields' => data_get($config, 'required_fields', []),
+        ];
+    }
+
+    protected function allowedItemTypesFromConfig(array $config): array
+    {
+        $types = data_get($config, 'allowed_item_types', []);
+
+        if (! is_array($types)) {
+            return [];
+        }
+
+        return collect($types)
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function requiresBookableItemFromConfig(array $config): bool
+    {
+        return filter_var(data_get($config, 'requires_bookable_item', false), FILTER_VALIDATE_BOOLEAN);
     }
 }

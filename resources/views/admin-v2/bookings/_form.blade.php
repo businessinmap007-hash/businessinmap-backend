@@ -1,6 +1,6 @@
 @if ($errors->any())
-    <div class="a2-alert a2-alert-danger" style="margin-bottom:12px;">
-        <ul style="margin:0;padding-inline-start:18px;">
+    <div class="a2-alert a2-alert-danger bk-form-errors">
+        <ul class="bk-error-list">
             @foreach ($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
@@ -17,267 +17,333 @@
     $startDateValue = old('date', optional($booking->date)->format('Y-m-d'));
     $startTimeValue = old('time', $booking->time ? \Illuminate\Support\Str::limit($booking->time, 5, '') : '');
     $endsAtValue = old('ends_at', optional($booking->ends_at)->format('Y-m-d\TH:i'));
+
     $durationMode = old('duration_unit', $booking->duration_unit ?? 'day');
     $durationValueOld = old('duration_value', $booking->duration_value ?? 1);
     $quantityValue = old('quantity', $booking->quantity ?? 1);
+    $partySizeValue = old('party_size', $booking->party_size ?? 1);
 
     $selectedRequester = $clients->firstWhere('id', (int) $selectedRequesterId);
     $selectedBusiness = $businesses->firstWhere('id', (int) $selectedBusinessId);
     $selectedService = $services->firstWhere('id', (int) $selectedServiceId);
+
+    $bookingStatus = old('status', $booking->status ?? \App\Models\Booking::STATUS_PENDING);
 @endphp
 
-<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;">
+<div class="bk-form-layout">
 
-    <div class="a2-card" style="padding:18px;">
-        <div class="a2-title" style="font-size:18px;margin-bottom:14px;">البيانات الأساسية</div>
+    {{-- =========================
+        Main Form
+    ========================== --}}
+    <div class="bk-main">
 
-        <div class="bk-form-grid">
+        <div class="a2-card bk-card">
+            <div class="bk-card-head">
+                <div>
+                    <div class="a2-title">بيانات الحجز الأساسية</div>
+                    <div class="a2-section-subtitle">
+                        اختر طالب الحجز، مقدم الخدمة، الخدمة، ثم العنصر القابل للحجز إن كانت الخدمة تتطلب ذلك.
+                    </div>
+                </div>
+            </div>
 
-            {{-- طالب الحجز --}}
-            <div class="bk-field-search" id="requester_search_box">
-                <label class="a2-label">طالب الحجز</label>
-                <input type="hidden" name="user_id" id="user_id" value="{{ $selectedRequesterId }}">
+            <div class="bk-form-grid">
 
-                <input
-                    type="text"
-                    id="requester_search"
-                    class="a2-input"
-                    placeholder="ابحث باسم طالب الحجز: عميل أو بزنس..."
-                    autocomplete="off"
-                    value="{{ $selectedRequester->name ?? '' }}"
-                    required
-                >
+                {{-- طالب الحجز --}}
+                <div class="bk-field-search" id="requester_search_box">
+                    <label class="a2-label">طالب الحجز</label>
+                    <input type="hidden" name="user_id" id="user_id" value="{{ $selectedRequesterId }}">
 
-                <div class="a2-hint" style="margin-top:6px;">
-                    يمكن اختيار عميل عادي أو بزنس كطالب للحجز.
+                    <input
+                        type="text"
+                        id="requester_search"
+                        class="a2-input"
+                        placeholder="ابحث باسم طالب الحجز..."
+                        autocomplete="off"
+                        value="{{ $selectedRequester->name ?? '' }}"
+                        required
+                    >
+
+                    <div class="a2-hint">
+                        يمكن أن يكون طالب الحجز عميلًا أو بزنس.
+                    </div>
+
+                    <div class="bk-dropdown" id="requester_dropdown">
+                        @foreach($clients as $client)
+                            @php
+                                $clientType = (string) ($client->type ?? '');
+                                $typeLabel = $clientType === 'business' ? 'Business' : 'Client';
+                                $phone = (string) ($client->phone ?? '');
+                                $email = (string) ($client->email ?? '');
+                            @endphp
+
+                            <button
+                                type="button"
+                                class="bk-option requester-option"
+                                data-id="{{ $client->id }}"
+                                data-name="{{ $client->name }}"
+                                data-type="{{ $clientType }}"
+                                data-phone="{{ $phone }}"
+                                data-email="{{ $email }}"
+                            >
+                                <strong>{{ $client->name }}</strong>
+                                <span class="bk-option-sub">
+                                    {{ $typeLabel }}
+                                    @if($phone)
+                                        — {{ $phone }}
+                                    @elseif($email)
+                                        — {{ $email }}
+                                    @endif
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
 
-                <div class="bk-dropdown" id="requester_dropdown">
-                    @foreach($clients as $client)
-                        @php
-                            $clientType = (string) ($client->type ?? '');
-                            $typeLabel = $clientType === 'business' ? 'Business' : 'Client';
-                            $phone = (string) ($client->phone ?? '');
-                            $email = (string) ($client->email ?? '');
-                        @endphp
+                {{-- مقدم الخدمة --}}
+                <div class="bk-field-search" id="business_search_box">
+                    <label class="a2-label">مقدم الخدمة</label>
+                    <input type="hidden" name="business_id" id="business_id" value="{{ $selectedBusinessId }}">
 
-                        <button
-                            type="button"
-                            class="bk-option requester-option"
-                            data-id="{{ $client->id }}"
-                            data-name="{{ $client->name }}"
-                            data-type="{{ $clientType }}"
-                            data-phone="{{ $phone }}"
-                            data-email="{{ $email }}"
-                        >
-                            <strong>{{ $client->name }}</strong>
-                            <span class="bk-option-sub">
-                                {{ $typeLabel }}
-                                @if($phone)
-                                    — {{ $phone }}
-                                @elseif($email)
-                                    — {{ $email }}
+                    <input
+                        type="text"
+                        id="business_search"
+                        class="a2-input"
+                        placeholder="ابحث باسم الفندق / البزنس..."
+                        autocomplete="off"
+                        value="{{ $selectedBusiness->name ?? '' }}"
+                        required
+                    >
+
+                    <div class="a2-hint">
+                        مقدم الخدمة يجب أن يكون حساب Business.
+                    </div>
+
+                    <div class="bk-dropdown" id="business_dropdown">
+                        @foreach($businesses as $business)
+                            <button
+                                type="button"
+                                class="bk-option business-option"
+                                data-id="{{ $business->id }}"
+                                data-name="{{ $business->name }}"
+                                data-category-id="{{ (int) ($business->category_id ?? 0) }}"
+                                data-child-id="{{ (int) ($business->category_child_id ?? 0) }}"
+                                data-phone="{{ (string) ($business->phone ?? '') }}"
+                                data-email="{{ (string) ($business->email ?? '') }}"
+                            >
+                                <strong>{{ $business->name }}</strong>
+                                <span class="bk-option-sub">
+                                    Business
+                                    @if(!empty($business->phone))
+                                        — {{ $business->phone }}
+                                    @endif
+                                    — Root: {{ (int) ($business->category_id ?? 0) }}
+                                    / Child: {{ (int) ($business->category_child_id ?? 0) }}
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- الخدمة --}}
+                <div class="bk-field-search" id="service_search_box">
+                    <label class="a2-label">الخدمة</label>
+                    <input type="hidden" name="service_id" id="service_id" value="{{ $selectedServiceId }}">
+
+                    <input
+                        type="text"
+                        id="service_search"
+                        class="a2-input"
+                        placeholder="ابحث باسم الخدمة..."
+                        autocomplete="off"
+                        value="{{ $selectedService ? ($selectedService->name_ar ?: $selectedService->name_en) : '' }}"
+                        required
+                    >
+
+                    <div class="a2-hint">
+                        مثال: الحجز، التوصيل، المنيو.
+                    </div>
+
+                    <div class="bk-dropdown" id="service_dropdown">
+                        @foreach($services as $service)
+                            <button
+                                type="button"
+                                class="bk-option service-option"
+                                data-id="{{ $service->id }}"
+                                data-name="{{ $service->name_ar ?: $service->name_en }}"
+                                data-key="{{ $service->key }}"
+                                data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}"
+                                data-max-deposit-percent="{{ (int)($service->max_deposit_percent ?? 0) }}"
+                            >
+                                <strong>{{ $service->name_ar ?: $service->name_en }}</strong>
+                                @if(!empty($service->key))
+                                    <span class="bk-option-sub">({{ $service->key }})</span>
                                 @endif
-                            </span>
-                        </button>
-                    @endforeach
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
-            </div>
 
-            {{-- البزنس --}}
-            <div class="bk-field-search" id="business_search_box">
-                <label class="a2-label">مقدم الخدمة</label>
-                <input type="hidden" name="business_id" id="business_id" value="{{ $selectedBusinessId }}">
+                {{-- العنصر القابل للحجز --}}
+                <div id="bookable_wrap">
+                    <label class="a2-label">
+                        العنصر القابل للحجز
+                        <span id="bookable_required_badge" class="bk-mini-badge is-hidden">مطلوب</span>
+                    </label>
 
-                <input
-                    type="text"
-                    id="business_search"
-                    class="a2-input"
-                    placeholder="ابحث باسم البزنس مقدم الخدمة..."
-                    autocomplete="off"
-                    value="{{ $selectedBusiness->name ?? '' }}"
-                    required
-                >
+                    <select name="bookable_id" id="bookable_id" class="a2-select">
+                        <option value="">بدون عنصر محدد</option>
+                    </select>
 
-                <div class="bk-dropdown" id="business_dropdown">
-                    @foreach($businesses as $business)
-                        <button
-                            type="button"
-                            class="bk-option business-option"
-                            data-id="{{ $business->id }}"
-                            data-name="{{ $business->name }}"
-                            data-category-id="{{ (int) ($business->category_id ?? 0) }}"
-                            data-child-id="{{ (int) ($business->category_child_id ?? 0) }}"
-                            data-phone="{{ (string) ($business->phone ?? '') }}"
-                            data-email="{{ (string) ($business->email ?? '') }}"
-                        >
-                            <strong>{{ $business->name }}</strong>
-                            <span class="bk-option-sub">
-                                Provider Business
-                                @if(!empty($business->phone))
-                                    — {{ $business->phone }}
-                                @endif
-                                — Root: {{ (int) ($business->category_id ?? 0) }}
-                                / Child: {{ (int) ($business->category_child_id ?? 0) }}
-                            </span>
-                        </button>
-                    @endforeach
+                    <div id="bookable_hint" class="a2-hint">
+                        اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.
+                    </div>
                 </div>
-            </div>
 
-            {{-- الخدمة --}}
-            <div class="bk-field-search" id="service_search_box">
-                <label class="a2-label">الخدمة</label>
-                <input type="hidden" name="service_id" id="service_id" value="{{ $selectedServiceId }}">
-
-                <input
-                    type="text"
-                    id="service_search"
-                    class="a2-input"
-                    placeholder="ابحث باسم الخدمة..."
-                    autocomplete="off"
-                    value="{{ $selectedService ? ($selectedService->name_ar ?: $selectedService->name_en) : '' }}"
-                    required
-                >
-
-                <div class="bk-dropdown" id="service_dropdown">
-                    @foreach($services as $service)
-                        <button
-                            type="button"
-                            class="bk-option service-option"
-                            data-id="{{ $service->id }}"
-                            data-name="{{ $service->name_ar ?: $service->name_en }}"
-                            data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}"
-                            data-max-deposit-percent="{{ (int)($service->max_deposit_percent ?? 0) }}"
-                        >
-                            {{ $service->name_ar ?: $service->name_en }}
-                            @if(!empty($service->key))
-                                <span class="bk-option-sub">({{ $service->key }})</span>
-                            @endif
-                        </button>
-                    @endforeach
+                {{-- نمط المدة --}}
+                <div id="duration_unit_wrap">
+                    <label class="a2-label">نمط المدة</label>
+                    <select name="duration_unit" id="duration_unit" class="a2-select">
+                        <option value="day" @selected($durationMode === 'day')>يوم</option>
+                        <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
+                        <option value="minute" @selected($durationMode === 'minute')>دقيقة</option>
+                    </select>
                 </div>
-            </div>
 
-            {{-- العنصر القابل للحجز --}}
-            <div>
-                <label class="a2-label">العنصر القابل للحجز</label>
-                <select name="bookable_id" id="bookable_id" class="a2-select">
-                    <option value="">بدون عنصر محدد</option>
-                </select>
-                <div id="bookable_hint" class="a2-hint" style="margin-top:6px;">
-                    اختر البزنس والخدمة أولًا لتحميل العناصر القابلة للحجز.
+                {{-- تاريخ البداية --}}
+                <div id="start_date_wrap">
+                    <label class="a2-label">تاريخ البداية</label>
+                    <input type="date" id="start_date" name="date" class="a2-input" value="{{ $startDateValue }}" required>
                 </div>
-            </div>
 
-            {{-- نمط المدة --}}
-            <div>
-                <label class="a2-label">نمط المدة</label>
-                <select name="duration_unit" id="duration_unit" class="a2-select">
-                    <option value="day" @selected($durationMode === 'day')>يوم</option>
-                    <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
-                </select>
-            </div>
+                {{-- وقت البداية --}}
+                <div id="start_time_wrap">
+                    <label class="a2-label">وقت البداية</label>
+                    <input type="time" id="start_time" name="time" class="a2-input" value="{{ $startTimeValue }}">
+                </div>
 
-            {{-- تاريخ البداية --}}
-            <div>
-                <label class="a2-label">تاريخ البداية</label>
-                <input type="date" id="start_date" name="date" class="a2-input" value="{{ $startDateValue }}" required>
-            </div>
+                {{-- تاريخ/وقت النهاية --}}
+                <div id="ends_at_wrap">
+                    <label class="a2-label">تاريخ/وقت النهاية</label>
+                    <input type="datetime-local" id="ends_at" name="ends_at" class="a2-input" value="{{ $endsAtValue }}">
+                </div>
 
-            {{-- وقت البداية --}}
-            <div id="start_time_wrap">
-                <label class="a2-label">وقت البداية</label>
-                <input type="time" id="start_time" name="time" class="a2-input" value="{{ $startTimeValue }}">
-            </div>
+                {{-- الكمية --}}
+                <div id="quantity_wrap">
+                    <label class="a2-label">الكمية / المدة</label>
+                    <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
+                </div>
 
-            {{-- تاريخ/وقت النهاية --}}
-            <div>
-                <label class="a2-label">تاريخ/وقت النهاية</label>
-                <input type="datetime-local" id="ends_at" name="ends_at" class="a2-input" value="{{ $endsAtValue }}">
-            </div>
+                {{-- المدة المحسوبة --}}
+                <div id="duration_preview_wrap">
+                    <label class="a2-label">المدة المحسوبة</label>
+                    <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
+                    <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
+                </div>
 
-            {{-- الكمية --}}
-            <div>
-                <label class="a2-label">الكمية</label>
-                <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
-            </div>
+                {{-- عدد الأفراد --}}
+                <div id="party_size_wrap">
+                    <label class="a2-label">عدد الأفراد</label>
+                    <input type="number" min="1" id="party_size" name="party_size" class="a2-input" value="{{ $partySizeValue }}">
+                </div>
 
-            {{-- المدة المحسوبة --}}
-            <div>
-                <label class="a2-label">المدة المحسوبة</label>
-                <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
-                <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
-            </div>
+                {{-- الحالة --}}
+                <div>
+                    <label class="a2-label">الحالة</label>
+                    <select name="status" class="a2-select" required>
+                        @foreach($statusOptions as $key => $label)
+                            <option value="{{ $key }}" @selected($bookingStatus === $key)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
-            {{-- عدد الأفراد --}}
-            <div>
-                <label class="a2-label">عدد الأفراد</label>
-                <input type="number" min="1" name="party_size" class="a2-input" value="{{ old('party_size', $booking->party_size) }}">
-            </div>
+                {{-- timezone --}}
+                <div>
+                    <label class="a2-label">Timezone</label>
+                    <input type="text" name="timezone" class="a2-input" value="{{ old('timezone', $booking->timezone ?? 'Africa/Cairo') }}">
+                </div>
 
-            {{-- الحالة --}}
-            <div>
-                <label class="a2-label">الحالة</label>
-                <select name="status" class="a2-select" required>
-                    @foreach($statusOptions as $key => $label)
-                        <option value="{{ $key }}" @selected(old('status', $booking->status ?? \App\Models\Booking::STATUS_PENDING) === $key)>
-                            {{ $label }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                {{-- all_day --}}
+                <div id="all_day_wrap" class="bk-check-wrap">
+                    <label class="bk-check">
+                        <input type="checkbox" name="all_day" value="1" id="all_day_checkbox" @checked(old('all_day', $booking->all_day ?? false))>
+                        <span>طوال اليوم</span>
+                    </label>
+                </div>
 
-            {{-- timezone --}}
-            <div>
-                <label class="a2-label">Timezone</label>
-                <input type="text" name="timezone" class="a2-input" value="{{ old('timezone', $booking->timezone ?? 'Africa/Cairo') }}">
-            </div>
-
-            {{-- all_day --}}
-            <div style="display:flex;align-items:end;">
-                <label style="display:flex;gap:8px;align-items:center;font-weight:800;">
-                    <input type="checkbox" name="all_day" value="1" id="all_day_checkbox" @checked(old('all_day', $booking->all_day ?? false))>
-                    طوال اليوم
-                </label>
-            </div>
-
-            {{-- notes --}}
-            <div style="grid-column:1 / -1;">
-                <label class="a2-label">ملاحظات</label>
-                <textarea name="notes" class="a2-textarea" rows="4">{{ old('notes', $booking->notes) }}</textarea>
+                {{-- notes --}}
+                <div class="bk-form-span-full">
+                    <label class="a2-label">ملاحظات</label>
+                    <textarea name="notes" class="a2-textarea" rows="4">{{ old('notes', $booking->notes) }}</textarea>
+                </div>
             </div>
         </div>
+
+
+
+        <div class="bk-form-actions">
+            <a href="{{ route('admin.bookings.index') }}" class="a2-btn">رجوع</a>
+            <button type="submit" class="a2-btn a2-btn-primary">
+                {{ !empty($isEdit) ? 'حفظ التعديلات' : 'إنشاء الحجز' }}
+            </button>
+        </div>
     </div>
-    
-            <div class="a2-card" style="padding:14px 16px;">
-                <div class="a2-section-title" style="margin-bottom:6px;">توضيح أطراف الحجز</div>
-                <div class="a2-section-subtitle">
-                    <strong>طالب الحجز</strong> هو المستخدم الذي يريد الخدمة، وقد يكون عميلًا أو بزنسًا.
-                    <strong>مقدم الخدمة</strong> هو البزنس الذي سيتم الحجز عنده.
-                    مثال: كابتن ليموزين يمكنه حجز غرفة في فندق، فيكون الكابتن طالب الحجز والفندق مقدم الخدمة.
-                </div>
-            </div>
 
-    <div class="bk-summary-grid">
-        <div class="a2-card" style="padding:18px;">
-            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص التسعير</div>
+    {{-- =========================
+        Summary
+    ========================== --}}
+    <div class="bk-side">
 
+        <div class="a2-card bk-card">
+            <div class="a2-title">إعداد الخدمة</div>
             <div class="bk-kv-grid">
+                <div class="bk-kv"><span>Service Config</span><strong id="summary_config_exists">—</strong></div>
+                <div class="bk-kv"><span>يتطلب عنصر؟</span><strong id="summary_requires_bookable">—</strong></div>
+                <div class="bk-kv"><span>أنواع العناصر</span><strong id="summary_allowed_types">—</strong></div>
+                <div class="bk-kv"><span>نمط الخدمة</span><strong id="summary_item_family">—</strong></div>
+            </div>
+        </div>
+
+        <div class="a2-card bk-card">
+            <div class="a2-title">ملخص التسعير</div>
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>مصدر السعر</span><strong id="summary_price_source">—</strong></div>
                 <div class="bk-kv"><span>سعر الوحدة</span><strong id="summary_unit_price">0.00 EGP</strong></div>
                 <div class="bk-kv"><span>السعر الأصلي</span><strong id="summary_original_price">0.00 EGP</strong></div>
                 <div class="bk-kv"><span>الخصم</span><strong id="summary_discount">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>السعر بعد الخصم</span><strong id="summary_final_price">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>رسوم المنصة</span><strong id="summary_platform_fee">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>الإجمالي النهائي</span><strong id="summary_total_cost">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>السعر النهائي</span><strong id="summary_final_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>الإجمالي</span><strong id="summary_total_cost">0.00 EGP</strong></div>
             </div>
         </div>
-        <div class="a2-card" style="padding:18px;">
-            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص رسوم التنفيذ</div>
-            <div class="a2-section-subtitle" style="margin-bottom:12px;">
-                هذه الرسوم تُخصم لاحقًا من المحافظ عند انتقال الحجز إلى
-                <span dir="ltr">in_progress</span>
-                إذا كانت مفعلة ويوجد موافقة خصم تلقائي.
+
+        <div class="a2-card bk-card">
+            <div class="a2-title">العنصر المختار</div>
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>العنوان</span><strong id="summary_bookable_title">—</strong></div>
+                <div class="bk-kv"><span>الكود</span><strong id="summary_bookable_code">—</strong></div>
+                <div class="bk-kv"><span>النوع</span><strong id="summary_bookable_type">—</strong></div>
+                <div class="bk-kv"><span>السعة</span><strong id="summary_bookable_capacity">—</strong></div>
+            </div>
+        </div>
+
+        <div class="a2-card bk-card">
+            <div class="a2-title">ملخص الديبوزت</div>
+            <div class="bk-kv-grid">
+                <div class="bk-kv"><span>الخدمة تدعم ديبوزت؟</span><strong id="summary_supports_deposit">—</strong></div>
+                <div class="bk-kv"><span>أقصى نسبة</span><strong id="summary_max_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>النسبة المطبقة</span><strong id="summary_applied_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>قيمة الديبوزت</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>مصدر الديبوزت</span><strong id="summary_deposit_source">—</strong></div>
+                <div class="bk-kv"><span>مطلوب؟</span><strong id="summary_deposit_required">—</strong></div>
+            </div>
+        </div>
+
+        <div class="a2-card bk-card">
+            <div class="a2-title">رسوم التنفيذ</div>
+            <div class="a2-section-subtitle">
+                هذه الرسوم تُخصم عند انتقال الحجز إلى <span dir="ltr">in_progress</span>، ولا تسترد بعد بدء التنفيذ.
             </div>
 
             <div class="bk-kv-grid">
@@ -288,128 +354,14 @@
             </div>
         </div>
 
-        <div class="a2-card" style="padding:18px;">
-            <div class="a2-title" style="font-size:17px;margin-bottom:12px;">ملخص الديبوزت</div>
-
-            <div class="bk-kv-grid">
-                <div class="bk-kv"><span>الخدمة تدعم ديبوزت؟</span><strong id="summary_supports_deposit">—</strong></div>
-                <div class="bk-kv"><span>أقصى نسبة</span><strong id="summary_max_deposit_percent">—</strong></div>
-                <div class="bk-kv"><span>النسبة المطبقة</span><strong id="summary_applied_deposit_percent">—</strong></div>
-                <div class="bk-kv"><span>قيمة الديبوزت</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="a2-card" style="padding:16px;">
-        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
-            <a href="{{ route('admin.bookings.index') }}" class="a2-btn">رجوع</a>
-            <button type="submit" class="a2-btn a2-btn-primary">
-                {{ !empty($isEdit) ? 'حفظ التعديلات' : 'إنشاء الحجز' }}
-            </button>
-        </div>
+        <div id="preview_message" class="a2-alert a2-alert-info is-hidden"></div>
     </div>
 </div>
 
-<style>
-.bk-form-grid{
-    display:grid;
-    grid-template-columns:repeat(2, minmax(280px,1fr));
-    gap:16px;
-    align-items:end;
-}
-.bk-summary-grid{
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:16px;
-}
-.bk-kv-grid{
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px;
-}
-.bk-kv{
-    background:#f8fafc;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:12px 14px;
-}
-.bk-kv span{
-    display:block;
-    font-size:12px;
-    color:#6b7280;
-    margin-bottom:6px;
-}
-.bk-kv strong{
-    display:block;
-    font-size:15px;
-    font-weight:800;
-    line-height:1.5;
-    word-break:break-word;
-}
-
-.bk-field-search{
-    position:relative;
-}
-.bk-dropdown{
-    display:none;
-    position:absolute;
-    inset-inline:0;
-    top:calc(100% + 6px);
-    background:#fff;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    box-shadow:0 12px 30px rgba(15,23,42,.08);
-    max-height:250px;
-    overflow:auto;
-    z-index:30;
-}
-.bk-option{
-    width:100%;
-    text-align:right;
-    padding:12px 14px;
-    border:0;
-    background:#fff;
-    cursor:pointer;
-    display:block;
-}
-.bk-option:hover{
-    background:#f8fafc;
-}
-.bk-option-sub{
-    color:#6b7280;
-    font-size:12px;
-}
-
-@media (max-width: 1200px){
-    .bk-summary-grid{
-        grid-template-columns:1fr;
-    }
-}
-@media (max-width: 900px){
-    .bk-form-grid{
-        grid-template-columns:1fr;
-    }
-}
-@media (max-width: 700px){
-    .bk-kv-grid{
-        grid-template-columns:1fr;
-    }
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.querySelector('form');
-    function warnIfSameRequesterAndProvider() {
-    const requesterId = String(hiddenRequesterId?.value || '').trim();
-    const businessId = String(hiddenBusinessId?.value || '').trim();
-
-        if (requesterId && businessId && requesterId === businessId) {
-            return confirm('طالب الحجز هو نفس مقدم الخدمة. هل تريد المتابعة؟');
-        }
-
-        return true;
-    }
 
     const hiddenRequesterId = document.getElementById('user_id');
     const requesterSearch = document.getElementById('requester_search');
@@ -426,8 +378,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const serviceDropdown = document.getElementById('service_dropdown');
     const serviceBox = document.getElementById('service_search_box');
 
+    const bookableWrap = document.getElementById('bookable_wrap');
     const bookableSelect = document.getElementById('bookable_id');
     const bookableHint = document.getElementById('bookable_hint');
+    const bookableRequiredBadge = document.getElementById('bookable_required_badge');
 
     const durationUnit = document.getElementById('duration_unit');
     const startDate = document.getElementById('start_date');
@@ -438,34 +392,82 @@ document.addEventListener('DOMContentLoaded', function () {
     const durationPreview = document.getElementById('duration_preview');
     const durationValue = document.getElementById('duration_value');
     const allDayCheckbox = document.getElementById('all_day_checkbox');
+    const partySizeWrap = document.getElementById('party_size_wrap');
+    const quantityWrap = document.getElementById('quantity_wrap');
+
+    const previewMessage = document.getElementById('preview_message');
 
     const selectedBookableId = @json((string) $selectedBookableId);
 
-    const summaryUnitPrice = document.getElementById('summary_unit_price');
-    const summaryOriginalPrice = document.getElementById('summary_original_price');
-    const summaryDiscount = document.getElementById('summary_discount');
-    const summaryFinalPrice = document.getElementById('summary_final_price');
-   const summaryPriceSource = document.getElementById('summary_price_source');
-    const summaryTotalCost = document.getElementById('summary_total_cost');
+    const el = (id) => document.getElementById(id);
 
-    const summaryClientFee = document.getElementById('summary_client_fee');
-    const summaryBusinessFee = document.getElementById('summary_business_fee');
-    const summaryFeeCode = document.getElementById('summary_fee_code');
-    const summaryFeeRowId = document.getElementById('summary_fee_row_id');
-    const summarySupportsDeposit = document.getElementById('summary_supports_deposit');
-    const summaryMaxDepositPercent = document.getElementById('summary_max_deposit_percent');
-    const summaryAppliedDepositPercent = document.getElementById('summary_applied_deposit_percent');
-    const summaryDepositAmount = document.getElementById('summary_deposit_amount');
+    const summary = {
+        configExists: el('summary_config_exists'),
+        requiresBookable: el('summary_requires_bookable'),
+        allowedTypes: el('summary_allowed_types'),
+        itemFamily: el('summary_item_family'),
 
-    function money(v) {
-        return Number(v || 0).toFixed(2) + ' EGP';
+        priceSource: el('summary_price_source'),
+        unitPrice: el('summary_unit_price'),
+        originalPrice: el('summary_original_price'),
+        discount: el('summary_discount'),
+        finalPrice: el('summary_final_price'),
+        totalCost: el('summary_total_cost'),
+
+        bookableTitle: el('summary_bookable_title'),
+        bookableCode: el('summary_bookable_code'),
+        bookableType: el('summary_bookable_type'),
+        bookableCapacity: el('summary_bookable_capacity'),
+
+        supportsDeposit: el('summary_supports_deposit'),
+        maxDepositPercent: el('summary_max_deposit_percent'),
+        appliedDepositPercent: el('summary_applied_deposit_percent'),
+        depositAmount: el('summary_deposit_amount'),
+        depositSource: el('summary_deposit_source'),
+        depositRequired: el('summary_deposit_required'),
+
+        clientFee: el('summary_client_fee'),
+        businessFee: el('summary_business_fee'),
+        feeCode: el('summary_fee_code'),
+        feeRowId: el('summary_fee_row_id'),
+    };
+
+    let currentServiceConfig = {
+        exists: false,
+        requires_bookable_item: false,
+        allowed_item_types: [],
+        supports_quantity: true,
+        supports_guest_count: false,
+        requires_start_end: false,
+    };
+
+    function money(value, currency = 'EGP') {
+        return Number(value || 0).toFixed(2) + ' ' + currency;
     }
 
     function normalizeText(value) {
         return (value || '').toString().trim().toLocaleLowerCase();
     }
 
-    function setupSearchable(inputEl, hiddenEl, dropdownEl, boxEl, optionSelector) {
+    function yesNo(value) {
+        return value ? 'نعم' : 'لا';
+    }
+
+    function showPreviewMessage(message, type = 'info') {
+        if (!previewMessage) return;
+
+        if (!message) {
+            previewMessage.classList.add('is-hidden');
+            previewMessage.textContent = '';
+            return;
+        }
+
+        previewMessage.className = 'a2-alert a2-alert-' + type;
+        previewMessage.textContent = message;
+        previewMessage.classList.remove('is-hidden');
+    }
+
+    function setupSearchable(inputEl, hiddenEl, dropdownEl, boxEl, optionSelector, afterSelect) {
         const options = Array.from(dropdownEl.querySelectorAll(optionSelector));
 
         function close() {
@@ -478,12 +480,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             options.forEach(option => {
                 const name = normalizeText(option.dataset.name);
-                if (keyword === '' || name.includes(keyword)) {
-                    option.style.display = 'block';
-                    visible++;
-                } else {
-                    option.style.display = 'none';
-                }
+                const key = normalizeText(option.dataset.key || '');
+                const show = keyword === '' || name.includes(keyword) || key.includes(keyword);
+
+                option.style.display = show ? 'block' : 'none';
+
+                if (show) visible++;
             });
 
             dropdownEl.style.display = visible > 0 ? 'block' : 'none';
@@ -494,17 +496,20 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.addEventListener('input', function () {
             hiddenEl.value = '';
             filter();
+
+            if (afterSelect) {
+                afterSelect(null);
+            }
         });
 
         options.forEach(option => {
             option.addEventListener('click', async function () {
-                hiddenEl.value = option.dataset.id;
-                inputEl.value = option.dataset.name;
+                hiddenEl.value = option.dataset.id || '';
+                inputEl.value = option.dataset.name || '';
                 close();
 
-                if (hiddenEl === hiddenBusinessId || hiddenEl === hiddenServiceId) {
-                    await loadBookableItems();
-                    await refreshPreview();
+                if (afterSelect) {
+                    await afterSelect(option);
                 }
             });
         });
@@ -516,13 +521,65 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    setupSearchable(requesterSearch, hiddenRequesterId, requesterDropdown, requesterBox, '.requester-option');
-    setupSearchable(businessSearch, hiddenBusinessId, businessDropdown, businessBox, '.business-option');
-    setupSearchable(serviceSearch, hiddenServiceId, serviceDropdown, serviceBox, '.service-option');
+    setupSearchable(
+        requesterSearch,
+        hiddenRequesterId,
+        requesterDropdown,
+        requesterBox,
+        '.requester-option',
+        null
+    );
+
+    setupSearchable(
+        businessSearch,
+        hiddenBusinessId,
+        businessDropdown,
+        businessBox,
+        '.business-option',
+        async function () {
+            resetBookable();
+            resetPreview();
+            await loadBookableItems();
+            await refreshPreview();
+        }
+    );
+
+    setupSearchable(
+        serviceSearch,
+        hiddenServiceId,
+        serviceDropdown,
+        serviceBox,
+        '.service-option',
+        async function () {
+            resetBookable();
+            resetPreview();
+            await loadBookableItems();
+            await refreshPreview();
+        }
+    );
+
+    function pad(n) {
+        return String(n).padStart(2, '0');
+    }
+
+    function toLocalDateTimeValue(date) {
+        return date.getFullYear()
+            + '-' + pad(date.getMonth() + 1)
+            + '-' + pad(date.getDate())
+            + 'T' + pad(date.getHours())
+            + ':' + pad(date.getMinutes());
+    }
+
+    function toServerDateTime(value) {
+        if (!value) return '';
+
+        return value.replace('T', ' ') + (value.length === 16 ? ':00' : '');
+    }
 
     function parseDateTime(date, time = '00:00') {
         if (!date) return null;
-        return new Date(date + 'T' + time + ':00');
+
+        return new Date(date + 'T' + (time || '00:00') + ':00');
     }
 
     function updateModeUI() {
@@ -534,42 +591,180 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateDurationAndEnd() {
-        const mode = durationUnit.value;
-        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
-        const sDate = startDate.value;
-        const sTime = startTime.value || '00:00';
+    const mode = durationUnit.value;
+    const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
+    const sDate = startDate.value;
+    const sTime = startTime.value || '00:00';
 
-        updateModeUI();
+    updateModeUI();
 
-        if (!sDate) {
-            durationPreview.value = '—';
-            durationValue.value = '';
+    if (!sDate) {
+        durationPreview.value = '—';
+        durationValue.value = '';
+        return;
+    }
+
+    /*
+     * Hotel / daily booking logic:
+     * arrival 2026-06-01
+     * checkout 2026-06-08
+     * duration = 7 days
+     *
+     * في وضع اليوم:
+     * - لو المستخدم اختار تاريخ النهاية بنفسه، نحسب الفرق.
+     * - لو لم يختر نهاية، ننشئ نهاية بناءً على quantity.
+     */
+    if (mode === 'day') {
+        const start = new Date(sDate + 'T00:00:00');
+
+        if (endsAt.value) {
+            const endDateOnly = endsAt.value.slice(0, 10);
+            const end = new Date(endDateOnly + 'T00:00:00');
+
+            const diffMs = end.getTime() - start.getTime();
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffDays > 0) {
+                durationValue.value = diffDays;
+                durationPreview.value = diffDays + ' يوم';
+                quantity.value = diffDays;
+                return;
+            }
+        }
+
+        durationValue.value = qty;
+        durationPreview.value = qty + ' يوم';
+
+        const end = new Date(start.getTime());
+        end.setDate(end.getDate() + qty);
+
+        /*
+         * نضع وقت المغادرة 12:00 ظهرًا كقيمة افتراضية للفنادق.
+            */
+            end.setHours(12, 0, 0, 0);
+            endsAt.value = toLocalDateTimeValue(end);
             return;
         }
 
-        if (mode === 'day') {
-            durationValue.value = qty;
-            durationPreview.value = qty + ' يوم';
-
-            // نظام فندقي/إيجار: 10 أيام => checkout بداية اليوم 11
-            const end = new Date(sDate + 'T00:00:00');
-            end.setDate(end.getDate() + qty);
-
-            endsAt.value = end.toISOString().slice(0, 16);
-        } else {
+        if (mode === 'hour') {
             const start = parseDateTime(sDate, sTime);
+
             if (!start) {
                 durationPreview.value = '—';
                 durationValue.value = '';
                 return;
             }
 
+            if (endsAt.value) {
+                const end = new Date(endsAt.value);
+                const diffMs = end.getTime() - start.getTime();
+                const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+                if (diffHours > 0) {
+                    durationValue.value = diffHours;
+                    durationPreview.value = diffHours + ' ساعة';
+                    quantity.value = diffHours;
+                    return;
+                }
+            }
+
             durationValue.value = qty;
             durationPreview.value = qty + ' ساعة';
 
             const end = new Date(start.getTime() + (qty * 60 * 60 * 1000));
-            endsAt.value = end.toISOString().slice(0, 16);
+            endsAt.value = toLocalDateTimeValue(end);
+            return;
         }
+
+        if (mode === 'minute') {
+            const start = parseDateTime(sDate, sTime);
+
+            if (!start) {
+                durationPreview.value = '—';
+                durationValue.value = '';
+                return;
+            }
+
+            if (endsAt.value) {
+                const end = new Date(endsAt.value);
+                const diffMs = end.getTime() - start.getTime();
+                const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+
+                if (diffMinutes > 0) {
+                    durationValue.value = diffMinutes;
+                    durationPreview.value = diffMinutes + ' دقيقة';
+                    quantity.value = diffMinutes;
+                    return;
+                }
+            }
+
+            durationValue.value = qty;
+            durationPreview.value = qty + ' دقيقة';
+
+            const end = new Date(start.getTime() + (qty * 60 * 1000));
+            endsAt.value = toLocalDateTimeValue(end);
+        }
+    }
+
+    function resetBookable() {
+        bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
+        bookableHint.textContent = 'اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.';
+    }
+
+    function resetPreview() {
+        summary.configExists.textContent = '—';
+        summary.requiresBookable.textContent = '—';
+        summary.allowedTypes.textContent = '—';
+        summary.itemFamily.textContent = '—';
+
+        summary.priceSource.textContent = '—';
+        summary.unitPrice.textContent = money(0);
+        summary.originalPrice.textContent = money(0);
+        summary.discount.textContent = money(0);
+        summary.finalPrice.textContent = money(0);
+        summary.totalCost.textContent = money(0);
+
+        summary.bookableTitle.textContent = '—';
+        summary.bookableCode.textContent = '—';
+        summary.bookableType.textContent = '—';
+        summary.bookableCapacity.textContent = '—';
+
+        summary.supportsDeposit.textContent = '—';
+        summary.maxDepositPercent.textContent = '—';
+        summary.appliedDepositPercent.textContent = '—';
+        summary.depositAmount.textContent = money(0);
+        summary.depositSource.textContent = '—';
+        summary.depositRequired.textContent = '—';
+
+        summary.clientFee.textContent = money(0);
+        summary.businessFee.textContent = money(0);
+        summary.feeCode.textContent = '—';
+        summary.feeRowId.textContent = '—';
+
+        showPreviewMessage('');
+    }
+
+    function applyServiceConfig(config) {
+        currentServiceConfig = config || currentServiceConfig;
+
+        const requiresBookable = !!currentServiceConfig.requires_bookable_item;
+        const supportsQuantity = currentServiceConfig.supports_quantity !== false;
+        const supportsGuestCount = !!currentServiceConfig.supports_guest_count;
+
+        if (bookableRequiredBadge) {
+            bookableRequiredBadge.classList.toggle('is-hidden', !requiresBookable);
+        }
+
+        bookableWrap.style.display = requiresBookable || bookableSelect.options.length > 1 ? '' : '';
+        quantityWrap.style.display = supportsQuantity ? '' : 'none';
+        partySizeWrap.style.display = supportsGuestCount ? '' : 'none';
+
+        summary.configExists.textContent = currentServiceConfig.exists ? 'نعم' : 'لا';
+        summary.requiresBookable.textContent = yesNo(requiresBookable);
+        summary.allowedTypes.textContent = Array.isArray(currentServiceConfig.allowed_item_types) && currentServiceConfig.allowed_item_types.length
+            ? currentServiceConfig.allowed_item_types.join(', ')
+            : '—';
+        summary.itemFamily.textContent = currentServiceConfig.item_family || '—';
     }
 
     async function loadBookableItems() {
@@ -580,11 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bookableSelect.innerHTML = '<option value="">جاري تحميل العناصر...</option>';
 
         if (!businessId || !serviceId) {
-            bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
-            if (bookableHint) {
-                bookableHint.textContent = 'اختر البزنس والخدمة أولًا لتحميل العناصر القابلة للحجز.';
-            }
-            await refreshPreview();
+            resetBookable();
             return;
         }
 
@@ -595,30 +786,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
             bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
 
+            if (data.service_config) {
+                applyServiceConfig(data.service_config);
+            }
+
             if (!data.ok || !Array.isArray(data.items)) {
-                if (bookableHint) {
-                    bookableHint.textContent = 'تعذر تحميل العناصر القابلة للحجز.';
-                }
-                await refreshPreview();
+                bookableHint.textContent = 'تعذر تحميل العناصر القابلة للحجز.';
                 return;
             }
 
             if (data.items.length === 0) {
-                if (bookableHint) {
-                    bookableHint.textContent = 'لا توجد عناصر قابلة للحجز مرتبطة بهذا البزنس وهذه الخدمة.';
-                }
-                await refreshPreview();
+                bookableHint.textContent = currentServiceConfig.requires_bookable_item
+                    ? 'هذه الخدمة تتطلب عنصر قابل للحجز، لكن لا توجد غرف/عناصر نشطة مطابقة.'
+                    : 'لا توجد عناصر قابلة للحجز مرتبطة بهذا البزنس وهذه الخدمة.';
                 return;
             }
 
             data.items.forEach(item => {
                 const opt = document.createElement('option');
                 opt.value = item.id;
-                opt.textContent = `${item.title}${item.code ? ' (' + item.code + ')' : ''}`;
+                opt.textContent = `${item.title}${item.code ? ' (' + item.code + ')' : ''} — ${money(item.price || 0)}`;
+
                 opt.dataset.price = item.price ?? 0;
                 opt.dataset.depositEnabled = item.deposit_enabled ? '1' : '0';
                 opt.dataset.depositPercent = item.deposit_percent ?? 0;
                 opt.dataset.itemType = item.item_type ?? '';
+                opt.dataset.title = item.title ?? '';
+                opt.dataset.code = item.code ?? '';
+                opt.dataset.capacity = item.capacity ?? '';
 
                 if (String(item.id) === previousValue) {
                     opt.selected = true;
@@ -627,43 +822,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 bookableSelect.appendChild(opt);
             });
 
-            if (bookableHint) {
-                bookableHint.textContent = `تم تحميل ${data.items.length} عنصر قابل للحجز.`;
-            }
+            bookableHint.textContent = `تم تحميل ${data.items.length} عنصر قابل للحجز.`;
         } catch (e) {
             console.error('bookableItemsLookup error:', e);
-            bookableSelect.innerHTML = '<option value="">بدون عنصر محدد</option>';
-            if (bookableHint) {
-                bookableHint.textContent = 'حدث خطأ أثناء تحميل العناصر القابلة للحجز.';
-            }
+            resetBookable();
+            bookableHint.textContent = 'حدث خطأ أثناء تحميل العناصر القابلة للحجز.';
+        }
+    }
+
+    function selectedBookableOption() {
+        return bookableSelect.options[bookableSelect.selectedIndex] || null;
+    }
+
+    function updateBookableSummary() {
+        const opt = selectedBookableOption();
+
+        if (!opt || !opt.value) {
+            summary.bookableTitle.textContent = '—';
+            summary.bookableCode.textContent = '—';
+            summary.bookableType.textContent = '—';
+            summary.bookableCapacity.textContent = '—';
+            return;
         }
 
-        await refreshPreview();
+        summary.bookableTitle.textContent = opt.dataset.title || opt.textContent || '—';
+        summary.bookableCode.textContent = opt.dataset.code || '—';
+        summary.bookableType.textContent = opt.dataset.itemType || '—';
+        summary.bookableCapacity.textContent = opt.dataset.capacity || '—';
     }
 
     async function refreshPreview() {
+        updateBookableSummary();
+
         const businessId = hiddenBusinessId.value;
         const serviceId = hiddenServiceId.value;
         const bookableId = bookableSelect.value || '';
-        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
+        const qty = Math.max(parseInt(durationValue.value || quantity.value || '1', 10), 1);
 
         if (!businessId || !serviceId) {
-            summaryUnitPrice.textContent = money(0);
-            summaryOriginalPrice.textContent = money(0);
-            summaryDiscount.textContent = money(0);
-            summaryFinalPrice.textContent = money(0);
-            summaryPriceSource.textContent = '—';
-            summaryTotalCost.textContent = money(0);
-
-            summarySupportsDeposit.textContent = '—';
-            summaryMaxDepositPercent.textContent = '—';
-            summaryAppliedDepositPercent.textContent = '—';
-            summaryDepositAmount.textContent = money(0);
-
-            summaryClientFee.textContent = money(0);
-            summaryBusinessFee.textContent = money(0);
-            summaryFeeCode.textContent = '—';
-            summaryFeeRowId.textContent = '—';
+            resetPreview();
             return;
         }
 
@@ -672,44 +869,87 @@ document.addEventListener('DOMContentLoaded', function () {
             url.searchParams.set('business_id', businessId);
             url.searchParams.set('service_id', serviceId);
             url.searchParams.set('quantity', qty);
+
             if (bookableId) {
                 url.searchParams.set('bookable_id', bookableId);
+            }
+
+            const startsAt = startDate.value
+                ? (durationUnit.value === 'day'
+                    ? startDate.value + ' 00:00:00'
+                    : startDate.value + ' ' + (startTime.value || '00:00') + ':00')
+                : '';
+
+            if (startsAt) {
+                url.searchParams.set('starts_at', startsAt);
+            }
+
+            if (endsAt.value) {
+                url.searchParams.set('ends_at', toServerDateTime(endsAt.value));
             }
 
             const res = await fetch(url.toString());
             const data = await res.json();
 
             if (!data.ok) {
+                showPreviewMessage(data.message || 'تعذر حساب التسعير.', 'danger');
+
+                if (data.service_config) {
+                    applyServiceConfig(data.service_config);
+                }
+
                 return;
+            }
+
+            if (data.service_config) {
+                applyServiceConfig(data.service_config);
             }
 
             const pricing = data.pricing || {};
             const deposit = data.deposit_policy || {};
             const service = data.service || {};
             const feeSnapshot = data.fee_snapshot || {};
+            const businessPrice = data.business_price || {};
+            const currency = pricing.currency || businessPrice.currency || 'EGP';
 
             const clientFee = feeSnapshot.client || null;
             const businessFee = feeSnapshot.business || null;
 
-            summaryUnitPrice.textContent = money(pricing.unit_price || 0);
-            summaryOriginalPrice.textContent = money(pricing.original_price || 0);
-            summaryDiscount.textContent = money(pricing.discount_amount || 0);
-            summaryFinalPrice.textContent = money(pricing.final_price || 0);
-            summaryPriceSource.textContent = pricing.source || '—';
-            summaryTotalCost.textContent = money(pricing.final_price || 0);
+            summary.priceSource.textContent = pricing.source || '—';
+            summary.unitPrice.textContent = money(pricing.unit_price || 0, currency);
+            summary.originalPrice.textContent = money(pricing.original_price || 0, currency);
+            summary.discount.textContent = money(pricing.discount_amount || 0, currency);
+            summary.finalPrice.textContent = money(pricing.final_price || 0, currency);
+            summary.totalCost.textContent = money(pricing.final_price || 0, currency);
 
-            summarySupportsDeposit.textContent = service.supports_deposit ? 'نعم' : 'لا';
-            summaryMaxDepositPercent.textContent = (service.max_deposit_percent ?? 0) + '%';
-            summaryAppliedDepositPercent.textContent = (deposit.configured_percent ?? 0) + '%';
-            summaryDepositAmount.textContent = money(deposit.amount || 0);
+            summary.supportsDeposit.textContent = service.supports_deposit ? 'نعم' : 'لا';
+            summary.maxDepositPercent.textContent = (service.max_deposit_percent ?? 0) + '%';
+            summary.appliedDepositPercent.textContent = (deposit.configured_percent ?? 0) + '%';
+            summary.depositAmount.textContent = money(deposit.amount || 0, currency);
+            summary.depositSource.textContent = deposit.source || '—';
+            summary.depositRequired.textContent = deposit.required ? 'نعم' : 'لا';
 
-            summaryClientFee.textContent = clientFee ? money(clientFee.amount || 0) : money(0);
-            summaryBusinessFee.textContent = businessFee ? money(businessFee.amount || 0) : money(0);
-            summaryFeeCode.textContent = feeSnapshot.fee_code || '—';
-            summaryFeeRowId.textContent = (clientFee && clientFee.id) || (businessFee && businessFee.id) || '—';
+            summary.clientFee.textContent = clientFee ? money(clientFee.amount || 0, clientFee.currency || currency) : money(0, currency);
+            summary.businessFee.textContent = businessFee ? money(businessFee.amount || 0, businessFee.currency || currency) : money(0, currency);
+            summary.feeCode.textContent = feeSnapshot.fee_code || '—';
+            summary.feeRowId.textContent = (clientFee && clientFee.id) || (businessFee && businessFee.id) || feeSnapshot.fee_row_id || '—';
+
+            showPreviewMessage('');
         } catch (e) {
             console.error(e);
+            showPreviewMessage('حدث خطأ أثناء حساب التسعير.', 'danger');
         }
+    }
+
+    function warnIfSameRequesterAndProvider() {
+        const requesterId = String(hiddenRequesterId.value || '').trim();
+        const businessId = String(hiddenBusinessId.value || '').trim();
+
+        if (requesterId && businessId && requesterId === businessId) {
+            return confirm('طالب الحجز هو نفس مقدم الخدمة. هل تريد المتابعة؟');
+        }
+
+        return true;
     }
 
     bookableSelect.addEventListener('change', refreshPreview);
@@ -724,21 +964,33 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshPreview();
     });
 
-    startDate.addEventListener('change', updateDurationAndEnd);
-    startTime.addEventListener('change', updateDurationAndEnd);
+    startDate.addEventListener('change', function () {
+        updateDurationAndEnd();
+        refreshPreview();
+    });
+
+    startTime.addEventListener('change', function () {
+        updateDurationAndEnd();
+        refreshPreview();
+    });
+
+    endsAt.addEventListener('change', function () {
+        updateDurationAndEnd();
+        refreshPreview();
+    });
 
     form?.addEventListener('submit', function (e) {
-        if (!hiddenClientId.value) {
+        if (!hiddenRequesterId.value) {
             e.preventDefault();
-            clientSearch.focus();
-            alert('من فضلك اختر العميل من القائمة.');
+            requesterSearch.focus();
+            alert('من فضلك اختر طالب الحجز من القائمة.');
             return;
         }
 
         if (!hiddenBusinessId.value) {
             e.preventDefault();
             businessSearch.focus();
-            alert('من فضلك اختر البزنس من القائمة.');
+            alert('من فضلك اختر مقدم الخدمة من القائمة.');
             return;
         }
 
@@ -746,22 +998,31 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             serviceSearch.focus();
             alert('من فضلك اختر الخدمة من القائمة.');
+            return;
+        }
+
+        if (currentServiceConfig.requires_bookable_item && !bookableSelect.value) {
+            e.preventDefault();
+            bookableSelect.focus();
+            alert('هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.');
+            return;
+        }
+
+        if (!warnIfSameRequesterAndProvider()) {
+            e.preventDefault();
+            return;
         }
     });
 
     (async function initBookingForm() {
         updateModeUI();
         updateDurationAndEnd();
-        await loadBookableItems();
-        await refreshPreview();
+        resetPreview();
+
+        if (hiddenBusinessId.value && hiddenServiceId.value) {
+            await loadBookableItems();
+            await refreshPreview();
+        }
     })();
-    if (form) {
-        form.addEventListener('submit', function (e) {
-            if (!warnIfSameRequesterAndProvider()) {
-                e.preventDefault();
-                return false;
-            }
-        });
-    }
 });
 </script>

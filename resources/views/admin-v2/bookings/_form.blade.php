@@ -14,7 +14,15 @@
     $selectedRequesterId = (string) old('user_id', $booking->user_id ?? '');
     $selectedBookableId = (string) old('bookable_id', $booking->bookable_id ?? '');
 
-    $startDateValue = old('date', optional($booking->date)->format('Y-m-d'));
+    if ($selectedServiceId === '') {
+        $defaultBookingService = $services->firstWhere('key', 'booking');
+
+        if ($defaultBookingService) {
+            $selectedServiceId = (string) $defaultBookingService->id;
+        }
+    }
+
+    $startDateValue = old('date', optional($booking->date)->format('Y-m-d') ?: now('Africa/Cairo')->format('Y-m-d'));
     $startTimeValue = old('time', $booking->time ? \Illuminate\Support\Str::limit($booking->time, 5, '') : '');
     $endsAtValue = old('ends_at', optional($booking->ends_at)->format('Y-m-d\TH:i'));
 
@@ -161,11 +169,11 @@
                     >
 
                     <div class="a2-hint">
-                        مثال: الحجز، التوصيل، المنيو.
+                        هذه الصفحة مخصصة لإنشاء حجوزات فقط، لذلك يتم اختيار خدمة الحجز تلقائيًا.
                     </div>
 
                     <div class="bk-dropdown" id="service_dropdown">
-                        @foreach($services as $service)
+                        @foreach($services->where('key', 'booking') as $service)
                             <button
                                 type="button"
                                 class="bk-option service-option"

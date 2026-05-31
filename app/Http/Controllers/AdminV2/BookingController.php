@@ -11,9 +11,11 @@ use App\Models\CategoryServiceConfig;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
+use App\Services\BookingReminderService;
 use App\Services\BookingDepositService;
 use App\Services\ServiceExecutionEngine;
 use App\Support\AdminV2\Operations\OperationPresenter;
+use App\Services\ServiceEventDispatcher;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +28,9 @@ class BookingController extends Controller
 
     public function __construct(
         protected BookingDepositService $bookingDepositService,
-        protected ServiceExecutionEngine $serviceExecutionEngine
+        protected ServiceExecutionEngine $serviceExecutionEngine,
+        protected ServiceEventDispatcher $serviceEventDispatcher,
+        protected BookingReminderService $bookingReminderService    
     ) {
     }
 
@@ -126,6 +130,23 @@ class BookingController extends Controller
 
         $booking = Booking::create($data);
 
+        $this->serviceEventDispatcher->bookingRequested(
+            booking: $booking,
+            actorId: auth()->id(),
+            payload: [
+                'source' => 'admin_v2',
+                'status' => $booking->status,
+                'service_id' => (int) $booking->service_id,
+                'business_id' => (int) $booking->business_id,
+                'client_id' => (int) $booking->user_id,
+                'starts_at' => optional($booking->starts_at)->toDateTimeString(),
+                'ends_at' => optional($booking->ends_at)->toDateTimeString(),
+                'price' => (float) $booking->price,
+            ]
+        );
+
+        $this->bookingReminderService->scheduleForBooking($booking);
+
         return redirect()
             ->route('admin.bookings.show', $booking)
             ->with('success', 'تم إنشاء الحجز بنجاح.');
@@ -184,10 +205,10 @@ class BookingController extends Controller
         $newStatus = (string) ($data['status'] ?? $oldStatus);
 
         /*
-         * ممنوع تحويل الحجز إلى in_progress من شاشة التعديل.
-         * الدخول إلى التنفيذ يجب أن يتم من زر "بدء التنفيذ" فقط؛
-         * لأنه يشغل Financial Guard + Auto Deposit Freeze + Execution Fees.
-         */
+        * ممنوع تحويل الحجز إلى in_progress من شاشة التعديل.
+        * الدخول إلى التنفيذ يجب أن يتم من زر "بدء التنفيذ" فقط؛
+        * لأنه يشغل Financial Guard + Auto Deposit Freeze + Execution Fees.
+        */
         if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
             throw ValidationException::withMessages([
                 'status' => 'لا يمكن تحويل الحجز إلى قيد التنفيذ من شاشة التعديل. استخدم زر بدء التنفيذ من صفحة عرض الحجز.',
@@ -220,9 +241,9 @@ class BookingController extends Controller
         $mergedMeta = array_replace_recursive($existingMeta, $incomingMeta);
 
         /*
-         * buildBookingMeta يعيد حساب pricing/deposit_policy من الإعداد الحالي،
-         * ولا يعتمد على snapshot قديم.
-         */
+        * buildBookingMeta يعيد حساب pricing/deposit_policy من الإعداد الحالي،
+        * ولا يعتمد على snapshot قديم.
+        */
         $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
             existingMeta: $mergedMeta,
             calc: $calc,
@@ -233,6 +254,71 @@ class BookingController extends Controller
             $booking->fill($data);
             $booking->save();
         });
+
+        $booking->refresh();
+
+        $currentStatus = (string) $booking->status;
+
+        /*
+        * Status Events
+        */
+        if ($currentStatus !== $oldStatus) {
+            match ($currentStatus) {
+                Booking::STATUS_ACCEPTED => $this->serviceEventDispatcher->bookingAccepted(
+                    booking: $booking,
+                    actorId: auth()->id(),
+                    payload: [
+                        'source' => 'admin_v2.update',
+                        'old_status' => $oldStatus,
+                        'new_status' => $currentStatus,
+                    ]
+                ),
+
+                Booking::STATUS_REJECTED => $this->serviceEventDispatcher->bookingRejected(
+                    booking: $booking,
+                    actorId: auth()->id(),
+                    payload: [
+                        'source' => 'admin_v2.update',
+                        'old_status' => $oldStatus,
+                        'new_status' => $currentStatus,
+                    ]
+                ),
+
+                Booking::STATUS_CANCELLED => $this->serviceEventDispatcher->bookingCancelled(
+                    booking: $booking,
+                    actorId: auth()->id(),
+                    payload: [
+                        'source' => 'admin_v2.update',
+                        'old_status' => $oldStatus,
+                        'new_status' => $currentStatus,
+                    ]
+                ),
+
+                Booking::STATUS_COMPLETED => $this->serviceEventDispatcher->bookingCompleted(
+                    booking: $booking,
+                    actorId: auth()->id(),
+                    payload: [
+                        'source' => 'admin_v2.update',
+                        'old_status' => $oldStatus,
+                        'new_status' => $currentStatus,
+                    ]
+                ),
+
+                default => null,
+            };
+        }
+
+        /*
+        * Reminder Scheduling
+        *
+        * - إذا أصبح الحجز في حالة نهائية: نلغي التذكيرات المعلقة.
+        * - إذا ما زال غير نهائي: نعيد جدولة التذكيرات حسب آخر starts_at.
+        */
+        if ($booking->isFinalStatus()) {
+            $this->bookingReminderService->cancelForBooking($booking);
+        } else {
+            $this->bookingReminderService->scheduleForBooking($booking);
+        }
 
         return redirect()
             ->route('admin.bookings.show', $booking)
@@ -533,6 +619,15 @@ class BookingController extends Controller
             $booking->meta = $meta;
             $booking->save();
         });
+        $booking->refresh();
+
+        $this->serviceEventDispatcher->bookingClientConfirmed(
+            booking: $booking,
+            actorId: auth()->id(),
+            payload: [
+                'source' => 'admin_v2.start_confirm_client',
+            ]
+        );
 
         return back()->with('success', 'تم تأكيد العميل.');
     }
@@ -555,6 +650,16 @@ class BookingController extends Controller
             $booking->meta = $meta;
             $booking->save();
         });
+
+        $booking->refresh();
+
+        $this->serviceEventDispatcher->bookingBusinessConfirmed(
+            booking: $booking,
+            actorId: auth()->id(),
+            payload: [
+                'source' => 'admin_v2.start_confirm_business',
+            ]
+        );
 
         return back()->with('success', 'تم تأكيد البزنس.');
     }
@@ -675,6 +780,16 @@ class BookingController extends Controller
     {
         try {
             $this->serviceExecutionEngine->moveBookingToInProgress($booking);
+            $booking->refresh();
+
+            $this->serviceEventDispatcher->bookingStarted(
+                booking: $booking,
+                actorId: auth()->id(),
+                payload: [
+                    'source' => 'admin_v2.start',
+                    'status' => $booking->status,
+                ]
+            );
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
@@ -705,6 +820,19 @@ class BookingController extends Controller
             $booking->status = Booking::STATUS_COMPLETED;
             $booking->save();
 
+            $booking->refresh();
+
+            $this->serviceEventDispatcher->bookingCompleted(
+                booking: $booking,
+                actorId: auth()->id(),
+                payload: [
+                    'source' => 'admin_v2.complete',
+                    'status' => $booking->status,
+                ]
+            );
+
+            $this->bookingReminderService->cancelForBooking($booking);
+
             return redirect()
                 ->route('admin.bookings.show', $booking)
                 ->with('success', 'تم إنهاء الحجز بنجاح.');
@@ -732,6 +860,15 @@ class BookingController extends Controller
 
             $booking->status = Booking::STATUS_CANCELLED;
             $booking->save();
+            $this->serviceEventDispatcher->bookingCancelled(
+                booking: $booking,
+                actorId: auth()->id(),
+                payload: [
+                    'source' => 'admin_v2.cancel',
+                    'status' => $booking->status,
+                ]
+            );
+            $this->bookingReminderService->cancelForBooking($booking);
 
             return redirect()
                 ->route('admin.bookings.show', $booking)

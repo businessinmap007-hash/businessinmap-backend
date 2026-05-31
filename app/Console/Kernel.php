@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         \App\Console\Commands\DetectUnusedControllers::class,
         \App\Console\Commands\DetectUnusedModels::class,
+        \App\Console\Commands\SendDueBookingReminders::class,
 
         // ✅ حذف الإعلانات المنتهية (Sponsors)
         \App\Console\Commands\DeleteExpiredSponsors::class,
@@ -35,6 +36,7 @@ class Kernel extends ConsoleKernel
     {
         // ✅ تشغيل يومي (مناسب جدًا للمشاريع على shared hosting)
         $schedule->command('sponsors:delete-expired')->everyTenMinutes();
+        $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
 
         // لو تحب تنظيف أسرع (اختياري):
         // $schedule->command('sponsors:delete-expired')->hourly();
@@ -50,4 +52,5 @@ class Kernel extends ConsoleKernel
 
         require base_path('routes/console.php');
     }
+    
 }

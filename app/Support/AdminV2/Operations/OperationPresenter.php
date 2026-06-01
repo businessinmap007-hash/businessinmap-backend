@@ -56,7 +56,7 @@ final class OperationPresenter
         $booking->loadMissing([
             'user:id,name,code,type,phone,email',
             'business:id,name,code,type,phone,email,category_id,category_child_id',
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
             'latestDeposit',
             'latestDispute',
@@ -105,11 +105,6 @@ final class OperationPresenter
                 'name_ar' => (string) ($booking->service?->name_ar ?? ''),
                 'name_en' => (string) ($booking->service?->name_en ?? ''),
                 'supports_deposit' => (bool) ($booking->service?->supports_deposit ?? false),
-                'max_deposit_percent' => (int) ($booking->service?->max_deposit_percent ?? 0),
-                'fee_type' => (string) ($booking->service?->fee_type ?? ''),
-                'fee_value' => $booking->service?->fee_value !== null
-                    ? (float) $booking->service->fee_value
-                    : null,
             ],
 
             'schedule' => $this->presentSchedule($booking),

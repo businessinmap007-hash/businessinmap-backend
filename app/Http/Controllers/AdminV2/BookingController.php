@@ -56,7 +56,7 @@ class BookingController extends Controller
             ->with([
                 'user:id,name,phone,email',
                 'business:id,name,phone,email,category_id,category_child_id',
-                'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+                'service:id,key,name_ar,name_en,supports_deposit',
                 'bookable',
             ]);
 
@@ -160,7 +160,7 @@ class BookingController extends Controller
         $booking->load([
             'user:id,name,code,type,phone,email',
             'business:id,name,code,type,phone,email,category_id,category_child_id',
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent,fee_type,fee_value',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
             'latestDeposit',
             'latestDispute',
@@ -189,7 +189,7 @@ class BookingController extends Controller
         $booking->loadMissing([
             'user:id,name,type,phone,email',
             'business:id,name,type,phone,email,category_id,category_child_id',
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
         ]);
 
@@ -347,9 +347,6 @@ class BookingController extends Controller
                 'name_ar',
                 'name_en',
                 'supports_deposit',
-                'max_deposit_percent',
-                'fee_type',
-                'fee_value',
             ]);
 
         return response()->json([
@@ -580,9 +577,6 @@ class BookingController extends Controller
                 'name_ar' => (string) ($service->name_ar ?? ''),
                 'name_en' => (string) ($service->name_en ?? ''),
                 'supports_deposit' => (bool) ($service->supports_deposit ?? false),
-                'max_deposit_percent' => (int) ($service->max_deposit_percent ?? 0),
-                'fee_type' => (string) ($service->fee_type ?? ''),
-                'fee_value' => $service->fee_value !== null ? (float) $service->fee_value : null,
             ],
             'business_price' => [
                 'id' => (int) ($businessPrice->id ?? 0),
@@ -905,20 +899,17 @@ class BookingController extends Controller
     private function formData(): array
     {
         $services = PlatformService::query()
-            ->select([
-                'id',
-                'key',
-                'name_ar',
-                'name_en',
-                'is_active',
-                'supports_deposit',
-                'max_deposit_percent',
-                'fee_type',
-                'fee_value',
-            ])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->get();
+        ->select([
+            'id',
+            'key',
+            'name_ar',
+            'name_en',
+            'is_active',
+            'supports_deposit',
+        ])
+        ->where('is_active', 1)
+        ->orderBy('name_ar')
+        ->get();
 
         $clients = User::query()
             ->select([

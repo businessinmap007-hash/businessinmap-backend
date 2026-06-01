@@ -10,7 +10,6 @@ use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\Wallet;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -50,6 +49,14 @@ class ServiceExecutionEngine
         }
 
         $service = PlatformService::query()
+            ->select([
+                'id',
+                'key',
+                'name_ar',
+                'name_en',
+                'is_active',
+                'supports_deposit',
+            ])
             ->where('id', $serviceId)
             ->where('is_active', 1)
             ->first();
@@ -93,7 +100,8 @@ class ServiceExecutionEngine
             businessId: $businessId,
             categoryId: $categoryId,
             serviceId: $serviceId,
-            childId: $childId
+            childId: $childId,
+            baseAmount: (float) $priceBreakdown['final_price']
         );
 
         return [
@@ -157,9 +165,6 @@ class ServiceExecutionEngine
     |--------------------------------------------------------------------------
     | Financial Preview / Guard
     |--------------------------------------------------------------------------
-    | هذه الطبقة لا تخصم ولا تجمد أي مبالغ.
-    | الهدف منها عرض جاهزية التنفيذ قبل Start أو قبل تحويل الحجز إلى in_progress.
-    |--------------------------------------------------------------------------
     */
 
     public function financialPreview(Booking $booking): array
@@ -169,7 +174,7 @@ class ServiceExecutionEngine
             'user.serviceFeeConsent',
             'business:id,name,type,category_id,category_child_id',
             'business.serviceFeeConsent',
-            'service:id,key,name_ar,name_en,is_active,supports_deposit,max_deposit_percent,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
+            'service:id,key,name_ar,name_en,is_active,supports_deposit',
             'bookable',
         ]);
 
@@ -184,12 +189,6 @@ class ServiceExecutionEngine
         $businessDepositRequired = 0.0;
 
         if (($depositPolicy['required'] ?? false) && ! ($deposit && $deposit->isFrozen())) {
-            /*
-             * BookingDepositService::freezeForBooking($booking, $hold)
-             * ينشئ total = hold * 2
-             * ثم clientPercent = 50 و businessPercent = 50
-             * لذلك كل طرف يحتاج نفس قيمة hold.
-             */
             $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
 
             $clientDepositRequired = $holdAmount;
@@ -314,6 +313,7 @@ class ServiceExecutionEngine
             'key' => (string) $service->key,
             'name_ar' => (string) ($service->name_ar ?? ''),
             'name_en' => (string) ($service->name_en ?? ''),
+            'supports_deposit' => (bool) ($service->supports_deposit ?? false),
         ];
 
         $meta['business_context'] = [
@@ -411,17 +411,8 @@ class ServiceExecutionEngine
                 ]);
             }
 
-            /*
-             * Financial Guard:
-             * - يتحقق من رصيد العميل والبزنس قبل أي خصم أو تجميد.
-             * - يراعي أن رسوم الخدمة لا تظهر إلا لمن فعّل consent داخل WalletFeeService.
-             */
             $readiness = $this->ensureFinancialReadiness($booking);
 
-            /*
-             * Auto Deposit Freeze:
-             * إذا كان الديبوزت مطلوبًا ولم يكن مجمدًا، نقوم بتجميده هنا تلقائيًا.
-             */
             if ((bool) ($depositPolicy['required'] ?? false)) {
                 if (! $deposit || ! $deposit->isFrozen()) {
                     $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
@@ -443,11 +434,6 @@ class ServiceExecutionEngine
                 }
             }
 
-            /*
-             * Non-refundable Service Fees:
-             * بمجرد نجاح الدخول في التنفيذ يتم خصم رسوم الخدمة.
-             * هذه الرسوم لا تسترد بعد in_progress.
-             */
             $this->chargeExecutionFeeOnce($booking);
 
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
@@ -524,6 +510,8 @@ class ServiceExecutionEngine
                 'category_child_service_fee_id' => data_get($tx->meta, 'category_child_service_fee_id'),
                 'service_fee_id' => data_get($tx->meta, 'service_fee_id'),
                 'fee_row_id' => data_get($tx->meta, 'fee_row_id'),
+                'source' => data_get($tx->meta, 'source'),
+                'promotion' => data_get($tx->meta, 'promotion'),
             ];
         }
 
@@ -614,53 +602,38 @@ class ServiceExecutionEngine
         float $price,
         ?BookableItem $bookable = null
     ): array {
-        $serviceSupportsDeposit = (bool) ($service->supports_deposit ?? false);
-        $serviceMaxPercent = (int) ($service->max_deposit_percent ?? 0);
-
-        $businessDepositEnabled = (bool) ($businessPrice->deposit_enabled ?? false);
-        $businessDepositPercent = (int) ($businessPrice->deposit_percent ?? 0);
-
-        $effectiveDepositEnabled = $businessDepositEnabled;
-        $effectiveDepositPercent = $businessDepositPercent;
-        $source = 'business_service_price';
-
-        if ($bookable && (bool) ($bookable->deposit_enabled ?? false)) {
-            $effectiveDepositEnabled = true;
-            $effectiveDepositPercent = (int) ($bookable->deposit_percent ?? 0);
-            $source = 'bookable_item';
-        }
-
-        if ($serviceMaxPercent > 0 && $effectiveDepositPercent > $serviceMaxPercent) {
-            $effectiveDepositPercent = $serviceMaxPercent;
-        }
-
-        $required = $serviceSupportsDeposit
-            && $effectiveDepositEnabled
-            && $effectiveDepositPercent > 0;
-
-        $amount = $required
-            ? round($price * ($effectiveDepositPercent / 100), 2)
-            : 0.00;
+        /*
+        |--------------------------------------------------------------------------
+        | Final PlatformService cleanup decision
+        |--------------------------------------------------------------------------
+        | PlatformService لا يحدد قيمة الديبوزت ولا max_percent.
+        | BusinessServicePrice / BookableItem ليست مصدر الديبوزت في هذا المسار.
+        | المصدر النهائي المطلوب لاحقًا: category_child_service_fees أو policy مستقلة مرتبطة بها.
+        |--------------------------------------------------------------------------
+        */
 
         return [
-            'service_supports_deposit' => $serviceSupportsDeposit,
-            'service_max_percent' => $serviceMaxPercent,
-            'business_deposit_enabled' => $businessDepositEnabled,
-            'business_deposit_percent' => $businessDepositPercent,
-            'bookable_deposit_enabled' => $bookable ? (bool) ($bookable->deposit_enabled ?? false) : false,
-            'bookable_deposit_percent' => $bookable ? (int) ($bookable->deposit_percent ?? 0) : 0,
-            'required' => $required,
-            'amount' => $amount,
-            'hold' => $amount,
-            'configured_percent' => $effectiveDepositPercent,
-            'source' => $source,
+            'service_supports_deposit' => (bool) ($service->supports_deposit ?? false),
+            'service_max_percent' => 0,
+
+            'business_deposit_enabled' => false,
+            'business_deposit_percent' => 0,
+
+            'bookable_deposit_enabled' => false,
+            'bookable_deposit_percent' => 0,
+
+            'required' => false,
+            'amount' => 0.00,
+            'hold' => 0.00,
+            'configured_percent' => 0,
+            'source' => 'category_child_service_fees_pending',
         ];
     }
 
     public function depositPolicy(Booking $booking): array
     {
         $booking->loadMissing([
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'business:id,name,type,category_id,category_child_id',
             'bookable',
         ]);
@@ -675,6 +648,15 @@ class ServiceExecutionEngine
 
         if (! $booking->service || ! $businessPrice) {
             return [
+                'service_supports_deposit' => (bool) ($booking->service?->supports_deposit ?? false),
+                'service_max_percent' => 0,
+
+                'business_deposit_enabled' => false,
+                'business_deposit_percent' => 0,
+
+                'bookable_deposit_enabled' => false,
+                'bookable_deposit_percent' => 0,
+
                 'required' => false,
                 'amount' => 0.00,
                 'hold' => 0.00,
@@ -796,7 +778,8 @@ class ServiceExecutionEngine
         int $businessId,
         int $categoryId,
         int $serviceId,
-        int $childId = 0
+        int $childId = 0,
+        float $baseAmount = 0
     ): array {
         $row = $this->resolveChildServiceFeeRow($categoryId, $childId, $serviceId);
 
@@ -812,8 +795,13 @@ class ServiceExecutionEngine
             'fee_row_id' => $row ? (int) $row->id : null,
             'category_child_service_fee_id' => $row ? (int) $row->id : null,
 
-            'business' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS) : null,
-            'client' => $row ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT) : null,
+            'business' => $row
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS, $baseAmount)
+                : null,
+
+            'client' => $row
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT, $baseAmount)
+                : null,
         ];
     }
 
@@ -823,14 +811,6 @@ class ServiceExecutionEngine
             return CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Legacy-safe fallback
-        |--------------------------------------------------------------------------
-        | لا نستخدم activeForPair مباشرة إلا إذا كان هناك صف واحد فقط لهذا
-        | child/service، حتى لا نقرأ رسوم root آخر بالخطأ.
-        |--------------------------------------------------------------------------
-        */
         if ($childId > 0 && $serviceId > 0) {
             $rows = CategoryChildServiceFee::query()
                 ->active(1)

@@ -593,8 +593,7 @@ class BookingTestController extends Controller
             'service' => [
                 'id' => optional($service)->id,
                 'name' => $this->displayName($service),
-                'fee_type' => optional($service)->fee_type,
-                'fee_value' => $this->numberValue(optional($service)->fee_value),
+                'supports_deposit' => (bool) optional($service)->supports_deposit,
             ],
 
             'business' => [
@@ -667,47 +666,34 @@ class BookingTestController extends Controller
 
     private function calculatePlatformFee(?PlatformService $service, float $basePrice): float
     {
-        if (!$service) {
-            return 0;
-        }
-
-        $serviceKey = strtolower(trim((string) (
-            $service->key
-            ?? $service->code
-            ?? $service->slug
-            ?? ''
-        )));
-
-        $feeType = strtolower(trim((string) ($service->fee_type ?? 'fixed')));
-        $feeValue = $this->numberValue($service->fee_value ?? 0);
-
-        if ($feeValue <= 0) {
-            return 0;
-        }
-
         /*
         |--------------------------------------------------------------------------
-        | Booking fee as one-time usage fee
+        | PlatformService Cleanup
         |--------------------------------------------------------------------------
-        | خدمة booking رسومها على استخدام الخدمة مرة واحدة فقط.
+        | لا يتم حساب أي رسوم من platform_services.
+        | رسوم العميل والبزنس مصدرها category_child_service_fees
+        | والعروض مصدرها platform_service_fee_promotions عبر WalletFeeService.
         |--------------------------------------------------------------------------
         */
-        if ($serviceKey === 'booking') {
-            return $feeValue;
-        }
 
-        if (in_array($feeType, ['percent', 'percentage', '%'], true)) {
-            return ($basePrice * $feeValue) / 100;
-        }
-
-        return $feeValue;
+        return 0.00;
     }
 
     private function calculateDeposit(?User $business, ?PlatformService $service, float $total): float
     {
         if (!$business) {
-            return 0;
+            return 0.00;
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | PlatformService Cleanup
+        |--------------------------------------------------------------------------
+        | لا يتم استخدام platform_services.max_deposit_percent.
+        | مؤقتًا نُبقي business booking hold فقط لأنه ليس من platform_services fees.
+        | المصدر النهائي للديبوزت لاحقًا سيكون category_child_service_fees أو policy مرتبطة بها.
+        |--------------------------------------------------------------------------
+        */
 
         $businessHoldEnabled = (bool) ($business->booking_hold_enabled ?? false);
         $businessHoldAmount = $this->numberValue($business->booking_hold_amount ?? 0);
@@ -716,14 +702,7 @@ class BookingTestController extends Controller
             return $businessHoldAmount;
         }
 
-        $supportsDeposit = (bool) ($service->supports_deposit ?? false);
-        $maxPercent = $this->numberValue($service->max_deposit_percent ?? 0);
-
-        if ($supportsDeposit && $maxPercent > 0 && $total > 0) {
-            return ($total * $maxPercent) / 100;
-        }
-
-        return 0;
+        return 0.00;
     }
 
     private function numberValue($value): float

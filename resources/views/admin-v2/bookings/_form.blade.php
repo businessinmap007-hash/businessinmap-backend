@@ -134,7 +134,7 @@
 
                     <div class="bk-dropdown" id="service_dropdown">
                         @foreach($services->where('key', 'booking') as $service)
-                            <button type="button" class="bk-option service-option" data-id="{{ $service->id }}" data-name="{{ $service->name_ar ?: $service->name_en }}" data-key="{{ $service->key }}" data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}" data-max-deposit-percent="{{ (int)($service->max_deposit_percent ?? 0) }}">
+                            <button type="button" class="bk-option service-option" data-id="{{ $service->id }}" data-name="{{ $service->name_ar ?: $service->name_en }}" data-key="{{ $service->key }}" data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}">
                                 <strong>{{ $service->name_ar ?: $service->name_en }}</strong>
                                 @if(!empty($service->key)) <span class="bk-option-sub">({{ $service->key }})</span> @endif
                             </button>
@@ -265,7 +265,7 @@
             <div class="a2-title">ملخص الديبوزت</div>
             <div class="bk-kv-grid">
                 <div class="bk-kv"><span>الخدمة تدعم ديبوزت؟</span><strong id="summary_supports_deposit">—</strong></div>
-                <div class="bk-kv"><span>أقصى نسبة</span><strong id="summary_max_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>مصدر سياسة الديبوزت</span><strong id="summary_deposit_policy_source">—</strong></div>
                 <div class="bk-kv"><span>النسبة المطبقة</span><strong id="summary_applied_deposit_percent">—</strong></div>
                 <div class="bk-kv"><span>قيمة الديبوزت</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
                 <div class="bk-kv"><span>مصدر الديبوزت</span><strong id="summary_deposit_source">—</strong></div>
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bookableType: el('summary_bookable_type'),
         bookableCapacity: el('summary_bookable_capacity'),
         supportsDeposit: el('summary_supports_deposit'),
-        maxDepositPercent: el('summary_max_deposit_percent'),
+        depositPolicySource: el('summary_deposit_policy_source'),
         appliedDepositPercent: el('summary_applied_deposit_percent'),
         depositAmount: el('summary_deposit_amount'),
         depositSource: el('summary_deposit_source'),
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
         summary.bookableType.textContent = '—';
         summary.bookableCapacity.textContent = '—';
         summary.supportsDeposit.textContent = '—';
-        summary.maxDepositPercent.textContent = '—';
+        summary.depositPolicySource.textContent = '—';
         summary.appliedDepositPercent.textContent = '—';
         summary.depositAmount.textContent = money(0);
         summary.depositSource.textContent = '—';
@@ -730,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function () {
             summary.finalPrice.textContent = money(pricing.final_price || 0, currency);
             summary.totalCost.textContent = money(pricing.final_price || 0, currency);
             summary.supportsDeposit.textContent = service.supports_deposit ? 'نعم' : 'لا';
-            summary.maxDepositPercent.textContent = (service.max_deposit_percent ?? 0) + '%';
+            summary.depositPolicySource.textContent = deposit.source || '—';
             summary.appliedDepositPercent.textContent = (deposit.configured_percent ?? 0) + '%';
             summary.depositAmount.textContent = money(deposit.amount || 0, currency);
             summary.depositSource.textContent = deposit.source || '—';

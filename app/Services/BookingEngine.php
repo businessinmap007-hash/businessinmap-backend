@@ -14,6 +14,14 @@ class BookingEngine
     public function prepare(int $businessId, int $serviceId): array
     {
         $service = PlatformService::query()
+            ->select([
+                'id',
+                'key',
+                'name_ar',
+                'name_en',
+                'is_active',
+                'supports_deposit',
+            ])
             ->findOrFail($serviceId);
 
         [$business, $childId] = $this->resolveBusinessContext($businessId);
@@ -21,6 +29,12 @@ class BookingEngine
         if (! $business) {
             throw ValidationException::withMessages([
                 'business_id' => 'البزنس غير موجود أو غير صحيح.',
+            ]);
+        }
+
+        if (! (bool) $service->is_active) {
+            throw ValidationException::withMessages([
+                'service_id' => 'هذه الخدمة غير مفعلة حاليًا.',
             ]);
         }
 
@@ -38,17 +52,6 @@ class BookingEngine
 
         $price = $this->resolvePrice($businessPrice);
 
-        $platformFee = $this->calculatePlatformFee(
-            service: $service,
-            price: $price
-        );
-
-        $deposit = $this->calculateDeposit(
-            service: $service,
-            businessPrice: $businessPrice,
-            price: $price
-        );
-
         $feeRow = $this->resolveChildServiceFeeRow(
             childId: $childId,
             serviceId: $serviceId
@@ -58,7 +61,8 @@ class BookingEngine
             feeRow: $feeRow,
             businessId: $businessId,
             childId: $childId,
-            serviceId: $serviceId
+            serviceId: $serviceId,
+            baseAmount: $price
         );
 
         return [
@@ -73,26 +77,34 @@ class BookingEngine
 
             /*
             |--------------------------------------------------------------------------
-            | Legacy / PlatformService Fee
+            | Platform Fee
             |--------------------------------------------------------------------------
-            | هذا كان موجودًا قبل فصل رسوم البزنس والعميل.
-            | نبقيه مؤقتًا للتوافق مع أي واجهات أو meta قديمة.
-            */
-            'platform_fee' => $platformFee,
-
-            /*
-            |--------------------------------------------------------------------------
-            | Deposit Snapshot
-            |--------------------------------------------------------------------------
-            */
-            'deposit' => $deposit,
-
-            /*
-            |--------------------------------------------------------------------------
-            | New CategoryChild Service Fee Snapshot
-            |--------------------------------------------------------------------------
-            | المصدر الأساسي الجديد لرسوم التنفيذ:
+            | لا يتم حساب أي رسوم من platform_services.
+            | المصدر الصحيح لرسوم العميل والبزنس هو:
             | category_child_service_fees
+            | والعروض أعلى أولوية داخل WalletFeeService.
+            |--------------------------------------------------------------------------
+            */
+            'platform_fee' => 0.00,
+
+            /*
+            |--------------------------------------------------------------------------
+            | Deposit
+            |--------------------------------------------------------------------------
+            | لا يتم حساب الديبوزت من platform_services أو business_service_prices
+            | في هذه المرحلة. مصدره النهائي يجب أن يكون category_child_service_fees
+            | أو من logic مخصص مرتبط بها لاحقًا.
+            |--------------------------------------------------------------------------
+            */
+            'deposit' => 0.00,
+
+            /*
+            |--------------------------------------------------------------------------
+            | CategoryChild Service Fee Snapshot
+            |--------------------------------------------------------------------------
+            | المصدر الأساسي لرسوم التنفيذ:
+            | category_child_service_fees
+            |--------------------------------------------------------------------------
             */
             'service_fee_row' => $feeRow,
             'service_fee_rows' => [
@@ -116,7 +128,7 @@ class BookingEngine
         }
 
         $business = User::query()
-            ->select(['id', 'type', 'category_child_id'])
+            ->select(['id', 'type', 'category_id', 'category_child_id'])
             ->where('id', $businessId)
             ->where('type', 'business')
             ->first();
@@ -165,7 +177,7 @@ class BookingEngine
             $price = $businessPrice->base_price ?? 0;
         }
 
-        return round((float) $price, 2);
+        return round(max((float) $price, 0), 2);
     }
 
     /*
@@ -176,6 +188,10 @@ class BookingEngine
 
     protected function resolveChildServiceFeeRow(int $childId, int $serviceId): ?CategoryChildServiceFee
     {
+        if ($childId <= 0 || $serviceId <= 0) {
+            return null;
+        }
+
         return CategoryChildServiceFee::activeForPair($childId, $serviceId);
     }
 
@@ -183,14 +199,15 @@ class BookingEngine
         ?CategoryChildServiceFee $feeRow,
         int $businessId,
         int $childId,
-        int $serviceId
+        int $serviceId,
+        float $baseAmount = 0
     ): array {
         $businessSnapshot = $feeRow
-            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
+            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS, $baseAmount)
             : null;
 
         $clientSnapshot = $feeRow
-            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT)
+            ? $feeRow->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT, $baseAmount)
             : null;
 
         return [
@@ -206,64 +223,5 @@ class BookingEngine
             'business' => $businessSnapshot,
             'client' => $clientSnapshot,
         ];
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Legacy Platform Fee
-    |--------------------------------------------------------------------------
-    */
-
-    protected function calculatePlatformFee(PlatformService $service, float $price): float
-    {
-        $feeType = (string) ($service->fee_type ?? '');
-        $feeValue = (float) ($service->fee_value ?? 0);
-
-        if ($feeValue <= 0 || $feeType === '') {
-            return 0.00;
-        }
-
-        if ($feeType === 'percent') {
-            return round($price * ($feeValue / 100), 2);
-        }
-
-        if ($feeType === 'fixed') {
-            return round($feeValue, 2);
-        }
-
-        return 0.00;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Deposit
-    |--------------------------------------------------------------------------
-    */
-
-    protected function calculateDeposit(
-        PlatformService $service,
-        BusinessServicePrice $businessPrice,
-        float $price
-    ): float {
-        if (! (bool) $service->supports_deposit) {
-            return 0.00;
-        }
-
-        if (! (bool) $businessPrice->deposit_enabled) {
-            return 0.00;
-        }
-
-        $percent = (int) ($businessPrice->deposit_percent ?? 0);
-        $maxPercent = (int) ($service->max_deposit_percent ?? 0);
-
-        if ($percent <= 0) {
-            return 0.00;
-        }
-
-        if ($maxPercent > 0 && $percent > $maxPercent) {
-            $percent = $maxPercent;
-        }
-
-        return round($price * ($percent / 100), 2);
     }
 }

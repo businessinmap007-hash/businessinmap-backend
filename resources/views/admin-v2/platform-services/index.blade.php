@@ -11,7 +11,8 @@
         <div>
             <h1 class="a2-page-title">Platform Services</h1>
             <div class="a2-page-subtitle">
-                الخدمات الأساسية للنظام + سياسة الديبوزت + الربط مع الأقسام الفرعية ورسوم التنفيذ.
+                تعريف خدمات المنصة فقط: key / name / active / supports_deposit.
+                الرسوم والديبوزت الفعلي تتم من category_child_service_fees، والعروض لها أولوية أعلى.
             </div>
         </div>
 
@@ -36,7 +37,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <ul style="margin:0;padding-inline-start:18px;">
+            <ul class="a2-errors-list">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -47,11 +48,11 @@
     <div class="a2-card a2-card--soft a2-mb-16">
         <div class="a2-section-title">ملاحظات تشغيلية</div>
         <div class="a2-section-subtitle">
-            الخدمة هنا هي تعريف عام مثل booking / delivery / menu.
-            إتاحة الخدمة لقسم فرعي تتم من
-            <span dir="ltr">category_platform_services</span>
-            أما رسوم العميل والبزنس فتتم من
+            هذه الصفحة لا تحدد أي رسوم للعميل أو البزنس.
+            مصدر الرسوم الأساسي:
             <span dir="ltr">category_child_service_fees</span>.
+            مصدر الأولوية عند وجود عرض:
+            <span dir="ltr">platform_service_fee_promotions</span>.
         </div>
     </div>
 
@@ -70,7 +71,7 @@
 
             <div class="a2-filter-sm">
                 <label class="a2-label">Active</label>
-                <select class="a2-input" name="is_active">
+                <select class="a2-select" name="is_active">
                     <option value="">الكل</option>
                     <option value="1" @selected((string)($isActive ?? '') === '1')>Yes</option>
                     <option value="0" @selected((string)($isActive ?? '') === '0')>No</option>
@@ -90,15 +91,12 @@
                 <thead>
                     <tr>
                         <th style="min-width:70px;">ID</th>
-                        <th style="min-width:120px;">Key</th>
-                        <th style="min-width:190px;">الاسم</th>
-                        <th style="min-width:90px;">Active</th>
-                        <th style="min-width:110px;">Deposit</th>
-                        <th style="min-width:90px;">Max %</th>
-                        <th style="min-width:120px;">Legacy Fee</th>
-                        <th style="min-width:150px;">Category Links</th>
-                        <th style="min-width:140px;">Service Fees</th>
-                        <th style="min-width:90px;">Rules</th>
+                        <th style="min-width:130px;">Key</th>
+                        <th style="min-width:220px;">الاسم</th>
+                        <th style="min-width:100px;">Active</th>
+                        <th style="min-width:130px;">Supports Deposit</th>
+                        <th style="min-width:160px;">Category Links</th>
+                        <th style="min-width:150px;">Service Fees</th>
                         <th style="min-width:170px;">Actions</th>
                     </tr>
                 </thead>
@@ -128,35 +126,22 @@
 
                         <td class="a2-text-right">
                             <div class="a2-fw-900">{{ $serviceName }}</div>
-                            <div class="a2-muted a2-mt-8">{{ $r->name_en ?: '-' }}</div>
+                            <div class="a2-muted a2-mt-8">{{ $r->name_en ?: '—' }}</div>
                         </td>
 
                         <td>
                             @if($r->is_active)
-                                <span class="a2-badge a2-badge-success">Yes</span>
+                                <span class="a2-pill a2-pill-success">Yes</span>
                             @else
-                                <span class="a2-badge a2-badge-muted">No</span>
+                                <span class="a2-pill a2-pill-gray">No</span>
                             @endif
                         </td>
 
                         <td>
                             @if($r->supports_deposit)
-                                <span class="a2-badge a2-badge-success">Yes</span>
+                                <span class="a2-pill a2-pill-success">Yes</span>
                             @else
-                                <span class="a2-badge a2-badge-muted">No</span>
-                            @endif
-                        </td>
-
-                        <td>{{ (int) $r->max_deposit_percent }}%</td>
-
-                        <td>
-                            @if($r->fee_type && (float) $r->fee_value > 0)
-                                <div class="a2-fw-900">{{ $r->fee_type }}</div>
-                                <div class="a2-muted a2-mt-8">
-                                    {{ number_format((float)$r->fee_value, 2) }}
-                                </div>
-                            @else
-                                <span class="a2-muted">—</span>
+                                <span class="a2-pill a2-pill-gray">No</span>
                             @endif
                         </td>
 
@@ -189,46 +174,39 @@
                         </td>
 
                         <td>
-                            @if(!empty($r->rules))
-                                <span class="a2-pill a2-pill-success">JSON</span>
-                            @else
-                                <span class="a2-muted">—</span>
-                            @endif
-                        </td>
+                            <div class="a2-table-actions">
+                                <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.platform-services.edit', $r) }}">
+                                    Edit
+                                </a>
 
-                        <td class="a2-actions">
-                            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.platform-services.edit', $r) }}">
-                                Edit
-                            </a>
-
-                            @if($isUsed)
-                                <button
-                                    class="a2-btn a2-btn-danger"
-                                    type="button"
-                                    disabled
-                                    title="لا يمكن حذف خدمة مستخدمة. عطّلها بدلًا من حذفها."
-                                >
-                                    Delete
-                                </button>
-                            @else
-                                <form
-                                    method="POST"
-                                    action="{{ route('admin.platform-services.destroy', $r) }}"
-                                    style="display:inline;"
-                                    onsubmit="return confirm('Delete?')"
-                                >
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="a2-btn a2-btn-danger" type="submit">
+                                @if($isUsed)
+                                    <button
+                                        class="a2-btn a2-btn-danger a2-btn-sm"
+                                        type="button"
+                                        disabled
+                                        title="لا يمكن حذف خدمة مستخدمة. عطّلها بدلًا من حذفها."
+                                    >
                                         Delete
                                     </button>
-                                </form>
-                            @endif
+                                @else
+                                    <form
+                                        method="POST"
+                                        action="{{ route('admin.platform-services.destroy', $r) }}"
+                                        onsubmit="return confirm('Delete?')"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="a2-btn a2-btn-danger a2-btn-sm" type="submit">
+                                            Delete
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="a2-empty-cell">
+                        <td colspan="8" class="a2-empty-cell">
                             لا توجد بيانات
                         </td>
                     </tr>

@@ -10,7 +10,7 @@
         <div>
             <h1 class="a2-page-title">Create Platform Service</h1>
             <div class="a2-page-subtitle">
-                إضافة خدمة نظام جديدة مثل booking أو delivery أو menu.
+                إضافة تعريف خدمة نظام جديدة مثل booking أو delivery أو menu.
             </div>
         </div>
 
@@ -37,7 +37,7 @@
         <div class="a2-alert a2-alert-danger">
             <div class="a2-fw-900 a2-mb-8">يوجد أخطاء في البيانات:</div>
 
-            <ul style="margin:0;padding-inline-start:18px;">
+            <ul class="a2-errors-list">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach

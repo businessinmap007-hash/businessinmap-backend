@@ -8,10 +8,10 @@ use App\Models\BusinessServicePrice;
 use App\Models\CategoryChildServiceFee;
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class PlatformServiceController extends Controller
 {
@@ -50,26 +50,9 @@ class PlatformServiceController extends Controller
 
     public function create()
     {
-       $row = new PlatformService([
+        $row = new PlatformService([
             'is_active' => 1,
             'supports_deposit' => 0,
-            'max_deposit_percent' => 0,
-
-            'fee_type' => null,
-            'fee_value' => null,
-
-            'business_fee_enabled' => 0,
-            'business_fee_type' => PlatformService::FEE_TYPE_FIXED,
-            'business_fee_value' => 0,
-
-            'client_fee_enabled' => 0,
-            'client_fee_type' => PlatformService::FEE_TYPE_FIXED,
-            'client_fee_value' => 0,
-
-            'fee_currency' => 'EGP',
-            'fee_notes' => null,
-
-            'rules' => null,
         ]);
 
         return view('admin-v2.platform-services.create', compact('row'));
@@ -80,6 +63,8 @@ class PlatformServiceController extends Controller
         $data = $this->validateData($request);
 
         $row = PlatformService::create($data);
+
+        $this->clearLegacyFeeColumns($row);
 
         return redirect()
             ->route('admin.platform-services.edit', $row)
@@ -99,56 +84,26 @@ class PlatformServiceController extends Controller
 
         $platformService->update($data);
 
+        $this->clearLegacyFeeColumns($platformService);
+
         return back()->with('success', 'تم تحديث خدمة النظام بنجاح.');
     }
 
     public function destroy(PlatformService $platformService)
     {
-        $serviceId = (int) $platformService->id;
+        $usage = $this->serviceUsageCounts($platformService);
 
-        $bookingsCount = Booking::query()
-            ->where('service_id', $serviceId)
-            ->count();
-
-        if ($bookingsCount > 0) {
+        if ($usage['total'] > 0) {
             return redirect()
                 ->route('admin.platform-services.index')
-                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مرتبطة بحجوزات. يمكنك تعطيلها بدلًا من حذفها.');
+                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مستخدمة بالفعل. يمكنك تعطيلها بدلًا من حذفها.');
         }
 
-        $businessPricesCount = BusinessServicePrice::query()
-            ->where('service_id', $serviceId)
-            ->count();
-
-        if ($businessPricesCount > 0) {
-            return redirect()
-                ->route('admin.platform-services.index')
-                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مرتبطة بأسعار بزنس. احذف أسعار البزنس أولًا أو عطّل الخدمة.');
-        }
-
-        DB::transaction(function () use ($platformService, $serviceId) {
-            DB::table('category_service_configs')
-                ->where('platform_service_id', $serviceId)
-                ->delete();
-
-            DB::table('user_platform_service')
-                ->where('platform_service_id', $serviceId)
-                ->delete();
-
-            CategoryPlatformService::query()
-                ->where('platform_service_id', $serviceId)
-                ->delete();
-
-            CategoryChildServiceFee::query()
-                ->where('platform_service_id', $serviceId)
-                ->delete();
-
-            $platformService->delete();
-        });
+        $platformService->delete();
 
         return redirect()
             ->route('admin.platform-services.index')
-            ->with('success', 'تم حذف خدمة النظام وتنظيف كل روابطها بنجاح.');
+            ->with('success', 'تم حذف خدمة النظام بنجاح.');
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array
@@ -162,100 +117,20 @@ class PlatformServiceController extends Controller
                 'required',
                 'string',
                 'max:191',
-                'regex:/^[a-z0-9_\\-]+$/',
+                'regex:/^[a-z0-9_\-]+$/',
                 Rule::unique('platform_services', 'key')->ignore($ignoreId),
             ],
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
-
             'is_active' => ['nullable'],
             'supports_deposit' => ['nullable'],
-            'max_deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
-
-            'fee_type' => [
-                'nullable',
-                Rule::in([
-                    PlatformService::FEE_TYPE_FIXED,
-                    PlatformService::FEE_TYPE_PERCENT,
-                ]),
-            ],
-            'fee_value' => ['nullable', 'numeric', 'min:0'],
-
-            'business_fee_enabled' => ['nullable'],
-            'business_fee_type' => ['nullable', Rule::in([
-                PlatformService::FEE_TYPE_FIXED,
-                PlatformService::FEE_TYPE_PERCENT,
-            ])],
-            'business_fee_value' => ['nullable', 'numeric', 'min:0'],
-
-            'client_fee_enabled' => ['nullable'],
-            'client_fee_type' => ['nullable', Rule::in([
-                PlatformService::FEE_TYPE_FIXED,
-                PlatformService::FEE_TYPE_PERCENT,
-            ])],
-            'client_fee_value' => ['nullable', 'numeric', 'min:0'],
-
-            'fee_currency' => ['nullable', 'string', 'max:3'],
-            'fee_notes' => ['nullable', 'string', 'max:1000'],
-
-            'rules' => ['nullable'],
         ], [
             'key.regex' => 'مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
         ]);
 
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['supports_deposit'] = (int) $request->boolean('supports_deposit');
-        $data['business_fee_enabled'] = (int) $request->boolean('business_fee_enabled');
-        $data['client_fee_enabled'] = (int) $request->boolean('client_fee_enabled');
-
-        if (! $data['supports_deposit']) {
-            $data['max_deposit_percent'] = 0;
-        } else {
-            $data['max_deposit_percent'] = max(0, min((int) ($data['max_deposit_percent'] ?? 0), 100));
-        }
-
-        $feeType = trim((string) ($data['fee_type'] ?? ''));
-        $feeValue = round((float) ($data['fee_value'] ?? 0), 2);
-
-        if ($feeType === '') {
-            $data['fee_type'] = null;
-            $data['fee_value'] = null;
-        } else {
-            $data['fee_type'] = $feeType;
-            $data['fee_value'] = $feeValue > 0 ? $feeValue : 0;
-        }
-        $businessFeeType = PlatformService::normalizeFeeType($data['business_fee_type'] ?? null);
-        $businessFeeValue = round((float) ($data['business_fee_value'] ?? 0), 2);
-
-        if (! $data['business_fee_enabled'] || ! $businessFeeType || $businessFeeValue <= 0) {
-            $data['business_fee_enabled'] = 0;
-            $data['business_fee_type'] = null;
-            $data['business_fee_value'] = 0;
-        } else {
-            $data['business_fee_type'] = $businessFeeType;
-            $data['business_fee_value'] = $businessFeeValue;
-        }
-
-        $clientFeeType = PlatformService::normalizeFeeType($data['client_fee_type'] ?? null);
-        $clientFeeValue = round((float) ($data['client_fee_value'] ?? 0), 2);
-
-        if (! $data['client_fee_enabled'] || ! $clientFeeType || $clientFeeValue <= 0) {
-            $data['client_fee_enabled'] = 0;
-            $data['client_fee_type'] = null;
-            $data['client_fee_value'] = 0;
-        } else {
-            $data['client_fee_type'] = $clientFeeType;
-            $data['client_fee_value'] = $clientFeeValue;
-        }
-
-        $currency = strtoupper(trim((string) ($data['fee_currency'] ?? '')));
-        $data['fee_currency'] = $currency !== ''
-            ? mb_substr($currency, 0, 3)
-            : CategoryChildServiceFee::DEFAULT_CURRENCY;
-
-        $data['fee_notes'] = trim((string) ($data['fee_notes'] ?? '')) ?: null;
-
-        $data['rules'] = $this->normalizeRules($request->input('rules'));
+        $data['name_en'] = trim((string) ($data['name_en'] ?? '')) ?: null;
 
         return $data;
     }
@@ -269,31 +144,43 @@ class PlatformServiceController extends Controller
         return (string) $key;
     }
 
-    protected function normalizeRules($value): ?array
+    protected function clearLegacyFeeColumns(PlatformService $service): void
     {
-        if ($value === null || $value === '') {
-            return null;
+        $legacyDefaults = [
+            'max_deposit_percent' => 0,
+
+            'fee_type' => null,
+            'fee_value' => null,
+
+            'business_fee_enabled' => 0,
+            'business_fee_type' => null,
+            'business_fee_value' => 0,
+
+            'client_fee_enabled' => 0,
+            'client_fee_type' => null,
+            'client_fee_value' => 0,
+
+            'fee_currency' => null,
+            'fee_notes' => null,
+
+            'rules' => null,
+        ];
+
+        $updates = [];
+
+        foreach ($legacyDefaults as $column => $value) {
+            if (Schema::hasColumn('platform_services', $column)) {
+                $updates[$column] = $value;
+            }
         }
 
-        if (is_array($value)) {
-            return $value;
+        if ($updates === []) {
+            return;
         }
 
-        $raw = trim((string) $value);
-
-        if ($raw === '') {
-            return null;
-        }
-
-        $decoded = json_decode($raw, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            throw ValidationException::withMessages([
-                'rules' => 'حقل Rules يجب أن يكون JSON صحيح.',
-            ]);
-        }
-
-        return $decoded;
+        DB::table('platform_services')
+            ->where('id', (int) $service->id)
+            ->update($updates);
     }
 
     protected function serviceUsageCounts(PlatformService $service): array

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
+use App\Models\PlatformServiceFeePromotion;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
@@ -29,7 +30,7 @@ class WalletFeeService
         $booking->loadMissing([
             'business:id,name,category_id,category_child_id',
             'business.serviceFeeConsent',
-            'service:id,key,name_ar,name_en,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
+            'service:id,key,name_ar,name_en,is_active,supports_deposit',
             'user:id,name',
             'user.serviceFeeConsent',
         ]);
@@ -47,6 +48,7 @@ class WalletFeeService
 
         if (! $service) {
             $service = PlatformService::query()
+                ->select(['id', 'key', 'name_ar', 'name_en', 'is_active', 'supports_deposit'])
                 ->find($serviceId);
         }
 
@@ -64,10 +66,9 @@ class WalletFeeService
         |--------------------------------------------------------------------------
         | Legacy-safe fallback
         |--------------------------------------------------------------------------
-        | بعد جعل الرسوم root-specific، لا نستخدم activeForPair مباشرة لأنه قد يرجع
-        | رسوم root آخر لنفس child/service.
-        |--------------------------------------------------------------------------
-        | نستخدم fallback فقط إذا كان هناك صف نشط واحد فقط لهذا child/service.
+        | لا نستخدم أي رسوم من platform_services.
+        | هذا fallback محدود فقط داخل category_child_service_fees لحالات قديمة
+        | لا تحتوي category_id بشرط وجود صف واحد فقط لنفس child/service.
         |--------------------------------------------------------------------------
         */
         if (! $feeRow && $childId > 0) {
@@ -83,19 +84,23 @@ class WalletFeeService
             }
         }
 
+        if (! $feeRow) {
+            return collect();
+        }
+
         $lines = collect();
 
         $business = $booking->business;
 
         if ($business && $this->canAutoChargeFees($business)) {
-           $line = $this->resolveFeeLineForPayer(
+            $line = $this->resolveFeeLineForPayer(
                 payer: CategoryChildServiceFee::PAYER_BUSINESS,
                 booking: $booking,
-                service: $service,
                 feeRow: $feeRow,
                 baseAmount: $baseAmount,
                 categoryId: $categoryId,
                 childId: $childId,
+                serviceId: $serviceId,
                 feeCode: $feeCode
             );
 
@@ -112,11 +117,11 @@ class WalletFeeService
             $line = $this->resolveFeeLineForPayer(
                 payer: CategoryChildServiceFee::PAYER_CLIENT,
                 booking: $booking,
-                service: $service,
                 feeRow: $feeRow,
                 baseAmount: $baseAmount,
                 categoryId: $categoryId,
                 childId: $childId,
+                serviceId: $serviceId,
                 feeCode: $feeCode
             );
 
@@ -133,11 +138,11 @@ class WalletFeeService
     protected function resolveFeeLineForPayer(
         string $payer,
         Booking $booking,
-        PlatformService $service,
-        ?CategoryChildServiceFee $feeRow,
+        CategoryChildServiceFee $feeRow,
         float $baseAmount,
         int $categoryId,
         int $childId,
+        int $serviceId,
         string $feeCode
     ): ?array {
         $payer = CategoryChildServiceFee::normalizePayer($payer);
@@ -146,83 +151,143 @@ class WalletFeeService
             return null;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | 1) Category Child Override First
-        |--------------------------------------------------------------------------
-        */
-        if ($feeRow && $feeRow->isChargeableFor($payer)) {
-            return $feeRow->toWalletFeeLine(
-                payer: $payer,
-                userId: $payer === CategoryChildServiceFee::PAYER_BUSINESS
-                    ? (int) $booking->business_id
-                    : (int) $booking->user_id,
-                baseAmount: $baseAmount,
-                bookingId: (int) $booking->id,
-                businessId: (int) $booking->business_id,
-                clientId: (int) $booking->user_id,
-                feeCode: $feeCode
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2) Platform Service Default Fallback
-        |--------------------------------------------------------------------------
-        */
-        $snapshot = $service->defaultFeeSnapshotFor(
-            payer: $payer,
-            baseAmount: $baseAmount
-        );
-
-        if (! $snapshot) {
+        if (! $feeRow->isChargeableFor($payer)) {
             return null;
         }
 
-        $amount = round((float) ($snapshot['amount'] ?? 0), 2);
+        $line = $feeRow->toWalletFeeLine(
+            payer: $payer,
+            userId: $payer === CategoryChildServiceFee::PAYER_BUSINESS
+                ? (int) $booking->business_id
+                : (int) $booking->user_id,
+            baseAmount: $baseAmount,
+            bookingId: (int) $booking->id,
+            businessId: (int) $booking->business_id,
+            clientId: (int) $booking->user_id,
+            feeCode: $feeCode
+        );
+
+        if (! $line) {
+            return null;
+        }
+
+        $line['category_id'] = $categoryId > 0 ? $categoryId : ($line['category_id'] ?? null);
+        $line['child_id'] = $childId > 0 ? $childId : ($line['child_id'] ?? null);
+        $line['service_id'] = $serviceId;
+        $line['platform_service_id'] = $serviceId;
+        $line['source'] = $line['source'] ?? 'category_child_service_fee';
+
+        $promotion = $this->resolveActivePromotion(
+            payer: $payer,
+            serviceId: $serviceId,
+            childId: $childId
+        );
+
+        if ($promotion) {
+            $line = $this->applyPromotionToLine($line, $promotion, $payer);
+        }
+
+        $amount = round((float) ($line['amount'] ?? 0), 2);
 
         if ($amount <= 0) {
             return null;
         }
 
-        return [
-            'payer' => $payer,
-            'user_id' => $payer === CategoryChildServiceFee::PAYER_BUSINESS
-                ? (int) $booking->business_id
-                : (int) $booking->user_id,
+        $line['amount'] = $amount;
 
-            'category_child_service_fee_id' => null,
-            'service_fee_id' => null,
-            'fee_row_id' => null,
-            'source' => 'platform_service_default',
+        return $line;
+    }
 
-            'fee_code' => $feeCode,
-            'fee_type' => $snapshot['fee_type'] ?? null,
-            'calc_type' => $snapshot['calc_type'] ?? CategoryChildServiceFee::CALC_TYPE_FIXED,
-            'rate_value' => $snapshot['rate_value'] ?? null,
+    protected function resolveActivePromotion(
+        string $payer,
+        int $serviceId,
+        int $childId
+    ): ?PlatformServiceFeePromotion {
+        $payer = CategoryChildServiceFee::normalizePayer($payer);
 
-            'amount' => $amount,
-            'currency' => $snapshot['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
-            'base_amount' => round((float) $baseAmount, 2),
+        if (! $payer || $serviceId <= 0) {
+            return null;
+        }
 
-            'reference_type' => self::REFERENCE_TYPE_BOOKING,
-            'reference_id' => (int) $booking->id,
+        return PlatformServiceFeePromotion::query()
+            ->active()
+            ->currentlyRunning()
+            ->forServiceAndChild($serviceId, $childId > 0 ? $childId : null)
+            ->where(function ($query) use ($payer) {
+                $query->where('target_party', $payer)
+                    ->orWhere('target_party', PlatformServiceFeePromotion::TARGET_BOTH);
+            })
+            ->orderedForApply()
+            ->first();
+    }
 
-            'source_type' => self::REFERENCE_TYPE_BOOKING,
-            'source_id' => (int) $booking->id,
+    protected function applyPromotionToLine(
+        array $line,
+        PlatformServiceFeePromotion $promotion,
+        string $payer
+    ): array {
+        $payer = CategoryChildServiceFee::normalizePayer($payer) ?: $payer;
 
-            'booking_id' => (int) $booking->id,
-            'category_id' => $categoryId > 0 ? $categoryId : null,
-            'service_id' => (int) $booking->service_id,
-            'platform_service_id' => (int) $booking->service_id,
+        $originalAmount = round((float) ($line['amount'] ?? 0), 2);
+        $discountValue = round((float) ($promotion->discount_value ?? 0), 2);
 
-            'business_id' => (int) $booking->business_id,
-            'client_id' => (int) $booking->user_id,
-            'child_id' => $childId > 0 ? $childId : null,
+        if ($originalAmount <= 0) {
+            return $line;
+        }
 
-            'rules' => null,
-            'notes' => $snapshot['notes'] ?? null,
+        $finalAmount = $originalAmount;
+        $discountAmount = 0.00;
+
+        switch ((string) $promotion->discount_type) {
+            case PlatformServiceFeePromotion::DISCOUNT_WAIVE:
+                $discountAmount = $originalAmount;
+                $finalAmount = 0.00;
+                break;
+
+            case PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT:
+                $discountAmount = min($originalAmount, max($discountValue, 0));
+                $finalAmount = max($originalAmount - $discountAmount, 0);
+                break;
+
+            case PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT:
+                $percent = max(0, min($discountValue, 100));
+                $discountAmount = round($originalAmount * ($percent / 100), 2);
+                $finalAmount = max($originalAmount - $discountAmount, 0);
+                break;
+
+            case PlatformServiceFeePromotion::DISCOUNT_OVERRIDE_TO_FIXED:
+                $finalAmount = max($discountValue, 0);
+                $discountAmount = max($originalAmount - $finalAmount, 0);
+                break;
+
+            default:
+                return $line;
+        }
+
+        $line['source_before_promotion'] = $line['source'] ?? 'category_child_service_fee';
+        $line['source'] = 'platform_service_fee_promotion';
+
+        $line['amount_before_promotion'] = $originalAmount;
+        $line['promotion_discount_amount'] = round($discountAmount, 2);
+        $line['amount'] = round($finalAmount, 2);
+
+        $line['promotion'] = [
+            'id' => (int) $promotion->id,
+            'name' => $promotion->name,
+            'scope_type' => $promotion->scope_type,
+            'service_id' => $promotion->service_id ? (int) $promotion->service_id : null,
+            'child_id' => $promotion->child_id ? (int) $promotion->child_id : null,
+            'target_party' => $promotion->target_party,
+            'applied_for_payer' => $payer,
+            'discount_type' => $promotion->discount_type,
+            'discount_value' => round((float) ($promotion->discount_value ?? 0), 2),
+            'priority' => (int) ($promotion->priority ?? 0),
+            'starts_at' => $promotion->starts_at?->toDateTimeString(),
+            'ends_at' => $promotion->ends_at?->toDateTimeString(),
+            'notes' => $promotion->notes,
         ];
+
+        return $line;
     }
 
     public function applyBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
@@ -234,7 +299,7 @@ class WalletFeeService
             'user.serviceFeeConsent',
             'business:id,name,category_id,category_child_id',
             'business.serviceFeeConsent',
-            'service:id,name_ar,name_en,key,is_active,business_fee_enabled,business_fee_type,business_fee_value,client_fee_enabled,client_fee_type,client_fee_value,fee_currency,fee_notes',
+            'service:id,name_ar,name_en,key,is_active,supports_deposit',
         ]);
 
         $lines = $this->resolveBookingFees($booking, $feeCode);
@@ -352,6 +417,7 @@ class WalletFeeService
             ),
         ]);
     }
+
     protected function buildTransactionMeta(
         Booking $booking,
         string $feeCode,
@@ -366,10 +432,25 @@ class WalletFeeService
             'fee_type' => $line['fee_type'] ?? null,
             'calc_type' => $line['calc_type'] ?? CategoryChildServiceFee::CALC_TYPE_FIXED,
             'rate_value' => $line['rate_value'] ?? null,
-            'source' => $line['source'] ?? 'category_child_override',
+
+            'source' => $line['source'] ?? 'category_child_service_fee',
+            'source_before_promotion' => $line['source_before_promotion'] ?? null,
+
             'currency' => $line['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY,
             'base_amount' => round((float) ($line['base_amount'] ?? 0), 2),
+
+            'amount_before_promotion' => isset($line['amount_before_promotion'])
+                ? round((float) $line['amount_before_promotion'], 2)
+                : null,
+
+            'promotion_discount_amount' => isset($line['promotion_discount_amount'])
+                ? round((float) $line['promotion_discount_amount'], 2)
+                : null,
+
+            'promotion' => $line['promotion'] ?? null,
+
             'non_refundable_after_in_progress' => true,
+
             'category_child_service_fee_id' => $line['category_child_service_fee_id'] ?? null,
             'service_fee_id' => $line['service_fee_id'] ?? null,
             'fee_row_id' => $line['fee_row_id'] ?? null,
@@ -481,6 +562,7 @@ class WalletFeeService
 
         return 0;
     }
+
     protected function resolveBookingCategoryId(Booking $booking): int
     {
         $businessCategoryId = (int) ($booking->business?->category_id ?? 0);

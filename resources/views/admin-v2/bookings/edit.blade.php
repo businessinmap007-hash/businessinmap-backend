@@ -10,7 +10,7 @@
         <div>
             <h1 class="a2-page-title">تعديل الحجز #{{ $booking->id }}</h1>
             <div class="a2-page-subtitle">
-                تعديل بيانات الحجز، الخدمة، الموعد، الغرفة، الحالة، والسعر المحسوب.
+                تعديل بيانات الحجز، الخدمة، الموعد، العنصر القابل للحجز، الحالة، والسعر المحسوب.
             </div>
         </div>
 
@@ -36,9 +36,21 @@
             {{ session('error') }}
         </div>
     @endif
+
     @php
-$selectedBookableItemId = (int) old('bookable_item_id', $selectedBookableItemId ?? 0);
-@endphp
+        $selectedBookableItemId = (int) old(
+            'bookable_id',
+            old(
+                'bookable_item_id',
+                $selectedBookableItemId
+                    ?? $booking->bookable_id
+                    ?? $booking->bookable_item_id
+                    ?? data_get($booking->meta, 'booking_test_form.bookable_item_id')
+                    ?? data_get($booking->meta, 'bookable_item.id')
+                    ?? 0
+            )
+        );
+    @endphp
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">

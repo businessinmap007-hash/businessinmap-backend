@@ -11,11 +11,11 @@ use App\Models\CategoryServiceConfig;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
-use App\Services\BookingReminderService;
 use App\Services\BookingDepositService;
+use App\Services\BookingReminderService;
+use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
 use App\Support\AdminV2\Operations\OperationPresenter;
-use App\Services\ServiceEventDispatcher;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +30,7 @@ class BookingController extends Controller
         protected BookingDepositService $bookingDepositService,
         protected ServiceExecutionEngine $serviceExecutionEngine,
         protected ServiceEventDispatcher $serviceEventDispatcher,
-        protected BookingReminderService $bookingReminderService    
+        protected BookingReminderService $bookingReminderService
     ) {
     }
 
@@ -40,7 +40,7 @@ class BookingController extends Controller
         $perPage = in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 50;
 
         $sort = (string) $request->get('sort', 'starts_at');
-        $dir  = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $dir = strtolower((string) $request->get('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
         $allowedSorts = ['id', 'starts_at', 'ends_at', 'status', 'price'];
 
@@ -50,7 +50,7 @@ class BookingController extends Controller
 
         $qValue = trim((string) $request->get('q', ''));
         $status = trim((string) $request->get('status', ''));
-        $date   = trim((string) $request->get('date', ''));
+        $date = trim((string) $request->get('date', ''));
 
         $query = Booking::query()
             ->with([
@@ -123,7 +123,7 @@ class BookingController extends Controller
         $data = $this->applyBookableToPayload($data, $bookable);
 
         $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
-            existingMeta: [],
+            existingMeta: is_array($data['meta'] ?? null) ? $data['meta'] : [],
             calc: $calc,
             bookable: $bookable
         );
@@ -139,6 +139,7 @@ class BookingController extends Controller
                 'service_id' => (int) $booking->service_id,
                 'business_id' => (int) $booking->business_id,
                 'client_id' => (int) $booking->user_id,
+                'bookable_id' => $booking->bookable_id ? (int) $booking->bookable_id : null,
                 'starts_at' => optional($booking->starts_at)->toDateTimeString(),
                 'ends_at' => optional($booking->ends_at)->toDateTimeString(),
                 'price' => (float) $booking->price,
@@ -190,58 +191,43 @@ class BookingController extends Controller
             'business:id,name,type,phone,email,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
             'bookable',
-            
         ]);
-        $selectedBookableItemId = (int) (
-        $booking->bookable_item_id
-        ?? $booking->item_id
-        ?? $booking->room_id
-        ?? data_get($booking->meta, 'booking_test_form.bookable_item_id')
-        ?? data_get($booking->meta, 'bookable_item.id')
-        ?? 0
-    );
 
-    if ($selectedBookableItemId > 0 && class_exists(\App\Models\BookableItem::class)) {
-        $selectedItem = \App\Models\BookableItem::query()->find($selectedBookableItemId);
-
-        if ($selectedItem) {
-            $bookableItems = collect($bookableItems ?? []);
-
-            if (!$bookableItems->contains('id', $selectedItem->id)) {
-                $bookableItems->prepend($selectedItem);
-            }
-        }
-    }
+        $selectedBookableId = $this->selectedBookableId($booking);
 
         return view('admin-v2.bookings.edit', array_merge(
             $this->formData(),
-            ['selectedBookableItemId' => $selectedBookableItemId, 'booking' => $booking]
+            [
+                'booking' => $booking,
+                'selectedBookableId' => $selectedBookableId,
+                'selectedBookableItemId' => $selectedBookableId,
+            ]
         ));
     }
 
     public function update(Request $request, Booking $booking)
     {
         $oldStatus = (string) $booking->status;
+
         $data = $this->validateBooking($request, true);
         $newStatus = (string) ($data['status'] ?? $oldStatus);
 
         /*
-        * ممنوع تحويل الحجز إلى in_progress من شاشة التعديل.
-        * الدخول إلى التنفيذ يجب أن يتم من زر "بدء التنفيذ" فقط؛
-        * لأنه يشغل Financial Guard + Auto Deposit Freeze + Execution Fees.
-        */
+         * ممنوع تحويل الحجز إلى in_progress من شاشة التعديل.
+         * الدخول إلى التنفيذ يجب أن يتم من زر "بدء التنفيذ" فقط.
+         */
         if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
             throw ValidationException::withMessages([
                 'status' => 'لا يمكن تحويل الحجز إلى قيد التنفيذ من شاشة التعديل. استخدم زر بدء التنفيذ من صفحة عرض الحجز.',
             ]);
         }
 
-        $serviceId  = (int) ($data['service_id'] ?? $booking->service_id);
+        $serviceId = (int) ($data['service_id'] ?? $booking->service_id);
         $businessId = (int) ($data['business_id'] ?? $booking->business_id);
-        $quantity   = max((int) ($data['quantity'] ?? $booking->quantity ?? 1), 1);
+        $quantity = max((int) ($data['quantity'] ?? $booking->quantity ?? 1), 1);
 
-        $bookableId = ! empty($data['bookable_id'] ?? $booking->bookable_id)
-            ? (int) ($data['bookable_id'] ?? $booking->bookable_id)
+        $bookableId = ! empty($data['bookable_id'])
+            ? (int) $data['bookable_id']
             : null;
 
         $calc = $this->serviceExecutionEngine->prepare(
@@ -261,10 +247,6 @@ class BookingController extends Controller
         $incomingMeta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
         $mergedMeta = array_replace_recursive($existingMeta, $incomingMeta);
 
-        /*
-        * buildBookingMeta يعيد حساب pricing/deposit_policy من الإعداد الحالي،
-        * ولا يعتمد على snapshot قديم.
-        */
         $data['meta'] = $this->serviceExecutionEngine->buildBookingMeta(
             existingMeta: $mergedMeta,
             calc: $calc,
@@ -280,9 +262,6 @@ class BookingController extends Controller
 
         $currentStatus = (string) $booking->status;
 
-        /*
-        * Status Events
-        */
         if ($currentStatus !== $oldStatus) {
             match ($currentStatus) {
                 Booking::STATUS_ACCEPTED => $this->serviceEventDispatcher->bookingAccepted(
@@ -329,12 +308,6 @@ class BookingController extends Controller
             };
         }
 
-        /*
-        * Reminder Scheduling
-        *
-        * - إذا أصبح الحجز في حالة نهائية: نلغي التذكيرات المعلقة.
-        * - إذا ما زال غير نهائي: نعيد جدولة التذكيرات حسب آخر starts_at.
-        */
         if ($booking->isFinalStatus()) {
             $this->bookingReminderService->cancelForBooking($booking);
         } else {
@@ -388,8 +361,9 @@ class BookingController extends Controller
     public function bookableItemsLookup(Request $request)
     {
         $businessId = (int) $request->get('business_id', 0);
-        $serviceId  = (int) $request->get('service_id', 0);
-        $term       = trim((string) $request->get('q', ''));
+        $serviceId = (int) $request->get('service_id', 0);
+        $term = trim((string) $request->get('q', ''));
+        $selectedBookableId = (int) $request->get('selected_bookable_id', 0);
 
         $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
         $config = $serviceConfig ? $serviceConfig->configArray() : [];
@@ -437,6 +411,28 @@ class BookingController extends Controller
                 'deposit_percent',
             ]);
 
+        if ($selectedBookableId > 0 && ! $rows->contains('id', $selectedBookableId)) {
+            $selectedItem = BookableItem::query()
+                ->where('id', $selectedBookableId)
+                ->first([
+                    'id',
+                    'business_id',
+                    'service_id',
+                    'item_type',
+                    'title',
+                    'code',
+                    'price',
+                    'capacity',
+                    'quantity',
+                    'deposit_enabled',
+                    'deposit_percent',
+                ]);
+
+            if ($selectedItem) {
+                $rows->prepend($selectedItem);
+            }
+        }
+
         return response()->json([
             'ok' => true,
             'service_config' => [
@@ -473,12 +469,12 @@ class BookingController extends Controller
     public function pricingPreview(Request $request)
     {
         $businessId = (int) $request->get('business_id', 0);
-        $serviceId  = (int) $request->get('service_id', 0);
+        $serviceId = (int) $request->get('service_id', 0);
         $bookableId = (int) $request->get('bookable_id', 0);
-        $quantity   = max((int) $request->get('quantity', 1), 1);
+        $quantity = max((int) $request->get('quantity', 1), 1);
 
         $startsAt = $request->get('starts_at');
-        $endsAt   = $request->get('ends_at');
+        $endsAt = $request->get('ends_at');
 
         if ($businessId <= 0 || $serviceId <= 0) {
             return response()->json([
@@ -640,6 +636,7 @@ class BookingController extends Controller
             $booking->meta = $meta;
             $booking->save();
         });
+
         $booking->refresh();
 
         $this->serviceEventDispatcher->bookingClientConfirmed(
@@ -881,6 +878,7 @@ class BookingController extends Controller
 
             $booking->status = Booking::STATUS_CANCELLED;
             $booking->save();
+
             $this->serviceEventDispatcher->bookingCancelled(
                 booking: $booking,
                 actorId: auth()->id(),
@@ -889,6 +887,7 @@ class BookingController extends Controller
                     'status' => $booking->status,
                 ]
             );
+
             $this->bookingReminderService->cancelForBooking($booking);
 
             return redirect()
@@ -1014,7 +1013,7 @@ class BookingController extends Controller
 
         $data['meta'] = is_array($request->input('meta')) ? $request->input('meta') : [];
 
-        $durationUnit  = (string) ($data['duration_unit'] ?? 'day');
+        $durationUnit = (string) ($data['duration_unit'] ?? 'day');
         $durationValue = max((int) ($data['duration_value'] ?? $data['quantity'] ?? 1), 1);
 
         $data['quantity'] = max((int) ($data['quantity'] ?? $durationValue), 1);
@@ -1088,7 +1087,7 @@ class BookingController extends Controller
         }
 
         $businessId = (int) ($data['business_id'] ?? 0);
-        $serviceId  = (int) ($data['service_id'] ?? 0);
+        $serviceId = (int) ($data['service_id'] ?? 0);
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
 
@@ -1181,6 +1180,19 @@ class BookingController extends Controller
     protected function depositPolicy(Booking $booking): array
     {
         return $this->serviceExecutionEngine->depositPolicy($booking);
+    }
+
+    protected function selectedBookableId(Booking $booking): int
+    {
+        return (int) (
+            old('bookable_id')
+            ?? $booking->bookable_id
+            ?? data_get($booking->meta, 'bookable.id')
+            ?? data_get($booking->meta, 'bookable_item.id')
+            ?? data_get($booking->meta, 'booking_test_form.bookable_id')
+            ?? data_get($booking->meta, 'booking_test_form.bookable_item_id')
+            ?? 0
+        );
     }
 
     protected function resolveSelectedBookable(

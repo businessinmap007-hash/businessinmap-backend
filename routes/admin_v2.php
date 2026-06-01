@@ -28,9 +28,11 @@ use App\Http\Controllers\AdminV2\{
     SponsorController,
     SubscriptionController,
     UploadController,
+    PlatformServiceFeePromotionController,
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
+    view\BookingTestController,
     WalletTransactionController
 };
 
@@ -856,4 +858,44 @@ Route::prefix('admin')->name('admin.')->group(function () {
                     ->name('update');
             });
     });
+
+    // =========================
+    // Platform Service Fee Promotions
+    // =========================
+    Route::patch('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])
+        ->name('platform-service-fee-promotions.toggle');
+
+    Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)
+        ->except(['show']);
+
+
+// =========================
+// Booking Test View
+// مسار منفصل لتجربة الحجز كعميل بدون خلطه مع BookingController
+// =========================
+Route::prefix('booking-test')
+    ->name('booking-test.')
+    ->group(function () {
+        Route::get('client', [BookingTestController::class, 'index'])
+            ->name('client');
+
+        Route::get('client/children', [BookingTestController::class, 'children'])
+            ->name('client.children');
+
+        Route::get('client/businesses', [BookingTestController::class, 'businesses'])
+            ->name('client.businesses');
+
+        Route::get('client/bookable-items', [BookingTestController::class, 'bookableItems'])
+            ->name('client.bookable-items');
+
+        Route::post('client/pricing-preview', [BookingTestController::class, 'pricingPreview'])
+            ->name('client.pricing-preview');
+
+        Route::post('client/store', [BookingTestController::class, 'store'])
+            ->name('client.store');
+    });
+
+
+
+
 });

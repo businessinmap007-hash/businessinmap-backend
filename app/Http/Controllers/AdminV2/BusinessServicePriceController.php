@@ -203,15 +203,33 @@ class BusinessServicePriceController extends Controller
     {
         $data = $this->validateData($request);
 
-        $row = BusinessServicePrice::query()->updateOrCreate(
-            [
-                'business_id'        => $data['business_id'],
-                'child_id'           => $data['child_id'],
-                'service_id'         => $data['service_id'],
-                'bookable_item_type' => $data['bookable_item_type'],
-            ],
-            $data
-        );
+        $lookup = [
+            'business_id' => (int) $data['business_id'],
+            'child_id' => (int) $data['child_id'],
+            'service_id' => (int) $data['service_id'],
+            'bookable_item_type' => trim((string) $data['bookable_item_type']),
+        ];
+
+        $data['bookable_item_type'] = $lookup['bookable_item_type'];
+
+        $query = BusinessServicePrice::query();
+
+        if (method_exists(BusinessServicePrice::class, 'withTrashed')) {
+            $query = BusinessServicePrice::withTrashed();
+        }
+
+        $row = $query->where($lookup)->first();
+
+        if ($row) {
+            if (method_exists($row, 'trashed') && $row->trashed()) {
+                $row->restore();
+            }
+
+            $row->fill($data);
+            $row->save();
+        } else {
+            $row = BusinessServicePrice::create(array_merge($lookup, $data));
+        }
 
         return redirect()
             ->route('admin.business_service_prices.edit', $row)

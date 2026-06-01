@@ -36,6 +36,9 @@
             {{ session('error') }}
         </div>
     @endif
+    @php
+$selectedBookableItemId = (int) old('bookable_item_id', $selectedBookableItemId ?? 0);
+@endphp
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
@@ -56,6 +59,7 @@
         @include('admin-v2.bookings._form', [
             'isEdit' => true,
             'booking' => $booking,
+            'selectedBookableItemId' => $selectedBookableItemId,
             'statusOptions' => $statusOptions ?? \App\Models\Booking::statusOptions(),
             'services' => $services ?? collect(),
             'businesses' => $businesses ?? collect(),

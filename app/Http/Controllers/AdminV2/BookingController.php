@@ -190,11 +190,32 @@ class BookingController extends Controller
             'business:id,name,type,phone,email,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
             'bookable',
+            
         ]);
+        $selectedBookableItemId = (int) (
+        $booking->bookable_item_id
+        ?? $booking->item_id
+        ?? $booking->room_id
+        ?? data_get($booking->meta, 'booking_test_form.bookable_item_id')
+        ?? data_get($booking->meta, 'bookable_item.id')
+        ?? 0
+    );
+
+    if ($selectedBookableItemId > 0 && class_exists(\App\Models\BookableItem::class)) {
+        $selectedItem = \App\Models\BookableItem::query()->find($selectedBookableItemId);
+
+        if ($selectedItem) {
+            $bookableItems = collect($bookableItems ?? []);
+
+            if (!$bookableItems->contains('id', $selectedItem->id)) {
+                $bookableItems->prepend($selectedItem);
+            }
+        }
+    }
 
         return view('admin-v2.bookings.edit', array_merge(
             $this->formData(),
-            ['booking' => $booking]
+            ['selectedBookableItemId' => $selectedBookableItemId, 'booking' => $booking]
         ));
     }
 

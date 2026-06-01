@@ -156,6 +156,7 @@
             'icon' => 'settings',
             'active' => [
                 'admin.platform-services.',
+                'admin.platform-service-fee-promotions.',
                 'admin.business_service_prices.',
             ],
             'children' => [
@@ -171,6 +172,11 @@
                     'label' => 'Create Platform Service',
                     'route' => 'admin.platform-services.create',
                     'active_routes' => ['admin.platform-services.create'],
+                ],
+                [
+                    'label' => 'Fee Promotions',
+                    'route' => 'admin.platform-service-fee-promotions.index',
+                    'active' => 'admin.platform-service-fee-promotions.',
                 ],
                 [
                     'label' => 'Business Service Prices',

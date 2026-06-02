@@ -80,7 +80,6 @@ class CategoryChildServiceFeeController extends Controller
                 'platform_services.name_en',
                 'platform_services.is_active',
                 'platform_services.supports_deposit',
-                'platform_services.max_deposit_percent',
             ])
             ->orderBy('category_platform_services.sort_order')
             ->orderBy('platform_services.id')

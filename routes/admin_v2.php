@@ -24,11 +24,12 @@ use App\Http\Controllers\AdminV2\{
     OptionGroupController,
     PaymentController,
     PlatformServiceController,
+    PlatformServiceItemTypeController,
+    PlatformServiceFeePromotionController,
     PostController,
     SponsorController,
     SubscriptionController,
     UploadController,
-    PlatformServiceFeePromotionController,
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
@@ -695,6 +696,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::delete('{platformService}', [PlatformServiceController::class, 'destroy'])
                 ->whereNumber('platformService')
+                ->name('destroy');
+        });
+        /*
+        |--------------------------------------------------------------------------
+        | Platform Service Item Types
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('platform-service-item-types')->name('platform-service-item-types.')->group(function () {
+            Route::get('/', [PlatformServiceItemTypeController::class, 'index'])
+                ->name('index');
+
+            Route::get('create', [PlatformServiceItemTypeController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [PlatformServiceItemTypeController::class, 'store'])
+                ->name('store');
+
+            Route::get('{platformServiceItemType}/edit', [PlatformServiceItemTypeController::class, 'edit'])
+                ->whereNumber('platformServiceItemType')
+                ->name('edit');
+
+            Route::put('{platformServiceItemType}', [PlatformServiceItemTypeController::class, 'update'])
+                ->whereNumber('platformServiceItemType')
+                ->name('update');
+
+            Route::delete('{platformServiceItemType}', [PlatformServiceItemTypeController::class, 'destroy'])
+                ->whereNumber('platformServiceItemType')
                 ->name('destroy');
         });
 

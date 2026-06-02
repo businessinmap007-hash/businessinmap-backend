@@ -187,6 +187,11 @@
                     ],
                 ],
                 [
+                    'label' => 'Platform Service Item Types',
+                    'route' => 'admin.platform-service-item-types.index',
+                    'active' => 'admin.platform-service-item-types.',
+                ],
+                [
                     'label' => 'Create Business Price',
                     'route' => 'admin.business_service_prices.create',
                     'active_routes' => ['admin.business_service_prices.create'],

@@ -240,15 +240,12 @@
                                     @endif
 
                                     @if(isset($service->supports_deposit))
-                                        @if($service->supports_deposit)
-                                            <span class="a2-pill a2-pill-success">Deposit ON</span>
-
-                                            @if(isset($service->max_deposit_percent))
-                                                <span class="a2-pill a2-pill-gray">
-                                                    Max: {{ (int) $service->max_deposit_percent }}%
-                                                </span>
-                                            @endif
-                                        @else
+                                    @if($service->supports_deposit)
+                                        <span class="a2-pill a2-pill-success">Deposit Supported</span>
+                                    @else
+                                        <span class="a2-pill a2-pill-gray">Deposit Not Supported</span>
+                                    @endif
+                                @endif
                                             <span class="a2-pill a2-pill-gray">Deposit OFF</span>
                                         @endif
                                     @endif

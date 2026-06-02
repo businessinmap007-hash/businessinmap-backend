@@ -99,7 +99,7 @@ class BookableItemController extends Controller
     public function edit(BookableItem $bookableItem)
     {
         $row = $bookableItem->load([
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'business:id,name,type,category_id,category_child_id',
         ]);
 
@@ -190,7 +190,7 @@ class BookableItemController extends Controller
         }
 
         $service = PlatformService::query()
-            ->select(['id', 'supports_deposit', 'max_deposit_percent'])
+            ->select(['id', 'supports_deposit'])
             ->find($data['service_id']);
 
         if (! $service) {
@@ -250,18 +250,8 @@ class BookableItemController extends Controller
         if (! (bool) $service->supports_deposit) {
             $data['deposit_enabled'] = 0;
             $data['deposit_percent'] = 0;
-        } else {
-            if (! $data['deposit_enabled']) {
-                $data['deposit_percent'] = 0;
-            } else {
-                $maxAllowed = (int) ($service->max_deposit_percent ?? 0);
-
-                if ($data['deposit_percent'] > $maxAllowed) {
-                    throw ValidationException::withMessages([
-                        'deposit_percent' => "نسبة الديبوزت تتجاوز الحد المسموح للخدمة ({$maxAllowed}%).",
-                    ]);
-                }
-            }
+        } elseif (! $data['deposit_enabled']) {
+            $data['deposit_percent'] = 0;
         }
 
         $data['meta'] = $this->parseMetaJson($request->input('meta'));
@@ -297,7 +287,7 @@ class BookableItemController extends Controller
     protected function services()
     {
         return PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
+            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit'])
             ->where('is_active', 1)
             ->orderBy('name_ar')
             ->orderBy('id')

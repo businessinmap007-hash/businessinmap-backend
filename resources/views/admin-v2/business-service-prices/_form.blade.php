@@ -1,31 +1,17 @@
 @php
     $isEdit = isset($row) && $row?->exists;
 
-    $bookableTypeOptions = [
-        'category'          => 'Category Default',
-        'single_room'       => 'Single Room',
-        'double_room'       => 'Double Room',
-        'suite'             => 'Suite',
-        'family_room'       => 'Family Room',
-        'apartment'         => 'Apartment',
-        'villa'             => 'Villa',
-        'five_side_field'   => 'Five Side Field',
-        'full_field'        => 'Full Field',
-        'padel_court'       => 'Padel Court',
-        'consultation_slot' => 'Consultation Slot',
-        'followup_slot'     => 'Follow-up Slot',
-        'hall_standard'     => 'Standard Hall',
-        'hall_vip'          => 'VIP Hall',
-        'table_2'           => 'Table 2',
-        'table_4'           => 'Table 4',
-        'table_6'           => 'Table 6',
-        'vip_table'         => 'VIP Table',
-    ];
-
     $businessChildMap = [];
     foreach (($businesses ?? []) as $business) {
         $businessChildMap[(int) $business->id] = (int) ($business->category_child_id ?? 0);
     }
+
+    $currentItemType = old('bookable_item_type', $row->bookable_item_type ?? '');
+    $currentServiceId = (int) old('service_id', $row->service_id ?? 0);
+
+    $itemTypesByServiceSafe = is_array($itemTypesByService ?? null)
+        ? $itemTypesByService
+        : [];
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
@@ -34,6 +20,8 @@
         هذه الصفحة تحدد سعر الخدمة الذي يضعه البزنس.
         رسوم المنصة على العميل أو البزنس لا تُدار هنا، بل من شاشة
         <span dir="ltr">Service Fees</span>.
+        أنواع العناصر تأتي من
+        <span dir="ltr">Platform Service Item Types</span>.
     </div>
 </div>
 
@@ -100,8 +88,8 @@
                 @foreach(($services ?? []) as $service)
                     <option
                         value="{{ $service->id }}"
+                        data-service-key="{{ strtolower((string) ($service->key ?? '')) }}"
                         data-supports-deposit="{{ (int) ($service->supports_deposit ?? 0) }}"
-                        data-max-deposit-percent="{{ (int) ($service->max_deposit_percent ?? 0) }}"
                         @selected((string) old('service_id', $row->service_id ?? '') === (string) $service->id)
                     >
                         {{ $service->name_ar ?: ($service->name_en ?: $service->key) }}
@@ -120,19 +108,16 @@
 
         <div class="a2-form-group">
             <label class="a2-label">نوع العنصر <span class="a2-danger">*</span></label>
-            <select class="a2-select" name="bookable_item_type">
-                @foreach($bookableTypeOptions as $value => $label)
-                    <option
-                        value="{{ $value }}"
-                        @selected((string) old('bookable_item_type', $row->bookable_item_type ?? 'category') === (string) $value)
-                    >
-                        {{ $label }}
-                    </option>
-                @endforeach
+            <select
+                class="a2-select js-bookable-type-select"
+                name="bookable_item_type"
+                data-current-value="{{ $currentItemType }}"
+            >
+                <option value="">اختر نوع العنصر</option>
             </select>
 
-            <div class="a2-hint a2-mt-8">
-                استخدم category للسعر الافتراضي، واستخدم الأنواع الأخرى عند وجود عناصر قابلة للحجز.
+            <div class="a2-hint a2-mt-8 js-bookable-type-hint">
+                اختر الخدمة أولًا لعرض أنواع العناصر المتاحة لها.
             </div>
 
             @error('bookable_item_type')
@@ -291,12 +276,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const childSelect = document.querySelector('.js-child-select');
 
     const serviceSelect = document.querySelector('.js-service-select');
+    const bookableTypeSelect = document.querySelector('.js-bookable-type-select');
+    const bookableTypeHint = document.querySelector('.js-bookable-type-hint');
+
     const depositEnabled = document.getElementById('deposit_enabled');
     const depositPercent = document.getElementById('deposit_percent');
     const depositHint = document.getElementById('deposit_hint');
 
     const discountEnabled = document.getElementById('discount_enabled');
     const discountPercent = document.getElementById('discount_percent');
+
+    const itemTypesByService = @json($itemTypesByServiceSafe);
 
     function refreshBusinessChild() {
         if (!businessSelect || !childSelect) return;
@@ -309,19 +299,103 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function optionLabel(item) {
+        if (!item) return '';
+
+        const ar = String(item.name_ar || '').trim();
+        const en = String(item.name_en || '').trim();
+        const key = String(item.key || '').trim();
+
+        return ar || en || key;
+    }
+
+    function refreshBookableTypeOptions() {
+        if (!serviceSelect || !bookableTypeSelect) return;
+
+        const serviceId = String(serviceSelect.value || '');
+        const currentValue = String(bookableTypeSelect.value || bookableTypeSelect.dataset.currentValue || '');
+        const savedValue = String(bookableTypeSelect.dataset.currentValue || '');
+
+        const options = itemTypesByService[serviceId] || [];
+
+        bookableTypeSelect.innerHTML = '';
+
+        if (!serviceId) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'اختر الخدمة أولًا';
+            bookableTypeSelect.appendChild(option);
+
+            if (bookableTypeHint) {
+                bookableTypeHint.textContent = 'اختر الخدمة أولًا لعرض أنواع العناصر المتاحة لها.';
+            }
+
+            return;
+        }
+
+        if (!options.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'لا توجد أنواع عناصر مفعلة لهذه الخدمة';
+            bookableTypeSelect.appendChild(option);
+
+            if (bookableTypeHint) {
+                bookableTypeHint.textContent = 'أضف أنواع عناصر لهذه الخدمة من شاشة Platform Service Item Types.';
+            }
+
+            return;
+        }
+
+        let selectedApplied = false;
+        let defaultKey = '';
+
+        options.forEach(function (item) {
+            if (item.is_default && !defaultKey) {
+                defaultKey = String(item.key || '');
+            }
+        });
+
+        options.forEach(function (item) {
+            const value = String(item.key || '');
+            const option = document.createElement('option');
+
+            option.value = value;
+            option.textContent = optionLabel(item);
+
+            if (
+                value === currentValue ||
+                value === savedValue ||
+                (!selectedApplied && !currentValue && !savedValue && defaultKey && value === defaultKey)
+            ) {
+                option.selected = true;
+                selectedApplied = true;
+            }
+
+            bookableTypeSelect.appendChild(option);
+        });
+
+        if (!selectedApplied) {
+            const first = bookableTypeSelect.querySelector('option');
+            if (first) {
+                first.selected = true;
+            }
+        }
+
+        if (bookableTypeHint) {
+            bookableTypeHint.textContent = 'هذه القائمة تأتي من Platform Service Item Types ويمكن تعديلها من لوحة الإدارة.';
+        }
+    }
+
     function refreshDepositUI() {
         if (!serviceSelect) return;
 
         const selected = serviceSelect.options[serviceSelect.selectedIndex];
         const supportsDeposit = selected ? String(selected.dataset.supportsDeposit || '0') === '1' : false;
-        const maxPercent = selected ? parseInt(selected.dataset.maxDepositPercent || '0', 10) : 0;
 
         if (depositHint) {
-            if (!supportsDeposit) {
-                depositHint.textContent = 'هذه الخدمة لا تدعم الديبوزت.';
-            } else {
-                depositHint.textContent = 'الحد الأقصى للديبوزت لهذه الخدمة: ' + maxPercent + '%';
-            }
+            depositHint.textContent = supportsDeposit
+                ? 'هذه الخدمة تدعم الديبوزت، لكن الحد أو السياسة لا تأتي من PlatformService.'
+                : 'هذه الخدمة لا تدعم الديبوزت.';
         }
 
         if (depositEnabled) {
@@ -332,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (depositPercent) {
-            depositPercent.max = String(maxPercent || 100);
+            depositPercent.removeAttribute('max');
             depositPercent.disabled = !supportsDeposit || !depositEnabled.checked;
 
             if (!supportsDeposit) {
@@ -356,7 +430,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (serviceSelect) {
-        serviceSelect.addEventListener('change', refreshDepositUI);
+        serviceSelect.addEventListener('change', function () {
+            bookableTypeSelect.dataset.currentValue = '';
+            refreshBookableTypeOptions();
+            refreshDepositUI();
+        });
     }
 
     if (depositEnabled) {
@@ -367,6 +445,8 @@ document.addEventListener('DOMContentLoaded', function () {
         discountEnabled.addEventListener('change', refreshDiscountUI);
     }
 
+    refreshBusinessChild();
+    refreshBookableTypeOptions();
     refreshDepositUI();
     refreshDiscountUI();
 });

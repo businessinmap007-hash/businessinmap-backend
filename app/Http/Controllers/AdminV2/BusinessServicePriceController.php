@@ -7,6 +7,7 @@ use App\Models\BusinessServicePrice;
 use App\Models\CategoryChild;
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
+use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,12 +27,7 @@ class BusinessServicePriceController extends Controller
         $qChild    = trim((string) $request->get('q_child', ''));
         $qItemType = trim((string) $request->get('q_item_type', ''));
 
-        $services = PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->orderBy('id')
-            ->get();
+        $services = $this->servicesForForm();
 
         $businesses = User::query()
             ->select(['id', 'name', 'category_child_id'])
@@ -85,7 +81,7 @@ class BusinessServicePriceController extends Controller
                 2) as cash_due_on_execution
             ")
             ->with([
-                'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+                'service:id,key,name_ar,name_en,supports_deposit',
                 'business:id,name,type,category_child_id',
                 'child:id,name_ar,name_en,reorder',
             ])
@@ -160,12 +156,8 @@ class BusinessServicePriceController extends Controller
 
     public function create()
     {
-        $services = PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->orderBy('id')
-            ->get();
+        $services = $this->servicesForForm();
+        $itemTypesByService = $this->itemTypesByServiceForForm();
 
         $businesses = User::query()
             ->select(['id', 'name', 'category_child_id'])
@@ -195,7 +187,8 @@ class BusinessServicePriceController extends Controller
             'row',
             'services',
             'businesses',
-            'children'
+            'children',
+            'itemTypesByService'
         ));
     }
 
@@ -238,12 +231,8 @@ class BusinessServicePriceController extends Controller
 
     public function edit(BusinessServicePrice $row)
     {
-        $services = PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit', 'max_deposit_percent'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->orderBy('id')
-            ->get();
+        $services = $this->servicesForForm();
+        $itemTypesByService = $this->itemTypesByServiceForForm();
 
         $businesses = User::query()
             ->select(['id', 'name', 'category_child_id'])
@@ -259,7 +248,7 @@ class BusinessServicePriceController extends Controller
             ->get();
 
         $row->load([
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'business:id,name,type,category_child_id',
             'child:id,name_ar,name_en,reorder',
         ]);
@@ -268,7 +257,8 @@ class BusinessServicePriceController extends Controller
             'row',
             'services',
             'businesses',
-            'children'
+            'children',
+            'itemTypesByService'
         ));
     }
 
@@ -361,7 +351,7 @@ class BusinessServicePriceController extends Controller
             'discount_percent' => 'نسبة الخصم',
         ]);
 
-        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? 'category')) ?: 'category';
+        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? '')) ?: 'category';
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP';
 
         $data['price'] = round((float) $data['price'], 2);
@@ -406,7 +396,7 @@ class BusinessServicePriceController extends Controller
         }
 
         $service = PlatformService::query()
-            ->select(['id', 'is_active', 'supports_deposit', 'max_deposit_percent'])
+            ->select(['id', 'is_active', 'supports_deposit'])
             ->where('id', $data['service_id'])
             ->first();
 
@@ -422,13 +412,6 @@ class BusinessServicePriceController extends Controller
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | الأصح معماريًا:
-        |--------------------------------------------------------------------------
-        | إتاحة الخدمة للقسم الفرعي تعتمد على category_platform_services،
-        | وليس على category_child_service_fees، لأن الخدمة قد تكون متاحة بدون رسوم.
-        */
         $serviceAllowedForChild = CategoryPlatformService::query()
             ->where('child_id', $submittedChildId)
             ->where('platform_service_id', (int) $data['service_id'])
@@ -441,27 +424,23 @@ class BusinessServicePriceController extends Controller
             ]);
         }
 
+        $itemTypeAllowed = PlatformServiceItemType::query()
+            ->where('platform_service_id', (int) $data['service_id'])
+            ->where('key', (string) $data['bookable_item_type'])
+            ->where('is_active', 1)
+            ->exists();
+
+        if (! $itemTypeAllowed) {
+            throw ValidationException::withMessages([
+                'bookable_item_type' => 'نوع العنصر غير متاح لهذه الخدمة أو غير مفعل.',
+            ]);
+        }
+
         if (! (bool) $service->supports_deposit) {
             $data['deposit_enabled'] = 0;
             $data['deposit_percent'] = 0;
-        } else {
-            if (! $data['deposit_enabled']) {
-                $data['deposit_percent'] = 0;
-            } else {
-                $maxAllowed = (int) ($service->max_deposit_percent ?? 0);
-
-                if ($maxAllowed <= 0) {
-                    throw ValidationException::withMessages([
-                        'deposit_percent' => 'هذه الخدمة لا تسمح بنسبة ديبوزت أكبر من 0%.',
-                    ]);
-                }
-
-                if ($data['deposit_percent'] > $maxAllowed) {
-                    throw ValidationException::withMessages([
-                        'deposit_percent' => "نسبة الديبوزت تتجاوز الحد المسموح للخدمة ({$maxAllowed}%).",
-                    ]);
-                }
-            }
+        } elseif (! $data['deposit_enabled']) {
+            $data['deposit_percent'] = 0;
         }
 
         if (! $data['discount_enabled']) {
@@ -469,5 +448,63 @@ class BusinessServicePriceController extends Controller
         }
 
         return $data;
+    }
+
+    protected function servicesForForm()
+    {
+        return PlatformService::query()
+            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit'])
+            ->where('is_active', 1)
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get();
+    }
+
+    protected function itemTypesByServiceForForm(): array
+    {
+        $rows = PlatformServiceItemType::query()
+            ->select([
+                'id',
+                'platform_service_id',
+                'key',
+                'name_ar',
+                'name_en',
+                'is_default',
+                'is_active',
+                'sort_order',
+            ])
+            ->where('is_active', 1)
+            ->ordered()
+            ->get();
+
+        $grouped = [];
+
+        foreach ($rows as $row) {
+            $serviceId = (int) $row->platform_service_id;
+
+            if (! isset($grouped[$serviceId])) {
+                $grouped[$serviceId] = [];
+            }
+
+            $grouped[$serviceId][] = [
+                'id' => (int) $row->id,
+                'key' => (string) $row->key,
+                'name_ar' => (string) ($row->name_ar ?? ''),
+                'name_en' => (string) ($row->name_en ?? ''),
+                'label' => $this->itemTypeLabel($row),
+                'is_default' => (bool) $row->is_default,
+                'sort_order' => (int) $row->sort_order,
+            ];
+        }
+
+        return $grouped;
+    }
+
+    protected function itemTypeLabel(PlatformServiceItemType $row): string
+    {
+        $ar = trim((string) ($row->name_ar ?? ''));
+        $en = trim((string) ($row->name_en ?? ''));
+
+        return $ar !== '' ? $ar : ($en !== '' ? $en : (string) $row->key);
     }
 }

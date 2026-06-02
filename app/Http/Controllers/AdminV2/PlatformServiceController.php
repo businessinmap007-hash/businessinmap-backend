@@ -160,7 +160,7 @@ class PlatformServiceController extends Controller
             'client_fee_type' => null,
             'client_fee_value' => 0,
 
-            'fee_currency' => null,
+            'fee_currency' => 'EGP',
             'fee_notes' => null,
 
             'rules' => null,

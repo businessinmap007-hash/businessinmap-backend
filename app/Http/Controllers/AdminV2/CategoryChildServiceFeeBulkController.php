@@ -62,7 +62,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             })
             ->with([
                 'parents:id,name_ar,name_en,parent_id',
-                'platformServices:id,key,name_ar,name_en,is_active,supports_deposit,max_deposit_percent',
+                'platformServices:id,key,name_ar,name_en,is_active,supports_deposit',
             ])
             ->orderByRaw('COALESCE(reorder, 999999) ASC')
             ->orderBy('id')
@@ -144,7 +144,6 @@ class CategoryChildServiceFeeBulkController extends Controller
                 'name_ar',
                 'name_en',
                 'supports_deposit',
-                'max_deposit_percent',
                 'is_active',
             ]);
 

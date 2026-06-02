@@ -95,6 +95,19 @@ class PlatformService extends Model
     |--------------------------------------------------------------------------
     */
 
+    public function itemTypes(): HasMany
+{
+    return $this->hasMany(PlatformServiceItemType::class, 'platform_service_id')
+        ->ordered();
+}
+
+    public function activeItemTypes(): HasMany
+    {
+        return $this->hasMany(PlatformServiceItemType::class, 'platform_service_id')
+            ->active()
+            ->ordered();
+    }
+
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(

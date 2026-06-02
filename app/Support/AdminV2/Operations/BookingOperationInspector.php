@@ -18,7 +18,7 @@ final class BookingOperationInspector
     {
         $booking->loadMissing([
             'business:id,name,category_id,category_child_id',
-            'service:id,key,name_ar,name_en,supports_deposit,max_deposit_percent',
+            'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
             'latestDeposit',
             'latestDispute',

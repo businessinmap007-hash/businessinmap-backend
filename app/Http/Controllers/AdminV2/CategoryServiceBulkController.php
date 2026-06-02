@@ -218,18 +218,6 @@ class CategoryServiceBulkController extends Controller
                 'name_ar',
                 'name_en',
                 'supports_deposit',
-                'max_deposit_percent',
-
-                'business_fee_enabled',
-                'business_fee_type',
-                'business_fee_value',
-
-                'client_fee_enabled',
-                'client_fee_type',
-                'client_fee_value',
-
-                'fee_currency',
-                'fee_notes',
             ]);
 
         $activeServiceCounts = $this->activeServiceCountsForRoot(

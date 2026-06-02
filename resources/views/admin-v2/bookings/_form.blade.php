@@ -134,7 +134,7 @@
 
                     <div class="bk-dropdown" id="service_dropdown">
                         @foreach($services->where('key', 'booking') as $service)
-                            <button type="button" class="bk-option service-option" data-id="{{ $service->id }}" data-name="{{ $service->name_ar ?: $service->name_en }}" data-key="{{ $service->key }}" data-supports-deposit="{{ (int)($service->supports_deposit ?? 0) }}">
+                            <div class="bk-kv"><span>مصدر سياسة الديبوزت</span><strong id="summary_deposit_policy_source">—</strong></div>
                                 <strong>{{ $service->name_ar ?: $service->name_en }}</strong>
                                 @if(!empty($service->key)) <span class="bk-option-sub">({{ $service->key }})</span> @endif
                             </button>

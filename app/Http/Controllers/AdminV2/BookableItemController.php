@@ -7,6 +7,7 @@ use App\Models\BookableItem;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
+use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -225,9 +226,15 @@ class BookableItemController extends Controller
 
         $allowedItemTypes = $this->allowedItemTypesFor((int) $business->id, (int) $service->id);
 
-        if (! empty($allowedItemTypes) && ! in_array($data['item_type'], $allowedItemTypes, true)) {
+        if ($allowedItemTypes === []) {
             throw ValidationException::withMessages([
-                'item_type' => 'نوع العنصر غير مسموح لهذا التصنيف مع هذه الخدمة.',
+                'item_type' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.',
+            ]);
+        }
+
+        if (! in_array($data['item_type'], $allowedItemTypes, true)) {
+            throw ValidationException::withMessages([
+                'item_type' => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.',
             ]);
         }
 
@@ -323,6 +330,33 @@ class BookableItemController extends Controller
             return [];
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | المصدر الأساسي لأنواع العناصر
+        |--------------------------------------------------------------------------
+        | بعد BIM-PlatformService-ItemTypes-Architecture:
+        | platform_service_item_types هو المصدر الأساسي.
+        | CategoryServiceConfig.allowed_item_types يستخدم فقط كتقييد اختياري
+        | وليس كمصدر رئيسي.
+        |--------------------------------------------------------------------------
+        */
+        $baseTypes = PlatformServiceItemType::query()
+            ->where('platform_service_id', (int) $service->id)
+            ->where('is_active', 1)
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id')
+            ->get(['key'])
+            ->pluck('key')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($baseTypes === []) {
+            return [];
+        }
+
         $serviceConfig = null;
 
         if ($childId > 0) {
@@ -333,7 +367,6 @@ class BookableItemController extends Controller
                 ->first();
         }
 
-        // fallback مؤقت للبيانات القديمة
         if (! $serviceConfig && $categoryId > 0) {
             $serviceConfig = CategoryServiceConfig::query()
                 ->forCategory($categoryId)
@@ -343,23 +376,28 @@ class BookableItemController extends Controller
         }
 
         if (! $serviceConfig) {
-            return [];
+            return $baseTypes;
         }
 
         $config = is_array($serviceConfig->config)
             ? $serviceConfig->config
             : [];
 
-        $allowedItemTypes = $config['allowed_item_types'] ?? [];
+        $restrictedTypes = $config['allowed_item_types'] ?? [];
 
-        if (! is_array($allowedItemTypes)) {
-            return [];
+        if (! is_array($restrictedTypes) || $restrictedTypes === []) {
+            return $baseTypes;
         }
 
-        return collect($allowedItemTypes)
+        $restrictedTypes = collect($restrictedTypes)
             ->map(fn ($value) => trim((string) $value))
             ->filter()
             ->unique()
+            ->values()
+            ->all();
+
+        return collect($baseTypes)
+            ->filter(fn ($type) => in_array($type, $restrictedTypes, true))
             ->values()
             ->all();
     }

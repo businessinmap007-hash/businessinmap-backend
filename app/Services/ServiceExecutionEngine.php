@@ -67,18 +67,29 @@ class ServiceExecutionEngine
             ]);
         }
 
-        $businessPrice = $this->resolveBusinessServicePrice($businessId, $serviceId, $childId);
-
-        if (! $businessPrice) {
-            throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.',
-            ]);
-        }
-
         $bookable = null;
 
         if ($bookableId) {
             $bookable = $this->resolveBookableItem($businessId, $serviceId, $bookableId);
+        }
+
+        $itemType = $bookable
+            ? trim((string) ($bookable->item_type ?? ''))
+            : null;
+
+        $businessPrice = $this->resolveBusinessServicePrice(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            childId: $childId,
+            itemType: $itemType
+        );
+
+        if (! $businessPrice) {
+            throw ValidationException::withMessages([
+                'service_id' => $itemType
+                    ? "لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر ({$itemType})."
+                    : 'هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.',
+            ]);
         }
 
         $priceBreakdown = $this->resolvePriceBreakdown(
@@ -640,10 +651,19 @@ class ServiceExecutionEngine
 
         $childId = (int) ($booking->business?->category_child_id ?? 0);
 
+        $bookable = $booking->bookable instanceof BookableItem
+            ? $booking->bookable
+            : null;
+
+        $itemType = $bookable
+            ? trim((string) ($bookable->item_type ?? ''))
+            : null;
+
         $businessPrice = $this->resolveBusinessServicePrice(
             businessId: (int) $booking->business_id,
             serviceId: (int) $booking->service_id,
-            childId: $childId
+            childId: $childId,
+            itemType: $itemType
         );
 
         if (! $booking->service || ! $businessPrice) {
@@ -664,10 +684,6 @@ class ServiceExecutionEngine
                 'source' => 'none',
             ];
         }
-
-        $bookable = $booking->bookable instanceof BookableItem
-            ? $booking->bookable
-            : null;
 
         $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
 
@@ -722,32 +738,92 @@ class ServiceExecutionEngine
         ];
     }
 
-    protected function resolveBusinessServicePrice(int $businessId, int $serviceId, int $childId = 0): ?BusinessServicePrice
-    {
+    protected function resolveBusinessServicePrice(
+        int $businessId,
+        int $serviceId,
+        int $childId = 0,
+        ?string $itemType = null
+    ): ?BusinessServicePrice {
         if ($businessId <= 0 || $serviceId <= 0) {
             return null;
         }
 
-        if ($childId > 0) {
-            $row = BusinessServicePrice::query()
+        $itemType = trim((string) $itemType);
+        $defaultItemType = BusinessServicePrice::DEFAULT_ITEM_TYPE;
+
+        $find = function (?int $child, ?string $type) use ($businessId, $serviceId): ?BusinessServicePrice {
+            $query = BusinessServicePrice::query()
                 ->where('business_id', $businessId)
-                ->where('child_id', $childId)
                 ->where('service_id', $serviceId)
-                ->where('is_active', 1)
+                ->where('is_active', 1);
+
+            if ($child !== null) {
+                $query->where('child_id', $child);
+            }
+
+            if ($type !== null && $type !== '') {
+                $query->where('bookable_item_type', $type);
+            }
+
+            return $query
                 ->orderByDesc('id')
                 ->first();
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Priority
+        |--------------------------------------------------------------------------
+        | 1) نفس القسم الفرعي + نفس نوع العنصر
+        | 2) نفس القسم الفرعي + category default
+        | 3) نفس القسم الفرعي + أي سعر legacy
+        | 4) نفس البزنس والخدمة + نفس نوع العنصر بدون child
+        | 5) نفس البزنس والخدمة + category default بدون child
+        | 6) نفس البزنس والخدمة + أي سعر legacy
+        |--------------------------------------------------------------------------
+        */
+
+        if ($childId > 0) {
+            if ($itemType !== '') {
+                $row = $find($childId, $itemType);
+
+                if ($row) {
+                    return $row;
+                }
+            }
+
+            if ($itemType !== $defaultItemType) {
+                $row = $find($childId, $defaultItemType);
+
+                if ($row) {
+                    return $row;
+                }
+            }
+
+            $row = $find($childId, null);
 
             if ($row) {
                 return $row;
             }
         }
 
-        return BusinessServicePrice::query()
-            ->where('business_id', $businessId)
-            ->where('service_id', $serviceId)
-            ->where('is_active', 1)
-            ->orderByDesc('id')
-            ->first();
+        if ($itemType !== '') {
+            $row = $find(null, $itemType);
+
+            if ($row) {
+                return $row;
+            }
+        }
+
+        if ($itemType !== $defaultItemType) {
+            $row = $find(null, $defaultItemType);
+
+            if ($row) {
+                return $row;
+            }
+        }
+
+        return $find(null, null);
     }
 
     protected function resolveBookableItem(int $businessId, int $serviceId, int $bookableId): ?BookableItem

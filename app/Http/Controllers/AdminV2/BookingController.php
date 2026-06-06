@@ -15,6 +15,7 @@ use App\Services\BookingDepositService;
 use App\Services\BookingReminderService;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
+use App\Models\PlatformServiceItemType;
 use App\Support\AdminV2\Operations\OperationPresenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -365,7 +366,7 @@ class BookingController extends Controller
         $serviceConfig = $this->resolveServiceConfigForBusiness($businessId, $serviceId);
         $config = $serviceConfig ? $serviceConfig->configArray() : [];
 
-        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+        $allowedItemTypes = $this->allowedItemTypesForServiceAndConfig($serviceId, $config);
         $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
 
         $query = BookableItem::query()
@@ -484,7 +485,7 @@ class BookingController extends Controller
         $config = $serviceConfig ? $serviceConfig->configArray() : [];
 
         $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
-        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+        $allowedItemTypes = $this->allowedItemTypesForServiceAndConfig($serviceId, $config);
 
         if ($requiresBookableItem && $bookableId <= 0) {
             return response()->json([
@@ -1104,7 +1105,7 @@ class BookingController extends Controller
         $config = $serviceConfig ? $serviceConfig->configArray() : [];
 
         $requiresBookableItem = $this->requiresBookableItemFromConfig($config);
-        $allowedItemTypes = $this->allowedItemTypesFromConfig($config);
+        $allowedItemTypes = $this->allowedItemTypesForServiceAndConfig($serviceId, $config);
 
         if ($requiresBookableItem && empty($data['bookable_id'])) {
             throw ValidationException::withMessages([
@@ -1334,7 +1335,10 @@ class BookingController extends Controller
             'exists' => (bool) $serviceConfig,
             'id' => $serviceConfig ? (int) $serviceConfig->id : null,
             'requires_bookable_item' => $this->requiresBookableItemFromConfig($config),
-            'allowed_item_types' => $this->allowedItemTypesFromConfig($config),
+            'allowed_item_types' => $this->allowedItemTypesForServiceAndConfig(
+                (int) ($serviceConfig->platform_service_id ?? $serviceConfig->service_id ?? 0),
+                $config
+            ),
             'booking_modes' => data_get($config, 'booking_modes', []),
             'item_family' => data_get($config, 'item_family'),
             'requires_start_end' => filter_var(data_get($config, 'requires_start_end', false), FILTER_VALIDATE_BOOLEAN),
@@ -1343,6 +1347,40 @@ class BookingController extends Controller
             'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
             'required_fields' => data_get($config, 'required_fields', []),
         ];
+    }
+
+    protected function allowedItemTypesForServiceAndConfig(int $serviceId, array $config = []): array
+    {
+        if ($serviceId <= 0) {
+            return [];
+        }
+
+        $baseTypes = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id')
+            ->pluck('key')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($baseTypes === []) {
+            return [];
+        }
+
+        $restrictedTypes = $this->allowedItemTypesFromConfig($config);
+
+        if ($restrictedTypes === []) {
+            return $baseTypes;
+        }
+
+        return collect($baseTypes)
+            ->filter(fn ($type) => in_array($type, $restrictedTypes, true))
+            ->values()
+            ->all();
     }
 
     protected function allowedItemTypesFromConfig(array $config): array

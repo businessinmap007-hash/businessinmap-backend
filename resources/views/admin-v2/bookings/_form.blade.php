@@ -167,40 +167,47 @@
                     <div id="bookable_hint" class="a2-hint">اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.</div>
                 </div>
 
-                <div id="duration_unit_wrap">
-                    <label class="a2-label">نمط المدة</label>
-                    <select name="duration_unit" id="duration_unit" class="a2-select">
-                        <option value="day" @selected($durationMode === 'day')>يوم</option>
-                        <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
-                        <option value="minute" @selected($durationMode === 'minute')>دقيقة</option>
-                    </select>
-                </div>
+                    <div id="duration_unit_wrap">
+                        <label class="a2-label">نمط المدة</label>
+                        <select name="duration_unit" id="duration_unit" class="a2-select">
+                            <option value="day" @selected($durationMode === 'day')>يوم</option>
+                            <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
+                            <option value="minute" @selected($durationMode === 'minute')>دقيقة</option>
+                        </select>
+                    </div>
 
-                <div id="start_date_wrap">
-                    <label class="a2-label">تاريخ البداية</label>
-                    <input type="date" id="start_date" name="date" class="a2-input" value="{{ $startDateValue }}" required>
-                </div>
+                    <div class="bk-form-span-full" id="datetime_range_wrap">
+                        @include('admin-v2.components.datetime-range-24', [
+                            'startName' => 'starts_at',
+                            'endName' => 'ends_at',
+                            'startValue' => old('starts_at', $booking->starts_at ?? null),
+                            'endValue' => old('ends_at', $booking->ends_at ?? null),
+                            'labelStart' => 'تاريخ / وقت البداية',
+                            'labelEnd' => 'تاريخ / وقت النهاية',
+                            'minuteStep' => 15,
+                            'required' => true,
+                            'uid' => 'booking_dt24',
+                        ])
 
-                <div id="start_time_wrap">
-                    <label class="a2-label">وقت البداية</label>
-                    <input type="time" id="start_time" name="time" class="a2-input" value="{{ $startTimeValue }}">
-                </div>
+                        <input type="hidden" id="start_date" name="date" value="{{ $startDateValue }}">
+                        <input type="hidden" id="start_time" name="time" value="{{ $startTimeValue }}">
+                        <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
 
-                <div id="ends_at_wrap">
-                    <label class="a2-label">تاريخ/وقت النهاية</label>
-                    <input type="datetime-local" id="ends_at" name="ends_at" class="a2-input" value="{{ $endsAtValue }}">
-                </div>
+                        <div class="a2-help-block">
+                            يتم إرسال التاريخ والوقت للكنترول بنفس الحقول القديمة:
+                            <span dir="ltr">starts_at / ends_at / date / time / duration_value</span>
+                        </div>
+                    </div>
 
-                <div id="quantity_wrap">
-                    <label class="a2-label">الكمية / المدة</label>
-                    <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
-                </div>
+                    <div id="quantity_wrap">
+                        <label class="a2-label">الكمية / المدة</label>
+                        <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
+                    </div>
 
-                <div id="duration_preview_wrap">
-                    <label class="a2-label">المدة المحسوبة</label>
-                    <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
-                    <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
-                </div>
+                    <div id="duration_preview_wrap">
+                        <label class="a2-label">المدة المحسوبة</label>
+                        <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
+                    </div>
 
                 <div id="party_size_wrap">
                     <label class="a2-label">عدد الأفراد</label>
@@ -457,102 +464,121 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function pad(n) { return String(n).padStart(2, '0'); }
 
+    function parseDateTimeLocal(value) {
+        if (!value) return null;
+
+        const normalized = String(value).replace(' ', 'T').slice(0, 16);
+        const date = new Date(normalized + ':00');
+
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function toLocalDateTimeValue(date) {
-        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+        return date.getFullYear()
+            + '-' + pad(date.getMonth() + 1)
+            + '-' + pad(date.getDate())
+            + 'T'
+            + pad(date.getHours())
+            + ':'
+            + pad(date.getMinutes());
     }
 
     function toServerDateTime(value) {
         if (!value) return '';
-        return value.replace('T', ' ') + (value.length === 16 ? ':00' : '');
+        return String(value).replace('T', ' ') + (String(value).length === 16 ? ':00' : '');
     }
 
-    function parseDateTime(date, time = '00:00') {
-        if (!date) return null;
-        return new Date(date + 'T' + (time || '00:00') + ':00');
+    function syncLegacyDateTimeFields() {
+        const startsAt = document.getElementById('booking_dt24_start_hidden');
+        const startValue = startsAt ? String(startsAt.value || '') : '';
+
+        if (!startValue) {
+            if (startDate) startDate.value = '';
+            if (startTime) startTime.value = '';
+            return;
+        }
+
+        if (startDate) {
+            startDate.value = startValue.slice(0, 10);
+        }
+
+        if (startTime) {
+            startTime.value = startValue.slice(11, 16);
+        }
     }
 
     function updateModeUI() {
         const mode = durationUnit.value;
         const isDay = mode === 'day';
-        startTimeWrap.style.display = isDay ? 'none' : '';
-        allDayCheckbox.checked = isDay;
+
+        if (startTimeWrap) {
+            startTimeWrap.style.display = isDay ? 'none' : '';
+        }
+
+        if (allDayCheckbox) {
+            allDayCheckbox.checked = isDay;
+        }
+    }
+
+    function durationLabel(totalMinutes, mode) {
+        if (totalMinutes <= 0) {
+            return 'المدة غير صحيحة';
+        }
+
+        if (mode === 'day') {
+            const days = Math.max(Math.ceil(totalMinutes / 1440), 1);
+            return days + ' يوم';
+        }
+
+        if (mode === 'hour') {
+            const hours = Math.max(Math.ceil(totalMinutes / 60), 1);
+            return hours + ' ساعة';
+        }
+
+        return Math.max(totalMinutes, 1) + ' دقيقة';
     }
 
     function updateDurationAndEnd() {
-        const mode = durationUnit.value;
-        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
-        const sDate = startDate.value;
-        const sTime = startTime.value || '00:00';
-
         updateModeUI();
+        syncLegacyDateTimeFields();
 
-        if (!sDate) {
+        const startsAtHidden = document.getElementById('booking_dt24_start_hidden');
+        const endsAtHidden = document.getElementById('booking_dt24_end_hidden');
+
+        const startValue = startsAtHidden ? String(startsAtHidden.value || '') : '';
+        const endValue = endsAtHidden ? String(endsAtHidden.value || '') : '';
+
+        const start = parseDateTimeLocal(startValue);
+        const end = parseDateTimeLocal(endValue);
+
+        const mode = durationUnit.value;
+        let qty = Math.max(parseInt(quantity.value || '1', 10), 1);
+
+        if (!start) {
             durationPreview.value = '—';
             durationValue.value = '';
             return;
         }
 
-        if (mode === 'day') {
-            const start = new Date(sDate + 'T00:00:00');
-            if (endsAt.value) {
-                const endDateOnly = endsAt.value.slice(0, 10);
-                const end = new Date(endDateOnly + 'T00:00:00');
-                const diffMs = end.getTime() - start.getTime();
-                const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                if (diffDays > 0) {
-                    durationValue.value = diffDays;
-                    durationPreview.value = diffDays + ' يوم';
-                    quantity.value = diffDays;
-                    return;
-                }
+        if (start && end && end.getTime() > start.getTime()) {
+            const totalMinutes = Math.ceil((end.getTime() - start.getTime()) / 60000);
+
+            if (mode === 'day') {
+                qty = Math.max(Math.ceil(totalMinutes / 1440), 1);
+            } else if (mode === 'hour') {
+                qty = Math.max(Math.ceil(totalMinutes / 60), 1);
+            } else {
+                qty = Math.max(totalMinutes, 1);
             }
+
             durationValue.value = qty;
-            durationPreview.value = qty + ' يوم';
-            const end = new Date(start.getTime());
-            end.setDate(end.getDate() + qty);
-            end.setHours(12, 0, 0, 0);
-            endsAt.value = toLocalDateTimeValue(end);
+            quantity.value = qty;
+            durationPreview.value = durationLabel(totalMinutes, mode);
             return;
         }
 
-        if (mode === 'hour') {
-            const start = parseDateTime(sDate, sTime);
-            if (!start) return;
-            if (endsAt.value) {
-                const end = new Date(endsAt.value);
-                const diffMs = end.getTime() - start.getTime();
-                const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-                if (diffHours > 0) {
-                    durationValue.value = diffHours;
-                    durationPreview.value = diffHours + ' ساعة';
-                    quantity.value = diffHours;
-                    return;
-                }
-            }
-            durationValue.value = qty;
-            durationPreview.value = qty + ' ساعة';
-            endsAt.value = toLocalDateTimeValue(new Date(start.getTime() + (qty * 60 * 60 * 1000)));
-            return;
-        }
-
-        if (mode === 'minute') {
-            const start = parseDateTime(sDate, sTime);
-            if (!start) return;
-            if (endsAt.value) {
-                const end = new Date(endsAt.value);
-                const diffMs = end.getTime() - start.getTime();
-                const diffMinutes = Math.ceil(diffMs / (1000 * 60));
-                if (diffMinutes > 0) {
-                    durationValue.value = diffMinutes;
-                    durationPreview.value = diffMinutes + ' دقيقة';
-                    quantity.value = diffMinutes;
-                    return;
-                }
-            }
-            durationValue.value = qty;
-            durationPreview.value = qty + ' دقيقة';
-            endsAt.value = toLocalDateTimeValue(new Date(start.getTime() + (qty * 60 * 1000)));
-        }
+        durationValue.value = qty;
+        durationPreview.value = qty + (mode === 'day' ? ' يوم' : (mode === 'hour' ? ' ساعة' : ' دقيقة'));
     }
 
     function syncBookableHidden() {
@@ -710,11 +736,19 @@ document.addEventListener('DOMContentLoaded', function () {
             url.searchParams.set('quantity', qty);
             if (bookableId) url.searchParams.set('bookable_id', bookableId);
 
-            const startsAt = startDate.value
-                ? (durationUnit.value === 'day' ? startDate.value + ' 00:00:00' : startDate.value + ' ' + (startTime.value || '00:00') + ':00')
-                : '';
-            if (startsAt) url.searchParams.set('starts_at', startsAt);
-            if (endsAt.value) url.searchParams.set('ends_at', toServerDateTime(endsAt.value));
+            const startsAtHidden = document.getElementById('booking_dt24_start_hidden');
+            const endsAtHidden = document.getElementById('booking_dt24_end_hidden');
+
+            const startsAt = startsAtHidden ? String(startsAtHidden.value || '') : '';
+            const endValue = endsAtHidden ? String(endsAtHidden.value || '') : '';
+
+            if (startsAt) {
+                url.searchParams.set('starts_at', toServerDateTime(startsAt));
+            }
+
+            if (endValue) {
+                url.searchParams.set('ends_at', toServerDateTime(endValue));
+            }
 
             const res = await fetch(url.toString());
             const data = await res.json();
@@ -775,9 +809,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     quantity.addEventListener('input', function () { updateDurationAndEnd(); refreshPreview(); });
     durationUnit.addEventListener('change', function () { updateDurationAndEnd(); refreshPreview(); });
-    startDate.addEventListener('change', function () { updateDurationAndEnd(); refreshPreview(); });
-    startTime.addEventListener('change', function () { updateDurationAndEnd(); refreshPreview(); });
-    endsAt.addEventListener('change', function () { updateDurationAndEnd(); refreshPreview(); });
+        [
+        document.getElementById('booking_dt24_start_date'),
+        document.getElementById('booking_dt24_start_hour'),
+        document.getElementById('booking_dt24_start_minute'),
+        document.getElementById('booking_dt24_end_date'),
+        document.getElementById('booking_dt24_end_hour'),
+        document.getElementById('booking_dt24_end_minute'),
+    ].forEach(function (input) {
+        if (!input) return;
+
+        input.addEventListener('change', function () {
+            setTimeout(function () {
+                updateDurationAndEnd();
+                refreshPreview();
+            }, 0);
+        });
+
+        input.addEventListener('input', function () {
+            setTimeout(function () {
+                updateDurationAndEnd();
+                refreshPreview();
+            }, 0);
+        });
+    });
 
     form?.addEventListener('submit', function (e) {
         syncBookableHidden();

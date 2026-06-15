@@ -670,48 +670,89 @@
                         </form>
                     @endif
 
-                    @if($can(OperationAction::RELEASE_DEPOSIT))
-                        <form method="POST" action="{{ route('admin.bookings.deposit.release', $booking) }}">
-                            @csrf
-                            <button type="submit" class="a2-btn a2-btn-success a2-btn-block">
-                                Release Deposit
-                            </button>
-                        </form>
-                    @endif
+                    @php
+                            $depositStatus = (string) data_get($depositUi, 'status', '');
 
-                    @if($can(OperationAction::REFUND_DEPOSIT))
-                        <form method="POST" action="{{ route('admin.bookings.deposit.refund', $booking) }}">
-                            @csrf
-                            <button type="submit" class="a2-btn a2-btn-ghost a2-btn-block">
-                                Refund Deposit
-                            </button>
-                        </form>
-                    @endif
+                            if ($deposit && $depositStatus === '') {
+                                $rawDepositStatus = $deposit->status ?? null;
 
-                    @if($can(OperationAction::OPEN_DISPUTE))
-                        <form method="POST" action="{{ route('admin.bookings.deposit.dispute.open', $booking) }}">
-                            @csrf
-                            <button type="submit" class="a2-btn a2-btn-danger a2-btn-block">
-                                Open Dispute
-                            </button>
-                        </form>
-                    @endif
+                                $depositStatus = $rawDepositStatus instanceof \BackedEnum
+                                    ? $rawDepositStatus->value
+                                    : (string) ($rawDepositStatus ?? '');
+                            }
 
-                    @if($deposit)
-                        <form method="POST" action="{{ route('admin.bookings.deposit.agree.release', $booking) }}">
-                            @csrf
-                            <button type="submit" class="a2-btn a2-btn-ghost a2-btn-block">
-                                Agree Release
-                            </button>
-                        </form>
+                            $depositIsFrozen = $depositStatus === 'frozen';
+                            $depositIsReleased = $depositStatus === 'released';
+                            $depositIsRefunded = $depositStatus === 'refunded';
+                            $depositIsFinal = $depositIsReleased || $depositIsRefunded;
+                        @endphp
 
-                        <form method="POST" action="{{ route('admin.bookings.deposit.agree.refund', $booking) }}">
-                            @csrf
-                            <button type="submit" class="a2-btn a2-btn-ghost a2-btn-block">
-                                Agree Refund
-                            </button>
-                        </form>
-                    @endif
+                        @if($can(OperationAction::RELEASE_DEPOSIT) && $depositIsFrozen)
+                            <form method="POST" action="{{ route('admin.bookings.deposit.release', $booking) }}">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="a2-btn a2-btn-success a2-btn-block"
+                                    onclick="return confirm('هل تريد عمل Release لهذا الديبوزت؟')"
+                                >
+                                    Release Deposit
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($can(OperationAction::REFUND_DEPOSIT) && $depositIsFrozen)
+                            <form method="POST" action="{{ route('admin.bookings.deposit.refund', $booking) }}">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="a2-btn a2-btn-ghost a2-btn-block"
+                                    onclick="return confirm('هل تريد عمل Refund لهذا الديبوزت؟')"
+                                >
+                                    Refund Deposit
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($can(OperationAction::OPEN_DISPUTE) && $depositIsFrozen)
+                            <form method="POST" action="{{ route('admin.bookings.deposit.dispute.open', $booking) }}">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="a2-btn a2-btn-danger a2-btn-block"
+                                    onclick="return confirm('هل تريد فتح نزاع على هذا الديبوزت؟')"
+                                >
+                                    Open Dispute
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($deposit && $depositIsFrozen)
+                            <form method="POST" action="{{ route('admin.bookings.deposit.agree.release', $booking) }}">
+                                @csrf
+                                <button type="submit" class="a2-btn a2-btn-ghost a2-btn-block">
+                                    Agree Release
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{{ route('admin.bookings.deposit.agree.refund', $booking) }}">
+                                @csrf
+                                <button type="submit" class="a2-btn a2-btn-ghost a2-btn-block">
+                                    Agree Refund
+                                </button>
+                            </form>
+                        @endif
+
+                        @if($deposit && $depositIsReleased)
+                            <div class="a2-alert a2-alert-success">
+                                تم عمل Release للديبوزت. لا يمكن تنفيذ Refund بعد Release.
+                            </div>
+                        @endif
+
+                        @if($deposit && $depositIsRefunded)
+                            <div class="a2-alert a2-alert-info">
+                                تم عمل Refund للديبوزت. لا يمكن تنفيذ Release بعد Refund.
+                            </div>
+                        @endif
 
                     @if($can(OperationAction::CANCEL))
                         <form method="POST" action="{{ route('admin.bookings.cancel', $booking) }}">

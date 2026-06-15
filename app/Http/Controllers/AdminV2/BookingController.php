@@ -698,7 +698,8 @@ class BookingController extends Controller
         try {
             $this->bookingDepositService->freezeForBooking(
                 $booking,
-                (float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0)
+                (float) ($depositPolicy['hold'] ?? $depositPolicy['wallet_hold_amount'] ?? $depositPolicy['amount'] ?? 0),
+                $depositPolicy
             );
 
             return back()->with('success', 'تم إنشاء Deposit وتجميد المبالغ بنجاح.');

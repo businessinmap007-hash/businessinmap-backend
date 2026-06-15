@@ -35,26 +35,76 @@
         }
     }
 
-    $parseDate = function ($value, $fallback = null) {
-        if (!$value) return $fallback;
-        try { return \Carbon\Carbon::parse($value); } catch (\Throwable $e) { return $fallback; }
+    $bookingTimezone = 'Africa/Cairo';
+
+    $parseDate = function ($value, $fallback = null, ?string $timezone = null) {
+        if (!$value) {
+            return $fallback;
+        }
+
+        try {
+            $carbon = \Carbon\Carbon::parse($value);
+
+            if ($timezone) {
+                $carbon = $carbon->setTimezone($timezone);
+            }
+
+            return $carbon;
+        } catch (\Throwable $e) {
+            return $fallback;
+        }
     };
 
-    $startCarbon = $parseDate(
-        old('starts_at', $booking->starts_at ?? null),
-        $parseDate(old('date', $booking->date ?? null), now('Africa/Cairo'))
+    $defaultStartCarbon = now($bookingTimezone)->startOfDay();
+
+    if (old('starts_at')) {
+        $startCarbon = $parseDate(old('starts_at'), null, null);
+    } elseif (! empty($booking->starts_at)) {
+        $startCarbon = $parseDate($booking->starts_at, null, $bookingTimezone);
+    } else {
+        $startCarbon = $parseDate(
+            old('date', $booking->date ?? null),
+            $defaultStartCarbon,
+            $bookingTimezone
+        );
+
+        if ($startCarbon) {
+            $startCarbon = $startCarbon->copy()->startOfDay();
+        }
+    }
+
+    if (old('ends_at')) {
+        $endCarbon = $parseDate(old('ends_at'), null, null);
+    } elseif (! empty($booking->ends_at)) {
+        $endCarbon = $parseDate($booking->ends_at, null, $bookingTimezone);
+    } else {
+        $endCarbon = null;
+    }
+
+    $startDateValue = old(
+        'date',
+        $startCarbon ? $startCarbon->format('Y-m-d') : now($bookingTimezone)->format('Y-m-d')
     );
 
-    $startDateValue = old('date', $startCarbon ? $startCarbon->format('Y-m-d') : now('Africa/Cairo')->format('Y-m-d'));
+    $timeRaw = old('time', null);
 
-    $timeRaw = old('time', $booking->time ?? null);
     if (!$timeRaw && $startCarbon) {
         $timeRaw = $startCarbon->format('H:i:s');
     }
+
     $startTimeValue = $timeRaw ? \Illuminate\Support\Str::limit((string) $timeRaw, 5, '') : '';
 
-    $endCarbon = $parseDate(old('ends_at', $booking->ends_at ?? $booking->end_at ?? null));
-    $endsAtValue = $endCarbon ? $endCarbon->format('Y-m-d\TH:i') : '';
+    $displayStartsAtValue = old(
+        'starts_at',
+        $startCarbon ? $startCarbon->format('Y-m-d\TH:i') : null
+    );
+
+    $displayEndsAtValue = old(
+        'ends_at',
+        $endCarbon ? $endCarbon->format('Y-m-d\TH:i') : null
+    );
+
+    $endsAtValue = $displayEndsAtValue ?: '';
 
     $durationMode = old('duration_unit', $booking->duration_unit ?? 'day');
     $durationValueOld = old('duration_value', $booking->duration_value ?? $booking->quantity ?? 1);
@@ -180,8 +230,8 @@
                         @include('admin-v2.components.datetime-range-24', [
                             'startName' => 'starts_at',
                             'endName' => 'ends_at',
-                            'startValue' => old('starts_at', $booking->starts_at ?? null),
-                            'endValue' => old('ends_at', $booking->ends_at ?? null),
+                            'startValue' => $displayStartsAtValue,
+                            'endValue' => $displayEndsAtValue,
                             'labelStart' => 'تاريخ / وقت البداية',
                             'labelEnd' => 'تاريخ / وقت النهاية',
                             'minuteStep' => 15,
@@ -224,8 +274,7 @@
                 </div>
 
                 <div>
-                    <label class="a2-label">Timezone</label>
-                    <input type="text" name="timezone" class="a2-input" value="{{ old('timezone', $booking->timezone ?? 'Africa/Cairo') }}">
+                    <input type="hidden" name="timezone" value="Africa/Cairo">
                 </div>
 
                 <div id="all_day_wrap" class="bk-check-wrap">

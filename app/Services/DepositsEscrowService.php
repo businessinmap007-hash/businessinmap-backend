@@ -229,22 +229,22 @@ class DepositsEscrowService
     {
         return DB::transaction(function () use ($deposit) {
 
-            $deposit = Deposit::where('id', $deposit->id)->lockForUpdate()->firstOrFail();
+            $statusValue = $this->depositStatusValue($deposit);
 
             // ✅ already released
-            if ($deposit->released_at !== null || (string)$deposit->status === DepositStatus::RELEASED->value) {
+            if ($deposit->released_at !== null || $statusValue === DepositStatus::RELEASED->value) {
                 return $deposit;
             }
 
             // ✅ do not allow if refunded
-            if ($deposit->refunded_at !== null || (string)$deposit->status === DepositStatus::REFUNDED->value) {
+            if ($deposit->refunded_at !== null || $statusValue === DepositStatus::REFUNDED->value) {
                 throw ValidationException::withMessages([
                     'deposit' => 'Cannot release a refunded deposit.',
                 ]);
             }
 
             // only frozen can be released
-            if ($deposit->status !== DepositStatus::FROZEN) {
+            if ($statusValue !== DepositStatus::FROZEN->value) {
                 throw ValidationException::withMessages([
                     'deposit' => 'Cannot release a non-frozen deposit.',
                 ]);
@@ -293,22 +293,22 @@ class DepositsEscrowService
 
         return DB::transaction(function () use ($deposit, $refundClient, $refundBusiness) {
 
-            $deposit = Deposit::where('id', $deposit->id)->lockForUpdate()->firstOrFail();
+            $statusValue = $this->depositStatusValue($deposit);
 
             // ✅ already refunded
-            if ($deposit->refunded_at !== null || (string)$deposit->status === DepositStatus::REFUNDED->value) {
+            if ($deposit->refunded_at !== null || $statusValue === DepositStatus::REFUNDED->value) {
                 return $deposit;
             }
 
             // ✅ do not allow if released
-            if ($deposit->released_at !== null || (string)$deposit->status === DepositStatus::RELEASED->value) {
+            if ($deposit->released_at !== null || $statusValue === DepositStatus::RELEASED->value) {
                 throw ValidationException::withMessages([
                     'deposit' => 'Cannot refund a released deposit.',
                 ]);
             }
 
             // only frozen can be refunded
-            if ($deposit->status !== DepositStatus::FROZEN) {
+            if ($statusValue !== DepositStatus::FROZEN->value) {
                 throw ValidationException::withMessages([
                     'deposit' => 'Cannot refund a non-frozen deposit.',
                 ]);
@@ -521,5 +521,19 @@ class DepositsEscrowService
         if ($value < 0) $value = 0;
 
         return number_format($value, 2, '.', '');
+    }
+    protected function depositStatusValue(?Deposit $deposit): ?string
+    {
+        if (! $deposit) {
+            return null;
+        }
+
+        $status = $deposit->status ?? null;
+
+        if ($status instanceof \BackedEnum) {
+            return $status->value;
+        }
+
+        return $status !== null ? (string) $status : null;
     }
 }

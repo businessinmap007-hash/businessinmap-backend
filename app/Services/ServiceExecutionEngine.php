@@ -425,21 +425,40 @@ class ServiceExecutionEngine
             $readiness = $this->ensureFinancialReadiness($booking);
 
             if ((bool) ($depositPolicy['required'] ?? false)) {
-                if (! $deposit || ! $deposit->isFrozen()) {
-                    $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
+                $walletHoldRequired = (bool) ($depositPolicy['wallet_hold_required'] ?? false);
+                $externalRequired = (bool) ($depositPolicy['external_deposit_required'] ?? false);
 
-                    if ($holdAmount <= 0) {
-                        throw ValidationException::withMessages([
-                            'deposit' => 'قيمة الـ Deposit المطلوبة غير صالحة.',
-                        ]);
+                if ($walletHoldRequired) {
+                    if (! $deposit || ! $deposit->isFrozen()) {
+                        $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['wallet_hold_amount'] ?? $depositPolicy['amount'] ?? 0), 2);
+
+                        if ($holdAmount <= 0) {
+                            throw ValidationException::withMessages([
+                                'deposit' => 'قيمة Wallet Hold المطلوبة غير صالحة.',
+                            ]);
+                        }
+
+                        $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount, $depositPolicy);
+                        $deposit->refresh();
+
+                        if (! $deposit->isFrozen()) {
+                            throw ValidationException::withMessages([
+                                'deposit' => 'تعذر تجميد الـ Deposit تلقائيًا. راجع حالة الـ Deposit الحالية.',
+                            ]);
+                        }
                     }
+                } elseif (! $deposit && $externalRequired) {
+                    throw ValidationException::withMessages([
+                        'deposit' => 'يجب إنشاء سجل العربون الخارجي واعتماده قبل بدء التنفيذ.',
+                    ]);
+                }
 
-                    $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount, $depositPolicy);
-                    $deposit->refresh();
+                if ($externalRequired) {
+                    $deposit = $deposit ?: $this->latestDeposit($booking);
 
-                    if (! $deposit->isFrozen()) {
+                    if (! $deposit || (string) ($deposit->external_deposit_status ?? '') !== 'verified') {
                         throw ValidationException::withMessages([
-                            'deposit' => 'تعذر تجميد الـ Deposit تلقائيًا. راجع حالة الـ Deposit الحالية.',
+                            'external_deposit' => 'يجب اعتماد العربون الخارجي قبل بدء التنفيذ.',
                         ]);
                     }
                 }

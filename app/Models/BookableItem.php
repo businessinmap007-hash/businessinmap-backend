@@ -20,10 +20,10 @@ class BookableItem extends Model
         'price',
         'capacity',
         'quantity',
+
         'deposit_enabled',
         'deposit_percent',
-        'is_active',
-        'meta',
+
         'deposit_policy_mode',
         'deposit_mode',
         'deposit_calculation_base',
@@ -36,19 +36,22 @@ class BookableItem extends Model
         'wallet_hold_enabled',
         'business_counter_hold_enabled',
         'business_counter_hold_percent',
+
+        'is_active',
+        'meta',
     ];
 
     protected $casts = [
-        'business_id'      => 'integer',
-        'service_id'       => 'integer',
-        'item_type'        => 'string',
-        'price'            => 'decimal:2',
-        'capacity'         => 'integer',
-        'quantity'         => 'integer',
-        'deposit_enabled'  => 'boolean',
-        'deposit_percent'  => 'integer',
-        'is_active'        => 'boolean',
-        'meta'             => 'array',
+        'business_id' => 'integer',
+        'service_id' => 'integer',
+        'item_type' => 'string',
+        'price' => 'decimal:2',
+        'capacity' => 'integer',
+        'quantity' => 'integer',
+
+        'deposit_enabled' => 'boolean',
+        'deposit_percent' => 'integer',
+
         'deposit_policy_mode' => 'string',
         'deposit_mode' => 'string',
         'deposit_calculation_base' => 'string',
@@ -61,13 +64,10 @@ class BookableItem extends Model
         'wallet_hold_enabled' => 'boolean',
         'business_counter_hold_enabled' => 'boolean',
         'business_counter_hold_percent' => 'decimal:2',
-    ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relations
-    |--------------------------------------------------------------------------
-    */
+        'is_active' => 'boolean',
+        'meta' => 'array',
+    ];
 
     public function business(): BelongsTo
     {
@@ -105,12 +105,6 @@ class BookableItem extends Model
             ->orderByDesc('id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Scopes
-    |--------------------------------------------------------------------------
-    */
-
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -144,12 +138,6 @@ class BookableItem extends Model
 
         return $query->where('item_type', $itemType);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Helpers
-    |--------------------------------------------------------------------------
-    */
 
     public function getDisplayNameAttribute(): string
     {

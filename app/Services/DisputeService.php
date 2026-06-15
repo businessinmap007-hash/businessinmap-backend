@@ -8,7 +8,6 @@ use App\Models\Dispute;
 use App\Models\PlatformService;
 use Illuminate\Validation\ValidationException;
 
-
 class DisputeService
 {
     public function __construct(
@@ -29,7 +28,11 @@ class DisputeService
             ->where('platform_service_id', $platformServiceId)
             ->where('disputeable_type', $disputeableType)
             ->where('disputeable_id', $disputeableId)
-            ->whereIn('status', ['open', 'under_review'])
+            ->whereIn('status', [
+                Dispute::STATUS_OPEN,
+                Dispute::STATUS_MUTUAL_RESOLUTION,
+                Dispute::STATUS_UNDER_REVIEW,
+            ])
             ->orderByDesc('id')
             ->first();
 
@@ -37,20 +40,65 @@ class DisputeService
             return $existing;
         }
 
+        $policySnapshot = is_array($payload['policy_snapshot'] ?? null)
+            ? $payload['policy_snapshot']
+            : [];
+
+        $resolutionDays = max((int) (
+            data_get($policySnapshot, 'dispute_resolution_days')
+            ?? data_get($policySnapshot, 'policy.dispute_resolution_days')
+            ?? $payload['dispute_resolution_days']
+            ?? 15
+        ), 1);
+
+        $warningEveryDays = max((int) (
+            data_get($policySnapshot, 'warning_every_days')
+            ?? data_get($policySnapshot, 'policy.warning_every_days')
+            ?? $payload['warning_every_days']
+            ?? 3
+        ), 1);
+
+        $now = now();
+
         return Dispute::create([
             'platform_service_id' => $platformServiceId,
-            'disputeable_type'    => $disputeableType,
-            'disputeable_id'      => $disputeableId,
-            'opened_by_user_id'   => $openedByUserId,
-            'against_user_id'     => $againstUserId,
-            'status'              => 'open',
-            'reason_code'         => $payload['reason_code'] ?? null,
-            'reason_text'         => $payload['reason_text'] ?? null,
-            'resolution_type'     => null,
-            'resolution_payload'  => null,
-            'opened_at'           => now(),
-            'resolved_at'         => null,
-            'closed_at'           => null,
+            'disputeable_type' => $disputeableType,
+            'disputeable_id' => $disputeableId,
+            'opened_by_user_id' => $openedByUserId,
+            'against_user_id' => $againstUserId,
+
+            'status' => Dispute::STATUS_MUTUAL_RESOLUTION,
+            'type' => $payload['type'] ?? 'deposit',
+            'deposit_id' => isset($payload['deposit_id']) ? (int) $payload['deposit_id'] : null,
+
+            'reason_code' => $payload['reason_code'] ?? null,
+            'reason_text' => $payload['reason_text'] ?? null,
+
+            'resolution_type' => null,
+            'resolution_payload' => null,
+
+            'opened_at' => $now,
+            'mutual_resolution_started_at' => $now,
+            'mutual_resolution_deadline_at' => $now->copy()->addDays($resolutionDays),
+            'warning_every_days' => $warningEveryDays,
+            'last_warning_sent_at' => null,
+            'next_warning_at' => $now->copy()->addDays($warningEveryDays),
+            'warning_count' => 0,
+
+            'client_cooperated_at' => null,
+            'business_cooperated_at' => null,
+            'client_non_cooperation_flag' => false,
+            'business_non_cooperation_flag' => false,
+
+            'resolved_at' => null,
+            'closed_at' => null,
+            'resolved_by' => null,
+
+            'meta' => [
+                'actor_id' => $actorId,
+                'policy_snapshot' => $policySnapshot,
+                'source_payload' => $payload,
+            ],
         ]);
     }
 
@@ -83,7 +131,11 @@ class DisputeService
         array $resolutionPayload = [],
         ?int $actorId = null
     ): Dispute {
-        if (! in_array($dispute->status, ['open', 'under_review'], true)) {
+        if (! in_array($dispute->status, [
+            Dispute::STATUS_OPEN,
+            Dispute::STATUS_MUTUAL_RESOLUTION,
+            Dispute::STATUS_UNDER_REVIEW,
+        ], true)) {
             throw ValidationException::withMessages([
                 'status' => 'الحالة الحالية للنزاع لا تسمح بتنفيذ القرار.',
             ]);
@@ -99,9 +151,17 @@ class DisputeService
             );
         }
 
+        $payload = is_array($dispute->resolution_payload ?? null)
+            ? $dispute->resolution_payload
+            : [];
+
+        $payload['resolved_by'] = $actorId;
+        $payload['resolution_payload'] = $resolutionPayload;
+
         $dispute->resolution_type = $resolutionType;
-        $dispute->resolution_payload = $resolutionPayload;
-        $dispute->status = 'resolved';
+        $dispute->resolution_payload = $payload;
+        $dispute->status = Dispute::STATUS_RESOLVED;
+        $dispute->resolved_by = $actorId;
         $dispute->resolved_at = now();
         $dispute->save();
 
@@ -139,13 +199,10 @@ class DisputeService
                 break;
 
             case 'no_action':
-                // لا يوجد إجراء مالي
                 break;
 
             case 'split':
-                // حاليًا لا توجد طبقة توزيع جزئي فعلية على locked balances
-                // لذلك نحفظ القرار فقط إلى أن يتم بناء wallet-hold split engine.
-                $clientPercent   = (float) ($resolutionPayload['client_percent'] ?? 0);
+                $clientPercent = (float) ($resolutionPayload['client_percent'] ?? 0);
                 $businessPercent = (float) ($resolutionPayload['business_percent'] ?? 0);
 
                 if (round($clientPercent + $businessPercent, 2) !== 100.00) {
@@ -153,6 +210,7 @@ class DisputeService
                         'split' => 'مجموع النسب يجب أن يساوي 100%.',
                     ]);
                 }
+
                 break;
 
             default:

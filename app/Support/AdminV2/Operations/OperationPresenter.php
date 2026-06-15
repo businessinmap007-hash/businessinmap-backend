@@ -290,6 +290,16 @@ final class OperationPresenter
             $policy = [];
         }
 
+        $depositStatus = null;
+
+        if ($deposit) {
+            $rawStatus = $deposit->status ?? null;
+
+            $depositStatus = $rawStatus instanceof \BackedEnum
+                ? $rawStatus->value
+                : (string) ($rawStatus ?? '');
+        }
+
         return [
             'required' => (bool) data_get($policy, 'required', false),
             'amount' => round((float) data_get($policy, 'amount', data_get($policy, 'hold', 0)), 2),
@@ -312,7 +322,7 @@ final class OperationPresenter
 
             'exists' => (bool) $deposit,
             'id' => $deposit ? (int) $deposit->id : null,
-            'status' => $deposit ? (string) ($deposit->status ?? '') : null,
+            'status' => $depositStatus,
             'total_amount' => $deposit ? round((float) ($deposit->total_amount ?? 0), 2) : 0.00,
             'client_amount' => $deposit ? round((float) ($deposit->client_amount ?? 0), 2) : 0.00,
             'business_amount' => $deposit ? round((float) ($deposit->business_amount ?? 0), 2) : 0.00,
@@ -331,7 +341,7 @@ final class OperationPresenter
 
             'is_frozen' => $deposit && method_exists($deposit, 'isFrozen')
                 ? (bool) $deposit->isFrozen()
-                : ((string) ($deposit->status ?? '') === 'frozen'),
+                : ($depositStatus === 'frozen'),
         ];
     }
 

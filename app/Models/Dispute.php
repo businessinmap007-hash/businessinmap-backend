@@ -25,6 +25,15 @@ class Dispute extends Model
         'opened_at',
         'resolved_at',
         'closed_at',
+        'deposit_id','type',
+        'mutual_resolution_started_at',
+        'mutual_resolution_deadline_at',
+        'warning_every_days','last_warning_sent_at',
+        'next_warning_at','warning_count','client_cooperated_at',
+        'business_cooperated_at','client_non_cooperation_flag',
+        'business_non_cooperation_flag','client_amount',
+        'business_amount','platform_fee_amount','non_cooperation_fee_amount',
+        'resolved_by','meta',
     ];
 
     protected $casts = [
@@ -32,6 +41,21 @@ class Dispute extends Model
         'opened_at' => 'datetime',
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
+        'mutual_resolution_started_at' => 'datetime',
+        'mutual_resolution_deadline_at' => 'datetime',
+        'last_warning_sent_at' => 'datetime',
+        'next_warning_at' => 'datetime',
+        'warning_count' => 'integer',
+        'client_cooperated_at' => 'datetime',
+        'business_cooperated_at' => 'datetime',
+        'client_non_cooperation_flag' => 'boolean',
+        'business_non_cooperation_flag' => 'boolean',
+        'client_amount' => 'decimal:2',
+        'business_amount' => 'decimal:2',
+        'platform_fee_amount' => 'decimal:2',
+        'non_cooperation_fee_amount' => 'decimal:2',
+        'resolved_by' => 'integer',
+        'meta' => 'array',
     ];
 
     public const STATUS_OPEN = 'open';
@@ -39,6 +63,8 @@ class Dispute extends Model
     public const STATUS_RESOLVED = 'resolved';
     public const STATUS_CLOSED = 'closed';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_MUTUAL_RESOLUTION = 'mutual_resolution';
+    public const STATUS_EXPIRED = 'expired';
 
     public static function statusOptions(): array
     {
@@ -48,6 +74,8 @@ class Dispute extends Model
             self::STATUS_RESOLVED => 'Resolved',
             self::STATUS_CLOSED => 'Closed',
             self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_MUTUAL_RESOLUTION => 'Mutual Resolution',
+            self::STATUS_EXPIRED => 'Expired',
         ];
     }
 
@@ -118,6 +146,16 @@ class Dispute extends Model
         return $this->status === self::STATUS_CANCELLED;
     }
 
+    public function isMutualResolution(): bool
+    {
+        return $this->status === self::STATUS_MUTUAL_RESOLUTION;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
+    }
+
     public function isActive(): bool
     {
         return in_array($this->status, [
@@ -130,4 +168,13 @@ class Dispute extends Model
     {
         return self::statusOptions()[$this->status] ?? (string) $this->status;
     }
+    public function deposit(): BelongsTo
+{
+    return $this->belongsTo(Deposit::class, 'deposit_id');
+}
+
+public function warnings(): HasMany
+{
+    return $this->hasMany(DisputeWarning::class, 'dispute_id')->orderByDesc('id');
+}
 }

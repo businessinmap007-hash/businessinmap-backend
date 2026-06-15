@@ -56,6 +56,18 @@ class User extends Authenticatable
         'balance',
         'pin_attempts',
         'pin_locked_until',
+        'deposit_policy_mode',
+        'deposit_mode',
+        'deposit_calculation_base',
+        'deposit_type',
+        'deposit_value',
+        'max_deposit_percent',
+        'min_deposit_amount',
+        'max_deposit_amount',
+        'external_verification_enabled',
+        'wallet_hold_enabled',
+        'business_counter_hold_enabled',
+        'business_counter_hold_percent',
     ];
 
     protected $hidden = [
@@ -77,6 +89,18 @@ class User extends Authenticatable
         'booking_hold_amount'  => 'decimal:2',
 
         'deleted_at'        => 'datetime',
+        'deposit_policy_mode' => 'string',
+        'deposit_mode' => 'string',
+        'deposit_calculation_base' => 'string',
+        'deposit_type' => 'string',
+        'deposit_value' => 'decimal:2',
+        'max_deposit_percent' => 'decimal:2',
+        'min_deposit_amount' => 'decimal:2',
+        'max_deposit_amount' => 'decimal:2',
+        'external_verification_enabled' => 'boolean',
+        'wallet_hold_enabled' => 'boolean',
+        'business_counter_hold_enabled' => 'boolean',
+        'business_counter_hold_percent' => 'decimal:2',
     ];
 
     /*
@@ -527,5 +551,10 @@ class User extends Authenticatable
     public function getDisplayNameAttribute(): string
     {
         return (string) ($this->name ?: ('User #' . $this->id));
+    }
+
+    public function businessDepositPolicy()
+    {
+        return $this->hasOne(BusinessDepositPolicy::class, 'business_id');
     }
 }

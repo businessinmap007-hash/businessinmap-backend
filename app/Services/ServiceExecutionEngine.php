@@ -22,6 +22,8 @@ class ServiceExecutionEngine
         protected BookingDepositService $bookingDepositService,
         protected BookablePricingService $bookablePricingService,
         protected BookableAvailabilityService $bookableAvailabilityService,
+        protected BookingDepositPolicyResolver $bookingDepositPolicyResolver,
+        protected BookingDepositCalculator $bookingDepositCalculator,
     ) {
     }
 
@@ -200,10 +202,8 @@ class ServiceExecutionEngine
         $businessDepositRequired = 0.0;
 
         if (($depositPolicy['required'] ?? false) && ! ($deposit && $deposit->isFrozen())) {
-            $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['amount'] ?? 0), 2);
-
-            $clientDepositRequired = $holdAmount;
-            $businessDepositRequired = $holdAmount;
+           $clientDepositRequired = round((float) ($depositPolicy['wallet_hold_amount'] ?? $depositPolicy['hold'] ?? 0), 2);
+           $businessDepositRequired = round((float) ($depositPolicy['business_counter_hold_amount'] ?? 0), 2);
         }
 
         $clientFeeRequired = 0.0;
@@ -434,7 +434,7 @@ class ServiceExecutionEngine
                         ]);
                     }
 
-                    $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount);
+                    $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount, $depositPolicy);
                     $deposit->refresh();
 
                     if (! $deposit->isFrozen()) {
@@ -613,32 +613,44 @@ class ServiceExecutionEngine
         float $price,
         ?BookableItem $bookable = null
     ): array {
-        /*
-        |--------------------------------------------------------------------------
-        | Final PlatformService cleanup decision
-        |--------------------------------------------------------------------------
-        | PlatformService لا يحدد قيمة الديبوزت ولا max_percent.
-        | BusinessServicePrice / BookableItem ليست مصدر الديبوزت في هذا المسار.
-        | المصدر النهائي المطلوب لاحقًا: category_child_service_fees أو policy مستقلة مرتبطة بها.
-        |--------------------------------------------------------------------------
-        */
+        $business = User::query()
+            ->where('id', (int) $businessPrice->business_id)
+            ->where('type', User::TYPE_BUSINESS)
+            ->first();
 
-        return [
+        if (! $business) {
+            return [
+                'service_supports_deposit' => (bool) ($service->supports_deposit ?? false),
+                'required' => false,
+                'amount' => 0.00,
+                'hold' => 0.00,
+                'source' => 'business_not_found',
+            ];
+        }
+
+        $policy = $this->bookingDepositPolicyResolver->resolve($business, $service, $bookable);
+
+        $firstDayAmount = $bookable
+            ? round((float) ($bookable->price ?? 0), 2)
+            : round((float) ($businessPrice->price ?? 0), 2);
+
+        if ($firstDayAmount <= 0) {
+            $firstDayAmount = $price;
+        }
+
+        $resolved = $this->bookingDepositCalculator->calculate($policy, [
+            'total_amount' => $price,
+            'first_day_amount' => $firstDayAmount,
+        ]);
+
+        return array_merge($resolved, [
             'service_supports_deposit' => (bool) ($service->supports_deposit ?? false),
-            'service_max_percent' => 0,
-
-            'business_deposit_enabled' => false,
-            'business_deposit_percent' => 0,
-
-            'bookable_deposit_enabled' => false,
-            'bookable_deposit_percent' => 0,
-
-            'required' => false,
-            'amount' => 0.00,
-            'hold' => 0.00,
-            'configured_percent' => 0,
-            'source' => 'category_child_service_fees_pending',
-        ];
+            'service_max_percent' => 20,
+            'business_deposit_enabled' => (bool) ($policy['enabled'] ?? false),
+            'business_deposit_percent' => (float) ($resolved['configured_percent'] ?? 0),
+            'bookable_deposit_enabled' => $bookable ? ((string) ($bookable->deposit_policy_mode ?? 'inherit') === 'custom') : false,
+            'bookable_deposit_percent' => $bookable ? (float) ($bookable->deposit_value ?? 0) : 0,
+        ]);
     }
 
     public function depositPolicy(Booking $booking): array

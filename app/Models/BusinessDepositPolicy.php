@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+
 class BusinessDepositPolicy extends Model
 {
     protected $table = 'business_deposit_policies';

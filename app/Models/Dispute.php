@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Builder;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 class Dispute extends Model
 {
     protected $table = 'disputes';
@@ -116,8 +116,9 @@ class Dispute extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', [
-            self::STATUS_OPEN,
-            self::STATUS_UNDER_REVIEW,
+        self::STATUS_OPEN,
+        self::STATUS_MUTUAL_RESOLUTION,
+        self::STATUS_UNDER_REVIEW,
         ]);
     }
 
@@ -160,6 +161,7 @@ class Dispute extends Model
     {
         return in_array($this->status, [
             self::STATUS_OPEN,
+            self::STATUS_MUTUAL_RESOLUTION,
             self::STATUS_UNDER_REVIEW,
         ], true);
     }

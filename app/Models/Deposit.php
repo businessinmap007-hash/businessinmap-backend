@@ -31,12 +31,22 @@ class Deposit extends Model
 
         'released_at',
         'refunded_at',
-        'booking_id','bookable_item_id','platform_service_id','category_id','category_child_id',
-        'mode','calculation_base','deposit_type','deposit_value','deposit_percent_used','deposit_base_amount','deposit_amount',
-        'wallet_hold_required','wallet_hold_amount','wallet_hold_status','client_wallet_transaction_id',
-        'business_counter_hold_required','business_counter_hold_percent','business_counter_hold_amount','business_counter_hold_status','business_wallet_transaction_id',
-        'external_deposit_required','external_deposit_amount','external_deposit_status','external_reference','external_paid_at','external_verified_at','external_verified_by','external_proof_path','external_notes',
-        'affects_remaining_amount','remaining_amount_before_external','remaining_amount_after_external','policy_snapshot',
+        'booking_id','bookable_item_id','platform_service_id',
+        'category_id','category_child_id',
+        'mode','calculation_base','deposit_type',
+        'deposit_value','deposit_percent_used',
+        'deposit_base_amount','deposit_amount',
+        'wallet_hold_required','wallet_hold_amount',
+        'wallet_hold_status','client_wallet_transaction_id',
+        'business_counter_hold_required',
+        'business_counter_hold_percent','business_counter_hold_amount',
+        'business_counter_hold_status','business_wallet_transaction_id',
+        'external_deposit_required','external_deposit_amount',
+        'external_deposit_status','external_reference','external_paid_at',
+        'external_verified_at','external_verified_by','external_proof_path',
+        'external_notes','affects_remaining_amount',
+        'remaining_amount_before_external',
+        'remaining_amount_after_external','policy_snapshot',
     ];
 
     protected $casts = [

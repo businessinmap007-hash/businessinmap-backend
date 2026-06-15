@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+
 class BookingDepositCalculator
 {
     public const SYSTEM_MAX_PERCENT = 20.0;

@@ -16,8 +16,12 @@ class BookingDepositCalculator
         $unitAmount = $this->money($amounts['unit_amount'] ?? $firstDayAmount ?: $totalAmount);
         $quantity = max((int) ($amounts['quantity'] ?? 1), 1);
 
+        $guarantees = is_array($amounts['guarantees'] ?? null) ? $amounts['guarantees'] : [];
+        $clientGuarantee = is_array($guarantees['client'] ?? null) ? $guarantees['client'] : [];
+        $businessGuarantee = is_array($guarantees['business'] ?? null) ? $guarantees['business'] : [];
+
         if (! ($policy['enabled'] ?? false) || $totalAmount <= 0) {
-            return $this->empty($policy, $totalAmount, $firstDayAmount, $unitAmount, $quantity);
+            return $this->empty($policy, $totalAmount, $firstDayAmount, $unitAmount, $quantity, $clientGuarantee, $businessGuarantee);
         }
 
         $baseKey = $this->normalizeBase($policy['calculation_base'] ?? BusinessDepositPolicy::BASE_FIRST_DAY);
@@ -26,8 +30,7 @@ class BookingDepositCalculator
             totalAmount: $totalAmount,
             firstDayAmount: $firstDayAmount,
             unitAmount: $unitAmount,
-            quantity: $quantity,
-            depositValue: $policy['deposit_value'] ?? 0
+            quantity: $quantity
         );
 
         $type = ($policy['deposit_type'] ?? BusinessDepositPolicy::TYPE_PERCENT) === BusinessDepositPolicy::TYPE_FIXED
@@ -62,19 +65,24 @@ class BookingDepositCalculator
             $depositAmount = min($depositAmount, $this->money($policy['max_deposit_amount']));
         }
 
-        if ($baseKey !== BusinessDepositPolicy::BASE_FIXED) {
-            $depositAmount = min($depositAmount, $this->money($baseAmount * ($maxPercent / 100)));
-        } else {
-            $depositAmount = min($depositAmount, $this->money($totalAmount * ($maxPercent / 100)));
-        }
+        $depositAmount = $baseKey !== BusinessDepositPolicy::BASE_FIXED
+            ? min($depositAmount, $this->money($baseAmount * ($maxPercent / 100)))
+            : min($depositAmount, $this->money($totalAmount * ($maxPercent / 100)));
 
         $depositAmount = $this->money($depositAmount);
 
         if ($depositAmount <= 0) {
-            return $this->empty($policy, $totalAmount, $firstDayAmount, $unitAmount, $quantity);
+            return $this->empty($policy, $totalAmount, $firstDayAmount, $unitAmount, $quantity, $clientGuarantee, $businessGuarantee);
         }
 
         $mode = $policy['deposit_mode'] ?? BusinessDepositPolicy::MODE_WALLET_HOLD;
+
+        $clientStrategy = (string) ($policy['client_guarantee_strategy'] ?? 'per_operation_hold');
+        $businessStrategy = (string) ($policy['business_guarantee_strategy'] ?? 'per_operation_hold');
+
+        $clientCovered = $this->guaranteeCovers($clientGuarantee, $depositAmount, $clientStrategy);
+        $businessCoverageBase = $depositAmount;
+        $businessCovered = $this->guaranteeCovers($businessGuarantee, $businessCoverageBase, $businessStrategy);
 
         $walletHoldRequired = in_array($mode, [
             BusinessDepositPolicy::MODE_WALLET_HOLD,
@@ -86,6 +94,10 @@ class BookingDepositCalculator
             BusinessDepositPolicy::MODE_BOTH,
         ], true) && (bool) ($policy['external_verification_enabled'] ?? false);
 
+        if ($clientCovered) {
+            $walletHoldRequired = false;
+        }
+
         $walletHoldAmount = $walletHoldRequired ? $depositAmount : 0.0;
         $externalAmount = $externalRequired ? $depositAmount : 0.0;
 
@@ -95,11 +107,14 @@ class BookingDepositCalculator
             ? max(0.0, min((float) ($policy['business_counter_hold_percent'] ?? self::DEFAULT_COUNTER_HOLD_PERCENT), 100.0))
             : 0.0;
 
-        $counterAmount = $this->money($walletHoldAmount * ($counterPercent / 100));
+        $rawCounterAmount = $this->money($depositAmount * ($counterPercent / 100));
+        $counterAmount = $businessCovered ? 0.0 : $rawCounterAmount;
+
+        $businessCounterRequired = $counterEnabled && $counterAmount > 0;
 
         return [
             'enabled' => true,
-            'required' => $walletHoldRequired || $externalRequired,
+            'required' => $walletHoldRequired || $externalRequired || $businessCounterRequired,
             'mode' => $mode,
 
             'calculation_base' => $baseKey,
@@ -123,9 +138,17 @@ class BookingDepositCalculator
             'external_deposit_required' => $externalRequired,
             'external_deposit_amount' => $externalAmount,
 
-            'business_counter_hold_required' => $counterEnabled && $counterAmount > 0,
+            'business_counter_hold_required' => $businessCounterRequired,
             'business_counter_hold_percent' => $counterPercent,
             'business_counter_hold_amount' => $counterAmount,
+            'business_counter_hold_raw_amount' => $rawCounterAmount,
+
+            'client_guarantee_strategy' => $clientStrategy,
+            'business_guarantee_strategy' => $businessStrategy,
+            'client_guarantee_covered' => $clientCovered,
+            'business_guarantee_covered' => $businessCovered,
+            'client_guarantee' => $clientGuarantee,
+            'business_guarantee' => $businessGuarantee,
 
             'remaining_amount_before_external' => $totalAmount,
             'remaining_amount_after_external_if_verified' => $this->money(max($totalAmount - $externalAmount, 0)),
@@ -135,6 +158,23 @@ class BookingDepositCalculator
             'scope_key' => $policy['scope_key'] ?? null,
             'policy' => $policy,
         ];
+    }
+
+    protected function guaranteeCovers(array $guarantee, float $amount, string $strategy): bool
+    {
+        if (! in_array($strategy, ['general_guarantee', 'hybrid'], true)) {
+            return false;
+        }
+
+        if (! (bool) ($guarantee['enabled'] ?? false)) {
+            return false;
+        }
+
+        if (! in_array((string) ($guarantee['status'] ?? ''), ['active', 'pending_operations', 'underfunded'], true)) {
+            return false;
+        }
+
+        return $this->money($guarantee['available_coverage'] ?? 0) >= $this->money($amount);
     }
 
     protected function normalizeBase(string $base): string
@@ -155,8 +195,7 @@ class BookingDepositCalculator
         float $totalAmount,
         float $firstDayAmount,
         float $unitAmount,
-        int $quantity,
-        mixed $depositValue = 0
+        int $quantity
     ): float {
         return match ($baseKey) {
             BusinessDepositPolicy::BASE_TOTAL => $totalAmount,
@@ -167,8 +206,15 @@ class BookingDepositCalculator
         };
     }
 
-    protected function empty(array $policy, float $totalAmount, float $firstDayAmount, float $unitAmount = 0.0, int $quantity = 1): array
-    {
+    protected function empty(
+        array $policy,
+        float $totalAmount,
+        float $firstDayAmount,
+        float $unitAmount = 0.0,
+        int $quantity = 1,
+        array $clientGuarantee = [],
+        array $businessGuarantee = []
+    ): array {
         return [
             'enabled' => false,
             'required' => false,
@@ -197,6 +243,14 @@ class BookingDepositCalculator
             'business_counter_hold_required' => false,
             'business_counter_hold_percent' => 0.0,
             'business_counter_hold_amount' => 0.0,
+            'business_counter_hold_raw_amount' => 0.0,
+
+            'client_guarantee_strategy' => $policy['client_guarantee_strategy'] ?? 'per_operation_hold',
+            'business_guarantee_strategy' => $policy['business_guarantee_strategy'] ?? 'per_operation_hold',
+            'client_guarantee_covered' => false,
+            'business_guarantee_covered' => false,
+            'client_guarantee' => $clientGuarantee,
+            'business_guarantee' => $businessGuarantee,
 
             'remaining_amount_before_external' => $totalAmount,
             'remaining_amount_after_external_if_verified' => $totalAmount,

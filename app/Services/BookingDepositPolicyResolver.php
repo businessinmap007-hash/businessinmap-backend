@@ -140,6 +140,9 @@ class BookingDepositPolicyResolver
             'non_cooperation_fee_enabled' => (bool) $policy->non_cooperation_fee_enabled,
             'non_cooperation_fee_type' => $policy->non_cooperation_fee_type,
             'non_cooperation_fee_value' => $policy->non_cooperation_fee_value !== null ? (float) $policy->non_cooperation_fee_value : null,
+            'client_guarantee_strategy' => (string) ($policy->client_guarantee_strategy ?? 'per_operation_hold'),
+            'business_guarantee_strategy' => (string) ($policy->business_guarantee_strategy ?? 'per_operation_hold'),
+            'guarantee_hybrid_extra_percent' => (float) ($policy->guarantee_hybrid_extra_percent ?? 20),
 
             'currency' => (string) ($policy->currency ?: 'EGP'),
 

@@ -8,6 +8,8 @@ use App\Models\BusinessServicePrice;
 use App\Models\CategoryChildServiceFee;
 use App\Models\Deposit;
 use App\Models\PlatformService;
+use App\Models\GuaranteeLevel;
+use App\Models\UserGuarantee;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ class ServiceExecutionEngine
         protected BookableAvailabilityService $bookableAvailabilityService,
         protected BookingDepositPolicyResolver $bookingDepositPolicyResolver,
         protected BookingDepositCalculator $bookingDepositCalculator,
+        protected UserGuaranteeService $userGuaranteeService,
     ) {
     }
 
@@ -630,7 +633,8 @@ class ServiceExecutionEngine
         PlatformService $service,
         BusinessServicePrice $businessPrice,
         float $price,
-        ?BookableItem $bookable = null
+        ?BookableItem $bookable = null,
+        ?User $client = null
     ): array {
         $business = User::query()
             ->where('id', (int) $businessPrice->business_id)
@@ -660,6 +664,10 @@ class ServiceExecutionEngine
         $resolved = $this->bookingDepositCalculator->calculate($policy, [
             'total_amount' => $price,
             'first_day_amount' => $firstDayAmount,
+            'guarantees' => [
+                'client' => $client ? $this->guaranteePayload($client, GuaranteeLevel::TARGET_CLIENT) : [],
+                'business' => $this->guaranteePayload($business, GuaranteeLevel::TARGET_BUSINESS),
+            ],
         ]);
 
         return array_merge($resolved, [
@@ -677,6 +685,7 @@ class ServiceExecutionEngine
         $booking->loadMissing([
             'service:id,key,name_ar,name_en,supports_deposit',
             'business:id,name,type,category_id,category_child_id',
+            'user:id,name,type,guarantee_enabled,rating_enabled,commercial_operations_enabled',
             'bookable',
         ]);
 
@@ -736,8 +745,35 @@ class ServiceExecutionEngine
             service: $booking->service,
             businessPrice: $businessPrice,
             price: $price,
-            bookable: $bookable
+            bookable: $bookable,
+            client: $booking->user
         );
+    }
+
+    protected function guaranteePayload(User $user, string $targetType): array
+    {
+        $guarantee = $this->userGuaranteeService->activeGuarantee($user, $targetType);
+
+        if (! $guarantee instanceof UserGuarantee) {
+            return [
+                'enabled' => false,
+                'status' => null,
+                'available_coverage' => 0.0,
+            ];
+        }
+
+        return [
+            'enabled' => true,
+            'id' => (int) $guarantee->id,
+            'target_type' => (string) $guarantee->target_type,
+            'status' => (string) $guarantee->status,
+            'locked_amount' => (float) $guarantee->locked_amount,
+            'current_coverage_amount' => (float) $guarantee->current_coverage_amount,
+            'used_coverage_amount' => (float) $guarantee->used_coverage_amount,
+            'available_coverage' => (float) $guarantee->availableCoverage(),
+            'purchased_level_id' => (int) $guarantee->purchased_level_id,
+            'effective_level_id' => $guarantee->effective_level_id ? (int) $guarantee->effective_level_id : null,
+        ];
     }
 
     /*

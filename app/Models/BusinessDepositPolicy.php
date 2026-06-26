@@ -28,6 +28,11 @@ class BusinessDepositPolicy extends Model
     public const SCOPE_BUSINESS_CHILD = 'business_child';
     public const SCOPE_BUSINESS_CHILD_SERVICE = 'business_child_service';
 
+    public const GUARANTEE_PER_OPERATION_HOLD = 'per_operation_hold';
+    public const GUARANTEE_GENERAL = 'general_guarantee';
+    public const GUARANTEE_HYBRID = 'hybrid';
+    public const GUARANTEE_NONE = 'none';
+
     protected $fillable = [
         'business_id',
         'platform_service_id',
@@ -47,6 +52,11 @@ class BusinessDepositPolicy extends Model
         'wallet_hold_enabled',
         'business_counter_hold_enabled',
         'business_counter_hold_percent',
+
+        'client_guarantee_strategy',
+        'business_guarantee_strategy',
+        'guarantee_hybrid_extra_percent',
+
         'dispute_resolution_days',
         'warning_every_days',
         'non_cooperation_fee_enabled',
@@ -71,6 +81,9 @@ class BusinessDepositPolicy extends Model
         'wallet_hold_enabled' => 'boolean',
         'business_counter_hold_enabled' => 'boolean',
         'business_counter_hold_percent' => 'decimal:2',
+
+        'guarantee_hybrid_extra_percent' => 'decimal:2',
+
         'dispute_resolution_days' => 'integer',
         'warning_every_days' => 'integer',
         'non_cooperation_fee_enabled' => 'boolean',
@@ -117,5 +130,15 @@ class BusinessDepositPolicy extends Model
         }
 
         return self::SCOPE_BUSINESS_GLOBAL;
+    }
+
+    public static function guaranteeStrategies(): array
+    {
+        return [
+            self::GUARANTEE_PER_OPERATION_HOLD,
+            self::GUARANTEE_GENERAL,
+            self::GUARANTEE_HYBRID,
+            self::GUARANTEE_NONE,
+        ];
     }
 }

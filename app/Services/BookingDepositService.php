@@ -84,7 +84,7 @@ class BookingDepositService
         }
 
         $clientPercent = $total > 0 ? (int) round(($clientHoldAmount / $total) * 100) : 0;
-        $businessPercent = $total > 0 ? max(0, 100 - $clientPercent) : 0;
+        $businessPercent = $total > 0 ? (int) round(($businessHoldAmount / $total) * 100) : 0;
 
         $deposit = $this->depositsEscrowService->create(
             clientId: (int) $booking->user_id,
@@ -94,6 +94,8 @@ class BookingDepositService
             businessPercent: $businessPercent,
             targetType: Booking::class,
             targetId: (int) $booking->id,
+            clientAmount: $clientHoldAmount,
+            businessAmount: $businessHoldAmount,
         );
 
         $this->syncDepositConfirmationsFromBookingMeta($booking, $deposit);

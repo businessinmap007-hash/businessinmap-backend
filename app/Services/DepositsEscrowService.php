@@ -27,9 +27,40 @@ class DepositsEscrowService
         int $clientPercent = 0,
         int $businessPercent = 0,
         ?string $targetType = null,
-        ?int $targetId = null
+        ?int $targetId = null,
+        ?float $clientAmount = null,
+        ?float $businessAmount = null
     ): Deposit {
-        $totalAmount = $this->normalizeAmount($totalAmount);
+        $targetType = $targetType ?? 'unknown';
+        $targetId   = (int) ($targetId ?? 0);
+
+        $usingDirectAmounts = $clientAmount !== null || $businessAmount !== null;
+
+        if ($usingDirectAmounts) {
+            $clientAmount = $this->normalizeAmount($clientAmount ?? 0);
+            $businessAmount = $this->normalizeAmount($businessAmount ?? 0);
+
+            $totalAmount = $this->normalizeAmount((float) $clientAmount + (float) $businessAmount);
+
+            $clientPercent = (float) $totalAmount > 0
+                ? (int) round(((float) $clientAmount / (float) $totalAmount) * 100)
+                : 0;
+
+            $businessPercent = (float) $totalAmount > 0
+                ? (int) round(((float) $businessAmount / (float) $totalAmount) * 100)
+                : 0;
+        } else {
+            $totalAmount = $this->normalizeAmount($totalAmount);
+
+            if ($clientPercent < 0 || $businessPercent < 0 || ($clientPercent + $businessPercent) > 100) {
+                throw ValidationException::withMessages([
+                    'percent' => 'Invalid percents. Sum must be <= 100.',
+                ]);
+            }
+
+            $clientAmount   = $this->calcPart($totalAmount, $clientPercent);
+            $businessAmount = $this->calcPart($totalAmount, $businessPercent);
+        }
 
         if ($clientId === $businessId) {
             throw ValidationException::withMessages([
@@ -37,23 +68,18 @@ class DepositsEscrowService
             ]);
         }
 
-        if ($clientPercent < 0 || $businessPercent < 0 || ($clientPercent + $businessPercent) > 100) {
+        if ((float) $totalAmount <= 0) {
             throw ValidationException::withMessages([
-                'percent' => 'Invalid percents. Sum must be <= 100.',
+                'deposit' => 'Invalid total deposit amount.',
             ]);
         }
 
-        $clientAmount   = $this->calcPart($totalAmount, $clientPercent);
-        $businessAmount = $this->calcPart($totalAmount, $businessPercent);
-
-        // ==========================================
-        // ✅ Idempotency (outside TX): prevent duplicate Deposit for same target
-        // ==========================================
-        $targetType = $targetType ?? 'unknown';
-        $targetId   = (int)($targetId ?? 0);
-
+        /*
+        |--------------------------------------------------------------------------
+        | Idempotency outside TX
+        |--------------------------------------------------------------------------
+        */
         if ($targetType !== 'unknown' && $targetId > 0) {
-            // الأهم: وجود Frozen لنفس الهدف
             $existingFrozen = Deposit::query()
                 ->where('target_type', $targetType)
                 ->where('target_id', $targetId)
@@ -67,19 +93,25 @@ class DepositsEscrowService
         }
 
         return DB::transaction(function () use (
-            $clientId, $businessId,
-            $totalAmount, $clientPercent, $businessPercent,
-            $clientAmount, $businessAmount,
-            $targetType, $targetId
+            $clientId,
+            $businessId,
+            $totalAmount,
+            $clientPercent,
+            $businessPercent,
+            $clientAmount,
+            $businessAmount,
+            $targetType,
+            $targetId
         ) {
-
-            // ==========================================
-            // ✅ Idempotency (inside TX): race-safe
-            // ==========================================
-            if ($targetType !== 'unknown' && (int)$targetId > 0) {
+            /*
+            |--------------------------------------------------------------------------
+            | Idempotency inside TX
+            |--------------------------------------------------------------------------
+            */
+            if ($targetType !== 'unknown' && (int) $targetId > 0) {
                 $existingFrozen = Deposit::query()
                     ->where('target_type', $targetType)
-                    ->where('target_id', (int)$targetId)
+                    ->where('target_id', (int) $targetId)
                     ->where('status', DepositStatus::FROZEN)
                     ->lockForUpdate()
                     ->first();
@@ -93,7 +125,7 @@ class DepositsEscrowService
                 'client_id' => $clientId,
                 'business_id' => $businessId,
                 'target_type' => $targetType,
-                'target_id' => (int)($targetId ?? 0),
+                'target_id' => (int) ($targetId ?? 0),
 
                 'total_amount' => $totalAmount,
                 'client_percent' => $clientPercent,
@@ -101,7 +133,6 @@ class DepositsEscrowService
                 'client_amount' => $clientAmount,
                 'business_amount' => $businessAmount,
 
-                // ✅ Enum (Deposit model casts status to DepositStatus)
                 'status' => DepositStatus::FROZEN,
 
                 'client_confirmed' => 0,
@@ -113,11 +144,11 @@ class DepositsEscrowService
                 'refunded_at' => null,
             ]);
 
-            if ((float)$clientAmount > 0) {
+            if ((float) $clientAmount > 0) {
                 $this->hold($clientId, $clientAmount, $deposit, 'Hold client deposit');
             }
 
-            if ((float)$businessAmount > 0) {
+            if ((float) $businessAmount > 0) {
                 $this->hold($businessId, $businessAmount, $deposit, 'Hold business deposit');
             }
 

@@ -38,6 +38,10 @@ class User extends Authenticatable
         'booking_hold_enabled',
         'booking_hold_amount',
 
+        'guarantee_enabled',
+        'rating_enabled',
+        'commercial_operations_enabled',
+
         'action_code',
         'code',
         'logo',
@@ -76,14 +80,12 @@ class User extends Authenticatable
         'booking_hold_enabled' => 'boolean',
         'booking_hold_amount'  => 'decimal:2',
 
+        'guarantee_enabled' => 'boolean',
+        'rating_enabled' => 'boolean',
+        'commercial_operations_enabled' => 'boolean',
+
         'deleted_at'        => 'datetime',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | Mutators
-    |--------------------------------------------------------------------------
-    */
 
     public function setPasswordAttribute($value): void
     {
@@ -107,12 +109,6 @@ class User extends Authenticatable
                 ? $value
                 : Hash::make($value);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Scopes
-    |--------------------------------------------------------------------------
-    */
 
     public function scopeSearch(Builder $query, ?string $q): Builder
     {
@@ -203,12 +199,6 @@ class User extends Authenticatable
         });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Type Helpers
-    |--------------------------------------------------------------------------
-    */
-
     public function userType(): string
     {
         return $this->type ?: self::TYPE_CLIENT;
@@ -256,12 +246,6 @@ class User extends Authenticatable
         return ! is_null($this->activated_at);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PIN Helpers
-    |--------------------------------------------------------------------------
-    */
-
     public function hasPin(): bool
     {
         return ! empty($this->pin_code);
@@ -277,12 +261,6 @@ class User extends Authenticatable
         $this->pin_code = $pin;
         $this->save();
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Main Relationships
-    |--------------------------------------------------------------------------
-    */
 
     public function devices()
     {
@@ -329,12 +307,6 @@ class User extends Authenticatable
         return $this->hasMany(WalletTransaction::class, 'user_id')
             ->orderByDesc('id');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Category / Options / Platform Services
-    |--------------------------------------------------------------------------
-    */
 
     public function category()
     {
@@ -397,12 +369,6 @@ class User extends Authenticatable
         return (int) ($this->category_id ?? 0);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Service Fee Consent
-    |--------------------------------------------------------------------------
-    */
-
     public function serviceFeeConsent()
     {
         return $this->hasOne(UserServiceFeeConsent::class, 'user_id');
@@ -429,7 +395,8 @@ class User extends Authenticatable
 
     public function hasRatingEnabled(): bool
     {
-        return (bool) optional($this->loadedFeeConsent())->rating_enabled;
+        return (bool) ($this->rating_enabled ?? false)
+            || (bool) optional($this->loadedFeeConsent())->rating_enabled;
     }
 
     public function hasStatsEnabled(): bool
@@ -442,11 +409,15 @@ class User extends Authenticatable
         return $this->hasFeeAutoChargeEnabled();
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Booking Relationships
-    |--------------------------------------------------------------------------
-    */
+    public function hasGuaranteeEnabled(): bool
+    {
+        return (bool) ($this->guarantee_enabled ?? false);
+    }
+
+    public function hasCommercialOperationsEnabled(): bool
+    {
+        return (bool) ($this->commercial_operations_enabled ?? false);
+    }
 
     public function bookingsAsClient()
     {
@@ -457,12 +428,6 @@ class User extends Authenticatable
     {
         return $this->hasMany(Booking::class, 'business_id');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Business Pricing
-    |--------------------------------------------------------------------------
-    */
 
     public function businessServicePrices()
     {
@@ -475,11 +440,71 @@ class User extends Authenticatable
             ->where('is_active', 1);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Booking Hold Helpers
-    |--------------------------------------------------------------------------
-    */
+    public function guarantees()
+    {
+        return $this->hasMany(UserGuarantee::class, 'user_id');
+    }
+
+    public function guaranteeTransactions()
+    {
+        return $this->hasMany(GuaranteeTransaction::class, 'user_id')
+            ->orderByDesc('id');
+    }
+
+    public function clientGuarantee()
+    {
+        return $this->hasOne(UserGuarantee::class, 'user_id')
+            ->where('target_type', GuaranteeLevel::TARGET_CLIENT)
+            ->latestOfMany();
+    }
+
+    public function businessGuarantee()
+    {
+        return $this->hasOne(UserGuarantee::class, 'user_id')
+            ->where('target_type', GuaranteeLevel::TARGET_BUSINESS)
+            ->latestOfMany();
+    }
+
+    public function activeClientGuarantee()
+    {
+        return $this->hasOne(UserGuarantee::class, 'user_id')
+            ->where('target_type', GuaranteeLevel::TARGET_CLIENT)
+            ->whereIn('status', [
+                UserGuarantee::STATUS_ACTIVE,
+                UserGuarantee::STATUS_PENDING_OPERATIONS,
+                UserGuarantee::STATUS_UNDERFUNDED,
+            ])
+            ->latestOfMany();
+    }
+
+    public function activeBusinessGuarantee()
+    {
+        return $this->hasOne(UserGuarantee::class, 'user_id')
+            ->where('target_type', GuaranteeLevel::TARGET_BUSINESS)
+            ->whereIn('status', [
+                UserGuarantee::STATUS_ACTIVE,
+                UserGuarantee::STATUS_PENDING_OPERATIONS,
+                UserGuarantee::STATUS_UNDERFUNDED,
+            ])
+            ->latestOfMany();
+    }
+
+    public function activeGuaranteeForTarget(?string $targetType = null): ?UserGuarantee
+    {
+        $targetType = $targetType ?: ($this->isBusiness()
+            ? GuaranteeLevel::TARGET_BUSINESS
+            : GuaranteeLevel::TARGET_CLIENT);
+
+        return $this->guarantees()
+            ->where('target_type', $targetType)
+            ->whereIn('status', [
+                UserGuarantee::STATUS_ACTIVE,
+                UserGuarantee::STATUS_PENDING_OPERATIONS,
+                UserGuarantee::STATUS_UNDERFUNDED,
+            ])
+            ->latest('id')
+            ->first();
+    }
 
     public function bookingHoldEnabled(): bool
     {
@@ -498,12 +523,6 @@ class User extends Authenticatable
             && $this->bookingHoldAmount() > 0;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Custom User Codes
-    |--------------------------------------------------------------------------
-    */
-
     public static function actionCode($code)
     {
         return static::where('action_code', $code)->exists()
@@ -517,12 +536,6 @@ class User extends Authenticatable
             ? rand(1000000000, 9999999999)
             : $code;
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Display Helpers
-    |--------------------------------------------------------------------------
-    */
 
     public function getDisplayNameAttribute(): string
     {

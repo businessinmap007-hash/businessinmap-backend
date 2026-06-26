@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
 
 class BusinessDepositPolicy extends Model
 {
@@ -16,12 +16,25 @@ class BusinessDepositPolicy extends Model
 
     public const BASE_FIRST_DAY = 'first_day';
     public const BASE_TOTAL = 'total';
+    public const BASE_FIRST_UNIT = 'first_unit';
+    public const BASE_PER_UNIT = 'per_unit';
+    public const BASE_FIXED = 'fixed';
 
     public const TYPE_PERCENT = 'percent';
     public const TYPE_FIXED = 'fixed';
 
+    public const SCOPE_BUSINESS_GLOBAL = 'business_global';
+    public const SCOPE_BUSINESS_SERVICE = 'business_service';
+    public const SCOPE_BUSINESS_CHILD = 'business_child';
+    public const SCOPE_BUSINESS_CHILD_SERVICE = 'business_child_service';
+
     protected $fillable = [
         'business_id',
+        'platform_service_id',
+        'category_child_id',
+        'scope_key',
+        'priority',
+
         'is_enabled',
         'deposit_mode',
         'calculation_base',
@@ -45,6 +58,10 @@ class BusinessDepositPolicy extends Model
 
     protected $casts = [
         'business_id' => 'integer',
+        'platform_service_id' => 'integer',
+        'category_child_id' => 'integer',
+        'priority' => 'integer',
+
         'is_enabled' => 'boolean',
         'deposit_value' => 'decimal:2',
         'max_deposit_percent' => 'decimal:2',
@@ -63,5 +80,42 @@ class BusinessDepositPolicy extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    public function platformService(): BelongsTo
+    {
+        return $this->belongsTo(PlatformService::class, 'platform_service_id');
+    }
+
+    public function categoryChild(): BelongsTo
+    {
+        return $this->belongsTo(CategoryChild::class, 'category_child_id');
+    }
+
+    public function scopeEnabled(Builder $query): Builder
+    {
+        return $query->where('is_enabled', true);
+    }
+
+    public function scopeForBusiness(Builder $query, int $businessId): Builder
+    {
+        return $query->where('business_id', $businessId);
+    }
+
+    public static function resolveScopeKey(?int $platformServiceId = null, ?int $categoryChildId = null): string
+    {
+        if ($platformServiceId && $categoryChildId) {
+            return self::SCOPE_BUSINESS_CHILD_SERVICE;
+        }
+
+        if ($platformServiceId) {
+            return self::SCOPE_BUSINESS_SERVICE;
+        }
+
+        if ($categoryChildId) {
+            return self::SCOPE_BUSINESS_CHILD;
+        }
+
+        return self::SCOPE_BUSINESS_GLOBAL;
     }
 }

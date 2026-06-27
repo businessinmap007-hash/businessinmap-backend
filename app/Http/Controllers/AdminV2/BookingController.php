@@ -17,6 +17,7 @@ use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
 use App\Models\PlatformServiceItemType;
 use App\Support\AdminV2\Operations\OperationPresenter;
+use App\Services\Integrations\BookingGuaranteeIntegration;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,8 @@ class BookingController extends Controller
         protected BookingDepositService $bookingDepositService,
         protected ServiceExecutionEngine $serviceExecutionEngine,
         protected ServiceEventDispatcher $serviceEventDispatcher,
-        protected BookingReminderService $bookingReminderService
+        protected BookingReminderService $bookingReminderService,
+        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration
     ) {
     }
 
@@ -307,6 +309,17 @@ class BookingController extends Controller
 
                 default => null,
             };
+        }
+        if ($currentStatus === Booking::STATUS_COMPLETED) {
+            $this->bookingGuaranteeIntegration->recordCompleted($booking);
+        }
+
+        if ($currentStatus === Booking::STATUS_CANCELLED) {
+            $this->bookingGuaranteeIntegration->recordCancelled($booking);
+        }
+
+        if ($currentStatus === Booking::STATUS_REJECTED) {
+            $this->bookingGuaranteeIntegration->recordCancelled($booking);
         }
 
         if ($booking->isFinalStatus()) {

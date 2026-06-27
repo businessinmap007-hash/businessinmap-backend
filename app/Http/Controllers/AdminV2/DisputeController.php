@@ -8,6 +8,7 @@ use App\Models\Dispute;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\DisputeService;
+use App\Services\Integrations\BookingGuaranteeIntegration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +18,7 @@ class DisputeController extends Controller
 {
     public function __construct(
         protected DisputeService $disputeService,
+        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
     ) {
     }
 
@@ -169,7 +171,7 @@ class DisputeController extends Controller
 
         try {
             $dispute = DB::transaction(function () use ($booking, $data) {
-                return $this->disputeService->openForBooking(
+                $dispute = $this->disputeService->openForBooking(
                     booking: $booking,
                     openedByUserId: auth()->id() ?: (int) $booking->user_id,
                     actorId: auth()->id(),
@@ -178,6 +180,10 @@ class DisputeController extends Controller
                         'reason_text' => $data['reason_text'] ?? null,
                     ]
                 );
+
+                $this->bookingGuaranteeIntegration->recordDisputeOpened($booking);
+
+                return $dispute;
             });
 
             return redirect()
@@ -235,12 +241,14 @@ class DisputeController extends Controller
 
         try {
             DB::transaction(function () use ($dispute) {
-                $this->disputeService->resolve(
-                    dispute: $dispute,
-                    resolutionType: 'release_business',
-                    resolutionPayload: [],
-                    actorId: auth()->id()
-                );
+                $resolved = $this->disputeService->resolve(
+    dispute: $dispute,
+    resolutionType: 'release_business',
+    resolutionPayload: [],
+    actorId: auth()->id()
+);
+
+$this->recordBookingDisputeResult($resolved, 'release_business');
             });
 
             return back()->with('success', 'تم حل النزاع وتحويل القرار إلى Release Business.');
@@ -257,12 +265,14 @@ class DisputeController extends Controller
 
         try {
             DB::transaction(function () use ($dispute) {
-                $this->disputeService->resolve(
-                    dispute: $dispute,
-                    resolutionType: 'refund_client',
-                    resolutionPayload: [],
-                    actorId: auth()->id()
-                );
+                $resolved = $this->disputeService->resolve(
+                dispute: $dispute,
+                resolutionType: 'refund_client',
+                resolutionPayload: [],
+                actorId: auth()->id()
+            );
+
+            $this->recordBookingDisputeResult($resolved, 'refund_client');
             });
 
             return back()->with('success', 'تم حل النزاع وتحويل القرار إلى Refund Client.');
@@ -294,16 +304,19 @@ class DisputeController extends Controller
 
         try {
             DB::transaction(function () use ($dispute, $clientPercent, $businessPercent, $data) {
-                $this->disputeService->resolve(
-                    dispute: $dispute,
-                    resolutionType: 'split',
-                    resolutionPayload: [
-                        'client_percent'   => $clientPercent,
-                        'business_percent' => $businessPercent,
-                        'notes'            => $data['notes'] ?? null,
-                    ],
-                    actorId: auth()->id()
-                );
+
+                $resolved = $this->disputeService->resolve(
+                dispute: $dispute,
+                resolutionType: 'split',
+                resolutionPayload: [
+                    'client_percent'   => $clientPercent,
+                    'business_percent' => $businessPercent,
+                    'notes'            => $data['notes'] ?? null,
+                ],
+                actorId: auth()->id()
+            );
+
+            $this->recordBookingDisputeResult($resolved, 'split');
             });
 
             return back()->with('success', 'تم حل النزاع بنسبة توزيع بين الطرفين.');
@@ -320,12 +333,14 @@ class DisputeController extends Controller
 
         try {
             DB::transaction(function () use ($dispute) {
-                $this->disputeService->resolve(
+                $resolved = $this->disputeService->resolve(
                     dispute: $dispute,
                     resolutionType: 'no_action',
                     resolutionPayload: [],
                     actorId: auth()->id()
                 );
+
+                $this->recordBookingDisputeResult($resolved, 'no_action');
             });
 
             return back()->with('success', 'تم حل النزاع بدون إجراء مالي.');
@@ -372,5 +387,27 @@ class DisputeController extends Controller
                 'status' => 'الحالة الحالية للنزاع لا تسمح بهذه العملية.',
             ]);
         }
+    }
+    protected function recordBookingDisputeResult(Dispute $dispute, string $resolutionType): void
+    {
+        if ((string) $dispute->disputeable_type !== Booking::class) {
+            return;
+        }
+
+        $booking = Booking::query()
+            ->with(['user', 'business'])
+            ->find((int) $dispute->disputeable_id);
+
+        if (! $booking) {
+            return;
+        }
+
+        match ($resolutionType) {
+            'release_business' => $this->bookingGuaranteeIntegration->recordDisputeLostForClient($booking),
+            'refund_client' => $this->bookingGuaranteeIntegration->recordDisputeLostForBusiness($booking),
+            'split' => null,
+            'no_action' => null,
+            default => null,
+        };
     }
 }

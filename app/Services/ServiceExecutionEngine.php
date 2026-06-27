@@ -9,6 +9,8 @@ use App\Models\CategoryChildServiceFee;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\GuaranteeLevel;
+use App\Services\Guarantees\GuaranteeCoverageService;
+use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Models\UserGuarantee;
 use App\Models\User;
 use App\Models\Wallet;
@@ -26,7 +28,7 @@ class ServiceExecutionEngine
         protected BookableAvailabilityService $bookableAvailabilityService,
         protected BookingDepositPolicyResolver $bookingDepositPolicyResolver,
         protected BookingDepositCalculator $bookingDepositCalculator,
-        protected UserGuaranteeService $userGuaranteeService,
+        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
     ) {
     }
 
@@ -231,6 +233,20 @@ class ServiceExecutionEngine
         $clientWallet = $this->walletSnapshot($clientId);
         $businessWallet = $this->walletSnapshot($businessId);
 
+        $clientDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'client_guarantee_covered', false);
+        $businessDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'business_guarantee_covered', false);
+
+        $clientWalletDepositRequired = $clientDepositCoveredByGuarantee
+            ? 0.0
+            : $clientDepositRequired;
+
+        $businessWalletDepositRequired = $businessDepositCoveredByGuarantee
+            ? 0.0
+            : $businessDepositRequired;
+
+        $clientRequiredTotal = round($clientWalletDepositRequired + $clientFeeRequired, 2);
+        $businessRequiredTotal = round($businessWalletDepositRequired + $businessFeeRequired, 2);
+
         $clientReady = $clientWallet['active']
             && $clientWallet['balance'] >= $clientRequiredTotal;
 
@@ -258,6 +274,10 @@ class ServiceExecutionEngine
                 'already_frozen' => (bool) ($deposit && $deposit->isFrozen()),
                 'existing_deposit_id' => $deposit ? (int) $deposit->id : null,
                 'policy' => $depositPolicy,
+                'client_guarantee_covered' => $clientDepositCoveredByGuarantee,
+                'business_guarantee_covered' => $businessDepositCoveredByGuarantee,
+                'client_wallet_required' => $clientWalletDepositRequired,
+                'business_wallet_required' => $businessWalletDepositRequired,
 
                 'client_required' => $clientDepositRequired,
                 'business_required' => $businessDepositRequired,
@@ -431,6 +451,18 @@ class ServiceExecutionEngine
                 $walletHoldRequired = (bool) ($depositPolicy['wallet_hold_required'] ?? false);
                 $externalRequired = (bool) ($depositPolicy['external_deposit_required'] ?? false);
 
+                $clientGuaranteeCovered = (bool) ($depositPolicy['client_guarantee_covered'] ?? false);
+                $businessGuaranteeCovered = (bool) ($depositPolicy['business_guarantee_covered'] ?? false);
+
+                if ($clientGuaranteeCovered) {
+                    $walletHoldRequired = false;
+                }
+
+                if ($businessGuaranteeCovered) {
+                    $depositPolicy['business_counter_hold_amount'] = 0.0;
+                    $depositPolicy['business_counter_hold_required'] = false;
+                }
+
                 if ($walletHoldRequired) {
                     if (! $deposit || ! $deposit->isFrozen()) {
                         $holdAmount = round((float) ($depositPolicy['hold'] ?? $depositPolicy['wallet_hold_amount'] ?? $depositPolicy['amount'] ?? 0), 2);
@@ -470,11 +502,14 @@ class ServiceExecutionEngine
             $this->chargeExecutionFeeOnce($booking);
 
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+
             $meta['_financial_guard'] = [
                 'checked_at' => now()->toDateTimeString(),
                 'ok' => true,
                 'deposit_required' => (bool) data_get($readiness, 'deposit.required', false),
                 'deposit_auto_freeze_enabled' => true,
+                'client_guarantee_covered' => (bool) data_get($readiness, 'deposit.client_guarantee_covered', false),
+                'business_guarantee_covered' => (bool) data_get($readiness, 'deposit.business_guarantee_covered', false),
                 'fees_non_refundable_after_in_progress' => true,
                 'client_required_total' => (float) data_get($readiness, 'client.required_total', 0),
                 'business_required_total' => (float) data_get($readiness, 'business.required_total', 0),
@@ -630,12 +665,13 @@ class ServiceExecutionEngine
     */
 
     public function resolveDepositPolicy(
-        PlatformService $service,
-        BusinessServicePrice $businessPrice,
-        float $price,
-        ?BookableItem $bookable = null,
-        ?User $client = null
-    ): array {
+            PlatformService $service,
+            BusinessServicePrice $businessPrice,
+            float $price,
+            ?BookableItem $bookable = null,
+            ?User $client = null,
+            array $guarantees = []
+        ): array {
         $business = User::query()
             ->where('id', (int) $businessPrice->business_id)
             ->where('type', User::TYPE_BUSINESS)
@@ -665,9 +701,9 @@ class ServiceExecutionEngine
             'total_amount' => $price,
             'first_day_amount' => $firstDayAmount,
             'guarantees' => [
-                'client' => $client ? $this->guaranteePayload($client, GuaranteeLevel::TARGET_CLIENT) : [],
-                'business' => $this->guaranteePayload($business, GuaranteeLevel::TARGET_BUSINESS),
-            ],
+            'client' => $guarantees['client'] ?? [],
+            'business' => $guarantees['business'] ?? [],
+        ],
         ]);
 
         return array_merge($resolved, [
@@ -740,40 +776,16 @@ class ServiceExecutionEngine
         if ($price <= 0) {
             $price = (float) ($booking->total_price ?? 0);
         }
+        $guarantees = $this->bookingGuaranteeIntegration->payloadForBooking($booking); 
 
         return $this->resolveDepositPolicy(
             service: $booking->service,
             businessPrice: $businessPrice,
             price: $price,
             bookable: $bookable,
-            client: $booking->user
+            client: $booking->user,
+            guarantees: $guarantees
         );
-    }
-
-    protected function guaranteePayload(User $user, string $targetType): array
-    {
-        $guarantee = $this->userGuaranteeService->activeGuarantee($user, $targetType);
-
-        if (! $guarantee instanceof UserGuarantee) {
-            return [
-                'enabled' => false,
-                'status' => null,
-                'available_coverage' => 0.0,
-            ];
-        }
-
-        return [
-            'enabled' => true,
-            'id' => (int) $guarantee->id,
-            'target_type' => (string) $guarantee->target_type,
-            'status' => (string) $guarantee->status,
-            'locked_amount' => (float) $guarantee->locked_amount,
-            'current_coverage_amount' => (float) $guarantee->current_coverage_amount,
-            'used_coverage_amount' => (float) $guarantee->used_coverage_amount,
-            'available_coverage' => (float) $guarantee->availableCoverage(),
-            'purchased_level_id' => (int) $guarantee->purchased_level_id,
-            'effective_level_id' => $guarantee->effective_level_id ? (int) $guarantee->effective_level_id : null,
-        ];
     }
 
     /*

@@ -144,11 +144,13 @@
                 'admin.payments.',
                 'admin.subscriptions.',
                 'admin.guarantees.',
+                'admin.guarantee-levels.',
             ],
             'children' => [
                 ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],
                 ['label' => 'Wallet Recharge', 'route' => 'admin.wallet-ops.recharge.form', 'active' => 'admin.wallet-ops.'],
                 ['label' => 'Guarantees', 'route' => 'admin.guarantees.index', 'active' => 'admin.guarantees.'],
+                ['label' => 'Guarantee Levels', 'route' => 'admin.guarantee-levels.index', 'active' => 'admin.guarantee-levels.'],
                 ['label' => 'Wallet Notes', 'route' => 'admin.wallet-notes.index', 'active' => 'admin.wallet-notes.'],
                 ['label' => 'Payments', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
                 ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],

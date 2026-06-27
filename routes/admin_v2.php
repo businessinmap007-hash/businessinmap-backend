@@ -20,6 +20,7 @@ use App\Http\Controllers\AdminV2\{
     DashboardController,
     DisputeController,
     GuaranteeAdminController,
+    GuaranteeLevelAdminController,
     JobPostController,
     OptionController,
     OptionGroupController,
@@ -156,6 +157,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
         Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
+
+        Route::prefix('guarantee-levels')->name('guarantee-levels.')->group(function () {
+            Route::get('/', [GuaranteeLevelAdminController::class, 'index'])->name('index');
+            Route::get('create', [GuaranteeLevelAdminController::class, 'create'])->name('create');
+            Route::post('/', [GuaranteeLevelAdminController::class, 'store'])->name('store');
+            Route::get('{guaranteeLevel}/edit', [GuaranteeLevelAdminController::class, 'edit'])->whereNumber('guaranteeLevel')->name('edit');
+            Route::put('{guaranteeLevel}', [GuaranteeLevelAdminController::class, 'update'])->whereNumber('guaranteeLevel')->name('update');
+            Route::delete('{guaranteeLevel}', [GuaranteeLevelAdminController::class, 'destroy'])->whereNumber('guaranteeLevel')->name('destroy');
+            Route::post('{guaranteeLevel}/toggle', [GuaranteeLevelAdminController::class, 'toggle'])->whereNumber('guaranteeLevel')->name('toggle');
+        });
 
         Route::prefix('guarantees')->name('guarantees.')->group(function () {
             Route::get('/', [GuaranteeAdminController::class, 'index'])->name('index');

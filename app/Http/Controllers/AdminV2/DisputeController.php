@@ -314,17 +314,17 @@ class DisputeController extends Controller
 
     public function resolveSplit(Request $request, Dispute $dispute)
     {
-        $this->ensureDisputeStatus($dispute, ['open', 'under_review']);
+        $this->ensureDisputeStatus($dispute, ['open', 'under_review', 'mutual_resolution']);
 
         $data = $request->validate([
-            'client_percent'   => ['required', 'numeric', 'min:0', 'max:100'],
+            'client_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'business_percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'notes'            => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
             'client_penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'business_penalty_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $clientPercent   = (float) $data['client_percent'];
+        $clientPercent = (float) $data['client_percent'];
         $businessPercent = (float) $data['business_percent'];
 
         if (round($clientPercent + $businessPercent, 2) !== 100.00) {
@@ -335,34 +335,34 @@ class DisputeController extends Controller
 
         try {
             DB::transaction(function () use ($dispute, $clientPercent, $businessPercent, $data) {
-
                 $resolved = $this->disputeService->resolve(
-                dispute: $dispute,
-                resolutionType: 'split',
-                resolutionPayload: [
-                    'client_percent'   => $clientPercent,
-                    'business_percent' => $businessPercent,
-                    'notes'            => $data['notes'] ?? null,
-                    'client_penalty_amount' => (float) ($data['client_penalty_amount'] ?? 0),
-                    'business_penalty_amount' => (float) ($data['business_penalty_amount'] ?? 0),
-                ],
-                actorId: auth()->id()
-            );
+                    dispute: $dispute,
+                    resolutionType: 'split',
+                    resolutionPayload: [
+                        'client_percent' => $clientPercent,
+                        'business_percent' => $businessPercent,
+                        'notes' => $data['notes'] ?? null,
+                        'client_penalty_amount' => (float) ($data['client_penalty_amount'] ?? 0),
+                        'business_penalty_amount' => (float) ($data['business_penalty_amount'] ?? 0),
+                    ],
+                    actorId: auth()->id()
+                );
 
-            $this->recordBookingDisputeResult($resolved, 'split');
-            $this->applyGuaranteePenaltyIfNeeded(
-                dispute: $resolved,
-                loserSide: 'client',
-                amount: (float) ($data['client_penalty_amount'] ?? 0),
-                reason: 'Dispute split penalty against client'
-            );
+                $this->recordBookingDisputeResult($resolved, 'split');
 
-            $this->applyGuaranteePenaltyIfNeeded(
-                dispute: $resolved,
-                loserSide: 'business',
-                amount: (float) ($data['business_penalty_amount'] ?? 0),
-                reason: 'Dispute split penalty against business'
-            );
+                $this->applyGuaranteePenaltyIfNeeded(
+                    dispute: $resolved,
+                    loserSide: 'client',
+                    amount: (float) ($data['client_penalty_amount'] ?? 0),
+                    reason: 'Dispute split penalty against client'
+                );
+
+                $this->applyGuaranteePenaltyIfNeeded(
+                    dispute: $resolved,
+                    loserSide: 'business',
+                    amount: (float) ($data['business_penalty_amount'] ?? 0),
+                    reason: 'Dispute split penalty against business'
+                );
             });
 
             return back()->with('success', 'تم حل النزاع بنسبة توزيع بين الطرفين.');
@@ -375,7 +375,7 @@ class DisputeController extends Controller
 
     public function resolveNoAction(Dispute $dispute)
     {
-        $this->ensureDisputeStatus($dispute, ['open', 'under_review']);
+        $this->ensureDisputeStatus($dispute, ['open', 'under_review', 'mutual_resolution']);
 
         try {
             DB::transaction(function () use ($dispute) {

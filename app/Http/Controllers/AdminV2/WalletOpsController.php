@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\GuaranteeLevel;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\Guarantees\GuaranteeActivationService;
 use App\Services\WalletLedgerService;
 use Illuminate\Http\Request;
 
@@ -12,22 +14,31 @@ final class WalletOpsController extends Controller
 {
     public function rechargeForm(Request $request)
     {
-        $userId = (int)$request->get('user_id', 0);
-        $user = $userId ? User::query()->select('id','name')->find($userId) : null;
+        $userId = (int) $request->get('user_id', 0);
+
+        $user = $userId
+            ? User::query()->select('id', 'name', 'type')->find($userId)
+            : null;
 
         return view('admin-v2.wallet-ops.recharge', compact('user'));
     }
 
-    public function recharge(Request $request, WalletLedgerService $ledger)
-    {
+    public function recharge(
+        Request $request,
+        WalletLedgerService $ledger,
+        GuaranteeActivationService $guaranteeActivationService
+    ) {
         $data = $request->validate([
-            'user_id'  => ['required','integer','exists:users,id'],
-            'amount'   => ['required','numeric','min:1'],
-            'note_id'  => ['nullable','integer','exists:wallet_note_templates,id'],
-            'note'     => ['nullable','string','max:500'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'note_id' => ['nullable', 'integer', 'exists:wallet_note_templates,id'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'guarantee_level_id' => ['nullable', 'integer', 'exists:guarantee_levels,id'],
         ]);
 
-        $user = User::query()->select('id','name')->findOrFail((int)$data['user_id']);
+        $user = User::query()
+            ->select('id', 'name', 'type')
+            ->findOrFail((int) $data['user_id']);
 
         $wallet = Wallet::query()->firstOrCreate(
             ['user_id' => $user->id],
@@ -35,31 +46,49 @@ final class WalletOpsController extends Controller
         );
 
         $tx = $ledger->deposit(
-            walletId: (int)$wallet->id,
-            userId: (int)$user->id,
-            amount: (float)$data['amount'],
+            walletId: (int) $wallet->id,
+            userId: (int) $user->id,
+            amount: (float) $data['amount'],
             op: [
-                'reference_type'  => 'admin_recharge',
-                'reference_id'    => (string)$user->id,
+                'reference_type' => 'admin_recharge',
+                'reference_id' => (string) $user->id,
                 'idempotency_key' => 'admin_recharge:' . $user->id . ':' . now()->format('YmdHis') . ':' . uniqid(),
                 'meta' => [
                     'source' => 'admin-v2',
                     'admin_id' => auth()->id(),
                     'note_id' => $data['note_id'] ?? null,
                 ],
-                // نخزن note النصي لو كتب ملاحظة خاصة
-                'note' => (string)($data['note'] ?? ''),
+                'note' => (string) ($data['note'] ?? ''),
             ]
         );
 
-        // لو تحبي نخزن note_id مباشرة في row (أفضل من meta)
-        if (!empty($data['note_id'])) {
-            $tx->note_id = (int)$data['note_id'];
+        if (! empty($data['note_id'])) {
+            $tx->note_id = (int) $data['note_id'];
             $tx->save();
+        }
+
+        $activatedGuarantee = null;
+
+        if (! empty($data['guarantee_level_id'])) {
+            $level = GuaranteeLevel::query()
+                ->where('id', (int) $data['guarantee_level_id'])
+                ->where('target_type', $user->isBusiness() ? GuaranteeLevel::TARGET_BUSINESS : GuaranteeLevel::TARGET_CLIENT)
+                ->where('is_active', 1)
+                ->first();
+
+            if ($level) {
+                $activatedGuarantee = $guaranteeActivationService->autoActivate($user, $level);
+            }
+        }
+
+        $message = 'تم شحن المحفظة بنجاح.';
+
+        if ($activatedGuarantee) {
+            $message .= ' وتم تفعيل الضمان تلقائيًا.';
         }
 
         return redirect()
             ->route('admin.wallet-transactions.show', ['walletTransaction' => $tx->id])
-            ->with('success', 'تم شحن المحفظة بنجاح.');
+            ->with('success', $message);
     }
 }

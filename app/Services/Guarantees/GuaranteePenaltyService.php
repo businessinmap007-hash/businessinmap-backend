@@ -26,6 +26,7 @@ class GuaranteePenaltyService
         array $meta = []
     ): UserGuarantee {
         $amount = round(max($amount, 0), 2);
+        $idempotencyKey = $meta['idempotency_key'] ?? null;
 
         if ($amount <= 0) {
             throw ValidationException::withMessages([
@@ -40,8 +41,22 @@ class GuaranteePenaltyService
             $referenceType,
             $referenceId,
             $reason,
-            $meta
+            $meta,
+            $idempotencyKey
         ) {
+            if ($idempotencyKey) {
+                $existingTx = GuaranteeTransaction::query()
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingTx) {
+                    return UserGuarantee::query()
+                        ->where('id', (int) $existingTx->user_guarantee_id)
+                        ->firstOrFail();
+                }
+            }
+
             $guarantee = $this->guaranteeCoverageService->activeGuarantee($user, $targetType);
 
             if (! $guarantee) {
@@ -88,11 +103,8 @@ class GuaranteePenaltyService
                 }
 
                 $fromGuarantee = $remaining;
-
                 $wallet->locked_balance = round((float) $wallet->locked_balance - $fromGuarantee, 2);
-
                 $guarantee->locked_amount = round((float) $guarantee->locked_amount - $fromGuarantee, 2);
-
                 $remaining = 0.0;
             }
 
@@ -116,16 +128,14 @@ class GuaranteePenaltyService
                 'type' => 'penalty',
                 'amount' => $amount,
                 'coverage_amount' => (float) $guarantee->current_coverage_amount,
-
                 'balance_before' => $balanceBefore,
                 'balance_after' => round((float) $wallet->balance, 2),
                 'locked_before' => $lockedBefore,
                 'locked_after' => round((float) $wallet->locked_balance, 2),
-
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
                 'reason' => $reason ?: 'Guarantee penalty',
-                'idempotency_key' => $meta['idempotency_key'] ?? null,
+                'idempotency_key' => $idempotencyKey,
                 'meta' => array_merge($meta, [
                     'from_balance' => $fromBalance,
                     'from_guarantee' => $fromGuarantee,

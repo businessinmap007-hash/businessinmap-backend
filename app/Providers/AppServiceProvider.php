@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Deposit;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -25,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureLocale();
         $this->configureUrl();
         $this->shareAdminV2Data();
+        $this->loadAdminV2GuaranteeRoutes();
     }
 
     private function configureLocale(): void
@@ -76,5 +78,14 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('openDisputesCount', $openDisputesCount);
         });
+    }
+
+    private function loadAdminV2GuaranteeRoutes(): void
+    {
+        $path = base_path('routes/admin_v2_guarantees.php');
+
+        if (file_exists($path)) {
+            Route::group([], $path);
+        }
     }
 }

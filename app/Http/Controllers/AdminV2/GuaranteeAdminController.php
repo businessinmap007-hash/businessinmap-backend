@@ -107,8 +107,24 @@ final class GuaranteeAdminController extends Controller
 
     public function processGraceNow(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
     {
+        DB::transaction(function () use ($guarantee) {
+            $lockedGuarantee = UserGuarantee::query()
+                ->whereKey((int) $guarantee->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ((string) $lockedGuarantee->status === UserGuarantee::STATUS_UNDERFUNDED) {
+                $lockedGuarantee->grace_until = now();
+                $lockedGuarantee->meta = array_merge(
+                    is_array($lockedGuarantee->meta ?? null) ? $lockedGuarantee->meta : [],
+                    $this->adminActionMeta('force_grace_expired')
+                );
+                $lockedGuarantee->save();
+            }
+        });
+
         $result = $service->downgradeExpiredGrace(
-            guarantee: $guarantee,
+            guarantee: $guarantee->refresh(),
             referenceType: 'admin_action',
             referenceId: (int) $guarantee->id,
             meta: $this->adminActionMeta('process_grace_now')

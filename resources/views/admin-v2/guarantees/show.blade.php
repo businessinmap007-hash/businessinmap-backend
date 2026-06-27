@@ -1,22 +1,24 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'Guarantee #' . $guarantee->id)
+@section('title', 'Guarantee Details')
 @section('topbar_title', 'Guarantee Details')
 @section('body_class', 'admin-v2-guarantees')
 
 @section('content')
 @php
-    $statusClass = function (?string $status) {
-        return match ((string) $status) {
-            'active' => 'a2-pill-success',
-            'pending_operations' => 'a2-pill-warning',
-            'underfunded' => 'a2-pill-warning',
-            'suspended', 'cancelled' => 'a2-pill-danger',
-            default => 'a2-pill-gray',
-        };
-    };
+    $statusClasses = [
+        'active' => 'a2-pill-success',
+        'pending_operations' => 'a2-pill-warning',
+        'underfunded' => 'a2-pill-warning',
+        'suspended' => 'a2-pill-danger',
+        'cancelled' => 'a2-pill-danger',
+        'downgraded' => 'a2-pill-gray',
+    ];
 
-    $meta = is_array($guarantee->meta ?? null) ? $guarantee->meta : [];
+    $gStatus = (string) $guarantee->status;
+    $user = $guarantee->user;
+    $wallet = $user ? $user->wallet : null;
+    $meta = is_array($guarantee->meta) ? $guarantee->meta : [];
     $expiresAt = $meta['guarantee_expires_at'] ?? $meta['expires_at'] ?? $meta['valid_until'] ?? $meta['subscription_expires_at'] ?? null;
 @endphp
 
@@ -28,8 +30,8 @@
         </div>
         <div class="a2-page-actions">
             <a href="{{ route('admin.guarantees.index') }}" class="a2-btn a2-btn-ghost">رجوع للضمانات</a>
-            @if($guarantee->user)
-                <a href="{{ route('admin.users.show', $guarantee->user) }}" class="a2-btn a2-btn-primary">ملف المستخدم</a>
+            @if($user)
+                <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-primary">ملف المستخدم</a>
             @endif
         </div>
     </div>
@@ -37,13 +39,13 @@
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
             <div class="a2-stat-label">الحالة</div>
-            <div class="a2-stat-value"><span class="a2-pill {{ $statusClass($guarantee->status) }}">{{ $guarantee->status }}</span></div>
+            <div class="a2-stat-value"><span class="a2-pill {{ $statusClasses[$gStatus] ?? 'a2-pill-gray' }}">{{ $gStatus ?: '—' }}</span></div>
             <div class="a2-stat-note">Target: {{ $guarantee->target_type }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">الرصيد المجمد</div>
             <div class="a2-stat-value">{{ number_format((float) $guarantee->locked_amount, 2) }}</div>
-            <div class="a2-stat-note">Wallet locked: {{ number_format((float) ($guarantee->user?->wallet?->locked_balance ?? 0), 2) }}</div>
+            <div class="a2-stat-note">Wallet locked: {{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">التغطية الحالية</div>
@@ -61,19 +63,19 @@
         <div class="a2-card">
             <h2 class="a2-section-title">بيانات المستخدم</h2>
             <div class="a2-kv">
-                <div class="a2-kv-row"><div class="a2-kv-key">الاسم</div><div class="a2-kv-val">{{ $guarantee->user?->name ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">النوع</div><div class="a2-kv-val">{{ $guarantee->user?->type ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">الهاتف</div><div class="a2-kv-val">{{ $guarantee->user?->phone ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">البريد</div><div class="a2-kv-val">{{ $guarantee->user?->email ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">Wallet Balance</div><div class="a2-kv-val">{{ number_format((float) ($guarantee->user?->wallet?->balance ?? 0), 2) }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">الاسم</div><div class="a2-kv-val">{{ optional($user)->name ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">النوع</div><div class="a2-kv-val">{{ optional($user)->type ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">الهاتف</div><div class="a2-kv-val">{{ optional($user)->phone ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">البريد</div><div class="a2-kv-val">{{ optional($user)->email ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">Wallet Balance</div><div class="a2-kv-val">{{ number_format((float) optional($wallet)->balance, 2) }}</div></div>
             </div>
         </div>
 
         <div class="a2-card">
             <h2 class="a2-section-title">بيانات الضمان</h2>
             <div class="a2-kv">
-                <div class="a2-kv-row"><div class="a2-kv-key">Purchased Level</div><div class="a2-kv-val">{{ $guarantee->purchasedLevel?->display_name ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">Effective Level</div><div class="a2-kv-val">{{ $guarantee->effectiveLevel?->display_name ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">Purchased Level</div><div class="a2-kv-val">{{ optional($guarantee->purchasedLevel)->display_name ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">Effective Level</div><div class="a2-kv-val">{{ optional($guarantee->effectiveLevel)->display_name ?: '—' }}</div></div>
                 <div class="a2-kv-row"><div class="a2-kv-key">Pending Coverage</div><div class="a2-kv-val">{{ number_format((float) $guarantee->pending_coverage_amount, 2) }}</div></div>
                 <div class="a2-kv-row"><div class="a2-kv-key">Active Coverage</div><div class="a2-kv-val">{{ number_format((float) $guarantee->active_coverage_amount, 2) }}</div></div>
                 <div class="a2-kv-row"><div class="a2-kv-key">Grace Until</div><div class="a2-kv-val">{{ $guarantee->grace_until ? $guarantee->grace_until->format('Y-m-d H:i') : '—' }}</div></div>
@@ -146,7 +148,7 @@
                             <td>{{ $tx->locked_after === null ? '—' : number_format((float) $tx->locked_after, 2) }}</td>
                             <td>{{ $tx->reference_type ?: '—' }} @if($tx->reference_id)#{{ $tx->reference_id }}@endif</td>
                             <td class="a2-text-right">{{ $tx->reason ?: '—' }}</td>
-                            <td>{{ $tx->created_at?->format('Y-m-d H:i') }}</td>
+                            <td>{{ $tx->created_at ? $tx->created_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="9" class="a2-empty-cell">لا توجد معاملات ضمان.</td></tr>

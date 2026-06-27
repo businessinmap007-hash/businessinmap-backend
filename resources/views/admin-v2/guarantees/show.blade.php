@@ -36,6 +36,18 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if(session('info'))
+        <div class="a2-alert a2-alert-info">{{ session('info') }}</div>
+    @endif
+
+    @if($errors->any())
+        <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
+    @endif
+
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
             <div class="a2-stat-label">الحالة</div>
@@ -56,6 +68,57 @@
             <div class="a2-stat-label">Trust Score</div>
             <div class="a2-stat-value">{{ number_format((float) $guarantee->trust_score, 2) }}</div>
             <div class="a2-stat-note">Completed: {{ (int) $guarantee->completed_operations_count }}</div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--tight a2-mb-16">
+        <div class="a2-header">
+            <div>
+                <h2 class="a2-section-title a2-mb-0">إجراءات إدارة الضمان</h2>
+                <div class="a2-section-subtitle">تشغيل محركات الضمان يدويًا أو تعليق/إعادة تفعيل الضمان عند الحاجة.</div>
+            </div>
+        </div>
+
+        <div class="a2-actionsbar">
+            <form method="POST" action="{{ route('admin.guarantees.sync', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-primary">Sync Coverage</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.auto-upgrade', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-success">Auto Upgrade</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.auto-downgrade', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-ghost">Auto Downgrade</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.process-grace', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-ghost" onclick="return confirm('معالجة Grace Period الآن؟')">Process Grace</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.expire-if-due', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-ghost">Expire If Due</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.reactivate', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-success" onclick="return confirm('إعادة تفعيل الضمان ومحاولة مزامنته؟')">Reactivate</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.suspend', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-danger" onclick="return confirm('تعليق الضمان يدويًا؟')">Suspend</button>
+            </form>
+
+            <form method="POST" action="{{ route('admin.guarantees.expire-now', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-danger" onclick="return confirm('إنهاء الضمان الآن وتعليق التغطية؟')">Expire Now</button>
+            </form>
         </div>
     </div>
 

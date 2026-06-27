@@ -9,6 +9,7 @@ use App\Models\Wallet;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\WalletLedgerService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 final class WalletOpsController extends Controller
 {
@@ -17,10 +18,28 @@ final class WalletOpsController extends Controller
         $userId = (int) $request->get('user_id', 0);
 
         $user = $userId
-            ? User::query()->select('id', 'name', 'type')->find($userId)
+            ? User::query()->select('id', 'name', 'email', 'phone', 'type')->find($userId)
             : null;
 
-        return view('admin-v2.wallet-ops.recharge', compact('user'));
+        $levels = collect();
+
+        if ($user) {
+            $targetType = $user->isBusiness()
+                ? GuaranteeLevel::TARGET_BUSINESS
+                : GuaranteeLevel::TARGET_CLIENT;
+
+            $levels = GuaranteeLevel::query()
+                ->where('target_type', $targetType)
+                ->where('is_active', 1)
+                ->orderByDesc('priority')
+                ->orderBy('required_locked_amount')
+                ->get();
+        }
+
+        return view('admin-v2.wallet-ops.recharge', [
+            'user' => $user,
+            'levels' => $levels,
+        ]);
     }
 
     public function recharge(
@@ -33,8 +52,17 @@ final class WalletOpsController extends Controller
             'amount' => ['required', 'numeric', 'min:1'],
             'note_id' => ['nullable', 'integer', 'exists:wallet_note_templates,id'],
             'note' => ['nullable', 'string', 'max:500'],
+            'guarantee_action' => ['nullable', Rule::in(['auto', 'manual', 'none'])],
             'guarantee_level_id' => ['nullable', 'integer', 'exists:guarantee_levels,id'],
         ]);
+
+        $guaranteeAction = $data['guarantee_action'] ?? 'auto';
+
+        if ($guaranteeAction === 'manual' && empty($data['guarantee_level_id'])) {
+            return back()
+                ->withInput()
+                ->withErrors('اختر مستوى الضمان عند اختيار Manual Guarantee Level.');
+        }
 
         $user = User::query()
             ->select('id', 'name', 'type')
@@ -57,6 +85,8 @@ final class WalletOpsController extends Controller
                     'source' => 'admin-v2',
                     'admin_id' => auth()->id(),
                     'note_id' => $data['note_id'] ?? null,
+                    'guarantee_action' => $guaranteeAction,
+                    'guarantee_level_id' => $data['guarantee_level_id'] ?? null,
                 ],
                 'note' => (string) ($data['note'] ?? ''),
             ]
@@ -69,27 +99,32 @@ final class WalletOpsController extends Controller
 
         $upgradeResult = null;
 
-        if (! empty($data['guarantee_level_id'])) {
+        if ($guaranteeAction === 'manual') {
             $level = GuaranteeLevel::query()
                 ->where('id', (int) $data['guarantee_level_id'])
                 ->where('target_type', $user->isBusiness() ? GuaranteeLevel::TARGET_BUSINESS : GuaranteeLevel::TARGET_CLIENT)
                 ->where('is_active', 1)
                 ->first();
 
-            if ($level) {
-                $upgradeResult = $guaranteeAutoUpgradeService->upgradeToLevel(
-                    user: $user,
-                    level: $level,
-                    referenceType: 'wallet_transaction',
-                    referenceId: (int) $tx->id,
-                    meta: [
-                        'source' => 'wallet_ops_recharge',
-                        'wallet_transaction_id' => (int) $tx->id,
-                        'admin_id' => auth()->id(),
-                    ]
-                );
+            if (! $level) {
+                return back()
+                    ->withInput()
+                    ->withErrors('مستوى الضمان المختار غير مناسب لنوع المستخدم أو غير مفعل.');
             }
-        } else {
+
+            $upgradeResult = $guaranteeAutoUpgradeService->upgradeToLevel(
+                user: $user,
+                level: $level,
+                referenceType: 'wallet_transaction',
+                referenceId: (int) $tx->id,
+                meta: [
+                    'source' => 'wallet_ops_recharge',
+                    'wallet_transaction_id' => (int) $tx->id,
+                    'admin_id' => auth()->id(),
+                    'guarantee_action' => 'manual',
+                ]
+            );
+        } elseif ($guaranteeAction === 'auto') {
             $upgradeResult = $guaranteeAutoUpgradeService->autoUpgrade(
                 user: $user,
                 referenceType: 'wallet_transaction',
@@ -98,14 +133,21 @@ final class WalletOpsController extends Controller
                     'source' => 'wallet_ops_recharge',
                     'wallet_transaction_id' => (int) $tx->id,
                     'admin_id' => auth()->id(),
+                    'guarantee_action' => 'auto',
                 ]
             );
         }
 
         $message = 'تم شحن المحفظة بنجاح.';
 
+        if ($guaranteeAction === 'none') {
+            $message .= ' لم يتم تنفيذ أي إجراء ضمان.';
+        }
+
         if (($upgradeResult['changed'] ?? false) && ! empty($upgradeResult['level'])) {
-            $message .= ' وتم تحديث مستوى الضمان تلقائيًا إلى: ' . $upgradeResult['level']->display_name . '.';
+            $message .= ' وتم تحديث مستوى الضمان إلى: ' . $upgradeResult['level']->display_name . '.';
+        } elseif ($upgradeResult && ! ($upgradeResult['changed'] ?? false)) {
+            $message .= ' نتيجة الضمان: ' . ($upgradeResult['reason'] ?? 'no_change') . '.';
         }
 
         return redirect()

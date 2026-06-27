@@ -149,6 +149,7 @@ final class GuaranteeAutoUpgradeService
 
         $requiredLocked = round((float) $level->required_locked_amount, 2);
         $currentLocked = round((float) optional($guarantee)->locked_amount, 2);
+        $finalLocked = max($requiredLocked, $currentLocked);
         $additionalLock = max(round($requiredLocked - $currentLocked, 2), 0);
 
         if ($additionalLock > round((float) $wallet->balance, 2)) {
@@ -194,7 +195,7 @@ final class GuaranteeAutoUpgradeService
         $oldStatus = $guarantee->status;
 
         $guarantee->purchased_level_id = (int) $level->id;
-        $guarantee->locked_amount = $requiredLocked;
+        $guarantee->locked_amount = $finalLocked;
         $guarantee->pending_coverage_amount = (float) $level->pending_coverage_amount;
         $guarantee->active_coverage_amount = (float) $level->active_coverage_amount;
         $guarantee->cancelled_at = null;
@@ -246,6 +247,8 @@ final class GuaranteeAutoUpgradeService
                         'level_code' => (string) $level->code,
                         'old_status' => $oldStatus,
                         'new_status' => (string) $guarantee->status,
+                        'required_locked_amount' => $requiredLocked,
+                        'final_locked_amount' => $finalLocked,
                         'additional_locked_amount' => $additionalLock,
                     ]),
                 ]);

@@ -8,298 +8,248 @@ Version: 1.0 (Draft)
 
 # 1. Purpose
 
-This document summarizes the current audit state of BIM and defines the recommended roadmap for the next development phases.
+This document summarizes the current project state, known technical debt, legacy areas, immediate priorities, and future roadmap.
 
-It is intended to answer three questions:
-
-1. What is already stable?
-2. What needs review or refactor?
-3. What should be built next?
+It should be reviewed before starting any new development phase.
 
 ---
 
-# 2. Stable or Advanced Areas
+# 2. Current High-Level Status
 
-## 2.1 Categories Architecture
-
-Status: Advanced / mostly stable.
-
-Completed decisions:
-
-- Root categories remain in `categories` with `parent_id = 0`.
-- Children moved to `category_children_master`.
-- Parent-child relation handled by `category_parent_child`.
-- Category children can be reused across root categories.
-- Options are attached to category children, not root categories.
-
-Needs:
-
-- Final UI polishing.
-- Legacy cleanup.
-- Sidebar grouping.
-
----
-
-## 2.2 Options and Option Groups
-
-Status: Advanced.
-
-Completed:
-
-- Options CRUD.
-- Option Groups CRUD.
-- Child option assignment.
-- Group-based and individual option selection.
-
-Needs:
-
-- Final duplication cleanup.
-- Usage statistics later.
+| Area | Status |
+|---|---|
+| Core Laravel structure | Stable |
+| Admin V2 UI | Advanced, needs final menu cleanup |
+| Categories | Stable |
+| Category Children | Stable |
+| Options / Option Groups | Advanced |
+| Category Child Options | Stable/advanced |
+| Platform Services | Advanced, needs final cleanup |
+| Category Service Bulk | High priority, needs testing and stabilization |
+| Service Fees | Advanced, needs final testing |
+| Business Service Prices | Needs review after service-fee stabilization |
+| Bookable Items | Advanced |
+| Booking Engine | Advanced, needs guarantee/deposit final integration |
+| Wallet | Advanced |
+| Wallet Fee Service | Advanced |
+| Deposit / Guarantee | Designed, needs final implementation pass |
+| Disputes | Advanced, needs lifecycle polish |
+| API | Later phase |
+| Mobile clients | Later phase |
 
 ---
 
-## 2.3 Users Module
+# 3. Immediate Priorities
 
-Status: Advanced.
+## Priority 1 - Route and Legacy Cleanup
 
-Completed:
+Files:
 
-- Type filter.
-- Category and child assignment.
-- Options assignment.
-- Service assignment for businesses.
-- Service filter based on active business services.
-
-Needs:
-
-- Better business profile service setup screen.
-- Staff/editor accounts in a later phase.
-
----
-
-## 2.4 Admin V2 CSS
-
-Status: Strong base.
-
-Completed:
-
-- Unified `a2-*` system.
-- Cards.
-- Tables.
-- Forms.
-- Filter bars.
-- Buttons.
-- Pills.
-- Responsive sidebar styles.
-
-Needs:
-
-- Remove duplicated CSS blocks over time.
-- Continue standardizing old pages.
-
----
-
-# 3. Areas Requiring Immediate Attention
-
-## 3.1 routes/admin_v2.php
-
-Priority: Very high.
+- `routes/admin_v2.php`
+- Admin menu views
 
 Tasks:
 
 - Remove or isolate test routes.
-- Ensure route order is safe.
-- Group modules clearly.
-- Clean unused imports.
-- Rebuild sidebar to match route groups.
+- Confirm route order.
+- Remove duplicated entries.
+- Keep dynamic routes after static routes.
 
----
+## Priority 2 - Category Services Bulk
 
-## 3.2 Category Services Bulk
+Files:
 
-Priority: Very high.
+- `CategoryServiceBulkController`
+- `CategoryPlatformService`
+- `CategoryServiceConfig`
+- `CategoryChildServiceFee`
+- `categories/services-bulk.blade.php`
 
 Tasks:
 
 - Verify append/replace/remove.
-- Verify category_id + child_id + platform_service_id keys.
-- Verify service config is written correctly.
-- Verify service fees are saved and disabled correctly.
-- Verify no old root-only service logic remains.
+- Verify config saving.
+- Verify fee saving.
+- Verify no undefined variables.
+- Verify root + child + service uniqueness.
 
----
+## Priority 3 - Service Fees
 
-## 3.3 Service Fees
+Files:
 
-Priority: Very high.
-
-Tasks:
-
-- Stabilize child/service fee edit page.
-- Stabilize bulk fee edit page.
-- Validate fixed/percent behavior.
-- Validate business/client fee enable flags.
-- Ensure inactive fees do not charge.
-
----
-
-## 3.4 Booking Engine
-
-Priority: High.
+- `CategoryChildServiceFeeController`
+- `CategoryChildServiceFeeBulkController`
+- `CategoryChildServiceFee`
+- fee views
 
 Tasks:
 
-- Finalize integration with category child services.
-- Finalize pricing snapshots.
-- Finalize deposit/guarantee policy.
-- Confirm service fee snapshots.
-- Confirm idempotent fee application.
+- Test fixed/percent business fees.
+- Test fixed/percent client fees.
+- Test inactive fee behavior.
+- Test fee matrix UI.
 
----
+## Priority 4 - Booking + Wallet Fee Integration
 
-## 3.5 Guarantee System
+Files:
 
-Priority: High.
+- `BookingEngine`
+- `BookingController`
+- `WalletFeeService`
+- `Booking` model
 
 Tasks:
 
-- Define final DB fields/tables if not complete.
-- Implement policy resolver.
-- Implement client wallet hold.
-- Implement business counter hold.
-- Implement external deposit verification.
-- Implement release/refund/split.
-- Add admin UI.
-- Add dispute reminders.
+- Verify booking pricing snapshot.
+- Verify fee snapshot.
+- Verify wallet idempotency.
+- Verify no double charge.
+
+## Priority 5 - Guarantee System
+
+Files:
+
+- `GuaranteeAdminController`
+- Guarantee model(s)
+- Booking deposit/guarantee services
+- Booking show/admin actions
+
+Tasks:
+
+- Finalize policy engine.
+- Add client hold logic.
+- Add business counter hold logic.
+- Add external deposit confirmation.
+- Add dispute window and reminders.
 
 ---
 
-# 4. Deferred Areas
+# 4. Known Technical Debt
 
-These should not block the current stabilization work:
-
-- Dynamic fee rules engine.
-- API V1 expansion.
-- Mobile application integration.
-- Advanced reports and statistics.
-- AI/search recommendations.
-- Staff/editor accounts for business users.
-- Subscription packages refinement.
-- Public-facing UI enhancements.
+- Some routes are still experimental.
+- Some legacy naming remains around booking profiles/configs.
+- Some modules are advanced but need end-to-end testing.
+- Deposit and guarantee concepts need final code alignment.
+- Admin sidebar grouping should be rebuilt cleanly.
+- Documentation was missing before this phase.
 
 ---
 
-# 5. Technical Debt
+# 5. Legacy Areas to Review
 
-Known technical debt:
+Search for:
 
-- Legacy service/profile names may still exist in code or comments.
-- Some Admin V2 CSS sections are duplicated.
-- Some routes are still test-oriented.
-- Some service/deposit decisions are implemented partially.
-- Business rules are split between controllers and services in some areas.
-- Some screens load full catalogs and may need optimization later.
+```text
+CategoryBookingProfile
+activeBookingProfile
+bookingProfiles
+CategoryOptionController
+ServiceFeeController
+booking-test
+```
 
----
+Each match should be classified as:
 
-# 6. Cleanup Candidates
+- Delete
+- Keep Legacy
+- Refactor Later
+- Already replaced
 
-Review before deleting:
-
-- Old `CategoryOptionController` references.
-- Old category option views.
-- Old `CategoryBookingProfile` references.
-- Old service fee controllers or models if replaced.
-- Booking test routes/controllers.
-- Any backup tables or temporary SQL structures.
-
-Rule:
-
-Do not delete before search + route check + backup confirmation.
+No file should be deleted before confirming routes, views, model references, and database dependencies.
 
 ---
 
-# 7. Recommended Roadmap
+# 6. Pending Decisions
+
+## 6.1 API Design
+
+The public/mobile API is not the current priority. It should come after Admin V2, booking, wallet, and guarantee flows are stable.
+
+## 6.2 Business Staff Accounts
+
+Future feature: allow businesses to create staff/editor accounts to manage bookings and operations.
+
+## 6.3 Dynamic Fee Rules Engine
+
+Future feature: calculate fees by rules such as city, booking value, peak time, subscription, or business performance.
+
+## 6.4 Multi-child Business Support
+
+Current assumption: business has one main category child. Future versions may allow a business to operate in multiple children.
+
+---
+
+# 7. Roadmap
 
 ## Phase A - Stabilization
 
-1. Clean routes.
-2. Rebuild sidebar groups.
-3. Stabilize category services bulk.
-4. Stabilize category child service fees.
-5. Stabilize wallet fee charging.
+- Clean routes.
+- Stabilize Admin V2 sidebar.
+- Stabilize category services bulk.
+- Stabilize service fees.
+- Test booking + wallet fee integration.
 
-## Phase B - Booking and Guarantee
+## Phase B - Guarantee Finalization
 
-1. Final guarantee policy.
-2. Client hold.
-3. Business counter hold.
-4. External deposit verification.
-5. Booking lifecycle integration.
-6. Dispute automation.
+- Implement guarantee policy service.
+- Implement client wallet hold.
+- Implement business counter hold.
+- Implement external deposit verification.
+- Add admin actions and dispute integration.
 
 ## Phase C - Business Services
 
-1. Business active services screen.
-2. Business service prices validation.
-3. Bookable items improvements.
-4. Availability and price rules finalization.
+- Review business service prices.
+- Ensure service activation depends on user platform service.
+- Validate bookable items against service types.
+- Improve business setup UX.
 
-## Phase D - Admin UX
+## Phase D - Booking Production Readiness
 
-1. Full sidebar rebuild.
-2. Forms standardization.
-3. Tables standardization.
-4. Finance pages polish.
-5. Booking show page improvements.
+- Complete booking lifecycle tests.
+- Complete calendar/availability checks.
+- Complete dispute actions.
+- Add audit logs where needed.
 
-## Phase E - API and Future Growth
+## Phase E - API and Mobile Readiness
 
-1. Public API endpoints.
-2. Client app support.
-3. Business app support.
-4. Notifications.
-5. Reports and analytics.
+- Build API endpoints.
+- Add authentication flow.
+- Add search API.
+- Add booking API.
+- Add wallet/guarantee state API.
 
 ---
 
-# 8. Current Recommended Next Work
+# 8. Decision Log
+
+Important decisions already made:
+
+- Category children are no longer rows inside `categories`.
+- Root categories are stored in `categories` with `parent_id = 0`.
+- Category child data lives in `category_children_master`.
+- Options belong to category children through `category_child_option`.
+- Direct Category -> Options management is removed from final architecture.
+- Platform services are configured per category child.
+- Service fees are stored per child/service.
+- Wallet fee deductions are handled by `WalletFeeService`.
+- Booking pricing should preserve snapshots.
+- Guarantee is a core system, not a simple deposit payment.
+- External deposit should be verified, not treated as BIM wallet income.
+
+---
+
+# 9. Recommended Next Work Item
 
 Start with:
 
 ```text
-BIM-0.1 - Clean routes/admin_v2.php
-BIM-2.3 - Stabilize Category Services Bulk
-BIM-3.2 - Stabilize Category Child Service Fees
-BIM-3.3 - Bulk Service Fees
-BIM-6.4 - Wallet Fee Service validation
-BIM-6.5 - Deposits and Guarantees
+BIM-0.1 + BIM-2.3
 ```
 
-This order protects the project from building new features on unstable service/fee foundations.
+Meaning:
 
----
-
-# 9. Documentation Roadmap
-
-Current documentation files:
-
-- `docs/01_PROJECT_FOUNDATION.md`
-- `docs/02_DATABASE_AND_BUSINESS_CORE.md`
-- `docs/03_BOOKING_WALLET_DEPOSIT_GUARANTEE.md`
-- `docs/04_ADMIN_V2_AND_DEVELOPMENT_RULES.md`
-- `docs/05_PROJECT_AUDIT_AND_ROADMAP.md`
-
-Future optional docs:
-
-- `06_CONTROLLERS_AND_ROUTES_MAP.md`
-- `07_MODELS_AND_RELATIONSHIPS_MAP.md`
-- `08_SQL_SCHEMA_NOTES.md`
-- `09_API_PLAN.md`
-- `10_DECISIONS_LOG.md`
-
----
-
-# 10. Final Note
-
-The project is not in a starting state. It already has a strong architecture base. The current work should focus on stabilization, cleanup, and finishing the financial/booking core before adding large new features.
+1. Clean `routes/admin_v2.php`.
+2. Stabilize `CategoryServiceBulkController` and its view.
+3. Confirm service config and fee persistence.
+4. Then move to service fees and guarantee finalization.

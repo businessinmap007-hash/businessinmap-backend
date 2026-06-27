@@ -6,6 +6,11 @@ use App\Models\UserGuarantee;
 
 class GuaranteeScoreService
 {
+    public function __construct(
+        protected GuaranteeAutoDowngradeService $guaranteeAutoDowngradeService
+    ) {
+    }
+
     public function record(UserGuarantee $guarantee, string $result): UserGuarantee
     {
         match ($result) {
@@ -23,7 +28,17 @@ class GuaranteeScoreService
 
         $guarantee->save();
 
-        return $guarantee->refresh();
+        $syncResult = $this->guaranteeAutoDowngradeService->syncEffectiveLevel(
+            guarantee: $guarantee->refresh(),
+            referenceType: 'guarantee_score',
+            referenceId: (int) $guarantee->id,
+            meta: [
+                'score_result' => $result,
+                'source' => 'GuaranteeScoreService::record',
+            ]
+        );
+
+        return $syncResult['guarantee']->refresh();
     }
 
     protected function maybeActivatePurchasedLevel(UserGuarantee $guarantee): void

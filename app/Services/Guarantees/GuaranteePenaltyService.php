@@ -12,7 +12,8 @@ use Illuminate\Validation\ValidationException;
 class GuaranteePenaltyService
 {
     public function __construct(
-        protected GuaranteeCoverageService $guaranteeCoverageService
+        protected GuaranteeCoverageService $guaranteeCoverageService,
+        protected GuaranteeAutoDowngradeService $guaranteeAutoDowngradeService
     ) {
     }
 
@@ -116,7 +117,7 @@ class GuaranteePenaltyService
 
             if ((float) $guarantee->locked_amount < $requiredLocked) {
                 $guarantee->status = UserGuarantee::STATUS_UNDERFUNDED;
-                $guarantee->grace_until = now()->addDays(7);
+                $guarantee->grace_until = $guarantee->grace_until ?: now()->addDays(7);
             }
 
             $guarantee->used_coverage_amount = round((float) $guarantee->used_coverage_amount + $amount, 2);
@@ -139,8 +140,24 @@ class GuaranteePenaltyService
                 'meta' => array_merge($meta, [
                     'from_balance' => $fromBalance,
                     'from_guarantee' => $fromGuarantee,
+                    'required_locked_amount' => $requiredLocked,
+                    'grace_until' => $guarantee->grace_until?->toDateTimeString(),
                 ]),
             ]);
+
+            if ((string) $guarantee->status !== UserGuarantee::STATUS_UNDERFUNDED) {
+                $syncResult = $this->guaranteeAutoDowngradeService->syncEffectiveLevel(
+                    guarantee: $guarantee->refresh(),
+                    referenceType: $referenceType,
+                    referenceId: $referenceId,
+                    meta: [
+                        'source' => 'GuaranteePenaltyService::applyPenalty',
+                        'penalty_amount' => $amount,
+                    ]
+                );
+
+                return $syncResult['guarantee']->refresh();
+            }
 
             return $guarantee->refresh();
         });

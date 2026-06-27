@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\V1\{
     MenuController,
     CartController,
     CourierController,
+    GuaranteeController,
     LocationDropdownController
 };
 
@@ -99,9 +100,9 @@ Route::prefix('v1')->group(function () {
 
     // Locations (Dropdown - current)
     Route::get('countries',       [LocationDropdownController::class, 'countries']);
-    Route::get('governorates',    [LocationDropdownController::class, 'governorates']);    // ?country_id=1
-    Route::get('cities',          [LocationDropdownController::class, 'cities']);          // ?governorate_id=5
-    Route::get('cities/search',   [LocationDropdownController::class, 'searchCities']);    // ?q=زق&governorate_id=5
+    Route::get('governorates',    [LocationDropdownController::class, 'governorates']);
+    Route::get('cities',          [LocationDropdownController::class, 'cities']);
+    Route::get('cities/search',   [LocationDropdownController::class, 'searchCities']);
 
     // Search
     Route::get('search/locations', [SearchController::class, 'locations']);
@@ -122,24 +123,10 @@ Route::prefix('v1')->group(function () {
         return $request->all();
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | MENU V1 (Public menu browsing)  ✅ NEW
-    |--------------------------------------------------------------------------
-    | - Browsing menu does NOT require token
-    | - Cart requires token
-    */
-
     Route::prefix('menu')->group(function () {
-        Route::get('items',       [MenuController::class, 'items']);  // GET  /v1/menu/items
-        Route::get('items/{id}',  [MenuController::class, 'show']);   // GET  /v1/menu/items/{id}
+        Route::get('items',       [MenuController::class, 'items']);
+        Route::get('items/{id}',  [MenuController::class, 'show']);
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authenticated Routes (Require Sanctum Token)
-    |--------------------------------------------------------------------------
-    */
 
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -147,6 +134,14 @@ Route::prefix('v1')->group(function () {
         Route::get('profile',            [ProfileController::class, 'index']);
         Route::post('profile/update',    [ProfileController::class, 'updateProfile']);
         Route::post('user/update/phone', [ProfileController::class, 'updatePhone']);
+
+        // Guarantee Engine
+        Route::prefix('guarantees')->group(function () {
+            Route::get('levels',       [GuaranteeController::class, 'levels']);
+            Route::get('me',           [GuaranteeController::class, 'me']);
+            Route::get('transactions', [GuaranteeController::class, 'transactions']);
+            Route::post('activate',    [GuaranteeController::class, 'activate']);
+        });
 
         // Notifications
         Route::prefix('notifications')->group(function () {
@@ -158,39 +153,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/',           [NotificationController::class, 'store']);
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | CART V1 ✅ NEW (matches our CartController methods)
-        |--------------------------------------------------------------------------
-        */
-
         Route::prefix('cart')->group(function () {
-            Route::get('my',                    [CartController::class, 'myCart']);        // GET    /v1/cart/my
-            Route::post('items',                [CartController::class, 'addItem']);       // POST   /v1/cart/items
-            Route::patch('items/{cartItemId}',  [CartController::class, 'updateQty']);     // PATCH  /v1/cart/items/{id}
-            Route::delete('items/{cartItemId}', [CartController::class, 'removeItem']);    // DELETE /v1/cart/items/{id}
-            Route::delete('clear',              [CartController::class, 'clear']);         // DELETE /v1/cart/clear
+            Route::get('my',                    [CartController::class, 'myCart']);
+            Route::post('items',                [CartController::class, 'addItem']);
+            Route::patch('items/{cartItemId}',  [CartController::class, 'updateQty']);
+            Route::delete('items/{cartItemId}', [CartController::class, 'removeItem']);
+            Route::delete('clear',              [CartController::class, 'clear']);
         });
-        
-
-        /*
-        |--------------------------------------------------------------------------
-        | Menu Orders (keep as-is)
-        |--------------------------------------------------------------------------
-        */
-
-        // Route::prefix('menu/orders')
-        //     ->controller(MenuOrderController::class)
-        //     ->group(function () {
-        //         Route::post('from-cart', 'createFromCart');
-        //         Route::get('my', 'myOrders');
-        //         Route::get('{id}', 'show');
-
-        //         Route::middleware('business')->group(function () {
-        //             Route::get('business', 'businessOrders');
-        //             Route::post('{id}/status', 'updateStatus');
-        //         });
-        //     });
 
         // General Orders
         Route::prefix('orders')->group(function () {
@@ -204,39 +173,26 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-      // Delivery Orders
-            Route::prefix('delivery')->group(function () {
-                Route::post('orders',             [DeliveryController::class, 'store']);
-                Route::get('orders',              [DeliveryController::class, 'myOrders']);
+        // Delivery Orders
+        Route::prefix('delivery')->group(function () {
+            Route::post('orders',             [DeliveryController::class, 'store']);
+            Route::get('orders',              [DeliveryController::class, 'myOrders']);
+            Route::get('orders/business',     [DeliveryController::class, 'businessOrders']);
+            Route::get('orders/driver',       [DeliveryController::class, 'driverOrders']);
+            Route::get('orders/available',    [DeliveryController::class, 'availableOrders']);
+            Route::get('orders/{id}',         [DeliveryController::class, 'show']);
+            Route::post('orders/{id}/accept', [DeliveryController::class, 'accept']);
+            Route::post('orders/{id}/status', [DeliveryController::class, 'updateStatus']);
+            Route::post('orders/{id}/cancel', [DeliveryController::class, 'cancel']);
+            Route::post('orders/{id}/reject', [DeliveryController::class, 'reject']);
+        });
 
-                // Store / Restaurant business
-                Route::get('orders/business',     [DeliveryController::class, 'businessOrders']);
-
-                // Courier
-                Route::get('orders/driver',       [DeliveryController::class, 'driverOrders']);
-                Route::get('orders/available',    [DeliveryController::class, 'availableOrders']);
-
-                // Details
-                Route::get('orders/{id}',         [DeliveryController::class, 'show']);
-
-                // Actions
-                Route::post('orders/{id}/accept', [DeliveryController::class, 'accept']);
-                Route::post('orders/{id}/status', [DeliveryController::class, 'updateStatus']);
-
-                // Cancel (✅ بدل DELETE)
-                Route::post('orders/{id}/cancel', [DeliveryController::class, 'cancel']);
-
-                // Reject (hide from courier list)
-                Route::post('orders/{id}/reject', [DeliveryController::class, 'reject']);
-            });
-
-            // Courier service (on/off + location + profile)
-            Route::prefix('courier')->group(function () {
-                Route::get('me',        [CourierController::class, 'myProfile']);
-                Route::post('status',   [CourierController::class, 'updateStatus']);
-                Route::post('location', [CourierController::class, 'updateLocation']);
-            });
-
+        // Courier service (on/off + location + profile)
+        Route::prefix('courier')->group(function () {
+            Route::get('me',        [CourierController::class, 'myProfile']);
+            Route::post('status',   [CourierController::class, 'updateStatus']);
+            Route::post('location', [CourierController::class, 'updateLocation']);
+        });
 
         // Driver Location
         Route::prefix('driver/location')->group(function () {
@@ -266,8 +222,6 @@ Route::prefix('v1')->group(function () {
             Route::delete('conversations/{id}',        [ChatController::class, 'deleteConversation']);
         });
 
-     
-
         // Payments
         Route::post('payment/charge/account', [PaymentController::class, 'chargeAccount']);
         Route::post('payment/subscription',   [PaymentController::class, 'store']);
@@ -283,12 +237,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('{id}',    'show');
             });
 
-        /*
-        |--------------------------------------------------------------------------
-        | WALLET SYSTEM — FINAL CLEAN VERSION
-        |--------------------------------------------------------------------------
-        */
-
+        // Wallet
         Route::prefix('wallet')->group(function () {
             Route::post('pin/set',    [WalletPinController::class, 'setPin']);
             Route::post('pin/verify', [WalletPinController::class, 'verifyPin']);
@@ -302,44 +251,15 @@ Route::prefix('v1')->group(function () {
             Route::post('transfer', [WalletController::class, 'transfer']);
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | DEPOSIT SYSTEM
-        |--------------------------------------------------------------------------
-        */
-
+        // Deposit System
         Route::prefix('deposits')->group(function () {
-         // ===============================
-        // CRUD / Listing
-        // ===============================
-
-        // إنشاء Deposit (Freeze)
-        Route::post('/', [DepositController::class, 'create']);
-
-        // قائمة Deposits (فلترة)
-        Route::get('/', [DepositController::class, 'index']);
-
-        // عرض Deposit واحد
-        Route::get('{id}', [DepositController::class, 'show']);
-
-        // ===============================
-        // Workflow Actions
-        // ===============================
-
-        // 🚀 Start Execution (خصم رسوم الخدمة من مقدم الخدمة)
-        Route::post('{id}/start-execution', [DepositController::class, 'startExecution']);
-
-        // Release (فك التجميد للطرفين)
-        Route::post('{id}/release', [DepositController::class, 'release']);
-
-        // Refund (إرجاع لطرف واحد أو للطرفين)
-        Route::post('{id}/refund', [DepositController::class, 'refund']);
+            Route::post('/', [DepositController::class, 'create']);
+            Route::get('/', [DepositController::class, 'index']);
+            Route::get('{id}', [DepositController::class, 'show']);
+            Route::post('{id}/start-execution', [DepositController::class, 'startExecution']);
+            Route::post('{id}/release', [DepositController::class, 'release']);
+            Route::post('{id}/refund', [DepositController::class, 'refund']);
         });
 
     });
-
-  
-    
-    
-      
 });

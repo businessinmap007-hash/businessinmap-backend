@@ -9,6 +9,8 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\DisputeService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
+use App\Models\GuaranteeLevel;
+use App\Services\Guarantees\GuaranteePenaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -19,6 +21,7 @@ class DisputeController extends Controller
     public function __construct(
         protected DisputeService $disputeService,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
+        protected GuaranteePenaltyService $guaranteePenaltyService,
     ) {
     }
 
@@ -235,23 +238,36 @@ class DisputeController extends Controller
         return back()->with('success', 'تم إغلاق النزاع.');
     }
 
-    public function resolveReleaseBusiness(Dispute $dispute)
+    public function resolveReleaseBusiness(Request $request, Dispute $dispute)
     {
-        $this->ensureDisputeStatus($dispute, ['open', 'under_review']);
+        $this->ensureDisputeStatus($dispute, ['open', 'under_review', 'mutual_resolution']);
+
+        $data = $request->validate([
+            'penalty_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
 
         try {
-            DB::transaction(function () use ($dispute) {
+            DB::transaction(function () use ($dispute, $data) {
                 $resolved = $this->disputeService->resolve(
-    dispute: $dispute,
-    resolutionType: 'release_business',
-    resolutionPayload: [],
-    actorId: auth()->id()
-);
+                    dispute: $dispute,
+                    resolutionType: 'release_business',
+                    resolutionPayload: [
+                        'penalty_amount' => (float) ($data['penalty_amount'] ?? 0),
+                    ],
+                    actorId: auth()->id()
+                );
 
-$this->recordBookingDisputeResult($resolved, 'release_business');
+                $this->recordBookingDisputeResult($resolved, 'release_business');
+
+                $this->applyGuaranteePenaltyIfNeeded(
+                    dispute: $resolved,
+                    loserSide: 'client',
+                    amount: (float) ($data['penalty_amount'] ?? 0),
+                    reason: 'Dispute resolved in favor of business'
+                );
             });
 
-            return back()->with('success', 'تم حل النزاع وتحويل القرار إلى Release Business.');
+            return back()->with('success', 'تم حل النزاع لصالح مقدم الخدمة.');
         } catch (\Throwable $e) {
             report($e);
 
@@ -259,23 +275,36 @@ $this->recordBookingDisputeResult($resolved, 'release_business');
         }
     }
 
-    public function resolveRefundClient(Dispute $dispute)
+    public function resolveRefundClient(Request $request, Dispute $dispute)
     {
-        $this->ensureDisputeStatus($dispute, ['open', 'under_review']);
+        $this->ensureDisputeStatus($dispute, ['open', 'under_review', 'mutual_resolution']);
+
+        $data = $request->validate([
+            'penalty_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
 
         try {
-            DB::transaction(function () use ($dispute) {
+            DB::transaction(function () use ($dispute, $data) {
                 $resolved = $this->disputeService->resolve(
-                dispute: $dispute,
-                resolutionType: 'refund_client',
-                resolutionPayload: [],
-                actorId: auth()->id()
-            );
+                    dispute: $dispute,
+                    resolutionType: 'refund_client',
+                    resolutionPayload: [
+                        'penalty_amount' => (float) ($data['penalty_amount'] ?? 0),
+                    ],
+                    actorId: auth()->id()
+                );
 
-            $this->recordBookingDisputeResult($resolved, 'refund_client');
+                $this->recordBookingDisputeResult($resolved, 'refund_client');
+
+                $this->applyGuaranteePenaltyIfNeeded(
+                    dispute: $resolved,
+                    loserSide: 'business',
+                    amount: (float) ($data['penalty_amount'] ?? 0),
+                    reason: 'Dispute resolved in favor of client'
+                );
             });
 
-            return back()->with('success', 'تم حل النزاع وتحويل القرار إلى Refund Client.');
+            return back()->with('success', 'تم حل النزاع لصالح العميل.');
         } catch (\Throwable $e) {
             report($e);
 
@@ -291,6 +320,8 @@ $this->recordBookingDisputeResult($resolved, 'release_business');
             'client_percent'   => ['required', 'numeric', 'min:0', 'max:100'],
             'business_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'notes'            => ['nullable', 'string', 'max:2000'],
+            'client_penalty_amount' => ['nullable', 'numeric', 'min:0'],
+            'business_penalty_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $clientPercent   = (float) $data['client_percent'];
@@ -312,11 +343,26 @@ $this->recordBookingDisputeResult($resolved, 'release_business');
                     'client_percent'   => $clientPercent,
                     'business_percent' => $businessPercent,
                     'notes'            => $data['notes'] ?? null,
+                    'client_penalty_amount' => (float) ($data['client_penalty_amount'] ?? 0),
+                    'business_penalty_amount' => (float) ($data['business_penalty_amount'] ?? 0),
                 ],
                 actorId: auth()->id()
             );
 
             $this->recordBookingDisputeResult($resolved, 'split');
+            $this->applyGuaranteePenaltyIfNeeded(
+                dispute: $resolved,
+                loserSide: 'client',
+                amount: (float) ($data['client_penalty_amount'] ?? 0),
+                reason: 'Dispute split penalty against client'
+            );
+
+            $this->applyGuaranteePenaltyIfNeeded(
+                dispute: $resolved,
+                loserSide: 'business',
+                amount: (float) ($data['business_penalty_amount'] ?? 0),
+                reason: 'Dispute split penalty against business'
+            );
             });
 
             return back()->with('success', 'تم حل النزاع بنسبة توزيع بين الطرفين.');
@@ -409,5 +455,62 @@ $this->recordBookingDisputeResult($resolved, 'release_business');
             'no_action' => null,
             default => null,
         };
+    }
+    
+    protected function applyGuaranteePenaltyIfNeeded(
+        Dispute $dispute,
+        string $loserSide,
+        float $amount,
+        string $reason
+    ): void {
+        $amount = round(max($amount, 0), 2);
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        if ((string) $dispute->disputeable_type !== Booking::class) {
+            return;
+        }
+
+        $booking = Booking::query()
+            ->with(['user', 'business'])
+            ->find((int) $dispute->disputeable_id);
+
+        if (! $booking) {
+            return;
+        }
+
+        if ($loserSide === 'client' && $booking->user) {
+            $this->guaranteePenaltyService->applyPenalty(
+                user: $booking->user,
+                amount: $amount,
+                targetType: GuaranteeLevel::TARGET_CLIENT,
+                referenceType: Dispute::class,
+                referenceId: (int) $dispute->id,
+                reason: $reason,
+                meta: [
+                    'booking_id' => (int) $booking->id,
+                    'loser_side' => 'client',
+                    'idempotency_key' => 'dispute_penalty_client_' . $dispute->id,
+                ]
+            );
+        }
+
+        if ($loserSide === 'business' && $booking->business) {
+            $this->guaranteePenaltyService->applyPenalty(
+                user: $booking->business,
+                amount: $amount,
+                targetType: GuaranteeLevel::TARGET_BUSINESS,
+                referenceType: Dispute::class,
+                referenceId: (int) $dispute->id,
+                reason: $reason,
+                meta: [
+                    'booking_id' => (int) $booking->id,
+                    'loser_side' => 'business',
+                    'idempotency_key' => 'dispute_penalty_business_' . $dispute->id,
+                ]
+            );
+        }
     }
 }

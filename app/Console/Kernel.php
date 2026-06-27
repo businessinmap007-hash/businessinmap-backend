@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SendDueBookingReminders::class,
         \App\Console\Commands\DeleteExpiredSponsors::class,
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
+        \App\Console\Commands\ProcessExpiredGuarantees::class,
     ];
 
     protected function schedule(Schedule $schedule): void
@@ -20,6 +21,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('sponsors:delete-expired')->everyTenMinutes();
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
+        $schedule->command('guarantees:process-expired --limit=200')->hourly();
     }
 
     protected function commands(): void

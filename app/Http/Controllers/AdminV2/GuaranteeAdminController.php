@@ -6,8 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\GuaranteeLevel;
 use App\Models\GuaranteeTransaction;
 use App\Models\UserGuarantee;
+use App\Services\Guarantees\GuaranteeAutoDowngradeService;
+use App\Services\Guarantees\GuaranteeAutoUpgradeService;
+use App\Services\Guarantees\GuaranteeExpirationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class GuaranteeAdminController extends Controller
 {
@@ -85,6 +90,257 @@ final class GuaranteeAdminController extends Controller
             'guarantee' => $guarantee,
             'transactions' => $transactions,
             'levels' => $levels,
+        ]);
+    }
+
+    public function syncCoverage(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
+    {
+        $result = $service->syncEffectiveLevel(
+            guarantee: $guarantee,
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('sync_coverage')
+        );
+
+        return $this->backWithActionResult($result, 'تمت مزامنة تغطية الضمان.');
+    }
+
+    public function processGraceNow(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
+    {
+        $result = $service->downgradeExpiredGrace(
+            guarantee: $guarantee,
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('process_grace_now')
+        );
+
+        return $this->backWithActionResult($result, 'تمت معالجة Grace Period.');
+    }
+
+    public function autoUpgrade(UserGuarantee $guarantee, GuaranteeAutoUpgradeService $service)
+    {
+        $guarantee->load('user');
+
+        if (! $guarantee->user) {
+            throw ValidationException::withMessages([
+                'user' => 'لا يوجد مستخدم مرتبط بهذا الضمان.',
+            ]);
+        }
+
+        $result = $service->autoUpgrade(
+            user: $guarantee->user,
+            targetType: (string) $guarantee->target_type,
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('auto_upgrade')
+        );
+
+        return $this->backWithActionResult($result, 'تم تشغيل Auto Upgrade.');
+    }
+
+    public function autoDowngrade(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
+    {
+        $result = $service->syncEffectiveLevel(
+            guarantee: $guarantee,
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('auto_downgrade')
+        );
+
+        return $this->backWithActionResult($result, 'تم تشغيل Auto Downgrade / Coverage Sync.');
+    }
+
+    public function expireNow(UserGuarantee $guarantee)
+    {
+        $this->forceStatus(
+            guarantee: $guarantee,
+            newStatus: UserGuarantee::STATUS_SUSPENDED,
+            type: 'manual_expiration',
+            reason: 'Guarantee manually expired by admin',
+            metaAction: 'expire_now',
+            clearEffectiveLevel: true,
+            clearCoverage: true,
+            extraMeta: ['expired_at' => now()->toDateTimeString()]
+        );
+
+        return back()->with('success', 'تم إنهاء الضمان يدويًا وتعليق التغطية.');
+    }
+
+    public function suspend(UserGuarantee $guarantee)
+    {
+        $this->forceStatus(
+            guarantee: $guarantee,
+            newStatus: UserGuarantee::STATUS_SUSPENDED,
+            type: 'manual_suspend',
+            reason: 'Guarantee manually suspended by admin',
+            metaAction: 'suspend',
+            clearEffectiveLevel: true,
+            clearCoverage: true
+        );
+
+        return back()->with('success', 'تم تعليق الضمان يدويًا.');
+    }
+
+    public function reactivate(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
+    {
+        DB::transaction(function () use ($guarantee) {
+            $lockedGuarantee = UserGuarantee::query()
+                ->whereKey((int) $guarantee->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $oldStatus = (string) $lockedGuarantee->status;
+            $oldEffectiveLevelId = $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null;
+            $oldCoverage = round((float) $lockedGuarantee->current_coverage_amount, 2);
+
+            $lockedGuarantee->status = UserGuarantee::STATUS_PENDING_OPERATIONS;
+            $lockedGuarantee->cancelled_at = null;
+            $lockedGuarantee->grace_until = null;
+            $lockedGuarantee->current_coverage_amount = round((float) $lockedGuarantee->pending_coverage_amount, 2);
+            $lockedGuarantee->meta = array_merge(
+                is_array($lockedGuarantee->meta ?? null) ? $lockedGuarantee->meta : [],
+                $this->adminActionMeta('reactivate')
+            );
+            $lockedGuarantee->save();
+
+            GuaranteeTransaction::create([
+                'user_id' => (int) $lockedGuarantee->user_id,
+                'user_guarantee_id' => (int) $lockedGuarantee->id,
+                'type' => 'manual_reactivate',
+                'amount' => 0,
+                'coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                'balance_before' => null,
+                'balance_after' => null,
+                'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
+                'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
+                'reference_type' => 'admin_action',
+                'reference_id' => (int) $lockedGuarantee->id,
+                'reason' => 'Guarantee manually reactivated by admin',
+                'idempotency_key' => $this->adminIdempotencyKey($lockedGuarantee, 'reactivate'),
+                'meta' => [
+                    'old_status' => $oldStatus,
+                    'new_status' => (string) $lockedGuarantee->status,
+                    'old_effective_level_id' => $oldEffectiveLevelId,
+                    'new_effective_level_id' => $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null,
+                    'old_coverage_amount' => $oldCoverage,
+                    'new_coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                ],
+            ]);
+        });
+
+        $result = $service->syncEffectiveLevel(
+            guarantee: $guarantee->refresh(),
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('reactivate_sync')
+        );
+
+        return $this->backWithActionResult($result, 'تمت إعادة تفعيل الضمان ومحاولة مزامنة التغطية.');
+    }
+
+    public function expireIfDue(UserGuarantee $guarantee, GuaranteeExpirationService $service)
+    {
+        $result = $service->expireIfDue(
+            guarantee: $guarantee,
+            referenceType: 'admin_action',
+            referenceId: (int) $guarantee->id,
+            meta: $this->adminActionMeta('expire_if_due')
+        );
+
+        return $this->backWithActionResult($result, 'تم فحص انتهاء الضمان.');
+    }
+
+    private function forceStatus(
+        UserGuarantee $guarantee,
+        string $newStatus,
+        string $type,
+        string $reason,
+        string $metaAction,
+        bool $clearEffectiveLevel = false,
+        bool $clearCoverage = false,
+        array $extraMeta = []
+    ): void {
+        DB::transaction(function () use ($guarantee, $newStatus, $type, $reason, $metaAction, $clearEffectiveLevel, $clearCoverage, $extraMeta) {
+            $lockedGuarantee = UserGuarantee::query()
+                ->whereKey((int) $guarantee->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $oldStatus = (string) $lockedGuarantee->status;
+            $oldEffectiveLevelId = $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null;
+            $oldCoverage = round((float) $lockedGuarantee->current_coverage_amount, 2);
+
+            if ($clearEffectiveLevel) {
+                $lockedGuarantee->effective_level_id = null;
+            }
+
+            if ($clearCoverage) {
+                $lockedGuarantee->current_coverage_amount = 0;
+            }
+
+            $lockedGuarantee->status = $newStatus;
+            $lockedGuarantee->meta = array_merge(
+                is_array($lockedGuarantee->meta ?? null) ? $lockedGuarantee->meta : [],
+                $this->adminActionMeta($metaAction),
+                $extraMeta
+            );
+            $lockedGuarantee->save();
+
+            GuaranteeTransaction::create([
+                'user_id' => (int) $lockedGuarantee->user_id,
+                'user_guarantee_id' => (int) $lockedGuarantee->id,
+                'type' => $type,
+                'amount' => 0,
+                'coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                'balance_before' => null,
+                'balance_after' => null,
+                'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
+                'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
+                'reference_type' => 'admin_action',
+                'reference_id' => (int) $lockedGuarantee->id,
+                'reason' => $reason,
+                'idempotency_key' => $this->adminIdempotencyKey($lockedGuarantee, $metaAction),
+                'meta' => [
+                    'old_status' => $oldStatus,
+                    'new_status' => (string) $lockedGuarantee->status,
+                    'old_effective_level_id' => $oldEffectiveLevelId,
+                    'new_effective_level_id' => $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null,
+                    'old_coverage_amount' => $oldCoverage,
+                    'new_coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                ],
+            ]);
+        });
+    }
+
+    private function backWithActionResult(array $result, string $successMessage)
+    {
+        $reason = (string) ($result['reason'] ?? 'done');
+        $changed = (bool) ($result['changed'] ?? false);
+
+        return back()->with(
+            $changed ? 'success' : 'info',
+            $successMessage . ' النتيجة: ' . $reason
+        );
+    }
+
+    private function adminActionMeta(string $action): array
+    {
+        return [
+            'source' => 'admin_v2',
+            'admin_action' => $action,
+            'admin_id' => auth()->id(),
+            'admin_action_at' => now()->toDateTimeString(),
+        ];
+    }
+
+    private function adminIdempotencyKey(UserGuarantee $guarantee, string $action): string
+    {
+        return implode(':', [
+            'admin_guarantee_action',
+            $action,
+            (int) $guarantee->id,
+            now()->format('YmdHis'),
+            uniqid(),
         ]);
     }
 

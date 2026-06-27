@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GuaranteeLevel;
 use App\Models\User;
 use App\Models\Wallet;
-use App\Services\Guarantees\GuaranteeActivationService;
+use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\WalletLedgerService;
 use Illuminate\Http\Request;
 
@@ -26,7 +26,7 @@ final class WalletOpsController extends Controller
     public function recharge(
         Request $request,
         WalletLedgerService $ledger,
-        GuaranteeActivationService $guaranteeActivationService
+        GuaranteeAutoUpgradeService $guaranteeAutoUpgradeService
     ) {
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
@@ -67,7 +67,7 @@ final class WalletOpsController extends Controller
             $tx->save();
         }
 
-        $activatedGuarantee = null;
+        $upgradeResult = null;
 
         if (! empty($data['guarantee_level_id'])) {
             $level = GuaranteeLevel::query()
@@ -77,14 +77,35 @@ final class WalletOpsController extends Controller
                 ->first();
 
             if ($level) {
-                $activatedGuarantee = $guaranteeActivationService->autoActivate($user, $level);
+                $upgradeResult = $guaranteeAutoUpgradeService->upgradeToLevel(
+                    user: $user,
+                    level: $level,
+                    referenceType: 'wallet_transaction',
+                    referenceId: (int) $tx->id,
+                    meta: [
+                        'source' => 'wallet_ops_recharge',
+                        'wallet_transaction_id' => (int) $tx->id,
+                        'admin_id' => auth()->id(),
+                    ]
+                );
             }
+        } else {
+            $upgradeResult = $guaranteeAutoUpgradeService->autoUpgrade(
+                user: $user,
+                referenceType: 'wallet_transaction',
+                referenceId: (int) $tx->id,
+                meta: [
+                    'source' => 'wallet_ops_recharge',
+                    'wallet_transaction_id' => (int) $tx->id,
+                    'admin_id' => auth()->id(),
+                ]
+            );
         }
 
         $message = 'تم شحن المحفظة بنجاح.';
 
-        if ($activatedGuarantee) {
-            $message .= ' وتم تفعيل الضمان تلقائيًا.';
+        if (($upgradeResult['changed'] ?? false) && ! empty($upgradeResult['level'])) {
+            $message .= ' وتم تحديث مستوى الضمان تلقائيًا إلى: ' . $upgradeResult['level']->display_name . '.';
         }
 
         return redirect()

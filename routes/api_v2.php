@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
+use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,14 @@ Route::prefix('v2')->group(function () {
         Route::prefix('offers')->group(function () {
             Route::get('compare', [OfferComparisonController::class, 'compare']);
             Route::post('compare', [OfferComparisonController::class, 'compare']);
+        });
+
+        Route::prefix('offer-follows')->group(function () {
+            Route::get('/', [OfferFollowController::class, 'index']);
+            Route::post('/', [OfferFollowController::class, 'store']);
+            Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
+            Route::get('notifications', [OfferFollowController::class, 'notifications']);
+            Route::post('notifications/{notification}/read', [OfferFollowController::class, 'markRead'])->whereNumber('notification');
         });
 
         Route::prefix('business/offers')->group(function () {

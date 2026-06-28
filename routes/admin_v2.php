@@ -11,6 +11,7 @@ use App\Http\Controllers\AdminV2\{
     BookableItemController,
     BookableItemPriceRuleController,
     BookingController,
+    BusinessPartnershipController,
     BusinessServicePriceController,
     CategoryChildOptionController,
     CategoryChildServiceFeeBulkController,
@@ -147,6 +148,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{album}', [AlbumController::class, 'destroy'])->whereNumber('album')->name('destroy');
             Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('images.set-cover');
             Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('images.delete');
+        });
+
+        Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
+            Route::get('/', [BusinessPartnershipController::class, 'index'])->name('index');
+            Route::get('create', [BusinessPartnershipController::class, 'create'])->name('create');
+            Route::post('/', [BusinessPartnershipController::class, 'store'])->name('store');
+            Route::get('{businessPartnership}/edit', [BusinessPartnershipController::class, 'edit'])->whereNumber('businessPartnership')->name('edit');
+            Route::put('{businessPartnership}', [BusinessPartnershipController::class, 'update'])->whereNumber('businessPartnership')->name('update');
+            Route::delete('{businessPartnership}', [BusinessPartnershipController::class, 'destroy'])->whereNumber('businessPartnership')->name('destroy');
+            Route::post('{businessPartnership}/activate', [BusinessPartnershipController::class, 'activate'])->whereNumber('businessPartnership')->name('activate');
+            Route::post('{businessPartnership}/pause', [BusinessPartnershipController::class, 'pause'])->whereNumber('businessPartnership')->name('pause');
         });
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
+use App\Services\Commercial\OfferFollowMatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -39,8 +40,11 @@ final class BusinessOfferController extends Controller
         ]);
     }
 
-    public function store(Request $request, BusinessOffersSubscriptionService $subscriptionService)
-    {
+    public function store(
+        Request $request,
+        BusinessOffersSubscriptionService $subscriptionService,
+        OfferFollowMatchingService $matchingService
+    ) {
         $user = $request->user();
 
         if (! $user || (string) $user->type !== 'business') {
@@ -51,6 +55,7 @@ final class BusinessOfferController extends Controller
         $subscriptionService->ensureCanSaveOffer((int) $user->id, $data);
 
         $offer = CommercialOffer::create($data);
+        $matched = $matchingService->matchOffer($offer);
 
         return response()->json([
             'success' => true,
@@ -58,12 +63,17 @@ final class BusinessOfferController extends Controller
             'data' => [
                 'offer' => $offer->fresh(['ownerBusiness:id,name,logo', 'sellerBusiness:id,name,logo']),
                 'usage' => $subscriptionService->usage((int) $user->id),
+                'matched_followers' => $matched,
             ],
         ], 201);
     }
 
-    public function update(Request $request, int $offer, BusinessOffersSubscriptionService $subscriptionService)
-    {
+    public function update(
+        Request $request,
+        int $offer,
+        BusinessOffersSubscriptionService $subscriptionService,
+        OfferFollowMatchingService $matchingService
+    ) {
         $user = $request->user();
 
         if (! $user || (string) $user->type !== 'business') {
@@ -86,6 +96,7 @@ final class BusinessOfferController extends Controller
         $subscriptionService->ensureCanSaveOffer((int) $user->id, $data, (int) $row->id);
 
         $row->update($data);
+        $matched = $matchingService->matchOffer($row->fresh());
 
         return response()->json([
             'success' => true,
@@ -93,6 +104,7 @@ final class BusinessOfferController extends Controller
             'data' => [
                 'offer' => $row->fresh(['ownerBusiness:id,name,logo', 'sellerBusiness:id,name,logo']),
                 'usage' => $subscriptionService->usage((int) $user->id),
+                'matched_followers' => $matched,
             ],
         ]);
     }
@@ -183,6 +195,7 @@ final class BusinessOfferController extends Controller
                 CommercialOffer::SOURCE_PROMOTION,
                 CommercialOffer::SOURCE_MARKETPLACE,
             ])],
+            'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'source_id' => ['nullable', 'integer', 'min:1'],
             'title_ar' => ['nullable', 'string', 'max:255'],
             'title_en' => ['nullable', 'string', 'max:255'],
@@ -215,6 +228,7 @@ final class BusinessOfferController extends Controller
         $data['owner_business_id'] = (int) ($data['owner_business_id'] ?? $businessId);
         $data['seller_business_id'] = $businessId;
         $data['source_type'] = (string) ($data['source_type'] ?? CommercialOffer::SOURCE_PROMOTION);
+        $data['audience_type'] = (string) ($data['audience_type'] ?? ($existing->audience_type ?? CommercialOffer::AUDIENCE_BOTH));
         $data['source_id'] = $data['source_id'] ?? null;
         $data['currency'] = (string) ($data['currency'] ?? ($existing->currency ?? 'EGP'));
         $data['availability_mode'] = (string) ($data['availability_mode'] ?? ($existing->availability_mode ?? CommercialOffer::AVAILABILITY_INSTANT));

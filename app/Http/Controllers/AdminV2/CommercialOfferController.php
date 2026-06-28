@@ -83,6 +83,7 @@ class CommercialOfferController extends Controller
             'businesses' => $this->businessOptions(),
             'offerableTypes' => $this->offerableTypes(),
             'sourceTypes' => $this->sourceTypes(),
+            'audienceTypes' => CommercialOffer::audienceTypes(),
             'statuses' => $this->statuses(),
             'subscriptionUsage' => $subscriptionUsage,
         ]);
@@ -95,6 +96,7 @@ class CommercialOfferController extends Controller
                 'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
                 'offerable_id' => 0,
                 'source_type' => CommercialOffer::SOURCE_PROMOTION,
+                'audience_type' => CommercialOffer::AUDIENCE_BOTH,
                 'base_price' => 0,
                 'final_price' => 0,
                 'currency' => 'EGP',
@@ -107,6 +109,7 @@ class CommercialOfferController extends Controller
             'businesses' => $this->businessOptions(),
             'offerableTypes' => $this->offerableTypes(),
             'sourceTypes' => $this->sourceTypes(),
+            'audienceTypes' => CommercialOffer::audienceTypes(),
             'availabilityModes' => $this->availabilityModes(),
             'statuses' => $this->statuses(),
             'subscriptionUsage' => null,
@@ -133,6 +136,7 @@ class CommercialOfferController extends Controller
             'businesses' => $this->businessOptions(),
             'offerableTypes' => $this->offerableTypes(),
             'sourceTypes' => $this->sourceTypes(),
+            'audienceTypes' => CommercialOffer::audienceTypes(),
             'availabilityModes' => $this->availabilityModes(),
             'statuses' => $this->statuses(),
             'subscriptionUsage' => $subscriptionService->usage((int) $commercialOffer->seller_business_id),
@@ -187,6 +191,7 @@ class CommercialOfferController extends Controller
             'owner_business_id' => ['required', 'integer', 'exists:users,id'],
             'seller_business_id' => ['required', 'integer', 'exists:users,id'],
             'source_type' => ['required', Rule::in($this->sourceTypes())],
+            'audience_type' => ['required', Rule::in(CommercialOffer::audienceTypes())],
             'source_id' => ['nullable', 'integer', 'min:1'],
             'title_ar' => ['nullable', 'string', 'max:255'],
             'title_en' => ['nullable', 'string', 'max:255'],
@@ -215,6 +220,7 @@ class CommercialOfferController extends Controller
 
         $data['offerable_id'] = (int) ($data['offerable_id'] ?? 0);
         $data['source_id'] = $data['source_id'] ?? null;
+        $data['audience_type'] = $data['audience_type'] ?: CommercialOffer::AUDIENCE_BOTH;
         $data['is_refundable'] = $request->boolean('is_refundable');
         $data['ranking_score'] = (float) ($data['ranking_score'] ?? 0);
         $data['meta'] = $this->decodeJson($data['meta_json'] ?? null);

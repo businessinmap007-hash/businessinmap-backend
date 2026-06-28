@@ -13,6 +13,7 @@
         </div>
         <div class="a2-page-actions">
             <a href="{{ route('admin.commercial-offers.create') }}" class="a2-btn a2-btn-primary">إنشاء عرض</a>
+            <a href="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-btn a2-btn-ghost">اشتراك العروض</a>
         </div>
     </div>
 
@@ -30,6 +31,25 @@
         <div class="a2-stat-card"><div class="a2-stat-label">Paused</div><div class="a2-stat-value">{{ number_format($totals['paused'] ?? 0) }}</div><div class="a2-stat-note">موقوفة</div></div>
         <div class="a2-stat-card"><div class="a2-stat-label">Promotions</div><div class="a2-stat-value">{{ number_format($totals['promotions'] ?? 0) }}</div><div class="a2-stat-note">عروض تسويقية</div></div>
     </div>
+
+    @if(!empty($subscriptionUsage))
+        <div class="a2-card a2-mb-16">
+            <div class="a2-page-head">
+                <div>
+                    <h2 class="a2-section-title">حالة اشتراك العروض للبزنس المحدد</h2>
+                    <div class="a2-page-subtitle">
+                        active offers: {{ $subscriptionUsage['active_offers'] ?? 0 }} / {{ $subscriptionUsage['max_active_offers'] ?? 0 }} — remaining: {{ $subscriptionUsage['remaining_offers'] ?? 0 }}
+                    </div>
+                </div>
+                <div class="a2-page-actions">
+                    <span class="a2-pill {{ ($subscriptionUsage['remaining_offers'] ?? 0) > 0 ? 'a2-pill-success' : 'a2-pill-warning' }}">
+                        {{ ($subscriptionUsage['remaining_offers'] ?? 0) > 0 ? 'Can Create Offers' : 'Limit Reached' }}
+                    </span>
+                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $sellerId]) }}">إدارة الاشتراك</a>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.commercial-offers.index') }}" class="a2-filterbar">
@@ -103,6 +123,7 @@
                             <td>
                                 <div class="a2-fw-900">{{ optional($row->sellerBusiness)->name ?: '—' }}</div>
                                 <div class="a2-muted">#{{ $row->seller_business_id }}</div>
+                                <a class="a2-link" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $row->seller_business_id]) }}">اشتراك العروض</a>
                             </td>
                             <td><span class="a2-pill a2-pill-gray">{{ $row->offerable_type }}</span></td>
                             <td><span class="a2-pill a2-pill-gray">{{ $row->source_type }}</span></td>

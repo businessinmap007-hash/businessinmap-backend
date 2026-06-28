@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class WalletLedgerService
 {
@@ -136,7 +137,7 @@ final class WalletLedgerService
                 'reference_id'    => $op['reference_id'] ?? null,
                 'idempotency_key' => $idem !== '' ? $idem : null,
 
-                'note_id'         => isset($op['note_id']) ? (int)$op['note_id'] : null,
+                'note_id'         => $this->safeNoteId($op['note_id'] ?? null),
                 'meta'            => $meta,
             ]);
         });
@@ -189,5 +190,22 @@ final class WalletLedgerService
                 'idempotency_key' => $idemBase !== '' ? ($idemBase . ':in') : null,
             ]));
         });
+    }
+
+    private function safeNoteId($noteId): ?int
+    {
+        $noteId = (int) $noteId;
+
+        if ($noteId <= 0) {
+            return null;
+        }
+
+        if (! Schema::hasTable('wallet_note_templates')) {
+            return null;
+        }
+
+        return DB::table('wallet_note_templates')->where('id', $noteId)->exists()
+            ? $noteId
+            : null;
     }
 }

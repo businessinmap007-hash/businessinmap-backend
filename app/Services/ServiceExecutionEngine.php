@@ -9,9 +9,8 @@ use App\Models\CategoryChildServiceFee;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\GuaranteeLevel;
-use App\Services\Guarantees\GuaranteeCoverageService;
+use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
-use App\Models\UserGuarantee;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +28,7 @@ class ServiceExecutionEngine
         protected BookingDepositPolicyResolver $bookingDepositPolicyResolver,
         protected BookingDepositCalculator $bookingDepositCalculator,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
+        protected GuaranteeOperationCoverageService $operationCoverageService,
     ) {
     }
 
@@ -227,14 +227,30 @@ class ServiceExecutionEngine
             }
         }
 
-        $clientRequiredTotal = round($clientDepositRequired + $clientFeeRequired, 2);
-        $businessRequiredTotal = round($businessDepositRequired + $businessFeeRequired, 2);
-
         $clientWallet = $this->walletSnapshot($clientId);
         $businessWallet = $this->walletSnapshot($businessId);
 
-        $clientDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'client_guarantee_covered', false);
-        $businessDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'business_guarantee_covered', false);
+        $clientDepositCoverage = $this->bookingCoverageDecision(
+            user: $booking->user,
+            amount: $clientDepositRequired,
+            targetType: GuaranteeLevel::TARGET_CLIENT,
+            booking: $booking,
+            side: 'client'
+        );
+
+        $businessDepositCoverage = $this->bookingCoverageDecision(
+            user: $booking->business,
+            amount: $businessDepositRequired,
+            targetType: GuaranteeLevel::TARGET_BUSINESS,
+            booking: $booking,
+            side: 'business'
+        );
+
+        $clientDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'client_guarantee_covered', false)
+            && (bool) data_get($clientDepositCoverage, 'covered', false);
+
+        $businessDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'business_guarantee_covered', false)
+            && (bool) data_get($businessDepositCoverage, 'covered', false);
 
         $clientWalletDepositRequired = $clientDepositCoveredByGuarantee
             ? 0.0
@@ -255,6 +271,14 @@ class ServiceExecutionEngine
 
         $messages = [];
 
+        if ((bool) data_get($depositPolicy, 'client_guarantee_covered', false) && ! $clientDepositCoveredByGuarantee && $clientDepositRequired > 0) {
+            $messages[] = 'ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.';
+        }
+
+        if ((bool) data_get($depositPolicy, 'business_guarantee_covered', false) && ! $businessDepositCoveredByGuarantee && $businessDepositRequired > 0) {
+            $messages[] = 'ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.';
+        }
+
         if (! $clientReady && $clientRequiredTotal > 0) {
             $messages[] = 'رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.';
         }
@@ -269,6 +293,12 @@ class ServiceExecutionEngine
             'booking_id' => (int) $booking->id,
             'status' => (string) $booking->status,
 
+            'operation_coverage' => [
+                'operation_type' => GuaranteeOperationCoverageService::OP_BOOKING,
+                'client' => $clientDepositCoverage,
+                'business' => $businessDepositCoverage,
+            ],
+
             'deposit' => [
                 'required' => (bool) ($depositPolicy['required'] ?? false),
                 'already_frozen' => (bool) ($deposit && $deposit->isFrozen()),
@@ -281,6 +311,10 @@ class ServiceExecutionEngine
 
                 'client_required' => $clientDepositRequired,
                 'business_required' => $businessDepositRequired,
+                'guarantee_checks' => [
+                    'client' => $clientDepositCoverage,
+                    'business' => $businessDepositCoverage,
+                ],
             ],
 
             'fees' => [
@@ -320,6 +354,11 @@ class ServiceExecutionEngine
         }
 
         return $preview;
+    }
+
+    public function operationCoveragePreview(Booking $booking): array
+    {
+        return $this->financialPreview($booking)['operation_coverage'] ?? [];
     }
 
     /*
@@ -451,8 +490,8 @@ class ServiceExecutionEngine
                 $walletHoldRequired = (bool) ($depositPolicy['wallet_hold_required'] ?? false);
                 $externalRequired = (bool) ($depositPolicy['external_deposit_required'] ?? false);
 
-                $clientGuaranteeCovered = (bool) ($depositPolicy['client_guarantee_covered'] ?? false);
-                $businessGuaranteeCovered = (bool) ($depositPolicy['business_guarantee_covered'] ?? false);
+                $clientGuaranteeCovered = (bool) data_get($readiness, 'deposit.client_guarantee_covered', false);
+                $businessGuaranteeCovered = (bool) data_get($readiness, 'deposit.business_guarantee_covered', false);
 
                 if ($clientGuaranteeCovered) {
                     $walletHoldRequired = false;
@@ -513,6 +552,13 @@ class ServiceExecutionEngine
                 'fees_non_refundable_after_in_progress' => true,
                 'client_required_total' => (float) data_get($readiness, 'client.required_total', 0),
                 'business_required_total' => (float) data_get($readiness, 'business.required_total', 0),
+            ];
+
+            $meta['_operation_coverage'] = [
+                'checked_at' => now()->toDateTimeString(),
+                'operation_type' => GuaranteeOperationCoverageService::OP_BOOKING,
+                'client' => data_get($readiness, 'operation_coverage.client'),
+                'business' => data_get($readiness, 'operation_coverage.business'),
             ];
 
             $meta['_operation_stats_snapshot'] = [
@@ -776,7 +822,7 @@ class ServiceExecutionEngine
         if ($price <= 0) {
             $price = (float) ($booking->total_price ?? 0);
         }
-        $guarantees = $this->bookingGuaranteeIntegration->payloadForBooking($booking); 
+        $guarantees = $this->bookingGuaranteeIntegration->payloadForBooking($booking);
 
         return $this->resolveDepositPolicy(
             service: $booking->service,
@@ -785,6 +831,44 @@ class ServiceExecutionEngine
             bookable: $bookable,
             client: $booking->user,
             guarantees: $guarantees
+        );
+    }
+
+    protected function bookingCoverageDecision(?User $user, float $amount, string $targetType, Booking $booking, string $side): array
+    {
+        $amount = round(max($amount, 0), 2);
+
+        if (! $user || $amount <= 0) {
+            return [
+                'covered' => false,
+                'reason' => $amount <= 0 ? 'not_required' : 'missing_user',
+                'operation_type' => GuaranteeOperationCoverageService::OP_BOOKING,
+                'operation_id' => (int) $booking->id,
+                'amount' => $amount,
+                'target_type' => $targetType,
+                'user_id' => $user ? (int) $user->id : null,
+                'side' => $side,
+            ];
+        }
+
+        return array_merge(
+            $this->operationCoverageService->check(
+                user: $user,
+                amount: $amount,
+                operationType: GuaranteeOperationCoverageService::OP_BOOKING,
+                operationId: (int) $booking->id,
+                targetType: $targetType,
+                context: [
+                    'source' => 'ServiceExecutionEngine.financialPreview',
+                    'side' => $side,
+                    'booking_id' => (int) $booking->id,
+                    'service_id' => (int) $booking->service_id,
+                    'business_id' => (int) $booking->business_id,
+                    'client_id' => (int) $booking->user_id,
+                    'coverage_purpose' => $side === 'client' ? 'wallet_hold' : 'business_counter_hold',
+                ]
+            ),
+            ['side' => $side]
         );
     }
 

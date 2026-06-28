@@ -20,6 +20,7 @@ final class OfferDiscoveryController extends Controller
             'seller_business_id' => ['nullable', 'integer', 'min:1'],
             'owner_business_id' => ['nullable', 'integer', 'min:1'],
             'source_type' => ['nullable', Rule::in($this->publicSourceTypes())],
+            'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'sort' => ['nullable', Rule::in(['latest', 'lowest_price', 'highest_price', 'ranking'])],
@@ -31,6 +32,7 @@ final class OfferDiscoveryController extends Controller
             ->active()
             ->whereIn('source_type', $this->publicSourceTypes());
 
+        $this->applyAudience($query, $request, $data);
         $this->applyFilters($query, $data);
         $this->applySort($query, (string) ($data['sort'] ?? 'latest'));
 
@@ -43,19 +45,23 @@ final class OfferDiscoveryController extends Controller
                 'filters' => [
                     'offerable_types' => $this->offerableTypes(),
                     'source_types' => $this->publicSourceTypes(),
+                    'audience_types' => CommercialOffer::audienceTypes(),
                     'sorts' => ['latest', 'lowest_price', 'highest_price', 'ranking'],
                 ],
             ],
         ]);
     }
 
-    public function show(int $offer)
+    public function show(Request $request, int $offer)
     {
-        $row = CommercialOffer::query()
+        $query = CommercialOffer::query()
             ->with(['sellerBusiness:id,name,type,logo,category_id,category_child_id', 'ownerBusiness:id,name,type,logo,category_id,category_child_id'])
             ->active()
-            ->whereIn('source_type', $this->publicSourceTypes())
-            ->findOrFail($offer);
+            ->whereIn('source_type', $this->publicSourceTypes());
+
+        $this->applyAudience($query, $request, []);
+
+        $row = $query->findOrFail($offer);
 
         return response()->json([
             'success' => true,
@@ -79,6 +85,7 @@ final class OfferDiscoveryController extends Controller
             'offerable_id' => ['required', 'integer', 'min:0'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'source_type' => ['nullable', Rule::in($this->publicSourceTypes())],
+            'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'seller_business_id' => ['nullable', 'integer', 'min:1'],
             'owner_business_id' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -97,8 +104,11 @@ final class OfferDiscoveryController extends Controller
             filters: $filters
         );
 
-        $offers = $offers->filter(function (array $offer) {
-            return in_array((string) ($offer['source_type'] ?? ''), $this->publicSourceTypes(), true);
+        $visibleAudiences = $this->visibleAudiences($request, $data['audience_type'] ?? null);
+
+        $offers = $offers->filter(function (array $offer) use ($visibleAudiences) {
+            return in_array((string) ($offer['source_type'] ?? ''), $this->publicSourceTypes(), true)
+                && in_array((string) ($offer['audience_type'] ?? CommercialOffer::AUDIENCE_BOTH), $visibleAudiences, true);
         })->values();
 
         return response()->json([
@@ -111,6 +121,28 @@ final class OfferDiscoveryController extends Controller
                 'offers' => $offers,
             ],
         ]);
+    }
+
+    private function applyAudience(Builder $query, Request $request, array $data): void
+    {
+        $visible = $this->visibleAudiences($request, $data['audience_type'] ?? null);
+        $query->whereIn('audience_type', $visible);
+    }
+
+    private function visibleAudiences(Request $request, ?string $requestedAudience = null): array
+    {
+        if ($requestedAudience && $requestedAudience !== CommercialOffer::AUDIENCE_PRIVATE) {
+            return [$requestedAudience];
+        }
+
+        $user = method_exists($request, 'user') ? $request->user() : null;
+        $type = $user ? (string) $user->type : 'client';
+
+        if ($type === 'business') {
+            return [CommercialOffer::AUDIENCE_B2B, CommercialOffer::AUDIENCE_BOTH];
+        }
+
+        return [CommercialOffer::AUDIENCE_B2C, CommercialOffer::AUDIENCE_BOTH];
     }
 
     private function applyFilters(Builder $query, array $data): void

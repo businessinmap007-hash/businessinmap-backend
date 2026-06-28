@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\{
     AlbumController,
     Auth\LoginController,
+    BookableAllocationController,
     BookableItemBlockedSlotController,
     BookableItemBulkController,
     BookableItemCalendarController,
@@ -159,6 +160,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{businessPartnership}', [BusinessPartnershipController::class, 'destroy'])->whereNumber('businessPartnership')->name('destroy');
             Route::post('{businessPartnership}/activate', [BusinessPartnershipController::class, 'activate'])->whereNumber('businessPartnership')->name('activate');
             Route::post('{businessPartnership}/pause', [BusinessPartnershipController::class, 'pause'])->whereNumber('businessPartnership')->name('pause');
+        });
+
+        Route::prefix('bookable-allocations')->name('bookable-allocations.')->group(function () {
+            Route::get('/', [BookableAllocationController::class, 'index'])->name('index');
+            Route::get('create', [BookableAllocationController::class, 'create'])->name('create');
+            Route::post('/', [BookableAllocationController::class, 'store'])->name('store');
+            Route::get('{bookableAllocation}/edit', [BookableAllocationController::class, 'edit'])->whereNumber('bookableAllocation')->name('edit');
+            Route::put('{bookableAllocation}', [BookableAllocationController::class, 'update'])->whereNumber('bookableAllocation')->name('update');
+            Route::delete('{bookableAllocation}', [BookableAllocationController::class, 'destroy'])->whereNumber('bookableAllocation')->name('destroy');
+            Route::post('{bookableAllocation}/activate', [BookableAllocationController::class, 'activate'])->whereNumber('bookableAllocation')->name('activate');
+            Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

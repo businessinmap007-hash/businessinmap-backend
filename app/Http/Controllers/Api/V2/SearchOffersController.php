@@ -23,6 +23,7 @@ final class SearchOffersController extends Controller
             'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
+            'sort' => ['nullable', Rule::in(['boosted', 'lowest_price', 'highest_price', 'latest', 'ranking'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -46,10 +47,9 @@ final class SearchOffersController extends Controller
             });
         }
 
+        $this->applySort($offersQuery, (string) ($data['sort'] ?? 'boosted'));
+
         $offers = $offersQuery
-            ->orderBy('final_price')
-            ->orderByDesc('ranking_score')
-            ->latest('id')
             ->paginate((int) ($data['per_page'] ?? 20))
             ->withQueryString();
 
@@ -63,6 +63,7 @@ final class SearchOffersController extends Controller
                     'business_id' => $data['business_id'] ?? null,
                     'offerable_type' => $data['offerable_type'] ?? null,
                     'audience_type' => $data['audience_type'] ?? null,
+                    'sort' => $data['sort'] ?? 'boosted',
                 ],
                 'businesses' => $businesses,
                 'offers' => $offers,
@@ -172,6 +173,17 @@ final class SearchOffersController extends Controller
         if (array_key_exists('max_price', $data) && $data['max_price'] !== null && $data['max_price'] !== '') {
             $query->where('final_price', '<=', (float) $data['max_price']);
         }
+    }
+
+    private function applySort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'lowest_price' => $query->orderByBoost()->orderBy('final_price')->latest('id'),
+            'highest_price' => $query->orderByBoost()->orderByDesc('final_price')->latest('id'),
+            'latest' => $query->orderByBoost()->latest('id'),
+            'ranking' => $query->orderByBoost()->orderByDesc('ranking_score')->orderBy('final_price')->latest('id'),
+            default => $query->orderByBoost()->orderBy('final_price')->latest('id'),
+        };
     }
 
     private function offerableTypes(): array

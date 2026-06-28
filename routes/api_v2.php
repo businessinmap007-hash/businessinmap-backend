@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\OfferBoostController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
@@ -48,11 +49,14 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/offers')->group(function () {
             Route::get('/', [BusinessOfferController::class, 'index']);
             Route::post('/', [BusinessOfferController::class, 'store']);
+            Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);
+            Route::get('boost/packages', [OfferBoostController::class, 'packages']);
+            Route::get('boost/purchases', [OfferBoostController::class, 'myPurchases']);
+            Route::post('{offer}/boost', [OfferBoostController::class, 'activate'])->whereNumber('offer');
             Route::put('{offer}', [BusinessOfferController::class, 'update'])->whereNumber('offer');
             Route::patch('{offer}', [BusinessOfferController::class, 'update'])->whereNumber('offer');
             Route::post('{offer}/toggle', [BusinessOfferController::class, 'toggle'])->whereNumber('offer');
             Route::delete('{offer}', [BusinessOfferController::class, 'destroy'])->whereNumber('offer');
-            Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);
         });
     });
 });

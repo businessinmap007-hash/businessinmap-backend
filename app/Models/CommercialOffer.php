@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CommercialOffer extends Model
 {
@@ -17,6 +18,11 @@ class CommercialOffer extends Model
     public const SOURCE_RESELLER = 'reseller';
     public const SOURCE_PROMOTION = 'promotion';
     public const SOURCE_MARKETPLACE = 'marketplace';
+
+    public const AUDIENCE_B2C = 'b2c';
+    public const AUDIENCE_B2B = 'b2b';
+    public const AUDIENCE_BOTH = 'both';
+    public const AUDIENCE_PRIVATE = 'private';
 
     public const AVAILABILITY_INSTANT = 'instant';
     public const AVAILABILITY_REQUEST = 'request';
@@ -35,6 +41,7 @@ class CommercialOffer extends Model
         'owner_business_id',
         'seller_business_id',
         'source_type',
+        'audience_type',
         'source_id',
         'title_ar',
         'title_en',
@@ -73,6 +80,16 @@ class CommercialOffer extends Model
         'meta' => 'array',
     ];
 
+    public static function audienceTypes(): array
+    {
+        return [
+            self::AUDIENCE_B2C,
+            self::AUDIENCE_B2B,
+            self::AUDIENCE_BOTH,
+            self::AUDIENCE_PRIVATE,
+        ];
+    }
+
     public function ownerBusiness()
     {
         return $this->belongsTo(User::class, 'owner_business_id');
@@ -95,6 +112,16 @@ class CommercialOffer extends Model
             ->where('source_type', self::SOURCE_ALLOCATION);
     }
 
+    public function targets(): HasMany
+    {
+        return $this->hasMany(CommercialOfferTarget::class, 'offer_id');
+    }
+
+    public function followNotifications(): HasMany
+    {
+        return $this->hasMany(OfferFollowNotification::class, 'offer_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE)
@@ -104,6 +131,21 @@ class CommercialOffer extends Model
             ->where(function (Builder $q) {
                 $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
             });
+    }
+
+    public function scopeVisibleForUserType(Builder $query, ?string $userType): Builder
+    {
+        $userType = (string) $userType;
+
+        if ($userType === 'business') {
+            return $query->whereIn('audience_type', [self::AUDIENCE_B2B, self::AUDIENCE_BOTH]);
+        }
+
+        if ($userType === 'client') {
+            return $query->whereIn('audience_type', [self::AUDIENCE_B2C, self::AUDIENCE_BOTH]);
+        }
+
+        return $query->whereIn('audience_type', [self::AUDIENCE_B2C, self::AUDIENCE_BOTH]);
     }
 
     public function scopeForOfferable(Builder $query, string $type, int $id): Builder

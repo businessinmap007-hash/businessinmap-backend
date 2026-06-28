@@ -7,6 +7,7 @@ use App\Models\GuaranteeLevel;
 use App\Models\GuaranteeTransaction;
 use App\Models\UserGuarantee;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
+use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -142,6 +143,31 @@ final class GuaranteeController extends Controller
                 'level' => ! empty($result['level']) ? $this->levelPayload($result['level']) : null,
                 'guarantee' => $guarantee ? $this->guaranteePayload($guarantee->refresh()) : null,
             ],
+        ]);
+    }
+
+    public function checkOperationCoverage(Request $request, GuaranteeOperationCoverageService $service)
+    {
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0'],
+            'operation_type' => ['required', 'string', 'max:100'],
+            'operation_id' => ['nullable', 'integer', 'min:1'],
+            'target_type' => ['nullable', Rule::in([GuaranteeLevel::TARGET_CLIENT, GuaranteeLevel::TARGET_BUSINESS])],
+            'context' => ['nullable', 'array'],
+        ]);
+
+        $decision = $service->check(
+            user: $request->user(),
+            amount: (float) $data['amount'],
+            operationType: (string) $data['operation_type'],
+            operationId: ! empty($data['operation_id']) ? (int) $data['operation_id'] : null,
+            targetType: $data['target_type'] ?? null,
+            context: $data['context'] ?? []
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $decision,
         ]);
     }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class CommercialOffer extends Model
 {
@@ -60,6 +61,9 @@ class CommercialOffer extends Model
         'deposit_policy_id',
         'guarantee_policy_id',
         'ranking_score',
+        'is_featured',
+        'featured_until',
+        'boost_score',
         'status',
         'meta',
     ];
@@ -77,6 +81,9 @@ class CommercialOffer extends Model
         'ends_at' => 'datetime',
         'is_refundable' => 'boolean',
         'ranking_score' => 'decimal:4',
+        'is_featured' => 'boolean',
+        'featured_until' => 'datetime',
+        'boost_score' => 'decimal:4',
         'meta' => 'array',
     ];
 
@@ -117,6 +124,11 @@ class CommercialOffer extends Model
         return $this->hasMany(CommercialOfferTarget::class, 'offer_id');
     }
 
+    public function boostPurchases(): HasMany
+    {
+        return $this->hasMany(OfferBoostPurchase::class, 'offer_id');
+    }
+
     public function followNotifications(): HasMany
     {
         return $this->hasMany(OfferFollowNotification::class, 'offer_id');
@@ -151,6 +163,40 @@ class CommercialOffer extends Model
     public function scopeForOfferable(Builder $query, string $type, int $id): Builder
     {
         return $query->where('offerable_type', $type)->where('offerable_id', $id);
+    }
+
+    public function scopeOrderByBoost(Builder $query): Builder
+    {
+        if (! Schema::hasColumn($this->getTable(), 'boost_score')) {
+            return $query->orderByDesc('ranking_score');
+        }
+
+        if (Schema::hasColumn($this->getTable(), 'featured_until') && Schema::hasColumn($this->getTable(), 'is_featured')) {
+            return $query
+                ->orderByRaw('CASE WHEN is_featured = 1 AND (featured_until IS NULL OR featured_until >= NOW()) THEN 1 ELSE 0 END DESC')
+                ->orderByDesc('boost_score')
+                ->orderByDesc('ranking_score');
+        }
+
+        return $query->orderByDesc('boost_score')->orderByDesc('ranking_score');
+    }
+
+    public function isBoosted(): bool
+    {
+        if (! (bool) ($this->is_featured ?? false) && (float) ($this->boost_score ?? 0) <= 0) {
+            return false;
+        }
+
+        if ($this->featured_until && $this->featured_until->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function effectiveBoostScore(): float
+    {
+        return $this->isBoosted() ? (float) ($this->boost_score ?? 0) : 0.0;
     }
 
     public function isAvailable(int $quantity = 1): bool

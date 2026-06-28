@@ -10,6 +10,7 @@ Route::prefix('v2')->group(function () {
             Route::get('me', [GuaranteeController::class, 'me']);
             Route::get('transactions', [GuaranteeController::class, 'transactions']);
             Route::post('activate', [GuaranteeController::class, 'activate']);
+            Route::post('check-operation', [GuaranteeController::class, 'checkOperationCoverage']);
         });
     });
 });

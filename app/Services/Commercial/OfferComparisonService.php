@@ -66,6 +66,10 @@ final class OfferComparisonService
             $query->where('source_type', (string) $filters['source_type']);
         }
 
+        if (! empty($filters['audience_type'])) {
+            $query->where('audience_type', (string) $filters['audience_type']);
+        }
+
         if (array_key_exists('is_refundable', $filters) && $filters['is_refundable'] !== null && $filters['is_refundable'] !== '') {
             $query->where('is_refundable', (bool) $filters['is_refundable']);
         }
@@ -99,6 +103,7 @@ final class OfferComparisonService
             'offerable_type' => (string) $offer->offerable_type,
             'offerable_id' => (int) $offer->offerable_id,
             'source_type' => (string) $offer->source_type,
+            'audience_type' => (string) ($offer->audience_type ?: CommercialOffer::AUDIENCE_BOTH),
             'source_id' => $offer->source_id ? (int) $offer->source_id : null,
             'owner_business_id' => (int) $offer->owner_business_id,
             'seller_business_id' => (int) $offer->seller_business_id,

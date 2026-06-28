@@ -12,6 +12,7 @@ use App\Http\Controllers\AdminV2\{
     BookableItemController,
     BookableItemPriceRuleController,
     BookingController,
+    BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
     CategoryChildOptionController,
@@ -47,8 +48,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [LoginController::class, 'login'])->name('login.post');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
-    Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])
-        ->name('payments.callback.success');
+    Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])->name('payments.callback.success');
 
     Route::middleware(['admin.v2'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -182,6 +182,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{commercialOffer}', [CommercialOfferController::class, 'update'])->whereNumber('commercialOffer')->name('update');
             Route::delete('{commercialOffer}', [CommercialOfferController::class, 'destroy'])->whereNumber('commercialOffer')->name('destroy');
             Route::post('{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('toggle');
+        });
+
+        Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->group(function () {
+            Route::get('/', [BusinessOffersSubscriptionController::class, 'form'])->name('form');
+            Route::post('activate', [BusinessOffersSubscriptionController::class, 'activate'])->name('activate');
+            Route::post('deactivate', [BusinessOffersSubscriptionController::class, 'deactivate'])->name('deactivate');
         });
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
@@ -338,8 +344,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
-        Route::patch('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])
-            ->name('platform-service-fee-promotions.toggle');
+        Route::patch('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->name('platform-service-fee-promotions.toggle');
         Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show']);
 
         Route::prefix('booking-test')->name('booking-test.')->group(function () {

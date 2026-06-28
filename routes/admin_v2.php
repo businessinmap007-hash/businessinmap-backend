@@ -26,6 +26,7 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     JobPostController,
+    OfferPerformanceController,
     OptionController,
     OptionGroupController,
     PaymentController,
@@ -183,6 +184,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{commercialOffer}', [CommercialOfferController::class, 'destroy'])->whereNumber('commercialOffer')->name('destroy');
             Route::post('{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('toggle');
         });
+
+        Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
 
         Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->group(function () {
             Route::get('/', [BusinessOffersSubscriptionController::class, 'form'])->name('form');

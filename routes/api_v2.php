@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
+use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -12,6 +13,11 @@ Route::prefix('v2')->group(function () {
         Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
         Route::get('business/{business}', [OfferDiscoveryController::class, 'byBusiness'])->whereNumber('business');
         Route::get('{offer}', [OfferDiscoveryController::class, 'show'])->whereNumber('offer');
+    });
+
+    Route::prefix('search')->group(function () {
+        Route::get('offers', [SearchOffersController::class, 'index']);
+        Route::get('business/{business}/offers', [SearchOffersController::class, 'business'])->whereNumber('business');
     });
 
     Route::middleware('auth:sanctum')->group(function () {

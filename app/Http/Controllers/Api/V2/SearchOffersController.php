@@ -20,6 +20,7 @@ final class SearchOffersController extends Controller
             'business_id' => ['nullable', 'integer', 'min:1'],
             'offerable_type' => ['nullable', Rule::in($this->offerableTypes())],
             'source_type' => ['nullable', Rule::in($this->sourceTypes())],
+            'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
@@ -32,7 +33,8 @@ final class SearchOffersController extends Controller
         $offersQuery = CommercialOffer::query()
             ->with(['sellerBusiness:id,name,type,logo,category_id,category_child_id', 'ownerBusiness:id,name,type,logo,category_id,category_child_id'])
             ->active()
-            ->whereIn('source_type', $this->sourceTypes());
+            ->whereIn('source_type', $this->sourceTypes())
+            ->whereIn('audience_type', $this->visibleAudiences($request, $data['audience_type'] ?? null));
 
         $this->applyOfferFilters($offersQuery, $data);
 
@@ -60,6 +62,7 @@ final class SearchOffersController extends Controller
                     'category_child_id' => $data['category_child_id'] ?? null,
                     'business_id' => $data['business_id'] ?? null,
                     'offerable_type' => $data['offerable_type'] ?? null,
+                    'audience_type' => $data['audience_type'] ?? null,
                 ],
                 'businesses' => $businesses,
                 'offers' => $offers,
@@ -73,6 +76,22 @@ final class SearchOffersController extends Controller
         $request->merge(['business_id' => $businessId]);
 
         return $this->index($request);
+    }
+
+    private function visibleAudiences(Request $request, ?string $requestedAudience = null): array
+    {
+        if ($requestedAudience && $requestedAudience !== CommercialOffer::AUDIENCE_PRIVATE) {
+            return [$requestedAudience];
+        }
+
+        $user = method_exists($request, 'user') ? $request->user() : null;
+        $type = $user ? (string) $user->type : 'client';
+
+        if ($type === 'business') {
+            return [CommercialOffer::AUDIENCE_B2B, CommercialOffer::AUDIENCE_BOTH];
+        }
+
+        return [CommercialOffer::AUDIENCE_B2C, CommercialOffer::AUDIENCE_BOTH];
     }
 
     private function businessesQuery(array $data): Builder

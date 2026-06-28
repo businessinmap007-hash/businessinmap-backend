@@ -84,12 +84,23 @@ final class OfferComparisonService
         return match ($sort) {
             self::SORT_HIGHEST_PRICE => $offers->sortByDesc('final_price'),
             self::SORT_BEST_VALUE => $offers->sortBy([
+                ['is_boosted', 'desc'],
+                ['boost_score', 'desc'],
                 ['final_price', 'asc'],
                 ['is_refundable', 'desc'],
                 ['ranking_score', 'desc'],
             ]),
-            self::SORT_RANKING => $offers->sortByDesc('ranking_score'),
-            default => $offers->sortBy('final_price'),
+            self::SORT_RANKING => $offers->sortBy([
+                ['is_boosted', 'desc'],
+                ['boost_score', 'desc'],
+                ['ranking_score', 'desc'],
+                ['final_price', 'asc'],
+            ]),
+            default => $offers->sortBy([
+                ['is_boosted', 'desc'],
+                ['boost_score', 'desc'],
+                ['final_price', 'asc'],
+            ]),
         };
     }
 
@@ -97,6 +108,7 @@ final class OfferComparisonService
     {
         $unitPrice = round((float) $offer->final_price, 2);
         $totalPrice = round($unitPrice * $quantity, 2);
+        $boostScore = round($offer->effectiveBoostScore(), 4);
 
         return [
             'id' => (int) $offer->id,
@@ -132,6 +144,10 @@ final class OfferComparisonService
             'is_refundable' => (bool) $offer->is_refundable,
             'payment_model' => $offer->payment_model,
             'ranking_score' => round((float) ($offer->ranking_score ?? 0), 4),
+            'is_featured' => (bool) ($offer->is_featured ?? false),
+            'featured_until' => $offer->featured_until ? $offer->featured_until->toDateTimeString() : null,
+            'is_boosted' => $offer->isBoosted(),
+            'boost_score' => $boostScore,
             'meta' => is_array($offer->meta) ? $offer->meta : [],
         ];
     }

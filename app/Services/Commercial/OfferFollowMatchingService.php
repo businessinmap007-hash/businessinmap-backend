@@ -7,7 +7,6 @@ use App\Models\OfferFollow;
 use App\Models\OfferFollowNotification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 final class OfferFollowMatchingService
 {
@@ -98,7 +97,7 @@ final class OfferFollowMatchingService
                 $w->orWhere(function (Builder $x) use ($title) {
                     $x->where('followable_type', OfferFollow::FOLLOW_KEYWORD)
                         ->whereNotNull('keyword')
-                        ->whereRaw('? LIKE CONCAT("%", LOWER(keyword), "%")', [$title]);
+                        ->whereRaw("? LIKE CONCAT('%', LOWER(keyword), '%')", [$title]);
                 });
             }
         });

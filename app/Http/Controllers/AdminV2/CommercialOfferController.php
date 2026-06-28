@@ -5,13 +5,14 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
 use App\Models\User;
+use App\Services\Commercial\BusinessOffersSubscriptionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class CommercialOfferController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, BusinessOffersSubscriptionService $subscriptionService)
     {
         $q = trim((string) $request->get('q', ''));
         $status = trim((string) $request->get('status', ''));
@@ -68,6 +69,8 @@ class CommercialOfferController extends Controller
             'promotions' => CommercialOffer::query()->where('source_type', CommercialOffer::SOURCE_PROMOTION)->count(),
         ];
 
+        $subscriptionUsage = $sellerId > 0 ? $subscriptionService->usage($sellerId) : null;
+
         return view('admin-v2.commercial-offers.index', [
             'rows' => $rows,
             'q' => $q,
@@ -81,10 +84,11 @@ class CommercialOfferController extends Controller
             'offerableTypes' => $this->offerableTypes(),
             'sourceTypes' => $this->sourceTypes(),
             'statuses' => $this->statuses(),
+            'subscriptionUsage' => $subscriptionUsage,
         ]);
     }
 
-    public function create()
+    public function create(BusinessOffersSubscriptionService $subscriptionService)
     {
         return view('admin-v2.commercial-offers.create', [
             'offer' => new CommercialOffer([
@@ -105,12 +109,16 @@ class CommercialOfferController extends Controller
             'sourceTypes' => $this->sourceTypes(),
             'availabilityModes' => $this->availabilityModes(),
             'statuses' => $this->statuses(),
+            'subscriptionUsage' => null,
+            'offersRules' => $subscriptionService->rules(),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, BusinessOffersSubscriptionService $subscriptionService)
     {
         $data = $this->validatedData($request);
+        $subscriptionService->ensureCanSaveOffer((int) $data['seller_business_id'], $data);
+
         $offer = CommercialOffer::create($data);
 
         return redirect()
@@ -118,7 +126,7 @@ class CommercialOfferController extends Controller
             ->with('success', 'تم إنشاء العرض التجاري بنجاح.');
     }
 
-    public function edit(CommercialOffer $commercialOffer)
+    public function edit(CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
     {
         return view('admin-v2.commercial-offers.edit', [
             'offer' => $commercialOffer,
@@ -127,12 +135,17 @@ class CommercialOfferController extends Controller
             'sourceTypes' => $this->sourceTypes(),
             'availabilityModes' => $this->availabilityModes(),
             'statuses' => $this->statuses(),
+            'subscriptionUsage' => $subscriptionService->usage((int) $commercialOffer->seller_business_id),
+            'offersRules' => $subscriptionService->rules(),
         ]);
     }
 
-    public function update(Request $request, CommercialOffer $commercialOffer)
+    public function update(Request $request, CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
     {
-        $commercialOffer->update($this->validatedData($request));
+        $data = $this->validatedData($request);
+        $subscriptionService->ensureCanSaveOffer((int) $data['seller_business_id'], $data, (int) $commercialOffer->id);
+
+        $commercialOffer->update($data);
 
         return redirect()
             ->route('admin.commercial-offers.edit', $commercialOffer->id)
@@ -148,12 +161,19 @@ class CommercialOfferController extends Controller
             ->with('success', 'تم حذف العرض التجاري.');
     }
 
-    public function toggle(CommercialOffer $commercialOffer)
+    public function toggle(CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
     {
+        $newStatus = $commercialOffer->status === CommercialOffer::STATUS_ACTIVE
+            ? CommercialOffer::STATUS_PAUSED
+            : CommercialOffer::STATUS_ACTIVE;
+
+        $data = $commercialOffer->toArray();
+        $data['status'] = $newStatus;
+
+        $subscriptionService->ensureCanSaveOffer((int) $commercialOffer->seller_business_id, $data, (int) $commercialOffer->id);
+
         $commercialOffer->update([
-            'status' => $commercialOffer->status === CommercialOffer::STATUS_ACTIVE
-                ? CommercialOffer::STATUS_PAUSED
-                : CommercialOffer::STATUS_ACTIVE,
+            'status' => $newStatus,
         ]);
 
         return back()->with('success', 'تم تغيير حالة العرض.');

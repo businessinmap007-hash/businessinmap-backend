@@ -70,7 +70,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">مصدر العرض</h2>
+        <h2 class="a2-section-title">مصدر العرض والجمهور</h2>
 
         <div class="a2-field">
             <label class="a2-label">Source Type</label>
@@ -79,6 +79,16 @@
                     <option value="{{ $type }}" {{ old('source_type', $offer->source_type) === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">Audience Type</label>
+            <select class="a2-select" name="audience_type" required>
+                @foreach($audienceTypes as $type)
+                    <option value="{{ $type }}" {{ old('audience_type', $offer->audience_type ?: 'both') === $type ? 'selected' : '' }}>{{ $type }}</option>
+                @endforeach
+            </select>
+            <div class="a2-help">b2b للبزنس فقط، b2c للعملاء فقط، both للجميع.</div>
         </div>
 
         <div class="a2-field">

@@ -109,9 +109,12 @@
                 'admin.platform-service-fee-promotions.',
                 'admin.business_service_prices.',
                 'admin.platform-service-item-types.',
+                'admin.business-partnerships.',
             ],
             'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
+                ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
+                ['label' => 'Create Partnership', 'route' => 'admin.business-partnerships.create', 'active_routes' => ['admin.business-partnerships.create']],
                 ['label' => 'Create Platform Service', 'route' => 'admin.platform-services.create', 'active_routes' => ['admin.platform-services.create']],
                 ['label' => 'Fee Promotions', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
                 ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],

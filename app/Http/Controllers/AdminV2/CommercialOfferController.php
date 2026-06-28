@@ -1,0 +1,271 @@
+<?php
+
+namespace App\Http\Controllers\AdminV2;
+
+use App\Http\Controllers\Controller;
+use App\Models\CommercialOffer;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class CommercialOfferController extends Controller
+{
+    public function index(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $status = trim((string) $request->get('status', ''));
+        $offerableType = trim((string) $request->get('offerable_type', ''));
+        $sourceType = trim((string) $request->get('source_type', ''));
+        $sellerId = (int) $request->get('seller_business_id', 0);
+        $perPage = (int) $request->get('per_page', 50);
+        $perPage = in_array($perPage, [10, 20, 50, 100], true) ? $perPage : 50;
+
+        $query = CommercialOffer::query()
+            ->with(['ownerBusiness:id,name,type,logo', 'sellerBusiness:id,name,type,logo']);
+
+        if ($q !== '') {
+            $query->where(function (Builder $w) use ($q) {
+                if (is_numeric($q)) {
+                    $w->orWhere('id', (int) $q)
+                        ->orWhere('offerable_id', (int) $q)
+                        ->orWhere('seller_business_id', (int) $q);
+                }
+
+                $w->orWhere('title_ar', 'like', "%{$q}%")
+                    ->orWhere('title_en', 'like', "%{$q}%")
+                    ->orWhereHas('sellerBusiness', function (Builder $b) use ($q) {
+                        $b->where('name', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('ownerBusiness', function (Builder $b) use ($q) {
+                        $b->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        if ($status !== '' && in_array($status, $this->statuses(), true)) {
+            $query->where('status', $status);
+        }
+
+        if ($offerableType !== '' && in_array($offerableType, $this->offerableTypes(), true)) {
+            $query->where('offerable_type', $offerableType);
+        }
+
+        if ($sourceType !== '' && in_array($sourceType, $this->sourceTypes(), true)) {
+            $query->where('source_type', $sourceType);
+        }
+
+        if ($sellerId > 0) {
+            $query->where('seller_business_id', $sellerId);
+        }
+
+        $rows = $query->latest('id')->paginate($perPage)->withQueryString();
+
+        $totals = [
+            'all' => CommercialOffer::query()->count(),
+            'active' => CommercialOffer::query()->where('status', CommercialOffer::STATUS_ACTIVE)->count(),
+            'paused' => CommercialOffer::query()->where('status', CommercialOffer::STATUS_PAUSED)->count(),
+            'promotions' => CommercialOffer::query()->where('source_type', CommercialOffer::SOURCE_PROMOTION)->count(),
+        ];
+
+        return view('admin-v2.commercial-offers.index', [
+            'rows' => $rows,
+            'q' => $q,
+            'status' => $status,
+            'offerableType' => $offerableType,
+            'sourceType' => $sourceType,
+            'sellerId' => $sellerId,
+            'perPage' => $perPage,
+            'totals' => $totals,
+            'businesses' => $this->businessOptions(),
+            'offerableTypes' => $this->offerableTypes(),
+            'sourceTypes' => $this->sourceTypes(),
+            'statuses' => $this->statuses(),
+        ]);
+    }
+
+    public function create()
+    {
+        return view('admin-v2.commercial-offers.create', [
+            'offer' => new CommercialOffer([
+                'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
+                'offerable_id' => 0,
+                'source_type' => CommercialOffer::SOURCE_PROMOTION,
+                'base_price' => 0,
+                'final_price' => 0,
+                'currency' => 'EGP',
+                'availability_mode' => CommercialOffer::AVAILABILITY_INSTANT,
+                'available_quantity' => null,
+                'is_refundable' => false,
+                'ranking_score' => 0,
+                'status' => CommercialOffer::STATUS_ACTIVE,
+            ]),
+            'businesses' => $this->businessOptions(),
+            'offerableTypes' => $this->offerableTypes(),
+            'sourceTypes' => $this->sourceTypes(),
+            'availabilityModes' => $this->availabilityModes(),
+            'statuses' => $this->statuses(),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $data = $this->validatedData($request);
+        $offer = CommercialOffer::create($data);
+
+        return redirect()
+            ->route('admin.commercial-offers.edit', $offer->id)
+            ->with('success', 'تم إنشاء العرض التجاري بنجاح.');
+    }
+
+    public function edit(CommercialOffer $commercialOffer)
+    {
+        return view('admin-v2.commercial-offers.edit', [
+            'offer' => $commercialOffer,
+            'businesses' => $this->businessOptions(),
+            'offerableTypes' => $this->offerableTypes(),
+            'sourceTypes' => $this->sourceTypes(),
+            'availabilityModes' => $this->availabilityModes(),
+            'statuses' => $this->statuses(),
+        ]);
+    }
+
+    public function update(Request $request, CommercialOffer $commercialOffer)
+    {
+        $commercialOffer->update($this->validatedData($request));
+
+        return redirect()
+            ->route('admin.commercial-offers.edit', $commercialOffer->id)
+            ->with('success', 'تم تحديث العرض التجاري بنجاح.');
+    }
+
+    public function destroy(CommercialOffer $commercialOffer)
+    {
+        $commercialOffer->delete();
+
+        return redirect()
+            ->route('admin.commercial-offers.index')
+            ->with('success', 'تم حذف العرض التجاري.');
+    }
+
+    public function toggle(CommercialOffer $commercialOffer)
+    {
+        $commercialOffer->update([
+            'status' => $commercialOffer->status === CommercialOffer::STATUS_ACTIVE
+                ? CommercialOffer::STATUS_PAUSED
+                : CommercialOffer::STATUS_ACTIVE,
+        ]);
+
+        return back()->with('success', 'تم تغيير حالة العرض.');
+    }
+
+    private function validatedData(Request $request): array
+    {
+        $data = $request->validate([
+            'offerable_type' => ['required', Rule::in($this->offerableTypes())],
+            'offerable_id' => ['nullable', 'integer', 'min:0'],
+            'owner_business_id' => ['required', 'integer', 'exists:users,id'],
+            'seller_business_id' => ['required', 'integer', 'exists:users,id'],
+            'source_type' => ['required', Rule::in($this->sourceTypes())],
+            'source_id' => ['nullable', 'integer', 'min:1'],
+            'title_ar' => ['nullable', 'string', 'max:255'],
+            'title_en' => ['nullable', 'string', 'max:255'],
+            'base_price' => ['required', 'numeric', 'min:0'],
+            'final_price' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'discount_type' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'availability_mode' => ['required', Rule::in($this->availabilityModes())],
+            'available_quantity' => ['nullable', 'integer', 'min:0'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'is_refundable' => ['nullable', 'boolean'],
+            'payment_model' => ['nullable', 'string', 'max:50'],
+            'ranking_score' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', Rule::in($this->statuses())],
+            'meta_json' => ['nullable', 'string'],
+        ]);
+
+        $owner = User::query()->where('id', (int) $data['owner_business_id'])->where('type', User::TYPE_BUSINESS)->exists();
+        $seller = User::query()->where('id', (int) $data['seller_business_id'])->where('type', User::TYPE_BUSINESS)->exists();
+
+        if (! $owner || ! $seller) {
+            abort(422, 'Owner و Seller يجب أن يكونا من نوع business.');
+        }
+
+        $data['offerable_id'] = (int) ($data['offerable_id'] ?? 0);
+        $data['source_id'] = $data['source_id'] ?? null;
+        $data['is_refundable'] = $request->boolean('is_refundable');
+        $data['ranking_score'] = (float) ($data['ranking_score'] ?? 0);
+        $data['meta'] = $this->decodeJson($data['meta_json'] ?? null);
+        unset($data['meta_json']);
+
+        return $data;
+    }
+
+    private function decodeJson(?string $json): ?array
+    {
+        $json = trim((string) $json);
+
+        if ($json === '') {
+            return null;
+        }
+
+        $decoded = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            abort(422, 'Meta JSON غير صالح.');
+        }
+
+        return $decoded;
+    }
+
+    private function businessOptions()
+    {
+        return User::query()
+            ->where('type', User::TYPE_BUSINESS)
+            ->orderBy('name')
+            ->limit(500)
+            ->get(['id', 'name', 'email', 'phone', 'category_id', 'category_child_id']);
+    }
+
+    private function offerableTypes(): array
+    {
+        return [
+            CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
+            CommercialOffer::OFFERABLE_PRODUCT,
+            CommercialOffer::OFFERABLE_SERVICE,
+            CommercialOffer::OFFERABLE_PACKAGE,
+        ];
+    }
+
+    private function sourceTypes(): array
+    {
+        return [
+            CommercialOffer::SOURCE_DIRECT,
+            CommercialOffer::SOURCE_ALLOCATION,
+            CommercialOffer::SOURCE_RESELLER,
+            CommercialOffer::SOURCE_PROMOTION,
+            CommercialOffer::SOURCE_MARKETPLACE,
+        ];
+    }
+
+    private function availabilityModes(): array
+    {
+        return [
+            CommercialOffer::AVAILABILITY_INSTANT,
+            CommercialOffer::AVAILABILITY_REQUEST,
+            CommercialOffer::AVAILABILITY_LIMITED,
+        ];
+    }
+
+    private function statuses(): array
+    {
+        return [
+            CommercialOffer::STATUS_ACTIVE,
+            CommercialOffer::STATUS_PAUSED,
+            CommercialOffer::STATUS_EXPIRED,
+            CommercialOffer::STATUS_CANCELLED,
+        ];
+    }
+}

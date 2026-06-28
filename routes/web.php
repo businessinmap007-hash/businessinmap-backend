@@ -5,6 +5,7 @@ use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\CategoryServiceBulkController;
+use App\Http\Controllers\AdminV2\WalletOverviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,13 +84,8 @@ Route::prefix('administrator')->middleware(['auth:admin'])->group(function () {
     Route::get('/', [App\Http\Controllers\Admin\HomeController::class, 'index'])
         ->name('admin.dashboard');
 
-    
-    
     Route::resource('businesses', App\Http\Controllers\Admin\BusinessController::class);
 });
-
-
-
 
 Route::prefix('admin')->middleware(['web'])->group(function () {
 
@@ -98,6 +94,14 @@ Route::prefix('admin')->middleware(['web'])->group(function () {
     )->name('admin.category-services-bulk.apply');
 
 });
+
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['web', 'admin.v2'])
+    ->group(function () {
+        Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
+    });
+
 /*
 |--------------------------------------------------------------------------
 | TEMP PLACEHOLDER ROUTES

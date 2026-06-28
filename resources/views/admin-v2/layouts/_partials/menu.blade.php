@@ -64,12 +64,7 @@
     };
 
     $menu = [
-        [
-            'label' => 'Dashboard',
-            'route' => 'admin.dashboard',
-            'icon' => 'dashboard',
-            'active_routes' => ['admin.dashboard'],
-        ],
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
         [
             'label' => 'Users',
             'route' => 'admin.users.index',
@@ -113,12 +108,14 @@
                 'admin.bookable-allocations.',
                 'admin.commercial-offers.',
                 'admin.business-offers-subscriptions.',
+                'admin.offer-performance.',
             ],
             'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
                 ['label' => 'Bookable Allocations', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
                 ['label' => 'Commercial Offers', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
+                ['label' => 'Offer Performance', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
                 ['label' => 'Offers Subscription', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
                 ['label' => 'Create Offer', 'route' => 'admin.commercial-offers.create', 'active_routes' => ['admin.commercial-offers.create']],
                 ['label' => 'Create Partnership', 'route' => 'admin.business-partnerships.create', 'active_routes' => ['admin.business-partnerships.create']],

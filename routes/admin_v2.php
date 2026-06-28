@@ -19,6 +19,7 @@ use App\Http\Controllers\AdminV2\{
     CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
+    CommercialOfferController,
     DashboardController,
     DisputeController,
     GuaranteeAdminController,
@@ -114,7 +115,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{post}/edit', [PostController::class, 'edit'])->whereNumber('post')->name('edit');
             Route::put('{post}', [PostController::class, 'update'])->whereNumber('post')->name('update');
             Route::post('{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('toggleActive');
-            Route::delete('{post}', [PostController::class, 'destroy'])->whereNumber('post')->name('destroy');
+            Route::delete('{post}', [PostController::class, 'destroy'])->name('destroy');
             Route::delete('{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('images.destroy');
             Route::delete('{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('main_image.destroy');
         });
@@ -171,6 +172,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableAllocation}', [BookableAllocationController::class, 'destroy'])->whereNumber('bookableAllocation')->name('destroy');
             Route::post('{bookableAllocation}/activate', [BookableAllocationController::class, 'activate'])->whereNumber('bookableAllocation')->name('activate');
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
+        });
+
+        Route::prefix('commercial-offers')->name('commercial-offers.')->group(function () {
+            Route::get('/', [CommercialOfferController::class, 'index'])->name('index');
+            Route::get('create', [CommercialOfferController::class, 'create'])->name('create');
+            Route::post('/', [CommercialOfferController::class, 'store'])->name('store');
+            Route::get('{commercialOffer}/edit', [CommercialOfferController::class, 'edit'])->whereNumber('commercialOffer')->name('edit');
+            Route::put('{commercialOffer}', [CommercialOfferController::class, 'update'])->whereNumber('commercialOffer')->name('update');
+            Route::delete('{commercialOffer}', [CommercialOfferController::class, 'destroy'])->whereNumber('commercialOffer')->name('destroy');
+            Route::post('{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('toggle');
         });
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

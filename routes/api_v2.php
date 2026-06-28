@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
+use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,7 @@ Route::prefix('v2')->group(function () {
         Route::get('/', [OfferDiscoveryController::class, 'index']);
         Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
         Route::get('business/{business}', [OfferDiscoveryController::class, 'byBusiness'])->whereNumber('business');
+        Route::post('{offer}/track', [OfferTrackingController::class, 'track'])->whereNumber('offer');
         Route::get('{offer}', [OfferDiscoveryController::class, 'show'])->whereNumber('offer');
     });
 
@@ -50,6 +52,7 @@ Route::prefix('v2')->group(function () {
             Route::patch('{offer}', [BusinessOfferController::class, 'update'])->whereNumber('offer');
             Route::post('{offer}/toggle', [BusinessOfferController::class, 'toggle'])->whereNumber('offer');
             Route::delete('{offer}', [BusinessOfferController::class, 'destroy'])->whereNumber('offer');
+            Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);
         });
     });
 });

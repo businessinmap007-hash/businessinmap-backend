@@ -23,7 +23,7 @@ final class OfferDiscoveryController extends Controller
             'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
-            'sort' => ['nullable', Rule::in(['latest', 'lowest_price', 'highest_price', 'ranking'])],
+            'sort' => ['nullable', Rule::in(['latest', 'lowest_price', 'highest_price', 'ranking', 'boosted'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -34,7 +34,7 @@ final class OfferDiscoveryController extends Controller
 
         $this->applyAudience($query, $request, $data);
         $this->applyFilters($query, $data);
-        $this->applySort($query, (string) ($data['sort'] ?? 'latest'));
+        $this->applySort($query, (string) ($data['sort'] ?? 'boosted'));
 
         $offers = $query->paginate((int) ($data['per_page'] ?? 20))->withQueryString();
 
@@ -46,7 +46,7 @@ final class OfferDiscoveryController extends Controller
                     'offerable_types' => $this->offerableTypes(),
                     'source_types' => $this->publicSourceTypes(),
                     'audience_types' => CommercialOffer::audienceTypes(),
-                    'sorts' => ['latest', 'lowest_price', 'highest_price', 'ranking'],
+                    'sorts' => ['boosted', 'latest', 'lowest_price', 'highest_price', 'ranking'],
                 ],
             ],
         ]);
@@ -88,6 +88,12 @@ final class OfferDiscoveryController extends Controller
             'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'seller_business_id' => ['nullable', 'integer', 'min:1'],
             'owner_business_id' => ['nullable', 'integer', 'min:1'],
+            'sort' => ['nullable', Rule::in([
+                OfferComparisonService::SORT_LOWEST_PRICE,
+                OfferComparisonService::SORT_HIGHEST_PRICE,
+                OfferComparisonService::SORT_BEST_VALUE,
+                OfferComparisonService::SORT_RANKING,
+            ])],
         ]);
 
         $filters = array_filter([
@@ -100,7 +106,7 @@ final class OfferDiscoveryController extends Controller
             offerableType: (string) $data['offerable_type'],
             offerableId: (int) $data['offerable_id'],
             quantity: (int) ($data['quantity'] ?? 1),
-            sort: OfferComparisonService::SORT_LOWEST_PRICE,
+            sort: (string) ($data['sort'] ?? OfferComparisonService::SORT_LOWEST_PRICE),
             filters: $filters
         );
 
@@ -191,10 +197,11 @@ final class OfferDiscoveryController extends Controller
     private function applySort(Builder $query, string $sort): void
     {
         match ($sort) {
-            'lowest_price' => $query->orderBy('final_price')->orderByDesc('ranking_score')->latest('id'),
-            'highest_price' => $query->orderByDesc('final_price')->latest('id'),
-            'ranking' => $query->orderByDesc('ranking_score')->orderBy('final_price')->latest('id'),
-            default => $query->latest('id'),
+            'lowest_price' => $query->orderByBoost()->orderBy('final_price')->latest('id'),
+            'highest_price' => $query->orderByBoost()->orderByDesc('final_price')->latest('id'),
+            'ranking' => $query->orderByBoost()->orderByDesc('ranking_score')->orderBy('final_price')->latest('id'),
+            'latest' => $query->orderByBoost()->latest('id'),
+            default => $query->orderByBoost()->orderBy('final_price')->latest('id'),
         };
     }
 

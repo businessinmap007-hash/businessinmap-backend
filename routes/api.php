@@ -49,7 +49,6 @@ use App\Http\Controllers\Api\V1\{
     MenuController,
     CartController,
     CourierController,
-    GuaranteeController,
     LocationDropdownController
 };
 
@@ -134,14 +133,6 @@ Route::prefix('v1')->group(function () {
         Route::get('profile',            [ProfileController::class, 'index']);
         Route::post('profile/update',    [ProfileController::class, 'updateProfile']);
         Route::post('user/update/phone', [ProfileController::class, 'updatePhone']);
-
-        // Guarantee Engine
-        Route::prefix('guarantees')->group(function () {
-            Route::get('levels',       [GuaranteeController::class, 'levels']);
-            Route::get('me',           [GuaranteeController::class, 'me']);
-            Route::get('transactions', [GuaranteeController::class, 'transactions']);
-            Route::post('activate',    [GuaranteeController::class, 'activate']);
-        });
 
         // Notifications
         Route::prefix('notifications')->group(function () {
@@ -263,3 +254,5 @@ Route::prefix('v1')->group(function () {
 
     });
 });
+
+require __DIR__ . '/api_v2.php';

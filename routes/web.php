@@ -5,9 +5,6 @@ use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\CategoryServiceBulkController;
-use App\Http\Controllers\AdminV2\OfferBoostPackageController;
-use App\Http\Controllers\AdminV2\OfferFollowDashboardController;
-use App\Http\Controllers\AdminV2\WalletOverviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,25 +53,6 @@ Route::prefix('administrator')->middleware(['auth:admin'])->group(function () {
 Route::prefix('admin')->middleware(['web'])->group(function () {
     Route::post('category-services-bulk/apply', [CategoryServiceBulkController::class, 'apply'])->name('admin.category-services-bulk.apply');
 });
-
-Route::prefix('admin')
-    ->name('admin.')
-    ->middleware(['web', 'admin.v2'])
-    ->group(function () {
-        Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
-        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->name('offer-follows.index');
-
-        Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->group(function () {
-            Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');
-            Route::get('create', [OfferBoostPackageController::class, 'create'])->name('create');
-            Route::post('/', [OfferBoostPackageController::class, 'store'])->name('store');
-            Route::get('boost', [OfferBoostPackageController::class, 'boostForm'])->name('boost-form');
-            Route::post('boost', [OfferBoostPackageController::class, 'activateBoost'])->name('activate');
-            Route::get('{offerBoostPackage}/edit', [OfferBoostPackageController::class, 'edit'])->whereNumber('offerBoostPackage')->name('edit');
-            Route::put('{offerBoostPackage}', [OfferBoostPackageController::class, 'update'])->whereNumber('offerBoostPackage')->name('update');
-            Route::post('{offerBoostPackage}/toggle', [OfferBoostPackageController::class, 'toggle'])->whereNumber('offerBoostPackage')->name('toggle');
-        });
-    });
 
 Route::get('/_disabled/category-products', function () {
     abort(404);

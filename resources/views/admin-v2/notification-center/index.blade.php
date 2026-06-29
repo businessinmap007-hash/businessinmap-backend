@@ -9,7 +9,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">مركز الإشعارات</h1>
-            <div class="a2-page-subtitle">مركز عام لإشعارات التطبيق: عروض، حجوزات، محفظة، ضمان، نزاعات، ونظام.</div>
+            <div class="a2-page-subtitle">مركز عام لإشعارات التطبيق: عروض، حجوزات، محفظة، ضمان، نزاعات، نظام، وخدمات مفعلة من Platform Services.</div>
         </div>
         <div class="a2-page-actions">
             <form method="POST" action="{{ route('admin.notification-center.sync-offers') }}">
@@ -51,8 +51,13 @@
 
             <select class="a2-select a2-filter-sm" name="type">
                 <option value="">كل الأنواع</option>
-                @foreach($types as $type)
-                    <option value="{{ $type }}" {{ ($filters['type'] ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
+                @foreach(($typeOptions ?? []) as $key => $option)
+                    <option value="{{ $key }}" {{ ($filters['type'] ?? '') === $key ? 'selected' : '' }}>
+                        {{ $option['label_ar'] ?? $key }} — {{ $key }}
+                        @if(($option['source'] ?? 'core') === 'platform_service')
+                            [service]
+                        @endif
+                    </option>
                 @endforeach
             </select>
 

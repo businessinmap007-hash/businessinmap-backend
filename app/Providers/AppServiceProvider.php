@@ -25,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureLocale();
         $this->configureUrl();
         $this->shareAdminV2Data();
+        $this->registerAdminV2ProtectionRoutes();
     }
 
     private function configureLocale(): void
@@ -76,5 +77,14 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('openDisputesCount', $openDisputesCount);
         });
+    }
+
+    private function registerAdminV2ProtectionRoutes(): void
+    {
+        \Illuminate\Support\Facades\Route::middleware(['web', 'admin.v2'])
+            ->prefix('admin')
+            ->name('admin.')
+            ->get('bookings/protection-preview', [\App\Http\Controllers\AdminV2\BookingProtectionController::class, 'preview'])
+            ->name('bookings.protectionPreview');
     }
 }

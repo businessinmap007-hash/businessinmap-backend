@@ -44,39 +44,44 @@
         }
 
         const side = document.querySelector('.bk-side');
+        const showGrid = document.querySelector('.booking-show-hero-grid');
 
-        if (!side) {
+        if (!side && !showGrid) {
             return null;
         }
 
         card = document.createElement('div');
         card.id = 'booking_protection_card';
-        card.className = 'a2-card bk-card';
+        card.className = side ? 'a2-card bk-card' : 'a2-card booking-show-section';
         card.innerHTML = `
             <div class="a2-title">حماية الحجز</div>
             <div class="a2-section-subtitle">قرار الحماية لا يلغي رسوم استخدام الخدمة لصالح التطبيق.</div>
-            <div class="bk-kv-grid">
-                <div class="bk-kv"><span>طريقة الحماية</span><strong id="protection_method">—</strong></div>
-                <div class="bk-kv"><span>الحالة</span><strong id="protection_status">—</strong></div>
-                <div class="bk-kv"><span>الديبوزت مطلوب؟</span><strong id="protection_deposit">—</strong></div>
-                <div class="bk-kv"><span>الضمان مطلوب؟</span><strong id="protection_guarantee">—</strong></div>
-                <div class="bk-kv"><span>تغطية متاحة</span><strong id="protection_available">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>رسوم المنصة</span><strong id="protection_fees">مطلوبة دائمًا</strong></div>
+            <div class="bk-kv-grid booking-show-kv-grid">
+                <div class="bk-kv booking-show-kv"><span>طريقة الحماية</span><strong id="protection_method">—</strong></div>
+                <div class="bk-kv booking-show-kv"><span>الحالة</span><strong id="protection_status">—</strong></div>
+                <div class="bk-kv booking-show-kv"><span>الديبوزت مطلوب؟</span><strong id="protection_deposit">—</strong></div>
+                <div class="bk-kv booking-show-kv"><span>الضمان مطلوب؟</span><strong id="protection_guarantee">—</strong></div>
+                <div class="bk-kv booking-show-kv"><span>تغطية متاحة</span><strong id="protection_available">0.00 EGP</strong></div>
+                <div class="bk-kv booking-show-kv"><span>رسوم المنصة</span><strong id="protection_fees">مطلوبة دائمًا</strong></div>
             </div>
             <div id="protection_note" class="a2-alert a2-alert-info" style="margin-top:10px;">اختر العميل والبزنس واحسب السعر لعرض قرار الحماية.</div>
         `;
 
-        const feeCardTitle = Array.from(side.querySelectorAll('.a2-title')).find(function (node) {
-            return String(node.textContent || '').includes('رسوم التنفيذ');
-        });
-        const feeCard = feeCardTitle ? feeCardTitle.closest('.a2-card') : null;
+        if (side) {
+            const feeCardTitle = Array.from(side.querySelectorAll('.a2-title')).find(function (node) {
+                return String(node.textContent || '').includes('رسوم التنفيذ');
+            });
+            const feeCard = feeCardTitle ? feeCardTitle.closest('.a2-card') : null;
 
-        if (feeCard) {
-            side.insertBefore(card, feeCard);
-        } else {
-            side.appendChild(card);
+            if (feeCard) {
+                side.insertBefore(card, feeCard);
+            } else {
+                side.appendChild(card);
+            }
+            return card;
         }
 
+        showGrid.insertAdjacentElement('afterend', card);
         return card;
     }
 
@@ -138,28 +143,46 @@
         return Number(raw || 0);
     }
 
+    function currentBookingId() {
+        const explicit = window.BIM_BOOKING_ID;
+        if (explicit) return String(explicit);
+        const match = window.location.pathname.match(/\/admin\/bookings\/(\d+)/);
+        return match ? match[1] : '';
+    }
+
     let timer = null;
 
     async function refresh() {
         const endpoint = window.BIM_BOOKING_PROTECTION_PREVIEW_URL;
-        const userId = value('user_id');
-        const businessId = value('business_id');
 
-        if (!endpoint || !userId || !businessId) {
-            setCard(null);
+        if (!endpoint) {
             return;
         }
 
-        const amount = summaryNumber('summary_final_price');
-        const depositAmount = summaryNumber('summary_deposit_amount');
-        const depositRequired = (document.getElementById('summary_deposit_required')?.textContent || '').includes('نعم');
-
         const url = new URL(endpoint, window.location.origin);
-        url.searchParams.set('user_id', userId);
-        url.searchParams.set('business_id', businessId);
-        url.searchParams.set('amount', amount);
-        url.searchParams.set('deposit_required', depositRequired ? '1' : '0');
-        url.searchParams.set('deposit_amount', depositAmount);
+        const bookingId = currentBookingId();
+
+        if (bookingId && document.body.classList.contains('admin-v2-booking-show')) {
+            url.searchParams.set('booking_id', bookingId);
+        } else {
+            const userId = value('user_id');
+            const businessId = value('business_id');
+
+            if (!userId || !businessId) {
+                setCard(null);
+                return;
+            }
+
+            const amount = summaryNumber('summary_final_price');
+            const depositAmount = summaryNumber('summary_deposit_amount');
+            const depositRequired = (document.getElementById('summary_deposit_required')?.textContent || '').includes('نعم');
+
+            url.searchParams.set('user_id', userId);
+            url.searchParams.set('business_id', businessId);
+            url.searchParams.set('amount', amount);
+            url.searchParams.set('deposit_required', depositRequired ? '1' : '0');
+            url.searchParams.set('deposit_amount', depositAmount);
+        }
 
         try {
             const res = await fetch(url.toString(), {headers: {'Accept': 'application/json'}});
@@ -190,13 +213,6 @@
                 scheduleRefresh();
             }
         });
-
-        setInterval(function () {
-            const card = document.getElementById('booking_protection_card');
-            if (card && value('user_id') && value('business_id')) {
-                scheduleRefresh();
-            }
-        }, 3000);
 
         scheduleRefresh();
     });

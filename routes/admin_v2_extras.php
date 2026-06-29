@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminV2\NotificationCenterAdminController;
 use App\Http\Controllers\AdminV2\OfferBoostPackageController;
 use App\Http\Controllers\AdminV2\OfferFollowDashboardController;
 use App\Http\Controllers\AdminV2\WalletOverviewController;
@@ -11,6 +12,11 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
         Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->name('offer-follows.index');
+
+        Route::prefix('notification-center')->name('notification-center.')->group(function () {
+            Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
+            Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
+        });
 
         Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->group(function () {
             Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');

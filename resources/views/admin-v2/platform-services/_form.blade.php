@@ -8,6 +8,36 @@
         لا يتم حساب أي رسوم من هذه الصفحة.
     </div>
 
+    @php
+        $rawRules = old('rules_json');
+        $rulesArray = [];
+
+        if ($rawRules !== null && trim((string) $rawRules) !== '') {
+            $decodedRules = json_decode((string) $rawRules, true);
+            $rulesArray = is_array($decodedRules) ? $decodedRules : [];
+        } else {
+            $modelRules = $row->rules ?? null;
+            if (is_array($modelRules)) {
+                $rulesArray = $modelRules;
+            } elseif (is_string($modelRules) && trim($modelRules) !== '') {
+                $decodedRules = json_decode($modelRules, true);
+                $rulesArray = is_array($decodedRules) ? $decodedRules : [];
+            }
+        }
+
+        $notificationEnabled = old('notification_enabled');
+        if ($notificationEnabled === null) {
+            $notificationEnabled = (bool) data_get($rulesArray, 'notification_enabled', false);
+        }
+
+        $rulesValue = old('rules_json');
+        if ($rulesValue === null) {
+            $rulesValue = $rulesArray
+                ? json_encode($rulesArray, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                : '';
+        }
+    @endphp
+
     <div class="a2-form-grid a2-mt-16">
         <div class="a2-form-group">
             <label class="a2-label">Key</label>
@@ -88,27 +118,39 @@
         </div>
 
         <div class="a2-form-group a2-field-full">
+            <label class="a2-label">Notifications</label>
+
+            <label class="a2-check a2-mt-8">
+                <input
+                    type="checkbox"
+                    name="notification_enabled"
+                    value="1"
+                    @checked((bool) $notificationEnabled)
+                >
+                <span>إظهار هذه الخدمة كنوع إشعار وإرسال إشعاراتها ضمن Notification Center</span>
+            </label>
+
+            <div class="a2-hint a2-mt-8">
+                عند التفعيل يتم حفظ
+                <span dir="ltr">notification_enabled: true</span>
+                تلقائيًا داخل
+                <span dir="ltr">Service Rules JSON</span>.
+            </div>
+        </div>
+
+        <div class="a2-form-group a2-field-full">
             <label class="a2-label">Service Rules JSON</label>
-            @php
-                $rulesValue = old('rules_json');
-                if ($rulesValue === null) {
-                    $rawRules = $row->rules ?? null;
-                    $rulesValue = is_array($rawRules)
-                        ? json_encode($rawRules, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-                        : (is_string($rawRules) ? $rawRules : '');
-                }
-            @endphp
             <textarea
                 class="a2-textarea"
                 name="rules_json"
                 rows="8"
                 dir="ltr"
-                placeholder='{"max_active_offers":5,"duration_days":30,"fixed_fee":20}'
+                placeholder='{"notification_enabled": true, "notification_template": "default"}'
             >{{ $rulesValue }}</textarea>
             <div class="a2-hint a2-mt-8">
-                تستخدم للخدمات التي لها قواعد تشغيل مثل
-                <span dir="ltr">business_offers</span>.
-                اتركها فارغة إذا لم تكن الخدمة تحتاج rules.
+                حقل متقدم لقواعد الخدمة. يمكن تركه فارغًا، والسويتش أعلاه سيضيف
+                <span dir="ltr">notification_enabled</span>
+                تلقائيًا عند الحفظ.
             </div>
             @error('rules_json')
                 <div class="a2-error">{{ $message }}</div>

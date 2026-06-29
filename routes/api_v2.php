@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
@@ -48,6 +49,20 @@ Route::prefix('v2')->group(function () {
             Route::get('transactions', [GuaranteeController::class, 'transactions']);
             Route::post('activate', [GuaranteeController::class, 'activate']);
             Route::post('check-operation', [GuaranteeController::class, 'checkOperationCoverage']);
+        });
+
+        Route::prefix('bookings')->group(function () {
+            Route::get('/', [BookingController::class, 'index']);
+            Route::post('/', [BookingController::class, 'store']);
+            Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');
+            Route::get('{booking}/financial-preview', [BookingController::class, 'financialPreview'])->whereNumber('booking');
+            Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking');
+            Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking');
+            Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');
+            Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
+            Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking');
+            Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking');
+            Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking');
         });
 
         Route::prefix('offers')->group(function () {

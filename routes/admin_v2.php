@@ -6,8 +6,11 @@ use App\Http\Controllers\AdminV2\{
     AlbumController,
     Auth\LoginController,
     BookableAllocationController,
+    BookableItemBlockedSlotController,
     BookableItemBulkController,
+    BookableItemCalendarController,
     BookableItemController,
+    BookableItemPriceRuleController,
     BookingController,
     BusinessOffersSubscriptionController,
     BusinessPartnershipController,
@@ -136,13 +139,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{bookableAllocation}/edit', [BookableAllocationController::class, 'edit'])->whereNumber('bookableAllocation')->name('edit');
             Route::put('{bookableAllocation}', [BookableAllocationController::class, 'update'])->whereNumber('bookableAllocation')->name('update');
             Route::delete('{bookableAllocation}', [BookableAllocationController::class, 'destroy'])->whereNumber('bookableAllocation')->name('destroy');
-            Route::post('{bookableAllocation}/activate', [BookableAllocationController::class, 'activate'])->whereNumber('bookableAllocation')->name('activate');
+            Route::post('{bookableAllocation}/activate', [BusinessPartnershipController::class, 'activate'])->whereNumber('bookableAllocation')->name('activate');
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
         Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
         Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
         Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
+        Route::get('offer-follows', fn () => redirect()->route('admin.notification-center.index'))->name('offer-follows.index');
+        Route::get('offer-boost-packages', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.index');
+        Route::get('offer-boost-packages/boost', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.boost-form');
 
         Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->group(function () {
             Route::get('/', [BusinessOffersSubscriptionController::class, 'form'])->name('form');
@@ -154,9 +160,33 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('bulk', [BookableItemBulkController::class, 'index'])->name('bulk.index');
             Route::post('bulk/block', [BookableItemBulkController::class, 'applyBlock'])->name('bulk.block');
             Route::post('bulk/price', [BookableItemBulkController::class, 'applyPrice'])->name('bulk.price');
+
             Route::get('/', [BookableItemController::class, 'index'])->name('index');
             Route::get('create', [BookableItemController::class, 'create'])->name('create');
             Route::post('/', [BookableItemController::class, 'store'])->name('store');
+
+            Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->whereNumber('bookableItem')->name('calendar');
+            Route::post('{bookableItem}/calendar/blocked-slots', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('bookableItem')->name('calendar.blocked-slots.store');
+            Route::post('{bookableItem}/calendar/price-rules', [BookableItemCalendarController::class, 'storePriceRule'])->whereNumber('bookableItem')->name('calendar.price-rules.store');
+
+            Route::prefix('{bookableItem}/blocked-slots')->whereNumber('bookableItem')->name('blocked-slots.')->group(function () {
+                Route::get('/', [BookableItemBlockedSlotController::class, 'index'])->name('index');
+                Route::get('create', [BookableItemBlockedSlotController::class, 'create'])->name('create');
+                Route::post('/', [BookableItemBlockedSlotController::class, 'store'])->name('store');
+                Route::get('{slot}/edit', [BookableItemBlockedSlotController::class, 'edit'])->whereNumber('slot')->name('edit');
+                Route::put('{slot}', [BookableItemBlockedSlotController::class, 'update'])->whereNumber('slot')->name('update');
+                Route::delete('{slot}', [BookableItemBlockedSlotController::class, 'destroy'])->whereNumber('slot')->name('destroy');
+            });
+
+            Route::prefix('{bookableItem}/price-rules')->whereNumber('bookableItem')->name('price-rules.')->group(function () {
+                Route::get('/', [BookableItemPriceRuleController::class, 'index'])->name('index');
+                Route::get('create', [BookableItemPriceRuleController::class, 'create'])->name('create');
+                Route::post('/', [BookableItemPriceRuleController::class, 'store'])->name('store');
+                Route::get('{rule}/edit', [BookableItemPriceRuleController::class, 'edit'])->whereNumber('rule')->name('edit');
+                Route::put('{rule}', [BookableItemPriceRuleController::class, 'update'])->whereNumber('rule')->name('update');
+                Route::delete('{rule}', [BookableItemPriceRuleController::class, 'destroy'])->whereNumber('rule')->name('destroy');
+            });
+
             Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->whereNumber('bookableItem')->name('edit');
             Route::put('{bookableItem}', [BookableItemController::class, 'update'])->whereNumber('bookableItem')->name('update');
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');

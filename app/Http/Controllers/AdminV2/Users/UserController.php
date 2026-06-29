@@ -11,6 +11,7 @@ use App\Models\OptionGroup;
 use App\Models\PlatformService;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\UserGuarantee;
 use App\Services\UserPurgeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -523,7 +524,7 @@ class UserController extends Controller
         ]);
     }
 
-   public function show(int $id)
+    public function show(int $id)
     {
         $user = User::withTrashed()
             ->with([
@@ -564,11 +565,27 @@ class UserController extends Controller
                 ->get(['id', 'key', 'name_ar', 'name_en']);
         }
 
+        $activeGuarantee = UserGuarantee::query()
+            ->with(['purchasedLevel:id,code,name_ar,name_en', 'effectiveLevel:id,code,name_ar,name_en'])
+            ->where('user_id', (int) $user->id)
+            ->active()
+            ->latest('id')
+            ->first();
+
+        $recentGuarantees = UserGuarantee::query()
+            ->with(['purchasedLevel:id,code,name_ar,name_en', 'effectiveLevel:id,code,name_ar,name_en'])
+            ->where('user_id', (int) $user->id)
+            ->latest('id')
+            ->limit(5)
+            ->get();
+
         return view('admin-v2.users.show', [
             'user' => $user,
             'subscriptions' => $subscriptions,
             'groupedOptions' => $groupedOptions,
             'childServices' => $childServices,
+            'activeGuarantee' => $activeGuarantee,
+            'recentGuarantees' => $recentGuarantees,
         ]);
     }
 
@@ -616,270 +633,104 @@ class UserController extends Controller
             ->values()
             ->all();
 
-        if (($data['type'] ?? '') === 'business') {
-            $this->validateBusinessClassification(
-                (int) ($data['category_id'] ?? 0),
-                (int) ($data['category_child_id'] ?? 0),
-                $optionIds,
-                $serviceIds
-            );
-        } else {
-            $data['category_id'] = null;
-            $data['category_child_id'] = null;
-            $optionIds = [];
-            $serviceIds = [];
+        if (!empty($optionIds)) {
+            $invalid = Option::query()
+                ->whereIn('id', $optionIds)
+                ->whereNotIn('id', function ($sub) use ($data) {
+                    $sub->select('option_id')
+                        ->from('category_child_option')
+                        ->where('child_id', (int) ($data['category_child_id'] ?? 0));
+                })
+                ->exists();
+
+            if ($invalid) {
+                throw ValidationException::withMessages([
+                    'options' => 'بعض الخيارات لا تنتمي للقسم الفرعي المختار.',
+                ]);
+            }
         }
 
-        unset($data['service_ids']);
+        $user->fill($data);
 
         if (empty($data['password'])) {
-            unset($data['password']);
-        } else {
-            $data['password'] = bcrypt($data['password']);
+            unset($user->password);
         }
 
-        DB::transaction(function () use ($user, $data, $optionIds, $serviceIds) {
-            $user->fill($data);
+        DB::transaction(function () use ($user, $optionIds, $serviceIds) {
             $user->save();
 
             if (method_exists($user, 'options')) {
                 $user->options()->sync($optionIds);
             }
+
+            if (method_exists($user, 'platformServices')) {
+                $sync = [];
+                foreach ($serviceIds as $serviceId) {
+                    $sync[(int) $serviceId] = ['is_active' => 1];
+                }
+                $user->platformServices()->sync($sync);
+            }
         });
-        if (method_exists($user, 'platformServices')) {
-            $user->platformServices()->sync(
-                collect($serviceIds)->mapWithKeys(fn($id) => [
-                    $id => ['is_active' => 1]
-                ])->all()
-            );
-        }
+
         return redirect()
-            ->route('admin.users.edit', $user->id)
-            ->with('success', 'تم تحديث بيانات المستخدم بنجاح');
+            ->route('admin.users.show', $user->id)
+            ->with('success', 'تم تحديث المستخدم بنجاح.');
     }
 
     public function destroy(User $user)
     {
-        if (auth()->id() === $user->id) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابك الحالي.']);
-        }
+        $this->purger->softDelete($user);
+        return back()->with('success', 'تم حذف المستخدم.');
+    }
 
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حساب Admin.']);
-        }
+    public function restore(int $id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+        $this->purger->restore($user);
+        return back()->with('success', 'تم استرجاع المستخدم.');
+    }
 
-        DB::transaction(function () use ($user) {
-            $user->subscriptions()->delete();
-            $user->delete();
-        });
-
-        return back()->with('success', 'تم حذف المستخدم (Soft) بنجاح');
+    public function forceDelete(int $id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+        $this->purger->forceDelete($user);
+        return back()->with('success', 'تم حذف المستخدم نهائيًا.');
     }
 
     public function bulkDestroy(Request $request)
     {
-        $ids = $this->cleanIds($request->input('ids', []));
-
-        if (empty($ids)) {
-            return back()->withErrors(['error' => 'اختر مستخدمين أولاً.']);
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
+        if ($ids->isEmpty()) {
+            return back()->withErrors('اختر مستخدمين أولًا.');
         }
-
-        $ids = array_values(array_diff($ids, [auth()->id()]));
-        if (empty($ids)) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابك الحالي.']);
-        }
-
-        $adminIds = User::whereIn('id', $ids)->get()
-            ->filter(fn ($u) => method_exists($u, 'isAdmin') && $u->isAdmin())
-            ->pluck('id')
-            ->all();
-
-        if (!empty($adminIds)) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابات Admin ضمن الاختيار.']);
-        }
-
-        DB::transaction(function () use ($ids) {
-            Subscription::whereIn('user_id', $ids)->delete();
-            User::whereIn('id', $ids)->delete();
-        });
-
-        return back()->with('success', 'تم حذف المستخدمين المحددين (Soft) بنجاح');
-    }
-
-    public function restore($id)
-    {
-        $user = User::onlyTrashed()->findOrFail($id);
-
-        if (auth()->id() === $user->id) {
-            return back()->withErrors(['error' => 'لا يمكن تنفيذ العملية على حسابك الحالي.']);
-        }
-
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return back()->withErrors(['error' => 'لا يمكن تنفيذ العملية على حساب Admin.']);
-        }
-
-        $user->restore();
-
-        return back()->with('success', 'تم استرجاع المستخدم بنجاح');
+        User::whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->softDelete($user));
+        return back()->with('success', 'تم حذف المستخدمين المحددين.');
     }
 
     public function bulkRestore(Request $request)
     {
-        $ids = $this->cleanIds($request->input('ids', []));
-        if (empty($ids)) {
-            return back()->withErrors(['error' => 'اختر مستخدمين أولاً.']);
-        }
-
-        $ids = array_values(array_diff($ids, [auth()->id()]));
-
-        $adminIds = User::withTrashed()->whereIn('id', $ids)->get()
-            ->filter(fn ($u) => method_exists($u, 'isAdmin') && $u->isAdmin())
-            ->pluck('id')
-            ->all();
-
-        if (!empty($adminIds)) {
-            return back()->withErrors(['error' => 'لا يمكن استرجاع حسابات Admin ضمن الاختيار.']);
-        }
-
-        User::onlyTrashed()->whereIn('id', $ids)->restore();
-
-        return back()->with('success', 'تم استرجاع المستخدمين المحددين بنجاح');
-    }
-
-    public function forceDelete($id)
-    {
-        $user = User::withTrashed()->findOrFail($id);
-
-        if (auth()->id() === $user->id) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابك الحالي نهائيًا.']);
-        }
-
-        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حساب Admin نهائيًا.']);
-        }
-
-        DB::transaction(function () use ($user) {
-            $this->purger->purge($user->id);
-            $user->forceDelete();
-        });
-
-        return back()->with('success', 'تم حذف المستخدم نهائيًا مع كل علاقاته.');
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
+        User::withTrashed()->whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->restore($user));
+        return back()->with('success', 'تم استرجاع المستخدمين المحددين.');
     }
 
     public function bulkForceDelete(Request $request)
     {
-        $ids = $this->cleanIds($request->input('ids', []));
-        if (empty($ids)) {
-            return back()->withErrors(['error' => 'اختر مستخدمين أولاً.']);
-        }
-
-        $ids = array_values(array_diff($ids, [auth()->id()]));
-        if (empty($ids)) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابك الحالي نهائيًا ضمن الاختيار.']);
-        }
-
-        $adminIds = User::withTrashed()->whereIn('id', $ids)->get()
-            ->filter(fn ($u) => method_exists($u, 'isAdmin') && $u->isAdmin())
-            ->pluck('id')
-            ->all();
-
-        if (!empty($adminIds)) {
-            return back()->withErrors(['error' => 'لا يمكن حذف حسابات Admin نهائيًا ضمن الاختيار.']);
-        }
-
-        DB::transaction(function () use ($ids) {
-            foreach ($ids as $id) {
-                $this->purger->purge((int) $id);
-            }
-
-            User::withTrashed()->whereIn('id', $ids)->forceDelete();
-        });
-
-        return back()->with('success', 'تم حذف المستخدمين نهائيًا مع كل علاقاتهم.');
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
+        User::withTrashed()->whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->forceDelete($user));
+        return back()->with('success', 'تم حذف المستخدمين المحددين نهائيًا.');
     }
 
-    protected function validateBusinessClassification(int $categoryId, int $childId, array $optionIds, array $serviceIds = []): void
+    public function toggleSuspend(User $user)
     {
-        $errors = [];
+        $user->activated_at = $user->activated_at ? null : now();
+        $user->save();
 
-        if ($categoryId <= 0) {
-            $errors['category_id'] = 'التصنيف الرئيسي مطلوب للحساب التجاري.';
-        }
-
-        if ($childId <= 0) {
-            $errors['category_child_id'] = 'القسم الفرعي مطلوب للحساب التجاري.';
-        }
-
-        if (!empty($errors)) {
-            throw ValidationException::withMessages($errors);
-        }
-
-        $validChild = CategoryChild::query()
-            ->where('id', $childId)
-            ->whereHas('parents', function ($q) use ($categoryId) {
-                $q->where('categories.id', $categoryId);
-            })
-            ->exists();
-
-        if (!$validChild) {
-            throw ValidationException::withMessages([
-                'category_child_id' => 'القسم الفرعي لا يتبع التصنيف الرئيسي المختار.',
-            ]);
-        }
-
-        if (!empty($optionIds)) {
-            $validOptionIds = CategoryChildOption::query()
-                ->where('child_id', $childId)
-                ->pluck('option_id')
-                ->map(fn ($id) => (int) $id)
-                ->values()
-                ->all();
-
-            $invalidOptionIds = array_values(array_diff($optionIds, $validOptionIds));
-
-            if (!empty($invalidOptionIds)) {
-                throw ValidationException::withMessages([
-                    'options' => 'بعض الخيارات المختارة لا تتبع القسم الفرعي المختار.',
-                ]);
-            }
-        }
-
-        if (!empty($serviceIds)) {
-            $validServiceIds = DB::table('category_platform_services')
-                ->where('child_id', $childId)
-                ->where('is_active', 1)
-                ->pluck('platform_service_id')
-                ->map(fn ($id) => (int) $id)
-                ->values()
-                ->all();
-
-            $invalidServiceIds = array_values(array_diff($serviceIds, $validServiceIds));
-
-            if (!empty($invalidServiceIds)) {
-                throw ValidationException::withMessages([
-                    'service_ids' => 'بعض الخدمات المختارة لا تتبع القسم الفرعي المختار.',
-                ]);
-            }
-        }
+        return back()->with('success', 'تم تحديث حالة التفعيل.');
     }
 
-    protected function hasOptionIsActiveColumn(): bool
+    private function hasOptionIsActiveColumn(): bool
     {
-        static $hasColumn = null;
-
-        if ($hasColumn === null) {
-            $hasColumn = Schema::hasColumn('options', 'is_active');
-        }
-
-        return $hasColumn;
-    }
-
-    private function cleanIds($ids): array
-    {
-        $ids = is_array($ids) ? $ids : [$ids];
-        $ids = array_map('intval', $ids);
-        $ids = array_filter($ids, fn ($v) => $v > 0);
-
-        return array_values(array_unique($ids));
+        return Schema::hasColumn('options', 'is_active');
     }
 }

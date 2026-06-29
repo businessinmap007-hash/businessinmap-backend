@@ -4,18 +4,20 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
+use App\Services\Notifications\NotificationTypeService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 final class NotificationCenterController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, NotificationTypeService $typeService)
     {
         $user = $request->user();
+        $availableTypes = $typeService->allTypes();
 
         $data = $request->validate([
             'status' => ['nullable', Rule::in(AppNotification::statuses())],
-            'type' => ['nullable', Rule::in(AppNotification::types())],
+            'type' => ['nullable', Rule::in($availableTypes)],
             'priority' => ['nullable', Rule::in(AppNotification::priorities())],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -41,20 +43,22 @@ final class NotificationCenterController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
+                'types' => $typeService->options(),
                 'unread_count' => $this->unreadCountFor((int) $user->id),
-                'summary' => $this->summaryFor((int) $user->id),
+                'summary' => $this->summaryFor((int) $user->id, $availableTypes),
                 'notifications' => $query->paginate((int) ($data['per_page'] ?? 20)),
             ],
         ]);
     }
 
-    public function unreadCount(Request $request)
+    public function unreadCount(Request $request, NotificationTypeService $typeService)
     {
         return response()->json([
             'success' => true,
             'data' => [
+                'types' => $typeService->options(),
                 'unread_count' => $this->unreadCountFor((int) $request->user()->id),
-                'summary' => $this->summaryFor((int) $request->user()->id),
+                'summary' => $this->summaryFor((int) $request->user()->id, $typeService->allTypes()),
             ],
         ]);
     }
@@ -151,7 +155,7 @@ final class NotificationCenterController extends Controller
             ->count();
     }
 
-    private function summaryFor(int $userId): array
+    private function summaryFor(int $userId, array $types): array
     {
         $rows = AppNotification::query()
             ->selectRaw('type, COUNT(*) as total')
@@ -162,13 +166,12 @@ final class NotificationCenterController extends Controller
             ->pluck('total', 'type')
             ->toArray();
 
-        return [
-            'offer' => (int) ($rows[AppNotification::TYPE_OFFER] ?? 0),
-            'booking' => (int) ($rows[AppNotification::TYPE_BOOKING] ?? 0),
-            'wallet' => (int) ($rows[AppNotification::TYPE_WALLET] ?? 0),
-            'guarantee' => (int) ($rows[AppNotification::TYPE_GUARANTEE] ?? 0),
-            'dispute' => (int) ($rows[AppNotification::TYPE_DISPUTE] ?? 0),
-            'system' => (int) ($rows[AppNotification::TYPE_SYSTEM] ?? 0),
-        ];
+        $summary = [];
+
+        foreach ($types as $type) {
+            $summary[$type] = (int) ($rows[$type] ?? 0);
+        }
+
+        return $summary;
     }
 }

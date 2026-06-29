@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\NotificationCenterController;
 use App\Http\Controllers\Api\V2\OfferBoostController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
@@ -26,6 +27,15 @@ Route::prefix('v2')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [NotificationCenterController::class, 'index']);
+            Route::get('unread-count', [NotificationCenterController::class, 'unreadCount']);
+            Route::post('mark-all-read', [NotificationCenterController::class, 'markAllRead']);
+            Route::get('{notification}', [NotificationCenterController::class, 'show'])->whereNumber('notification');
+            Route::post('{notification}/read', [NotificationCenterController::class, 'markRead'])->whereNumber('notification');
+            Route::post('{notification}/archive', [NotificationCenterController::class, 'archive'])->whereNumber('notification');
+        });
+
         Route::prefix('guarantees')->group(function () {
             Route::get('levels', [GuaranteeController::class, 'levels']);
             Route::get('me', [GuaranteeController::class, 'me']);

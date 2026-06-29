@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V2\OfferBoostController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
+use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,15 @@ Route::prefix('v2')->group(function () {
         Route::prefix('offers')->group(function () {
             Route::get('compare', [OfferComparisonController::class, 'compare']);
             Route::post('compare', [OfferComparisonController::class, 'compare']);
+        });
+
+        Route::prefix('offer-notifications')->group(function () {
+            Route::get('/', [OfferNotificationController::class, 'index']);
+            Route::get('unread-count', [OfferNotificationController::class, 'unreadCount']);
+            Route::post('mark-all-read', [OfferNotificationController::class, 'markAllRead']);
+            Route::get('{notification}', [OfferNotificationController::class, 'show'])->whereNumber('notification');
+            Route::post('{notification}/read', [OfferNotificationController::class, 'markRead'])->whereNumber('notification');
+            Route::post('{notification}/archive', [OfferNotificationController::class, 'archive'])->whereNumber('notification');
         });
 
         Route::prefix('offer-follows')->group(function () {

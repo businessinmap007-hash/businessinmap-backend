@@ -17,7 +17,7 @@
                 name="key"
                 value="{{ old('key', $row->key) }}"
                 required
-                placeholder="booking / menu / delivery"
+                placeholder="booking / menu / delivery / business_offers"
                 dir="ltr"
             >
             <div class="a2-hint a2-mt-8">
@@ -32,7 +32,7 @@
         <div class="a2-form-group">
             <label class="a2-label">الحالة</label>
 
-            <label class="a2-check" style="margin-top:10px;">
+            <label class="a2-check a2-mt-8">
                 <input
                     type="checkbox"
                     name="is_active"
@@ -71,7 +71,7 @@
         <div class="a2-form-group a2-field-full">
             <label class="a2-label">Deposit Support</label>
 
-            <label class="a2-check" style="margin-top:10px;">
+            <label class="a2-check a2-mt-8">
                 <input
                     type="checkbox"
                     name="supports_deposit"
@@ -85,6 +85,34 @@
                 هذا مجرد flag عام يوضح أن الخدمة يمكن أن تعمل مع الديبوزت.
                 قيمة الديبوزت وقواعده لا تُحسب من PlatformService.
             </div>
+        </div>
+
+        <div class="a2-form-group a2-field-full">
+            <label class="a2-label">Service Rules JSON</label>
+            @php
+                $rulesValue = old('rules_json');
+                if ($rulesValue === null) {
+                    $rawRules = $row->rules ?? null;
+                    $rulesValue = is_array($rawRules)
+                        ? json_encode($rawRules, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                        : (is_string($rawRules) ? $rawRules : '');
+                }
+            @endphp
+            <textarea
+                class="a2-textarea"
+                name="rules_json"
+                rows="8"
+                dir="ltr"
+                placeholder='{"max_active_offers":5,"duration_days":30,"fixed_fee":20}'
+            >{{ $rulesValue }}</textarea>
+            <div class="a2-hint a2-mt-8">
+                تستخدم للخدمات التي لها قواعد تشغيل مثل
+                <span dir="ltr">business_offers</span>.
+                اتركها فارغة إذا لم تكن الخدمة تحتاج rules.
+            </div>
+            @error('rules_json')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
         </div>
     </div>
 </div>
@@ -100,7 +128,7 @@
     </div>
 </div>
 
-<div class="a2-actionsbar a2-mt-16" style="display:flex;gap:10px;flex-wrap:wrap;">
+<div class="a2-actionsbar a2-mt-16">
     <button class="a2-btn a2-btn-primary" type="submit">
         {{ $submitLabel ?? 'Save' }}
     </button>

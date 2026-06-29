@@ -10,12 +10,11 @@
     $categoryName = $user->category?->name_ar ?: ($user->category?->name_en ?: '—');
     $childName = $user->categoryChild?->name_ar ?: ($user->categoryChild?->name_en ?: '—');
 
-    // ✅ الصورة الأساسية
     $logoPath  = $user->logo ?? null;
-
-    // صور إضافية (اختياري)
     $imagePath = $user->image ?? null;
     $coverPath = $user->cover ?? null;
+
+    $wallet = $user->wallet;
 @endphp
 
 <div class="a2-page a2-page-narrow">
@@ -27,6 +26,9 @@
 
        <div class="a2-page-actions">
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.users.edit', $user->id) }}">تعديل</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">شحن المحفظة</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.user', $user->id) }}">معاملات المحفظة</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">الضمانات</a>
 
             @if(Route::has('admin.user-service-fee-consents.edit'))
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.user-service-fee-consents.edit', $user) }}">
@@ -42,26 +44,43 @@
         <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
     @endif
 
-    {{-- =========================
-       صورة المستخدم
-       ========================= --}}
+    <div class="a2-stat-grid a2-mb-16">
+        <div class="a2-stat-card">
+            <div class="a2-stat-label">Wallet Balance</div>
+            <div class="a2-stat-value">{{ number_format((float) optional($wallet)->balance, 2) }}</div>
+            <div class="a2-stat-note">الرصيد المتاح</div>
+        </div>
+        <div class="a2-stat-card">
+            <div class="a2-stat-label">Locked Balance</div>
+            <div class="a2-stat-value">{{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
+            <div class="a2-stat-note">الرصيد المقفل للضمان/الحجز</div>
+        </div>
+        <div class="a2-stat-card">
+            <div class="a2-stat-label">Wallet Status</div>
+            <div class="a2-stat-value">{{ optional($wallet)->status ?: '—' }}</div>
+            <div class="a2-stat-note">حالة المحفظة</div>
+        </div>
+        <div class="a2-stat-card">
+            <div class="a2-stat-label">Active Guarantee</div>
+            <div class="a2-stat-value">{{ $activeGuarantee ? ($activeGuarantee->effectiveLevel?->display_name ?: $activeGuarantee->purchasedLevel?->display_name ?: '#' . $activeGuarantee->id) : '—' }}</div>
+            <div class="a2-stat-note">{{ $activeGuarantee ? ('Coverage: ' . number_format((float) $activeGuarantee->current_coverage_amount, 2)) : 'لا يوجد ضمان نشط' }}</div>
+        </div>
+    </div>
+
     <div class="a2-card">
         <div class="a2-header">
             <h2 class="a2-section-title a2-mb-0">الصورة</h2>
         </div>
 
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="a2-row-actions">
             @if($logoPath)
                 <x-admin-v2.image :path="$logoPath" size="140" radius="16px" />
             @else
-                <div class="a2-album-cover-empty" style="width:140px;height:140px;">—</div>
+                <div class="a2-album-cover-empty">—</div>
             @endif
         </div>
     </div>
 
-    {{-- =========================
-       بيانات أساسية
-       ========================= --}}
     <div class="a2-card">
         <div class="a2-header">
             <h2 class="a2-section-title a2-mb-0">البيانات الأساسية</h2>
@@ -120,9 +139,48 @@
         </div>
     </div>
 
-    {{-- =========================
-       تصنيف البزنس
-       ========================= --}}
+    <div class="a2-card">
+        <div class="a2-header">
+            <h2 class="a2-section-title a2-mb-0">الضمانات الأخيرة</h2>
+        </div>
+
+        <div class="a2-table-wrap">
+            <table class="a2-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Purchased</th>
+                        <th>Effective</th>
+                        <th>Status</th>
+                        <th>Locked</th>
+                        <th>Coverage</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse(($recentGuarantees ?? collect()) as $guarantee)
+                        <tr>
+                            <td>#{{ $guarantee->id }}</td>
+                            <td>{{ $guarantee->purchasedLevel?->display_name ?: '—' }}</td>
+                            <td>{{ $guarantee->effectiveLevel?->display_name ?: '—' }}</td>
+                            <td>{{ $guarantee->status }}</td>
+                            <td>{{ number_format((float) $guarantee->locked_amount, 2) }}</td>
+                            <td>{{ number_format((float) $guarantee->current_coverage_amount, 2) }}</td>
+                            <td><a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.guarantees.show', $guarantee->id) }}">فتح</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="a2-empty-cell">لا توجد ضمانات لهذا المستخدم.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="a2-form-actions">
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">شحن واختيار مستوى ضمان</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">كل ضمانات المستخدم</a>
+        </div>
+    </div>
+
     <div class="a2-card">
         <div class="a2-header">
             <h2 class="a2-section-title a2-mb-0">تصنيف البزنس</h2>
@@ -148,28 +206,25 @@
         <div class="a2-divider"></div>
 
         @if(($groupedOptions ?? collect())->count())
-            <div style="display:grid;gap:14px;">
+            <div class="a2-stack">
                 @foreach($groupedOptions as $groupKey => $rows)
                     @php
                         $groupTitle = $groupKey === 'ungrouped' ? 'بدون مجموعة' : ('Group #' . $groupKey);
                     @endphp
 
                     <div class="a2-card a2-card--soft a2-card--tight">
-                        <div style="font-weight:900;margin-bottom:10px;">{{ $groupTitle }}</div>
-                        <div class="a2-view-box" style="min-height:auto;">
+                        <div class="a2-fw-900 a2-mb-8">{{ $groupTitle }}</div>
+                        <div class="a2-view-box">
                             {{ collect($rows)->map(fn($opt) => $opt->name_ar ?: ($opt->name_en ?: ('#' . $opt->id)))->implode(' ، ') ?: '—' }}
                         </div>
                     </div>
                 @endforeach
             </div>
         @else
-            <div class="a2-view-box" style="min-height:auto;">لا توجد خيارات مختارة.</div>
+            <div class="a2-view-box">لا توجد خيارات مختارة.</div>
         @endif
     </div>
 
-    {{-- =========================
-       الاشتراكات
-       ========================= --}}
     <div class="a2-card">
         <div class="a2-header">
             <h2 class="a2-section-title a2-mb-0">الاشتراكات الأخيرة</h2>

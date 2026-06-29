@@ -2,16 +2,16 @@
 
 namespace App\Services\Notifications;
 
+use App\Events\AppNotificationCreated;
 use App\Models\AppNotification;
 use App\Models\CommercialOffer;
 use App\Models\OfferFollowNotification;
-use Illuminate\Support\Arr;
 
 final class InAppNotificationService
 {
     public function create(array $data): AppNotification
     {
-        return AppNotification::query()->create([
+        $notification = AppNotification::query()->create([
             'user_id' => (int) $data['user_id'],
             'actor_id' => $data['actor_id'] ?? null,
             'type' => $data['type'] ?? AppNotification::TYPE_SYSTEM,
@@ -32,6 +32,10 @@ final class InAppNotificationService
             'expires_at' => $data['expires_at'] ?? null,
             'meta' => $data['meta'] ?? null,
         ]);
+
+        event(new AppNotificationCreated($notification));
+
+        return $notification;
     }
 
     public function createFromOfferFollowNotification(OfferFollowNotification $notification): ?AppNotification

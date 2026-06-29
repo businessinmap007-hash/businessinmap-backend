@@ -6,6 +6,7 @@ use App\Models\CommercialOffer;
 use App\Models\OfferFollow;
 use App\Models\OfferFollowNotification;
 use App\Models\User;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 
 final class OfferFollowMatchingService
@@ -18,6 +19,7 @@ final class OfferFollowMatchingService
 
         $seller = $offer->sellerBusiness()->first(['id', 'type', 'category_id', 'category_child_id']);
         $created = 0;
+        $notificationService = app(InAppNotificationService::class);
 
         OfferFollow::query()
             ->active()
@@ -25,7 +27,7 @@ final class OfferFollowMatchingService
             ->where(function (Builder $q) use ($offer, $seller) {
                 $this->candidateFilters($q, $offer, $seller);
             })
-            ->chunkById(100, function ($follows) use ($offer, &$created) {
+            ->chunkById(100, function ($follows) use ($offer, &$created, $notificationService) {
                 foreach ($follows as $follow) {
                     if (! $this->audienceMatches($offer, $follow->user)) {
                         continue;
@@ -46,7 +48,7 @@ final class OfferFollowMatchingService
                         continue;
                     }
 
-                    OfferFollowNotification::query()->create([
+                    $notification = OfferFollowNotification::query()->create([
                         'user_id' => (int) $follow->user_id,
                         'follow_id' => (int) $follow->id,
                         'offer_id' => (int) $offer->id,
@@ -60,6 +62,8 @@ final class OfferFollowMatchingService
                             'audience_type' => $offer->audience_type,
                         ],
                     ]);
+
+                    $notificationService->createFromOfferFollowNotification($notification);
 
                     $follow->forceFill(['last_matched_at' => now()])->save();
                     $created++;

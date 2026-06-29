@@ -5,22 +5,21 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Services\BookingProtectionDecisionEngine;
+use App\Services\ServiceExecutionEngine;
 use Illuminate\Http\Request;
 
 class BookingProtectionController extends Controller
 {
-    public function preview(Request $request, BookingProtectionDecisionEngine $engine)
+    public function preview(Request $request, BookingProtectionDecisionEngine $engine, ServiceExecutionEngine $executionEngine)
     {
         $bookingId = (int) $request->get('booking_id', 0);
 
         if ($bookingId > 0) {
             $booking = Booking::withTrashed()->findOrFail($bookingId);
-            $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
-            $depositPolicy = is_array(data_get($meta, 'deposit_policy')) ? data_get($meta, 'deposit_policy') : [];
 
             return response()->json([
                 'ok' => true,
-                'protection' => $engine->decideForBooking($booking, $depositPolicy),
+                'protection' => $engine->decideForBooking($booking, $executionEngine->depositPolicy($booking)),
             ]);
         }
 

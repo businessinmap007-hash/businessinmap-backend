@@ -126,6 +126,7 @@ class PlatformServiceController extends Controller
             'name_en' => ['nullable', 'string', 'max:191'],
             'is_active' => ['nullable'],
             'supports_deposit' => ['nullable'],
+            'notification_enabled' => ['nullable'],
             'rules_json' => ['nullable', 'string'],
         ], [
             'key.regex' => 'مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
@@ -136,7 +137,9 @@ class PlatformServiceController extends Controller
         $data['name_en'] = trim((string) ($data['name_en'] ?? '')) ?: null;
 
         $rulesJson = trim((string) ($data['rules_json'] ?? ''));
-        unset($data['rules_json']);
+        unset($data['rules_json'], $data['notification_enabled']);
+
+        $rules = [];
 
         if ($rulesJson !== '') {
             $decoded = json_decode($rulesJson, true);
@@ -147,11 +150,13 @@ class PlatformServiceController extends Controller
                 ]);
             }
 
-            if (Schema::hasColumn('platform_services', 'rules')) {
-                $data['rules'] = $decoded;
-            }
-        } elseif (Schema::hasColumn('platform_services', 'rules')) {
-            $data['rules'] = null;
+            $rules = $decoded;
+        }
+
+        $rules['notification_enabled'] = $request->boolean('notification_enabled');
+
+        if (Schema::hasColumn('platform_services', 'rules')) {
+            $data['rules'] = $rules === [] ? null : $rules;
         }
 
         return $data;

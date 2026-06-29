@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
+use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,11 @@ Route::prefix('v2')->group(function () {
             Route::get('{notification}', [NotificationCenterController::class, 'show'])->whereNumber('notification');
             Route::post('{notification}/read', [NotificationCenterController::class, 'markRead'])->whereNumber('notification');
             Route::post('{notification}/archive', [NotificationCenterController::class, 'archive'])->whereNumber('notification');
+        });
+
+        Route::prefix('push-tokens')->group(function () {
+            Route::post('/', [PushTokenController::class, 'store']);
+            Route::delete('/', [PushTokenController::class, 'destroy']);
         });
 
         Route::prefix('guarantees')->group(function () {

@@ -51,6 +51,10 @@
             <h1 class="a2-page-title">المستخدمون</h1>
             <div class="a2-page-subtitle">إدارة حسابات admin / client / business</div>
         </div>
+        <div class="a2-page-actions">
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form') }}">شحن المحفظة</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index') }}">الضمانات</a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -231,9 +235,18 @@
                             </td>
 
                             <td>
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <div class="a2-row-actions">
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.users.edit', $row->id) }}">
                                         تعديل
+                                    </a>
+                                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $row->id]) }}">
+                                        شحن
+                                    </a>
+                                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-transactions.user', $row->id) }}">
+                                        محفظة
+                                    </a>
+                                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.guarantees.index', ['q' => $row->id]) }}">
+                                        ضمان
                                     </a>
                                     @if(Route::has('admin.user-service-fee-consents.edit'))
                                         <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.user-service-fee-consents.edit', $row) }}">
@@ -297,109 +310,66 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!el || typeof TomSelect === 'undefined') return;
 
         destroyTom(el);
-
         new TomSelect(el, {
             plugins: ['remove_button'],
-            create: false,
             persist: false,
-            maxOptions: null,
-            hideSelected: true,
-            closeAfterSelect: false,
+            create: false,
+            maxOptions: 500,
             placeholder: placeholder,
         });
     }
 
-    function refillChildren(categoryId, keepChildId = 0) {
-        const rows = childCatalog[String(categoryId)] || [];
+    function renderOptions(select, rows, selectedIds, placeholder) {
+        if (!select) return;
+
+        destroyTom(select);
+        select.innerHTML = '';
+
+        rows.forEach(function (row) {
+            const option = document.createElement('option');
+            option.value = row.id;
+            option.textContent = itemLabel(row);
+            option.selected = selectedIds.includes(parseInt(row.id));
+            select.appendChild(option);
+        });
+
+        initMultiSelect(select, placeholder);
+    }
+
+    function syncChildren() {
+        if (!categorySelect || !childSelect) return;
+
+        const categoryId = parseInt(categorySelect.value || 0);
+        const currentChild = parseInt(childSelect.value || 0);
+        const rows = childCatalog[categoryId] || [];
 
         childSelect.innerHTML = '<option value="">كل الأقسام الفرعية</option>';
-
-        rows.forEach(function (child) {
-            const opt = document.createElement('option');
-            opt.value = child.id;
-            opt.textContent = itemLabel(child);
-
-            if (parseInt(keepChildId, 10) === parseInt(child.id, 10)) {
-                opt.selected = true;
-            }
-
-            childSelect.appendChild(opt);
+        rows.forEach(function (row) {
+            const option = document.createElement('option');
+            option.value = row.id;
+            option.textContent = itemLabel(row);
+            option.selected = currentChild === parseInt(row.id) || selectedChildId === parseInt(row.id);
+            childSelect.appendChild(option);
         });
     }
 
-    function refillOptions(childId, keepOptionIds = []) {
-        const rows = optionCatalog[String(childId)] || [];
-
-        destroyTom(optionSelect);
-        optionSelect.innerHTML = '';
-
-        rows.forEach(function (item) {
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = itemLabel(item);
-
-            if (keepOptionIds.includes(parseInt(item.id, 10))) {
-                opt.selected = true;
-            }
-
-            optionSelect.appendChild(opt);
-        });
-
-        initMultiSelect(optionSelect, 'اختر خيارًا أو أكثر');
+    function syncDependentFilters() {
+        const childId = parseInt(childSelect?.value || 0);
+        renderOptions(optionSelect, optionCatalog[childId] || [], selectedOptionIds, 'اختيارات القسم الفرعي');
+        renderOptions(serviceSelect, serviceCatalog[childId] || [], selectedServiceIds, 'خدمات القسم الفرعي');
     }
 
-    function refillServices(childId, keepServiceIds = []) {
-        const rows = serviceCatalog[String(childId)] || [];
+    syncChildren();
+    syncDependentFilters();
 
-        destroyTom(serviceSelect);
-        serviceSelect.innerHTML = '';
-
-        rows.forEach(function (item) {
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = itemLabel(item);
-
-            if (keepServiceIds.includes(parseInt(item.id, 10))) {
-                opt.selected = true;
-            }
-
-            serviceSelect.appendChild(opt);
-        });
-
-        initMultiSelect(serviceSelect, 'اختر خدمة أو أكثر');
-    }
-
-    categorySelect.addEventListener('change', function () {
-        const categoryId = parseInt(this.value || 0, 10);
-
-        refillChildren(categoryId, 0);
-        refillOptions(0, []);
-        refillServices(0, []);
+    categorySelect?.addEventListener('change', function () {
+        syncChildren();
+        syncDependentFilters();
     });
 
-    childSelect.addEventListener('change', function () {
-        const childId = parseInt(this.value || 0, 10);
-
-        if (childId > 0) {
-            refillOptions(childId, []);
-            refillServices(childId, []);
-        } else {
-            refillOptions(0, []);
-            refillServices(0, []);
-        }
+    childSelect?.addEventListener('change', function () {
+        syncDependentFilters();
     });
-
-    if (parseInt(categorySelect.value || 0, 10) > 0) {
-        refillChildren(parseInt(categorySelect.value || 0, 10), selectedChildId);
-    }
-
-    if (selectedChildId > 0) {
-        refillOptions(selectedChildId, selectedOptionIds);
-        refillServices(selectedChildId, selectedServiceIds);
-    } else {
-        initMultiSelect(optionSelect, 'اختر خيارًا أو أكثر');
-        initMultiSelect(serviceSelect, 'اختر خدمة أو أكثر');
-    }
 });
 </script>
 @endsection

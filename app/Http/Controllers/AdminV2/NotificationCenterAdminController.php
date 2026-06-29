@@ -6,18 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
 use App\Models\User;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Notifications\NotificationTypeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 final class NotificationCenterAdminController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, NotificationTypeService $typeService)
     {
+        $availableTypes = $typeService->allTypes();
+
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
             'user_id' => ['nullable', 'integer', 'min:1'],
-            'type' => ['nullable', Rule::in(AppNotification::types())],
+            'type' => ['nullable', Rule::in($availableTypes)],
             'status' => ['nullable', Rule::in(AppNotification::statuses())],
             'priority' => ['nullable', Rule::in(AppNotification::priorities())],
             'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
@@ -51,7 +54,8 @@ final class NotificationCenterAdminController extends Controller
             'rows' => $rows,
             'totals' => $totals,
             'users' => $users,
-            'types' => AppNotification::types(),
+            'types' => $availableTypes,
+            'typeOptions' => $typeService->options(),
             'statuses' => AppNotification::statuses(),
             'priorities' => AppNotification::priorities(),
             'filters' => [

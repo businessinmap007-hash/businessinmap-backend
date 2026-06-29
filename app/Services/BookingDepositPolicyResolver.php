@@ -61,8 +61,8 @@ class BookingDepositPolicyResolver
             'deposit_type' => $policy->deposit_type,
             'deposit_value' => (float) $policy->deposit_value,
             'max_deposit_percent' => (float) $policy->max_deposit_percent,
-            'min_deposit_amount' => (float) $policy->min_deposit_amount,
-            'max_deposit_amount' => (float) $policy->max_deposit_amount,
+            'min_deposit_amount' => $policy->min_deposit_amount !== null ? (float) $policy->min_deposit_amount : null,
+            'max_deposit_amount' => $policy->max_deposit_amount !== null ? (float) $policy->max_deposit_amount : null,
             'wallet_hold_enabled' => (bool) $policy->wallet_hold_enabled,
             'external_verification_enabled' => (bool) $policy->external_verification_enabled,
             'business_counter_hold_enabled' => (bool) $policy->business_counter_hold_enabled,
@@ -92,8 +92,8 @@ class BookingDepositPolicyResolver
             'deposit_type' => $item->deposit_type ?: BusinessDepositPolicy::TYPE_PERCENT,
             'deposit_value' => (float) ($item->deposit_value ?? $item->deposit_percent ?? 0),
             'max_deposit_percent' => (float) ($item->max_deposit_percent ?? 20),
-            'min_deposit_amount' => (float) ($item->min_deposit_amount ?? 0),
-            'max_deposit_amount' => (float) ($item->max_deposit_amount ?? 0),
+            'min_deposit_amount' => $item->min_deposit_amount !== null ? (float) $item->min_deposit_amount : null,
+            'max_deposit_amount' => $item->max_deposit_amount !== null ? (float) $item->max_deposit_amount : null,
             'wallet_hold_enabled' => $item->wallet_hold_enabled !== null ? (bool) $item->wallet_hold_enabled : true,
             'external_verification_enabled' => (bool) ($item->external_verification_enabled ?? false),
             'business_counter_hold_enabled' => $item->business_counter_hold_enabled !== null ? (bool) $item->business_counter_hold_enabled : true,
@@ -123,6 +123,8 @@ class BookingDepositPolicyResolver
         $policy['deposit_value'] = (float) ($item->deposit_value ?? $item->deposit_percent ?? $policy['deposit_value'] ?? 0);
         $policy['calculation_base'] = $item->deposit_calculation_base ?: ($policy['calculation_base'] ?? BusinessDepositPolicy::BASE_FIRST_DAY);
         $policy['max_deposit_percent'] = (float) ($item->max_deposit_percent ?? $policy['max_deposit_percent'] ?? 20);
+        $policy['min_deposit_amount'] = $item->min_deposit_amount !== null ? (float) $item->min_deposit_amount : ($policy['min_deposit_amount'] ?? null);
+        $policy['max_deposit_amount'] = $item->max_deposit_amount !== null ? (float) $item->max_deposit_amount : ($policy['max_deposit_amount'] ?? null);
         $policy['wallet_hold_enabled'] = $item->wallet_hold_enabled !== null ? (bool) $item->wallet_hold_enabled : ($policy['wallet_hold_enabled'] ?? true);
         $policy['external_verification_enabled'] = $item->external_verification_enabled !== null ? (bool) $item->external_verification_enabled : ($policy['external_verification_enabled'] ?? false);
         $policy['business_counter_hold_enabled'] = $item->business_counter_hold_enabled !== null ? (bool) $item->business_counter_hold_enabled : ($policy['business_counter_hold_enabled'] ?? true);
@@ -142,8 +144,8 @@ class BookingDepositPolicyResolver
             'deposit_type' => BusinessDepositPolicy::TYPE_PERCENT,
             'deposit_value' => 0,
             'max_deposit_percent' => 20,
-            'min_deposit_amount' => 0,
-            'max_deposit_amount' => 0,
+            'min_deposit_amount' => null,
+            'max_deposit_amount' => null,
             'wallet_hold_enabled' => false,
             'external_verification_enabled' => false,
             'business_counter_hold_enabled' => false,

@@ -6,6 +6,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\CategoryServiceBulkController;
 use App\Http\Controllers\AdminV2\OfferBoostPackageController;
+use App\Http\Controllers\AdminV2\OfferFollowDashboardController;
 use App\Http\Controllers\AdminV2\WalletOverviewController;
 
 /*
@@ -61,6 +62,7 @@ Route::prefix('admin')
     ->middleware(['web', 'admin.v2'])
     ->group(function () {
         Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
+        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->name('offer-follows.index');
 
         Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->group(function () {
             Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');

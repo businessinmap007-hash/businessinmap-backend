@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\GuaranteeLevel;
 use App\Models\User;
+use App\Models\UserGuarantee;
 use App\Models\Wallet;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\WalletLedgerService;
@@ -16,14 +17,39 @@ final class WalletOpsController extends Controller
     public function rechargeForm(Request $request)
     {
         $userId = (int) $request->get('user_id', 0);
+        $q = trim((string) $request->get('q', ''));
+
+        $users = User::query()
+            ->select('id', 'name', 'email', 'phone', 'type')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    if (is_numeric($q)) {
+                        $w->orWhere('id', (int) $q);
+                    }
+
+                    $w->orWhere('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhere('phone', 'like', "%{$q}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->limit(500)
+            ->get();
 
         $user = $userId
             ? User::query()->select('id', 'name', 'email', 'phone', 'type')->find($userId)
             : null;
 
+        $wallet = null;
+        $activeGuarantee = null;
         $levels = collect();
 
         if ($user) {
+            $wallet = Wallet::query()->firstOrCreate(
+                ['user_id' => (int) $user->id],
+                ['balance' => 0, 'locked_balance' => 0, 'total_in' => 0, 'total_out' => 0, 'status' => Wallet::STATUS_ACTIVE]
+            );
+
             $targetType = $user->isBusiness()
                 ? GuaranteeLevel::TARGET_BUSINESS
                 : GuaranteeLevel::TARGET_CLIENT;
@@ -34,11 +60,22 @@ final class WalletOpsController extends Controller
                 ->orderByDesc('priority')
                 ->orderBy('required_locked_amount')
                 ->get();
+
+            $activeGuarantee = UserGuarantee::query()
+                ->with(['purchasedLevel:id,code,name_ar,name_en', 'effectiveLevel:id,code,name_ar,name_en'])
+                ->where('user_id', (int) $user->id)
+                ->active()
+                ->latest('id')
+                ->first();
         }
 
         return view('admin-v2.wallet-ops.recharge', [
             'user' => $user,
+            'users' => $users,
+            'wallet' => $wallet,
             'levels' => $levels,
+            'activeGuarantee' => $activeGuarantee,
+            'q' => $q,
         ]);
     }
 
@@ -70,7 +107,7 @@ final class WalletOpsController extends Controller
 
         $wallet = Wallet::query()->firstOrCreate(
             ['user_id' => $user->id],
-            ['balance' => 0, 'locked_balance' => 0, 'status' => 'active']
+            ['balance' => 0, 'locked_balance' => 0, 'total_in' => 0, 'total_out' => 0, 'status' => Wallet::STATUS_ACTIVE]
         );
 
         $tx = $ledger->deposit(
@@ -151,7 +188,7 @@ final class WalletOpsController extends Controller
         }
 
         return redirect()
-            ->route('admin.wallet-transactions.show', ['walletTransaction' => $tx->id])
+            ->route('admin.wallet-ops.recharge.form', ['user_id' => $user->id])
             ->with('success', $message);
     }
 }

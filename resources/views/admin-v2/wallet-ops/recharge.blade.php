@@ -9,7 +9,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">شحن المحفظة</h1>
-            <div class="a2-page-subtitle">ابحث بالاسم أو الهاتف أو البريد أو ID، وسيتم تحميل أول نتيجة مباشرة لتسريع الاختبار.</div>
+            <div class="a2-page-subtitle">اكتب جزءًا من الاسم أو الهاتف أو البريد، واختر المستخدم من الاقتراحات.</div>
         </div>
         <div class="a2-page-actions">
             <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">Wallet Transactions</a>
@@ -33,9 +33,19 @@
                 type="search"
                 name="q"
                 value="{{ $q ?? '' }}"
-                placeholder="بحث بالاسم / الهاتف / البريد / ID"
+                placeholder="اكتب اسم المستخدم / الهاتف / البريد / ID"
+                list="walletUsersList"
+                autocomplete="off"
                 required
             >
+
+            <datalist id="walletUsersList">
+                @foreach(($users ?? collect()) as $row)
+                    <option value="{{ $row->name ?: $row->phone ?: $row->email ?: $row->id }}">
+                        #{{ $row->id }} — {{ $row->name ?: 'بدون اسم' }} — {{ $row->type }} — {{ $row->phone ?: $row->email }}
+                    </option>
+                @endforeach
+            </datalist>
 
             <div class="a2-filter-actions">
                 <button class="a2-btn a2-btn-primary" type="submit">تحميل بيانات المستخدم</button>
@@ -45,9 +55,7 @@
 
         @if(($q ?? '') !== '' && ($users ?? collect())->count() > 1)
             <div class="a2-divider"></div>
-            <div class="a2-section-subtitle a2-mb-8">
-                تم تحميل أول نتيجة تلقائيًا. لو المقصود مستخدم آخر اختره من النتائج السريعة:
-            </div>
+            <div class="a2-section-subtitle a2-mb-8">لو ظهر أكثر من مستخدم، اختر المطلوب من النتائج السريعة:</div>
             <div class="a2-row-actions">
                 @foreach(($users ?? collect())->take(12) as $row)
                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $row->id, 'q' => $q]) }}">
@@ -63,12 +71,12 @@
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Available Balance</div>
                 <div class="a2-stat-value">{{ number_format((float) optional($wallet)->balance, 2) }}</div>
-                <div class="a2-stat-note">الرصيد المتاح للشحن/الخصم</div>
+                <div class="a2-stat-note">الرصيد المتاح</div>
             </div>
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Locked Balance</div>
                 <div class="a2-stat-value">{{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
-                <div class="a2-stat-note">المبلغ المقفل للضمان</div>
+                <div class="a2-stat-note">الرصيد المقفل</div>
             </div>
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Wallet Status</div>
@@ -82,15 +90,53 @@
             </div>
         </div>
 
+        <div class="a2-card a2-mb-16">
+            <div class="a2-header">
+                <div>
+                    <h2 class="a2-section-title a2-mb-0">تفعيل ضمان من الرصيد الحالي</h2>
+                    <div class="a2-section-subtitle">لو المستخدم عنده رصيد مثل 5000، اختر مستوى الضمان وسيتم قفل قيمة الضمان من الرصيد بدون شحن جديد.</div>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('admin.wallet-ops.activate-guarantee') }}">
+                @csrf
+                <input type="hidden" name="user_id" value="{{ $user->id }}">
+
+                <div class="a2-form-grid">
+                    <div class="a2-field">
+                        <label class="a2-label">المستخدم</label>
+                        <input class="a2-input" value="#{{ $user->id }} — {{ $user->name ?: '—' }} — {{ $user->type }}" disabled>
+                    </div>
+
+                    <div class="a2-field">
+                        <label class="a2-label">مستوى الضمان</label>
+                        <select class="a2-select" name="guarantee_level_id" required>
+                            <option value="">اختر مستوى الضمان</option>
+                            @foreach($levels as $level)
+                                <option value="{{ $level->id }}">
+                                    {{ $level->display_name }} — Locked: {{ number_format((float) $level->required_locked_amount, 2) }} — Coverage: {{ number_format((float) $level->active_coverage_amount, 2) }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="a2-help">سيتم نقل Locked المطلوب من الرصيد المتاح إلى الرصيد المقفل.</div>
+                    </div>
+                </div>
+
+                <div class="a2-form-actions">
+                    <button class="a2-btn a2-btn-primary" type="submit">تفعيل الضمان من الرصيد الحالي</button>
+                    <a href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}" class="a2-btn a2-btn-ghost">ضمانات المستخدم</a>
+                </div>
+            </form>
+        </div>
+
         <div class="a2-card">
             <form method="POST" action="{{ route('admin.wallet-ops.recharge') }}">
                 @csrf
-
                 <input type="hidden" name="user_id" value="{{ $user->id }}">
 
                 <div class="a2-form-grid">
                     <div class="a2-card a2-card--tight">
-                        <h2 class="a2-section-title">بيانات الشحن</h2>
+                        <h2 class="a2-section-title">شحن جديد للمحفظة</h2>
 
                         <div class="a2-field">
                             <label class="a2-label">المستخدم المختار</label>
@@ -101,7 +147,7 @@
                         <div class="a2-field">
                             <label class="a2-label">المبلغ</label>
                             <input class="a2-input" name="amount" type="number" min="1" step="0.01" value="{{ old('amount') }}" required>
-                            <div class="a2-help">للضمان اليدوي اختر مبلغًا يكفي قيمة Locked المطلوبة للمستوى المختار.</div>
+                            <div class="a2-help">استخدم هذا الجزء فقط لو تريد إضافة رصيد جديد.</div>
                         </div>
 
                         <div class="a2-field">
@@ -111,7 +157,7 @@
                     </div>
 
                     <div class="a2-card a2-card--tight">
-                        <h2 class="a2-section-title">إجراء الضمان</h2>
+                        <h2 class="a2-section-title">إجراء الضمان بعد الشحن</h2>
 
                         <div class="a2-field">
                             <label class="a2-label">Guarantee Action</label>
@@ -120,7 +166,7 @@
                                 <option value="manual" {{ old('guarantee_action') === 'manual' ? 'selected' : '' }}>Manual Guarantee Level</option>
                                 <option value="none" {{ old('guarantee_action') === 'none' ? 'selected' : '' }}>No Guarantee Action</option>
                             </select>
-                            <div class="a2-help">Auto Upgrade سيختار أعلى مستوى مناسب حسب الرصيد المتاح.</div>
+                            <div class="a2-help">لو الرصيد موجود بالفعل، استخدم صندوق تفعيل الضمان بالأعلى.</div>
                         </div>
 
                         <div class="a2-field">
@@ -133,26 +179,6 @@
                                     </option>
                                 @endforeach
                             </select>
-                            @if($levels->isEmpty())
-                                <div class="a2-help">لا توجد مستويات ضمان مفعلة مناسبة لنوع هذا المستخدم.</div>
-                            @else
-                                <div class="a2-help">سيتم خصم المبلغ المطلوب من الرصيد الحر وتحويله إلى locked balance.</div>
-                            @endif
-                        </div>
-
-                        <div class="a2-kv">
-                            <div class="a2-kv-row">
-                                <div class="a2-kv-key">نوع المستخدم</div>
-                                <div class="a2-kv-val">{{ $user->type ?: '—' }}</div>
-                            </div>
-                            <div class="a2-kv-row">
-                                <div class="a2-kv-key">عدد المستويات المتاحة</div>
-                                <div class="a2-kv-val">{{ $levels->count() }}</div>
-                            </div>
-                            <div class="a2-kv-row">
-                                <div class="a2-kv-key">الضمان الحالي</div>
-                                <div class="a2-kv-val">{{ $activeGuarantee ? ($activeGuarantee->status . ' / #' . $activeGuarantee->id) : '—' }}</div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -160,7 +186,6 @@
                 <div class="a2-form-actions">
                     <button class="a2-btn a2-btn-primary" type="submit">شحن وتنفيذ الإجراء</button>
                     <a href="{{ route('admin.wallet-transactions.user', $user->id) }}" class="a2-btn a2-btn-ghost">معاملات المحفظة</a>
-                    <a href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}" class="a2-btn a2-btn-ghost">ضمانات المستخدم</a>
                     <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-ghost">ملف المستخدم</a>
                 </div>
             </form>
@@ -168,7 +193,7 @@
     @else
         <div class="a2-card a2-card--soft">
             <div class="a2-section-title">ابحث عن مستخدم أولًا</div>
-            <div class="a2-section-subtitle">اكتب اسم المستخدم أو الهاتف أو البريد أو رقم ID، وبعد التحميل ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.</div>
+            <div class="a2-section-subtitle">بعد اختيار المستخدم ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.</div>
         </div>
     @endif
 </div>

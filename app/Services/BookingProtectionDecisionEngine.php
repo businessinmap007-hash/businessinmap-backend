@@ -54,6 +54,7 @@ class BookingProtectionDecisionEngine
                 'method' => self::METHOD_REJECTED,
                 'status' => 'blocked_by_business',
                 'reason' => 'client_blocked_by_business',
+                'business_decision_required' => false,
                 'allowlist' => $this->allowlistPayload($allow),
             ]);
         }
@@ -69,6 +70,7 @@ class BookingProtectionDecisionEngine
                     'deposit_required' => false,
                     'guarantee_required' => false,
                     'reason' => 'trusted_client_allowlist',
+                    'business_decision_required' => false,
                     'allowlist' => $this->allowlistPayload($allow),
                 ]);
             }
@@ -85,6 +87,7 @@ class BookingProtectionDecisionEngine
                 'status' => 'covered',
                 'deposit_required' => false,
                 'guarantee_required' => true,
+                'business_decision_required' => false,
                 'reserved_coverage' => $amount,
                 'available_coverage' => $available,
                 'available_after_reservation' => round($available - $amount, 2),
@@ -98,6 +101,7 @@ class BookingProtectionDecisionEngine
                 'status' => 'guarantee_below_required',
                 'deposit_required' => false,
                 'guarantee_required' => true,
+                'business_decision_required' => true,
                 'reserved_coverage' => $available,
                 'missing_coverage' => round($amount - $available, 2),
                 'available_coverage' => $available,
@@ -112,15 +116,18 @@ class BookingProtectionDecisionEngine
                 'status' => 'deposit_required',
                 'deposit_required' => true,
                 'guarantee_required' => false,
+                'business_decision_required' => false,
                 'deposit_policy' => $depositPolicy,
                 'client_guarantee' => $guarantee,
             ]);
         }
 
         return array_merge($base, [
-            'method' => self::METHOD_REJECTED,
-            'status' => 'no_protection_available',
+            'method' => self::METHOD_PENDING,
+            'status' => 'no_protection_business_decision_required',
             'reason' => 'no_guarantee_no_deposit_no_trust',
+            'business_decision_required' => true,
+            'business_can_accept_no_protection' => true,
             'client_guarantee' => $guarantee,
         ]);
     }

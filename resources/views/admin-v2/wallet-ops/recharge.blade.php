@@ -9,7 +9,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">شحن المحفظة</h1>
-            <div class="a2-page-subtitle">اختيار المستخدم بالاسم ثم شحن الرصيد واختيار إجراء الضمان المناسب للاختبار.</div>
+            <div class="a2-page-subtitle">ابحث بالاسم أو الهاتف أو البريد أو ID، وسيتم تحميل أول نتيجة مباشرة لتسريع الاختبار.</div>
         </div>
         <div class="a2-page-actions">
             <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">Wallet Transactions</a>
@@ -28,22 +28,34 @@
 
     <div class="a2-card a2-mb-16">
         <form method="GET" action="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q ?? '' }}" placeholder="بحث بالاسم / الهاتف / البريد / ID">
-
-            <select class="a2-select a2-filter-lg" name="user_id" required>
-                <option value="">اختر المستخدم</option>
-                @foreach(($users ?? collect()) as $row)
-                    <option value="{{ $row->id }}" @selected((int) optional($user)->id === (int) $row->id)>
-                        #{{ $row->id }} — {{ $row->name ?: 'بدون اسم' }} — {{ $row->type }} — {{ $row->phone ?: $row->email }}
-                    </option>
-                @endforeach
-            </select>
+            <input
+                class="a2-input a2-filter-search"
+                type="search"
+                name="q"
+                value="{{ $q ?? '' }}"
+                placeholder="بحث بالاسم / الهاتف / البريد / ID"
+                required
+            >
 
             <div class="a2-filter-actions">
                 <button class="a2-btn a2-btn-primary" type="submit">تحميل بيانات المستخدم</button>
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form') }}">تفريغ</a>
             </div>
         </form>
+
+        @if(($q ?? '') !== '' && ($users ?? collect())->count() > 1)
+            <div class="a2-divider"></div>
+            <div class="a2-section-subtitle a2-mb-8">
+                تم تحميل أول نتيجة تلقائيًا. لو المقصود مستخدم آخر اختره من النتائج السريعة:
+            </div>
+            <div class="a2-row-actions">
+                @foreach(($users ?? collect())->take(12) as $row)
+                    <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $row->id, 'q' => $q]) }}">
+                        #{{ $row->id }} — {{ $row->name ?: 'بدون اسم' }} — {{ $row->type }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
     </div>
 
     @if($user)
@@ -155,8 +167,8 @@
         </div>
     @else
         <div class="a2-card a2-card--soft">
-            <div class="a2-section-title">اختر مستخدمًا أولًا</div>
-            <div class="a2-section-subtitle">بعد اختيار المستخدم ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.</div>
+            <div class="a2-section-title">ابحث عن مستخدم أولًا</div>
+            <div class="a2-section-subtitle">اكتب اسم المستخدم أو الهاتف أو البريد أو رقم ID، وبعد التحميل ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.</div>
         </div>
     @endif
 </div>

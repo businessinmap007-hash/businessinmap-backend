@@ -8,13 +8,15 @@ use App\Models\ServiceEvent;
 use App\Models\User;
 use App\Notifications\ServiceEventDatabaseNotification;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Notifications\NotificationTypeService;
 use App\Support\AdminV2\ServiceEvents\ServiceEventKeys;
 use Illuminate\Support\Facades\Route;
 
 class ServiceEventNotificationService
 {
     public function __construct(
-        protected InAppNotificationService $inAppNotificationService
+        protected InAppNotificationService $inAppNotificationService,
+        protected NotificationTypeService $notificationTypeService
     ) {
     }
 
@@ -247,15 +249,16 @@ class ServiceEventNotificationService
             return '/bookings/' . (int) $event->subject_id;
         }
 
+        if ($event->subject_id) {
+            return '/' . trim((string) $event->service_key, '/') . '/' . (int) $event->subject_id;
+        }
+
         return null;
     }
 
     protected function appNotificationType(ServiceEvent $event): string
     {
-        return match ((string) $event->service_key) {
-            'booking' => AppNotification::TYPE_BOOKING,
-            default => AppNotification::TYPE_SYSTEM,
-        };
+        return $this->notificationTypeService->typeForServiceKey((string) $event->service_key);
     }
 
     protected function bookingReminder24h(ServiceEvent $event): void

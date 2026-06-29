@@ -60,10 +60,3 @@
     </form>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-    window.BIM_BOOKING_PROTECTION_PREVIEW_URL = @json(route('admin.bookings.protectionPreview'));
-</script>
-<script src="{{ asset('admin-v2/js/booking-protection-preview.js') }}"></script>
-@endpush

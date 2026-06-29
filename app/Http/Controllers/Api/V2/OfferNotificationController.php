@@ -43,7 +43,7 @@ final class OfferNotificationController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'unread_count' => $this->unreadCount((int) $user->id),
+                'unread_count' => $this->unreadCountForUser((int) $user->id),
                 'notifications' => $query->paginate((int) ($data['per_page'] ?? 20)),
             ],
         ]);
@@ -54,7 +54,7 @@ final class OfferNotificationController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'unread_count' => $this->unreadCount((int) $request->user()->id),
+                'unread_count' => $this->unreadCountForUser((int) $request->user()->id),
             ],
         ]);
     }
@@ -72,7 +72,7 @@ final class OfferNotificationController extends Controller
             'success' => true,
             'data' => [
                 'notification' => $row,
-                'unread_count' => $this->unreadCount((int) $request->user()->id),
+                'unread_count' => $this->unreadCountForUser((int) $request->user()->id),
             ],
         ]);
     }
@@ -91,7 +91,7 @@ final class OfferNotificationController extends Controller
             'message' => 'Notification marked as read.',
             'data' => [
                 'notification' => $row->fresh(),
-                'unread_count' => $this->unreadCount((int) $request->user()->id),
+                'unread_count' => $this->unreadCountForUser((int) $request->user()->id),
             ],
         ]);
     }
@@ -132,7 +132,7 @@ final class OfferNotificationController extends Controller
             'message' => 'Notification archived.',
             'data' => [
                 'notification' => $row->fresh(),
-                'unread_count' => $this->unreadCount((int) $request->user()->id),
+                'unread_count' => $this->unreadCountForUser((int) $request->user()->id),
             ],
         ]);
     }
@@ -144,7 +144,7 @@ final class OfferNotificationController extends Controller
             ->where('user_id', (int) $request->user()->id);
     }
 
-    private function unreadCount(int $userId): int
+    private function unreadCountForUser(int $userId): int
     {
         return (int) OfferFollowNotification::query()
             ->where('user_id', $userId)

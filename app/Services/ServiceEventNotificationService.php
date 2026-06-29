@@ -37,7 +37,7 @@ class ServiceEventNotificationService
             ServiceEventKeys::BOOKING_DISPUTE_OPENED => $this->bookingDisputeOpened($event),
             ServiceEventKeys::BOOKING_REMINDER_24H => $this->bookingReminder24h($event),
             ServiceEventKeys::BOOKING_REMINDER_1H => $this->bookingReminder1h($event),
-            default => null,
+            default => $this->genericServiceEvent($event),
         };
     }
 
@@ -133,6 +133,19 @@ class ServiceEventNotificationService
         $this->notifyBoth($event, 'تم فتح نزاع', 'تم فتح نزاع على هذا الحجز.', [
             'booking_id' => $event->subject_id,
         ], AppNotification::PRIORITY_URGENT);
+    }
+
+    protected function genericServiceEvent(ServiceEvent $event): void
+    {
+        $service = $this->humanizeKey((string) $event->service_key);
+        $action = $this->humanizeKey((string) $event->action_key);
+
+        $title = 'تحديث جديد: ' . $service;
+        $body = 'حدث جديد في ' . $service . ': ' . $action . '.';
+
+        $this->notifyBoth($event, $title, $body, [
+            'generic_service_event' => true,
+        ], $this->genericPriority($event));
     }
 
     protected function notifyBoth(ServiceEvent $event, string $title, string $body, array $extra = [], string $priority = AppNotification::PRIORITY_NORMAL): void
@@ -259,6 +272,32 @@ class ServiceEventNotificationService
     protected function appNotificationType(ServiceEvent $event): string
     {
         return $this->notificationTypeService->typeForServiceKey((string) $event->service_key);
+    }
+
+    protected function genericPriority(ServiceEvent $event): string
+    {
+        $action = (string) $event->action_key;
+
+        if (str_contains($action, 'cancel') || str_contains($action, 'reject') || str_contains($action, 'dispute')) {
+            return AppNotification::PRIORITY_HIGH;
+        }
+
+        if (str_contains($action, 'urgent')) {
+            return AppNotification::PRIORITY_URGENT;
+        }
+
+        return AppNotification::PRIORITY_NORMAL;
+    }
+
+    protected function humanizeKey(string $key): string
+    {
+        $key = trim($key);
+
+        if ($key === '') {
+            return 'system';
+        }
+
+        return str_replace('_', ' ', $key);
     }
 
     protected function bookingReminder24h(ServiceEvent $event): void

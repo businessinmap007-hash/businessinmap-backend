@@ -11,9 +11,10 @@ class PlatformService extends Model
 {
     protected $table = 'platform_services';
 
-    public const KEY_BOOKING  = 'booking';
-    public const KEY_MENU     = 'menu';
+    public const KEY_BOOKING = 'booking';
+    public const KEY_MENU = 'menu';
     public const KEY_DELIVERY = 'delivery';
+    public const KEY_BUSINESS_OFFERS = 'business_offers';
 
     protected $fillable = [
         'key',
@@ -21,18 +22,16 @@ class PlatformService extends Model
         'name_en',
         'is_active',
         'supports_deposit',
+        'rules',
+        'meta',
     ];
 
     protected $casts = [
-        'is_active'        => 'boolean',
+        'is_active' => 'boolean',
         'supports_deposit' => 'boolean',
+        'rules' => 'array',
+        'meta' => 'array',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | Scopes
-    |--------------------------------------------------------------------------
-    */
 
     public function scopeActive(Builder $query, $value = true): Builder
     {
@@ -62,12 +61,6 @@ class PlatformService extends Model
             ->orderBy('id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Category Service Link Relations
-    |--------------------------------------------------------------------------
-    */
-
     public function categoryPlatformServices(): HasMany
     {
         return $this->hasMany(CategoryPlatformService::class, 'platform_service_id');
@@ -86,20 +79,11 @@ class PlatformService extends Model
         return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Legacy Root Category Relations
-    |--------------------------------------------------------------------------
-    | هذه العلاقات للتوافق الإداري فقط.
-    | مصدر تشغيل الخدمات الفعلي يكون من category_platform_services/configs.
-    |--------------------------------------------------------------------------
-    */
-
     public function itemTypes(): HasMany
-{
-    return $this->hasMany(PlatformServiceItemType::class, 'platform_service_id')
-        ->ordered();
-}
+    {
+        return $this->hasMany(PlatformServiceItemType::class, 'platform_service_id')
+            ->ordered();
+    }
 
     public function activeItemTypes(): HasMany
     {
@@ -135,12 +119,6 @@ class PlatformService extends Model
             ->orderBy('category_platform_services.sort_order')
             ->orderBy('categories.id');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Child Relations
-    |--------------------------------------------------------------------------
-    */
 
     public function children(): BelongsToMany
     {
@@ -193,12 +171,6 @@ class PlatformService extends Model
         return $relation;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Parent Categories reached through Children
-    |--------------------------------------------------------------------------
-    */
-
     public function parentCategories(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -220,123 +192,22 @@ class PlatformService extends Model
             'platform_service_id',
             'category_id'
         )
-            ->wherePivot('is_active', true)
             ->wherePivotNotNull('child_id')
+            ->wherePivot('is_active', true)
             ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
-            ->withTimestamps()
-            ->orderBy('category_platform_services.sort_order')
-            ->orderBy('categories.id');
+            ->withTimestamps();
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Config Relations
-    |--------------------------------------------------------------------------
-    */
-
-    public function rootConfigs(): HasMany
-    {
-        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id')
-            ->whereNull('child_id')
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
-
-    public function childConfigs(): HasMany
-    {
-        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id')
-            ->whereNotNull('child_id')
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
-
-    public function activeChildConfigs(): HasMany
-    {
-        return $this->hasMany(CategoryServiceConfig::class, 'platform_service_id')
-            ->whereNotNull('child_id')
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Category Child Service Fees
-    |--------------------------------------------------------------------------
-    | العلاقة هنا للعرض والربط الإداري فقط.
-    | حساب رسوم العميل/البزنس يجب أن يتم من CategoryChildServiceFee
-    | أو من PlatformServiceFeePromotion كأولوية أعلى.
-    |--------------------------------------------------------------------------
-    */
 
     public function categoryChildServiceFees(): HasMany
     {
-        return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id')
-            ->orderBy('child_id')
-            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
-            ->orderBy('id');
+        return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id');
     }
 
     public function activeCategoryChildServiceFees(): HasMany
     {
         return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id')
             ->where('is_active', 1)
-            ->orderBy('child_id')
-            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('sort_order')
             ->orderBy('id');
-    }
-
-    public function feePromotions(): HasMany
-    {
-        return $this->hasMany(PlatformServiceFeePromotion::class, 'service_id');
-    }
-
-    public function activeFeePromotions(): HasMany
-    {
-        return $this->hasMany(PlatformServiceFeePromotion::class, 'service_id')
-            ->active()
-            ->currentlyRunning()
-            ->orderedForApply();
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Helpers
-    |--------------------------------------------------------------------------
-    */
-
-    public function isBooking(): bool
-    {
-        return (string) $this->key === self::KEY_BOOKING;
-    }
-
-    public function isMenu(): bool
-    {
-        return (string) $this->key === self::KEY_MENU;
-    }
-
-    public function isDelivery(): bool
-    {
-        return (string) $this->key === self::KEY_DELIVERY;
-    }
-
-    public function supportsDeposit(): bool
-    {
-        return (bool) $this->supports_deposit;
-    }
-
-    public function displayName(?string $locale = null): string
-    {
-        $locale = $locale ?: app()->getLocale();
-
-        $ar = trim((string) ($this->name_ar ?? ''));
-        $en = trim((string) ($this->name_en ?? ''));
-        $key = trim((string) ($this->key ?? ''));
-
-        if ($locale === 'ar') {
-            return $ar !== '' ? $ar : ($en !== '' ? $en : $key);
-        }
-
-        return $en !== '' ? $en : ($ar !== '' ? $ar : $key);
     }
 }

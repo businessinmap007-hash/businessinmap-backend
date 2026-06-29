@@ -6,18 +6,13 @@ use App\Http\Controllers\AdminV2\{
     AlbumController,
     Auth\LoginController,
     BookableAllocationController,
-    BookableItemBlockedSlotController,
     BookableItemBulkController,
-    BookableItemCalendarController,
     BookableItemController,
-    BookableItemPriceRuleController,
     BookingController,
     BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
     CategoryChildOptionController,
-    CategoryChildServiceFeeBulkController,
-    CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
     CommercialOfferController,
@@ -26,13 +21,14 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     JobPostController,
+    NotificationCenterAdminController,
     OfferPerformanceController,
     OptionController,
     OptionGroupController,
     PaymentController,
     PlatformServiceController,
-    PlatformServiceItemTypeController,
     PlatformServiceFeePromotionController,
+    PlatformServiceItemTypeController,
     PostController,
     SponsorController,
     SubscriptionController,
@@ -40,7 +36,6 @@ use App\Http\Controllers\AdminV2\{
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
-    view\BookingTestController,
     WalletTransactionController
 };
 
@@ -109,48 +104,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('options', OptionController::class)->except(['show']);
         Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
 
-        Route::prefix('posts')->name('posts.')->group(function () {
-            Route::get('/', [PostController::class, 'index'])->name('index');
-            Route::post('/', [PostController::class, 'store'])->name('store');
-            Route::get('{post}', [PostController::class, 'show'])->whereNumber('post')->name('show');
-            Route::get('{post}/edit', [PostController::class, 'edit'])->whereNumber('post')->name('edit');
-            Route::put('{post}', [PostController::class, 'update'])->whereNumber('post')->name('update');
-            Route::post('{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('toggleActive');
-            Route::delete('{post}', [PostController::class, 'destroy'])->name('destroy');
-            Route::delete('{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('images.destroy');
-            Route::delete('{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('main_image.destroy');
-        });
+        Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
+        Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');
 
-        Route::prefix('jobs')->name('jobs.')->group(function () {
-            Route::get('/', [JobPostController::class, 'index'])->name('index');
-            Route::post('/', [JobPostController::class, 'store'])->name('store');
-            Route::get('{post}', [JobPostController::class, 'show'])->whereNumber('post')->name('show');
-            Route::get('{post}/edit', [JobPostController::class, 'edit'])->whereNumber('post')->name('edit');
-            Route::put('{post}', [JobPostController::class, 'update'])->whereNumber('post')->name('update');
-            Route::post('{post}/toggle-active', [JobPostController::class, 'toggleActive'])->whereNumber('post')->name('toggleActive');
-            Route::delete('{post}', [JobPostController::class, 'destroy'])->whereNumber('post')->name('destroy');
-        });
+        Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show'])->names('platform-service-fee-promotions');
+        Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
 
-        Route::prefix('sponsors')->name('sponsors.')->group(function () {
-            Route::get('/', [SponsorController::class, 'index'])->name('index');
-            Route::get('create', [SponsorController::class, 'create'])->name('create');
-            Route::post('/', [SponsorController::class, 'store'])->name('store');
-            Route::get('{sponsor}/edit', [SponsorController::class, 'edit'])->whereNumber('sponsor')->name('edit');
-            Route::put('{sponsor}', [SponsorController::class, 'update'])->whereNumber('sponsor')->name('update');
-            Route::post('{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('toggleActive');
-            Route::delete('{sponsor}', [SponsorController::class, 'destroy'])->whereNumber('sponsor')->name('destroy');
-        });
+        Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
+        Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
 
-        Route::prefix('albums')->name('albums.')->group(function () {
-            Route::get('/', [AlbumController::class, 'index'])->name('index');
-            Route::get('create', [AlbumController::class, 'create'])->name('create');
-            Route::post('/', [AlbumController::class, 'store'])->name('store');
-            Route::get('{album}', [AlbumController::class, 'show'])->whereNumber('album')->name('show');
-            Route::get('{album}/edit', [AlbumController::class, 'edit'])->whereNumber('album')->name('edit');
-            Route::put('{album}', [AlbumController::class, 'update'])->whereNumber('album')->name('update');
-            Route::delete('{album}', [AlbumController::class, 'destroy'])->whereNumber('album')->name('destroy');
-            Route::post('{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('images.set-cover');
-            Route::delete('{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('images.delete');
+        Route::prefix('notification-center')->name('notification-center.')->group(function () {
+            Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
+            Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
         });
 
         Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
@@ -175,16 +140,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
-        Route::prefix('commercial-offers')->name('commercial-offers.')->group(function () {
-            Route::get('/', [CommercialOfferController::class, 'index'])->name('index');
-            Route::get('create', [CommercialOfferController::class, 'create'])->name('create');
-            Route::post('/', [CommercialOfferController::class, 'store'])->name('store');
-            Route::get('{commercialOffer}/edit', [CommercialOfferController::class, 'edit'])->whereNumber('commercialOffer')->name('edit');
-            Route::put('{commercialOffer}', [CommercialOfferController::class, 'update'])->whereNumber('commercialOffer')->name('update');
-            Route::delete('{commercialOffer}', [CommercialOfferController::class, 'destroy'])->whereNumber('commercialOffer')->name('destroy');
-            Route::post('{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('toggle');
-        });
-
+        Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
+        Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
         Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
 
         Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->group(function () {
@@ -193,11 +150,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('deactivate', [BusinessOffersSubscriptionController::class, 'deactivate'])->name('deactivate');
         });
 
+        Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
+            Route::get('bulk', [BookableItemBulkController::class, 'index'])->name('bulk.index');
+            Route::post('bulk/block', [BookableItemBulkController::class, 'applyBlock'])->name('bulk.block');
+            Route::post('bulk/price', [BookableItemBulkController::class, 'applyPrice'])->name('bulk.price');
+            Route::get('/', [BookableItemController::class, 'index'])->name('index');
+            Route::get('create', [BookableItemController::class, 'create'])->name('create');
+            Route::post('/', [BookableItemController::class, 'store'])->name('store');
+            Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->whereNumber('bookableItem')->name('edit');
+            Route::put('{bookableItem}', [BookableItemController::class, 'update'])->whereNumber('bookableItem')->name('update');
+            Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');
+        });
+
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
             Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
             Route::get('user/{user}', [WalletTransactionController::class, 'user'])->whereNumber('user')->name('user');
             Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->whereNumber('walletTransaction')->name('show');
         });
+        Route::get('wallet-overview', fn () => redirect()->route('admin.wallet-transactions.index'))->name('wallet-overview.index');
 
         Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
         Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');
@@ -242,6 +212,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->whereNumber('paymentId')->name('confirm');
         });
 
+        Route::prefix('disputes')->name('disputes.')->group(function () {
+            Route::get('/', [DisputeController::class, 'index'])->name('index');
+            Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
+            Route::post('{dispute}/under-review', [DisputeController::class, 'underReview'])->whereNumber('dispute')->name('under-review');
+            Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
+        });
+
         Route::prefix('bookings')->name('bookings.')->group(function () {
             Route::get('/', [BookingController::class, 'index'])->name('index');
             Route::get('create', [BookingController::class, 'create'])->name('create');
@@ -249,6 +226,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('service-lookup', [BookingController::class, 'serviceLookup'])->name('serviceLookup');
             Route::get('bookable-items-lookup', [BookingController::class, 'bookableItemsLookup'])->name('bookableItemsLookup');
             Route::get('pricing-preview', [BookingController::class, 'pricingPreview'])->name('pricingPreview');
+            Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking')->name('show');
+            Route::get('{booking}/edit', [BookingController::class, 'edit'])->whereNumber('booking')->name('edit');
+            Route::put('{booking}', [BookingController::class, 'update'])->whereNumber('booking')->name('update');
+            Route::delete('{booking}', [BookingController::class, 'destroy'])->whereNumber('booking')->name('destroy');
             Route::post('{booking}/start-confirm-client', [BookingController::class, 'startConfirmClient'])->whereNumber('booking')->name('start_confirm.client');
             Route::post('{booking}/start-confirm-business', [BookingController::class, 'startConfirmBusiness'])->whereNumber('booking')->name('start_confirm.business');
             Route::post('{booking}/deposit-confirm-client', [BookingController::class, 'depositConfirmClient'])->whereNumber('booking')->name('deposit.confirm.client');
@@ -263,5 +244,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->whereNumber('booking')->name('deposit.agree.release');
             Route::post('{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->whereNumber('booking')->name('deposit.agree.refund');
         });
+
+        Route::resource('posts', PostController::class)->except(['show'])->names('posts');
+        Route::resource('jobs', JobPostController::class)->except(['show'])->names('jobs');
+        Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
+        Route::resource('albums', AlbumController::class)->names('albums');
     });
 });

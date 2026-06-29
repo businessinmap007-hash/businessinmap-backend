@@ -200,7 +200,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
+        Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');
         Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
+        Route::post('wallet-ops/activate-guarantee', [WalletOpsController::class, 'activateGuarantee'])->name('wallet-ops.activate-guarantee');
 
         Route::prefix('guarantee-levels')->name('guarantee-levels.')->group(function () {
             Route::get('/', [GuaranteeLevelAdminController::class, 'index'])->name('index');
@@ -260,103 +262,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/deposit-dispute-open', [BookingController::class, 'depositDisputeOpen'])->whereNumber('booking')->name('deposit.dispute.open');
             Route::post('{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->whereNumber('booking')->name('deposit.agree.release');
             Route::post('{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->whereNumber('booking')->name('deposit.agree.refund');
-            Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking')->name('show');
-            Route::get('{booking}/edit', [BookingController::class, 'edit'])->whereNumber('booking')->name('edit');
-            Route::put('{booking}', [BookingController::class, 'update'])->whereNumber('booking')->name('update');
-            Route::delete('{booking}', [BookingController::class, 'destroy'])->whereNumber('booking')->name('destroy');
-        });
-
-        Route::prefix('disputes')->name('disputes.')->group(function () {
-            Route::get('/', [DisputeController::class, 'index'])->name('index');
-            Route::post('/', [DisputeController::class, 'store'])->name('store');
-            Route::post('bookings/{booking}/open', [DisputeController::class, 'openForBooking'])->whereNumber('booking')->name('bookings.open');
-            Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
-            Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->whereNumber('dispute')->name('under-review');
-            Route::post('{dispute}/cancel', [DisputeController::class, 'cancel'])->whereNumber('dispute')->name('cancel');
-            Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
-            Route::post('{dispute}/resolve-release-business', [DisputeController::class, 'resolveReleaseBusiness'])->whereNumber('dispute')->name('resolve.release-business');
-            Route::post('{dispute}/resolve-refund-client', [DisputeController::class, 'resolveRefundClient'])->whereNumber('dispute')->name('resolve.refund-client');
-            Route::post('{dispute}/resolve-split', [DisputeController::class, 'resolveSplit'])->whereNumber('dispute')->name('resolve.split');
-            Route::post('{dispute}/resolve-no-action', [DisputeController::class, 'resolveNoAction'])->whereNumber('dispute')->name('resolve.no-action');
-        });
-
-        Route::prefix('business-service-prices')->name('business_service_prices.')->group(function () {
-            Route::get('/', [BusinessServicePriceController::class, 'index'])->name('index');
-            Route::get('create', [BusinessServicePriceController::class, 'create'])->name('create');
-            Route::post('/', [BusinessServicePriceController::class, 'store'])->name('store');
-            Route::get('{row}/edit', [BusinessServicePriceController::class, 'edit'])->whereNumber('row')->name('edit');
-            Route::put('{row}', [BusinessServicePriceController::class, 'update'])->whereNumber('row')->name('update');
-            Route::delete('{row}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('row')->name('destroy');
-        });
-
-        Route::prefix('platform-services')->name('platform-services.')->group(function () {
-            Route::get('/', [PlatformServiceController::class, 'index'])->name('index');
-            Route::get('create', [PlatformServiceController::class, 'create'])->name('create');
-            Route::post('/', [PlatformServiceController::class, 'store'])->name('store');
-            Route::get('{platformService}/edit', [PlatformServiceController::class, 'edit'])->whereNumber('platformService')->name('edit');
-            Route::put('{platformService}', [PlatformServiceController::class, 'update'])->whereNumber('platformService')->name('update');
-            Route::delete('{platformService}', [PlatformServiceController::class, 'destroy'])->whereNumber('platformService')->name('destroy');
-        });
-
-        Route::prefix('platform-service-item-types')->name('platform-service-item-types.')->group(function () {
-            Route::get('/', [PlatformServiceItemTypeController::class, 'index'])->name('index');
-            Route::get('create', [PlatformServiceItemTypeController::class, 'create'])->name('create');
-            Route::post('/', [PlatformServiceItemTypeController::class, 'store'])->name('store');
-            Route::get('{platformServiceItemType}/edit', [PlatformServiceItemTypeController::class, 'edit'])->whereNumber('platformServiceItemType')->name('edit');
-            Route::put('{platformServiceItemType}', [PlatformServiceItemTypeController::class, 'update'])->whereNumber('platformServiceItemType')->name('update');
-            Route::delete('{platformServiceItemType}', [PlatformServiceItemTypeController::class, 'destroy'])->whereNumber('platformServiceItemType')->name('destroy');
-        });
-
-        Route::prefix('bookable-items/bulk')->name('bookable-items.bulk.')->group(function () {
-            Route::get('/', [BookableItemBulkController::class, 'index'])->name('index');
-            Route::post('block', [BookableItemBulkController::class, 'applyBlock'])->name('block');
-            Route::post('price', [BookableItemBulkController::class, 'applyPrice'])->name('price');
-        });
-
-        Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
-            Route::get('/', [BookableItemController::class, 'index'])->name('index');
-            Route::get('create', [BookableItemController::class, 'create'])->name('create');
-            Route::post('/', [BookableItemController::class, 'store'])->name('store');
-            Route::get('{bookableItem}', [BookableItemController::class, 'show'])->whereNumber('bookableItem')->name('show');
-            Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->whereNumber('bookableItem')->name('edit');
-            Route::put('{bookableItem}', [BookableItemController::class, 'update'])->whereNumber('bookableItem')->name('update');
-            Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');
-            Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->whereNumber('bookableItem')->name('calendar');
-            Route::post('{bookableItem}/calendar/blocked-slot', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('bookableItem')->name('calendar.blocked-slot.store');
-            Route::post('{bookableItem}/calendar/price-rule', [BookableItemCalendarController::class, 'storePriceRule'])->whereNumber('bookableItem')->name('calendar.price-rule.store');
-            Route::get('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'index'])->whereNumber('bookableItem')->name('blocked-slots.index');
-            Route::get('{bookableItem}/blocked-slots/create', [BookableItemBlockedSlotController::class, 'create'])->whereNumber('bookableItem')->name('blocked-slots.create');
-            Route::post('{bookableItem}/blocked-slots', [BookableItemBlockedSlotController::class, 'store'])->whereNumber('bookableItem')->name('blocked-slots.store');
-            Route::get('{bookableItem}/blocked-slots/{slot}/edit', [BookableItemBlockedSlotController::class, 'edit'])->whereNumber('bookableItem')->whereNumber('slot')->name('blocked-slots.edit');
-            Route::put('{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'update'])->whereNumber('bookableItem')->whereNumber('slot')->name('blocked-slots.update');
-            Route::delete('{bookableItem}/blocked-slots/{slot}', [BookableItemBlockedSlotController::class, 'destroy'])->whereNumber('bookableItem')->whereNumber('slot')->name('blocked-slots.destroy');
-            Route::get('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'index'])->whereNumber('bookableItem')->name('price-rules.index');
-            Route::get('{bookableItem}/price-rules/create', [BookableItemPriceRuleController::class, 'create'])->whereNumber('bookableItem')->name('price-rules.create');
-            Route::post('{bookableItem}/price-rules', [BookableItemPriceRuleController::class, 'store'])->whereNumber('bookableItem')->name('price-rules.store');
-            Route::get('{bookableItem}/price-rules/{rule}/edit', [BookableItemPriceRuleController::class, 'edit'])->whereNumber('bookableItem')->whereNumber('rule')->name('price-rules.edit');
-            Route::put('{bookableItem}/price-rules/{rule}', [BookableItemPriceRuleController::class, 'update'])->whereNumber('bookableItem')->whereNumber('rule')->name('price-rules.update');
-            Route::delete('{bookableItem}/price-rules/{rule}', [BookableItemPriceRuleController::class, 'destroy'])->whereNumber('bookableItem')->whereNumber('rule')->name('price-rules.destroy');
-        });
-
-        Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->group(function () {
-            Route::prefix('bulk')->name('bulk.')->group(function () {
-                Route::get('edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('edit');
-                Route::post('update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('update');
-            });
-            Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
-            Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
-        });
-
-        Route::patch('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->name('platform-service-fee-promotions.toggle');
-        Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show']);
-
-        Route::prefix('booking-test')->name('booking-test.')->group(function () {
-            Route::get('client', [BookingTestController::class, 'index'])->name('client');
-            Route::get('client/children', [BookingTestController::class, 'children'])->name('client.children');
-            Route::get('client/businesses', [BookingTestController::class, 'businesses'])->name('client.businesses');
-            Route::get('client/bookable-items', [BookingTestController::class, 'bookableItems'])->name('client.bookable-items');
-            Route::post('client/pricing-preview', [BookingTestController::class, 'pricingPreview'])->name('client.pricing-preview');
-            Route::post('client/store', [BookingTestController::class, 'store'])->name('client.store');
         });
     });
 });

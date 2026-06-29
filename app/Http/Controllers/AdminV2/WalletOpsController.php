@@ -33,12 +33,16 @@ final class WalletOpsController extends Controller
                 });
             })
             ->orderByDesc('id')
-            ->limit(500)
+            ->limit($q === '' ? 20 : 50)
             ->get();
 
-        $user = $userId
-            ? User::query()->select('id', 'name', 'email', 'phone', 'type')->find($userId)
-            : null;
+        $user = null;
+
+        if ($userId > 0) {
+            $user = User::query()->select('id', 'name', 'email', 'phone', 'type')->find($userId);
+        } elseif ($q !== '') {
+            $user = $users->first();
+        }
 
         $wallet = null;
         $activeGuarantee = null;

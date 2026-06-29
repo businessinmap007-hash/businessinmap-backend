@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BusinessTrustedClient extends Model
 {
-    protected $table = 'business_trusted_clients';
+    protected $table = 'business_client_allowlist';
 
     public const TYPE_TRUSTED = 'trusted';
     public const TYPE_VIP = 'vip';
@@ -17,9 +17,9 @@ class BusinessTrustedClient extends Model
         'business_id',
         'client_id',
         'is_active',
-        'trust_type',
-        'waive_deposit',
-        'waive_guarantee',
+        'list_type',
+        'skip_deposit',
+        'skip_guarantee',
         'max_active_bookings',
         'max_booking_value',
         'notes',
@@ -32,8 +32,8 @@ class BusinessTrustedClient extends Model
         'business_id' => 'integer',
         'client_id' => 'integer',
         'is_active' => 'boolean',
-        'waive_deposit' => 'boolean',
-        'waive_guarantee' => 'boolean',
+        'skip_deposit' => 'boolean',
+        'skip_guarantee' => 'boolean',
         'max_active_bookings' => 'integer',
         'max_booking_value' => 'decimal:2',
         'approved_by' => 'integer',
@@ -54,5 +54,15 @@ class BusinessTrustedClient extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isBlocked(): bool
+    {
+        return (string) $this->list_type === self::TYPE_BLOCKED;
+    }
+
+    public function isVip(): bool
+    {
+        return (string) $this->list_type === self::TYPE_VIP;
     }
 }

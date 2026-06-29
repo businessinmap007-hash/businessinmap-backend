@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PlatformServiceController extends Controller
 {
@@ -53,6 +54,7 @@ class PlatformServiceController extends Controller
         $row = new PlatformService([
             'is_active' => 1,
             'supports_deposit' => 0,
+            'rules' => null,
         ]);
 
         return view('admin-v2.platform-services.create', compact('row'));
@@ -124,6 +126,7 @@ class PlatformServiceController extends Controller
             'name_en' => ['nullable', 'string', 'max:191'],
             'is_active' => ['nullable'],
             'supports_deposit' => ['nullable'],
+            'rules_json' => ['nullable', 'string'],
         ], [
             'key.regex' => 'مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
         ]);
@@ -131,6 +134,25 @@ class PlatformServiceController extends Controller
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['supports_deposit'] = (int) $request->boolean('supports_deposit');
         $data['name_en'] = trim((string) ($data['name_en'] ?? '')) ?: null;
+
+        $rulesJson = trim((string) ($data['rules_json'] ?? ''));
+        unset($data['rules_json']);
+
+        if ($rulesJson !== '') {
+            $decoded = json_decode($rulesJson, true);
+
+            if (! is_array($decoded) || json_last_error() !== JSON_ERROR_NONE) {
+                throw ValidationException::withMessages([
+                    'rules_json' => 'قواعد الخدمة يجب أن تكون JSON صحيح.',
+                ]);
+            }
+
+            if (Schema::hasColumn('platform_services', 'rules')) {
+                $data['rules'] = $decoded;
+            }
+        } elseif (Schema::hasColumn('platform_services', 'rules')) {
+            $data['rules'] = null;
+        }
 
         return $data;
     }
@@ -162,8 +184,6 @@ class PlatformServiceController extends Controller
 
             'fee_currency' => 'EGP',
             'fee_notes' => null,
-
-            'rules' => null,
         ];
 
         $updates = [];

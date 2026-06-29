@@ -2,15 +2,22 @@
 
 namespace App\Services;
 
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\ServiceEvent;
 use App\Models\User;
 use App\Notifications\ServiceEventDatabaseNotification;
+use App\Services\Notifications\InAppNotificationService;
 use App\Support\AdminV2\ServiceEvents\ServiceEventKeys;
 use Illuminate\Support\Facades\Route;
 
 class ServiceEventNotificationService
 {
+    public function __construct(
+        protected InAppNotificationService $inAppNotificationService
+    ) {
+    }
+
     public function handle(ServiceEvent $event): void
     {
         match ((string) $event->event_key) {
@@ -38,7 +45,7 @@ class ServiceEventNotificationService
 
         $this->notifyBusiness($event, 'طلب حجز جديد', 'لديك طلب حجز جديد يحتاج إلى مراجعة.', [
             'booking_id' => $booking?->id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
 
         $this->notifyClient($event, 'تم إرسال طلب الحجز', 'تم إرسال طلب الحجز إلى مقدم الخدمة وسيتم إشعارك عند الرد.', [
             'booking_id' => $booking?->id,
@@ -49,7 +56,7 @@ class ServiceEventNotificationService
     {
         $this->notifyClient($event, 'تم قبول الحجز', 'تم قبول طلب الحجز الخاص بك.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
 
         $this->notifyBusiness($event, 'تم تأكيد قبول الحجز', 'تم تسجيل قبول الحجز بنجاح.', [
             'booking_id' => $event->subject_id,
@@ -60,21 +67,21 @@ class ServiceEventNotificationService
     {
         $this->notifyClient($event, 'تم رفض الحجز', 'تم رفض طلب الحجز الخاص بك.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingCancelled(ServiceEvent $event): void
     {
         $this->notifyBoth($event, 'تم إلغاء الحجز', 'تم إلغاء الحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingStarted(ServiceEvent $event): void
     {
         $this->notifyBoth($event, 'بدأ تنفيذ الحجز', 'تم بدء تنفيذ الحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingCompleted(ServiceEvent $event): void
@@ -88,21 +95,21 @@ class ServiceEventNotificationService
     {
         $this->notifyBusiness($event, 'تأكيد العميل', 'قام العميل بتأكيد الحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingBusinessConfirmed(ServiceEvent $event): void
     {
         $this->notifyClient($event, 'تأكيد مقدم الخدمة', 'قام مقدم الخدمة بتأكيد الحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingDepositFrozen(ServiceEvent $event): void
     {
         $this->notifyBoth($event, 'تم تجميد الضمان', 'تم تجميد مبلغ الضمان الخاص بالحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 
     protected function bookingDepositReleased(ServiceEvent $event): void
@@ -123,26 +130,26 @@ class ServiceEventNotificationService
     {
         $this->notifyBoth($event, 'تم فتح نزاع', 'تم فتح نزاع على هذا الحجز.', [
             'booking_id' => $event->subject_id,
-        ]);
+        ], AppNotification::PRIORITY_URGENT);
     }
 
-    protected function notifyBoth(ServiceEvent $event, string $title, string $body, array $extra = []): void
+    protected function notifyBoth(ServiceEvent $event, string $title, string $body, array $extra = [], string $priority = AppNotification::PRIORITY_NORMAL): void
     {
-        $this->notifyBusiness($event, $title, $body, $extra);
-        $this->notifyClient($event, $title, $body, $extra);
+        $this->notifyBusiness($event, $title, $body, $extra, $priority);
+        $this->notifyClient($event, $title, $body, $extra, $priority);
     }
 
-    protected function notifyBusiness(ServiceEvent $event, string $title, string $body, array $extra = []): void
+    protected function notifyBusiness(ServiceEvent $event, string $title, string $body, array $extra = [], string $priority = AppNotification::PRIORITY_NORMAL): void
     {
-        $this->notifyUser((int) $event->business_id, $event, $title, $body, $extra);
+        $this->notifyUser((int) $event->business_id, $event, $title, $body, $extra, $priority);
     }
 
-    protected function notifyClient(ServiceEvent $event, string $title, string $body, array $extra = []): void
+    protected function notifyClient(ServiceEvent $event, string $title, string $body, array $extra = [], string $priority = AppNotification::PRIORITY_NORMAL): void
     {
-        $this->notifyUser((int) $event->client_id, $event, $title, $body, $extra);
+        $this->notifyUser((int) $event->client_id, $event, $title, $body, $extra, $priority);
     }
 
-    protected function notifyUser(int $userId, ServiceEvent $event, string $title, string $body, array $extra = []): void
+    protected function notifyUser(int $userId, ServiceEvent $event, string $title, string $body, array $extra = [], string $priority = AppNotification::PRIORITY_NORMAL): void
     {
         if ($userId <= 0) {
             return;
@@ -154,13 +161,58 @@ class ServiceEventNotificationService
             return;
         }
 
+        $url = $this->urlForEvent($event);
+
         $user->notify(new ServiceEventDatabaseNotification(
             event: $event,
             title: $title,
             body: $body,
-            url: $this->urlForEvent($event),
+            url: $url,
             extra: $extra
         ));
+
+        $exists = AppNotification::query()
+            ->where('user_id', $userId)
+            ->where('source_type', 'service_event')
+            ->where('source_id', (int) $event->id)
+            ->where('action_type', (string) $event->event_key)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $this->inAppNotificationService->create([
+            'user_id' => $userId,
+            'actor_id' => $event->actor_id ?: null,
+            'type' => $this->appNotificationType($event),
+            'channel' => AppNotification::CHANNEL_IN_APP,
+            'priority' => $priority,
+            'title_ar' => $title,
+            'title_en' => null,
+            'body_ar' => $body,
+            'body_en' => null,
+            'action_type' => (string) $event->event_key,
+            'action_url' => $this->mobileActionUrl($event),
+            'notifiable_type' => $event->subject_type,
+            'notifiable_id' => $event->subject_id ? (int) $event->subject_id : null,
+            'source_type' => 'service_event',
+            'source_id' => (int) $event->id,
+            'meta' => array_merge([
+                'service_event_id' => (int) $event->id,
+                'event_key' => (string) $event->event_key,
+                'service_key' => (string) $event->service_key,
+                'action_key' => (string) $event->action_key,
+                'subject_type' => $event->subject_type,
+                'subject_id' => $event->subject_id ? (int) $event->subject_id : null,
+                'actor_id' => $event->actor_id ? (int) $event->actor_id : null,
+                'business_id' => $event->business_id ? (int) $event->business_id : null,
+                'client_id' => $event->client_id ? (int) $event->client_id : null,
+                'admin_url' => $url,
+                'occurred_at' => optional($event->occurred_at)->toDateTimeString(),
+                'payload' => $event->payload ?? [],
+            ], $extra),
+        ]);
     }
 
     protected function booking(ServiceEvent $event): ?Booking
@@ -187,6 +239,23 @@ class ServiceEventNotificationService
         }
 
         return null;
+    }
+
+    protected function mobileActionUrl(ServiceEvent $event): ?string
+    {
+        if ((string) $event->service_key === 'booking' && $event->subject_id) {
+            return '/bookings/' . (int) $event->subject_id;
+        }
+
+        return null;
+    }
+
+    protected function appNotificationType(ServiceEvent $event): string
+    {
+        return match ((string) $event->service_key) {
+            'booking' => AppNotification::TYPE_BOOKING,
+            default => AppNotification::TYPE_SYSTEM,
+        };
     }
 
     protected function bookingReminder24h(ServiceEvent $event): void
@@ -218,6 +287,6 @@ class ServiceEventNotificationService
         $this->notifyUser($recipientId, $event, $title, $body, [
             'booking_id' => $event->subject_id,
             'reminder_key' => data_get($event->payload, 'reminder_key'),
-        ]);
+        ], AppNotification::PRIORITY_HIGH);
     }
 }

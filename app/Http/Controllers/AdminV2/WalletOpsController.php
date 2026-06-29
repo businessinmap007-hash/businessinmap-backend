@@ -19,22 +19,7 @@ final class WalletOpsController extends Controller
         $userId = (int) $request->get('user_id', 0);
         $q = trim((string) $request->get('q', ''));
 
-        $users = User::query()
-            ->select('id', 'name', 'email', 'phone', 'type')
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($w) use ($q) {
-                    if (is_numeric($q)) {
-                        $w->orWhere('id', (int) $q);
-                    }
-
-                    $w->orWhere('name', 'like', "%{$q}%")
-                        ->orWhere('email', 'like', "%{$q}%")
-                        ->orWhere('phone', 'like', "%{$q}%");
-                });
-            })
-            ->orderByDesc('id')
-            ->limit($q === '' ? 20 : 50)
-            ->get();
+        $users = $this->searchUsers($q, $q === '' ? 20 : 50);
 
         $user = null;
 
@@ -80,6 +65,35 @@ final class WalletOpsController extends Controller
             'levels' => $levels,
             'activeGuarantee' => $activeGuarantee,
             'q' => $q,
+        ]);
+    }
+
+    public function searchUsersJson(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        if ($q === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $rows = $this->searchUsers($q, 12)
+            ->map(fn (User $user) => [
+                'id' => (int) $user->id,
+                'name' => (string) ($user->name ?: 'بدون اسم'),
+                'email' => (string) ($user->email ?: ''),
+                'phone' => (string) ($user->phone ?: ''),
+                'type' => (string) ($user->type ?: ''),
+                'label' => '#' . $user->id . ' — ' . ($user->name ?: 'بدون اسم') . ' — ' . ($user->type ?: 'user') . ' — ' . ($user->phone ?: $user->email),
+                'url' => route('admin.wallet-ops.recharge.form', ['user_id' => (int) $user->id, 'q' => $q]),
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $rows,
         ]);
     }
 
@@ -141,17 +155,7 @@ final class WalletOpsController extends Controller
         $upgradeResult = null;
 
         if ($guaranteeAction === 'manual') {
-            $level = GuaranteeLevel::query()
-                ->where('id', (int) $data['guarantee_level_id'])
-                ->where('target_type', $user->isBusiness() ? GuaranteeLevel::TARGET_BUSINESS : GuaranteeLevel::TARGET_CLIENT)
-                ->where('is_active', 1)
-                ->first();
-
-            if (! $level) {
-                return back()
-                    ->withInput()
-                    ->withErrors('مستوى الضمان المختار غير مناسب لنوع المستخدم أو غير مفعل.');
-            }
+            $level = $this->validLevelForUser((int) $data['guarantee_level_id'], $user);
 
             $upgradeResult = $guaranteeAutoUpgradeService->upgradeToLevel(
                 user: $user,
@@ -194,5 +198,78 @@ final class WalletOpsController extends Controller
         return redirect()
             ->route('admin.wallet-ops.recharge.form', ['user_id' => $user->id])
             ->with('success', $message);
+    }
+
+    public function activateGuarantee(Request $request, GuaranteeAutoUpgradeService $guaranteeAutoUpgradeService)
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'guarantee_level_id' => ['required', 'integer', 'exists:guarantee_levels,id'],
+        ]);
+
+        $user = User::query()
+            ->select('id', 'name', 'type')
+            ->findOrFail((int) $data['user_id']);
+
+        $level = $this->validLevelForUser((int) $data['guarantee_level_id'], $user);
+
+        $result = $guaranteeAutoUpgradeService->upgradeToLevel(
+            user: $user,
+            level: $level,
+            referenceType: 'admin_wallet_balance',
+            referenceId: (int) $user->id,
+            meta: [
+                'source' => 'wallet_ops_activate_guarantee',
+                'admin_id' => auth()->id(),
+                'guarantee_action' => 'manual_from_existing_balance',
+            ]
+        );
+
+        $message = 'تم تنفيذ تفعيل الضمان من الرصيد الحالي.';
+
+        if (($result['changed'] ?? false) && ! empty($result['level'])) {
+            $message .= ' المستوى: ' . $result['level']->display_name . '.';
+        } elseif (! ($result['changed'] ?? false)) {
+            $message .= ' النتيجة: ' . ($result['reason'] ?? 'no_change') . '.';
+        }
+
+        return redirect()
+            ->route('admin.wallet-ops.recharge.form', ['user_id' => $user->id])
+            ->with('success', $message);
+    }
+
+    private function searchUsers(string $q, int $limit)
+    {
+        return User::query()
+            ->select('id', 'name', 'email', 'phone', 'type')
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    if (is_numeric($q)) {
+                        $w->orWhere('id', (int) $q);
+                    }
+
+                    $w->orWhere('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhere('phone', 'like', "%{$q}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+    }
+
+    private function validLevelForUser(int $levelId, User $user): GuaranteeLevel
+    {
+        $level = GuaranteeLevel::query()
+            ->where('id', $levelId)
+            ->where('target_type', $user->isBusiness() ? GuaranteeLevel::TARGET_BUSINESS : GuaranteeLevel::TARGET_CLIENT)
+            ->where('is_active', 1)
+            ->first();
+
+        if (! $level) {
+            abort(422, 'مستوى الضمان المختار غير مناسب لنوع المستخدم أو غير مفعل.');
+        }
+
+        return $level;
     }
 }

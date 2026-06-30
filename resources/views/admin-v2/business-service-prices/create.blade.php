@@ -12,7 +12,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">إضافة سعر خدمة</h1>
-            <div class="a2-page-subtitle">إضافة سعر لخدمة معينة حسب نوع العنصر عند البزنس</div>
+            <div class="a2-page-subtitle">إضافة سعر/خصم/ديبوزت عام للخدمة حسب نوع العنصر عند البزنس.</div>
         </div>
 
         <div class="a2-page-actions">
@@ -31,6 +31,8 @@
             'row' => $row,
             'services' => $services,
             'businesses' => $businesses,
+            'children' => $children ?? collect(),
+            'itemTypesByService' => $itemTypesByService ?? [],
             'backUrl' => $backUrl,
         ])
     </form>

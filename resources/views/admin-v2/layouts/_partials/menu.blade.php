@@ -138,25 +138,21 @@
                     <ul class="a2-nav-children">
                         @foreach($children as $child)
                             @if(($child['type'] ?? null) === 'section')
-                                <li class="a2-nav-section">
-                                    <div class="a2-nav-section-label">{{ $child['label'] ?? '—' }}</div>
-                                    <ul class="a2-nav-section-items">
-                                        @foreach(($child['children'] ?? []) as $sectionChild)
-                                            @php
-                                                $sectionChildRoute = $sectionChild['route'] ?? null;
-                                                $sectionChildExists = $sectionChildRoute && Route::has($sectionChildRoute);
-                                                $sectionChildHref = $sectionChildExists ? route($sectionChildRoute) : '#';
-                                                $sectionChildActive = $sectionChildExists && $isActive($sectionChild);
-                                            @endphp
-                                            <li>
-                                                <a class="a2-nav-child-link {{ $sectionChildActive ? 'is-active' : '' }} {{ ! $sectionChildExists ? 'is-disabled' : '' }}" href="{{ $sectionChildHref }}" aria-current="{{ $sectionChildActive ? 'page' : 'false' }}" aria-disabled="{{ $sectionChildExists ? 'false' : 'true' }}">
-                                                    <span class="a2-nav-bullet"></span>
-                                                    <span class="a2-nav-text">{{ $sectionChild['label'] ?? '—' }}</span>
-                                                </a>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </li>
+                                <li class="a2-nav-section">{{ $child['label'] ?? '—' }}</li>
+                                @foreach(($child['children'] ?? []) as $sectionChild)
+                                    @php
+                                        $sectionChildRoute = $sectionChild['route'] ?? null;
+                                        $sectionChildExists = $sectionChildRoute && Route::has($sectionChildRoute);
+                                        $sectionChildHref = $sectionChildExists ? route($sectionChildRoute) : '#';
+                                        $sectionChildActive = $sectionChildExists && $isActive($sectionChild);
+                                    @endphp
+                                    <li>
+                                        <a class="a2-nav-child-link {{ $sectionChildActive ? 'is-active' : '' }} {{ ! $sectionChildExists ? 'is-disabled' : '' }}" href="{{ $sectionChildHref }}" aria-current="{{ $sectionChildActive ? 'page' : 'false' }}" aria-disabled="{{ $sectionChildExists ? 'false' : 'true' }}">
+                                            <span class="a2-nav-bullet"></span>
+                                            <span class="a2-nav-text">{{ $sectionChild['label'] ?? '—' }}</span>
+                                        </a>
+                                    </li>
+                                @endforeach
                             @else
                                 @php
                                     $childRoute = $child['route'] ?? null;

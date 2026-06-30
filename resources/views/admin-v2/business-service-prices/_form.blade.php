@@ -12,6 +12,10 @@
     $itemTypesByServiceSafe = is_array($itemTypesByService ?? null)
         ? $itemTypesByService
         : [];
+
+    $itemTypesByChildServiceSafe = is_array($itemTypesByChildService ?? null)
+        ? $itemTypesByChildService
+        : [];
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
@@ -21,7 +25,10 @@
         رسوم المنصة على العميل أو البزنس لا تُدار هنا، بل من شاشة
         <span dir="ltr">Service Fees</span>.
         أنواع العناصر تأتي من
-        <span dir="ltr">Platform Service Item Types</span>.
+        <span dir="ltr">Platform Service Item Types</span>
+        ثم يتم تضييقها حسب
+        <span dir="ltr">Service Catalog Matrix</span>
+        للقسم الفرعي.
     </div>
 </div>
 
@@ -98,7 +105,7 @@
             </select>
 
             <div class="a2-hint a2-mt-8">
-                يجب أن تكون الخدمة مربوطة بهذا القسم الفرعي من شاشة التصنيفات.
+                يجب أن تكون الخدمة مربوطة بهذا القسم الفرعي من Service Catalog Matrix.
             </div>
 
             @error('service_id')
@@ -117,7 +124,7 @@
             </select>
 
             <div class="a2-hint a2-mt-8 js-bookable-type-hint">
-                اختر الخدمة أولًا لعرض أنواع العناصر المتاحة لها.
+                اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا القسم الفرعي.
             </div>
 
             @error('bookable_item_type')
@@ -192,7 +199,7 @@
     <div class="a2-card-head">
         <div>
             <div class="a2-card-title">الخصم والديبوزت</div>
-            <div class="a2-card-sub">إعدادات الخصم والدفعة المقدمة حسب الخدمة</div>
+            <div class="a2-card-sub">الديبوزت ضمان/حجز فقط. إلغاءه لا يلغي رسوم استخدام الخدمة لصالح التطبيق.</div>
         </div>
     </div>
 
@@ -287,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const discountPercent = document.getElementById('discount_percent');
 
     const itemTypesByService = @json($itemTypesByServiceSafe);
+    const itemTypesByChildService = @json($itemTypesByChildServiceSafe);
 
     function refreshBusinessChild() {
         if (!businessSelect || !childSelect) return;
@@ -302,32 +310,45 @@ document.addEventListener('DOMContentLoaded', function () {
     function optionLabel(item) {
         if (!item) return '';
 
+        const label = String(item.label || '').trim();
         const ar = String(item.name_ar || '').trim();
         const en = String(item.name_en || '').trim();
         const key = String(item.key || '').trim();
 
-        return ar || en || key;
+        return label || ar || en || key;
+    }
+
+    function resolveTypeOptions() {
+        const childId = String(childSelect?.value || '');
+        const serviceId = String(serviceSelect?.value || '');
+
+        if (childId && serviceId && itemTypesByChildService[childId] && itemTypesByChildService[childId][serviceId]) {
+            return itemTypesByChildService[childId][serviceId];
+        }
+
+        return [];
     }
 
     function refreshBookableTypeOptions() {
         if (!serviceSelect || !bookableTypeSelect) return;
 
         const serviceId = String(serviceSelect.value || '');
+        const childId = String(childSelect?.value || '');
         const currentValue = String(bookableTypeSelect.value || bookableTypeSelect.dataset.currentValue || '');
         const savedValue = String(bookableTypeSelect.dataset.currentValue || '');
 
-        const options = itemTypesByService[serviceId] || [];
+        const options = resolveTypeOptions();
 
         bookableTypeSelect.innerHTML = '';
 
-        if (!serviceId) {
+        if (!serviceId || !childId) {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'اختر الخدمة أولًا';
+            option.textContent = 'اختر البزنس والخدمة أولًا';
             bookableTypeSelect.appendChild(option);
 
             if (bookableTypeHint) {
-                bookableTypeHint.textContent = 'اختر الخدمة أولًا لعرض أنواع العناصر المتاحة لها.';
+                bookableTypeHint.textContent = 'اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا category_child.';
             }
 
             return;
@@ -336,24 +357,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!options.length) {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'لا توجد أنواع عناصر مفعلة لهذه الخدمة';
+            option.textContent = 'لا توجد أنواع مسموحة لهذا القسم مع هذه الخدمة';
             bookableTypeSelect.appendChild(option);
 
             if (bookableTypeHint) {
-                bookableTypeHint.textContent = 'أضف أنواع عناصر لهذه الخدمة من شاشة Platform Service Item Types.';
+                const fallbackCount = (itemTypesByService[serviceId] || []).length;
+                bookableTypeHint.textContent = fallbackCount
+                    ? 'الخدمة لها أنواع عامة، لكن لم يتم السماح بأي نوع لهذا القسم الفرعي داخل Service Catalog Matrix.'
+                    : 'أضف أنواع عناصر لهذه الخدمة من Platform Service Item Types ثم اسمح بها من Service Catalog Matrix.';
             }
 
             return;
         }
 
         let selectedApplied = false;
-        let defaultKey = '';
 
-        options.forEach(function (item) {
-            if (item.is_default && !defaultKey) {
-                defaultKey = String(item.key || '');
-            }
-        });
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = 'اختر نوع العنصر';
+        bookableTypeSelect.appendChild(emptyOption);
 
         options.forEach(function (item) {
             const value = String(item.key || '');
@@ -362,11 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
             option.value = value;
             option.textContent = optionLabel(item);
 
-            if (
-                value === currentValue ||
-                value === savedValue ||
-                (!selectedApplied && !currentValue && !savedValue && defaultKey && value === defaultKey)
-            ) {
+            if (value === currentValue || value === savedValue) {
                 option.selected = true;
                 selectedApplied = true;
             }
@@ -374,15 +392,12 @@ document.addEventListener('DOMContentLoaded', function () {
             bookableTypeSelect.appendChild(option);
         });
 
-        if (!selectedApplied) {
-            const first = bookableTypeSelect.querySelector('option');
-            if (first) {
-                first.selected = true;
-            }
+        if (!selectedApplied && bookableTypeSelect.options.length > 1) {
+            bookableTypeSelect.options[1].selected = true;
         }
 
         if (bookableTypeHint) {
-            bookableTypeHint.textContent = 'هذه القائمة تأتي من Platform Service Item Types ويمكن تعديلها من لوحة الإدارة.';
+            bookableTypeHint.textContent = 'هذه القائمة تعرض فقط الأنواع المسموحة لهذا القسم الفرعي والخدمة حسب Service Catalog Matrix.';
         }
     }
 
@@ -394,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (depositHint) {
             depositHint.textContent = supportsDeposit
-                ? 'هذه الخدمة تدعم الديبوزت، لكن الحد أو السياسة لا تأتي من PlatformService.'
+                ? 'هذه الخدمة تدعم الديبوزت كضمان فقط، ورسوم استخدام الخدمة مستقلة عنه.'
                 : 'هذه الخدمة لا تدعم الديبوزت.';
         }
 
@@ -426,7 +441,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (businessSelect) {
-        businessSelect.addEventListener('change', refreshBusinessChild);
+        businessSelect.addEventListener('change', function () {
+            refreshBusinessChild();
+            bookableTypeSelect.dataset.currentValue = '';
+            refreshBookableTypeOptions();
+        });
+    }
+
+    if (childSelect) {
+        childSelect.addEventListener('change', function () {
+            bookableTypeSelect.dataset.currentValue = '';
+            refreshBookableTypeOptions();
+        });
     }
 
     if (serviceSelect) {

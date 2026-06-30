@@ -10,6 +10,7 @@ use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -27,10 +28,7 @@ class BookableItemController extends Controller
         $businesses = $this->businesses();
 
         $rows = BookableItem::query()
-            ->with([
-                'service:id,key,name_ar,name_en',
-                'business:id,name,type,category_id,category_child_id',
-            ])
+            ->with(['service:id,key,name_ar,name_en', 'business:id,name,type,category_id,category_child_id'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('title', 'like', "%{$q}%")
@@ -46,16 +44,7 @@ class BookableItemController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        return view('admin-v2.bookable-items.index', compact(
-            'rows',
-            'services',
-            'businesses',
-            'q',
-            'serviceId',
-            'businessId',
-            'isActive',
-            'itemType'
-        ));
+        return view('admin-v2.bookable-items.index', compact('rows', 'services', 'businesses', 'q', 'serviceId', 'businessId', 'isActive', 'itemType'));
     }
 
     public function create(Request $request)
@@ -70,13 +59,9 @@ class BookableItemController extends Controller
             'service_id' => (int) $request->get('service_id', 0) ?: null,
         ]);
 
-        $allowedItemTypes = [];
-        if ($row->business_id && $row->service_id) {
-            $allowedItemTypes = $this->allowedItemTypesFor(
-                (int) $row->business_id,
-                (int) $row->service_id
-            );
-        }
+        $allowedItemTypes = $row->business_id && $row->service_id
+            ? $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id)
+            : $this->allActiveItemTypes();
 
         return view('admin-v2.bookable-items.create', [
             'row' => $row,
@@ -88,8 +73,22 @@ class BookableItemController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validateData($request);
+        if ($request->has('items')) {
+            $items = $this->validateBulkItems($request);
 
+            $created = DB::transaction(function () use ($items) {
+                return collect($items)->map(fn (array $data) => BookableItem::create($data));
+            });
+
+            return redirect()
+                ->route('admin.bookable-items.index', [
+                    'business_id' => (int) $request->input('business_id'),
+                    'service_id' => (int) $request->input('service_id'),
+                ])
+                ->with('success', 'تم إنشاء ' . $created->count() . ' عنصر قابل للحجز بنجاح.');
+        }
+
+        $data = $this->validateData($request);
         $row = BookableItem::create($data);
 
         return redirect()
@@ -99,26 +98,19 @@ class BookableItemController extends Controller
 
     public function edit(BookableItem $bookableItem)
     {
-        $row = $bookableItem->load([
-            'service:id,key,name_ar,name_en,supports_deposit',
-            'business:id,name,type,category_id,category_child_id',
-        ]);
+        $row = $bookableItem->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_id,category_child_id']);
 
         return view('admin-v2.bookable-items.edit', [
             'row' => $row,
             'services' => $this->services(),
             'businesses' => $this->businesses(),
-            'allowedItemTypes' => $this->allowedItemTypesFor(
-                (int) $row->business_id,
-                (int) $row->service_id
-            ),
+            'allowedItemTypes' => $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id),
         ]);
     }
 
     public function update(Request $request, BookableItem $bookableItem)
     {
         $data = $this->validateData($request, $bookableItem->id);
-
         $bookableItem->update($data);
 
         return back()->with('success', 'تم تحديث العنصر القابل للحجز بنجاح.');
@@ -133,16 +125,112 @@ class BookableItemController extends Controller
             ->with('success', 'تم حذف العنصر بنجاح.');
     }
 
+    protected function validateBulkItems(Request $request): array
+    {
+        $request->validate([
+            'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business'))],
+            'service_id' => ['required', 'integer', 'exists:platform_services,id'],
+            'deposit_enabled' => ['nullable'],
+            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'meta' => ['nullable', 'string'],
+            'items' => ['required', 'array'],
+        ]);
+
+        $businessId = (int) $request->input('business_id');
+        $serviceId = (int) $request->input('service_id');
+        $depositEnabled = (int) $request->boolean('deposit_enabled');
+        $depositPercent = (int) $request->input('deposit_percent', 0);
+        $meta = $this->parseMetaJson($request->input('meta'));
+
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        if (! $business) {
+            throw ValidationException::withMessages(['business_id' => 'البزنس غير موجود أو ليس من نوع business.']);
+        }
+
+        if (! $categoryId && ! $childId) {
+            throw ValidationException::withMessages(['business_id' => 'هذا البزنس غير مرتبط بأي category أو category child حتى الآن.']);
+        }
+
+        $service = PlatformService::query()->select(['id', 'supports_deposit'])->find($serviceId);
+
+        if (! $service) {
+            throw ValidationException::withMessages(['service_id' => 'الخدمة غير موجودة.']);
+        }
+
+        $this->ensureServiceEnabledForBusiness($businessId, $serviceId);
+
+        $allowedItemTypes = $this->allowedItemTypesFor($businessId, $serviceId);
+
+        if ($allowedItemTypes === []) {
+            throw ValidationException::withMessages(['items' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.']);
+        }
+
+        if (! (bool) $service->supports_deposit) {
+            $depositEnabled = 0;
+            $depositPercent = 0;
+        } elseif (! $depositEnabled) {
+            $depositPercent = 0;
+        }
+
+        $items = [];
+
+        foreach ((array) $request->input('items', []) as $index => $raw) {
+            $type = trim((string) ($raw['item_type'] ?? ''));
+            $title = trim((string) ($raw['title'] ?? ''));
+            $code = trim((string) ($raw['code'] ?? ''));
+            $price = $raw['price'] ?? null;
+
+            if ($type === '' && $title === '' && $code === '' && ($price === null || $price === '')) {
+                continue;
+            }
+
+            if ($type === '' || ! in_array($type, $allowedItemTypes, true)) {
+                throw ValidationException::withMessages(["items.{$index}.item_type" => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.']);
+            }
+
+            if ($title === '') {
+                throw ValidationException::withMessages(["items.{$index}.title" => 'العنوان مطلوب لكل عنصر يتم إنشاؤه.']);
+            }
+
+            $duplicate = BookableItem::query()
+                ->where('business_id', $businessId)
+                ->where('service_id', $serviceId)
+                ->where('item_type', $type)
+                ->where('title', $title)
+                ->exists();
+
+            if ($duplicate) {
+                throw ValidationException::withMessages(["items.{$index}.title" => 'يوجد عنصر آخر بنفس البزنس والخدمة ونوع العنصر والعنوان: ' . $title]);
+            }
+
+            $items[] = [
+                'business_id' => $businessId,
+                'service_id' => $serviceId,
+                'item_type' => $type,
+                'title' => $title,
+                'code' => $code,
+                'price' => round((float) ($price ?? 0), 2),
+                'capacity' => ! empty($raw['capacity']) ? (int) $raw['capacity'] : null,
+                'quantity' => max((int) ($raw['quantity'] ?? 1), 1),
+                'is_active' => ! empty($raw['is_active']) ? 1 : 0,
+                'deposit_enabled' => $depositEnabled,
+                'deposit_percent' => $depositPercent,
+                'meta' => $meta,
+            ];
+        }
+
+        if ($items === []) {
+            throw ValidationException::withMessages(['items' => 'أدخل عنصرًا واحدًا على الأقل.']);
+        }
+
+        return $items;
+    }
+
     protected function validateData(Request $request, ?int $ignoreId = null): array
     {
         $data = $request->validate([
-            'business_id' => [
-                'required',
-                'integer',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    return $query->where('type', 'business');
-                }),
-            ],
+            'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business'))],
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
             'item_type' => ['required', 'string', 'max:100'],
             'title' => ['required', 'string', 'max:191'],
@@ -155,17 +243,7 @@ class BookableItemController extends Controller
             'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'meta' => ['nullable', 'string'],
         ], [], [
-            'business_id' => 'البزنس',
-            'service_id' => 'الخدمة',
-            'item_type' => 'نوع العنصر',
-            'title' => 'العنوان',
-            'code' => 'الكود',
-            'price' => 'السعر',
-            'capacity' => 'السعة',
-            'quantity' => 'الكمية',
-            'deposit_enabled' => 'تفعيل الديبوزت',
-            'deposit_percent' => 'نسبة الديبوزت',
-            'meta' => 'البيانات الإضافية',
+            'business_id' => 'البزنس', 'service_id' => 'الخدمة', 'item_type' => 'نوع العنصر', 'title' => 'العنوان', 'code' => 'الكود', 'price' => 'السعر', 'capacity' => 'السعة', 'quantity' => 'الكمية', 'deposit_enabled' => 'تفعيل الديبوزت', 'deposit_percent' => 'نسبة الديبوزت', 'meta' => 'البيانات الإضافية',
         ]);
 
         $data['item_type'] = trim((string) ($data['item_type'] ?? ''));
@@ -178,65 +256,17 @@ class BookableItemController extends Controller
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext((int) $data['business_id']);
 
-        if (! $business) {
-            throw ValidationException::withMessages([
-                'business_id' => 'البزنس غير موجود أو ليس من نوع business.',
-            ]);
-        }
+        if (! $business) throw ValidationException::withMessages(['business_id' => 'البزنس غير موجود أو ليس من نوع business.']);
+        if (! $categoryId && ! $childId) throw ValidationException::withMessages(['business_id' => 'هذا البزنس غير مرتبط بأي category أو category child حتى الآن.']);
 
-        if (! $categoryId && ! $childId) {
-            throw ValidationException::withMessages([
-                'business_id' => 'هذا البزنس غير مرتبط بأي category أو category child حتى الآن.',
-            ]);
-        }
+        $service = PlatformService::query()->select(['id', 'supports_deposit'])->find($data['service_id']);
+        if (! $service) throw ValidationException::withMessages(['service_id' => 'الخدمة غير موجودة.']);
 
-        $service = PlatformService::query()
-            ->select(['id', 'supports_deposit'])
-            ->find($data['service_id']);
-
-        if (! $service) {
-            throw ValidationException::withMessages([
-                'service_id' => 'الخدمة غير موجودة.',
-            ]);
-        }
-
-        $serviceEnabledForBusiness = false;
-
-        if ($childId > 0) {
-            $serviceEnabledForBusiness = CategoryPlatformService::query()
-                ->forChild($childId)
-                ->forService((int) $service->id)
-                ->active()
-                ->exists();
-        }
-
-        if (! $serviceEnabledForBusiness && $categoryId > 0) {
-            $serviceEnabledForBusiness = CategoryPlatformService::query()
-                ->forCategory($categoryId)
-                ->forService((int) $service->id)
-                ->active()
-                ->exists();
-        }
-
-        if (! $serviceEnabledForBusiness) {
-            throw ValidationException::withMessages([
-                'service_id' => 'هذه الخدمة غير مفعلة أو غير مسموحة لهذا البزنس.',
-            ]);
-        }
+        $this->ensureServiceEnabledForBusiness((int) $business->id, (int) $service->id);
 
         $allowedItemTypes = $this->allowedItemTypesFor((int) $business->id, (int) $service->id);
-
-        if ($allowedItemTypes === []) {
-            throw ValidationException::withMessages([
-                'item_type' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.',
-            ]);
-        }
-
-        if (! in_array($data['item_type'], $allowedItemTypes, true)) {
-            throw ValidationException::withMessages([
-                'item_type' => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.',
-            ]);
-        }
+        if ($allowedItemTypes === []) throw ValidationException::withMessages(['item_type' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.']);
+        if (! in_array($data['item_type'], $allowedItemTypes, true)) throw ValidationException::withMessages(['item_type' => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.']);
 
         $duplicateQuery = BookableItem::query()
             ->where('business_id', $data['business_id'])
@@ -244,15 +274,8 @@ class BookableItemController extends Controller
             ->where('item_type', $data['item_type'])
             ->where('title', $data['title']);
 
-        if ($ignoreId) {
-            $duplicateQuery->where('id', '!=', $ignoreId);
-        }
-
-        if ($duplicateQuery->exists()) {
-            throw ValidationException::withMessages([
-                'title' => 'يوجد عنصر آخر بنفس البزنس والخدمة ونوع العنصر والعنوان.',
-            ]);
-        }
+        if ($ignoreId) $duplicateQuery->where('id', '!=', $ignoreId);
+        if ($duplicateQuery->exists()) throw ValidationException::withMessages(['title' => 'يوجد عنصر آخر بنفس البزنس والخدمة ونوع العنصر والعنوان.']);
 
         if (! (bool) $service->supports_deposit) {
             $data['deposit_enabled'] = 0;
@@ -266,80 +289,69 @@ class BookableItemController extends Controller
         return $data;
     }
 
+    protected function ensureServiceEnabledForBusiness(int $businessId, int $serviceId): void
+    {
+        [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+
+        $enabled = false;
+        if ($childId > 0) {
+            $enabled = CategoryPlatformService::query()->forChild($childId)->forService($serviceId)->active()->exists();
+        }
+        if (! $enabled && $categoryId > 0) {
+            $enabled = CategoryPlatformService::query()->forCategory($categoryId)->forService($serviceId)->active()->exists();
+        }
+
+        if (! $enabled) {
+            throw ValidationException::withMessages(['service_id' => 'هذه الخدمة غير مفعلة أو غير مسموحة لهذا البزنس.']);
+        }
+    }
+
     protected function parseMetaJson(?string $value): ?array
     {
         $value = trim((string) $value);
-
-        if ($value === '') {
-            return null;
-        }
+        if ($value === '') return null;
 
         $decoded = json_decode($value, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw ValidationException::withMessages([
-                'meta' => 'حقل Meta يجب أن يكون JSON صحيحًا.',
-            ]);
-        }
-
-        if (! is_array($decoded)) {
-            throw ValidationException::withMessages([
-                'meta' => 'حقل Meta يجب أن يكون JSON object أو array.',
-            ]);
-        }
+        if (json_last_error() !== JSON_ERROR_NONE) throw ValidationException::withMessages(['meta' => 'حقل Meta يجب أن يكون JSON صحيحًا.']);
+        if (! is_array($decoded)) throw ValidationException::withMessages(['meta' => 'حقل Meta يجب أن يكون JSON object أو array.']);
 
         return $decoded;
     }
 
     protected function services()
     {
-        return PlatformService::query()
-            ->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit'])
-            ->where('is_active', 1)
-            ->orderBy('name_ar')
-            ->orderBy('id')
-            ->get();
+        return PlatformService::query()->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit'])->where('is_active', 1)->orderBy('name_ar')->orderBy('id')->get();
     }
 
     protected function businesses()
     {
-        return User::query()
-            ->select(['id', 'name', 'category_id', 'category_child_id'])
-            ->where('type', 'business')
-            ->orderBy('name')
+        return User::query()->select(['id', 'name', 'category_id', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
+    }
+
+    protected function allActiveItemTypes(): array
+    {
+        return PlatformServiceItemType::query()
+            ->where('is_active', 1)
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderBy('id')
-            ->get();
+            ->pluck('key')
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function allowedItemTypesFor(int $businessId, int $serviceId): array
     {
-        if (! $businessId || ! $serviceId) {
-            return [];
-        }
+        if (! $businessId || ! $serviceId) return [];
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
+        if (! $business) return [];
 
-        if (! $business) {
-            return [];
-        }
+        $service = PlatformService::query()->find($serviceId, ['id', 'key']);
+        if (! $service) return [];
 
-        $service = PlatformService::query()
-            ->find($serviceId, ['id', 'key']);
-
-        if (! $service) {
-            return [];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | المصدر الأساسي لأنواع العناصر
-        |--------------------------------------------------------------------------
-        | بعد BIM-PlatformService-ItemTypes-Architecture:
-        | platform_service_item_types هو المصدر الأساسي.
-        | CategoryServiceConfig.allowed_item_types يستخدم فقط كتقييد اختياري
-        | وليس كمصدر رئيسي.
-        |--------------------------------------------------------------------------
-        */
         $baseTypes = PlatformServiceItemType::query()
             ->where('platform_service_id', (int) $service->id)
             ->where('is_active', 1)
@@ -353,69 +365,28 @@ class BookableItemController extends Controller
             ->values()
             ->all();
 
-        if ($baseTypes === []) {
-            return [];
-        }
+        if ($baseTypes === []) return [];
 
         $serviceConfig = null;
+        if ($childId > 0) $serviceConfig = CategoryServiceConfig::query()->forChild($childId)->forService((int) $service->id)->active()->first();
+        if (! $serviceConfig && $categoryId > 0) $serviceConfig = CategoryServiceConfig::query()->forCategory($categoryId)->forService((int) $service->id)->active()->first();
+        if (! $serviceConfig) return $baseTypes;
 
-        if ($childId > 0) {
-            $serviceConfig = CategoryServiceConfig::query()
-                ->forChild($childId)
-                ->forService((int) $service->id)
-                ->active()
-                ->first();
-        }
-
-        if (! $serviceConfig && $categoryId > 0) {
-            $serviceConfig = CategoryServiceConfig::query()
-                ->forCategory($categoryId)
-                ->forService((int) $service->id)
-                ->active()
-                ->first();
-        }
-
-        if (! $serviceConfig) {
-            return $baseTypes;
-        }
-
-        $config = is_array($serviceConfig->config)
-            ? $serviceConfig->config
-            : [];
-
+        $config = is_array($serviceConfig->config) ? $serviceConfig->config : [];
         $restrictedTypes = $config['allowed_item_types'] ?? [];
+        if (! is_array($restrictedTypes) || $restrictedTypes === []) return $baseTypes;
 
-        if (! is_array($restrictedTypes) || $restrictedTypes === []) {
-            return $baseTypes;
-        }
+        $restrictedTypes = collect($restrictedTypes)->map(fn ($value) => trim((string) $value))->filter()->unique()->values()->all();
 
-        $restrictedTypes = collect($restrictedTypes)
-            ->map(fn ($value) => trim((string) $value))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        return collect($baseTypes)
-            ->filter(fn ($type) => in_array($type, $restrictedTypes, true))
-            ->values()
-            ->all();
+        return collect($baseTypes)->filter(fn ($type) => in_array($type, $restrictedTypes, true))->values()->all();
     }
 
     protected function resolveBusinessContext(int $businessId): array
     {
-        if (! $businessId) {
-            return [null, 0, 0];
-        }
+        if (! $businessId) return [null, 0, 0];
 
-        $business = User::query()
-            ->where('id', $businessId)
-            ->where('type', 'business')
-            ->first();
-
-        if (! $business) {
-            return [null, 0, 0];
-        }
+        $business = User::query()->where('id', $businessId)->where('type', 'business')->first();
+        if (! $business) return [null, 0, 0];
 
         $categoryId = (int) ($business->getAttribute('category_id') ?? 0);
         $childId = (int) ($business->getAttribute('category_child_id') ?? 0);

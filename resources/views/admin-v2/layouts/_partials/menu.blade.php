@@ -48,15 +48,23 @@
             ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
             ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
         ]],
-        ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
-            ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
-            ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
-            ['label' => 'Bookable Allocations', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
-            ['label' => 'Commercial Offers', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
-            ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
-            ['label' => 'Fee Promotions', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
-            ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
-            ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
+        ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
+            ['label' => 'Service Setup', 'type' => 'section', 'children' => [
+                ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
+                ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
+                ['label' => 'Service Catalog Matrix', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
+            ]],
+            ['label' => 'Service Linking & Pricing', 'type' => 'section', 'children' => [
+                ['label' => 'Category Services Bulk', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
+                ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
+                ['label' => 'Fee Promotions', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
+            ]],
+            ['label' => 'Commercial Operations', 'type' => 'section', 'children' => [
+                ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
+                ['label' => 'Bookable Allocations', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
+                ['label' => 'Commercial Offers', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
+                ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
+            ]],
         ]],
         ['label' => 'Bookings', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.'], 'children' => [
             ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
@@ -99,6 +107,14 @@
 
             if ($hasChildren) {
                 foreach ($children as $child) {
+                    if (($child['type'] ?? null) === 'section') {
+                        foreach (($child['children'] ?? []) as $sectionChild) {
+                            $sectionChildRoute = $sectionChild['route'] ?? null;
+                            if ($sectionChildRoute && Route::has($sectionChildRoute) && $isActive($sectionChild)) { $open = true; break 2; }
+                        }
+                        continue;
+                    }
+
                     $childRoute = $child['route'] ?? null;
                     if ($childRoute && Route::has($childRoute) && $isActive($child)) { $open = true; break; }
                 }
@@ -121,18 +137,40 @@
                     </summary>
                     <ul class="a2-nav-children">
                         @foreach($children as $child)
-                            @php
-                                $childRoute = $child['route'] ?? null;
-                                $childExists = $childRoute && Route::has($childRoute);
-                                $childHref = $childExists ? route($childRoute) : '#';
-                                $childActive = $childExists && $isActive($child);
-                            @endphp
-                            <li>
-                                <a class="a2-nav-child-link {{ $childActive ? 'is-active' : '' }} {{ ! $childExists ? 'is-disabled' : '' }}" href="{{ $childHref }}" aria-current="{{ $childActive ? 'page' : 'false' }}" aria-disabled="{{ $childExists ? 'false' : 'true' }}">
-                                    <span class="a2-nav-bullet"></span>
-                                    <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
-                                </a>
-                            </li>
+                            @if(($child['type'] ?? null) === 'section')
+                                <li class="a2-nav-section">
+                                    <div class="a2-nav-section-label">{{ $child['label'] ?? '—' }}</div>
+                                    <ul class="a2-nav-section-items">
+                                        @foreach(($child['children'] ?? []) as $sectionChild)
+                                            @php
+                                                $sectionChildRoute = $sectionChild['route'] ?? null;
+                                                $sectionChildExists = $sectionChildRoute && Route::has($sectionChildRoute);
+                                                $sectionChildHref = $sectionChildExists ? route($sectionChildRoute) : '#';
+                                                $sectionChildActive = $sectionChildExists && $isActive($sectionChild);
+                                            @endphp
+                                            <li>
+                                                <a class="a2-nav-child-link {{ $sectionChildActive ? 'is-active' : '' }} {{ ! $sectionChildExists ? 'is-disabled' : '' }}" href="{{ $sectionChildHref }}" aria-current="{{ $sectionChildActive ? 'page' : 'false' }}" aria-disabled="{{ $sectionChildExists ? 'false' : 'true' }}">
+                                                    <span class="a2-nav-bullet"></span>
+                                                    <span class="a2-nav-text">{{ $sectionChild['label'] ?? '—' }}</span>
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </li>
+                            @else
+                                @php
+                                    $childRoute = $child['route'] ?? null;
+                                    $childExists = $childRoute && Route::has($childRoute);
+                                    $childHref = $childExists ? route($childRoute) : '#';
+                                    $childActive = $childExists && $isActive($child);
+                                @endphp
+                                <li>
+                                    <a class="a2-nav-child-link {{ $childActive ? 'is-active' : '' }} {{ ! $childExists ? 'is-disabled' : '' }}" href="{{ $childHref }}" aria-current="{{ $childActive ? 'page' : 'false' }}" aria-disabled="{{ $childExists ? 'false' : 'true' }}">
+                                        <span class="a2-nav-bullet"></span>
+                                        <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
+                                    </a>
+                                </li>
+                            @endif
                         @endforeach
                     </ul>
                 </details>

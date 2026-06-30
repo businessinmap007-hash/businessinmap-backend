@@ -1,0 +1,49 @@
+/* Admin V2 hot fixes: long selects and form overlap */
+.admin-v2 .a2-card,
+.admin-v2 .a2-card--section,
+.admin-v2 .a2-card-body,
+.admin-v2 .a2-form-grid,
+.admin-v2 .a2-form-grid-3 {
+  overflow: visible;
+}
+
+.admin-v2 .a2-form-group {
+  min-width: 0;
+}
+
+.admin-v2 select.a2-select,
+.admin-v2 .a2-select,
+.admin-v2 .a2-input,
+.admin-v2 .a2-textarea {
+  max-width: 100%;
+}
+
+.admin-v2 .ts-wrapper,
+.admin-v2 .ts-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-v2 .ts-dropdown {
+  z-index: 10050;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.admin-v2-business-service-prices-create .a2-card,
+.admin-v2-business-service-prices-edit .a2-card,
+.admin-v2-bookable-items-create .a2-card,
+.admin-v2-bookable-items-edit .a2-card {
+  position: relative;
+}
+
+.admin-v2-business-service-prices-create .a2-form-grid,
+.admin-v2-business-service-prices-edit .a2-form-grid,
+.admin-v2-bookable-items-create .a2-form-grid,
+.admin-v2-bookable-items-edit .a2-form-grid {
+  align-items: start;
+}
+
+.admin-v2 .a2-page-narrow {
+  max-width: 1320px;
+}

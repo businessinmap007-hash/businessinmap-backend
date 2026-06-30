@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->configureLocale();
         $this->configureUrl();
+        $this->registerRouteBindings();
         $this->shareAdminV2Data();
         $this->registerAdminV2ProtectionRoutes();
     }
@@ -62,6 +65,11 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 
+    private function registerRouteBindings(): void
+    {
+        Route::model('business_service_price', BusinessServicePrice::class);
+    }
+
     private function shareAdminV2Data(): void
     {
         View::composer('admin-v2.*', function ($view) {
@@ -81,7 +89,7 @@ class AppServiceProvider extends ServiceProvider
 
     private function registerAdminV2ProtectionRoutes(): void
     {
-        \Illuminate\Support\Facades\Route::middleware(['web', 'admin.v2'])
+        Route::middleware(['web', 'admin.v2'])
             ->prefix('admin')
             ->name('admin.')
             ->get('bookings/protection-preview', [\App\Http\Controllers\AdminV2\BookingProtectionController::class, 'preview'])

@@ -87,7 +87,9 @@ final class GuaranteeAutoDowngradeService
                 ];
             }
 
-            if ($this->isDowngrade($oldEffectiveLevelId, $newEffectiveLevelId)) {
+            $isDowngrade = $this->isDowngrade($oldEffectiveLevelId, $newEffectiveLevelId);
+
+            if ($isDowngrade) {
                 $lockedGuarantee->downgraded_at = now();
             }
 
@@ -102,10 +104,13 @@ final class GuaranteeAutoDowngradeService
 
             $lockedGuarantee->save();
 
+            $transactionType = $isDowngrade ? 'upgrade' : 'lock';
+            $logicalType = $isDowngrade ? 'downgrade' : 'coverage_sync';
+
             GuaranteeTransaction::create([
                 'user_id' => (int) $lockedGuarantee->user_id,
                 'user_guarantee_id' => (int) $lockedGuarantee->id,
-                'type' => $this->isDowngrade($oldEffectiveLevelId, $newEffectiveLevelId) ? 'downgrade' : 'coverage_sync',
+                'type' => $transactionType,
                 'amount' => 0,
                 'coverage_amount' => $newCoverage,
                 'balance_before' => null,
@@ -114,7 +119,7 @@ final class GuaranteeAutoDowngradeService
                 'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
-                'reason' => $this->isDowngrade($oldEffectiveLevelId, $newEffectiveLevelId)
+                'reason' => $isDowngrade
                     ? 'Guarantee auto downgrade'
                     : 'Guarantee coverage status sync',
                 'idempotency_key' => $meta['idempotency_key'] ?? $this->buildIdempotencyKey(
@@ -125,6 +130,8 @@ final class GuaranteeAutoDowngradeService
                     $referenceId
                 ),
                 'meta' => array_merge($meta, [
+                    'logical_type' => $logicalType,
+                    'stored_type' => $transactionType,
                     'old_effective_level_id' => $oldEffectiveLevelId,
                     'new_effective_level_id' => $newEffectiveLevelId,
                     'old_status' => $oldStatus,
@@ -140,7 +147,7 @@ final class GuaranteeAutoDowngradeService
 
             return [
                 'changed' => true,
-                'reason' => $this->isDowngrade($oldEffectiveLevelId, $newEffectiveLevelId) ? 'downgraded' : 'synced',
+                'reason' => $isDowngrade ? 'downgraded' : 'synced',
                 'guarantee' => $lockedGuarantee->refresh(),
                 'level' => $bestLevel,
             ];
@@ -214,10 +221,13 @@ final class GuaranteeAutoDowngradeService
             );
             $lockedGuarantee->save();
 
+            $logicalType = $bestLevel ? 'downgrade' : 'suspend';
+            $storedType = $bestLevel ? 'upgrade' : 'lock';
+
             GuaranteeTransaction::create([
                 'user_id' => (int) $lockedGuarantee->user_id,
                 'user_guarantee_id' => (int) $lockedGuarantee->id,
-                'type' => $bestLevel ? 'downgrade' : 'suspend',
+                'type' => $storedType,
                 'amount' => 0,
                 'coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
                 'balance_before' => null,
@@ -231,6 +241,8 @@ final class GuaranteeAutoDowngradeService
                     : 'Guarantee grace period expired - suspended',
                 'idempotency_key' => $meta['idempotency_key'] ?? $this->buildGraceIdempotencyKey($lockedGuarantee, $referenceType, $referenceId),
                 'meta' => array_merge($meta, [
+                    'logical_type' => $logicalType,
+                    'stored_type' => $storedType,
                     'old_purchased_level_id' => $oldPurchasedLevelId,
                     'new_purchased_level_id' => $bestLevel ? (int) $bestLevel->id : null,
                     'old_effective_level_id' => $oldEffectiveLevelId,

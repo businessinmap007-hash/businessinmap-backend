@@ -1,4 +1,16 @@
 (function () {
+    function loadAdminFixesCss() {
+        if (document.querySelector('link[data-admin-fixes="1"]')) {
+            return;
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/admin-v2/css/admin-fixes.css';
+        link.dataset.adminFixes = '1';
+        document.head.appendChild(link);
+    }
+
     function money(value, currency) {
         return Number(value || 0).toFixed(2) + ' ' + (currency || 'EGP');
     }
@@ -199,6 +211,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        loadAdminFixesCss();
         ensureCard();
         ['user_id', 'business_id', 'bookable_id', 'quantity'].forEach(function (id) {
             const el = document.getElementById(id);

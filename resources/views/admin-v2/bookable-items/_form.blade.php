@@ -4,12 +4,15 @@
     $defaultServiceId = old('service_id', $row->service_id ?? '');
     $defaultType = old('item_type', $row->item_type ?? '');
     $typeOptions = $allowedItemTypes ?? [];
+    $itemTypeLabels = $itemTypeLabels ?? [];
+    $itemTypesByBusinessService = is_array($itemTypesByBusinessService ?? null) ? $itemTypesByBusinessService : [];
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
     <div class="a2-section-title">تنظيم عناصر الحجز الفعلية</div>
     <div class="a2-section-subtitle">
-        Bookable Item هو العنصر الحقيقي الذي يختاره العميل في الحجز. لا نحتاج عنوانًا مستقلًا؛ الكود أو رقم الغرفة هو المعرف الأساسي مثل 101 أو A1 أو Table-5.
+        Bookable Item هو العنصر الحقيقي الذي يختاره العميل في الحجز. نوع العنصر هنا لا يأتي من كتابة حرة، بل من تقاطع:
+        <span dir="ltr">Platform Service Item Types</span> + <span dir="ltr">Service Catalog Matrix</span> + القسم الفرعي للبزنس.
     </div>
 </div>
 
@@ -17,14 +20,14 @@
     <div class="a2-card-head">
         <div>
             <div class="a2-card-title">البزنس والخدمة</div>
-            <div class="a2-card-sub">اكتب داخل خانة البزنس أو الخدمة للبحث والتصفية بسرعة.</div>
+            <div class="a2-card-sub">بعد اختيار البزنس والخدمة سيتم تضييق نوع العنصر حسب إعدادات الأدمن للقسم الفرعي.</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
             <label class="a2-label">البزنس</label>
-            <select name="business_id" class="a2-select js-bookable-search-select" required data-placeholder="اكتب اسم البزنس">
+            <select name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="اكتب اسم البزنس">
                 <option value="">اختر البزنس</option>
                 @foreach($businesses as $b)
                     <option value="{{ $b->id }}" @selected((string) $defaultBusinessId === (string) $b->id)>{{ $b->name }}</option>
@@ -34,7 +37,7 @@
 
         <div class="a2-form-group">
             <label class="a2-label">الخدمة</label>
-            <select name="service_id" class="a2-select js-bookable-search-select" required data-placeholder="اكتب اسم الخدمة">
+            <select name="service_id" class="a2-select js-bookable-service js-bookable-search-select" required data-placeholder="اكتب اسم الخدمة">
                 <option value="">اختر الخدمة</option>
                 @foreach($services as $s)
                     <option value="{{ $s->id }}" @selected((string) $defaultServiceId === (string) $s->id)>{{ $s->name_ar ?? $s->name_en ?? $s->key }}</option>
@@ -45,16 +48,13 @@
         @if($isEdit)
             <div class="a2-form-group">
                 <label class="a2-label">نوع العنصر</label>
-                @if(!empty($typeOptions))
-                    <select name="item_type" class="a2-select js-bookable-search-select" required data-placeholder="اختر نوع العنصر">
-                        <option value="">اختر النوع</option>
-                        @foreach($typeOptions as $type)
-                            <option value="{{ $type }}" @selected((string) $defaultType === (string) $type)>{{ $type }}</option>
-                        @endforeach
-                    </select>
-                @else
-                    <input type="text" name="item_type" class="a2-input" value="{{ $defaultType }}" required>
-                @endif
+                <select name="item_type" class="a2-select js-bookable-type js-bookable-search-select" required data-current-value="{{ $defaultType }}" data-placeholder="اختر نوع العنصر">
+                    <option value="">اختر النوع</option>
+                    @foreach($typeOptions as $type)
+                        <option value="{{ $type }}" @selected((string) $defaultType === (string) $type)>{{ $itemTypeLabels[$type] ?? $type }}</option>
+                    @endforeach
+                </select>
+                <div class="a2-hint a2-mt-8 js-bookable-type-hint">يتم تحديث القائمة حسب البزنس والخدمة.</div>
             </div>
         @endif
     </div>
@@ -116,16 +116,9 @@
                     @for($i = 0; $i < 8; $i++)
                         <tr>
                             <td>
-                                @if(!empty($typeOptions))
-                                    <select name="items[{{ $i }}][item_type]" class="a2-select js-bookable-search-select" data-placeholder="اختر النوع">
-                                        <option value="">اختر</option>
-                                        @foreach($typeOptions as $type)
-                                            <option value="{{ $type }}">{{ $type }}</option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <input name="items[{{ $i }}][item_type]" class="a2-input" placeholder="room / suite / table">
-                                @endif
+                                <select name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="اختر النوع">
+                                    <option value="">اختر البزنس والخدمة أولًا</option>
+                                </select>
                             </td>
                             <td><input name="items[{{ $i }}][code]" class="a2-input" placeholder="101 / A1 / Table-5"></td>
                             <td><input name="items[{{ $i }}][capacity]" class="a2-input" type="number" min="1" placeholder="مثال: 2"></td>
@@ -139,8 +132,8 @@
             </table>
         </div>
 
-        <div class="a2-alert a2-alert-info a2-mt-16">
-            يمكن ترك الأسطر الفارغة. سيتم إنشاء الأسطر التي تحتوي على نوع عنصر وكود/رقم فقط.
+        <div class="a2-alert a2-alert-info a2-mt-16 js-bookable-type-hint">
+            اختر البزنس والخدمة أولًا. ستظهر فقط أنواع العناصر المسموحة من Service Catalog Matrix لهذا category_child.
         </div>
     </div>
 @endif
@@ -149,7 +142,7 @@
     <div class="a2-card-head">
         <div>
             <div class="a2-card-title">الديبوزت والخصم على المجموعة</div>
-            <div class="a2-card-sub">الديبوزت هنا يطبق على العناصر التي سيتم إنشاؤها. أما الخصم وسعر الخدمة العام فمكانهما Business Service Prices.</div>
+            <div class="a2-card-sub">الديبوزت هنا ضمان/حجز فقط. إلغاء الديبوزت لا يلغي رسوم استخدام الخدمة لصالح التطبيق، ورسوم الخدمة مكانها Service Fees.</div>
         </div>
     </div>
 
@@ -195,7 +188,12 @@ document.addEventListener('click', function (event) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.js-bookable-search-select').forEach(function (select) {
+    const typeMatrix = @json($itemTypesByBusinessService);
+    const businessSelect = document.querySelector('.js-bookable-business');
+    const serviceSelect = document.querySelector('.js-bookable-service');
+    const hintNodes = document.querySelectorAll('.js-bookable-type-hint');
+
+    function initTom(select) {
         if (window.TomSelect && !select.tomselect) {
             new TomSelect(select, {
                 create: false,
@@ -205,7 +203,80 @@ document.addEventListener('DOMContentLoaded', function () {
                 sortField: {field: 'text', direction: 'asc'}
             });
         }
-    });
+    }
+
+    function setHint(message) {
+        hintNodes.forEach(function (node) {
+            node.textContent = message;
+        });
+    }
+
+    function fillSelect(select, options, keepValue) {
+        const ts = select.tomselect || null;
+        if (ts) {
+            ts.clear(true);
+            ts.clearOptions();
+        }
+
+        select.innerHTML = '';
+
+        if (!options.length) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = businessSelect?.value && serviceSelect?.value
+                ? 'لا توجد أنواع مسموحة لهذا الاختيار'
+                : 'اختر البزنس والخدمة أولًا';
+            select.appendChild(option);
+            if (ts) ts.addOption({value: '', text: option.textContent});
+            return;
+        }
+
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = 'اختر النوع';
+        select.appendChild(empty);
+        if (ts) ts.addOption({value: '', text: empty.textContent});
+
+        options.forEach(function (item) {
+            const value = String(item.key || '');
+            const label = String(item.label || value);
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            option.selected = keepValue && value === keepValue;
+            select.appendChild(option);
+            if (ts) ts.addOption({value: value, text: label});
+        });
+
+        if (ts) {
+            ts.refreshOptions(false);
+            if (keepValue) ts.setValue(keepValue, true);
+        }
+    }
+
+    function refreshTypeOptions() {
+        const businessId = String(businessSelect?.value || '');
+        const serviceId = String(serviceSelect?.value || '');
+        const options = (typeMatrix[businessId] && typeMatrix[businessId][serviceId]) ? typeMatrix[businessId][serviceId] : [];
+
+        document.querySelectorAll('.js-bookable-type').forEach(function (select) {
+            const keepValue = String(select.dataset.currentValue || select.value || '');
+            fillSelect(select, options, keepValue);
+        });
+
+        if (!businessId || !serviceId) {
+            setHint('اختر البزنس والخدمة أولًا.');
+        } else if (!options.length) {
+            setHint('لا توجد أنواع عناصر مسموحة لهذا البزنس مع هذه الخدمة. راجع Platform Service Item Types و Service Catalog Matrix.');
+        } else {
+            setHint('تم عرض أنواع العناصر المسموحة فقط لهذا category_child والخدمة.');
+        }
+    }
+
+    document.querySelectorAll('.js-bookable-search-select').forEach(initTom);
+
+    businessSelect?.addEventListener('change', refreshTypeOptions);
+    serviceSelect?.addEventListener('change', refreshTypeOptions);
 
     const depositCheckbox = document.getElementById('deposit_enabled');
     const depositInput = document.getElementById('deposit_percent');
@@ -215,6 +286,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!depositCheckbox.checked) depositInput.value = 0;
     }
     depositCheckbox?.addEventListener('change', toggleDeposit);
+
+    refreshTypeOptions();
     toggleDeposit();
 });
 </script>

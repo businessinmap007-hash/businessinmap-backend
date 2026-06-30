@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureUrl();
         $this->registerRouteBindings();
         $this->shareAdminV2Data();
-        $this->registerAdminV2ProtectionRoutes();
+        $this->registerAdminV2ExtraRoutes();
     }
 
     private function configureLocale(): void
@@ -87,12 +87,20 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    private function registerAdminV2ProtectionRoutes(): void
+    private function registerAdminV2ExtraRoutes(): void
     {
         Route::middleware(['web', 'admin.v2'])
             ->prefix('admin')
             ->name('admin.')
-            ->get('bookings/protection-preview', [\App\Http\Controllers\AdminV2\BookingProtectionController::class, 'preview'])
-            ->name('bookings.protectionPreview');
+            ->group(function () {
+                Route::get('bookings/protection-preview', [\App\Http\Controllers\AdminV2\BookingProtectionController::class, 'preview'])
+                    ->name('bookings.protectionPreview');
+
+                Route::get('service-catalog-matrix', [\App\Http\Controllers\AdminV2\ServiceCatalogMatrixController::class, 'index'])
+                    ->name('service-catalog-matrix.index');
+
+                Route::post('service-catalog-matrix/apply', [\App\Http\Controllers\AdminV2\ServiceCatalogMatrixController::class, 'apply'])
+                    ->name('service-catalog-matrix.apply');
+            });
     }
 }

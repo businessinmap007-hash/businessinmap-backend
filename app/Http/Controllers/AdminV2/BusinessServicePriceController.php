@@ -70,12 +70,18 @@ class BusinessServicePriceController extends Controller
     public function create()
     {
         $services = $this->servicesForForm();
-        $itemTypesByService = $this->itemTypesByServiceForForm();
         $businesses = User::query()->select(['id', 'name', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
-        $row = new BusinessServicePrice(['is_active' => 1, 'price' => 0, 'currency' => 'EGP', 'deposit_enabled' => 0, 'deposit_percent' => 0, 'discount_enabled' => 0, 'discount_percent' => 0, 'bookable_item_type' => 'category']);
+        $row = new BusinessServicePrice(['is_active' => 1, 'price' => 0, 'currency' => 'EGP', 'deposit_enabled' => 0, 'deposit_percent' => 0, 'discount_enabled' => 0, 'discount_percent' => 0]);
 
-        return view('admin-v2.business-service-prices.create', compact('row', 'services', 'businesses', 'children', 'itemTypesByService'));
+        return view('admin-v2.business-service-prices.create', [
+            'row' => $row,
+            'services' => $services,
+            'businesses' => $businesses,
+            'children' => $children,
+            'itemTypesByService' => $this->itemTypesByServiceForForm(),
+            'itemTypesByChildService' => $this->itemTypesByChildServiceForForm($children, $services),
+        ]);
     }
 
     public function store(Request $request)
@@ -99,12 +105,18 @@ class BusinessServicePriceController extends Controller
     public function edit(BusinessServicePrice $row)
     {
         $services = $this->servicesForForm();
-        $itemTypesByService = $this->itemTypesByServiceForForm();
         $businesses = User::query()->select(['id', 'name', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
         $row->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_child_id', 'child:id,name_ar,name_en,reorder']);
 
-        return view('admin-v2.business-service-prices.edit', compact('row', 'services', 'businesses', 'children', 'itemTypesByService'));
+        return view('admin-v2.business-service-prices.edit', [
+            'row' => $row,
+            'services' => $services,
+            'businesses' => $businesses,
+            'children' => $children,
+            'itemTypesByService' => $this->itemTypesByServiceForForm(),
+            'itemTypesByChildService' => $this->itemTypesByChildServiceForForm($children, $services),
+        ]);
     }
 
     public function update(Request $request, BusinessServicePrice $row)
@@ -139,7 +151,7 @@ class BusinessServicePriceController extends Controller
             'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
         ], [], ['business_id' => 'البزنس', 'child_id' => 'القسم الفرعي', 'service_id' => 'الخدمة', 'bookable_item_type' => 'نوع العنصر', 'price' => 'السعر']);
 
-        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? '')) ?: 'category';
+        $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? ''));
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP';
         $data['price'] = round((float) $data['price'], 2);
         $data['is_active'] = (int) $request->boolean('is_active');
@@ -185,6 +197,27 @@ class BusinessServicePriceController extends Controller
 
     protected function allowedItemTypesForChildService(int $childId, int $serviceId): array
     {
+        $serviceAllowedForChild = CategoryPlatformService::query()
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->exists();
+
+        if (! $serviceAllowedForChild) return [];
+
+        $baseTypes = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->ordered()
+            ->pluck('key')
+            ->map(fn ($key) => trim((string) $key))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($baseTypes === []) return [];
+
         $configuredTypes = CategoryServiceConfig::query()
             ->where('child_id', $childId)
             ->where('platform_service_id', $serviceId)
@@ -200,9 +233,12 @@ class BusinessServicePriceController extends Controller
             ->values()
             ->all();
 
-        if (! empty($configuredTypes)) return $configuredTypes;
+        if (empty($configuredTypes)) return $baseTypes;
 
-        return PlatformServiceItemType::query()->where('platform_service_id', $serviceId)->where('is_active', 1)->pluck('key')->map(fn ($key) => (string) $key)->values()->all();
+        return collect($baseTypes)
+            ->filter(fn ($type) => in_array($type, $configuredTypes, true))
+            ->values()
+            ->all();
     }
 
     protected function servicesForForm()
@@ -220,6 +256,37 @@ class BusinessServicePriceController extends Controller
             $grouped[$serviceId][] = ['id' => (int) $row->id, 'key' => (string) $row->key, 'name_ar' => (string) ($row->name_ar ?? ''), 'name_en' => (string) ($row->name_en ?? ''), 'label' => $this->itemTypeLabel($row), 'is_default' => (bool) $row->is_default, 'sort_order' => (int) $row->sort_order];
         }
         return $grouped;
+    }
+
+    protected function itemTypesByChildServiceForForm($children, $services): array
+    {
+        $labelsByKey = PlatformServiceItemType::query()
+            ->where('is_active', 1)
+            ->ordered()
+            ->get(['key', 'name_ar', 'name_en'])
+            ->mapWithKeys(fn (PlatformServiceItemType $row) => [(string) $row->key => $this->itemTypeLabel($row)])
+            ->all();
+
+        $matrix = [];
+
+        foreach ($children as $child) {
+            $childId = (int) $child->id;
+
+            foreach ($services as $service) {
+                $serviceId = (int) $service->id;
+                $types = $this->allowedItemTypesForChildService($childId, $serviceId);
+
+                $matrix[$childId][$serviceId] = collect($types)
+                    ->map(fn (string $key) => [
+                        'key' => $key,
+                        'label' => $labelsByKey[$key] ?? $key,
+                    ])
+                    ->values()
+                    ->all();
+            }
+        }
+
+        return $matrix;
     }
 
     protected function itemTypeLabel(PlatformServiceItemType $row): string

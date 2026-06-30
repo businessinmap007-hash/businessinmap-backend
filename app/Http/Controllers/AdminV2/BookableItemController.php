@@ -59,15 +59,19 @@ class BookableItemController extends Controller
             'service_id' => (int) $request->get('service_id', 0) ?: null,
         ]);
 
+        $services = $this->services();
+        $businesses = $this->businesses();
         $allowedItemTypes = $row->business_id && $row->service_id
             ? $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id)
-            : $this->allActiveItemTypes();
+            : [];
 
         return view('admin-v2.bookable-items.create', [
             'row' => $row,
-            'services' => $this->services(),
-            'businesses' => $this->businesses(),
+            'services' => $services,
+            'businesses' => $businesses,
             'allowedItemTypes' => $allowedItemTypes,
+            'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
+            'itemTypesByBusinessService' => $this->itemTypesByBusinessServiceForForm($businesses, $services),
         ]);
     }
 
@@ -97,12 +101,17 @@ class BookableItemController extends Controller
     public function edit(BookableItem $bookableItem)
     {
         $row = $bookableItem->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_id,category_child_id']);
+        $services = $this->services();
+        $businesses = $this->businesses();
+        $allowedItemTypes = $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id);
 
         return view('admin-v2.bookable-items.edit', [
             'row' => $row,
-            'services' => $this->services(),
-            'businesses' => $this->businesses(),
-            'allowedItemTypes' => $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id),
+            'services' => $services,
+            'businesses' => $businesses,
+            'allowedItemTypes' => $allowedItemTypes,
+            'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
+            'itemTypesByBusinessService' => $this->itemTypesByBusinessServiceForForm($businesses, $services),
         ]);
     }
 
@@ -147,7 +156,7 @@ class BookableItemController extends Controller
 
         $this->ensureServiceEnabledForBusiness($businessId, $serviceId);
         $allowedItemTypes = $this->allowedItemTypesFor($businessId, $serviceId);
-        if ($allowedItemTypes === []) throw ValidationException::withMessages(['items' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.']);
+        if ($allowedItemTypes === []) throw ValidationException::withMessages(['items' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types ثم اضبطها من Service Catalog Matrix.']);
 
         if (! (bool) $service->supports_deposit) {
             $depositEnabled = 0;
@@ -168,7 +177,7 @@ class BookableItemController extends Controller
             }
 
             if ($type === '' || ! in_array($type, $allowedItemTypes, true)) {
-                throw ValidationException::withMessages(["items.{$index}.item_type" => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.']);
+                throw ValidationException::withMessages(["items.{$index}.item_type" => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل لهذا القسم الفرعي.']);
             }
 
             if ($code === '') {
@@ -245,8 +254,8 @@ class BookableItemController extends Controller
         $this->ensureServiceEnabledForBusiness((int) $business->id, (int) $service->id);
 
         $allowedItemTypes = $this->allowedItemTypesFor((int) $business->id, (int) $service->id);
-        if ($allowedItemTypes === []) throw ValidationException::withMessages(['item_type' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types.']);
-        if (! in_array($data['item_type'], $allowedItemTypes, true)) throw ValidationException::withMessages(['item_type' => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل.']);
+        if ($allowedItemTypes === []) throw ValidationException::withMessages(['item_type' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types ثم اضبطها من Service Catalog Matrix.']);
+        if (! in_array($data['item_type'], $allowedItemTypes, true)) throw ValidationException::withMessages(['item_type' => 'نوع العنصر غير مسموح لهذه الخدمة أو غير مفعل لهذا القسم الفرعي.']);
 
         $duplicateQuery = BookableItem::query()
             ->where('business_id', $data['business_id'])
@@ -361,6 +370,46 @@ class BookableItemController extends Controller
         $restrictedTypes = collect($restrictedTypes)->map(fn ($value) => trim((string) $value))->filter()->unique()->values()->all();
 
         return collect($baseTypes)->filter(fn ($type) => in_array($type, $restrictedTypes, true))->values()->all();
+    }
+
+    protected function itemTypeLabelsFor(array $keys): array
+    {
+        if ($keys === []) return [];
+
+        return PlatformServiceItemType::query()
+            ->whereIn('key', $keys)
+            ->where('is_active', 1)
+            ->ordered()
+            ->get(['key', 'name_ar', 'name_en'])
+            ->mapWithKeys(fn (PlatformServiceItemType $row) => [
+                (string) $row->key => $row->displayName('ar'),
+            ])
+            ->all();
+    }
+
+    protected function itemTypesByBusinessServiceForForm($businesses, $services): array
+    {
+        $matrix = [];
+
+        foreach ($businesses as $business) {
+            $businessId = (int) $business->id;
+
+            foreach ($services as $service) {
+                $serviceId = (int) $service->id;
+                $types = $this->allowedItemTypesFor($businessId, $serviceId);
+                $labels = $this->itemTypeLabelsFor($types);
+
+                $matrix[$businessId][$serviceId] = collect($types)
+                    ->map(fn (string $key) => [
+                        'key' => $key,
+                        'label' => $labels[$key] ?? $key,
+                    ])
+                    ->values()
+                    ->all();
+            }
+        }
+
+        return $matrix;
     }
 
     protected function resolveBusinessContext(int $businessId): array

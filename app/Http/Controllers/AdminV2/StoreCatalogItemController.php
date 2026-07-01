@@ -11,6 +11,13 @@ class StoreCatalogItemController extends Controller
 {
     public function index(Request $request)
     {
+        if ($request->ajax()) {
+            $lookup = (string) $request->get('lookup', 'table');
+            if ($lookup === 'products') return $this->productLookup($request);
+            if ($lookup === 'businesses') return $this->businessLookup($request);
+            return $this->table($request);
+        }
+
         $businessId = (int) $request->get('business_id', 0);
         $childId = (int) $request->get('child_id', 0);
         $q = trim((string) $request->get('q', ''));
@@ -44,7 +51,7 @@ class StoreCatalogItemController extends Controller
         return view('admin-v2.store-catalog-items.index', compact('rows', 'businesses', 'children', 'stats', 'businessId', 'childId', 'q', 'status'));
     }
 
-    public function table(Request $request)
+    protected function table(Request $request)
     {
         $businessId = (int) $request->get('business_id', 0);
         $childId = (int) $request->get('child_id', 0);
@@ -63,7 +70,7 @@ class StoreCatalogItemController extends Controller
         ]);
     }
 
-    public function productLookup(Request $request)
+    protected function productLookup(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
         $childId = (int) $request->get('child_id', 0);
@@ -71,16 +78,7 @@ class StoreCatalogItemController extends Controller
         $rows = DB::table('catalog_products as cp')
             ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
             ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
-            ->select(
-                'cp.id',
-                'cp.bim_code',
-                'cp.name_ar',
-                'cp.name_en',
-                'cp.package_label_ar',
-                'cp.package_label_en',
-                'pcc.name_ar as child_name_ar',
-                'cb.name_ar as brand_name_ar'
-            )
+            ->select('cp.id', 'cp.bim_code', 'cp.name_ar', 'cp.name_en', 'cp.package_label_ar', 'cp.package_label_en', 'pcc.name_ar as child_name_ar', 'cb.name_ar as brand_name_ar')
             ->where('cp.is_active', 1)
             ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
             ->when($q !== '', function ($query) use ($q) {
@@ -114,7 +112,7 @@ class StoreCatalogItemController extends Controller
         ]);
     }
 
-    public function businessLookup(Request $request)
+    protected function businessLookup(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
 
@@ -156,10 +154,7 @@ class StoreCatalogItemController extends Controller
         ]);
 
         DB::table('business_catalog_products')->updateOrInsert(
-            [
-                'business_id' => (int) $data['business_id'],
-                'catalog_product_id' => (int) $data['catalog_product_id'],
-            ],
+            ['business_id' => (int) $data['business_id'], 'catalog_product_id' => (int) $data['catalog_product_id']],
             [
                 'price' => round((float) $data['price'], 2),
                 'offer_price' => isset($data['offer_price']) && $data['offer_price'] !== null ? round((float) $data['offer_price'], 2) : null,
@@ -189,20 +184,7 @@ class StoreCatalogItemController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 'bcp.business_id')
             ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
             ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
-            ->select(
-                'bcp.*',
-                'cp.bim_code',
-                'cp.name_ar as product_name_ar',
-                'cp.name_en as product_name_en',
-                'cp.package_label_ar',
-                'cp.package_label_en',
-                'cp.main_image',
-                'u.name as business_name',
-                'pcc.name_ar as child_name_ar',
-                'pcc.name_en as child_name_en',
-                'cb.name_ar as brand_name_ar',
-                'cb.name_en as brand_name_en'
-            )
+            ->select('bcp.*', 'cp.bim_code', 'cp.name_ar as product_name_ar', 'cp.name_en as product_name_en', 'cp.package_label_ar', 'cp.package_label_en', 'cp.main_image', 'u.name as business_name', 'pcc.name_ar as child_name_ar', 'pcc.name_en as child_name_en', 'cb.name_ar as brand_name_ar', 'cb.name_en as brand_name_en')
             ->when($businessId > 0, fn ($query) => $query->where('bcp.business_id', $businessId))
             ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
             ->when($status !== '', fn ($query) => $query->where('bcp.status', $status))

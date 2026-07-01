@@ -5,7 +5,6 @@ use App\Models\User;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminV2\CategoryServiceBulkController;
-use App\Http\Controllers\AdminV2\StoreCatalogItemController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,12 +52,6 @@ Route::prefix('administrator')->middleware(['auth:admin'])->group(function () {
 
 Route::prefix('admin')->middleware(['web'])->group(function () {
     Route::post('category-services-bulk/apply', [CategoryServiceBulkController::class, 'apply'])->name('admin.category-services-bulk.apply');
-});
-
-Route::prefix('admin')->middleware(['admin.v2'])->name('admin.')->group(function () {
-    Route::get('store-catalog-items', [StoreCatalogItemController::class, 'index'])->name('store-catalog-items.index');
-    Route::post('store-catalog-items', [StoreCatalogItemController::class, 'store'])->name('store-catalog-items.store');
-    Route::delete('store-catalog-items/{id}', [StoreCatalogItemController::class, 'destroy'])->whereNumber('id')->name('store-catalog-items.destroy');
 });
 
 Route::get('/_disabled/category-products', function () {

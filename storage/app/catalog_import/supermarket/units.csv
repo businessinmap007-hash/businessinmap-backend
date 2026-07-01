@@ -1,0 +1,7 @@
+code,name_ar,name_en,unit_type,is_active,sort_order
+g,جم,Gram,weight,1,10
+kg,كجم,Kilogram,weight,1,20
+ml,مل,Milliliter,volume,1,30
+liter,لتر,Liter,volume,1,40
+pcs,قطعة,Piece,count,1,50
+pack,عبوة,Pack,count,1,60

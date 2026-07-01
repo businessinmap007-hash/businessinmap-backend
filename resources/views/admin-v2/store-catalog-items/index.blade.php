@@ -46,16 +46,16 @@
         <form method="POST" action="{{ route('admin.store-catalog-items.store') }}" class="a2-filterbar" style="align-items:flex-end;gap:12px;">
             @csrf
 
-            <div style="min-width:260px;">
+            <div class="a2-remote-field" style="min-width:260px;">
                 <label class="a2-label">المتجر</label>
-                <select id="businessLookup" class="a2-select" name="business_id" required>
+                <select id="businessLookup" name="business_id" required>
                     <option value="">اكتب اسم المتجر...</option>
                 </select>
             </div>
 
-            <div style="min-width:360px;flex:1;">
+            <div class="a2-remote-field" style="min-width:360px;flex:1;">
                 <label class="a2-label">المنتج</label>
-                <select id="productLookup" class="a2-select" name="catalog_product_id" required>
+                <select id="productLookup" name="catalog_product_id" required>
                     <option value="">اكتب اسم المنتج أو الكود...</option>
                 </select>
             </div>
@@ -132,11 +132,43 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    .admin-v2-store-catalog-items-index .a2-remote-field .ts-wrapper {
+        width: 100%;
+        min-height: 48px;
+    }
+    .admin-v2-store-catalog-items-index .a2-remote-field .ts-control {
+        min-height: 48px;
+        border: 1px solid var(--a2-border, #e5e7eb) !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        background: #fff !important;
+        padding: 9px 14px !important;
+        display: flex;
+        align-items: center;
+    }
+    .admin-v2-store-catalog-items-index .a2-remote-field .ts-control input {
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+    }
+    .admin-v2-store-catalog-items-index .a2-remote-field .ts-dropdown {
+        border-radius: 14px;
+        overflow: hidden;
+        border-color: var(--a2-border, #e5e7eb);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .12);
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
     const indexUrl = @json(route('admin.store-catalog-items.index'));
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const rowsBox = document.getElementById('storeCatalogRows');
     const statusBox = document.getElementById('liveSearchStatus');
     const pagination = document.getElementById('serverPagination');
@@ -164,9 +196,7 @@
 
         statusBox.textContent = 'جاري البحث...';
         try {
-            const res = await fetch(indexUrl + '?' + params.toString(), {
-                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
-            });
+            const res = await fetch(indexUrl + '?' + params.toString(), {headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}});
             const data = await res.json();
             rowsBox.innerHTML = data.html || '';
             statusBox.textContent = 'عدد النتائج الحالية: ' + (data.count || 0);
@@ -207,12 +237,10 @@
                 params.set('lookup', lookup);
                 params.set('q', query || '');
                 if (lookup === 'products') params.set('child_id', childFilter?.value || '0');
-                fetch(indexUrl + '?' + params.toString(), {
-                    headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
-                })
-                .then(r => r.json())
-                .then(json => callback(json.results || []))
-                .catch(() => callback());
+                fetch(indexUrl + '?' + params.toString(), {headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
+                    .then(r => r.json())
+                    .then(json => callback(json.results || []))
+                    .catch(() => callback());
             }
         });
     }

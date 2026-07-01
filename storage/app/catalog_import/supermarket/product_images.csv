@@ -1,2 +1,11 @@
-﻿product_bim_code,image_path,image_type,width,height,size_bytes,alt_ar,alt_en,is_primary,sort_order,source_name,source_url,license_note
-BIM-EG-SM-000001,catalog/products/supermarket/dairy/juhayna-full-cream-milk-1l.webp,main,400,400,0,جهينة لبن كامل الدسم,Juhayna Full Cream Milk,1,10,placeholder,,Replace with licensed image before production
+product_bim_code,image_path,image_type,width,height,size_bytes,alt_ar,alt_en,is_primary,sort_order,source_name,source_url,license_note
+BIM-EG-SM-000001,catalog/products/supermarket/dairy-cheese/juhayna-full-cream-milk-1l.webp,main,400,400,0,جهينة لبن كامل الدسم 1 لتر,Juhayna Full Cream Milk 1L,1,10,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000002,catalog/products/supermarket/dairy-cheese/juhayna-full-cream-milk-500ml.webp,main,400,400,0,جهينة لبن كامل الدسم نصف لتر,Juhayna Full Cream Milk 500ml,1,20,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000003,catalog/products/supermarket/dairy-cheese/juhayna-skimmed-milk-1l.webp,main,400,400,0,جهينة لبن خالي الدسم 1 لتر,Juhayna Skimmed Milk 1L,1,30,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000004,catalog/products/supermarket/dairy-cheese/juhayna-plain-yogurt-105g.webp,main,400,400,0,جهينة زبادي طبيعي 105 جم,Juhayna Plain Yogurt 105g,1,40,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000005,catalog/products/supermarket/dairy-cheese/juhayna-plain-yogurt-170g.webp,main,400,400,0,جهينة زبادي طبيعي 170 جم,Juhayna Plain Yogurt 170g,1,50,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000006,catalog/products/supermarket/dairy-cheese/domty-feta-cheese-250g.webp,main,400,400,0,دومتي جبنة فيتا 250 جم,Domty Feta Cheese 250g,1,60,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000007,catalog/products/supermarket/dairy-cheese/domty-feta-cheese-500g.webp,main,400,400,0,دومتي جبنة فيتا 500 جم,Domty Feta Cheese 500g,1,70,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000008,catalog/products/supermarket/dairy-cheese/domty-istanbuly-cheese-250g.webp,main,400,400,0,دومتي جبنة اسطنبولي 250 جم,Domty Istanbuly Cheese 250g,1,80,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000009,catalog/products/supermarket/dairy-cheese/domty-istanbuly-cheese-500g.webp,main,400,400,0,دومتي جبنة اسطنبولي 500 جم,Domty Istanbuly Cheese 500g,1,90,placeholder,,Replace with licensed image before production
+BIM-EG-SM-000010,catalog/products/supermarket/dairy-cheese/almarai-full-cream-milk-1l.webp,main,400,400,0,المراعي لبن كامل الدسم 1 لتر,Almarai Full Cream Milk 1L,1,100,placeholder,,Replace with licensed image before production

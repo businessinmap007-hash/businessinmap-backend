@@ -29,46 +29,10 @@ class StoreCatalogItemController extends Controller
             ->orderBy('id')
             ->get();
 
-        $rows = DB::table('business_catalog_products as bcp')
-            ->join('catalog_products as cp', 'cp.id', '=', 'bcp.catalog_product_id')
-            ->leftJoin('users as u', 'u.id', '=', 'bcp.business_id')
-            ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
-            ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
-            ->select(
-                'bcp.*',
-                'cp.bim_code',
-                'cp.name_ar as product_name_ar',
-                'cp.name_en as product_name_en',
-                'cp.package_label_ar',
-                'cp.package_label_en',
-                'cp.main_image',
-                'u.name as business_name',
-                'pcc.name_ar as child_name_ar',
-                'pcc.name_en as child_name_en',
-                'cb.name_ar as brand_name_ar',
-                'cb.name_en as brand_name_en'
-            )
-            ->when($businessId > 0, fn ($query) => $query->where('bcp.business_id', $businessId))
-            ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
-            ->when($status !== '', fn ($query) => $query->where('bcp.status', $status))
-            ->when($q !== '', function ($query) use ($q) {
-                $like = '%' . mb_strtolower($q) . '%';
-                $query->where(function ($sub) use ($like) {
-                    $sub->whereRaw('LOWER(cp.name_ar) LIKE ?', [$like])
-                        ->orWhereRaw('LOWER(cp.name_en) LIKE ?', [$like])
-                        ->orWhereRaw('LOWER(cp.bim_code) LIKE ?', [$like])
-                        ->orWhereRaw('LOWER(u.name) LIKE ?', [$like]);
-                });
-            })
+        $rows = $this->baseRowsQuery($businessId, $childId, $q, $status)
             ->orderByDesc('bcp.id')
             ->paginate(50)
             ->withQueryString();
-
-        $catalogProducts = DB::table('catalog_products')
-            ->select('id', 'bim_code', 'name_ar', 'name_en', 'package_label_ar', 'package_label_en')
-            ->orderBy('id')
-            ->limit(300)
-            ->get();
 
         $stats = [
             'total' => DB::table('business_catalog_products')->count(),
@@ -77,7 +41,106 @@ class StoreCatalogItemController extends Controller
             'out' => DB::table('business_catalog_products')->where('stock_status', 'out_of_stock')->count(),
         ];
 
-        return view('admin-v2.store-catalog-items.index', compact('rows', 'businesses', 'children', 'catalogProducts', 'stats', 'businessId', 'childId', 'q', 'status'));
+        return view('admin-v2.store-catalog-items.index', compact('rows', 'businesses', 'children', 'stats', 'businessId', 'childId', 'q', 'status'));
+    }
+
+    public function table(Request $request)
+    {
+        $businessId = (int) $request->get('business_id', 0);
+        $childId = (int) $request->get('child_id', 0);
+        $q = trim((string) $request->get('q', ''));
+        $status = (string) $request->get('status', '');
+
+        $rows = $this->baseRowsQuery($businessId, $childId, $q, $status)
+            ->orderByDesc('bcp.id')
+            ->limit(80)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'count' => $rows->count(),
+            'html' => view('admin-v2.store-catalog-items._rows', compact('rows'))->render(),
+        ]);
+    }
+
+    public function productLookup(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $childId = (int) $request->get('child_id', 0);
+
+        $rows = DB::table('catalog_products as cp')
+            ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
+            ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
+            ->select(
+                'cp.id',
+                'cp.bim_code',
+                'cp.name_ar',
+                'cp.name_en',
+                'cp.package_label_ar',
+                'cp.package_label_en',
+                'pcc.name_ar as child_name_ar',
+                'cb.name_ar as brand_name_ar'
+            )
+            ->where('cp.is_active', 1)
+            ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%' . mb_strtolower($q) . '%';
+                $query->where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(cp.name_ar) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.name_en) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.bim_code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.search_keywords) LIKE ?', [$like]);
+                });
+            })
+            ->orderBy('cp.id')
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'results' => $rows->map(function ($row) {
+                $name = $row->name_ar ?: ($row->name_en ?: ('#' . $row->id));
+                $size = $row->package_label_ar ?: $row->package_label_en;
+                return [
+                    'id' => (int) $row->id,
+                    'text' => trim($name . ($size ? ' - ' . $size : '') . ' (' . $row->bim_code . ')'),
+                    'name' => $name,
+                    'code' => $row->bim_code,
+                    'child' => $row->child_name_ar,
+                    'brand' => $row->brand_name_ar,
+                    'size' => $size,
+                ];
+            })->values(),
+        ]);
+    }
+
+    public function businessLookup(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        $rows = DB::table('users')
+            ->select('id', 'name', 'email', 'phone')
+            ->where('type', 'business')
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%' . mb_strtolower($q) . '%';
+                $query->where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(name) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(email) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(phone) LIKE ?', [$like]);
+                });
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'results' => $rows->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'text' => ($row->name ?: ('#' . $row->id)) . ' - ID: ' . $row->id,
+                'name' => $row->name ?: ('#' . $row->id),
+            ])->values(),
+        ]);
     }
 
     public function store(Request $request)
@@ -117,5 +180,41 @@ class StoreCatalogItemController extends Controller
     {
         DB::table('business_catalog_products')->where('id', $id)->delete();
         return back()->with('success', 'تم حذف المنتج من المتجر.');
+    }
+
+    protected function baseRowsQuery(int $businessId, int $childId, string $q, string $status)
+    {
+        return DB::table('business_catalog_products as bcp')
+            ->join('catalog_products as cp', 'cp.id', '=', 'bcp.catalog_product_id')
+            ->leftJoin('users as u', 'u.id', '=', 'bcp.business_id')
+            ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
+            ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
+            ->select(
+                'bcp.*',
+                'cp.bim_code',
+                'cp.name_ar as product_name_ar',
+                'cp.name_en as product_name_en',
+                'cp.package_label_ar',
+                'cp.package_label_en',
+                'cp.main_image',
+                'u.name as business_name',
+                'pcc.name_ar as child_name_ar',
+                'pcc.name_en as child_name_en',
+                'cb.name_ar as brand_name_ar',
+                'cb.name_en as brand_name_en'
+            )
+            ->when($businessId > 0, fn ($query) => $query->where('bcp.business_id', $businessId))
+            ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
+            ->when($status !== '', fn ($query) => $query->where('bcp.status', $status))
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%' . mb_strtolower($q) . '%';
+                $query->where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(cp.name_ar) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.name_en) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.bim_code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(u.name) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cb.name_ar) LIKE ?', [$like]);
+                });
+            });
     }
 }

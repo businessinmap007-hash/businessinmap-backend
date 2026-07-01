@@ -15,9 +15,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">منتجات المتاجر من الكتالوج</h1>
-            <div class="a2-page-subtitle">
-                المتجر يختار المنتج من الكتالوج ويضيف السعر والمخزون فقط. الباركود غير مطلوب.
-            </div>
+            <div class="a2-page-subtitle">بحث مباشر باسم المتجر أو المنتج، وربط المنتج بالسعر والمخزون فقط بدون باركود.</div>
         </div>
     </div>
 
@@ -29,58 +27,36 @@
         <div class="a2-alert a2-alert-danger">
             <div class="a2-fw-900 a2-mb-8">يوجد أخطاء:</div>
             <ul style="margin:0;padding-inline-start:18px;">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
+                @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
             </ul>
         </div>
     @endif
 
     <div class="a2-stat-grid" style="margin-bottom:16px;">
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الربط</div>
-            <div class="a2-stat-value">{{ $stats['total'] ?? 0 }}</div>
-        </div>
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">نشط</div>
-            <div class="a2-stat-value">{{ $stats['active'] ?? 0 }}</div>
-        </div>
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">متاح للبيع</div>
-            <div class="a2-stat-value">{{ $stats['available'] ?? 0 }}</div>
-        </div>
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">نفد المخزون</div>
-            <div class="a2-stat-value">{{ $stats['out'] ?? 0 }}</div>
-        </div>
+        <div class="a2-stat-card"><div class="a2-stat-label">إجمالي الربط</div><div class="a2-stat-value">{{ $stats['total'] ?? 0 }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">نشط</div><div class="a2-stat-value">{{ $stats['active'] ?? 0 }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">متاح للبيع</div><div class="a2-stat-value">{{ $stats['available'] ?? 0 }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">نفد المخزون</div><div class="a2-stat-value">{{ $stats['out'] ?? 0 }}</div></div>
     </div>
 
     <div class="a2-card a2-mb-16">
         <div class="a2-section-title">إضافة منتج لمتجر</div>
-        <form method="POST" action="{{ route('admin.store-catalog-items.store') }}" class="a2-filterbar" style="align-items:flex-end;">
+        <div class="a2-section-subtitle">اكتب اسم المتجر أو المنتج وسيتم البحث مباشرة داخل الداتا بدون تحميل كل المنتجات في الصفحة.</div>
+
+        <form method="POST" action="{{ route('admin.store-catalog-items.store') }}" class="a2-filterbar" style="align-items:flex-end;gap:12px;">
             @csrf
 
-            <div>
+            <div style="min-width:260px;">
                 <label class="a2-label">المتجر</label>
-                <select class="a2-select a2-filter-md" name="business_id" required>
-                    <option value="">اختر المتجر</option>
-                    @foreach(($businesses ?? []) as $business)
-                        <option value="{{ $business->id }}">{{ $business->name ?: ('#'.$business->id) }}</option>
-                    @endforeach
+                <select id="businessLookup" class="a2-select" name="business_id" required>
+                    <option value="">اكتب اسم المتجر...</option>
                 </select>
             </div>
 
-            <div>
+            <div style="min-width:360px;flex:1;">
                 <label class="a2-label">المنتج</label>
-                <select class="a2-select a2-filter-lg" name="catalog_product_id" required>
-                    <option value="">اختر من أول 300 منتج</option>
-                    @foreach(($catalogProducts ?? []) as $product)
-                        <option value="{{ $product->id }}">
-                            {{ $product->name_ar ?: $product->name_en }}
-                            @if($product->package_label_ar) - {{ $product->package_label_ar }} @endif
-                            ({{ $product->bim_code }})
-                        </option>
-                    @endforeach
+                <select id="productLookup" class="a2-select" name="catalog_product_id" required>
+                    <option value="">اكتب اسم المنتج أو الكود...</option>
                 </select>
             </div>
 
@@ -99,36 +75,31 @@
                 <input class="a2-input a2-filter-sm" name="stock_quantity" type="number" step="0.001" min="0" value="0">
             </div>
 
-            <label class="a2-check" style="margin-bottom:10px;">
-                <input type="checkbox" name="is_available" value="1" checked>
-                متاح
-            </label>
-
+            <label class="a2-check" style="margin-bottom:10px;"><input type="checkbox" name="is_available" value="1" checked> متاح</label>
             <input type="hidden" name="status" value="active">
-
             <button type="submit" class="a2-btn a2-btn-primary">ربط المنتج</button>
         </form>
     </div>
 
     <div class="a2-card">
-        <form method="GET" action="{{ route('admin.store-catalog-items.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="بحث باسم المنتج أو الكود أو المتجر">
+        <form id="storeCatalogLiveFilter" method="GET" action="{{ route('admin.store-catalog-items.index') }}" class="a2-filterbar">
+            <input id="liveSearchInput" class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="اكتب للبحث المباشر: اسم المنتج / المتجر / البراند / الكود">
 
-            <select class="a2-select a2-filter-md" name="business_id">
+            <select id="liveBusinessFilter" class="a2-select a2-filter-md" name="business_id">
                 <option value="0">كل المتاجر</option>
                 @foreach(($businesses ?? []) as $business)
                     <option value="{{ $business->id }}" @selected($businessIdVal === (int)$business->id)>{{ $business->name ?: ('#'.$business->id) }}</option>
                 @endforeach
             </select>
 
-            <select class="a2-select a2-filter-md" name="child_id">
+            <select id="liveChildFilter" class="a2-select a2-filter-md" name="child_id">
                 <option value="0">كل الأقسام</option>
                 @foreach(($children ?? []) as $child)
                     <option value="{{ $child->id }}" @selected($childIdVal === (int)$child->id)>{{ $child->name_ar ?: $child->name_en }}</option>
                 @endforeach
             </select>
 
-            <select class="a2-select a2-filter-sm" name="status">
+            <select id="liveStatusFilter" class="a2-select a2-filter-sm" name="status">
                 <option value="" @selected($statusVal === '')>كل الحالات</option>
                 <option value="active" @selected($statusVal === 'active')>Active</option>
                 <option value="inactive" @selected($statusVal === 'inactive')>Inactive</option>
@@ -140,6 +111,7 @@
                 <a href="{{ route('admin.store-catalog-items.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
             </div>
         </form>
+        <div id="liveSearchStatus" class="a2-muted" style="margin-top:10px;">النتائج يتم تحديثها أثناء الكتابة.</div>
     </div>
 
     <div class="a2-card" style="margin-top:16px;">
@@ -147,71 +119,106 @@
             <table class="a2-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>المتجر</th>
-                        <th>المنتج</th>
-                        <th>القسم</th>
-                        <th>البراند</th>
-                        <th>السعر</th>
-                        <th>المخزون</th>
-                        <th>الحالة</th>
-                        <th>إجراء</th>
+                        <th>ID</th><th>المتجر</th><th>المنتج</th><th>القسم</th><th>البراند</th><th>السعر</th><th>المخزون</th><th>الحالة</th><th>إجراء</th>
                     </tr>
                 </thead>
-                <tbody>
-                @forelse($rows as $row)
-                    <tr>
-                        <td class="a2-fw-900">{{ $row->id }}</td>
-                        <td>
-                            <div class="a2-fw-900">{{ $row->business_name ?: ('#'.$row->business_id) }}</div>
-                            <div class="a2-muted a2-mt-8">ID: {{ $row->business_id }}</div>
-                        </td>
-                        <td>
-                            <div class="a2-fw-900">{{ $row->product_name_ar ?: $row->product_name_en }}</div>
-                            <div class="a2-muted a2-mt-8" dir="ltr">{{ $row->bim_code }}</div>
-                            @if($row->package_label_ar || $row->package_label_en)
-                                <div class="a2-muted a2-mt-8">{{ $row->package_label_ar ?: $row->package_label_en }}</div>
-                            @endif
-                        </td>
-                        <td>{{ $row->child_name_ar ?: ($row->child_name_en ?: '—') }}</td>
-                        <td>{{ $row->brand_name_ar ?: ($row->brand_name_en ?: '—') }}</td>
-                        <td>
-                            <div class="a2-fw-900">{{ number_format((float)$row->price, 2) }} {{ $row->currency_code ?: 'EGP' }}</div>
-                            @if($row->offer_price !== null)
-                                <div class="a2-pill a2-pill-success a2-mt-8">عرض: {{ number_format((float)$row->offer_price, 2) }}</div>
-                            @endif
-                        </td>
-                        <td>
-                            <div>{{ number_format((float)$row->stock_quantity, 3) }}</div>
-                            <div class="a2-muted a2-mt-8">{{ $row->stock_status }}</div>
-                        </td>
-                        <td>
-                            @if((int)$row->is_available === 1 && $row->status === 'active')
-                                <span class="a2-pill a2-pill-success">متاح</span>
-                            @else
-                                <span class="a2-pill a2-pill-danger">غير متاح</span>
-                            @endif
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ route('admin.store-catalog-items.destroy', $row->id) }}" onsubmit="return confirm('حذف المنتج من المتجر؟')">
-                                @csrf
-                                @method('DELETE')
-                                <button class="a2-btn a2-btn-danger" type="submit">حذف</button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="9" class="a2-empty">لا توجد منتجات مرتبطة بمتاجر حتى الآن.</td>
-                    </tr>
-                @endforelse
+                <tbody id="storeCatalogRows">
+                    @include('admin-v2.store-catalog-items._rows', ['rows' => $rows])
                 </tbody>
             </table>
         </div>
-
-        <div class="a2-pagination">
-            {{ $rows->links() }}
-        </div>
+        <div id="serverPagination" class="a2-pagination">{{ $rows->links() }}</div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const indexUrl = @json(route('admin.store-catalog-items.index'));
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const rowsBox = document.getElementById('storeCatalogRows');
+    const statusBox = document.getElementById('liveSearchStatus');
+    const pagination = document.getElementById('serverPagination');
+    const qInput = document.getElementById('liveSearchInput');
+    const businessFilter = document.getElementById('liveBusinessFilter');
+    const childFilter = document.getElementById('liveChildFilter');
+    const statusFilter = document.getElementById('liveStatusFilter');
+
+    function debounce(fn, wait) {
+        let t;
+        return function () {
+            clearTimeout(t);
+            const args = arguments;
+            t = setTimeout(() => fn.apply(this, args), wait);
+        };
+    }
+
+    async function liveSearch() {
+        const params = new URLSearchParams();
+        params.set('q', qInput.value || '');
+        params.set('business_id', businessFilter.value || '0');
+        params.set('child_id', childFilter.value || '0');
+        params.set('status', statusFilter.value || '');
+        params.set('lookup', 'table');
+
+        statusBox.textContent = 'جاري البحث...';
+        try {
+            const res = await fetch(indexUrl + '?' + params.toString(), {
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+            });
+            const data = await res.json();
+            rowsBox.innerHTML = data.html || '';
+            statusBox.textContent = 'عدد النتائج الحالية: ' + (data.count || 0);
+            if (pagination) pagination.style.display = 'none';
+        } catch (e) {
+            statusBox.textContent = 'حدث خطأ أثناء البحث.';
+        }
+    }
+
+    const runLiveSearch = debounce(liveSearch, 350);
+    qInput?.addEventListener('input', runLiveSearch);
+    businessFilter?.addEventListener('change', liveSearch);
+    childFilter?.addEventListener('change', liveSearch);
+    statusFilter?.addEventListener('change', liveSearch);
+
+    function initRemoteSelect(selector, lookup, placeholder) {
+        const el = document.querySelector(selector);
+        if (!el || typeof TomSelect === 'undefined') return;
+        new TomSelect(el, {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            maxOptions: 30,
+            create: false,
+            placeholder: placeholder,
+            loadThrottle: 350,
+            render: {
+                option: function(item, escape) {
+                    return '<div><div style="font-weight:800">' + escape(item.name || item.text) + '</div>' +
+                        '<div class="a2-muted" style="font-size:12px">' + escape([item.brand, item.child, item.size, item.code].filter(Boolean).join(' · ')) + '</div></div>';
+                },
+                item: function(item, escape) {
+                    return '<div>' + escape(item.text) + '</div>';
+                }
+            },
+            load: function(query, callback) {
+                const params = new URLSearchParams();
+                params.set('lookup', lookup);
+                params.set('q', query || '');
+                if (lookup === 'products') params.set('child_id', childFilter?.value || '0');
+                fetch(indexUrl + '?' + params.toString(), {
+                    headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+                })
+                .then(r => r.json())
+                .then(json => callback(json.results || []))
+                .catch(() => callback());
+            }
+        });
+    }
+
+    initRemoteSelect('#businessLookup', 'businesses', 'اكتب اسم المتجر...');
+    initRemoteSelect('#productLookup', 'products', 'اكتب اسم المنتج أو الكود...');
+})();
+</script>
+@endpush

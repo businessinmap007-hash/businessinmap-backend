@@ -48,6 +48,15 @@
             ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
             ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
         ]],
+        ['label' => 'Catalog', 'route' => 'admin.catalog-manufacturers.index', 'icon' => 'folder', 'active' => ['admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+            ['label' => 'Catalog Products', 'route' => 'admin.catalog-products.index', 'active' => 'admin.catalog-products.'],
+            ['label' => 'Product Categories', 'route' => 'admin.product-categories.index', 'active' => 'admin.product-categories.'],
+            ['label' => 'Product Category Children', 'route' => 'admin.product-category-children.index', 'active' => 'admin.product-category-children.'],
+            ['label' => 'Catalog Brands', 'route' => 'admin.catalog-brands.index', 'active' => 'admin.catalog-brands.'],
+            ['label' => 'Catalog Manufacturers', 'route' => 'admin.catalog-manufacturers.index', 'active' => 'admin.catalog-manufacturers.'],
+            ['label' => 'Units', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
+            ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
+        ]],
         ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
             ['label' => 'Service Setup', 'type' => 'section', 'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],

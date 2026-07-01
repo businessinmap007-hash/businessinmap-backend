@@ -14,6 +14,16 @@ class CatalogProductController extends Controller
     {
         $this->handleBulkAction($request);
 
+        if ((string) $request->get('manager_action', '') === 'inline_update') {
+            $result = $this->updateSingleField(
+                (int) $request->get('product_id', 0),
+                (string) $request->get('field', ''),
+                $request->get('value')
+            );
+
+            return response()->json($result, $result['ok'] ? 200 : 422);
+        }
+
         $q = trim((string) $request->get('q', ''));
         $childId = (int) $request->get('child_id', 0);
         $brandId = (int) $request->get('brand_id', 0);
@@ -49,16 +59,8 @@ class CatalogProductController extends Controller
 
     public function inlineUpdate(Request $request, int $product): JsonResponse
     {
-        $field = (string) $request->input('field', '');
-        $value = $request->input('value');
-
-        $result = $this->updateSingleField($product, $field, $value);
-
-        if (! $result['ok']) {
-            return response()->json($result, 422);
-        }
-
-        return response()->json($result);
+        $result = $this->updateSingleField($product, (string) $request->input('field', ''), $request->input('value'));
+        return response()->json($result, $result['ok'] ? 200 : 422);
     }
 
     protected function baseQuery(string $q, int $childId, int $brandId, string $status, string $duplicateStatus)
@@ -97,7 +99,7 @@ class CatalogProductController extends Controller
     private function handleBulkAction(Request $request): void
     {
         $action = (string) $request->get('manager_action', '');
-        if ($action === '' || (string) $request->get('confirm_action', '') !== 'yes') {
+        if ($action === '' || $action === 'inline_update' || (string) $request->get('confirm_action', '') !== 'yes') {
             return;
         }
 
@@ -135,6 +137,10 @@ class CatalogProductController extends Controller
 
     private function updateSingleField(int $id, string $field, mixed $value): array
     {
+        if ($id < 1) {
+            return ['ok' => false, 'message' => 'Invalid product.'];
+        }
+
         $allowedText = ['name_ar', 'name_en', 'model', 'package_label_ar', 'package_label_en'];
         $allowedApprovalStatuses = ['draft', 'pending', 'approved', 'rejected'];
         $allowedDuplicateStatuses = ['unique', 'master', 'duplicate', 'review'];
@@ -146,19 +152,19 @@ class CatalogProductController extends Controller
         if (in_array($field, $allowedText, true)) {
             $clean = trim((string) $value);
             DB::table('catalog_products')->where('id', $id)->update([$field => $clean !== '' ? $clean : null]);
-            return ['ok' => true, 'value' => $clean];
+            return ['ok' => true, 'value' => $clean !== '' ? $clean : '—'];
         }
 
         if ($field === 'package_value') {
             $clean = trim((string) $value);
             DB::table('catalog_products')->where('id', $id)->update([$field => $clean !== '' ? (float) $clean : null]);
-            return ['ok' => true, 'value' => $clean];
+            return ['ok' => true, 'value' => $clean !== '' ? $clean : '—'];
         }
 
         if ($field === 'is_active') {
             $clean = (int) $value === 1 ? 1 : 0;
             DB::table('catalog_products')->where('id', $id)->update([$field => $clean]);
-            return ['ok' => true, 'value' => (string) $clean];
+            return ['ok' => true, 'value' => $clean === 1 ? 'Active' : 'Inactive', 'raw' => (string) $clean];
         }
 
         if ($field === 'approval_status' && in_array((string) $value, $allowedApprovalStatuses, true)) {

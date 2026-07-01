@@ -34,6 +34,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceItemTypeController,
     PostController,
     SponsorController,
+    StoreCatalogItemController,
     SubscriptionController,
     UploadController,
     Users\UserController,
@@ -115,6 +116,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
         Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
+
+        Route::prefix('store-catalog-items')->name('store-catalog-items.')->group(function () {
+            Route::get('/', [StoreCatalogItemController::class, 'index'])->name('index');
+            Route::post('/', [StoreCatalogItemController::class, 'store'])->name('store');
+            Route::delete('{id}', [StoreCatalogItemController::class, 'destroy'])->whereNumber('id')->name('destroy');
+        });
 
         Route::prefix('notification-center')->name('notification-center.')->group(function () {
             Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');

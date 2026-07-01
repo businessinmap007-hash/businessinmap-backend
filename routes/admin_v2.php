@@ -15,6 +15,7 @@ use App\Http\Controllers\AdminV2\{
     BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
+    CatalogProductController,
     CategoryChildOptionController,
     CategoryController,
     CategoryServiceBulkController,
@@ -33,6 +34,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceFeePromotionController,
     PlatformServiceItemTypeController,
     PostController,
+    ProductCategoryController,
     SponsorController,
     StoreCatalogItemController,
     SubscriptionController,
@@ -122,6 +124,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/', [StoreCatalogItemController::class, 'store'])->name('store');
             Route::delete('{id}', [StoreCatalogItemController::class, 'destroy'])->whereNumber('id')->name('destroy');
         });
+        Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
+        Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
 
         Route::prefix('notification-center')->name('notification-center.')->group(function () {
             Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');

@@ -81,10 +81,6 @@ class CatalogProductController extends Controller
 
     private function handleBulkAction(Request $request): void
     {
-        if (! Schema::hasColumn('catalog_products', 'duplicate_status')) {
-            return;
-        }
-
         $action = (string) $request->get('manager_action', '');
         if ($action === '' || (string) $request->get('confirm_action', '') !== 'yes') {
             return;
@@ -101,19 +97,98 @@ class CatalogProductController extends Controller
             return;
         }
 
-        if (in_array($action, ['unique', 'review', 'duplicate'], true)) {
+        if ($action === 'update_selected') {
+            $this->updateSelectedProducts($request, $ids);
+            return;
+        }
+
+        if ($action === 'delete_forever') {
+            $this->deleteProductsForever($ids);
+            return;
+        }
+
+        if (Schema::hasColumn('catalog_products', 'duplicate_status') && in_array($action, ['unique', 'review', 'duplicate'], true)) {
             DB::table('catalog_products')->whereIn('id', $ids)->update([
                 'duplicate_status' => $action,
                 'duplicate_master_id' => null,
             ]);
         }
 
-        if ($action === 'inactive') {
+        if ($action === 'inactive' && Schema::hasColumn('catalog_products', 'is_active')) {
             DB::table('catalog_products')->whereIn('id', $ids)->update(['is_active' => 0]);
         }
 
-        if ($action === 'active') {
+        if ($action === 'active' && Schema::hasColumn('catalog_products', 'is_active')) {
             DB::table('catalog_products')->whereIn('id', $ids)->update(['is_active' => 1]);
         }
+    }
+
+    private function updateSelectedProducts(Request $request, $ids): void
+    {
+        $products = (array) $request->get('products', []);
+        $allowedApprovalStatuses = ['draft', 'pending', 'approved', 'rejected'];
+        $allowedDuplicateStatuses = ['unique', 'master', 'duplicate', 'review'];
+
+        foreach ($ids as $id) {
+            $payload = (array) ($products[$id] ?? []);
+            if ($payload === []) {
+                continue;
+            }
+
+            $data = [];
+
+            foreach (['name_ar', 'name_en', 'model', 'package_label_ar', 'package_label_en'] as $column) {
+                if (Schema::hasColumn('catalog_products', $column) && array_key_exists($column, $payload)) {
+                    $value = trim((string) $payload[$column]);
+                    $data[$column] = $value !== '' ? $value : null;
+                }
+            }
+
+            if (Schema::hasColumn('catalog_products', 'package_value') && array_key_exists('package_value', $payload)) {
+                $value = trim((string) $payload['package_value']);
+                $data['package_value'] = $value !== '' ? (float) $value : null;
+            }
+
+            if (Schema::hasColumn('catalog_products', 'is_active') && array_key_exists('is_active', $payload)) {
+                $data['is_active'] = (int) $payload['is_active'] === 1 ? 1 : 0;
+            }
+
+            if (Schema::hasColumn('catalog_products', 'approval_status') && in_array(($payload['approval_status'] ?? ''), $allowedApprovalStatuses, true)) {
+                $data['approval_status'] = $payload['approval_status'];
+            }
+
+            if (Schema::hasColumn('catalog_products', 'duplicate_status') && in_array(($payload['duplicate_status'] ?? ''), $allowedDuplicateStatuses, true)) {
+                $data['duplicate_status'] = $payload['duplicate_status'];
+                if ($payload['duplicate_status'] !== 'duplicate') {
+                    $data['duplicate_master_id'] = null;
+                }
+            }
+
+            if (! empty($data)) {
+                DB::table('catalog_products')->where('id', $id)->update($data);
+            }
+        }
+    }
+
+    private function deleteProductsForever($ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            $relatedTables = [
+                ['store_catalog_items', 'catalog_product_id'],
+                ['catalog_product_attributes', 'product_id'],
+                ['catalog_product_attribute_values', 'product_id'],
+                ['catalog_product_images', 'product_id'],
+                ['product_images', 'product_id'],
+                ['product_barcodes', 'product_id'],
+            ];
+
+            foreach ($relatedTables as [$table, $column]) {
+                if (Schema::hasTable($table) && Schema::hasColumn($table, $column)) {
+                    DB::table($table)->whereIn($column, $ids)->delete();
+                }
+            }
+
+            DB::table('catalog_products')->whereIn('id', $ids)->delete();
+        });
     }
 }

@@ -17,7 +17,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Catalog Products Manager</h1>
-            <div class="a2-page-subtitle">مراجعة المنتجات يدويًا، ترتيب أبجدي، تحديد المكرر، وإخفاؤه من الكتالوج بدون حذف نهائي.</div>
+            <div class="a2-page-subtitle">مراجعة وتعديل المنتجات يدويًا، تحديد المكرر، أو حذف المنتجات نهائيًا من نفس الشاشة.</div>
         </div>
     </div>
 
@@ -78,7 +78,7 @@
     </div>
 
     <div class="a2-card" style="margin-top:16px;">
-        <form method="GET" action="{{ route('admin.catalog-products.index') }}" onsubmit="return confirm('تأكيد تنفيذ العملية على المنتجات المحددة؟');">
+        <form method="GET" action="{{ route('admin.catalog-products.index') }}" onsubmit="return window.catalogProductsManagerConfirm ? window.catalogProductsManagerConfirm(this) : confirm('تأكيد تنفيذ العملية؟');">
             <input type="hidden" name="q" value="{{ $qVal }}">
             <input type="hidden" name="child_id" value="{{ $childIdVal }}">
             <input type="hidden" name="brand_id" value="{{ $brandIdVal }}">
@@ -90,25 +90,30 @@
             <div class="a2-filterbar" style="margin-bottom:12px;">
                 <select class="a2-select a2-filter-md" name="manager_action" required>
                     <option value="">اختر إجراء للمنتجات المحددة</option>
+                    <option value="update_selected">Save Inline Edits / حفظ تعديلات المحدد</option>
                     <option value="duplicate">Mark as Duplicate / إخفاء كمكرر</option>
                     <option value="unique">Keep as Unique / إبقاء كمنتج صحيح</option>
                     <option value="review">Send to Review / يحتاج مراجعة</option>
                     <option value="inactive">Deactivate / تعطيل</option>
                     <option value="active">Activate / تفعيل</option>
+                    <option value="delete_forever">Delete Forever / حذف نهائي</option>
                 </select>
                 <button class="a2-btn a2-btn-primary" type="submit">تنفيذ على المحدد</button>
-                <span class="a2-muted">اختر المنتجات من الجدول. الحذف النهائي غير مفعل لحماية البيانات.</span>
+                <span class="a2-muted">للتعديل: اختر الصنف، عدل الحقول داخل الصف، ثم اختر Save Inline Edits.</span>
+            </div>
+
+            <div class="a2-alert a2-alert-danger" style="margin-bottom:12px;">
+                حذف نهائي يعني حذف المنتج من جدول الكتالوج وحذف روابطه المعروفة مثل صور المنتج، الباركود، خصائص المنتج، وربطه بالمتاجر. لا يمكن التراجع عنه إلا من نسخة احتياطية.
             </div>
 
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead>
                         <tr>
-                            <th><input type="checkbox" onclick="document.querySelectorAll('.js-product-check').forEach(cb => cb.checked = this.checked)"></th>
+                            <th><input type="checkbox" onclick="document.querySelectorAll('.js-product-check').forEach(cb => { cb.checked = this.checked; cb.dispatchEvent(new Event('change')); })"></th>
                             <th>ID</th>
-                            <th>Product</th>
-                            <th>Brand</th>
-                            <th>Size</th>
+                            <th>Product Inline Edit</th>
+                            <th>Size / Model</th>
                             <th>Category</th>
                             <th>Duplicate</th>
                             <th>Status</th>
@@ -119,30 +124,50 @@
                         <tr>
                             <td><input class="js-product-check" type="checkbox" name="ids[]" value="{{ $row->id }}"></td>
                             <td class="a2-fw-900">{{ $row->id }}</td>
-                            <td>
-                                <div class="a2-fw-900">{{ $row->name_ar ?: $row->name_en }}</div>
-                                @if($row->name_en)<div class="a2-muted a2-mt-8" dir="ltr">{{ $row->name_en }}</div>@endif
-                                @if($row->bim_code)<div class="a2-muted a2-mt-8" dir="ltr">Code: {{ $row->bim_code }}</div>@endif
-                                @if($row->model)<div class="a2-muted a2-mt-8" dir="ltr">Model: {{ $row->model }}</div>@endif
+                            <td style="min-width:360px;">
+                                <label class="a2-muted">Arabic</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][name_ar]" value="{{ $row->name_ar }}" style="margin-bottom:6px;">
+                                <label class="a2-muted">English</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][name_en]" value="{{ $row->name_en }}" dir="ltr" style="margin-bottom:6px;">
+                                @if($row->bim_code)<div class="a2-muted" dir="ltr">Code: {{ $row->bim_code }}</div>@endif
                             </td>
-                            <td>{{ $row->brand_name_ar ?: '—' }}</td>
-                            <td>{{ $row->package_label_ar ?: ($row->package_label_en ?: ($row->package_value ? $row->package_value . ' ' . $row->unit_code : '—')) }}</td>
-                            <td><div>{{ $row->category_name_ar ?: '—' }}</div><div class="a2-muted a2-mt-8">{{ $row->child_name_ar ?: '—' }}</div></td>
+                            <td style="min-width:260px;">
+                                <label class="a2-muted">Package Value</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][package_value]" value="{{ $row->package_value }}" dir="ltr" style="margin-bottom:6px;">
+                                <label class="a2-muted">Package AR</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][package_label_ar]" value="{{ $row->package_label_ar }}" style="margin-bottom:6px;">
+                                <label class="a2-muted">Package EN</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][package_label_en]" value="{{ $row->package_label_en }}" dir="ltr" style="margin-bottom:6px;">
+                                <label class="a2-muted">Model</label>
+                                <input class="a2-input js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][model]" value="{{ $row->model }}" dir="ltr">
+                            </td>
                             <td>
-                                <span class="a2-pill a2-pill-gray">{{ $row->duplicate_status ?? 'unique' }}</span>
+                                <div>{{ $row->category_name_ar ?: '—' }}</div>
+                                <div class="a2-muted a2-mt-8">{{ $row->child_name_ar ?: '—' }}</div>
+                                <div class="a2-muted a2-mt-8">Brand: {{ $row->brand_name_ar ?: '—' }}</div>
+                            </td>
+                            <td style="min-width:160px;">
+                                <select class="a2-select js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][duplicate_status]">
+                                    @foreach(['unique','master','duplicate','review'] as $ds)
+                                        <option value="{{ $ds }}" @selected(($row->duplicate_status ?? 'unique') === $ds)>{{ $ds }}</option>
+                                    @endforeach
+                                </select>
                                 @if($row->duplicate_master_id)<div class="a2-muted a2-mt-8">Master: {{ $row->duplicate_master_id }}</div>@endif
                             </td>
-                            <td>
-                                @if((int)$row->is_active === 1)
-                                    <span class="a2-pill a2-pill-success">Active</span>
-                                @else
-                                    <span class="a2-pill a2-pill-danger">Inactive</span>
-                                @endif
-                                <div class="a2-muted a2-mt-8">{{ $row->approval_status }}</div>
+                            <td style="min-width:170px;">
+                                <select class="a2-select js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][is_active]" style="margin-bottom:6px;">
+                                    <option value="1" @selected((int)$row->is_active === 1)>Active</option>
+                                    <option value="0" @selected((int)$row->is_active === 0)>Inactive</option>
+                                </select>
+                                <select class="a2-select js-row-field" data-row-id="{{ $row->id }}" disabled name="products[{{ $row->id }}][approval_status]">
+                                    @foreach(['draft','pending','approved','rejected'] as $as)
+                                        <option value="{{ $as }}" @selected(($row->approval_status ?? '') === $as)>{{ $as }}</option>
+                                    @endforeach
+                                </select>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="a2-empty">لا توجد منتجات.</td></tr>
+                        <tr><td colspan="7" class="a2-empty">لا توجد منتجات.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -152,4 +177,40 @@
         <div class="a2-pagination">{{ $rows->links() }}</div>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.js-product-check').forEach(function (checkbox) {
+    checkbox.addEventListener('change', function () {
+        var id = this.value;
+        document.querySelectorAll('.js-row-field[data-row-id="' + id + '"]').forEach(function (field) {
+            field.disabled = !checkbox.checked;
+        });
+    });
+});
+
+window.catalogProductsManagerConfirm = function (form) {
+    var action = form.querySelector('[name="manager_action"]').value;
+    var selected = form.querySelectorAll('.js-product-check:checked').length;
+
+    if (! action) {
+        alert('اختر الإجراء أولًا.');
+        return false;
+    }
+
+    if (selected < 1) {
+        alert('اختر صنف واحد على الأقل.');
+        return false;
+    }
+
+    if (action === 'delete_forever') {
+        return confirm('تحذير: سيتم حذف ' + selected + ' صنف نهائيًا مع روابطه. لا يمكن التراجع إلا من backup. هل أنت متأكد؟');
+    }
+
+    if (action === 'update_selected') {
+        return confirm('سيتم حفظ تعديلات الحقول للصنف/الأصناف المحددة فقط. هل تريد المتابعة؟');
+    }
+
+    return confirm('تأكيد تنفيذ العملية على ' + selected + ' صنف؟');
+};
+</script>
 @endsection

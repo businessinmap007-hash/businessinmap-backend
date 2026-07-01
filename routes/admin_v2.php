@@ -15,6 +15,7 @@ use App\Http\Controllers\AdminV2\{
     BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
+    CatalogBrandController,
     CatalogProductController,
     CategoryChildOptionController,
     CategoryController,
@@ -34,6 +35,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceFeePromotionController,
     PlatformServiceItemTypeController,
     PostController,
+    ProductCategoryChildController,
     ProductCategoryController,
     SponsorController,
     StoreCatalogItemController,
@@ -126,6 +128,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
         Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
         Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
+        Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');
+        Route::get('catalog-brands', [CatalogBrandController::class, 'index'])->name('catalog-brands.index');
 
         Route::prefix('notification-center')->name('notification-center.')->group(function () {
             Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');

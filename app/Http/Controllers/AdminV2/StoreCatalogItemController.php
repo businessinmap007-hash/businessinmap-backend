@@ -1,0 +1,121 @@
+<?php
+
+namespace App\Http\Controllers\AdminV2;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+
+class StoreCatalogItemController extends Controller
+{
+    public function index(Request $request)
+    {
+        $businessId = (int) $request->get('business_id', 0);
+        $childId = (int) $request->get('child_id', 0);
+        $q = trim((string) $request->get('q', ''));
+        $status = (string) $request->get('status', '');
+
+        $businesses = DB::table('users')
+            ->select('id', 'name')
+            ->where('type', 'business')
+            ->orderBy('name')
+            ->limit(500)
+            ->get();
+
+        $children = DB::table('product_category_children')
+            ->select('id', 'name_ar', 'name_en')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $rows = DB::table('business_catalog_products as bcp')
+            ->join('catalog_products as cp', 'cp.id', '=', 'bcp.catalog_product_id')
+            ->leftJoin('users as u', 'u.id', '=', 'bcp.business_id')
+            ->leftJoin('product_category_children as pcc', 'pcc.id', '=', 'cp.product_category_child_id')
+            ->leftJoin('catalog_brands as cb', 'cb.id', '=', 'cp.brand_id')
+            ->select(
+                'bcp.*',
+                'cp.bim_code',
+                'cp.name_ar as product_name_ar',
+                'cp.name_en as product_name_en',
+                'cp.package_label_ar',
+                'cp.package_label_en',
+                'cp.main_image',
+                'u.name as business_name',
+                'pcc.name_ar as child_name_ar',
+                'pcc.name_en as child_name_en',
+                'cb.name_ar as brand_name_ar',
+                'cb.name_en as brand_name_en'
+            )
+            ->when($businessId > 0, fn ($query) => $query->where('bcp.business_id', $businessId))
+            ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
+            ->when($status !== '', fn ($query) => $query->where('bcp.status', $status))
+            ->when($q !== '', function ($query) use ($q) {
+                $like = '%' . mb_strtolower($q) . '%';
+                $query->where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(cp.name_ar) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.name_en) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(cp.bim_code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(u.name) LIKE ?', [$like]);
+                });
+            })
+            ->orderByDesc('bcp.id')
+            ->paginate(50)
+            ->withQueryString();
+
+        $catalogProducts = DB::table('catalog_products')
+            ->select('id', 'bim_code', 'name_ar', 'name_en', 'package_label_ar', 'package_label_en')
+            ->orderBy('id')
+            ->limit(300)
+            ->get();
+
+        $stats = [
+            'total' => DB::table('business_catalog_products')->count(),
+            'active' => DB::table('business_catalog_products')->where('status', 'active')->count(),
+            'available' => DB::table('business_catalog_products')->where('is_available', 1)->count(),
+            'out' => DB::table('business_catalog_products')->where('stock_status', 'out_of_stock')->count(),
+        ];
+
+        return view('admin-v2.store-catalog-items.index', compact('rows', 'businesses', 'children', 'catalogProducts', 'stats', 'businessId', 'childId', 'q', 'status'));
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($q) => $q->where('type', 'business'))],
+            'catalog_product_id' => ['required', 'integer', 'exists:catalog_products,id'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'offer_price' => ['nullable', 'numeric', 'min:0'],
+            'stock_quantity' => ['nullable', 'numeric', 'min:0'],
+            'is_available' => ['nullable'],
+            'status' => ['nullable', Rule::in(['active', 'inactive', 'archived'])],
+        ]);
+
+        DB::table('business_catalog_products')->updateOrInsert(
+            [
+                'business_id' => (int) $data['business_id'],
+                'catalog_product_id' => (int) $data['catalog_product_id'],
+            ],
+            [
+                'price' => round((float) $data['price'], 2),
+                'offer_price' => isset($data['offer_price']) && $data['offer_price'] !== null ? round((float) $data['offer_price'], 2) : null,
+                'stock_quantity' => (float) ($data['stock_quantity'] ?? 0),
+                'stock_status' => ((float) ($data['stock_quantity'] ?? 0)) > 0 ? 'in_stock' : 'out_of_stock',
+                'is_available' => $request->boolean('is_available') ? 1 : 0,
+                'status' => $data['status'] ?? 'active',
+                'currency_code' => 'EGP',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return back()->with('success', 'تم ربط المنتج بالمتجر بنجاح.');
+    }
+
+    public function destroy(int $id)
+    {
+        DB::table('business_catalog_products')->where('id', $id)->delete();
+        return back()->with('success', 'تم حذف المنتج من المتجر.');
+    }
+}

@@ -1,0 +1,15 @@
+category_slug,slug,name_ar,name_en,is_active,sort_order
+supermarket,dairy-cheese,ألبان وجبن,Dairy & Cheese,1,10
+supermarket,beverages,مشروبات,Beverages,1,20
+supermarket,water,مياه,Water,1,30
+supermarket,rice-pasta-grains,أرز ومكرونة وحبوب,Rice Pasta & Grains,1,40
+supermarket,oil-ghee,زيوت وسمن,Oil & Ghee,1,50
+supermarket,sugar-tea-coffee,سكر وشاي وقهوة,Sugar Tea & Coffee,1,60
+supermarket,snacks-sweets,سناكس وحلويات,Snacks & Sweets,1,70
+supermarket,cleaning,منظفات,Cleaning,1,80
+supermarket,personal-care,عناية شخصية,Personal Care,1,90
+supermarket,baby-care,مستلزمات أطفال,Baby Care,1,100
+supermarket,paper-tissues,مناديل وورقيات,Paper & Tissues,1,110
+supermarket,frozen-food,مجمدات,Frozen Food,1,120
+supermarket,canned-food,معلبات,Canned Food,1,130
+supermarket,sauces-spices,صلصات وتوابل,Sauces & Spices,1,140

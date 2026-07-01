@@ -15,6 +15,9 @@ use App\Http\Controllers\AdminV2\{
     BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
+    CatalogAttributeController,
+    CatalogManufacturerController,
+    CatalogUnitController,
     CategoryChildOptionController,
     CategoryController,
     CategoryServiceBulkController,
@@ -106,6 +109,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])->name('options.bulk-delete');
         Route::resource('options', OptionController::class)->except(['show']);
         Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
+
+        Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
+        Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
+        Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
 
         Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
         Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');

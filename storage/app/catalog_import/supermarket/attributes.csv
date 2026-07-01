@@ -1,0 +1,6 @@
+code,name_ar,name_en,data_type,unit_code,is_filterable,is_variant_axis,is_required,sort_order
+weight,الوزن,Weight,number,g,1,0,0,10
+volume,الحجم,Volume,number,ml,1,0,0,20
+count,العدد,Count,number,pcs,1,0,0,30
+flavor,النكهة,Flavor,text,,1,0,0,40
+package,نوع العبوة,Package,text,,1,0,0,50

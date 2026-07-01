@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -44,6 +45,20 @@ class CatalogProductController extends Controller
         ];
 
         return view('admin-v2.catalog-products.index', compact('rows', 'children', 'brands', 'stats', 'q', 'childId', 'brandId', 'status', 'duplicateStatus', 'perPage'));
+    }
+
+    public function inlineUpdate(Request $request, int $product): JsonResponse
+    {
+        $field = (string) $request->input('field', '');
+        $value = $request->input('value');
+
+        $result = $this->updateSingleField($product, $field, $value);
+
+        if (! $result['ok']) {
+            return response()->json($result, 422);
+        }
+
+        return response()->json($result);
     }
 
     protected function baseQuery(string $q, int $childId, int $brandId, string $status, string $duplicateStatus)
@@ -97,11 +112,6 @@ class CatalogProductController extends Controller
             return;
         }
 
-        if ($action === 'update_selected') {
-            $this->updateSelectedProducts($request, $ids);
-            return;
-        }
-
         if ($action === 'delete_forever') {
             $this->deleteProductsForever($ids);
             return;
@@ -123,51 +133,49 @@ class CatalogProductController extends Controller
         }
     }
 
-    private function updateSelectedProducts(Request $request, $ids): void
+    private function updateSingleField(int $id, string $field, mixed $value): array
     {
-        $products = (array) $request->get('products', []);
+        $allowedText = ['name_ar', 'name_en', 'model', 'package_label_ar', 'package_label_en'];
         $allowedApprovalStatuses = ['draft', 'pending', 'approved', 'rejected'];
         $allowedDuplicateStatuses = ['unique', 'master', 'duplicate', 'review'];
 
-        foreach ($ids as $id) {
-            $payload = (array) ($products[$id] ?? []);
-            if ($payload === []) {
-                continue;
-            }
-
-            $data = [];
-
-            foreach (['name_ar', 'name_en', 'model', 'package_label_ar', 'package_label_en'] as $column) {
-                if (Schema::hasColumn('catalog_products', $column) && array_key_exists($column, $payload)) {
-                    $value = trim((string) $payload[$column]);
-                    $data[$column] = $value !== '' ? $value : null;
-                }
-            }
-
-            if (Schema::hasColumn('catalog_products', 'package_value') && array_key_exists('package_value', $payload)) {
-                $value = trim((string) $payload['package_value']);
-                $data['package_value'] = $value !== '' ? (float) $value : null;
-            }
-
-            if (Schema::hasColumn('catalog_products', 'is_active') && array_key_exists('is_active', $payload)) {
-                $data['is_active'] = (int) $payload['is_active'] === 1 ? 1 : 0;
-            }
-
-            if (Schema::hasColumn('catalog_products', 'approval_status') && in_array(($payload['approval_status'] ?? ''), $allowedApprovalStatuses, true)) {
-                $data['approval_status'] = $payload['approval_status'];
-            }
-
-            if (Schema::hasColumn('catalog_products', 'duplicate_status') && in_array(($payload['duplicate_status'] ?? ''), $allowedDuplicateStatuses, true)) {
-                $data['duplicate_status'] = $payload['duplicate_status'];
-                if ($payload['duplicate_status'] !== 'duplicate') {
-                    $data['duplicate_master_id'] = null;
-                }
-            }
-
-            if (! empty($data)) {
-                DB::table('catalog_products')->where('id', $id)->update($data);
-            }
+        if (! Schema::hasColumn('catalog_products', $field)) {
+            return ['ok' => false, 'message' => 'Field not found.'];
         }
+
+        if (in_array($field, $allowedText, true)) {
+            $clean = trim((string) $value);
+            DB::table('catalog_products')->where('id', $id)->update([$field => $clean !== '' ? $clean : null]);
+            return ['ok' => true, 'value' => $clean];
+        }
+
+        if ($field === 'package_value') {
+            $clean = trim((string) $value);
+            DB::table('catalog_products')->where('id', $id)->update([$field => $clean !== '' ? (float) $clean : null]);
+            return ['ok' => true, 'value' => $clean];
+        }
+
+        if ($field === 'is_active') {
+            $clean = (int) $value === 1 ? 1 : 0;
+            DB::table('catalog_products')->where('id', $id)->update([$field => $clean]);
+            return ['ok' => true, 'value' => (string) $clean];
+        }
+
+        if ($field === 'approval_status' && in_array((string) $value, $allowedApprovalStatuses, true)) {
+            DB::table('catalog_products')->where('id', $id)->update([$field => (string) $value]);
+            return ['ok' => true, 'value' => (string) $value];
+        }
+
+        if ($field === 'duplicate_status' && in_array((string) $value, $allowedDuplicateStatuses, true)) {
+            $data = ['duplicate_status' => (string) $value];
+            if ((string) $value !== 'duplicate') {
+                $data['duplicate_master_id'] = null;
+            }
+            DB::table('catalog_products')->where('id', $id)->update($data);
+            return ['ok' => true, 'value' => (string) $value];
+        }
+
+        return ['ok' => false, 'message' => 'Invalid value.'];
     }
 
     private function deleteProductsForever($ids): void

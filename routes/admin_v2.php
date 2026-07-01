@@ -39,6 +39,10 @@ use App\Http\Controllers\AdminV2\{
     SponsorController,
     SubscriptionController,
     UploadController,
+    CatalogBrandController,
+    CatalogProductController,
+    ProductCategoryChildController,
+    ProductCategoryController,
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
@@ -109,6 +113,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])->name('options.bulk-delete');
         Route::resource('options', OptionController::class)->except(['show']);
         Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
+
+        Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
+
+        Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
+        Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');
+        Route::get('catalog-brands', [CatalogBrandController::class, 'index'])->name('catalog-brands.index');
+
+        Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
+        Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
+        Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
 
         Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
         Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');

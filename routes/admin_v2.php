@@ -27,6 +27,9 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     JobPostController,
+    MenuItemController,
+    MenuItemExtraController,
+    MenuItemVariantController,
     NotificationCenterAdminController,
     OfferPerformanceController,
     OptionController,
@@ -211,6 +214,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{bookableItem}/edit', [BookableItemController::class, 'edit'])->whereNumber('bookableItem')->name('edit');
             Route::put('{bookableItem}', [BookableItemController::class, 'update'])->whereNumber('bookableItem')->name('update');
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');
+        });
+
+        Route::prefix('menu-items')->name('menu-items.')->group(function () {
+            Route::get('/', [MenuItemController::class, 'index'])->name('index');
+            Route::get('create', [MenuItemController::class, 'create'])->name('create');
+            Route::post('/', [MenuItemController::class, 'store'])->name('store');
+            Route::get('{menuItem}/edit', [MenuItemController::class, 'edit'])->whereNumber('menuItem')->name('edit');
+            Route::put('{menuItem}', [MenuItemController::class, 'update'])->whereNumber('menuItem')->name('update');
+            Route::delete('{menuItem}', [MenuItemController::class, 'destroy'])->whereNumber('menuItem')->name('destroy');
+
+            Route::prefix('{menuItem}/variants')->whereNumber('menuItem')->name('variants.')->group(function () {
+                Route::post('/', [MenuItemVariantController::class, 'store'])->name('store');
+                Route::put('{variant}', [MenuItemVariantController::class, 'update'])->whereNumber('variant')->name('update');
+                Route::delete('{variant}', [MenuItemVariantController::class, 'destroy'])->whereNumber('variant')->name('destroy');
+            });
+
+            Route::prefix('{menuItem}/extras')->whereNumber('menuItem')->name('extras.')->group(function () {
+                Route::post('/', [MenuItemExtraController::class, 'store'])->name('store');
+                Route::put('{extra}', [MenuItemExtraController::class, 'update'])->whereNumber('extra')->name('update');
+                Route::delete('{extra}', [MenuItemExtraController::class, 'destroy'])->whereNumber('extra')->name('destroy');
+            });
         });
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

@@ -83,6 +83,10 @@
             ['label' => 'Bookable Bulk Operations', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
             ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
         ]],
+        ['label' => 'Menu', 'route' => 'admin.menu-items.index', 'icon' => 'file', 'active' => ['admin.menu-items.'], 'children' => [
+            ['label' => 'Menu Items', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
+            ['label' => 'Create Menu Item', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+        ]],
         ['label' => 'Wallet & Finance', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
             ['label' => 'Wallet Overview', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
             ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],

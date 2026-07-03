@@ -290,8 +290,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
-            Route::post('{dispute}/under-review', [DisputeController::class, 'underReview'])->whereNumber('dispute')->name('under-review');
+            Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->whereNumber('dispute')->name('under-review');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
+            Route::post('{dispute}/resolve/release-business', [DisputeController::class, 'resolveReleaseBusiness'])->whereNumber('dispute')->name('resolve.release-business');
+            Route::post('{dispute}/resolve/refund-client', [DisputeController::class, 'resolveRefundClient'])->whereNumber('dispute')->name('resolve.refund-client');
+            Route::post('{dispute}/resolve/split', [DisputeController::class, 'resolveSplit'])->whereNumber('dispute')->name('resolve.split');
+            Route::post('{dispute}/resolve/no-action', [DisputeController::class, 'resolveNoAction'])->whereNumber('dispute')->name('resolve.no-action');
         });
 
         Route::prefix('bookings')->name('bookings.')->group(function () {
@@ -320,9 +324,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->whereNumber('booking')->name('deposit.agree.refund');
         });
 
-        Route::resource('posts', PostController::class)->except(['show'])->names('posts');
-        Route::resource('jobs', JobPostController::class)->except(['show'])->names('jobs');
+        Route::resource('posts', PostController::class)->names('posts');
+        Route::post('posts/{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('posts.toggleActive');
+        Route::delete('posts/{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('posts.main_image.destroy');
+        Route::delete('posts/{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('posts.images.destroy');
+
+        Route::resource('jobs', JobPostController::class)->names('jobs');
+
         Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
+        Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');
+
         Route::resource('albums', AlbumController::class)->names('albums');
+        Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');
+        Route::delete('albums/{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.delete');
     });
 });

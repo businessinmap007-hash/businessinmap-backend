@@ -121,6 +121,14 @@ class SponsorController extends Controller
             ->with('success', 'تم تحديث Sponsor بنجاح');
     }
 
+    public function toggleActive(Sponsor $sponsor)
+    {
+        $sponsor->activated_at = $sponsor->activated_at ? null : now();
+        $sponsor->save();
+
+        return back()->with('success', 'تم تغيير الحالة بنجاح');
+    }
+
     public function destroy(Sponsor $sponsor)
     {
         // احذف الصورة مع السجل

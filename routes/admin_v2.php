@@ -190,8 +190,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/', [BookableItemController::class, 'store'])->name('store');
 
             Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->whereNumber('bookableItem')->name('calendar');
-            Route::post('{bookableItem}/calendar/blocked-slots', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('bookableItem')->name('calendar.blocked-slots.store');
-            Route::post('{bookableItem}/calendar/price-rules', [BookableItemCalendarController::class, 'storePriceRule'])->whereNumber('bookableItem')->name('calendar.price-rules.store');
+            Route::post('{bookableItem}/calendar/blocked-slots', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('bookableItem')->name('calendar.blocked-slot.store');
+            Route::post('{bookableItem}/calendar/price-rules', [BookableItemCalendarController::class, 'storePriceRule'])->whereNumber('bookableItem')->name('calendar.price-rule.store');
 
             Route::prefix('{bookableItem}/blocked-slots')->whereNumber('bookableItem')->name('blocked-slots.')->group(function () {
                 Route::get('/', [BookableItemBlockedSlotController::class, 'index'])->name('index');

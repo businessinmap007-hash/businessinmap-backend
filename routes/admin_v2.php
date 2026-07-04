@@ -19,6 +19,8 @@ use App\Http\Controllers\AdminV2\{
     CatalogManufacturerController,
     CatalogUnitController,
     CategoryChildOptionController,
+    CategoryChildServiceFeeBulkController,
+    CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
     CommercialOfferController,
@@ -30,7 +32,6 @@ use App\Http\Controllers\AdminV2\{
     MenuItemController,
     MenuItemExtraController,
     MenuItemVariantController,
-    NotificationCenterAdminController,
     OfferPerformanceController,
     OptionController,
     OptionGroupController,
@@ -112,6 +113,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
+        Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->group(function () {
+            Route::get('bulk/edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('bulk.edit');
+            Route::post('bulk/update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('bulk.update');
+            Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
+            Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
+        });
+
         Route::post('options/bulk-assign-group', [OptionController::class, 'bulkAssignGroup'])->name('options.bulk-assign-group');
         Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])->name('options.bulk-delete');
         Route::resource('options', OptionController::class)->except(['show']);
@@ -127,10 +135,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
         Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
 
-        Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
-        Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
-        Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
-
         Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
         Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');
 
@@ -139,11 +143,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
         Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
-
-        Route::prefix('notification-center')->name('notification-center.')->group(function () {
-            Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
-            Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
-        });
 
         Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
             Route::get('/', [BusinessPartnershipController::class, 'index'])->name('index');
@@ -170,7 +169,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
         Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
         Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
-        Route::get('offer-follows', fn () => redirect()->route('admin.notification-center.index'))->name('offer-follows.index');
         Route::get('offer-boost-packages', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.index');
         Route::get('offer-boost-packages/boost', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.boost-form');
 
@@ -242,7 +240,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('user/{user}', [WalletTransactionController::class, 'user'])->whereNumber('user')->name('user');
             Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->whereNumber('walletTransaction')->name('show');
         });
-        Route::get('wallet-overview', fn () => redirect()->route('admin.wallet-transactions.index'))->name('wallet-overview.index');
 
         Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
         Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');

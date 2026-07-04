@@ -116,7 +116,7 @@
                     @for($i = 0; $i < 8; $i++)
                         <tr>
                             <td>
-                                <select name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="اختر النوع">
+                                <select id="item-type-{{ $i }}" name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="اختر النوع">
                                     <option value="">اختر البزنس والخدمة أولًا</option>
                                 </select>
                             </td>
@@ -262,7 +262,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.querySelectorAll('.js-bookable-type').forEach(function (select) {
             const keepValue = String(select.dataset.currentValue || select.value || '');
-            fillSelect(select, options, keepValue);
+            try {
+                fillSelect(select, options, keepValue);
+            } catch (e) {
+                console.error('fillSelect failed for', select, e);
+            }
         });
 
         if (!businessId || !serviceId) {

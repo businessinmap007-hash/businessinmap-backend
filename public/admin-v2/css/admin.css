@@ -117,6 +117,23 @@ textarea{
   text-align: right;
 }
 
+.a2-skip-link{
+  position: absolute;
+  top: -48px;
+  left: 8px;
+  z-index: 2000;
+  background: var(--a2-primary);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--a2-radius-xs);
+  font-weight: 800;
+  transition: top .15s ease;
+}
+
+.a2-skip-link:focus{
+  top: 8px;
+}
+
 /* =======================================================================
    3) LAYOUT
    ======================================================================= */
@@ -1053,8 +1070,9 @@ body.admin-v2 .a2-toolbar{
 }
 
 .a2-btn-sm{
-  height: 34px;
-  padding: 0 10px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0 12px;
   border-radius: 10px;
   font-size: 13px;
 }
@@ -1273,7 +1291,7 @@ body.admin-v2 .a2-toolbar{
   padding: 0 var(--a2-pad-x);
   outline: none;
   transition: .15s ease;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .a2-input,

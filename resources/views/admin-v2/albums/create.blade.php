@@ -129,7 +129,7 @@
       return;
     }
     // عرض بسيط للصورة
-    previewEl.innerHTML = '<img src="'+path+'" style="width:100%;max-width:300px;height:300px;object-fit:cover;border-radius:18px;border:1px solid var(--a2-border);" />';
+    previewEl.innerHTML = '<img src="'+path+'" alt="معاينة الصورة" style="width:100%;max-width:300px;height:300px;object-fit:cover;border-radius:18px;border:1px solid var(--a2-border);" />';
   }
 
   async function upload(){

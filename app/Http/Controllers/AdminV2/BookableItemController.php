@@ -61,15 +61,19 @@ class BookableItemController extends Controller
         ]);
 
         $services = $this->services();
-        $businesses = $this->businesses();
         $allowedItemTypes = $row->business_id && $row->service_id
             ? $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id)
             : [];
 
+        // Prefer old('business_id') so a re-selected business survives a
+        // validation failure redirect (bulk items table), falling back to
+        // the query-string default used when landing on this page fresh.
+        $selectedBusinessId = (int) old('business_id', $row->business_id ?? 0);
+
         return view('admin-v2.bookable-items.create', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
+            'selectedBusiness' => $selectedBusinessId ? $this->businessOption($selectedBusinessId) : null,
             'allowedItemTypes' => $allowedItemTypes,
             'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
         ]);
@@ -101,6 +105,40 @@ class BookableItemController extends Controller
         ]);
     }
 
+    /**
+     * Search-as-you-type business lookup for the form's business select.
+     *
+     * The form used to embed every business (~1,750) as static <option>
+     * tags on every page load. Now only the currently selected business
+     * (if any) is preloaded server-side; everything else is searched here.
+     */
+    public function businessLookup(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $businesses = User::query()
+            ->select(['id', 'name'])
+            ->where('type', 'business')
+            ->when($term !== '', fn ($query) => $query->where('name', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'ok' => true,
+            'businesses' => $businesses,
+        ]);
+    }
+
+    protected function businessOption(int $businessId): ?User
+    {
+        return User::query()
+            ->select(['id', 'name'])
+            ->where('type', 'business')
+            ->where('id', $businessId)
+            ->first();
+    }
+
     public function store(Request $request)
     {
         if ($request->has('items')) {
@@ -128,13 +166,13 @@ class BookableItemController extends Controller
     {
         $row = $bookableItem->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_id,category_child_id']);
         $services = $this->services();
-        $businesses = $this->businesses();
         $allowedItemTypes = $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id);
+        $selectedBusinessId = (int) old('business_id', $row->business_id ?? 0);
 
         return view('admin-v2.bookable-items.edit', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
+            'selectedBusiness' => $selectedBusinessId ? $this->businessOption($selectedBusinessId) : null,
             'allowedItemTypes' => $allowedItemTypes,
             'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
         ]);

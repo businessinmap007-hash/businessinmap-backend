@@ -1,6 +1,5 @@
 @php
     $isEdit = isset($row) && $row->exists;
-    $defaultBusinessId = old('business_id', $row->business_id ?? '');
     $defaultServiceId = old('service_id', $row->service_id ?? '');
     $defaultType = old('item_type', $row->item_type ?? '');
     $typeOptions = $allowedItemTypes ?? [];
@@ -25,29 +24,29 @@
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">البزنس</label>
-            <select name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="اكتب اسم البزنس">
+            <label class="a2-label" for="business_id">البزنس</label>
+            <select id="business_id" name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="اكتب اسم البزنس" data-remote-url="{{ route('admin.bookable-items.business-lookup') }}">
                 <option value="">اختر البزنس</option>
-                @foreach($businesses as $b)
-                    <option value="{{ $b->id }}" @selected((string) $defaultBusinessId === (string) $b->id)>{{ $b->name }}</option>
-                @endforeach
+                @if($selectedBusiness ?? null)
+                    <option value="{{ $selectedBusiness->id }}" selected>{{ $selectedBusiness->name }}</option>
+                @endif
             </select>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الخدمة</label>
-            <select name="service_id" class="a2-select js-bookable-service js-bookable-search-select" required data-placeholder="اكتب اسم الخدمة">
+            <label class="a2-label" for="service_id">الخدمة</label>
+            <select id="service_id" name="service_id" class="a2-select js-bookable-service js-bookable-search-select" required data-placeholder="اكتب اسم الخدمة">
                 <option value="">اختر الخدمة</option>
                 @foreach($services as $s)
-                    <option value="{{ $s->id }}" @selected((string) $defaultServiceId === (string) $s->id)>{{ $s->name_ar ?? $s->name_en ?? $s->key }}</option>
+                    <option value="{{ $s->id }}" @selected((string) $defaultServiceId === (string) $s->id)>{{ $s->name_ar ?: ($s->name_en ?: $s->key) }}</option>
                 @endforeach
             </select>
         </div>
 
         @if($isEdit)
             <div class="a2-form-group">
-                <label class="a2-label">نوع العنصر</label>
-                <select name="item_type" class="a2-select js-bookable-type js-bookable-search-select" required data-current-value="{{ $defaultType }}" data-placeholder="اختر نوع العنصر">
+                <label class="a2-label" for="item_type">نوع العنصر</label>
+                <select id="item_type" name="item_type" class="a2-select js-bookable-type js-bookable-search-select" required data-current-value="{{ $defaultType }}" data-placeholder="اختر نوع العنصر">
                     <option value="">اختر النوع</option>
                     @foreach($typeOptions as $type)
                         <option value="{{ $type }}" @selected((string) $defaultType === (string) $type)>{{ $itemTypeLabels[$type] ?? $type }}</option>
@@ -194,16 +193,42 @@ document.addEventListener('DOMContentLoaded', function () {
     let requestSeq = 0;
 
     function initTom(select) {
-        if (window.TomSelect && !select.tomselect) {
+        if (!window.TomSelect || select.tomselect) return;
+
+        const remoteUrl = select.dataset.remoteUrl;
+
+        if (remoteUrl) {
+            // Business select: search-as-you-type instead of embedding every
+            // business (1,700+) as static <option> tags on every page load.
             new TomSelect(select, {
                 create: false,
-                allowEmptyOption: true,
-                maxOptions: 500,
+                maxOptions: 30,
                 placeholder: select.dataset.placeholder || 'ابحث هنا',
-                sortField: {field: 'text', direction: 'asc'},
-                dropdownParent: 'body'
+                dropdownParent: 'body',
+                shouldLoad: function (query) { return query.length >= 1; },
+                load: function (query, callback) {
+                    const url = new URL(remoteUrl, window.location.origin);
+                    url.searchParams.set('q', query);
+                    fetch(url.toString(), {headers: {'Accept': 'application/json'}})
+                        .then(function (response) { return response.json(); })
+                        .then(function (data) {
+                            const rows = (data && data.ok && Array.isArray(data.businesses)) ? data.businesses : [];
+                            callback(rows.map(function (b) { return {value: String(b.id), text: b.name}; }));
+                        })
+                        .catch(function () { callback(); });
+                },
             });
+            return;
         }
+
+        new TomSelect(select, {
+            create: false,
+            allowEmptyOption: true,
+            maxOptions: 500,
+            placeholder: select.dataset.placeholder || 'ابحث هنا',
+            sortField: {field: 'text', direction: 'asc'},
+            dropdownParent: 'body'
+        });
     }
 
     function setHint(message) {

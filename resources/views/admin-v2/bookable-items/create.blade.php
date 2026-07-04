@@ -28,8 +28,9 @@
         @include('admin-v2.bookable-items._form', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
+            'selectedBusiness' => $selectedBusiness ?? null,
             'allowedItemTypes' => $allowedItemTypes ?? [],
+            'itemTypeLabels' => $itemTypeLabels ?? [],
             'submitLabel' => 'حفظ',
         ])
     </form>

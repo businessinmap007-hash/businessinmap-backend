@@ -189,6 +189,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('create', [BookableItemController::class, 'create'])->name('create');
             Route::post('/', [BookableItemController::class, 'store'])->name('store');
             Route::get('item-types-lookup', [BookableItemController::class, 'itemTypesLookup'])->name('item-types-lookup');
+            Route::get('business-lookup', [BookableItemController::class, 'businessLookup'])->name('business-lookup');
 
             Route::get('{bookableItem}/calendar', [BookableItemCalendarController::class, 'index'])->whereNumber('bookableItem')->name('calendar');
             Route::post('{bookableItem}/calendar/blocked-slots', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('bookableItem')->name('calendar.blocked-slot.store');

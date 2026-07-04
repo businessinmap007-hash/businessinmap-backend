@@ -45,9 +45,10 @@
 
         @include('admin-v2.bookable-items._form', [
             'row' => $row,
-            'businesses' => $businesses,
             'services' => $services,
+            'selectedBusiness' => $selectedBusiness ?? null,
             'allowedItemTypes' => $allowedItemTypes ?? [],
+            'itemTypeLabels' => $itemTypeLabels ?? [],
             'submitLabel' => 'تحديث',
         ])
     </form>

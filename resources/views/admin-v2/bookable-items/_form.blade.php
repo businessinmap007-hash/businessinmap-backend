@@ -5,7 +5,6 @@
     $defaultType = old('item_type', $row->item_type ?? '');
     $typeOptions = $allowedItemTypes ?? [];
     $itemTypeLabels = $itemTypeLabels ?? [];
-    $itemTypesByBusinessService = is_array($itemTypesByBusinessService ?? null) ? $itemTypesByBusinessService : [];
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
@@ -188,10 +187,11 @@ document.addEventListener('click', function (event) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    const typeMatrix = @json($itemTypesByBusinessService);
+    const lookupUrl = @json(route('admin.bookable-items.item-types-lookup'));
     const businessSelect = document.querySelector('.js-bookable-business');
     const serviceSelect = document.querySelector('.js-bookable-service');
     const hintNodes = document.querySelectorAll('.js-bookable-type-hint');
+    let requestSeq = 0;
 
     function initTom(select) {
         if (window.TomSelect && !select.tomselect) {
@@ -255,11 +255,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function refreshTypeOptions() {
-        const businessId = String(businessSelect?.value || '');
-        const serviceId = String(serviceSelect?.value || '');
-        const options = (typeMatrix[businessId] && typeMatrix[businessId][serviceId]) ? typeMatrix[businessId][serviceId] : [];
-
+    function applyOptions(options) {
         document.querySelectorAll('.js-bookable-type').forEach(function (select) {
             const keepValue = String(select.dataset.currentValue || select.value || '');
             try {
@@ -268,14 +264,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('fillSelect failed for', select, e);
             }
         });
+    }
+
+    function refreshTypeOptions() {
+        const businessId = String(businessSelect?.value || '');
+        const serviceId = String(serviceSelect?.value || '');
 
         if (!businessId || !serviceId) {
+            applyOptions([]);
             setHint('اختر البزنس والخدمة أولًا.');
-        } else if (!options.length) {
-            setHint('لا توجد أنواع عناصر مسموحة لهذا البزنس مع هذه الخدمة. راجع Platform Service Item Types و Service Catalog Matrix.');
-        } else {
-            setHint('تم عرض أنواع العناصر المسموحة فقط لهذا category_child والخدمة.');
+            return;
         }
+
+        // Fetched on demand instead of a giant precomputed business x service
+        // matrix - that used to be embedded for every business (1700+) times
+        // every service on every page load, which made this page extremely
+        // slow. Sequence guard drops stale responses if the user changes the
+        // business/service again before the previous lookup finishes.
+        const seq = ++requestSeq;
+        const url = new URL(lookupUrl, window.location.origin);
+        url.searchParams.set('business_id', businessId);
+        url.searchParams.set('service_id', serviceId);
+
+        setHint('جاري تحميل أنواع العناصر...');
+
+        fetch(url.toString(), {headers: {'Accept': 'application/json'}})
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (seq !== requestSeq) return;
+                const options = (data && data.ok && Array.isArray(data.items)) ? data.items : [];
+                applyOptions(options);
+                setHint(options.length
+                    ? 'تم عرض أنواع العناصر المسموحة فقط لهذا category_child والخدمة.'
+                    : 'لا توجد أنواع عناصر مسموحة لهذا البزنس مع هذه الخدمة. راجع Platform Service Item Types و Service Catalog Matrix.');
+            })
+            .catch(function () {
+                if (seq !== requestSeq) return;
+                applyOptions([]);
+                setHint('تعذر تحميل أنواع العناصر. حاول مرة أخرى.');
+            });
     }
 
     document.querySelectorAll('.js-bookable-search-select').forEach(initTom);

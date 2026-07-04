@@ -9,6 +9,7 @@ use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -71,7 +72,32 @@ class BookableItemController extends Controller
             'businesses' => $businesses,
             'allowedItemTypes' => $allowedItemTypes,
             'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
-            'itemTypesByBusinessService' => $this->itemTypesByBusinessServiceForForm($businesses, $services),
+        ]);
+    }
+
+    /**
+     * Item types allowed for one business+service pair, fetched on demand.
+     *
+     * create()/edit() used to precompute this for every business x service
+     * combination (itemTypesByBusinessServiceForForm) - with ~1750 businesses
+     * x 5 services that was ~8,750 iterations each running multiple queries,
+     * making the page take extremely long to load. This replaces it with a
+     * single lookup for the pair actually selected in the form.
+     */
+    public function itemTypesLookup(Request $request): JsonResponse
+    {
+        $businessId = (int) $request->get('business_id', 0);
+        $serviceId = (int) $request->get('service_id', 0);
+
+        $types = $this->allowedItemTypesFor($businessId, $serviceId);
+        $labels = $this->itemTypeLabelsFor($types);
+
+        return response()->json([
+            'ok' => true,
+            'items' => collect($types)
+                ->map(fn (string $key) => ['key' => $key, 'label' => $labels[$key] ?? $key])
+                ->values()
+                ->all(),
         ]);
     }
 
@@ -111,7 +137,6 @@ class BookableItemController extends Controller
             'businesses' => $businesses,
             'allowedItemTypes' => $allowedItemTypes,
             'itemTypeLabels' => $this->itemTypeLabelsFor($allowedItemTypes),
-            'itemTypesByBusinessService' => $this->itemTypesByBusinessServiceForForm($businesses, $services),
         ]);
     }
 
@@ -385,31 +410,6 @@ class BookableItemController extends Controller
                 (string) $row->key => $row->displayName('ar'),
             ])
             ->all();
-    }
-
-    protected function itemTypesByBusinessServiceForForm($businesses, $services): array
-    {
-        $matrix = [];
-
-        foreach ($businesses as $business) {
-            $businessId = (int) $business->id;
-
-            foreach ($services as $service) {
-                $serviceId = (int) $service->id;
-                $types = $this->allowedItemTypesFor($businessId, $serviceId);
-                $labels = $this->itemTypeLabelsFor($types);
-
-                $matrix[$businessId][$serviceId] = collect($types)
-                    ->map(fn (string $key) => [
-                        'key' => $key,
-                        'label' => $labels[$key] ?? $key,
-                    ])
-                    ->values()
-                    ->all();
-            }
-        }
-
-        return $matrix;
     }
 
     protected function resolveBusinessContext(int $businessId): array

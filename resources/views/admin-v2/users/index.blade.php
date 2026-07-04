@@ -316,6 +316,7 @@ document.addEventListener('DOMContentLoaded', function () {
             create: false,
             maxOptions: 500,
             placeholder: placeholder,
+            dropdownParent: 'body',
         });
     }
 

@@ -200,7 +200,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 allowEmptyOption: true,
                 maxOptions: 500,
                 placeholder: select.dataset.placeholder || 'ابحث هنا',
-                sortField: {field: 'text', direction: 'asc'}
+                sortField: {field: 'text', direction: 'asc'},
+                dropdownParent: 'body'
             });
         }
     }

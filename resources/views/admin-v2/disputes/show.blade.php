@@ -94,7 +94,7 @@
             <div class="a2-title" style="font-size:15px;margin-bottom:10px;">قرارات النزاع والخصم من الضمان</div>
 
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">
-                <form method="POST" action="{{ route('admin.disputes.resolve.release-business', $dispute) }}">
+                <form method="POST" action="{{ route('admin.disputes.resolve.release-business', $dispute) }}" onsubmit="return confirm('تأكيد: سيتم حل النزاع لصالح مقدم الخدمة وتحريك الضمان. هل أنت متأكد؟');">
                     @csrf
                     <div style="font-weight:800;margin-bottom:8px;">حل لصالح مقدم الخدمة</div>
                     <label class="a2-label">مبلغ عقوبة على العميل</label>
@@ -104,7 +104,7 @@
                     </button>
                 </form>
 
-                <form method="POST" action="{{ route('admin.disputes.resolve.refund-client', $dispute) }}">
+                <form method="POST" action="{{ route('admin.disputes.resolve.refund-client', $dispute) }}" onsubmit="return confirm('تأكيد: سيتم حل النزاع لصالح العميل واسترجاع الضمان. هل أنت متأكد؟');">
                     @csrf
                     <div style="font-weight:800;margin-bottom:8px;">حل لصالح العميل</div>
                     <label class="a2-label">مبلغ عقوبة على البزنس</label>
@@ -114,7 +114,7 @@
                     </button>
                 </form>
 
-                <form method="POST" action="{{ route('admin.disputes.resolve.split', $dispute) }}">
+                <form method="POST" action="{{ route('admin.disputes.resolve.split', $dispute) }}" onsubmit="return confirm('تأكيد: سيتم تقسيم الضمان بين الطرفين بالنسب المحددة. هل أنت متأكد؟');">
                     @csrf
                     <div style="font-weight:800;margin-bottom:8px;">Split</div>
 
@@ -135,7 +135,7 @@
                     </button>
                 </form>
 
-                <form method="POST" action="{{ route('admin.disputes.resolve.no-action', $dispute) }}">
+                <form method="POST" action="{{ route('admin.disputes.resolve.no-action', $dispute) }}" onsubmit="return confirm('تأكيد: سيتم إغلاق النزاع بدون أي إجراء مالي. هل أنت متأكد؟');">
                     @csrf
                     <div style="font-weight:800;margin-bottom:8px;">بدون إجراء مالي</div>
                     <button class="a2-btn a2-btn-ghost" type="submit">

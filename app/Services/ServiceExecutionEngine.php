@@ -465,7 +465,7 @@ class ServiceExecutionEngine
     public function moveBookingToInProgress(Booking $booking): void
     {
         DB::transaction(function () use ($booking) {
-            $booking->refresh();
+            $booking = Booking::query()->whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
             if (! $booking->canMoveToInProgress()) {
                 throw ValidationException::withMessages([

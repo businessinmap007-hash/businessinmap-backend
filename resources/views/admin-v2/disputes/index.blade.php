@@ -21,7 +21,7 @@
         <div class="a2-hint">Deposits status = dispute</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.disputes.index') }}">الحجوزات</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">الحجوزات</a>
       </div>
     </div>
 

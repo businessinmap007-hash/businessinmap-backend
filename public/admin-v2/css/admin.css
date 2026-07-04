@@ -1363,6 +1363,19 @@ body.admin-v2 .a2-toolbar{
   width: 100%;
 }
 
+/* Tom Select copies the original <select>'s classes (including .a2-select)
+   onto its wrapper div. Without this reset the wrapper renders the .a2-select
+   frame AND the inner .ts-control renders its own frame = a doubled border.
+   Strip the wrapper's frame so only .ts-control shows. */
+.ts-wrapper.a2-select{
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  height: auto;
+  box-shadow: none;
+}
+
 .ts-wrapper.single .ts-control,
 .ts-wrapper.multi .ts-control{
   min-height: 40px;

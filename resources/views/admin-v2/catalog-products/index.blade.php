@@ -77,15 +77,23 @@
         </form>
     </div>
 
+    @if(session('success'))
+        <div class="a2-alert a2-alert-success" style="margin-bottom:16px;">{{ session('success') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="a2-alert a2-alert-danger" style="margin-bottom:16px;">{{ session('error') }}</div>
+    @endif
+
     <div class="a2-card" style="margin-top:16px;">
-        <form method="GET" action="{{ route('admin.catalog-products.index') }}" onsubmit="return window.catalogProductsManagerConfirm ? window.catalogProductsManagerConfirm(this) : confirm('تأكيد تنفيذ العملية؟');">
+        <form method="POST" action="{{ route('admin.catalog-products.bulk-action') }}" onsubmit="return window.catalogProductsManagerConfirm ? window.catalogProductsManagerConfirm(this) : confirm('تأكيد تنفيذ العملية؟');">
+            @csrf
             <input type="hidden" name="q" value="{{ $qVal }}">
             <input type="hidden" name="child_id" value="{{ $childIdVal }}">
             <input type="hidden" name="brand_id" value="{{ $brandIdVal }}">
             <input type="hidden" name="status" value="{{ $statusVal }}">
             <input type="hidden" name="duplicate_status" value="{{ $duplicateStatusVal }}">
             <input type="hidden" name="per_page" value="{{ $perPageVal }}">
-            <input type="hidden" name="confirm_action" value="yes">
 
             <div class="a2-filterbar" style="margin-bottom:12px;">
                 <select class="a2-select a2-filter-md" name="manager_action" required>
@@ -184,7 +192,8 @@
 
 <script>
 (function(){
-    const autosaveBaseUrl = @json(route('admin.catalog-products.index'));
+    const inlineUpdateUrlTemplate = @json(route('admin.catalog-products.inline-update', ['product' => '__ID__']));
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     function flash(el, cls) {
         el.classList.add(cls);
@@ -197,14 +206,18 @@
     }
 
     function saveField(wrapper, id, field, value) {
-        const url = new URL(autosaveBaseUrl, window.location.origin);
-        url.searchParams.set('manager_action', 'inline_update');
-        url.searchParams.set('product_id', id);
-        url.searchParams.set('field', field);
-        url.searchParams.set('value', value);
+        const url = inlineUpdateUrlTemplate.replace('__ID__', encodeURIComponent(id));
 
         wrapper.textContent = 'Saving...';
-        return fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
+        return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ field: field, value: value }),
+            })
             .then(function(response){
                 if (!response.ok) throw new Error('save failed');
                 return response.json();

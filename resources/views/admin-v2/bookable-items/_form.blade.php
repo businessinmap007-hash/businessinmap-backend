@@ -213,10 +213,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function fillSelect(select, options, keepValue) {
-        const ts = select.tomselect || null;
-        if (ts) {
-            ts.clear(true);
-            ts.clearOptions();
+        // Rebuild from scratch instead of patching the live TomSelect instance -
+        // incremental clearOptions()/addOption() calls left stale rendered rows
+        // behind after repeated business/service changes.
+        if (select.tomselect) {
+            select.tomselect.destroy();
         }
 
         select.innerHTML = '';
@@ -228,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? 'لا توجد أنواع مسموحة لهذا الاختيار'
                 : 'اختر البزنس والخدمة أولًا';
             select.appendChild(option);
-            if (ts) ts.addOption({value: '', text: option.textContent});
+            initTom(select);
             return;
         }
 
@@ -236,7 +237,6 @@ document.addEventListener('DOMContentLoaded', function () {
         empty.value = '';
         empty.textContent = 'اختر النوع';
         select.appendChild(empty);
-        if (ts) ts.addOption({value: '', text: empty.textContent});
 
         options.forEach(function (item) {
             const value = String(item.key || '');
@@ -246,12 +246,12 @@ document.addEventListener('DOMContentLoaded', function () {
             option.textContent = label;
             option.selected = keepValue && value === keepValue;
             select.appendChild(option);
-            if (ts) ts.addOption({value: value, text: label});
         });
 
-        if (ts) {
-            ts.refreshOptions(false);
-            if (keepValue) ts.setValue(keepValue, true);
+        initTom(select);
+
+        if (keepValue && select.tomselect) {
+            select.tomselect.setValue(keepValue, true);
         }
     }
 

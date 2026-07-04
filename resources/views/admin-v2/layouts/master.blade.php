@@ -16,6 +16,8 @@
 
 <body class="admin-v2 @yield('body_class')">
 
+    <a href="#a2MainContent" class="a2-skip-link">تخطي إلى المحتوى الرئيسي</a>
+
     <div class="a2-shell">
 
         {{-- Mobile Overlay --}}
@@ -35,7 +37,7 @@
                     id="a2CloseSidebar"
                     aria-label="Close menu"
                 >
-                    ✕
+                    <svg class="a2-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M18.3 5.71 12 12.01l-6.29-6.3-1.42 1.42 6.3 6.29-6.3 6.29 1.42 1.42 6.29-6.3 6.29 6.3 1.42-1.42-6.3-6.29 6.3-6.29z"/></svg>
                 </button>
             </div>
 
@@ -56,7 +58,7 @@
                         id="a2OpenSidebar"
                         aria-label="Open menu"
                     >
-                        ☰
+                        <svg class="a2-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z"/></svg>
                     </button>
 
                     <div class="a2-topbar-title">
@@ -70,7 +72,7 @@
             </header>
 
             {{-- Content --}}
-            <main class="a2-content">
+            <main class="a2-content" id="a2MainContent" tabindex="-1">
                 @yield('before_content')
 
                 @yield('content')

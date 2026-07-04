@@ -12,17 +12,22 @@ return new class extends Migration {
         // ✅ غيّري اسم الجدول هنا حسب اسمك الحقيقي
         $tableName = 'deposits';
 
-        Schema::table($tableName, function (Blueprint $table) {
+        if (! Schema::hasTable($tableName)) {
+            return;
+        }
 
-            $table->index('client_id', 'esc_client_idx');
-            $table->index('business_id', 'esc_business_idx');
-            $table->index('status', 'esc_status_idx');
+        if (! $this->indexExists($tableName, 'esc_client_idx')) {
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->index('client_id', 'esc_client_idx');
+                $table->index('business_id', 'esc_business_idx');
+                $table->index('status', 'esc_status_idx');
 
-            $table->index(['target_type', 'target_id'], 'esc_target_idx');
+                $table->index(['target_type', 'target_id'], 'esc_target_idx');
 
-            $table->index('released_at', 'esc_released_at_idx');
-            $table->index('refunded_at', 'esc_refunded_at_idx');
-        });
+                $table->index('released_at', 'esc_released_at_idx');
+                $table->index('refunded_at', 'esc_refunded_at_idx');
+            });
+        }
 
         // توحيد دقة الأموال إلى 12,2 (اختياري لكن أنصح به)
         // لو لا تريدين تعديل النوع، علّقي هذا الجزء
@@ -56,5 +61,19 @@ return new class extends Migration {
             $table->dropIndex('esc_released_at_idx');
             $table->dropIndex('esc_refunded_at_idx');
         });
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $connection = Schema::getConnection();
+        $database = $connection->getDatabaseName();
+
+        $result = $connection->selectOne(
+            'SELECT COUNT(1) AS c FROM information_schema.statistics '
+            . 'WHERE table_schema = ? AND table_name = ? AND index_name = ?',
+            [$database, $table, $indexName]
+        );
+
+        return $result && (int) $result->c > 0;
     }
 };

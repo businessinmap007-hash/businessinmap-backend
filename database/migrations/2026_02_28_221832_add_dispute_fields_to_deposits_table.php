@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (! Schema::hasTable('deposits') || Schema::hasColumn('deposits', 'dispute_opened_at')) {
+            return;
+        }
+
         Schema::table('deposits', function (Blueprint $table) {
             $table->timestamp('dispute_opened_at')->nullable()->after('status');
             $table->enum('dispute_opened_by', ['client','business','admin'])->nullable()->after('dispute_opened_at');

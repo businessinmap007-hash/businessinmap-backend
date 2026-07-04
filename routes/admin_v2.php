@@ -118,6 +118,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
 
         Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
+        Route::post('catalog-products/bulk-action', [CatalogProductController::class, 'bulkAction'])->name('catalog-products.bulk-action');
+        Route::post('catalog-products/{product}/inline-update', [CatalogProductController::class, 'inlineUpdate'])->whereNumber('product')->name('catalog-products.inline-update');
 
         Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
         Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');

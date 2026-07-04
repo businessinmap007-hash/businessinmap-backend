@@ -12,18 +12,6 @@ class CatalogProductController extends Controller
 {
     public function index(Request $request)
     {
-        $this->handleBulkAction($request);
-
-        if ((string) $request->get('manager_action', '') === 'inline_update') {
-            $result = $this->updateSingleField(
-                (int) $request->get('product_id', 0),
-                (string) $request->get('field', ''),
-                $request->get('value')
-            );
-
-            return response()->json($result, $result['ok'] ? 200 : 422);
-        }
-
         $q = trim((string) $request->get('q', ''));
         $childId = (int) $request->get('child_id', 0);
         $brandId = (int) $request->get('brand_id', 0);
@@ -63,6 +51,38 @@ class CatalogProductController extends Controller
         return response()->json($result, $result['ok'] ? 200 : 422);
     }
 
+    public function bulkAction(Request $request)
+    {
+        $redirectParams = $request->only(['q', 'child_id', 'brand_id', 'status', 'duplicate_status', 'per_page']);
+
+        $action = (string) $request->input('manager_action', '');
+
+        if ($action === '' || $action === 'inline_update') {
+            return redirect()
+                ->route('admin.catalog-products.index', $redirectParams)
+                ->with('error', 'اختر إجراء صالح.');
+        }
+
+        $ids = collect((array) $request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->take(500)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return redirect()
+                ->route('admin.catalog-products.index', $redirectParams)
+                ->with('error', 'اختر صنف واحد على الأقل.');
+        }
+
+        $this->applyBulkAction($action, $ids);
+
+        return redirect()
+            ->route('admin.catalog-products.index', $redirectParams)
+            ->with('success', 'تم تنفيذ العملية بنجاح.');
+    }
+
     protected function baseQuery(string $q, int $childId, int $brandId, string $status, string $duplicateStatus)
     {
         return DB::table('catalog_products as cp')
@@ -96,24 +116,8 @@ class CatalogProductController extends Controller
             });
     }
 
-    private function handleBulkAction(Request $request): void
+    private function applyBulkAction(string $action, $ids): void
     {
-        $action = (string) $request->get('manager_action', '');
-        if ($action === '' || $action === 'inline_update' || (string) $request->get('confirm_action', '') !== 'yes') {
-            return;
-        }
-
-        $ids = collect((array) $request->get('ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->take(500)
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return;
-        }
-
         if ($action === 'delete_forever') {
             $this->deleteProductsForever($ids);
             return;

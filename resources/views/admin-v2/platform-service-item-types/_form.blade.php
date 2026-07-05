@@ -38,8 +38,8 @@
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">الخدمة <span class="a2-danger">*</span></label>
-            <select class="a2-select" name="platform_service_id">
+            <label class="a2-label" for="platform_service_id">الخدمة <span class="a2-danger">*</span></label>
+            <select class="a2-select js-psit-service" id="platform_service_id" name="platform_service_id">
                 <option value="">اختر الخدمة</option>
                 @foreach(($services ?? []) as $service)
                     <option
@@ -52,6 +52,26 @@
             </select>
 
             @error('platform_service_id')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <div class="a2-form-group">
+            <label class="a2-label" for="group_id">الفرع</label>
+            <select
+                class="a2-select js-psit-group"
+                id="group_id"
+                name="group_id"
+                data-current-value="{{ old('group_id', $row->group_id ?? '') }}"
+            >
+                <option value="">بدون فرع</option>
+            </select>
+
+            <div class="a2-hint a2-mt-8">
+                الفرع يقسّم أنواع العناصر داخل الخدمة (مثال: فنادق / عيادات / ملاعب داخل الحجز).
+            </div>
+
+            @error('group_id')
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>
@@ -204,3 +224,51 @@
         {{ $isEdit ? 'تحديث' : 'حفظ' }}
     </button>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Groups are few (a handful per service), so filter client-side by the
+    // chosen service rather than fetching per change.
+    const groups = @json(($groups ?? collect())->map(function ($g) {
+        return [
+            'id' => (int) $g->id,
+            'service_id' => (int) $g->platform_service_id,
+            'label' => $g->displayName('ar'),
+        ];
+    })->values());
+
+    const serviceSelect = document.querySelector('.js-psit-service');
+    const groupSelect = document.querySelector('.js-psit-group');
+    if (!serviceSelect || !groupSelect) return;
+
+    function rebuildGroups() {
+        const serviceId = String(serviceSelect.value || '');
+        const keep = String(groupSelect.dataset.currentValue || groupSelect.value || '');
+
+        groupSelect.innerHTML = '';
+        const none = document.createElement('option');
+        none.value = '';
+        none.textContent = 'بدون فرع';
+        groupSelect.appendChild(none);
+
+        groups
+            .filter(function (g) { return String(g.service_id) === serviceId; })
+            .forEach(function (g) {
+                const opt = document.createElement('option');
+                opt.value = String(g.id);
+                opt.textContent = g.label;
+                if (String(g.id) === keep) opt.selected = true;
+                groupSelect.appendChild(opt);
+            });
+    }
+
+    serviceSelect.addEventListener('change', function () {
+        groupSelect.dataset.currentValue = '';
+        rebuildGroups();
+    });
+
+    rebuildGroups();
+});
+</script>
+@endpush

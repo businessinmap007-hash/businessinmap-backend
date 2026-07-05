@@ -7,6 +7,7 @@
 @php
     $qVal = (string) ($q ?? '');
     $serviceIdVal = (int) ($serviceId ?? 0);
+    $groupIdVal = (int) ($groupId ?? 0);
     $activeVal = (string) ($active ?? '');
 
     $displayName = function ($item) {
@@ -67,6 +68,18 @@
                 </select>
             </div>
 
+            <div class="a2-filter-md">
+                <label class="a2-label">الفرع</label>
+                <select class="a2-select" name="group_id">
+                    <option value="0">كل الفروع</option>
+                    @foreach(($groups ?? []) as $group)
+                        <option value="{{ $group->id }}" @selected($groupIdVal === (int) $group->id)>
+                            {{ $displayName($group) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="a2-filter-sm">
                 <label class="a2-label">الحالة</label>
                 <select class="a2-select" name="active">
@@ -91,6 +104,7 @@
                         <th>#</th>
                         <th>النوع</th>
                         <th>الخدمة</th>
+                        <th>الفرع</th>
                         <th>Key</th>
                         <th>Default</th>
                         <th>الحالة</th>
@@ -115,6 +129,14 @@
                                     <div class="a2-muted" dir="ltr">{{ $row->service->key }}</div>
                                 @else
                                     —
+                                @endif
+                            </td>
+
+                            <td>
+                                @if($row->group)
+                                    <span class="a2-pill a2-pill-sub">{{ $displayName($row->group) }}</span>
+                                @else
+                                    <span class="a2-muted">بدون فرع</span>
                                 @endif
                             </td>
 
@@ -156,7 +178,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="a2-empty">لا توجد أنواع عناصر حتى الآن.</td>
+                            <td colspan="9" class="a2-empty">لا توجد أنواع عناصر حتى الآن.</td>
                         </tr>
                     @endforelse
                 </tbody>

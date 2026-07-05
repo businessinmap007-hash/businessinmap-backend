@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
 use App\Models\PlatformService;
+use App\Models\PlatformServiceItemGroup;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,7 @@ class PlatformServiceItemTypeController extends Controller
     public function index(Request $request)
     {
         $serviceId = (int) $request->get('service_id', 0);
+        $groupId = (int) $request->get('group_id', 0);
         $active = $request->get('active', '');
         $q = trim((string) $request->get('q', ''));
 
@@ -25,9 +27,15 @@ class PlatformServiceItemTypeController extends Controller
             ->orderBy('id')
             ->get();
 
+        $groups = $this->groupsForForm();
+
         $rows = PlatformServiceItemType::query()
-            ->with(['service:id,key,name_ar,name_en,is_active'])
+            ->with([
+                'service:id,key,name_ar,name_en,is_active',
+                'group:id,platform_service_id,key,name_ar,name_en',
+            ])
             ->when($serviceId > 0, fn ($query) => $query->where('platform_service_id', $serviceId))
+            ->when($groupId > 0, fn ($query) => $query->where('group_id', $groupId))
             ->when($active !== '' && $active !== null, fn ($query) => $query->where('is_active', (int) $active))
             ->when($q !== '', function ($query) use ($q) {
                 $term = '%' . mb_strtolower($q) . '%';
@@ -39,6 +47,7 @@ class PlatformServiceItemTypeController extends Controller
                 });
             })
             ->orderBy('platform_service_id')
+            ->orderByRaw('COALESCE(group_id, 999999) ASC')
             ->ordered()
             ->paginate(50)
             ->withQueryString();
@@ -46,7 +55,9 @@ class PlatformServiceItemTypeController extends Controller
         return view('admin-v2.platform-service-item-types.index', compact(
             'rows',
             'services',
+            'groups',
             'serviceId',
+            'groupId',
             'active',
             'q'
         ));
@@ -55,6 +66,7 @@ class PlatformServiceItemTypeController extends Controller
     public function create(Request $request)
     {
         $services = $this->servicesForForm();
+        $groups = $this->groupsForForm();
 
         $row = new PlatformServiceItemType([
             'platform_service_id' => (int) $request->get('service_id', 0) ?: null,
@@ -65,7 +77,8 @@ class PlatformServiceItemTypeController extends Controller
 
         return view('admin-v2.platform-service-item-types.create', compact(
             'row',
-            'services'
+            'services',
+            'groups'
         ));
     }
 
@@ -92,13 +105,16 @@ class PlatformServiceItemTypeController extends Controller
     {
         $row = $platformServiceItemType->load([
             'service:id,key,name_ar,name_en,is_active',
+            'group:id,platform_service_id,key,name_ar,name_en',
         ]);
 
         $services = $this->servicesForForm();
+        $groups = $this->groupsForForm();
 
         return view('admin-v2.platform-service-item-types.edit', compact(
             'row',
-            'services'
+            'services',
+            'groups'
         ));
     }
 
@@ -161,6 +177,14 @@ class PlatformServiceItemTypeController extends Controller
                     ->ignore($ignoreId),
             ],
 
+            'group_id' => [
+                'nullable',
+                'integer',
+                // The branch must belong to the same service as the item type.
+                Rule::exists('platform_service_item_groups', 'id')
+                    ->where(fn ($query) => $query->where('platform_service_id', $request->input('platform_service_id'))),
+            ],
+
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
 
@@ -173,6 +197,7 @@ class PlatformServiceItemTypeController extends Controller
             'key.regex' => 'المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
         ], [
             'platform_service_id' => 'الخدمة',
+            'group_id' => 'الفرع',
             'key' => 'المفتاح',
             'name_ar' => 'الاسم العربي',
             'name_en' => 'الاسم الإنجليزي',
@@ -186,6 +211,7 @@ class PlatformServiceItemTypeController extends Controller
         $data['name_ar'] = trim((string) ($data['name_ar'] ?? ''));
         $data['name_en'] = trim((string) ($data['name_en'] ?? '')) ?: null;
 
+        $data['group_id'] = ! empty($data['group_id']) ? (int) $data['group_id'] : null;
         $data['is_default'] = (int) $request->boolean('is_default');
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['sort_order'] = max(0, (int) ($data['sort_order'] ?? 0));
@@ -201,6 +227,14 @@ class PlatformServiceItemTypeController extends Controller
             ->select(['id', 'key', 'name_ar', 'name_en', 'is_active'])
             ->orderBy('name_ar')
             ->orderBy('id')
+            ->get();
+    }
+
+    protected function groupsForForm()
+    {
+        return PlatformServiceItemGroup::query()
+            ->select(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'is_active', 'sort_order'])
+            ->ordered()
             ->get();
     }
 

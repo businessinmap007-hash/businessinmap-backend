@@ -70,6 +70,25 @@ tables and they answer two different questions.
 **Rule of thumb:** presence/on-off of a service → `category_platform_services`.
 Behaviour/settings of that service → `category_service_config`.
 
+### Two write paths (important)
+
+There are two places that attach services to a child, and they do **not** write
+the same tables:
+
+- **Category child edit form** (`CategoryChildController::syncChildServices`)
+  writes **only** `category_platform_services` (on/off link). It does not
+  create `category_service_config` or `category_child_service_fees` rows.
+- **Category Services Bulk tool** (`CategoryServiceBulkController`) writes all
+  three in sync: the link **+** the per-service config **+** the fees.
+
+This is **not** a bug: the read path
+(`BookableItemController::allowedItemTypesFor`) falls back to *all* active
+`platform_service_item_types` for the service when no config row exists, so
+booking still works. The practical consequence is that **item-type
+restriction and service fees can only be set via the Bulk tool**, not via the
+plain child edit form. Enable a service on the child form for a quick on/off;
+use the Bulk tool when you need to curate item types or set fees.
+
 ### 3. `category_child_service_fees` (`CategoryChildServiceFee`) — fees
 
 Third, separate table: the business/client fee split per child+service. Managed

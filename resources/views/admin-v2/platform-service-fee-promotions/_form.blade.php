@@ -88,8 +88,8 @@
         </div>
 
         <div class="a2-form-group" id="serviceWrap">
-            <label class="a2-label">الخدمة</label>
-            <select name="service_id" id="service_id" class="a2-select">
+            <label class="a2-label" for="service_id">الخدمة</label>
+            <select name="service_id" id="service_id" class="a2-select js-psfp-search" data-placeholder="ابحث عن الخدمة">
                 <option value="">اختر الخدمة</option>
                 @foreach($services as $service)
                     <option value="{{ $service->id }}" @selected($serviceVal === (int) $service->id)>
@@ -101,8 +101,8 @@
         </div>
 
         <div class="a2-form-group" id="childWrap">
-            <label class="a2-label">القسم الفرعي</label>
-            <select name="child_id" id="child_id" class="a2-select">
+            <label class="a2-label" for="child_id">القسم الفرعي</label>
+            <select name="child_id" id="child_id" class="a2-select js-psfp-search" data-placeholder="ابحث عن القسم الفرعي">
                 <option value="">اختر القسم الفرعي</option>
                 @foreach($children as $child)
                     <option value="{{ $child->id }}" @selected($childVal === (int) $child->id)>
@@ -349,6 +349,26 @@
 
     syncScope();
     syncDiscountValue();
+
+    // Make the service (5) and child (300+) pickers searchable instead of
+    // rendering every option as a long static <select>. Client-side is enough
+    // here - the option counts are small, so no remote lookup is needed.
+    if (window.TomSelect) {
+        document.querySelectorAll('.js-psfp-search').forEach(function (el) {
+            if (el.tomselect) {
+                return;
+            }
+
+            new TomSelect(el, {
+                create: false,
+                allowEmptyOption: true,
+                maxOptions: 1000,
+                placeholder: el.getAttribute('data-placeholder') || 'ابحث هنا',
+                dropdownParent: 'body',
+                sortField: {field: 'text', direction: 'asc'}
+            });
+        });
+    }
 const startDateInput = document.getElementById('start_date');
 const startHourInput = document.getElementById('start_hour');
 const startMinuteInput = document.getElementById('start_minute');

@@ -56,8 +56,8 @@
         @include('admin-v2.business-service-prices._form', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
             'children' => $children,
+            'selectedBusiness' => $selectedBusiness ?? null,
             'backUrl' => $backUrl,
         ])
     </form>

@@ -29,8 +29,11 @@ class BusinessServicePriceController extends Controller
         $qItemType = trim((string) $request->get('q_item_type', ''));
 
         $services = $this->servicesForForm();
-        $businesses = User::query()->select(['id', 'name', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
+
+        // Only the business currently filtered on is preloaded; the dropdown
+        // searches the rest on demand instead of embedding ~1,750 rows.
+        $selectedBusiness = $businessId > 0 ? $this->businessOption($businessId) : null;
 
         $baseQuery = BusinessServicePrice::query()
             ->selectRaw("business_service_prices.*, CASE WHEN discount_enabled = 1 THEN ROUND(price * discount_percent / 100, 2) ELSE 0 END as discount_amount, CASE WHEN discount_enabled = 1 THEN ROUND(price - (price * discount_percent / 100), 2) ELSE ROUND(price, 2) END as final_service_price, CASE WHEN deposit_enabled = 1 THEN ROUND((CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END) * deposit_percent / 100, 2) ELSE 0 END as deposit_hold_amount, ROUND(CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END, 2) as cash_due_on_execution")
@@ -65,7 +68,7 @@ class BusinessServicePriceController extends Controller
 
         $rows = $baseQuery->orderByDesc('id')->paginate(50)->withQueryString();
 
-        return view('admin-v2.business-service-prices.index', compact('rows', 'services', 'businesses', 'children', 'serviceId', 'businessId', 'childId', 'isActive', 'qBusiness', 'qService', 'qChild', 'qItemType', 'stats'));
+        return view('admin-v2.business-service-prices.index', compact('rows', 'services', 'selectedBusiness', 'children', 'serviceId', 'businessId', 'childId', 'isActive', 'qBusiness', 'qService', 'qChild', 'qItemType', 'stats'));
     }
 
     public function create()

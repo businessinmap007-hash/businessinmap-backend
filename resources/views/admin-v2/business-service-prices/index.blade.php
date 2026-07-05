@@ -95,13 +95,18 @@
                 placeholder="نوع العنصر"
             >
 
-            <select class="a2-select a2-filter-md" name="business_id">
+            <select
+                class="a2-select a2-filter-md js-bsp-business-filter"
+                name="business_id"
+                data-remote-url="{{ route('admin.business_service_prices.business-lookup') }}"
+                data-placeholder="كل البزنسات"
+            >
                 <option value="0">كل البزنسات</option>
-                @foreach(($businesses ?? []) as $b)
-                    <option value="{{ $b->id }}" @selected($businessIdVal === (int)$b->id)>
-                        {{ $b->name ?: ('#'.$b->id) }}
+                @if($selectedBusiness ?? null)
+                    <option value="{{ $selectedBusiness->id }}" selected>
+                        {{ $selectedBusiness->name ?: ('#'.$selectedBusiness->id) }}
                     </option>
-                @endforeach
+                @endif
             </select>
 
             <select class="a2-select a2-filter-md" name="service_id">
@@ -329,4 +334,39 @@
         @endif
     </div>
 </div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Business filter: search-as-you-type instead of embedding ~1,750 rows.
+    const el = document.querySelector('.js-bsp-business-filter');
+    if (!el || !window.TomSelect || el.tomselect) return;
+
+    const remoteUrl = el.dataset.remoteUrl;
+
+    new TomSelect(el, {
+        valueField: 'value',
+        labelField: 'text',
+        searchField: 'text',
+        create: false,
+        maxOptions: 30,
+        allowEmptyOption: true,
+        placeholder: el.dataset.placeholder || 'ابحث',
+        dropdownParent: 'body',
+        shouldLoad: function (query) { return query.length >= 1; },
+        load: function (query, callback) {
+            const url = new URL(remoteUrl, window.location.origin);
+            url.searchParams.set('q', query);
+            fetch(url.toString(), {headers: {'Accept': 'application/json'}})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    const rows = (data && data.ok && Array.isArray(data.businesses)) ? data.businesses : [];
+                    callback(rows.map(function (b) { return {value: String(b.id), text: b.name}; }));
+                })
+                .catch(function () { callback(); });
+        },
+    });
+});
+</script>
+@endpush
 @endsection

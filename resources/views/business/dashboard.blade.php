@@ -14,10 +14,10 @@
 </div>
 
 <div class="a2-stat-grid" style="margin-top:16px;">
-    <div class="a2-stat-card">
+    <a href="{{ route('business.bookable-items.index') }}" class="a2-stat-card" style="text-decoration:none;color:inherit;">
         <div class="a2-stat-label">وحداتي القابلة للحجز</div>
         <div class="a2-stat-value">{{ $stats['bookable_items'] }}</div>
-    </div>
+    </a>
 
     <div class="a2-stat-card">
         <div class="a2-stat-label">المفعّلة منها</div>

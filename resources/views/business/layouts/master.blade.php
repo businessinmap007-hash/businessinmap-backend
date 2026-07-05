@@ -20,6 +20,7 @@
 
             <nav style="display:flex;align-items:center;gap:8px;">
                 <a href="{{ route('business.dashboard') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الرئيسية</a>
+                <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">وحداتي</a>
                 @auth
                     <form method="POST" action="{{ route('business.logout') }}">
                         @csrf

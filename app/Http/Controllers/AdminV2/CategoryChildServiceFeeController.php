@@ -87,7 +87,7 @@ class CategoryChildServiceFeeController extends Controller
 
         $feeRows = CategoryChildServiceFee::query()
             ->with(['platformService:id,key,name_ar,name_en,is_active'])
-            ->forChild((int) $categoryChild->id)
+            ->forRootChild($parentId, (int) $categoryChild->id)
             ->whereIn('platform_service_id', $serviceIds)
             ->ordered()
             ->get()
@@ -145,7 +145,7 @@ class CategoryChildServiceFeeController extends Controller
             ? $request->input('rows')
             : [];
 
-        DB::transaction(function () use ($categoryChild, $serviceIds, $rowsInput) {
+        DB::transaction(function () use ($categoryChild, $serviceIds, $rowsInput, $parent) {
             foreach ($serviceIds as $serviceId) {
                 $payload = is_array($rowsInput[$serviceId] ?? null)
                     ? $rowsInput[$serviceId]
@@ -177,6 +177,12 @@ class CategoryChildServiceFeeController extends Controller
 
                 CategoryChildServiceFee::query()->updateOrCreate(
                     [
+                        // category_id is part of the UNIQUE key
+                        // (category_id, child_id, platform_service_id) and is
+                        // NOT NULL. Omitting it crashed on insert and, for a
+                        // child shared by several roots, overwrote the wrong
+                        // root's fee row.
+                        'category_id' => (int) $parent->id,
                         'child_id' => (int) $categoryChild->id,
                         'platform_service_id' => (int) $serviceId,
                     ],

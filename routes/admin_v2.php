@@ -48,6 +48,7 @@ use App\Http\Controllers\AdminV2\{
     CatalogProductController,
     ProductCategoryChildController,
     ProductCategoryController,
+    UserServiceFeeConsentController,
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
@@ -119,6 +120,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('bulk/update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('bulk.update');
             Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
             Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
+        });
+
+        Route::prefix('user-service-fee-consents')->name('user-service-fee-consents.')->group(function () {
+            Route::get('{user}/edit', [UserServiceFeeConsentController::class, 'edit'])->whereNumber('user')->name('edit');
+            Route::put('{user}', [UserServiceFeeConsentController::class, 'update'])->whereNumber('user')->name('update');
+            Route::post('{user}/enable-charging', [UserServiceFeeConsentController::class, 'enableCharging'])->whereNumber('user')->name('enable-charging');
+            Route::post('{user}/disable-charging', [UserServiceFeeConsentController::class, 'disableCharging'])->whereNumber('user')->name('disable-charging');
         });
 
         Route::post('options/bulk-assign-group', [OptionController::class, 'bulkAssignGroup'])->name('options.bulk-assign-group');

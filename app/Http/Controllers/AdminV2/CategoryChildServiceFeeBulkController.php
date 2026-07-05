@@ -154,6 +154,7 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         $existingFees = CategoryChildServiceFee::query()
             ->with(['platformService:id,key,name_ar,name_en,is_active'])
+            ->where('category_id', $parentId)
             ->whereIn('child_id', $validChildIds)
             ->whereIn('platform_service_id', $services->pluck('id')->map(fn ($id) => (int) $id)->all())
             ->ordered()
@@ -301,6 +302,7 @@ class CategoryChildServiceFeeBulkController extends Controller
                     }
 
                     $this->upsertFeeRow(
+                        parentId: $parentId,
                         childId: $childId,
                         serviceId: (int) $serviceId,
                         payload: $payload
@@ -347,7 +349,7 @@ class CategoryChildServiceFeeBulkController extends Controller
         return $currentMaxSort > 0 ? $currentMaxSort + 1 : 1;
     }
 
-    private function upsertFeeRow(int $childId, int $serviceId, array $payload): void
+    private function upsertFeeRow(int $parentId, int $childId, int $serviceId, array $payload): void
     {
         $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
         $clientFeeEnabled = (bool) ($payload['client_fee_enabled'] ?? false);
@@ -376,6 +378,11 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         CategoryChildServiceFee::query()->updateOrCreate(
             [
+                // category_id is part of the UNIQUE key
+                // (category_id, child_id, platform_service_id) and is NOT NULL.
+                // Without it inserts crashed and multi-root children clobbered
+                // each other's fee rows.
+                'category_id' => $parentId,
                 'child_id' => $childId,
                 'platform_service_id' => $serviceId,
             ],
@@ -419,6 +426,7 @@ class CategoryChildServiceFeeBulkController extends Controller
         }
 
         CategoryChildServiceFee::query()
+            ->forCategory($parentId)
             ->forChild($childId)
             ->forService($serviceId)
             ->update([

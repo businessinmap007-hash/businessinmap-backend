@@ -11,6 +11,7 @@ class PlatformServiceItemType extends Model
 
     protected $fillable = [
         'platform_service_id',
+        'group_id',
         'key',
         'name_ar',
         'name_en',
@@ -22,6 +23,7 @@ class PlatformServiceItemType extends Model
 
     protected $casts = [
         'platform_service_id' => 'integer',
+        'group_id' => 'integer',
         'is_default' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
@@ -36,6 +38,11 @@ class PlatformServiceItemType extends Model
     public function platformService(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'platform_service_id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(PlatformServiceItemGroup::class, 'group_id');
     }
 
     public function displayName(?string $locale = null): string

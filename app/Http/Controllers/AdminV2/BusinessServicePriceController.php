@@ -10,6 +10,7 @@ use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -70,17 +71,18 @@ class BusinessServicePriceController extends Controller
     public function create()
     {
         $services = $this->servicesForForm();
-        $businesses = User::query()->select(['id', 'name', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
         $row = new BusinessServicePrice(['is_active' => 1, 'price' => 0, 'currency' => 'EGP', 'deposit_enabled' => 0, 'deposit_percent' => 0, 'discount_enabled' => 0, 'discount_percent' => 0]);
+
+        // Preload only the business re-selected after a failed submit; the rest
+        // is searched on demand instead of embedding ~1,750 businesses.
+        $selectedBusinessId = (int) old('business_id', 0);
 
         return view('admin-v2.business-service-prices.create', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
             'children' => $children,
-            'itemTypesByService' => $this->itemTypesByServiceForForm(),
-            'itemTypesByChildService' => $this->itemTypesByChildServiceForForm($children, $services),
+            'selectedBusiness' => $selectedBusinessId ? $this->businessOption($selectedBusinessId) : null,
         ]);
     }
 
@@ -105,18 +107,85 @@ class BusinessServicePriceController extends Controller
     public function edit(BusinessServicePrice $row)
     {
         $services = $this->servicesForForm();
-        $businesses = User::query()->select(['id', 'name', 'category_child_id'])->where('type', 'business')->orderBy('name')->orderBy('id')->get();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
         $row->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_child_id', 'child:id,name_ar,name_en,reorder']);
+
+        $selectedBusinessId = (int) old('business_id', $row->business_id ?? 0);
 
         return view('admin-v2.business-service-prices.edit', [
             'row' => $row,
             'services' => $services,
-            'businesses' => $businesses,
             'children' => $children,
-            'itemTypesByService' => $this->itemTypesByServiceForForm(),
-            'itemTypesByChildService' => $this->itemTypesByChildServiceForForm($children, $services),
+            'selectedBusiness' => $selectedBusinessId ? $this->businessOption($selectedBusinessId) : null,
         ]);
+    }
+
+    /**
+     * Search-as-you-type business lookup for the form's business select,
+     * replacing the ~1,750 static <option> tags that used to be embedded.
+     */
+    public function businessLookup(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $businesses = User::query()
+            ->select(['id', 'name', 'category_child_id'])
+            ->where('type', 'business')
+            ->when($term !== '', fn ($query) => $query->where('name', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json(['ok' => true, 'businesses' => $businesses]);
+    }
+
+    /**
+     * Allowed item types for one child+service pair, fetched on demand.
+     *
+     * create()/edit() used to precompute this for every child x service
+     * combination (~304 x 5 = ~1,520 iterations, each running multiple
+     * queries) and embed it as one giant JSON blob. This returns only the
+     * pair actually selected in the form.
+     */
+    public function itemTypesLookup(Request $request): JsonResponse
+    {
+        $childId = (int) $request->get('child_id', 0);
+        $serviceId = (int) $request->get('service_id', 0);
+
+        $types = $this->allowedItemTypesForChildService($childId, $serviceId);
+
+        $labels = PlatformServiceItemType::query()
+            ->whereIn('key', $types)
+            ->where('is_active', 1)
+            ->ordered()
+            ->get(['key', 'name_ar', 'name_en'])
+            ->mapWithKeys(fn (PlatformServiceItemType $row) => [(string) $row->key => $this->itemTypeLabel($row)])
+            ->all();
+
+        // Lets the form show an accurate hint: "service has types but none are
+        // allowed for this child" vs "service has no item types at all".
+        $hasBaseTypes = $serviceId > 0 && PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->exists();
+
+        return response()->json([
+            'ok' => true,
+            'has_base_types' => $hasBaseTypes,
+            'items' => collect($types)
+                ->map(fn (string $key) => ['key' => $key, 'label' => $labels[$key] ?? $key])
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    protected function businessOption(int $businessId): ?User
+    {
+        return User::query()
+            ->select(['id', 'name', 'category_child_id'])
+            ->where('type', 'business')
+            ->where('id', $businessId)
+            ->first();
     }
 
     public function update(Request $request, BusinessServicePrice $row)
@@ -244,49 +313,6 @@ class BusinessServicePriceController extends Controller
     protected function servicesForForm()
     {
         return PlatformService::query()->select(['id', 'key', 'name_ar', 'name_en', 'supports_deposit'])->where('is_active', 1)->orderBy('name_ar')->orderBy('id')->get();
-    }
-
-    protected function itemTypesByServiceForForm(): array
-    {
-        $rows = PlatformServiceItemType::query()->select(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'is_default', 'is_active', 'sort_order'])->where('is_active', 1)->ordered()->get();
-        $grouped = [];
-        foreach ($rows as $row) {
-            $serviceId = (int) $row->platform_service_id;
-            $grouped[$serviceId] ??= [];
-            $grouped[$serviceId][] = ['id' => (int) $row->id, 'key' => (string) $row->key, 'name_ar' => (string) ($row->name_ar ?? ''), 'name_en' => (string) ($row->name_en ?? ''), 'label' => $this->itemTypeLabel($row), 'is_default' => (bool) $row->is_default, 'sort_order' => (int) $row->sort_order];
-        }
-        return $grouped;
-    }
-
-    protected function itemTypesByChildServiceForForm($children, $services): array
-    {
-        $labelsByKey = PlatformServiceItemType::query()
-            ->where('is_active', 1)
-            ->ordered()
-            ->get(['key', 'name_ar', 'name_en'])
-            ->mapWithKeys(fn (PlatformServiceItemType $row) => [(string) $row->key => $this->itemTypeLabel($row)])
-            ->all();
-
-        $matrix = [];
-
-        foreach ($children as $child) {
-            $childId = (int) $child->id;
-
-            foreach ($services as $service) {
-                $serviceId = (int) $service->id;
-                $types = $this->allowedItemTypesForChildService($childId, $serviceId);
-
-                $matrix[$childId][$serviceId] = collect($types)
-                    ->map(fn (string $key) => [
-                        'key' => $key,
-                        'label' => $labelsByKey[$key] ?? $key,
-                    ])
-                    ->values()
-                    ->all();
-            }
-        }
-
-        return $matrix;
     }
 
     protected function itemTypeLabel(PlatformServiceItemType $row): string

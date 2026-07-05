@@ -1,21 +1,8 @@
 @php
     $isEdit = isset($row) && $row?->exists;
 
-    $businessChildMap = [];
-    foreach (($businesses ?? []) as $business) {
-        $businessChildMap[(int) $business->id] = (int) ($business->category_child_id ?? 0);
-    }
-
     $currentItemType = old('bookable_item_type', $row->bookable_item_type ?? '');
     $currentServiceId = (int) old('service_id', $row->service_id ?? 0);
-
-    $itemTypesByServiceSafe = is_array($itemTypesByService ?? null)
-        ? $itemTypesByService
-        : [];
-
-    $itemTypesByChildServiceSafe = is_array($itemTypesByChildService ?? null)
-        ? $itemTypesByChildService
-        : [];
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
@@ -42,18 +29,24 @@
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">البزنس <span class="a2-danger">*</span></label>
-            <select class="a2-select js-business-select" name="business_id">
+            <label class="a2-label" for="business_id">البزنس <span class="a2-danger">*</span></label>
+            <select
+                class="a2-select js-business-select"
+                id="business_id"
+                name="business_id"
+                data-remote-url="{{ route('admin.business_service_prices.business-lookup') }}"
+                data-placeholder="اكتب اسم البزنس"
+            >
                 <option value="">اختر البزنس</option>
-                @foreach(($businesses ?? []) as $business)
+                @if($selectedBusiness ?? null)
                     <option
-                        value="{{ $business->id }}"
-                        data-child-id="{{ (int) ($business->category_child_id ?? 0) }}"
-                        @selected((string) old('business_id', $row->business_id ?? '') === (string) $business->id)
+                        value="{{ $selectedBusiness->id }}"
+                        data-child-id="{{ (int) ($selectedBusiness->category_child_id ?? 0) }}"
+                        selected
                     >
-                        {{ $business->name ?: ('#' . $business->id) }}
+                        {{ $selectedBusiness->name ?: ('#' . $selectedBusiness->id) }}
                     </option>
-                @endforeach
+                @endif
             </select>
 
             <div class="a2-hint a2-mt-8">
@@ -66,8 +59,8 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">القسم الفرعي <span class="a2-danger">*</span></label>
-            <select class="a2-select js-child-select" name="child_id">
+            <label class="a2-label" for="child_id">القسم الفرعي <span class="a2-danger">*</span></label>
+            <select class="a2-select js-child-select" id="child_id" name="child_id">
                 <option value="">اختر القسم الفرعي</option>
                 @foreach(($children ?? []) as $child)
                     <option
@@ -89,8 +82,8 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الخدمة <span class="a2-danger">*</span></label>
-            <select class="a2-select js-service-select" name="service_id">
+            <label class="a2-label" for="service_id">الخدمة <span class="a2-danger">*</span></label>
+            <select class="a2-select js-service-select" id="service_id" name="service_id">
                 <option value="">اختر الخدمة</option>
                 @foreach(($services ?? []) as $service)
                     <option
@@ -114,9 +107,10 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">نوع العنصر <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="bookable_item_type">نوع العنصر <span class="a2-danger">*</span></label>
             <select
                 class="a2-select js-bookable-type-select"
+                id="bookable_item_type"
                 name="bookable_item_type"
                 data-current-value="{{ $currentItemType }}"
             >
@@ -293,112 +287,156 @@ document.addEventListener('DOMContentLoaded', function () {
     const discountEnabled = document.getElementById('discount_enabled');
     const discountPercent = document.getElementById('discount_percent');
 
-    const itemTypesByService = @json($itemTypesByServiceSafe);
-    const itemTypesByChildService = @json($itemTypesByChildServiceSafe);
+    const itemTypesUrl = @json(route('admin.business_service_prices.item-types-lookup'));
+    let requestSeq = 0;
 
-    function refreshBusinessChild() {
-        if (!businessSelect || !childSelect) return;
+    function setTypeHint(message) {
+        if (bookableTypeHint) bookableTypeHint.textContent = message;
+    }
 
-        const selected = businessSelect.options[businessSelect.selectedIndex];
-        const childId = selected ? String(selected.dataset.childId || '') : '';
-
-        if (childId && childId !== '0') {
+    function setBusinessChild(childId) {
+        childId = String(childId || '');
+        if (childId && childId !== '0' && childSelect) {
             childSelect.value = childId;
         }
     }
 
-    function optionLabel(item) {
-        if (!item) return '';
+    // Business picker: search-as-you-type against the server instead of
+    // embedding ~1,750 businesses as static <option> tags on every load.
+    function initBusinessSelect() {
+        if (!businessSelect) return;
+        const remoteUrl = businessSelect.dataset.remoteUrl;
 
-        const label = String(item.label || '').trim();
-        const ar = String(item.name_ar || '').trim();
-        const en = String(item.name_en || '').trim();
-        const key = String(item.key || '').trim();
-
-        return label || ar || en || key;
-    }
-
-    function resolveTypeOptions() {
-        const childId = String(childSelect?.value || '');
-        const serviceId = String(serviceSelect?.value || '');
-
-        if (childId && serviceId && itemTypesByChildService[childId] && itemTypesByChildService[childId][serviceId]) {
-            return itemTypesByChildService[childId][serviceId];
+        if (!window.TomSelect || !remoteUrl) {
+            businessSelect.addEventListener('change', onNativeBusinessChange);
+            return;
         }
 
-        return [];
+        new TomSelect(businessSelect, {
+            valueField: 'value',
+            labelField: 'text',
+            searchField: 'text',
+            create: false,
+            maxOptions: 30,
+            placeholder: businessSelect.dataset.placeholder || 'ابحث هنا',
+            dropdownParent: 'body',
+            shouldLoad: function (query) { return query.length >= 1; },
+            load: function (query, callback) {
+                const url = new URL(remoteUrl, window.location.origin);
+                url.searchParams.set('q', query);
+                fetch(url.toString(), {headers: {'Accept': 'application/json'}})
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        const rows = (data && data.ok && Array.isArray(data.businesses)) ? data.businesses : [];
+                        callback(rows.map(function (b) {
+                            return {value: String(b.id), text: b.name, child_id: String(b.category_child_id || '')};
+                        }));
+                    })
+                    .catch(function () { callback(); });
+            },
+            onChange: function (value) {
+                const opt = this.options[value];
+                if (opt && typeof opt.child_id !== 'undefined') {
+                    setBusinessChild(opt.child_id);
+                }
+                if (bookableTypeSelect) bookableTypeSelect.dataset.currentValue = '';
+                refreshBookableTypeOptions();
+            },
+        });
+    }
+
+    function onNativeBusinessChange() {
+        const selected = businessSelect.options[businessSelect.selectedIndex];
+        setBusinessChild(selected ? selected.dataset.childId : '');
+        if (bookableTypeSelect) bookableTypeSelect.dataset.currentValue = '';
+        refreshBookableTypeOptions();
+    }
+
+    function optionLabel(item) {
+        if (!item) return '';
+        return String(item.label || item.key || '').trim();
     }
 
     function refreshBookableTypeOptions() {
         if (!serviceSelect || !bookableTypeSelect) return;
 
         const serviceId = String(serviceSelect.value || '');
-        const childId = String(childSelect?.value || '');
-        const currentValue = String(bookableTypeSelect.value || bookableTypeSelect.dataset.currentValue || '');
-        const savedValue = String(bookableTypeSelect.dataset.currentValue || '');
-
-        const options = resolveTypeOptions();
-
-        bookableTypeSelect.innerHTML = '';
+        const childId = String(childSelect ? childSelect.value : '');
+        const currentValue = String(bookableTypeSelect.dataset.currentValue || '');
 
         if (!serviceId || !childId) {
+            bookableTypeSelect.innerHTML = '';
             const option = document.createElement('option');
             option.value = '';
             option.textContent = 'اختر البزنس والخدمة أولًا';
             bookableTypeSelect.appendChild(option);
-
-            if (bookableTypeHint) {
-                bookableTypeHint.textContent = 'اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا category_child.';
-            }
-
+            setTypeHint('اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا القسم الفرعي.');
             return;
         }
 
-        if (!options.length) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = 'لا توجد أنواع مسموحة لهذا القسم مع هذه الخدمة';
-            bookableTypeSelect.appendChild(option);
+        // On-demand lookup for the one selected (child, service) pair instead
+        // of a precomputed 304 x 5 matrix embedded in the page. Sequence guard
+        // drops stale responses if the user changes selection mid-flight.
+        const seq = ++requestSeq;
+        const url = new URL(itemTypesUrl, window.location.origin);
+        url.searchParams.set('child_id', childId);
+        url.searchParams.set('service_id', serviceId);
 
-            if (bookableTypeHint) {
-                const fallbackCount = (itemTypesByService[serviceId] || []).length;
-                bookableTypeHint.textContent = fallbackCount
-                    ? 'الخدمة لها أنواع عامة، لكن لم يتم السماح بأي نوع لهذا القسم الفرعي داخل Service Catalog Matrix.'
-                    : 'أضف أنواع عناصر لهذه الخدمة من Platform Service Item Types ثم اسمح بها من Service Catalog Matrix.';
-            }
+        setTypeHint('جاري تحميل أنواع العناصر...');
 
-            return;
-        }
+        fetch(url.toString(), {headers: {'Accept': 'application/json'}})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (seq !== requestSeq) return;
 
-        let selectedApplied = false;
+                const options = (data && data.ok && Array.isArray(data.items)) ? data.items : [];
 
-        const emptyOption = document.createElement('option');
-        emptyOption.value = '';
-        emptyOption.textContent = 'اختر نوع العنصر';
-        bookableTypeSelect.appendChild(emptyOption);
+                bookableTypeSelect.innerHTML = '';
 
-        options.forEach(function (item) {
-            const value = String(item.key || '');
-            const option = document.createElement('option');
+                if (!options.length) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'لا توجد أنواع مسموحة لهذا القسم مع هذه الخدمة';
+                    bookableTypeSelect.appendChild(option);
+                    setTypeHint((data && data.has_base_types)
+                        ? 'الخدمة لها أنواع عامة، لكن لم يتم السماح بأي نوع لهذا القسم الفرعي داخل Service Catalog Matrix.'
+                        : 'أضف أنواع عناصر لهذه الخدمة من Platform Service Item Types ثم اسمح بها من Service Catalog Matrix.');
+                    return;
+                }
 
-            option.value = value;
-            option.textContent = optionLabel(item);
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'اختر نوع العنصر';
+                bookableTypeSelect.appendChild(emptyOption);
 
-            if (value === currentValue || value === savedValue) {
-                option.selected = true;
-                selectedApplied = true;
-            }
+                let selectedApplied = false;
+                options.forEach(function (item) {
+                    const value = String(item.key || '');
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = optionLabel(item);
+                    if (value === currentValue) {
+                        option.selected = true;
+                        selectedApplied = true;
+                    }
+                    bookableTypeSelect.appendChild(option);
+                });
 
-            bookableTypeSelect.appendChild(option);
-        });
+                if (!selectedApplied && bookableTypeSelect.options.length > 1) {
+                    bookableTypeSelect.options[1].selected = true;
+                }
 
-        if (!selectedApplied && bookableTypeSelect.options.length > 1) {
-            bookableTypeSelect.options[1].selected = true;
-        }
-
-        if (bookableTypeHint) {
-            bookableTypeHint.textContent = 'هذه القائمة تعرض فقط الأنواع المسموحة لهذا القسم الفرعي والخدمة حسب Service Catalog Matrix.';
-        }
+                setTypeHint('هذه القائمة تعرض فقط الأنواع المسموحة لهذا القسم الفرعي والخدمة حسب Service Catalog Matrix.');
+            })
+            .catch(function () {
+                if (seq !== requestSeq) return;
+                bookableTypeSelect.innerHTML = '';
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'تعذر تحميل أنواع العناصر';
+                bookableTypeSelect.appendChild(option);
+                setTypeHint('تعذر تحميل أنواع العناصر. حاول مرة أخرى.');
+            });
     }
 
     function refreshDepositUI() {
@@ -440,24 +478,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    if (businessSelect) {
-        businessSelect.addEventListener('change', function () {
-            refreshBusinessChild();
-            bookableTypeSelect.dataset.currentValue = '';
-            refreshBookableTypeOptions();
-        });
-    }
-
     if (childSelect) {
         childSelect.addEventListener('change', function () {
-            bookableTypeSelect.dataset.currentValue = '';
+            if (bookableTypeSelect) bookableTypeSelect.dataset.currentValue = '';
             refreshBookableTypeOptions();
         });
     }
 
     if (serviceSelect) {
         serviceSelect.addEventListener('change', function () {
-            bookableTypeSelect.dataset.currentValue = '';
+            if (bookableTypeSelect) bookableTypeSelect.dataset.currentValue = '';
             refreshBookableTypeOptions();
             refreshDepositUI();
         });
@@ -471,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function () {
         discountEnabled.addEventListener('change', refreshDiscountUI);
     }
 
-    refreshBusinessChild();
+    initBusinessSelect();
     refreshBookableTypeOptions();
     refreshDepositUI();
     refreshDiscountUI();

@@ -153,6 +153,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
+        Route::get('business-service-prices/business-lookup', [BusinessServicePriceController::class, 'businessLookup'])->name('business_service_prices.business-lookup');
+        Route::get('business-service-prices/item-types-lookup', [BusinessServicePriceController::class, 'itemTypesLookup'])->name('business_service_prices.item-types-lookup');
         Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
 
         Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {

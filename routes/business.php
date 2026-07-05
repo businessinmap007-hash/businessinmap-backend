@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Business\Auth\LoginController;
 use App\Http\Controllers\Business\BookableItemController;
+use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,5 +29,12 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('bookable-items/{id}/edit', [BookableItemController::class, 'edit'])->whereNumber('id')->name('bookable-items.edit');
         Route::put('bookable-items/{id}', [BookableItemController::class, 'update'])->whereNumber('id')->name('bookable-items.update');
         Route::delete('bookable-items/{id}', [BookableItemController::class, 'destroy'])->whereNumber('id')->name('bookable-items.destroy');
+
+        Route::get('prices', [BusinessServicePriceController::class, 'index'])->name('prices.index');
+        Route::get('prices/create', [BusinessServicePriceController::class, 'create'])->name('prices.create');
+        Route::post('prices', [BusinessServicePriceController::class, 'store'])->name('prices.store');
+        Route::get('prices/{id}/edit', [BusinessServicePriceController::class, 'edit'])->whereNumber('id')->name('prices.edit');
+        Route::put('prices/{id}', [BusinessServicePriceController::class, 'update'])->whereNumber('id')->name('prices.update');
+        Route::delete('prices/{id}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('id')->name('prices.destroy');
     });
 });

@@ -24,10 +24,10 @@
         <div class="a2-stat-value">{{ $stats['active_items'] }}</div>
     </div>
 
-    <div class="a2-stat-card">
+    <a href="{{ route('business.prices.index') }}" class="a2-stat-card" style="text-decoration:none;color:inherit;">
         <div class="a2-stat-label">أسعاري</div>
         <div class="a2-stat-value">{{ $stats['prices'] }}</div>
-    </div>
+    </a>
 
     <div class="a2-stat-card">
         <div class="a2-stat-label">حجوزاتي</div>

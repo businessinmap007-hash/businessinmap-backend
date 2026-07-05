@@ -1,0 +1,184 @@
+@php
+    $isEdit = isset($row) && $row?->exists;
+    $currentService = (int) old('service_id', $row->service_id ?? 0);
+    $currentType = (string) old('bookable_item_type', $row->bookable_item_type ?? '');
+
+    $supportsDepositByService = ($services ?? collect())
+        ->mapWithKeys(fn ($s) => [(int) $s->id => (bool) ($s->supports_deposit ?? false)])
+        ->all();
+@endphp
+
+@if($errors->any())
+    <div class="a2-alert a2-alert-danger">
+        @foreach($errors->all() as $error)
+            <div>{{ $error }}</div>
+        @endforeach
+    </div>
+@endif
+
+@if(($services ?? collect())->isEmpty())
+    <div class="a2-alert a2-alert-warning">
+        لا توجد خدمات متاحة لنشاطك بعد.
+    </div>
+@else
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">السعر لكل نوع</div>
+                <div class="a2-card-sub">حدّد سعر كل نوع تقدّمه. الوحدات الفعلية تأخذ سعرها من هنا حسب نوعها.</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group">
+                <label class="a2-label" for="service_id">الخدمة <span class="a2-danger">*</span></label>
+                <select class="a2-select js-bp-service" id="service_id" name="service_id" required>
+                    <option value="">اختر الخدمة</option>
+                    @foreach($services as $service)
+                        <option value="{{ $service->id }}" @selected($currentService === (int) $service->id)>
+                            {{ $service->name_ar ?: ($service->name_en ?: $service->key) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="a2-form-group">
+                <label class="a2-label" for="bookable_item_type">نوع العنصر <span class="a2-danger">*</span></label>
+                <select class="a2-select js-bp-type" id="bookable_item_type" name="bookable_item_type" required data-current-value="{{ $currentType }}">
+                    <option value="">اختر الخدمة أولًا</option>
+                </select>
+            </div>
+
+            <div class="a2-form-group">
+                <label class="a2-label" for="price">السعر <span class="a2-danger">*</span></label>
+                <input class="a2-input" id="price" name="price" value="{{ old('price', $row->price ?? 0) }}" inputmode="decimal" placeholder="0.00" required>
+            </div>
+
+            <div class="a2-form-group">
+                <label class="a2-label" for="currency">العملة</label>
+                <input class="a2-input" id="currency" name="currency" value="{{ old('currency', $row->currency ?? 'EGP') }}" dir="ltr" maxlength="3" style="text-transform:uppercase;">
+            </div>
+
+            <div class="a2-form-group">
+                <label class="a2-label">الحالة</label>
+                <label class="a2-check" style="margin-top:10px;">
+                    <input type="checkbox" name="is_active" value="1" @checked((bool) old('is_active', (int) ($row->is_active ?? 1)))>
+                    <span>السعر مفعّل</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">الخصم والتأمين</div>
+                <div class="a2-card-sub">التأمين ضمان/حجز فقط. بعض الخدمات لا تدعمه.</div>
+            </div>
+        </div>
+
+        <div class="a2-check-grid" style="margin-bottom:16px;">
+            <label class="a2-check-card">
+                <input type="checkbox" name="discount_enabled" id="discount_enabled" value="1" @checked((bool) old('discount_enabled', (int) ($row->discount_enabled ?? 0)))>
+                <span>تفعيل الخصم</span>
+            </label>
+
+            <label class="a2-check-card">
+                <input type="checkbox" name="deposit_enabled" id="deposit_enabled" value="1" @checked((bool) old('deposit_enabled', (int) ($row->deposit_enabled ?? 0)))>
+                <span>تفعيل التأمين</span>
+            </label>
+        </div>
+
+        <div class="a2-form-grid-3">
+            <div class="a2-form-group">
+                <label class="a2-label" for="discount_percent">نسبة الخصم %</label>
+                <input class="a2-input" id="discount_percent" name="discount_percent" value="{{ old('discount_percent', (int) ($row->discount_percent ?? 0)) }}" inputmode="numeric" placeholder="0">
+            </div>
+
+            <div class="a2-form-group">
+                <label class="a2-label" for="deposit_percent">نسبة التأمين %</label>
+                <input class="a2-input" id="deposit_percent" name="deposit_percent" value="{{ old('deposit_percent', (int) ($row->deposit_percent ?? 0)) }}" inputmode="numeric" placeholder="0">
+                <div class="a2-hint a2-mt-8 js-bp-deposit-hint"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
+        <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <button type="submit" class="a2-btn a2-btn-primary">{{ $isEdit ? 'تحديث' : 'حفظ' }}</button>
+    </div>
+
+    @push('scripts')
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const typesByService = @json($allowedTypesByService ?? []);
+        const supportsDeposit = @json($supportsDepositByService);
+        const serviceSelect = document.querySelector('.js-bp-service');
+        const typeSelect = document.querySelector('.js-bp-type');
+
+        const depositEnabled = document.getElementById('deposit_enabled');
+        const depositPercent = document.getElementById('deposit_percent');
+        const depositHint = document.querySelector('.js-bp-deposit-hint');
+        const discountEnabled = document.getElementById('discount_enabled');
+        const discountPercent = document.getElementById('discount_percent');
+
+        function rebuildTypes() {
+            if (!serviceSelect || !typeSelect) return;
+            const serviceId = String(serviceSelect.value || '');
+            const keep = String(typeSelect.dataset.currentValue || typeSelect.value || '');
+            const list = (typesByService[serviceId] || []);
+            typeSelect.innerHTML = '';
+
+            if (!serviceId) {
+                const o = document.createElement('option'); o.value = ''; o.textContent = 'اختر الخدمة أولًا';
+                typeSelect.appendChild(o); return;
+            }
+            if (!list.length) {
+                const o = document.createElement('option'); o.value = ''; o.textContent = 'لا توجد أنواع مسموحة';
+                typeSelect.appendChild(o); return;
+            }
+            const empty = document.createElement('option'); empty.value = ''; empty.textContent = 'اختر النوع';
+            typeSelect.appendChild(empty);
+            list.forEach(function (t) {
+                const o = document.createElement('option');
+                o.value = String(t.key); o.textContent = String(t.label || t.key);
+                if (String(t.key) === keep) o.selected = true;
+                typeSelect.appendChild(o);
+            });
+        }
+
+        function refreshDeposit() {
+            const serviceId = String(serviceSelect?.value || '');
+            const ok = !!supportsDeposit[serviceId];
+            if (depositHint) depositHint.textContent = ok ? 'هذه الخدمة تدعم التأمين كضمان.' : 'هذه الخدمة لا تدعم التأمين.';
+            if (depositEnabled) {
+                depositEnabled.disabled = !ok;
+                if (!ok) depositEnabled.checked = false;
+            }
+            if (depositPercent) {
+                depositPercent.disabled = !ok || !depositEnabled?.checked;
+                if (!ok) depositPercent.value = 0;
+            }
+        }
+
+        function refreshDiscount() {
+            if (!discountEnabled || !discountPercent) return;
+            discountPercent.disabled = !discountEnabled.checked;
+            if (!discountEnabled.checked) discountPercent.value = 0;
+        }
+
+        serviceSelect?.addEventListener('change', function () {
+            typeSelect.dataset.currentValue = '';
+            rebuildTypes();
+            refreshDeposit();
+        });
+        depositEnabled?.addEventListener('change', refreshDeposit);
+        discountEnabled?.addEventListener('change', refreshDiscount);
+
+        rebuildTypes();
+        refreshDeposit();
+        refreshDiscount();
+    });
+    </script>
+    @endpush
+@endif

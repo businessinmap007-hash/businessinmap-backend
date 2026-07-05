@@ -61,6 +61,7 @@
             ['label' => 'Service Setup', 'type' => 'section', 'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
+                ['label' => 'Item Type Branches', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
                 ['label' => 'Service Catalog Matrix', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
             ]],
             ['label' => 'Service Linking & Pricing', 'type' => 'section', 'children' => [

@@ -18,6 +18,7 @@ use App\Http\Controllers\AdminV2\{
     CatalogAttributeController,
     CatalogManufacturerController,
     CatalogUnitController,
+    CategoryChildController,
     CategoryChildOptionController,
     CategoryChildServiceFeeBulkController,
     CategoryChildServiceFeeController,
@@ -90,14 +91,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::prefix('category-children')->name('category-children.')->group(function () {
-            Route::get('/', [CategoryController::class, 'categoryChildrenIndex'])->name('index');
-            Route::get('create', [CategoryController::class, 'categoryChildrenCreate'])->name('create');
-            Route::post('/', [CategoryController::class, 'categoryChildrenStore'])->name('store');
-            Route::post('{parent}/sync', [CategoryController::class, 'syncChildren'])->whereNumber('parent')->name('sync');
-            Route::get('{categoryChild}/edit', [CategoryController::class, 'categoryChildrenEdit'])->whereNumber('categoryChild')->name('edit');
-            Route::put('{categoryChild}', [CategoryController::class, 'categoryChildrenUpdate'])->whereNumber('categoryChild')->name('update');
-            Route::delete('{categoryChild}', [CategoryController::class, 'categoryChildrenDestroy'])->whereNumber('categoryChild')->name('destroy');
-            Route::delete('{categoryChild}/parents/{parent}', [CategoryController::class, 'detachChildParent'])->whereNumber('categoryChild')->whereNumber('parent')->name('detach-parent');
+            Route::get('/', [CategoryChildController::class, 'index'])->name('index');
+            Route::get('create', [CategoryChildController::class, 'create'])->name('create');
+            Route::post('/', [CategoryChildController::class, 'store'])->name('store');
+            Route::post('{parent}/sync', [CategoryChildController::class, 'syncChildren'])->whereNumber('parent')->name('sync');
+            Route::get('{categoryChild}/edit', [CategoryChildController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
+            Route::put('{categoryChild}', [CategoryChildController::class, 'update'])->whereNumber('categoryChild')->name('update');
+            Route::delete('{categoryChild}', [CategoryChildController::class, 'destroy'])->whereNumber('categoryChild')->name('destroy');
+            Route::delete('{categoryChild}/parents/{parent}', [CategoryChildController::class, 'detachParent'])->whereNumber('categoryChild')->whereNumber('parent')->name('detach-parent');
         });
 
         Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {

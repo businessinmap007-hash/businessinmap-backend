@@ -76,7 +76,8 @@ class Kernel extends HttpKernel
         'has.location' => \App\Http\Middleware\EnsureUserHasLocation::class,
         'admin.only' => \App\Http\Middleware\EnsureAdminWeb::class,
         'admin.v2' => \App\Http\Middleware\AdminV2Middleware::class,
-        
+        'business.panel' => \App\Http\Middleware\BusinessPanelMiddleware::class,
+
 
         
 

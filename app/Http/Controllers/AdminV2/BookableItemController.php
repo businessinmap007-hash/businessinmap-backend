@@ -51,11 +51,8 @@ class BookableItemController extends Controller
     public function create(Request $request)
     {
         $row = new BookableItem([
-            'price' => 0,
             'quantity' => 1,
             'is_active' => 1,
-            'deposit_enabled' => 0,
-            'deposit_percent' => 0,
             'business_id' => (int) $request->get('business_id', 0) ?: null,
             'service_id' => (int) $request->get('service_id', 0) ?: null,
         ]);
@@ -198,16 +195,12 @@ class BookableItemController extends Controller
         $request->validate([
             'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business'))],
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
-            'deposit_enabled' => ['nullable'],
-            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'meta' => ['nullable', 'string'],
             'items' => ['required', 'array'],
         ]);
 
         $businessId = (int) $request->input('business_id');
         $serviceId = (int) $request->input('service_id');
-        $depositEnabled = (int) $request->boolean('deposit_enabled');
-        $depositPercent = (int) $request->input('deposit_percent', 0);
         $meta = $this->parseMetaJson($request->input('meta'));
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext($businessId);
@@ -221,21 +214,13 @@ class BookableItemController extends Controller
         $allowedItemTypes = $this->allowedItemTypesFor($businessId, $serviceId);
         if ($allowedItemTypes === []) throw ValidationException::withMessages(['items' => 'لا توجد أنواع عناصر مفعلة لهذه الخدمة. أضفها أولًا من Platform Service Item Types ثم اضبطها من Service Catalog Matrix.']);
 
-        if (! (bool) $service->supports_deposit) {
-            $depositEnabled = 0;
-            $depositPercent = 0;
-        } elseif (! $depositEnabled) {
-            $depositPercent = 0;
-        }
-
         $items = [];
 
         foreach ((array) $request->input('items', []) as $index => $raw) {
             $type = trim((string) ($raw['item_type'] ?? ''));
             $code = trim((string) ($raw['code'] ?? ''));
-            $price = $raw['price'] ?? null;
 
-            if ($type === '' && $code === '' && ($price === null || $price === '')) {
+            if ($type === '' && $code === '') {
                 continue;
             }
 
@@ -268,12 +253,9 @@ class BookableItemController extends Controller
                 'code' => $code,
                 // Units are inventory only: price/deposit live in
                 // business_service_prices per type. See services-blueprint.md.
-                'price' => 0,
                 'capacity' => ! empty($raw['capacity']) ? (int) $raw['capacity'] : null,
                 'quantity' => max((int) ($raw['quantity'] ?? 1), 1),
                 'is_active' => ! empty($raw['is_active']) ? 1 : 0,
-                'deposit_enabled' => 0,
-                'deposit_percent' => 0,
                 'meta' => $meta,
             ];
         }
@@ -290,24 +272,19 @@ class BookableItemController extends Controller
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
             'item_type' => ['required', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:100'],
-            'price' => ['nullable', 'numeric', 'min:0'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable'],
-            'deposit_enabled' => ['nullable'],
-            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'meta' => ['nullable', 'string'],
         ], [], [
-            'business_id' => 'البزنس', 'service_id' => 'الخدمة', 'item_type' => 'نوع العنصر', 'code' => 'الكود أو رقم الغرفة', 'price' => 'السعر', 'capacity' => 'السعة', 'quantity' => 'الكمية', 'deposit_enabled' => 'تفعيل الديبوزت', 'deposit_percent' => 'نسبة الديبوزت', 'meta' => 'البيانات الإضافية',
+            'business_id' => 'البزنس', 'service_id' => 'الخدمة', 'item_type' => 'نوع العنصر', 'code' => 'الكود أو رقم الغرفة', 'capacity' => 'السعة', 'quantity' => 'الكمية', 'meta' => 'البيانات الإضافية',
         ]);
 
         $data['item_type'] = trim((string) ($data['item_type'] ?? ''));
         $data['code'] = trim((string) ($data['code'] ?? ''));
         $data['title'] = $this->displayTitleFromCode($data['item_type'], $data['code']);
         $data['is_active'] = (int) $request->boolean('is_active');
-        $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
         $data['quantity'] = (int) ($data['quantity'] ?? 1);
-        $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
 
         [$business, $categoryId, $childId] = $this->resolveBusinessContext((int) $data['business_id']);
         if (! $business) throw ValidationException::withMessages(['business_id' => 'البزنس غير موجود أو ليس من نوع business.']);
@@ -333,10 +310,6 @@ class BookableItemController extends Controller
 
         // Units are inventory only: price/deposit are authored in
         // business_service_prices per type, not on the unit. See blueprint.
-        $data['price'] = 0;
-        $data['deposit_enabled'] = 0;
-        $data['deposit_percent'] = 0;
-
         $data['meta'] = $this->parseMetaJson($request->input('meta'));
 
         return $data;

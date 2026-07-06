@@ -198,10 +198,15 @@ New relations: `Booking::orders()` + `foodTotal()`, `Order::booking()` +
 
 ## 5. Known follow-ups (from the blueprint)
 
-- **Drop `bookable_items.price/deposit_*` columns** — blocked: `BookablePricingService`
-  (calendar) reads `item->price` and `OperationPresenter` falls back to the unit
-  columns. Do the calendar decision + presenter fix first.
-- **`BookablePricingService`** (per-day price rules / calendar) still bases off
-  the unit price; decide how per-day rules relate to `business_service_prices`.
+- ✅ **Dropped `bookable_items.price/deposit_*` columns** — migration
+  `2026_07_06_000001_drop_legacy_price_deposit_columns_from_bookable_items`
+  removes `price` + the full legacy `deposit_*` cluster (guarded). The per-unit
+  deposit override was removed from `BookingDepositPolicyResolver` (deposit is
+  single-source via the business deposit policy); `OperationPresenter` and the
+  admin booking payloads read price/deposit from the resolved snapshot only.
+- ✅ **`BookablePricingService`** now bases the per-day calendar off
+  `business_service_prices` (via `BusinessServicePriceResolver`) for the unit's
+  item type; price rules apply on top. Still not wired into the booking-price
+  path (the engine resolves price itself); the calendar is its live consumer.
 - **Full menu ordering UX** beyond the current add/remove line (variants/extras,
   customer-facing flow) if needed.

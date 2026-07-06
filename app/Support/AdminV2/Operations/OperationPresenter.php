@@ -266,6 +266,11 @@ final class OperationPresenter
 
         $bookable = $booking->bookable;
 
+        // Price/deposit are single-source (BusinessServicePrice / resolved deposit
+        // policy) and the engine snapshots the resolved values into
+        // meta.bookable_item at booking time. The deprecated bookable_items unit
+        // columns are no longer read; inventory fields (title/code/type/capacity/
+        // quantity) may still fall back to the live row for display.
         return [
             'exists' => (bool) ($bookable || ! empty($bookableMeta)),
             'id' => data_get($bookableMeta, 'id', $booking->bookable_id),
@@ -273,11 +278,11 @@ final class OperationPresenter
             'title' => (string) data_get($bookableMeta, 'title', $bookable?->title ?? ''),
             'code' => (string) data_get($bookableMeta, 'code', $bookable?->code ?? ''),
             'item_type' => (string) data_get($bookableMeta, 'item_type', $bookable?->item_type ?? ''),
-            'price' => round((float) data_get($bookableMeta, 'price', $bookable?->price ?? 0), 2),
+            'price' => round((float) data_get($bookableMeta, 'price', 0), 2),
             'capacity' => data_get($bookableMeta, 'capacity', $bookable?->capacity),
             'quantity' => data_get($bookableMeta, 'quantity', $bookable?->quantity),
-            'deposit_enabled' => (bool) data_get($bookableMeta, 'deposit_enabled', $bookable?->deposit_enabled ?? false),
-            'deposit_percent' => (int) data_get($bookableMeta, 'deposit_percent', $bookable?->deposit_percent ?? 0),
+            'deposit_enabled' => (bool) data_get($bookableMeta, 'deposit_enabled', false),
+            'deposit_percent' => (int) data_get($bookableMeta, 'deposit_percent', 0),
         ];
     }
 

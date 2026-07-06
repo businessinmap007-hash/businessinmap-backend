@@ -29,6 +29,7 @@ class ServiceExecutionEngine
         protected BookingDepositCalculator $bookingDepositCalculator,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
         protected GuaranteeOperationCoverageService $operationCoverageService,
+        protected BusinessServicePriceResolver $businessServicePriceResolver,
     ) {
     }
 
@@ -724,7 +725,10 @@ class ServiceExecutionEngine
             ];
         }
 
-        $policy = $this->bookingDepositPolicyResolver->resolve($business, $service, $bookable);
+        // Deposit is single-source: the business deposit policy (per business +
+        // child + service) drives it. The physical unit no longer carries any
+        // deposit override — a premium unit is modelled as a distinct item type.
+        $policy = $this->bookingDepositPolicyResolver->resolve($business, $service);
 
         // Deposit base follows the same single source as pricing: the unit
         // price no longer participates.
@@ -748,8 +752,10 @@ class ServiceExecutionEngine
             'service_max_percent' => 20,
             'business_deposit_enabled' => (bool) ($policy['enabled'] ?? false),
             'business_deposit_percent' => (float) ($resolved['configured_percent'] ?? 0),
-            'bookable_deposit_enabled' => $bookable ? ((string) ($bookable->deposit_policy_mode ?? 'inherit') === 'custom') : false,
-            'bookable_deposit_percent' => $bookable ? (float) ($bookable->deposit_value ?? 0) : 0,
+            // Retained for API/UI shape only; per-unit deposit overrides were
+            // removed (units are inventory-only, deposit is single-source).
+            'bookable_deposit_enabled' => false,
+            'bookable_deposit_percent' => 0,
         ]);
     }
 
@@ -918,86 +924,12 @@ class ServiceExecutionEngine
         int $childId = 0,
         ?string $itemType = null
     ): ?BusinessServicePrice {
-        if ($businessId <= 0 || $serviceId <= 0) {
-            return null;
-        }
-
-        $itemType = trim((string) $itemType);
-        $defaultItemType = BusinessServicePrice::DEFAULT_ITEM_TYPE;
-
-        $find = function (?int $child, ?string $type) use ($businessId, $serviceId): ?BusinessServicePrice {
-            $query = BusinessServicePrice::query()
-                ->where('business_id', $businessId)
-                ->where('service_id', $serviceId)
-                ->where('is_active', 1);
-
-            if ($child !== null) {
-                $query->where('child_id', $child);
-            }
-
-            if ($type !== null && $type !== '') {
-                $query->where('bookable_item_type', $type);
-            }
-
-            return $query
-                ->orderByDesc('id')
-                ->first();
-        };
-
-        /*
-        |--------------------------------------------------------------------------
-        | Priority
-        |--------------------------------------------------------------------------
-        | 1) نفس القسم الفرعي + نفس نوع العنصر
-        | 2) نفس القسم الفرعي + category default
-        | 3) نفس القسم الفرعي + أي سعر legacy
-        | 4) نفس البزنس والخدمة + نفس نوع العنصر بدون child
-        | 5) نفس البزنس والخدمة + category default بدون child
-        | 6) نفس البزنس والخدمة + أي سعر legacy
-        |--------------------------------------------------------------------------
-        */
-
-        if ($childId > 0) {
-            if ($itemType !== '') {
-                $row = $find($childId, $itemType);
-
-                if ($row) {
-                    return $row;
-                }
-            }
-
-            if ($itemType !== $defaultItemType) {
-                $row = $find($childId, $defaultItemType);
-
-                if ($row) {
-                    return $row;
-                }
-            }
-
-            $row = $find($childId, null);
-
-            if ($row) {
-                return $row;
-            }
-        }
-
-        if ($itemType !== '') {
-            $row = $find(null, $itemType);
-
-            if ($row) {
-                return $row;
-            }
-        }
-
-        if ($itemType !== $defaultItemType) {
-            $row = $find(null, $defaultItemType);
-
-            if ($row) {
-                return $row;
-            }
-        }
-
-        return $find(null, null);
+        return $this->businessServicePriceResolver->resolve(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            childId: $childId,
+            itemType: $itemType
+        );
     }
 
     protected function resolveBookableItem(int $businessId, int $serviceId, int $bookableId): ?BookableItem

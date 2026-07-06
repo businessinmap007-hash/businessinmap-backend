@@ -96,10 +96,8 @@
                         <th>Item Type</th>
                         <th>Title</th>
                         <th>Code</th>
-                        <th>Price</th>
                         <th>Capacity</th>
                         <th>Qty</th>
-                        <th>Deposit</th>
                         <th>Status</th>
                         <th style="width:280px;">Actions</th>
                     </tr>
@@ -130,23 +128,11 @@
                         </td>
 
                         <td>
-                            {{ number_format((float) ($row->price ?? 0), 2) }}
-                        </td>
-
-                        <td>
                             {{ $row->capacity ?: '—' }}
                         </td>
 
                         <td>
                             {{ $row->quantity ?: '—' }}
-                        </td>
-
-                        <td>
-                            @if((int) ($row->deposit_enabled ?? 0) === 1)
-                                {{ (int) ($row->deposit_percent ?? 0) }}%
-                            @else
-                                —
-                            @endif
                         </td>
 
                         <td>

@@ -52,7 +52,7 @@
             <div><strong>Title:</strong> {{ $item->title ?: '—' }}</div>
             <div><strong>Type:</strong> <span dir="ltr">{{ $item->item_type ?: '—' }}</span></div>
             <div><strong>Code:</strong> <span dir="ltr">{{ $item->code ?: '—' }}</span></div>
-            <div><strong>Base Price:</strong> {{ number_format((float) ($item->price ?? 0), 2) }}</div>
+            <div><strong>Base Price:</strong> {{ number_format($item->resolvedBasePrice(), 2) }}</div>
         </div>
     </div>
 

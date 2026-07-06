@@ -11,6 +11,14 @@ use InvalidArgumentException;
 
 class BookablePricingService
 {
+    /** Memoized resolved base price/currency per bookable item id. */
+    protected array $baseCache = [];
+
+    public function __construct(
+        protected BusinessServicePriceResolver $businessServicePriceResolver,
+    ) {
+    }
+
     public function resolve(
         BookableItem $item,
         CarbonInterface|string|null $date = null,
@@ -166,8 +174,10 @@ class BookablePricingService
     ): array {
         $quantity = max($quantity, 1);
 
-        $basePrice = round((float) ($item->price ?? 0), 2);
-        $currency  = 'EGP';
+        // Base price is single-source: the BusinessServicePrice for this unit's
+        // item type, not the deprecated bookable_items.price column. Per-day
+        // price rules (below) still apply on top of this base.
+        [$basePrice, $currency] = $this->resolveBase($item);
 
         $rules = $this->findMatchingRules($item, $date, $quantity);
 
@@ -218,6 +228,29 @@ class BookablePricingService
             'rules' => $rules->map(fn ($rule) => $this->mapRule($rule))->values()->all(),
             'breakdown' => $breakdown,
         ];
+    }
+
+    /**
+     * Resolve the unit's base price + currency from the single-source
+     * BusinessServicePrice for its item type. Memoized per item id so a full
+     * month calendar (~42 days) resolves the price once.
+     *
+     * @return array{0: float, 1: string} [basePrice, currency]
+     */
+    protected function resolveBase(BookableItem $item): array
+    {
+        $key = (int) $item->id;
+
+        if (! array_key_exists($key, $this->baseCache)) {
+            $price = $this->businessServicePriceResolver->resolveForBookableItem($item);
+
+            $this->baseCache[$key] = [
+                round((float) ($price?->baseUnitPrice() ?? 0), 2),
+                (string) ($price?->currencyCode() ?? 'EGP'),
+            ];
+        }
+
+        return $this->baseCache[$key];
     }
 
     protected function findMatchingRules(

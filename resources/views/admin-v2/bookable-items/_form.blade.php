@@ -315,17 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
     businessSelect?.addEventListener('change', refreshTypeOptions);
     serviceSelect?.addEventListener('change', refreshTypeOptions);
 
-    const depositCheckbox = document.getElementById('deposit_enabled');
-    const depositInput = document.getElementById('deposit_percent');
-    function toggleDeposit() {
-        if (!depositCheckbox || !depositInput) return;
-        depositInput.disabled = !depositCheckbox.checked;
-        if (!depositCheckbox.checked) depositInput.value = 0;
-    }
-    depositCheckbox?.addEventListener('change', toggleDeposit);
-
     refreshTypeOptions();
-    toggleDeposit();
 });
 </script>
 @endpush

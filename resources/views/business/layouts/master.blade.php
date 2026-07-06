@@ -23,6 +23,7 @@
                 <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">وحداتي</a>
                 <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">أسعاري</a>
                 <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">المنيو</a>
+                <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">حجوزاتي</a>
                 @auth
                     <form method="POST" action="{{ route('business.logout') }}">
                         @csrf

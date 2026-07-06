@@ -74,6 +74,48 @@ class BookingFoodService
         });
     }
 
+    /**
+     * Append a single food line to the booking's dine-in order and refresh
+     * the invoice. Price is the caller's responsibility to source from the
+     * menu item (never trust a posted price).
+     */
+    public function addLine(Booking $booking, int $menuId, int $qty, float $price, ?int $sizeId = null): Order
+    {
+        return DB::transaction(function () use ($booking, $menuId, $qty, $price, $sizeId) {
+            $order = $this->orderForBooking($booking);
+            $qty = max(1, $qty);
+            $price = round($price, 2);
+
+            $order->items()->create([
+                'menu_id' => $menuId,
+                'size_id' => $sizeId,
+                'addons' => null,
+                'qty' => $qty,
+                'price' => $price,
+                'total_price' => round($price * $qty, 2),
+            ]);
+
+            $this->recalcOrder($order);
+            $this->refreshBookingInvoice($booking->refresh());
+
+            return $order->refresh();
+        });
+    }
+
+    /**
+     * Remove one food line (by order_item id) from the booking's order.
+     */
+    public function removeLine(Booking $booking, int $orderItemId): void
+    {
+        DB::transaction(function () use ($booking, $orderItemId) {
+            $order = $this->orderForBooking($booking);
+            $order->items()->whereKey($orderItemId)->delete();
+
+            $this->recalcOrder($order);
+            $this->refreshBookingInvoice($booking->refresh());
+        });
+    }
+
     protected function recalcOrder(Order $order): void
     {
         $total = round((float) $order->items()->sum('total_price'), 2);

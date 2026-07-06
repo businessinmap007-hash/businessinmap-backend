@@ -29,6 +29,11 @@
         <div class="a2-stat-value">{{ $stats['prices'] }}</div>
     </a>
 
+    <a href="{{ route('business.menu.index') }}" class="a2-stat-card" style="text-decoration:none;color:inherit;">
+        <div class="a2-stat-label">أصناف المنيو</div>
+        <div class="a2-stat-value">{{ $stats['menu_items'] }}</div>
+    </a>
+
     <div class="a2-stat-card">
         <div class="a2-stat-label">حجوزاتي</div>
         <div class="a2-stat-value">{{ $stats['bookings'] }}</div>

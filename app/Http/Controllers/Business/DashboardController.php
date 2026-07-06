@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
 use App\Models\Booking;
 use App\Models\BusinessServicePrice;
+use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -24,6 +25,7 @@ class DashboardController extends Controller
             'bookable_items' => BookableItem::query()->where('business_id', $businessId)->count(),
             'active_items' => BookableItem::query()->where('business_id', $businessId)->where('is_active', 1)->count(),
             'prices' => BusinessServicePrice::query()->where('business_id', $businessId)->count(),
+            'menu_items' => MenuItem::query()->where('business_id', $businessId)->count(),
             'bookings' => Booking::query()->where('business_id', $businessId)->count(),
         ];
 

@@ -78,13 +78,10 @@
             </div>
         </div>
         <div class="a2-card">
-            <div class="a2-card-head"><h3>السعر والحالة</h3></div>
+            <div class="a2-card-head"><h3>الحالة</h3></div>
             <div class="a2-card-body">
-                <div class="a2-form-group">
-                    <label>السعر</label>
-                    <input type="number" step="0.01" name="price" class="a2-input" value="{{ old('price', $row->price ?? 0) }}" required>
-                </div>
                 <label class="a2-check"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $row->is_active ?? 1))> <span>مفعل</span></label>
+                <div class="a2-hint a2-mt-8">السعر والديبوزت يُضبطان لكل نوع من شاشة أسعار خدمات البزنس، وليس على الوحدة.</div>
             </div>
         </div>
     </div>
@@ -105,7 +102,6 @@
                         <th>الكود / رقم الغرفة</th>
                         <th>السعة / عدد الغرف</th>
                         <th>الكمية</th>
-                        <th>السعر</th>
                         <th>مفعل</th>
                         <th></th>
                     </tr>
@@ -121,7 +117,6 @@
                             <td><input name="items[{{ $i }}][code]" class="a2-input" placeholder="101 / A1 / Table-5"></td>
                             <td><input name="items[{{ $i }}][capacity]" class="a2-input" type="number" min="1" placeholder="مثال: 2"></td>
                             <td><input name="items[{{ $i }}][quantity]" class="a2-input" type="number" min="1" value="1"></td>
-                            <td><input name="items[{{ $i }}][price]" class="a2-input" type="number" step="0.01" min="0" placeholder="0.00"></td>
                             <td><input type="checkbox" name="items[{{ $i }}][is_active]" value="1" checked></td>
                             <td><button type="button" class="a2-btn a2-btn-ghost js-clear-row">مسح</button></td>
                         </tr>
@@ -139,27 +134,12 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الديبوزت والخصم على المجموعة</div>
-            <div class="a2-card-sub">الديبوزت هنا ضمان/حجز فقط. إلغاء الديبوزت لا يلغي رسوم استخدام الخدمة لصالح التطبيق، ورسوم الخدمة مكانها Service Fees.</div>
+            <div class="a2-card-title">السعر والديبوزت والخصم</div>
+            <div class="a2-card-sub">لا تُضبط على الوحدة. السعر والديبوزت والخصم يُحدَّدون لكل نوع عنصر من شاشة أسعار خدمات البزنس.</div>
         </div>
     </div>
 
-    <div class="a2-form-grid-3">
-        <label class="a2-check-card">
-            <input type="checkbox" name="deposit_enabled" value="1" id="deposit_enabled" @checked(old('deposit_enabled', $row->deposit_enabled ?? 0))>
-            <span>تفعيل الديبوزت</span>
-        </label>
-
-        <div class="a2-form-group">
-            <label class="a2-label">نسبة الديبوزت %</label>
-            <input type="number" name="deposit_percent" id="deposit_percent" class="a2-input" value="{{ old('deposit_percent', $row->deposit_percent ?? 0) }}" min="0" max="100">
-        </div>
-
-        <div class="a2-form-group">
-            <label class="a2-label">خصم الخدمة</label>
-            <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">إدارة أسعار وخصومات الخدمة</a>
-        </div>
-    </div>
+    <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">إدارة أسعار وخصومات الخدمة</a>
 </div>
 
 <div class="a2-card a2-card--section">

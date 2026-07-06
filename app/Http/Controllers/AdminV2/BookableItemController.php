@@ -266,12 +266,14 @@ class BookableItemController extends Controller
                 'item_type' => $type,
                 'title' => $title,
                 'code' => $code,
-                'price' => round((float) ($price ?? 0), 2),
+                // Units are inventory only: price/deposit live in
+                // business_service_prices per type. See services-blueprint.md.
+                'price' => 0,
                 'capacity' => ! empty($raw['capacity']) ? (int) $raw['capacity'] : null,
                 'quantity' => max((int) ($raw['quantity'] ?? 1), 1),
                 'is_active' => ! empty($raw['is_active']) ? 1 : 0,
-                'deposit_enabled' => $depositEnabled,
-                'deposit_percent' => $depositPercent,
+                'deposit_enabled' => 0,
+                'deposit_percent' => 0,
                 'meta' => $meta,
             ];
         }
@@ -288,7 +290,7 @@ class BookableItemController extends Controller
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
             'item_type' => ['required', 'string', 'max:100'],
             'code' => ['required', 'string', 'max:100'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['nullable', 'numeric', 'min:0'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable'],
@@ -329,12 +331,11 @@ class BookableItemController extends Controller
         if ($ignoreId) $duplicateQuery->where('id', '!=', $ignoreId);
         if ($duplicateQuery->exists()) throw ValidationException::withMessages(['code' => 'يوجد عنصر آخر بنفس البزنس والخدمة ونوع العنصر والكود.']);
 
-        if (! (bool) $service->supports_deposit) {
-            $data['deposit_enabled'] = 0;
-            $data['deposit_percent'] = 0;
-        } elseif (! $data['deposit_enabled']) {
-            $data['deposit_percent'] = 0;
-        }
+        // Units are inventory only: price/deposit are authored in
+        // business_service_prices per type, not on the unit. See blueprint.
+        $data['price'] = 0;
+        $data['deposit_enabled'] = 0;
+        $data['deposit_percent'] = 0;
 
         $data['meta'] = $this->parseMetaJson($request->input('meta'));
 

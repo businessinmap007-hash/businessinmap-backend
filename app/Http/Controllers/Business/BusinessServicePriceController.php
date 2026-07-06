@@ -149,6 +149,8 @@ class BusinessServicePriceController extends Controller
             'service_id' => ['required', 'integer'],
             'bookable_item_type' => ['required', 'string', 'max:100'],
             'price' => ['required', 'numeric', 'min:0'],
+            'charge_mode' => ['nullable', 'in:standard,free,reservation_fee,minimum_charge'],
+            'charge_amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable'],
             'deposit_enabled' => ['nullable'],
@@ -159,6 +161,8 @@ class BusinessServicePriceController extends Controller
             'service_id' => 'الخدمة',
             'bookable_item_type' => 'نوع العنصر',
             'price' => 'السعر',
+            'charge_mode' => 'طريقة احتساب الوحدة',
+            'charge_amount' => 'قيمة الرسوم/الحد الأدنى',
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -178,10 +182,21 @@ class BusinessServicePriceController extends Controller
             $depositEnabled = 0;
         }
 
+        $chargeMode = (string) ($data['charge_mode'] ?? BusinessServicePrice::CHARGE_STANDARD);
+        if (! in_array($chargeMode, BusinessServicePrice::CHARGE_MODES, true)) {
+            $chargeMode = BusinessServicePrice::CHARGE_STANDARD;
+        }
+        // Only the fee/minimum modes carry an amount.
+        $chargeAmount = in_array($chargeMode, [BusinessServicePrice::CHARGE_RESERVATION_FEE, BusinessServicePrice::CHARGE_MINIMUM], true)
+            ? round((float) ($data['charge_amount'] ?? 0), 2)
+            : 0.00;
+
         return [
             'service_id' => $serviceId,
             'bookable_item_type' => $itemType,
             'price' => round((float) $data['price'], 2),
+            'charge_mode' => $chargeMode,
+            'charge_amount' => $chargeAmount,
             'currency' => strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP',
             'is_active' => (int) $request->boolean('is_active'),
             'deposit_enabled' => $depositEnabled,

@@ -661,10 +661,12 @@ class ServiceExecutionEngine
         // Price authority is BusinessServicePrice (per item type). The bookable
         // only identifies which type; $businessPrice was already resolved for
         // that type by the caller. The unit no longer carries its own price, so
-        // discounts now apply to bookable bookings too. See services-blueprint.
-        $unitPrice = round((float) ($businessPrice->price ?? 0), 2);
+        // discounts now apply to bookable bookings too. The charge mode (free /
+        // reservation fee / minimum) is honoured here; food add-ons (unified
+        // invoice) will pass a food total later. See services-blueprint.
+        $unitPrice = round($businessPrice->resolveBaseCharge(), 2);
 
-        if ($unitPrice <= 0 && isset($businessPrice->base_price)) {
+        if ($unitPrice <= 0 && $businessPrice->chargeMode() === BusinessServicePrice::CHARGE_STANDARD && isset($businessPrice->base_price)) {
             $unitPrice = round((float) ($businessPrice->base_price ?? 0), 2);
         }
 

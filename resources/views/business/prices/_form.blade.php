@@ -72,6 +72,34 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
+                <div class="a2-card-title">طريقة احتساب الوحدة</div>
+                <div class="a2-card-sub">للطاولات: مجانية / رسوم حجز / حد أدنى للطلب. للغرف والملاعب اتركها "سعر عادي".</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group">
+                <label class="a2-label" for="charge_mode">الطريقة</label>
+                <select class="a2-select js-bp-charge-mode" id="charge_mode" name="charge_mode">
+                    @php $cm = old('charge_mode', $row->charge_mode ?? 'standard'); @endphp
+                    <option value="standard" @selected($cm === 'standard')>سعر عادي (السعر أعلاه)</option>
+                    <option value="free" @selected($cm === 'free')>مجانية — يُحتسب الأكل فقط</option>
+                    <option value="reservation_fee" @selected($cm === 'reservation_fee')>رسوم حجز ثابتة</option>
+                    <option value="minimum_charge" @selected($cm === 'minimum_charge')>حد أدنى للطلب</option>
+                </select>
+            </div>
+
+            <div class="a2-form-group js-bp-charge-amount-wrap">
+                <label class="a2-label" for="charge_amount">قيمة الرسوم / الحد الأدنى</label>
+                <input class="a2-input" id="charge_amount" name="charge_amount" value="{{ old('charge_amount', $row->charge_amount ?? 0) }}" inputmode="decimal" placeholder="0.00">
+                <div class="a2-hint a2-mt-8 js-bp-charge-hint"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
                 <div class="a2-card-title">الخصم والتأمين</div>
                 <div class="a2-card-sub">التأمين ضمان/حجز فقط. بعض الخدمات لا تدعمه.</div>
             </div>
@@ -167,6 +195,22 @@
             if (!discountEnabled.checked) discountPercent.value = 0;
         }
 
+        const chargeMode = document.querySelector('.js-bp-charge-mode');
+        const chargeAmountWrap = document.querySelector('.js-bp-charge-amount-wrap');
+        const chargeHint = document.querySelector('.js-bp-charge-hint');
+        const hints = {
+            reservation_fee: 'رسوم حجز ثابتة تُضاف على الفاتورة.',
+            minimum_charge: 'أقل مبلغ يجب إنفاقه؛ لو قلّ الطلب عنه يُكمَّل إليه.',
+        };
+
+        function refreshCharge() {
+            if (!chargeMode || !chargeAmountWrap) return;
+            const mode = String(chargeMode.value || 'standard');
+            const needsAmount = (mode === 'reservation_fee' || mode === 'minimum_charge');
+            chargeAmountWrap.style.display = needsAmount ? '' : 'none';
+            if (chargeHint) chargeHint.textContent = hints[mode] || '';
+        }
+
         serviceSelect?.addEventListener('change', function () {
             typeSelect.dataset.currentValue = '';
             rebuildTypes();
@@ -174,10 +218,12 @@
         });
         depositEnabled?.addEventListener('change', refreshDeposit);
         discountEnabled?.addEventListener('change', refreshDiscount);
+        chargeMode?.addEventListener('change', refreshCharge);
 
         rebuildTypes();
         refreshDeposit();
         refreshDiscount();
+        refreshCharge();
     });
     </script>
     @endpush

@@ -13,12 +13,27 @@ class BusinessServicePrice extends Model
     public const DEFAULT_CURRENCY = 'EGP';
     public const DEFAULT_ITEM_TYPE = 'category';
 
+    /** Table charge modes — how the unit itself is charged. */
+    public const CHARGE_STANDARD = 'standard';
+    public const CHARGE_FREE = 'free';
+    public const CHARGE_RESERVATION_FEE = 'reservation_fee';
+    public const CHARGE_MINIMUM = 'minimum_charge';
+
+    public const CHARGE_MODES = [
+        self::CHARGE_STANDARD,
+        self::CHARGE_FREE,
+        self::CHARGE_RESERVATION_FEE,
+        self::CHARGE_MINIMUM,
+    ];
+
     protected $fillable = [
         'business_id',
         'child_id',
         'service_id',
         'bookable_item_type',
         'price',
+        'charge_mode',
+        'charge_amount',
         'currency',
         'is_active',
         'deposit_enabled',
@@ -33,6 +48,8 @@ class BusinessServicePrice extends Model
         'service_id'         => 'integer',
         'bookable_item_type' => 'string',
         'price'              => 'decimal:2',
+        'charge_mode'        => 'string',
+        'charge_amount'      => 'decimal:2',
         'currency'           => 'string',
         'is_active'          => 'boolean',
         'deposit_enabled'    => 'boolean',
@@ -177,6 +194,38 @@ class BusinessServicePrice extends Model
     public function baseUnitPrice(): float
     {
         return round((float) ($this->price ?? 0), 2);
+    }
+
+    public function chargeMode(): string
+    {
+        $mode = (string) ($this->charge_mode ?? self::CHARGE_STANDARD);
+
+        return in_array($mode, self::CHARGE_MODES, true) ? $mode : self::CHARGE_STANDARD;
+    }
+
+    public function chargeAmount(): float
+    {
+        return round(max((float) ($this->charge_amount ?? 0), 0), 2);
+    }
+
+    /**
+     * The unit's own charge before any add-on food/order, given the food total
+     * so far (0 for a standalone booking):
+     *  - standard        -> the normal price
+     *  - free            -> 0 (only food is charged)
+     *  - reservation_fee -> the fixed fee
+     *  - minimum_charge  -> the greater of the minimum and the food total
+     */
+    public function resolveBaseCharge(float $foodTotal = 0): float
+    {
+        $food = round(max($foodTotal, 0), 2);
+
+        return match ($this->chargeMode()) {
+            self::CHARGE_FREE => 0.00,
+            self::CHARGE_RESERVATION_FEE => $this->chargeAmount(),
+            self::CHARGE_MINIMUM => round(max($this->chargeAmount(), $food), 2),
+            default => $this->baseUnitPrice(),
+        };
     }
 
     public function currencyCode(): string

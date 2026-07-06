@@ -68,7 +68,21 @@
                         <td>{{ $row->id }}</td>
                         <td>{{ $displayName($row->service) }}</td>
                         <td dir="ltr">{{ $row->bookable_item_type }}</td>
-                        <td class="a2-fw-900">{{ number_format((float) $row->price, 2) }} {{ $row->currency ?: 'EGP' }}</td>
+                        <td class="a2-fw-900">
+                            {{ number_format((float) $row->price, 2) }} {{ $row->currency ?: 'EGP' }}
+                            @php
+                                $modeLabels = ['free' => 'مجانية', 'reservation_fee' => 'رسوم حجز', 'minimum_charge' => 'حد أدنى'];
+                                $mode = (string) ($row->charge_mode ?? 'standard');
+                            @endphp
+                            @if(isset($modeLabels[$mode]))
+                                <div class="a2-muted a2-mt-8">
+                                    <span class="a2-pill a2-pill-sub">{{ $modeLabels[$mode] }}</span>
+                                    @if((float) $row->charge_amount > 0)
+                                        {{ number_format((float) $row->charge_amount, 2) }}
+                                    @endif
+                                </div>
+                            @endif
+                        </td>
                         <td>
                             @if((int) $row->discount_enabled === 1)
                                 <span class="a2-pill a2-pill-success">{{ (int) $row->discount_percent }}%</span>

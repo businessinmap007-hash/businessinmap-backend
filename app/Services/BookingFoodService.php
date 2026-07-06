@@ -29,9 +29,10 @@ class BookingFoodService
             [
                 'user_id' => (int) $booking->user_id,
                 'business_id' => (int) $booking->business_id,
-                'subtotal' => 0,
-                'delivery_fee' => 0,
                 'total' => 0,
+                'delivery_fee' => 0,
+                'discount' => 0,
+                'final_total' => 0,
                 'status' => 'pending',
             ]
         );
@@ -71,11 +72,12 @@ class BookingFoodService
 
     protected function recalcOrder(Order $order): void
     {
-        $subtotal = round((float) $order->items()->sum('total_price'), 2);
+        $total = round((float) $order->items()->sum('total_price'), 2);
+        $finalTotal = round($total + (float) ($order->delivery_fee ?? 0) - (float) ($order->discount ?? 0), 2);
 
         $order->update([
-            'subtotal' => $subtotal,
-            'total' => round($subtotal + (float) ($order->delivery_fee ?? 0), 2),
+            'total' => $total,
+            'final_total' => max($finalTotal, 0),
         ]);
     }
 

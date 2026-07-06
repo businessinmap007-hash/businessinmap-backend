@@ -17,15 +17,18 @@ class Order extends Model
         self::FULFILLMENT_PICKUP,
     ];
 
+    // Columns match the orders table: total / delivery_fee / discount /
+    // final_total (there is no `subtotal` column).
     protected $fillable = [
 
         'user_id',
         'business_id',
         'fulfillment_type',
         'booking_id',
-        'subtotal',
-        'delivery_fee',
         'total',
+        'delivery_fee',
+        'discount',
+        'final_total',
         'payment_method',
         'address',
         'notes',
@@ -59,7 +62,7 @@ class Order extends Model
 
     public function foodTotal(): float
     {
-        return round((float) ($this->total ?? $this->subtotal ?? 0), 2);
+        return round((float) ($this->final_total ?? $this->total ?? 0), 2);
     }
 
     public function items()

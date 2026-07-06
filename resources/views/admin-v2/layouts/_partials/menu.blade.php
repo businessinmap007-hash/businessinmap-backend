@@ -57,11 +57,12 @@
             ['label' => 'Units', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
             ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
         ]],
-        ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
+        ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
             ['label' => 'Service Setup', 'type' => 'section', 'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
                 ['label' => 'Item Type Branches', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
+                ['label' => 'Service Branch Board', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
                 ['label' => 'Service Catalog Matrix', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
             ]],
             ['label' => 'Service Linking & Pricing', 'type' => 'section', 'children' => [

@@ -6,6 +6,7 @@ use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\MenuItemController;
+use App\Http\Controllers\Business\OrderController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -50,5 +51,13 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('bookings/{id}', [BookingController::class, 'show'])->whereNumber('id')->name('bookings.show');
         Route::post('bookings/{id}/food', [BookingController::class, 'addFood'])->whereNumber('id')->name('bookings.food.add');
         Route::delete('bookings/{id}/food', [BookingController::class, 'removeFood'])->whereNumber('id')->name('bookings.food.remove');
+
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
+        Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
+        Route::post('orders/{id}/food', [OrderController::class, 'addFood'])->whereNumber('id')->name('orders.food.add');
+        Route::delete('orders/{id}/food', [OrderController::class, 'removeFood'])->whereNumber('id')->name('orders.food.remove');
+        Route::delete('orders/{id}', [OrderController::class, 'destroy'])->whereNumber('id')->name('orders.destroy');
     });
 });

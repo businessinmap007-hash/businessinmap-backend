@@ -1,0 +1,103 @@
+@extends('business.layouts.master')
+
+@section('title', 'طلب #' . $order->id)
+
+@section('content')
+@php
+    $typeLabels = ['delivery' => 'توصيل', 'pickup' => 'استلام'];
+@endphp
+
+<div class="a2-page-head">
+    <div>
+        <h1 class="a2-page-title">طلب #{{ $order->id }}</h1>
+        <div class="a2-page-subtitle">
+            <span class="a2-pill a2-pill-sub">{{ $typeLabels[$order->fulfillment_type] ?? $order->fulfillment_type }}</span>
+            @if($order->fulfillment_type === 'delivery' && $order->address)
+                — {{ $order->address }}
+            @endif
+        </div>
+    </div>
+    <div class="a2-page-actions">
+        <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+    </div>
+</div>
+
+@if(session('success'))
+    <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
+@endif
+@if($errors->any())
+    <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
+@endif
+
+<div class="a2-form-grid">
+    <div>
+        <div class="a2-card a2-card--section">
+            <div class="a2-card-head"><div><div class="a2-card-title">أصناف الطلب</div></div></div>
+
+            <div class="a2-table-wrap">
+                <table class="a2-table">
+                    <thead><tr><th>الصنف</th><th>السعر</th><th>الكمية</th><th>الإجمالي</th><th></th></tr></thead>
+                    <tbody>
+                        @forelse($lines as $line)
+                            <tr>
+                                <td>{{ $line->menuItem?->name_ar ?: ('#' . $line->menu_id) }}</td>
+                                <td>{{ number_format((float) $line->price, 2) }}</td>
+                                <td>{{ (int) $line->qty }}</td>
+                                <td class="a2-fw-900">{{ number_format((float) $line->total_price, 2) }}</td>
+                                <td class="a2-text-right">
+                                    <form method="POST" action="{{ route('business.orders.food.remove', $order->id) }}" onsubmit="return confirm('حذف الصنف؟');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="item_id" value="{{ $line->id }}">
+                                        <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="a2-empty">لا توجد أصناف بعد.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($menuItems->isEmpty())
+                <div class="a2-alert a2-alert-warning a2-mt-16">لا توجد أصناف في منيوك. أضف من شاشة المنيو أولًا.</div>
+            @else
+                <form method="POST" action="{{ route('business.orders.food.add', $order->id) }}" class="a2-filterbar" style="margin-top:16px;">
+                    @csrf
+                    <div class="a2-filter-md">
+                        <label class="a2-label" for="menu_id">الصنف</label>
+                        <select class="a2-select" id="menu_id" name="menu_id" required>
+                            @foreach($menuItems as $mi)
+                                <option value="{{ $mi->id }}">{{ $mi->name_ar ?: $mi->name_en }} — {{ number_format((float) $mi->base_price, 2) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="a2-filter-sm">
+                        <label class="a2-label" for="qty">الكمية</label>
+                        <input class="a2-input" id="qty" name="qty" type="number" min="1" value="1" required>
+                    </div>
+                    <div class="a2-filter-actions">
+                        <button class="a2-btn a2-btn-primary" type="submit">إضافة</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+    </div>
+
+    <div>
+        <div class="a2-card a2-card--section">
+            <div class="a2-card-head"><div><div class="a2-card-title">الفاتورة</div></div></div>
+            <table class="a2-table">
+                <tbody>
+                    <tr><td>إجمالي الأصناف</td><td class="a2-text-right a2-fw-900">{{ number_format((float) $order->total, 2) }}</td></tr>
+                    @if($order->fulfillment_type === 'delivery')
+                        <tr><td>رسوم التوصيل</td><td class="a2-text-right">{{ number_format((float) $order->delivery_fee, 2) }}</td></tr>
+                    @endif
+                    <tr><td class="a2-fw-900">الإجمالي النهائي</td><td class="a2-text-right a2-fw-900">{{ number_format((float) $order->final_total, 2) }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection

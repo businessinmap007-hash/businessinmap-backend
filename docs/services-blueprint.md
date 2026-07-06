@@ -122,7 +122,9 @@ Session-based mini panel, separate from AdminV2.
 | — drop `bookable_items` price/deposit columns | schema removal (columns now unused by the engine) | ⏳ pending |
 | — `BookablePricingService` (per-day price rules / calendar, BIM-5.6) | still bases off `bookable_items.price`; not in the active booking-price path (injected but uncalled by the engine). Needs its own decision on how per-day rules relate to `business_service_prices` before it goes live | ⏳ pending |
 | Table charge mode | `charge_mode` + `charge_amount` on `business_service_prices`; honoured by the engine and the owner "My Prices" screen | ✅ done |
-| Unified invoice | `booking_id` on order lines + `fulfillment_type` + deposit on combined total | ⏳ in progress |
+| Unified invoice (dine-in) | `booking_id` + `fulfillment_type` on orders; `BookingFoodService` attaches food to a booking and computes table+food+deposit; owner "My Bookings" screen adds food & shows the live invoice | ✅ done |
+| Owner: My Menu | scoped menu_items CRUD | ✅ done |
+| Standalone menu order (delivery / pickup) | orders with no booking + a fulfillment type; owner "Menu Orders" screen | ⏳ in progress |
 | Table charge mode | `charge_mode` + amount config | ⏳ pending |
 | Unified invoice | `booking_id` on order lines + `fulfillment_type` + deposit on combined total | ⏳ pending (largest) |
 

@@ -11,31 +11,17 @@ class BookableItem extends Model
 {
     protected $table = 'bookable_items';
 
+    // Units are inventory only. Price and deposit are single-source in
+    // business_service_prices (per item type); the legacy price/deposit_*
+    // columns were dropped from bookable_items. See services-blueprint.md.
     protected $fillable = [
         'business_id',
         'service_id',
         'item_type',
         'title',
         'code',
-        'price',
         'capacity',
         'quantity',
-
-        'deposit_enabled',
-        'deposit_percent',
-
-        'deposit_policy_mode',
-        'deposit_mode',
-        'deposit_calculation_base',
-        'deposit_type',
-        'deposit_value',
-        'max_deposit_percent',
-        'min_deposit_amount',
-        'max_deposit_amount',
-        'external_verification_enabled',
-        'wallet_hold_enabled',
-        'business_counter_hold_enabled',
-        'business_counter_hold_percent',
 
         'is_active',
         'meta',
@@ -45,25 +31,8 @@ class BookableItem extends Model
         'business_id' => 'integer',
         'service_id' => 'integer',
         'item_type' => 'string',
-        'price' => 'decimal:2',
         'capacity' => 'integer',
         'quantity' => 'integer',
-
-        'deposit_enabled' => 'boolean',
-        'deposit_percent' => 'integer',
-
-        'deposit_policy_mode' => 'string',
-        'deposit_mode' => 'string',
-        'deposit_calculation_base' => 'string',
-        'deposit_type' => 'string',
-        'deposit_value' => 'decimal:2',
-        'max_deposit_percent' => 'decimal:2',
-        'min_deposit_amount' => 'decimal:2',
-        'max_deposit_amount' => 'decimal:2',
-        'external_verification_enabled' => 'boolean',
-        'wallet_hold_enabled' => 'boolean',
-        'business_counter_hold_enabled' => 'boolean',
-        'business_counter_hold_percent' => 'decimal:2',
 
         'is_active' => 'boolean',
         'meta' => 'array',
@@ -142,5 +111,18 @@ class BookableItem extends Model
     public function getDisplayNameAttribute(): string
     {
         return (string) ($this->title ?: ($this->code ?: ('Item #' . $this->id)));
+    }
+
+    /**
+     * The unit's base price, single-sourced from the BusinessServicePrice for
+     * its item type (bookable_items no longer carries a price column). Resolved
+     * lazily; call only where a single unit's base price is needed, not in lists.
+     */
+    public function resolvedBasePrice(): float
+    {
+        $price = app(\App\Services\BusinessServicePriceResolver::class)
+            ->resolveForBookableItem($this);
+
+        return round((float) ($price?->baseUnitPrice() ?? 0), 2);
     }
 }

@@ -467,11 +467,13 @@ class BookingController extends Controller
                     'item_type' => (string) ($item->item_type ?? ''),
                     'title' => (string) ($item->title ?? ''),
                     'code' => (string) ($item->code ?? ''),
-                    'price' => round((float) ($item->price ?? 0), 2),
+                    // Units are inventory only; price/deposit come from
+                    // business_service_prices (resolved by the pricing preview).
+                    'price' => 0.0,
                     'capacity' => $item->capacity !== null ? (int) $item->capacity : null,
                     'quantity' => $item->quantity !== null ? (int) $item->quantity : null,
-                    'deposit_enabled' => (bool) ($item->deposit_enabled ?? false),
-                    'deposit_percent' => (int) ($item->deposit_percent ?? 0),
+                    'deposit_enabled' => false,
+                    'deposit_percent' => 0,
                 ];
             })->values(),
         ]);
@@ -607,9 +609,11 @@ class BookingController extends Controller
                 'title' => (string) $bookable->title,
                 'code' => (string) ($bookable->code ?? ''),
                 'item_type' => (string) ($bookable->item_type ?? ''),
-                'price' => (float) $bookable->price,
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
+                // Inventory only; real price/deposit are in the pricing/deposit
+                // payload below (resolved from business_service_prices).
+                'price' => 0.0,
+                'deposit_enabled' => false,
+                'deposit_percent' => 0,
                 'capacity' => $bookable->capacity !== null ? (int) $bookable->capacity : null,
                 'quantity' => $bookable->quantity !== null ? (int) $bookable->quantity : null,
             ] : null,

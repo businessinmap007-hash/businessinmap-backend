@@ -480,7 +480,7 @@
 
                         <div class="booking-show-kv">
                             <span>السعر</span>
-                            <strong>{{ $money($bookableMeta['price'] ?? $booking->bookable?->price ?? 0) }}</strong>
+                            <strong>{{ $money($bookableMeta['price'] ?? 0) }}</strong>
                             <small>bookable price</small>
                         </div>
                     </div>

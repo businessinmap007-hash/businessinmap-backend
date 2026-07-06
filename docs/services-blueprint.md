@@ -42,9 +42,9 @@ carries no price. Consequence, accepted by design: **two units of the same
 type share one price**. A premium unit becomes a **distinct item type** (e.g.
 `single_deluxe`), which the branches/types model already supports.
 
-> Note: `bookable_items` still has legacy `price`/`deposit_*` columns; they are
-> no longer authored in the business panel and are slated for removal. Do not
-> build new logic on them.
+> Note: the legacy `price`/`deposit_*` columns on `bookable_items` have been
+> **dropped** — pricing/deposit are single-source (`business_service_prices` +
+> the business deposit policy). Units are inventory only.
 
 ---
 
@@ -120,8 +120,8 @@ Session-based mini panel, separate from AdminV2.
 | Owner: My Prices | scoped business_service_prices CRUD | ✅ done |
 | Pricing authority | `ServiceExecutionEngine` always prices (and bases deposit) from `business_service_prices`, even with a unit selected; discounts now apply to unit bookings | ✅ done |
 | Units inventory-only (admin) | admin bookable-items no longer authors unit price/deposit (forced to 0); form points to the prices screen. Owner panel already inventory-only | ✅ done |
-| — drop `bookable_items` price/deposit columns | **blocked**: `BookablePricingService` (calendar) reads `item->price`, and `OperationPresenter` falls back to the unit columns. Drop only after the calendar decision + a presenter fix | ⏳ pending |
-| — `BookablePricingService` (per-day price rules / calendar, BIM-5.6) | still bases off `bookable_items.price`; not in the active booking-price path (injected but uncalled by the engine). Needs its own decision on how per-day rules relate to `business_service_prices` before it goes live | ⏳ pending |
+| — drop `bookable_items` price/deposit columns | ✅ done: migration drops `price` + the full legacy `deposit_*` cluster (guarded by `Schema::hasColumn`). `OperationPresenter` reads price/deposit from the `meta.bookable_item` snapshot only; the per-unit deposit override was removed from `BookingDepositPolicyResolver` (deposit is single-source) | ✅ done |
+| — `BookablePricingService` (per-day price rules / calendar, BIM-5.6) | ✅ done: per-day base price now resolves off `business_service_prices` (via `BusinessServicePriceResolver`, same priority the engine uses) for the unit's item type; price rules apply on top. Still injected-but-uncalled by the booking-price path — the calendar is its live consumer | ✅ done |
 | Table charge mode | `charge_mode` + `charge_amount` on `business_service_prices`; honoured by the engine and the owner "My Prices" screen | ✅ done |
 | Unified invoice (dine-in) | `booking_id` + `fulfillment_type` on orders; `BookingFoodService` attaches food to a booking and computes table+food+deposit; owner "My Bookings" screen adds food & shows the live invoice | ✅ done |
 | Owner: My Menu | scoped menu_items CRUD | ✅ done |

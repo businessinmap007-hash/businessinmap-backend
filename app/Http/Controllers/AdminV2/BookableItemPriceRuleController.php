@@ -208,7 +208,10 @@ class BookableItemPriceRuleController extends Controller
     {
         abort_unless((int) $rule->bookable_item_id === (int) $bookableItem->id, 404);
 
-        return view('admin-v2.bookable-items.price-rules.edit', compact('bookableItem', 'rule'));
+        return view('admin-v2.bookable-items.price-rules.edit', [
+            'item' => $bookableItem,
+            'rule' => $rule,
+        ]);
     }
 
     public function update(Request $request, BookableItem $bookableItem, BookableItemPriceRule $rule)

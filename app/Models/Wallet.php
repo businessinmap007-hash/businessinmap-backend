@@ -49,11 +49,6 @@ class Wallet extends Model
         return $this->hasMany(WalletTransaction::class, 'wallet_id');
     }
 
-    public function holds(): HasMany
-    {
-        return $this->hasMany(WalletHold::class, 'wallet_id');
-    }
-
     /*
     |--------------------------------------------------------------------------
     | Scopes

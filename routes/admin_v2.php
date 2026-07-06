@@ -41,6 +41,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceFeePromotionController,
     PlatformServiceItemGroupController,
     PlatformServiceItemTypeController,
+    ServiceBranchBoardController,
     PostController,
     SponsorController,
     SubscriptionController,
@@ -155,6 +156,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
         Route::resource('platform-service-item-groups', PlatformServiceItemGroupController::class)->except(['show'])->names('platform-service-item-groups');
+
+        Route::prefix('service-branches')->name('service-branches.')->group(function () {
+            Route::get('/', [ServiceBranchBoardController::class, 'index'])->name('index');
+            Route::post('assign', [ServiceBranchBoardController::class, 'assign'])->name('assign');
+            Route::post('branches', [ServiceBranchBoardController::class, 'storeBranch'])->name('branches.store');
+            Route::post('branches/{platformServiceItemGroup}/rename', [ServiceBranchBoardController::class, 'renameBranch'])->whereNumber('platformServiceItemGroup')->name('branches.rename');
+            Route::delete('branches/{platformServiceItemGroup}', [ServiceBranchBoardController::class, 'destroyBranch'])->whereNumber('platformServiceItemGroup')->name('branches.destroy');
+        });
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
         Route::get('business-service-prices/business-lookup', [BusinessServicePriceController::class, 'businessLookup'])->name('business_service_prices.business-lookup');

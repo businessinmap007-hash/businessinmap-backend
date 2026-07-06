@@ -175,6 +175,16 @@ class DepositsEscrowService
 
         return DB::transaction(function () use ($deposit, $baseAmount, $feeCode) {
 
+            // Row lock (see release()): serialize concurrent fee charges on the
+            // same deposit and re-validate the status under the lock.
+            $deposit = $this->lockDeposit($deposit);
+
+            if ($deposit->status !== DepositStatus::FROZEN) {
+                throw ValidationException::withMessages([
+                    'deposit' => 'Execution fee can be charged only for frozen deposits.',
+                ]);
+            }
+
             // ✅ منع تكرار الخصم لنفس الـ deposit
             $already = WalletTransaction::query()
                 ->where('reference_type', 'deposit')
@@ -260,6 +270,11 @@ class DepositsEscrowService
     {
         return DB::transaction(function () use ($deposit) {
 
+            // Re-read the deposit under a row lock so the status guards below are
+            // authoritative: two concurrent release/refund calls on the same
+            // deposit serialize here, and the second sees the final status.
+            $deposit = $this->lockDeposit($deposit);
+
             $statusValue = $this->depositStatusValue($deposit);
 
             // ✅ already released
@@ -323,6 +338,10 @@ class DepositsEscrowService
         }
 
         return DB::transaction(function () use ($deposit, $refundClient, $refundBusiness) {
+
+            // Row lock (see release()): serialize concurrent release/refund on
+            // the same deposit and make the status guards authoritative.
+            $deposit = $this->lockDeposit($deposit);
 
             $statusValue = $this->depositStatusValue($deposit);
 
@@ -505,6 +524,20 @@ class DepositsEscrowService
                 'tx_type' => $type->value,
             ], JSON_UNESCAPED_UNICODE),
         ]);
+    }
+
+    /**
+     * Re-read a deposit row under a pessimistic lock. Must be called inside a
+     * DB transaction. Serializes concurrent release/refund/fee operations on
+     * the same deposit so the passed-in (possibly stale) model can't slip past
+     * the status guards.
+     */
+    protected function lockDeposit(Deposit $deposit): Deposit
+    {
+        return Deposit::query()
+            ->whereKey($deposit->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     protected function getOrCreateWallet(int $userId): Wallet

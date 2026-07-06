@@ -77,9 +77,13 @@ Booking (table / unit + time)
 
 - **Fulfillment type** on a menu order: `dine_in` (→ linked to a table
   booking) · `delivery` (address + delivery fee) · `pickup`. — NEW field.
-- **Table charge mode** (per business, configurable): `free` /
-  `reservation_fee` / `minimum_charge` (+ amount). Stored on the unit with a
-  business default (VIP table can have a minimum while a normal table is free).
+- **Table charge mode** (per type, configurable): `standard` / `free` /
+  `reservation_fee` / `minimum_charge` (+ `charge_amount`). Stored on
+  **`business_service_prices`** (not the unit) to stay consistent with
+  single-source pricing — a VIP table is a distinct item type, so it naturally
+  gets its own mode while a normal table stays `free`.
+  `BusinessServicePrice::resolveBaseCharge($foodTotal)` computes the unit's own
+  charge; `minimum_charge` = `max(amount, foodTotal)`.
 
 ### Deposit / security
 - Deposit is a **hold / guarantee**, not an extra charge (deducted from the
@@ -117,6 +121,8 @@ Session-based mini panel, separate from AdminV2.
 | Pricing authority | `ServiceExecutionEngine` always prices (and bases deposit) from `business_service_prices`, even with a unit selected; discounts now apply to unit bookings | ✅ done |
 | — drop `bookable_items` price/deposit columns | schema removal (columns now unused by the engine) | ⏳ pending |
 | — `BookablePricingService` (per-day price rules / calendar, BIM-5.6) | still bases off `bookable_items.price`; not in the active booking-price path (injected but uncalled by the engine). Needs its own decision on how per-day rules relate to `business_service_prices` before it goes live | ⏳ pending |
+| Table charge mode | `charge_mode` + `charge_amount` on `business_service_prices`; honoured by the engine and the owner "My Prices" screen | ✅ done |
+| Unified invoice | `booking_id` on order lines + `fulfillment_type` + deposit on combined total | ⏳ in progress |
 | Table charge mode | `charge_mode` + amount config | ⏳ pending |
 | Unified invoice | `booking_id` on order lines + `fulfillment_type` + deposit on combined total | ⏳ pending (largest) |
 

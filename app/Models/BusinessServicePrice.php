@@ -228,6 +228,31 @@ class BusinessServicePrice extends Model
         };
     }
 
+    /**
+     * The unified invoice total for this offering combined with attached food.
+     * Additive for most modes; minimum_charge is max(minimum, food) so it does
+     * not double-count. Discount (if enabled) applies to the unit portion only.
+     */
+    public function unifiedTotal(float $foodTotal = 0, int $quantity = 1): float
+    {
+        $food = round(max($foodTotal, 0), 2);
+        $quantity = max($quantity, 1);
+
+        if ($this->chargeMode() === self::CHARGE_MINIMUM) {
+            return round(max($this->chargeAmount(), $food), 2);
+        }
+
+        $unit = $this->resolveBaseCharge(0);
+
+        $discountPercent = (bool) ($this->discount_enabled ?? false)
+            ? max(0, min((int) ($this->discount_percent ?? 0), 100))
+            : 0;
+
+        $unitAfterDiscount = round($unit * $quantity * (1 - $discountPercent / 100), 2);
+
+        return round(max($unitAfterDiscount, 0) + $food, 2);
+    }
+
     public function currencyCode(): string
     {
         $currency = strtoupper(trim((string) $this->currency));

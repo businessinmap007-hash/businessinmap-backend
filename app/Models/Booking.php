@@ -170,6 +170,25 @@ class Booking extends Model
             ->orderByDesc('id');
     }
 
+    /**
+     * Food/menu orders attached to this booking (dine-in). Their totals feed
+     * the booking's unified invoice.
+     */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'booking_id')->orderByDesc('id');
+    }
+
+    /**
+     * Sum of the food orders attached to this booking.
+     */
+    public function foodTotal(): float
+    {
+        $orders = $this->relationLoaded('orders') ? $this->orders : $this->orders()->get();
+
+        return round((float) $orders->sum(fn (Order $order) => $order->foodTotal()), 2);
+    }
+
     public function latestDeposit(): MorphOne
     {
         return $this->morphOne(Deposit::class, 'target')->latestOfMany();

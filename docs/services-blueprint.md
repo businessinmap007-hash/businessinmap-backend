@@ -114,7 +114,9 @@ Session-based mini panel, separate from AdminV2.
 | Owner panel foundation | middleware / auth / routes / layout / dashboard | ✅ done |
 | Owner: My Units | scoped bookable-items CRUD | ✅ done |
 | Owner: My Prices | scoped business_service_prices CRUD | ✅ done |
-| Pricing authority | remove `bookable_items` price/deposit; price from `business_service_prices` | ⏳ pending |
+| Pricing authority | `ServiceExecutionEngine` always prices (and bases deposit) from `business_service_prices`, even with a unit selected; discounts now apply to unit bookings | ✅ done |
+| — drop `bookable_items` price/deposit columns | schema removal (columns now unused by the engine) | ⏳ pending |
+| — `BookablePricingService` (per-day price rules / calendar, BIM-5.6) | still bases off `bookable_items.price`; not in the active booking-price path (injected but uncalled by the engine). Needs its own decision on how per-day rules relate to `business_service_prices` before it goes live | ⏳ pending |
 | Table charge mode | `charge_mode` + amount config | ⏳ pending |
 | Unified invoice | `booking_id` on order lines + `fulfillment_type` + deposit on combined total | ⏳ pending (largest) |
 

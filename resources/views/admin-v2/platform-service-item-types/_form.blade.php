@@ -230,13 +230,14 @@
 document.addEventListener('DOMContentLoaded', function () {
     // Groups are few (a handful per service), so filter client-side by the
     // chosen service rather than fetching per change.
-    const groups = @json(($groups ?? collect())->map(function ($g) {
-        return [
+    @php
+        $psitGroupsForJs = ($groups ?? collect())->map(fn ($g) => [
             'id' => (int) $g->id,
             'service_id' => (int) $g->platform_service_id,
             'label' => $g->displayName('ar'),
-        ];
-    })->values());
+        ])->values();
+    @endphp
+    const groups = @json($psitGroupsForJs);
 
     const serviceSelect = document.querySelector('.js-psit-service');
     const groupSelect = document.querySelector('.js-psit-group');

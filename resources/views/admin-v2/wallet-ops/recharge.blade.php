@@ -133,6 +133,10 @@
             <form method="POST" action="{{ route('admin.wallet-ops.recharge') }}">
                 @csrf
                 <input type="hidden" name="user_id" value="{{ $user->id }}">
+                {{-- Stable per-form nonce: a double-click resubmits the same
+                     token so the ledger dedupes it; a fresh page load gets a
+                     new token and allows a new recharge. --}}
+                <input type="hidden" name="request_token" value="{{ old('request_token', (string) \Illuminate\Support\Str::uuid()) }}">
 
                 <div class="a2-form-grid">
                     <div class="a2-card a2-card--tight">

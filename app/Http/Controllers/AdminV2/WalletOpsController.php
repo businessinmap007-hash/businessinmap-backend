@@ -105,6 +105,7 @@ final class WalletOpsController extends Controller
         $data = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'amount' => ['required', 'numeric', 'min:1'],
+            'request_token' => ['required', 'string', 'max:64'],
             'note_id' => ['nullable', 'integer', 'exists:wallet_note_templates,id'],
             'note' => ['nullable', 'string', 'max:500'],
             'guarantee_action' => ['nullable', Rule::in(['auto', 'manual', 'none'])],
@@ -135,7 +136,10 @@ final class WalletOpsController extends Controller
             op: [
                 'reference_type' => 'admin_recharge',
                 'reference_id' => (string) $user->id,
-                'idempotency_key' => 'admin_recharge:' . $user->id . ':' . now()->format('YmdHis') . ':' . uniqid(),
+                // Stable per-form nonce so a double-submit is deduped by the
+                // ledger's idempotency (wallet_id + key), instead of the old
+                // uniqid()+timestamp which was unique every call.
+                'idempotency_key' => 'admin_recharge:' . $user->id . ':' . $data['request_token'],
                 'meta' => [
                     'source' => 'admin-v2',
                     'admin_id' => auth()->id(),

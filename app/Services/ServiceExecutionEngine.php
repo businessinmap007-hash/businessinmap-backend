@@ -423,9 +423,11 @@ class ServiceExecutionEngine
                 'title' => (string) $bookable->title,
                 'code' => (string) ($bookable->code ?? ''),
                 'item_type' => (string) ($bookable->item_type ?? ''),
-                'price' => (float) ($bookable->price ?? 0),
-                'deposit_enabled' => (bool) ($bookable->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($bookable->deposit_percent ?? 0),
+                // Price and deposit are sourced from BusinessServicePrice / the
+                // resolved deposit policy, not from the unit (deprecated).
+                'price' => (float) ($priceBreakdown['unit_price'] ?? 0),
+                'deposit_enabled' => (bool) ($depositPolicy['business_deposit_enabled'] ?? false),
+                'deposit_percent' => (int) round((float) ($depositPolicy['business_deposit_percent'] ?? 0)),
             ];
         } else {
             unset($meta['bookable_item']);
@@ -656,23 +658,10 @@ class ServiceExecutionEngine
     ): array {
         $quantity = max($quantity, 1);
 
-        if ($bookable) {
-            $unitPrice = round((float) ($bookable->price ?? 0), 2);
-            $originalPrice = round($unitPrice * $quantity, 2);
-
-            return [
-                'source' => 'bookable_item',
-                'unit_price' => $unitPrice,
-                'quantity' => $quantity,
-                'original_price' => $originalPrice,
-                'discount_enabled' => false,
-                'discount_percent' => 0,
-                'discount_amount' => 0.00,
-                'final_price' => $originalPrice,
-                'currency' => (string) ($businessPrice->currency ?: 'EGP'),
-            ];
-        }
-
+        // Price authority is BusinessServicePrice (per item type). The bookable
+        // only identifies which type; $businessPrice was already resolved for
+        // that type by the caller. The unit no longer carries its own price, so
+        // discounts now apply to bookable bookings too. See services-blueprint.
         $unitPrice = round((float) ($businessPrice->price ?? 0), 2);
 
         if ($unitPrice <= 0 && isset($businessPrice->base_price)) {
@@ -735,9 +724,9 @@ class ServiceExecutionEngine
 
         $policy = $this->bookingDepositPolicyResolver->resolve($business, $service, $bookable);
 
-        $firstDayAmount = $bookable
-            ? round((float) ($bookable->price ?? 0), 2)
-            : round((float) ($businessPrice->price ?? 0), 2);
+        // Deposit base follows the same single source as pricing: the unit
+        // price no longer participates.
+        $firstDayAmount = round((float) ($businessPrice->price ?? 0), 2);
 
         if ($firstDayAmount <= 0) {
             $firstDayAmount = $price;

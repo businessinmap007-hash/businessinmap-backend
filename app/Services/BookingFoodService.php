@@ -34,6 +34,10 @@ class BookingFoodService
                 'discount' => 0,
                 'final_total' => 0,
                 'status' => 'pending',
+                // The orders table was designed for delivery: address /
+                // payment_method are NOT NULL. Dine-in has neither.
+                'address' => '',
+                'payment_method' => '',
             ]
         );
     }

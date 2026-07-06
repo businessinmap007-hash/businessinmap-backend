@@ -892,6 +892,26 @@ class ServiceExecutionEngine
         ];
     }
 
+    /**
+     * Resolve the BusinessServicePrice backing an existing booking (its
+     * business + service + the subcategory/item type it was placed for). Used
+     * by the unified-invoice logic to recompute the table charge.
+     */
+    public function resolveBusinessPriceForBooking(Booking $booking): ?BusinessServicePrice
+    {
+        $booking->loadMissing(['business:id,category_id,category_child_id', 'bookable']);
+
+        $itemType = $booking->bookable?->item_type
+            ?: (string) data_get($booking->bookableMeta(), 'item_type', '');
+
+        return $this->resolveBusinessServicePrice(
+            businessId: (int) $booking->business_id,
+            serviceId: (int) $booking->service_id,
+            childId: (int) ($booking->business?->category_child_id ?? 0),
+            itemType: $itemType !== '' ? $itemType : null
+        );
+    }
+
     protected function resolveBusinessServicePrice(
         int $businessId,
         int $serviceId,

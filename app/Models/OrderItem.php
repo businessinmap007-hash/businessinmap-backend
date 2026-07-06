@@ -6,18 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
+    // Columns match the order_items table: order_id, menu_id, size_id,
+    // addons, qty, price, total_price.
     protected $fillable = [
         'order_id',
-        'menu_item_id',    // لو عندك جدول menu_items
+        'menu_id',
+        'size_id',
+        'addons',
         'qty',
         'price',
-        'size',            // small, medium, large (لو بتستعملها)
-        'extras',          // JSON لإضافات خاصة
-        'notes',
+        'total_price',
     ];
 
     protected $casts = [
-        'extras' => 'array',
+        'addons' => 'array',
+        'qty' => 'integer',
+        'price' => 'decimal:2',
+        'total_price' => 'decimal:2',
     ];
 
     public function order()
@@ -27,6 +32,6 @@ class OrderItem extends Model
 
     public function menuItem()
     {
-        return $this->belongsTo(MenuItem::class, 'menu_item_id');
+        return $this->belongsTo(MenuItem::class, 'menu_id');
     }
 }

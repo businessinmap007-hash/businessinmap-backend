@@ -133,11 +133,20 @@ catalogs deferred to Phase 3. Final disposition:
   remaining rows are attributes (#12) or Phase-3 catalog data. Retiring the
   Options admin screens waits until Phase 3 empties the catalog groups.
 
-### Phase 2 — Wire discovery on the offer=filter principle
-- Customer API (Api/V2): filter businesses by `category_child` + `item_types`;
-  add the supporting indexes. Verify the "training centre" journey end-to-end.
-- **Accept:** searching a specialty then filtering by item types returns the
-  right businesses.
+### ✅ Phase 2 — Wire discovery on the offer=filter principle (done)
+- `Api/V2/DiscoveryController` + public routes:
+  - `GET /v2/discovery/filters?child_id=&service_id=` — the services a category
+    child's businesses offer, and (per service) the item types they offer
+    **grouped by branch**, each with a business count (non-empty filters only).
+  - `GET /v2/discovery/businesses?child_id=&service_id=&item_types[]=&q=` — the
+    businesses in that child that actually offer the chosen service/item types,
+    each carrying its matched offered types.
+- Keys entirely on `business_service_prices` (offer = filter = index). Existing
+  indexes (`bsp_child_idx`, service index, the composite business/child/service/
+  type, `idx_users_category_child` + type) already cover it — no new migration.
+- **Accept (met):** verified the "training centre" journey — adding an `english`
+  offering makes it appear under the «تدريب ودورات» branch filter and returns the
+  centre when filtered by `item_types=[english]`.
 
 ### Phase 3 — Unify Menu / Catalog into one offerings model  *(largest)*
 - Design the offering entity: `item_type` (under a service) + optional

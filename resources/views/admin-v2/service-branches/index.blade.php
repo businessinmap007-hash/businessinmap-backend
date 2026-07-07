@@ -13,7 +13,7 @@
         <div>
             <h1 class="a2-page-title">تنظيم فروع الخدمة</h1>
             <div class="a2-page-subtitle">
-                اختر الخدمة، ثم اختر الفروع اللي عايز تشتغل عليها (٢–٤ مثلاً)، وحدّد مجموعة كل نوع من المصفوفة. الفرع اللي فيه أنواع من أكتر من خدمة يبقى «عابر».
+                اختر الخدمة، ثم الفروع اللي تشتغل عليها، وعلّم كل نوع في الفروع اللي يتبعها. النوع ممكن يكون في أكتر من فرع (زي «غرفة» تحت فنادق ووحدات سكنية).
             </div>
         </div>
         <div class="a2-page-actions">
@@ -52,8 +52,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">المصفوفة — عيّن مجموعة كل نوع</div>
-                <div class="a2-card-sub">كل نوع له فرع واحد فقط. النوع المتبوّب في فرع غير معروض يظهر تحته «في فرع: …».</div>
+                <div class="a2-card-title">المصفوفة — علّم فروع كل نوع</div>
+                <div class="a2-card-sub">النوع ممكن يتبع أكتر من فرع. لو متبوّب في فرع غير معروض بيظهر تحته «أيضًا في: …».</div>
             </div>
             <div style="position:relative;">
                 <i class="ti ti-search" style="position:absolute; right:10px; top:9px; opacity:.5;"></i>
@@ -75,14 +75,14 @@
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const serviceId = @json($serviceIdVal);
     const URLS = {
-        assign: @json(route('admin.service-branches.assign')),
+        toggle: @json(route('admin.service-branches.toggle')),
         store: @json(route('admin.service-branches.branches.store')),
         renameTpl: @json(route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'])),
         destroyTpl: @json(route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'])),
     };
 
     let branches = @json($branches).map(b => ({ id: Number(b.id), name: b.name, count: Number(b.count_here || 0) }));
-    let types = @json($types).map(t => ({ id: Number(t.id), key: t.key, name: t.name, group_id: t.group_id !== null ? Number(t.group_id) : null, is_active: !!t.is_active }));
+    let types = @json($types).map(t => ({ id: Number(t.id), key: t.key, name: t.name, groupIds: (t.group_ids || []).map(Number), is_active: !!t.is_active }));
 
     const selected = new Set(branches.filter(b => b.count > 0).map(b => b.id));
     if (selected.size === 0) branches.slice(0, 4).forEach(b => selected.add(b.id));
@@ -119,7 +119,7 @@
     }
 
     function recount() {
-        branches.forEach(b => { b.count = types.filter(t => t.group_id === b.id).length; });
+        branches.forEach(b => { b.count = types.filter(t => t.groupIds.includes(b.id)).length; });
     }
 
     function renderChips() {
@@ -154,35 +154,30 @@
             return;
         }
         noTypes.style.display = rows.length ? 'none' : 'block';
-        if (!rows.length) { noTypes.textContent = 'لا توجد نتائج مطابقة للبحث.'; }
+        if (!rows.length) noTypes.textContent = 'لا توجد نتائج مطابقة للبحث.';
 
         const sticky = 'position:sticky; right:0; background:var(--a2-surface, #fff); z-index:1;';
-        let head = '<thead><tr>' +
+        const head = '<thead><tr>' +
             '<th style="text-align:right; padding:8px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); ' + sticky + '">نوع العنصر</th>' +
             cols.map(b =>
                 '<th style="padding:6px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); white-space:nowrap;">' +
                 '<div>' + esc(b.name) + '</div>' +
                 '<div style="font-size:11px; color:var(--a2-primary,#2563eb);">' + b.count + ' نوع</div>' +
                 '</th>'
-            ).join('') +
-            '<th style="padding:6px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); white-space:nowrap; color:var(--a2-muted,#6b7280);">بدون فرع</th>' +
-            '</tr></thead>';
+            ).join('') + '</tr></thead>';
 
-        let body = '<tbody>' + rows.map(t => {
-            const inHidden = t.group_id !== null && !selected.has(t.group_id);
-            const hiddenTag = inHidden ? '<div style="font-size:11px; color:#b45309;">في فرع: ' + esc((byId(t.group_id) || {}).name || '—') + '</div>' : '';
+        const body = '<tbody>' + rows.map(t => {
+            const hidden = t.groupIds.filter(id => !selected.has(id)).map(id => (byId(id) || {}).name).filter(Boolean);
+            const hiddenTag = hidden.length ? '<div style="font-size:11px; color:#b45309;">أيضًا في: ' + esc(hidden.join('، ')) + '</div>' : '';
             const cells = cols.map(b =>
                 '<td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--a2-border,#eee);">' +
-                '<input type="radio" name="r' + t.id + '" data-type="' + t.id + '" data-b="' + b.id + '" ' + (t.group_id === b.id ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;"></td>'
+                '<input type="checkbox" data-type="' + t.id + '" data-b="' + b.id + '" ' + (t.groupIds.includes(b.id) ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;"></td>'
             ).join('');
             return '<tr>' +
                 '<td style="padding:8px 10px; border-bottom:1px solid var(--a2-border,#eee); ' + sticky + '">' +
                 '<div style="font-weight:500;">' + esc(t.name) + (t.is_active ? '' : ' <span class="a2-pill a2-pill-inactive">غير مفعّل</span>') + '</div>' +
                 '<div dir="ltr" style="font-size:11px; color:var(--a2-muted,#6b7280);">' + esc(t.key) + '</div>' + hiddenTag +
-                '</td>' + cells +
-                '<td style="text-align:center; padding:8px 10px; border-bottom:1px solid var(--a2-border,#eee);">' +
-                '<input type="radio" name="r' + t.id + '" data-type="' + t.id + '" data-b="" ' + (t.group_id === null ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer;"></td>' +
-                '</tr>';
+                '</td>' + cells + '</tr>';
         }).join('') + '</tbody>';
 
         table.innerHTML = head + body;
@@ -203,10 +198,10 @@
             return;
         }
         if (e.target.closest('.a2sb-del')) {
-            if (!window.confirm('حذف الفرع؟ الأنواع اللي فيه هترجع «بدون فرع».')) return;
+            if (!window.confirm('حذف الفرع؟ الأنواع اللي فيه هتفقد الفرع ده.')) return;
             try {
                 await api(URLS.destroyTpl.replace('__ID__', id), null, 'DELETE');
-                types.forEach(t => { if (t.group_id === id) t.group_id = null; });
+                types.forEach(t => { t.groupIds = t.groupIds.filter(g => g !== id); });
                 branches = branches.filter(b => b.id !== id); selected.delete(id);
                 render(); notify('تم حذف الفرع.', true);
             } catch (err) { notify(err.message, false); }
@@ -217,18 +212,20 @@
     });
 
     table.addEventListener('change', async (e) => {
-        const radio = e.target.closest('input[type=radio][data-type]');
-        if (!radio) return;
-        const typeId = Number(radio.dataset.type);
-        const groupId = radio.dataset.b ? Number(radio.dataset.b) : null;
+        const box = e.target.closest('input[type=checkbox][data-type]');
+        if (!box) return;
+        const typeId = Number(box.dataset.type);
+        const groupId = Number(box.dataset.b);
+        const attached = box.checked;
         const t = types.find(x => x.id === typeId);
-        const prev = t.group_id;
         try {
-            await api(URLS.assign, { service_id: serviceId, item_type_id: typeId, group_id: groupId });
-            t.group_id = groupId;
-            render();
+            const d = await api(URLS.toggle, { service_id: serviceId, item_type_id: typeId, group_id: groupId, attached });
+            t.groupIds = attached ? Array.from(new Set([...t.groupIds, groupId])) : t.groupIds.filter(g => g !== groupId);
+            recount(); renderChips();
+            table.querySelectorAll('th').forEach(() => {});
+            renderMatrix();
             notify('تم الحفظ.', true);
-        } catch (err) { t.group_id = prev; render(); notify(err.message, false); }
+        } catch (err) { box.checked = !attached; notify(err.message, false); }
     });
 
     document.getElementById('a2sbAddBranch').addEventListener('click', async () => {

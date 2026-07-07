@@ -137,11 +137,11 @@
                             </td>
 
                             <td>
-                                @if($row->group)
-                                    <span class="a2-pill a2-pill-sub">{{ $displayName($row->group) }}</span>
-                                @else
+                                @forelse($row->groups as $g)
+                                    <span class="a2-pill a2-pill-sub">{{ $displayName($g) }}</span>
+                                @empty
                                     <span class="a2-muted">بدون فرع</span>
-                                @endif
+                                @endforelse
                             </td>
 
                             <td dir="ltr">{{ $row->key }}</td>

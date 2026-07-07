@@ -187,8 +187,18 @@ deferred.)
   were redundant copies, left inert). **Reversible** (clear `deleted_at` where
   `duplicate_status='duplicate'`). Consumers must scope `whereNull('deleted_at')`.
   Optional later: hard-purge duplicates + their redundant attribute values.
-- **3a Order layer.** `order_items` reference an offering
-  (`offering_type`/`offering_id`) instead of `menu_id` (orders empty → safe).
+- **✅ 3a Order layer (done).** `order_items` now carry a polymorphic offering
+  ref (`offering_type`/`offering_id`); `OrderItem::offering()` morphTo; writers
+  populate it (menu item now). `menu_id` kept for BC. Orders were empty → safe.
+- **✅ Catalog tooling (done).** `CatalogDedupService` (canonical dedup key —
+  barcode first, then normalized name+brand+package, hashed to `dedup_key`;
+  `findMasterId`, `backfillDedupKeys`, idempotent `runBatchDedup`) + `bim:catalog-dedup
+  --dry-run`. `CatalogImportService.upsertProduct` now dedups on insert: same
+  `bim_code` updates; a barcode/name match of an existing master is ingested as a
+  linked, soft-deleted duplicate; a new product becomes a master routed to
+  curation (`curation_status=pending`). Prevents re-introducing the duplication.
+  **Next for catalog scale:** add real barcodes (GS1), expand the category tree
+  beyond grocery, and feed products via import files rather than manual entry.
 - **3b Menu → bespoke offerings.** Model menu dishes through the offering model
   (empty → easy).
 - **3c Retail listings (the new value).** `business_catalog_listings` + an owner

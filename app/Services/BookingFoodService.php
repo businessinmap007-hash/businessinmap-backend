@@ -57,8 +57,12 @@ class BookingFoodService
                 $qty = max(1, (int) ($line['qty'] ?? 1));
                 $price = round((float) ($line['price'] ?? 0), 2);
 
+                $lineMenuId = ! empty($line['menu_id']) ? (int) $line['menu_id'] : null;
+
                 $order->items()->create([
-                    'menu_id' => ! empty($line['menu_id']) ? (int) $line['menu_id'] : null,
+                    'menu_id' => $lineMenuId,
+                    'offering_type' => $lineMenuId ? \App\Models\MenuItem::class : null,
+                    'offering_id' => $lineMenuId,
                     'size_id' => ! empty($line['size_id']) ? (int) $line['size_id'] : null,
                     'addons' => $line['addons'] ?? null,
                     'qty' => $qty,
@@ -88,6 +92,8 @@ class BookingFoodService
 
             $order->items()->create([
                 'menu_id' => $menuId,
+                'offering_type' => \App\Models\MenuItem::class,
+                'offering_id' => $menuId,
                 'size_id' => $sizeId,
                 'addons' => null,
                 'qty' => $qty,

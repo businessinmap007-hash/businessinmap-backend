@@ -20,6 +20,8 @@ class MenuOrderService
 
             $order->items()->create([
                 'menu_id' => $menuId,
+                'offering_type' => \App\Models\MenuItem::class,
+                'offering_id' => $menuId,
                 'size_id' => $sizeId,
                 'addons' => null,
                 'qty' => $qty,

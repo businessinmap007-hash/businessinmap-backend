@@ -27,7 +27,7 @@ class CatalogProduct extends Model
 
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('is_active', 1);
+        return $query->where('catalog_products.is_active', 1);
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder
@@ -41,9 +41,9 @@ class CatalogProduct extends Model
         $like = '%' . mb_strtolower($term) . '%';
 
         return $query->where(function (Builder $q) use ($like, $term) {
-            $q->whereRaw('LOWER(name_ar) LIKE ?', [$like])
-                ->orWhereRaw('LOWER(name_en) LIKE ?', [$like])
-                ->orWhere('default_barcode', $term);
+            $q->whereRaw('LOWER(catalog_products.name_ar) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(catalog_products.name_en) LIKE ?', [$like])
+                ->orWhere('catalog_products.default_barcode', $term);
         });
     }
 

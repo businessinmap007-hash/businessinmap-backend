@@ -179,12 +179,14 @@ for retail; unify only at the cart/order layer. (A single polymorphic
 deferred.)
 
 **Sub-phases (execute one per conversation):**
-- **3.0 Catalog dedup (careful pre-step).** Build a dedup key
-  (`normalized_name_ar` + brand + package/barcode), pick a master per group
-  (verified / highest `curation_score` / lowest id), set duplicates'
-  `duplicate_master_id` + `duplicate_status`, merge/relink attribute values,
-  soft-delete duplicates. **Dry-run + review counts before applying** (49k rows,
-  hard to reverse). Keep the master; do **not** wipe.
+- **✅ 3.0 Catalog dedup (done 2026-07-08).** Key = `normalized_name_ar` + brand +
+  package (no barcodes exist). Master = lowest id per group. Result:
+  **49,494 → 636 masters**; **48,858 duplicates soft-deleted** and linked via
+  `duplicate_master_id` + `duplicate_status='duplicate'` + `deleted_at`. Distinct
+  attribute values relinked onto masters (2,567 → 2,893; the 74k on duplicates
+  were redundant copies, left inert). **Reversible** (clear `deleted_at` where
+  `duplicate_status='duplicate'`). Consumers must scope `whereNull('deleted_at')`.
+  Optional later: hard-purge duplicates + their redundant attribute values.
 - **3a Order layer.** `order_items` reference an offering
   (`offering_type`/`offering_id`) instead of `menu_id` (orders empty → safe).
 - **3b Menu → bespoke offerings.** Model menu dishes through the offering model

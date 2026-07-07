@@ -13,6 +13,10 @@ class CatalogImportService
     protected array $errors = [];
     protected bool $dryRun = false;
 
+    public function __construct(protected CatalogDedupService $dedup)
+    {
+    }
+
     public function import(string $section, ?string $basePath = null, bool $dryRun = false): array
     {
         $this->stats = [];
@@ -333,19 +337,32 @@ class CatalogImportService
             throw new RuntimeException("Product category/child not found for {$bimCode}");
         }
 
-        $this->write('catalog_products', ['bim_code' => $bimCode], [
+        $brandId = $this->idBy('catalog_brands', 'slug', $row['brand_slug'] ?? null);
+        $normalized = $row['normalized_name_ar'] ?? $this->dedup->normalizeName($row['name_ar'] ?? $bimCode);
+        $barcode = $row['default_barcode'] ?? null;
+
+        $dedupKey = $this->dedup->dedupKey([
+            'default_barcode' => $barcode,
+            'normalized_name_ar' => $normalized,
+            'brand_id' => $brandId,
+            'package_label_ar' => $row['package_label_ar'] ?? null,
+            'package_value' => $row['package_value'] ?? null,
+        ]);
+
+        $values = [
             'product_category_id' => $categoryId,
             'product_category_child_id' => $childId,
-            'brand_id' => $this->idBy('catalog_brands', 'slug', $row['brand_slug'] ?? null),
+            'brand_id' => $brandId,
             'manufacturer_id' => $this->idBy('catalog_manufacturers', 'slug', $row['manufacturer_slug'] ?? null),
             'product_type' => $row['product_type'] ?? 'simple',
             'name_ar' => $row['name_ar'] ?? $bimCode,
+            'normalized_name_ar' => $normalized,
             'name_en' => $row['name_en'] ?? null,
             'short_name_ar' => $row['short_name_ar'] ?? null,
             'short_name_en' => $row['short_name_en'] ?? null,
             'model' => $row['model'] ?? null,
             'sku' => $row['sku'] ?? null,
-            'default_barcode' => $row['default_barcode'] ?? null,
+            'default_barcode' => $barcode,
             'description_ar' => $row['description_ar'] ?? null,
             'description_en' => $row['description_en'] ?? null,
             'main_image' => $row['main_image'] ?? null,
@@ -364,6 +381,41 @@ class CatalogImportService
             'is_active' => $this->bool($row['is_active'] ?? 1, true),
             'approval_status' => $row['approval_status'] ?? 'approved',
             'sort_order' => $this->int($row['sort_order'] ?? 0),
+            'dedup_key' => $dedupKey,
+        ];
+
+        $now = now()->format('Y-m-d H:i:s');
+
+        // Same natural key → plain update (re-import of the same product).
+        $existingId = DB::table('catalog_products')->where('bim_code', $bimCode)->value('id');
+        if ($existingId) {
+            DB::table('catalog_products')->where('id', $existingId)->update($values + ['updated_at' => $now]);
+            return;
+        }
+
+        // Barcode/name matches an existing master → ingest as a linked, soft-
+        // deleted duplicate instead of polluting the active catalog.
+        $masterId = $this->dedup->findMasterId($dedupKey);
+        if ($masterId) {
+            DB::table('catalog_products')->insert($values + [
+                'bim_code' => $bimCode,
+                'duplicate_master_id' => $masterId,
+                'duplicate_status' => 'duplicate',
+                'curation_status' => 'duplicate',
+                'deleted_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            return;
+        }
+
+        // New master → route to curation review unless already verified.
+        DB::table('catalog_products')->insert($values + [
+            'bim_code' => $bimCode,
+            'duplicate_status' => 'unique',
+            'curation_status' => $this->bool($row['is_verified_egypt'] ?? 0) ? 'verified' : 'pending',
+            'created_at' => $now,
+            'updated_at' => $now,
         ]);
     }
 

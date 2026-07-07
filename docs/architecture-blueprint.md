@@ -148,15 +148,54 @@ catalogs deferred to Phase 3. Final disposition:
   offering makes it appear under the «تدريب ودورات» branch filter and returns the
   centre when filtered by `item_types=[english]`.
 
-### Phase 3 — Unify Menu / Catalog into one offerings model  *(largest)*
-- Design the offering entity: `item_type` (under a service) + optional
-  **attributes** (retail: brand/size/colour) + optional **modifiers** (food:
-  extras/sizes) + **variants** + inventory. Business-type preset chooses which
-  fields show.
-- Migrate `menu_items` and rebuild catalog onto it incrementally (tables are
-  low-volume / slated for rebuild).
-- **Accept:** one owner "my offerings" screen and one customer browse flow serve
-  both restaurant menus and retail catalogs.
+### Phase 3 — Unify Menu / Catalog into one offerings layer  *(largest)*
+
+**Findings that shape the design (measured 2026-07-08):**
+- `menu_items` / variants / extras — **empty (0 rows)**; a light food scaffold.
+- `catalog_products` — **49,494 real master rows** + **76,565 attribute values**,
+  86 brands, 35 manufacturers. Rich, curated (dedup/verification fields), **but
+  heavily duplicated** (same `normalized_name_ar` up to **596×**; 541 names
+  repeat) and the dedup fields (`dedup_key`, `duplicate_master_id`) are **un-run**.
+  No `business_id` — it is **admin/curator master data, not per-business listings**.
+- `orders` / `order_items` — empty; `order_items` currently keys on `menu_id`.
+
+**Design (agreed):** don't merge the tables. Menu and Catalog are different kinds
+of thing — Menu = bespoke per-business items; Catalog = a **shared global product
+master** (many sellers, one product). Unify only the **selling layer** above them:
+
+```
+ global catalog master        bespoke items (item types / menu dishes)
+          \                          /
+           →   Business Offering (business + source + price + stock + fulfilment)
+                              ↓
+                Cart → Order → Fulfilment (delivery/pickup/dine-in/booking)
+```
+
+**Storage (chosen — pragmatic):** keep `business_service_prices` as the
+type-priced bespoke offering; add a new **`business_catalog_listings`**
+(`business_id`, `catalog_product_id`, `price`, `currency`, `stock`, `is_active`)
+for retail; unify only at the cart/order layer. (A single polymorphic
+`business_offerings` table is the tidier long-term target but a bigger migration —
+deferred.)
+
+**Sub-phases (execute one per conversation):**
+- **3.0 Catalog dedup (careful pre-step).** Build a dedup key
+  (`normalized_name_ar` + brand + package/barcode), pick a master per group
+  (verified / highest `curation_score` / lowest id), set duplicates'
+  `duplicate_master_id` + `duplicate_status`, merge/relink attribute values,
+  soft-delete duplicates. **Dry-run + review counts before applying** (49k rows,
+  hard to reverse). Keep the master; do **not** wipe.
+- **3a Order layer.** `order_items` reference an offering
+  (`offering_type`/`offering_id`) instead of `menu_id` (orders empty → safe).
+- **3b Menu → bespoke offerings.** Model menu dishes through the offering model
+  (empty → easy).
+- **3c Retail listings (the new value).** `business_catalog_listings` + an owner
+  UI to search the deduped master and list + price + stock; customer browse of
+  listings.
+- **3d Unified UX.** One owner "my offerings" screen (source-aware presets) + one
+  customer cart/browse across bespoke + retail.
+- **Accept:** a business can sell both a bespoke item and a catalog product
+  through one cart/order; the catalog shows deduped masters.
 
 ### Phase 4 — Single-source the deposit config
 - Consolidate `business_deposit_policies` and `business_service_prices.deposit_*`

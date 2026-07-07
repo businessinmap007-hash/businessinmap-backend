@@ -201,9 +201,12 @@ deferred.)
   beyond grocery, and feed products via import files rather than manual entry.
 - **3b Menu → bespoke offerings.** Model menu dishes through the offering model
   (empty → easy).
-- **3c Retail listings (the new value).** `business_catalog_listings` + an owner
-  UI to search the deduped master and list + price + stock; customer browse of
-  listings.
+- **✅ 3c Retail listings (done).** `business_catalog_listings` (business + master
+  product + price + stock, unique per business/product). `CatalogProduct`
+  (SoftDeletes → masters only) + `BusinessCatalogListing`. Owner panel
+  «منتجاتي» (`/business/products`): scoped CRUD + ajax product picker over the
+  deduped master (excludes already-listed; only active, non-duplicate masters
+  are listable). Verified end-to-end. Customer browse of listings → 3d.
 - **3d Unified UX.** One owner "my offerings" screen (source-aware presets) + one
   customer cart/browse across bespoke + retail.
 - **Accept:** a business can sell both a bespoke item and a catalog product

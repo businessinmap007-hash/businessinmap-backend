@@ -115,14 +115,23 @@ with its own acceptance check. Order chosen so nothing downstream breaks.
 - Service Branch Board (matrix + column picker) and branch-edit membership
   manager. Options→item-types migration started (training + 5 groups).
 
-### Phase 1 — Finish Options retirement
-- Classify the remaining option groups: migrate the ones that map to a service
-  into item types + branches; for the **used** groups (#8 entertainment, #12
-  service modes) decide keep-as-attributes vs migrate; for pure product/brand
-  catalogs (vehicles, furniture, fashion, packaging, real estate) route to the
-  offerings/catalog model (Phase 3) or drop.
-- Retire or repurpose the Options admin screens once empty.
-- **Accept:** no discovery/classification path reads `options`.
+### ✅ Phase 1 — Finish Options retirement (specialty groups done)
+Every option group that represented a **specialty** has been migrated into item
+types + branches; what remains in `options` is only attributes + product
+catalogs deferred to Phase 3. Final disposition:
+- **Migrated → booking item types/branches:** #7 training, #2 → «خدمات ومهمات»,
+  #13 → «قاعات ومناسبات», #5 → «صحة وطب», #6 → «تقنية ورقميات», #8 → «ترفيه
+  وأنشطة», #14 → «خدمات ومهمات». #4 → menu/سوبر ماركت. (source groups deleted;
+  #8's 4 legacy `option_user` tags dropped.)
+- **Kept as attributes:** #12 «أنماط خدمة وتجارية» (cash/installment, wholesale/
+  retail, takeaway, online…) — genuine service/payment modes, not specialties.
+  This is the legitimate residual role for `options`.
+- **Deferred to Phase 3 (product catalogs):** #1 vehicles, #3 furniture, #9 real
+  estate, #10 fashion, #11 packaging — rebuild these in the unified offerings/
+  catalog model, not as booking/menu item types.
+- **Accept (met):** no specialty/classification lives in `options` anymore;
+  remaining rows are attributes (#12) or Phase-3 catalog data. Retiring the
+  Options admin screens waits until Phase 3 empties the catalog groups.
 
 ### Phase 2 — Wire discovery on the offer=filter principle
 - Customer API (Api/V2): filter businesses by `category_child` + `item_types`;

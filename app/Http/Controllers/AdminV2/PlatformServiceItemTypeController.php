@@ -104,7 +104,7 @@ class PlatformServiceItemTypeController extends Controller
     {
         $row = $platformServiceItemType->load([
             'service:id,key,name_ar,name_en,is_active',
-            'group:id,platform_service_id,key,name_ar,name_en',
+            'groups:id,key,name_ar,name_en',
         ]);
 
         $services = $this->servicesForForm();

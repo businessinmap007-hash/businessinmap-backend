@@ -37,27 +37,26 @@
 
     $menu = [
         ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
-        ['label' => 'Users', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.', 'children' => [
-            ['label' => 'All Users', 'route' => 'admin.users.index', 'active' => 'admin.users.'],
+        ['label' => 'Users', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
+        ['label' => 'Classification & Catalog', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+            ['label' => 'Categories', 'type' => 'section', 'children' => [
+                ['label' => 'Root Categories', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
+                ['label' => 'Category Children', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
+                ['label' => 'Category Child Options', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+                ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
+                ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
+            ]],
+            ['label' => 'Product Catalog', 'type' => 'section', 'children' => [
+                ['label' => 'Catalog Products', 'route' => 'admin.catalog-products.index', 'active' => 'admin.catalog-products.'],
+                ['label' => 'Product Categories', 'route' => 'admin.product-categories.index', 'active' => 'admin.product-categories.'],
+                ['label' => 'Product Category Children', 'route' => 'admin.product-category-children.index', 'active' => 'admin.product-category-children.'],
+                ['label' => 'Catalog Brands', 'route' => 'admin.catalog-brands.index', 'active' => 'admin.catalog-brands.'],
+                ['label' => 'Catalog Manufacturers', 'route' => 'admin.catalog-manufacturers.index', 'active' => 'admin.catalog-manufacturers.'],
+                ['label' => 'Units', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
+                ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
+            ]],
         ]],
-        ['label' => 'Categories', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.'], 'children' => [
-            ['label' => 'Root Categories', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
-            ['label' => 'Category Children', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
-            ['label' => 'Category Services Bulk', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
-            ['label' => 'Category Child Options', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
-            ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
-            ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
-        ]],
-        ['label' => 'Catalog', 'route' => 'admin.catalog-manufacturers.index', 'icon' => 'folder', 'active' => ['admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
-            ['label' => 'Catalog Products', 'route' => 'admin.catalog-products.index', 'active' => 'admin.catalog-products.'],
-            ['label' => 'Product Categories', 'route' => 'admin.product-categories.index', 'active' => 'admin.product-categories.'],
-            ['label' => 'Product Category Children', 'route' => 'admin.product-category-children.index', 'active' => 'admin.product-category-children.'],
-            ['label' => 'Catalog Brands', 'route' => 'admin.catalog-brands.index', 'active' => 'admin.catalog-brands.'],
-            ['label' => 'Catalog Manufacturers', 'route' => 'admin.catalog-manufacturers.index', 'active' => 'admin.catalog-manufacturers.'],
-            ['label' => 'Units', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
-            ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
-        ]],
-        ['label' => 'Services', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
+        ['label' => 'Services & Pricing', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
             ['label' => 'Service Setup', 'type' => 'section', 'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -65,7 +64,7 @@
                 ['label' => 'Service Branch Board', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
                 ['label' => 'Service Catalog Matrix', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
             ]],
-            ['label' => 'Service Linking & Pricing', 'type' => 'section', 'children' => [
+            ['label' => 'Linking & Pricing', 'type' => 'section', 'children' => [
                 ['label' => 'Category Services Bulk', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
                 ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
                 ['label' => 'Fee Promotions', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
@@ -77,17 +76,19 @@
                 ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => 'Bookings', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.'], 'children' => [
-            ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
-            ['label' => 'Create Booking', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
-            ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
-            ['label' => 'Create Bookable Item', 'route' => 'admin.bookable-items.create', 'active_routes' => ['admin.bookable-items.create']],
-            ['label' => 'Bookable Bulk Operations', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
-            ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
-        ]],
-        ['label' => 'Menu', 'route' => 'admin.menu-items.index', 'icon' => 'file', 'active' => ['admin.menu-items.'], 'children' => [
-            ['label' => 'Menu Items', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
-            ['label' => 'Create Menu Item', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+        ['label' => 'Operations', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.'], 'children' => [
+            ['label' => 'Bookings', 'type' => 'section', 'children' => [
+                ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
+                ['label' => 'Create Booking', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
+                ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
+                ['label' => 'Create Bookable Item', 'route' => 'admin.bookable-items.create', 'active_routes' => ['admin.bookable-items.create']],
+                ['label' => 'Bookable Bulk Operations', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
+                ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
+            ]],
+            ['label' => 'Menu', 'type' => 'section', 'children' => [
+                ['label' => 'Menu Items', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
+                ['label' => 'Create Menu Item', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+            ]],
         ]],
         ['label' => 'Wallet & Finance', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
             ['label' => 'Wallet Overview', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],

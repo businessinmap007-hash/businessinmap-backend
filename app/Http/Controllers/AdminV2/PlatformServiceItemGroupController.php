@@ -5,8 +5,11 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemGroup;
+use App\Models\PlatformServiceItemType;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Manage the "branches" that group item types under a platform service
@@ -85,7 +88,116 @@ class PlatformServiceItemGroupController extends Controller
 
         $services = $this->servicesForForm();
 
-        return view('admin-v2.platform-service-item-groups.edit', compact('row', 'services'));
+        // Every item type + which branches it is in, so the edit page can show
+        // this branch's members and let you add types from other branches.
+        $allTypes = PlatformServiceItemType::query()
+            ->with(['service:id,key,name_ar,name_en', 'groups:id'])
+            ->orderBy('platform_service_id')
+            ->ordered()
+            ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'is_active'])
+            ->map(fn (PlatformServiceItemType $t) => [
+                'id' => (int) $t->id,
+                'key' => (string) $t->key,
+                'name' => $t->displayName('ar'),
+                'service_id' => (int) $t->platform_service_id,
+                'service_name' => $t->service ? $this->groupServiceLabel($t->service) : '',
+                'is_active' => (bool) $t->is_active,
+                'group_ids' => $t->groups->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            ])->values();
+
+        $branches = PlatformServiceItemGroup::query()
+            ->ordered()
+            ->get(['id', 'name_ar', 'name_en'])
+            ->map(fn (PlatformServiceItemGroup $b) => ['id' => (int) $b->id, 'name' => $b->displayName('ar')])
+            ->values();
+
+        return view('admin-v2.platform-service-item-groups.edit', compact('row', 'services', 'allTypes', 'branches'));
+    }
+
+    public function attachType(Request $request, PlatformServiceItemGroup $platformServiceItemGroup): JsonResponse
+    {
+        $data = $request->validate([
+            'item_type_id' => ['required', 'integer', 'exists:platform_service_item_types,id'],
+        ]);
+
+        $platformServiceItemGroup->itemTypes()->syncWithoutDetaching([(int) $data['item_type_id']]);
+
+        return response()->json(['ok' => true, 'count' => $platformServiceItemGroup->itemTypes()->count()]);
+    }
+
+    public function detachType(Request $request, PlatformServiceItemGroup $platformServiceItemGroup): JsonResponse
+    {
+        $data = $request->validate([
+            'item_type_id' => ['required', 'integer'],
+        ]);
+
+        $platformServiceItemGroup->itemTypes()->detach((int) $data['item_type_id']);
+
+        return response()->json(['ok' => true, 'count' => $platformServiceItemGroup->itemTypes()->count()]);
+    }
+
+    public function storeType(Request $request, PlatformServiceItemGroup $platformServiceItemGroup): JsonResponse
+    {
+        $request->merge(['key' => $this->normalizeKey($request->input('key'))]);
+
+        $data = $request->validate([
+            'platform_service_id' => ['required', 'integer', 'exists:platform_services,id'],
+            'key' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9_\-]+$/'],
+            'name_ar' => ['required', 'string', 'max:191'],
+            'name_en' => ['nullable', 'string', 'max:191'],
+        ], [
+            'key.regex' => 'المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
+        ], [
+            'platform_service_id' => 'الخدمة',
+            'key' => 'المفتاح',
+            'name_ar' => 'الاسم العربي',
+        ]);
+
+        $serviceId = (int) $data['platform_service_id'];
+        $key = $this->normalizeKey($data['key']);
+
+        $exists = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('key', $key)
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'key' => 'يوجد نوع عنصر بنفس المفتاح داخل هذه الخدمة.',
+            ]);
+        }
+
+        $type = PlatformServiceItemType::create([
+            'platform_service_id' => $serviceId,
+            'key' => $key,
+            'name_ar' => trim((string) $data['name_ar']),
+            'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
+            'is_active' => 1,
+            'sort_order' => 0,
+        ]);
+
+        $platformServiceItemGroup->itemTypes()->syncWithoutDetaching([$type->id]);
+
+        $type->loadMissing('service:id,key,name_ar,name_en');
+
+        return response()->json([
+            'ok' => true,
+            'count' => $platformServiceItemGroup->itemTypes()->count(),
+            'type' => [
+                'id' => (int) $type->id,
+                'key' => (string) $type->key,
+                'name' => $type->displayName('ar'),
+                'service_id' => (int) $type->platform_service_id,
+                'service_name' => $type->service ? $this->groupServiceLabel($type->service) : '',
+                'is_active' => true,
+                'group_ids' => [(int) $platformServiceItemGroup->id],
+            ],
+        ]);
+    }
+
+    protected function groupServiceLabel(PlatformService $service): string
+    {
+        return (string) ($service->name_ar ?: ($service->name_en ?: $service->key));
     }
 
     public function update(Request $request, PlatformServiceItemGroup $platformServiceItemGroup)
@@ -124,7 +236,7 @@ class PlatformServiceItemGroupController extends Controller
         ]);
 
         $data = $request->validate([
-            'platform_service_id' => ['required', 'integer', 'exists:platform_services,id'],
+            'platform_service_id' => ['nullable', 'integer', 'exists:platform_services,id'],
 
             'key' => [
                 'required',

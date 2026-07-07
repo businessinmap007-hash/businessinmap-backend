@@ -70,7 +70,7 @@ class CatalogListingController extends Controller
         $items = CatalogProduct::query()
             ->active()
             ->search($term)
-            ->whereNotIn('id', function ($sub) {
+            ->whereNotIn('catalog_products.id', function ($sub) {
                 $sub->from('business_catalog_listings')
                     ->select('catalog_product_id')
                     ->where('business_id', $this->businessId());

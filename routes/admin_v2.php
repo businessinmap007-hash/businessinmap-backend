@@ -155,6 +155,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
 
         Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
+        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/attach', [PlatformServiceItemGroupController::class, 'attachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.attach');
+        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/detach', [PlatformServiceItemGroupController::class, 'detachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.detach');
+        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/create', [PlatformServiceItemGroupController::class, 'storeType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.create');
         Route::resource('platform-service-item-groups', PlatformServiceItemGroupController::class)->except(['show'])->names('platform-service-item-groups');
 
         Route::prefix('service-branches')->name('service-branches.')->group(function () {

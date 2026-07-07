@@ -34,9 +34,9 @@
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="platform_service_id">الخدمة <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="platform_service_id">الخدمة الأساسية</label>
             <select class="a2-select" id="platform_service_id" name="platform_service_id">
-                <option value="">اختر الخدمة</option>
+                <option value="">بدون خدمة (فرع مشترك)</option>
                 @foreach(($services ?? []) as $service)
                     <option
                         value="{{ $service->id }}"

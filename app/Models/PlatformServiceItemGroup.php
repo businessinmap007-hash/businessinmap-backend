@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * A "branch" that groups item types under a platform service.
@@ -42,14 +42,20 @@ class PlatformServiceItemGroup extends Model
         return $this->service();
     }
 
-    public function itemTypes(): HasMany
+    public function itemTypes(): BelongsToMany
     {
-        return $this->hasMany(PlatformServiceItemType::class, 'group_id')->ordered();
+        return $this->belongsToMany(
+            PlatformServiceItemType::class,
+            'platform_service_item_group_type',
+            'group_id',
+            'item_type_id'
+        )->orderByRaw('COALESCE(platform_service_item_types.sort_order, 999999) ASC')
+         ->orderBy('platform_service_item_types.id');
     }
 
-    public function activeItemTypes(): HasMany
+    public function activeItemTypes(): BelongsToMany
     {
-        return $this->hasMany(PlatformServiceItemType::class, 'group_id')->active()->ordered();
+        return $this->itemTypes()->where('platform_service_item_types.is_active', 1);
     }
 
     public function scopeActive($query, bool $active = true)

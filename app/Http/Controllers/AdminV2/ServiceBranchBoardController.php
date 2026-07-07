@@ -8,18 +8,19 @@ use App\Models\PlatformServiceItemGroup;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Service-branch board: pick a service, see all its item types as rows and the
- * shared pool of branches, and assign each type to one branch (or none) via a
- * dropdown. Branches are a global pool (platform_service_id is nullable) — a
- * branch spans several services when it holds item types from more than one.
+ * shared pool of branches as columns, and tick each type into any branches it
+ * belongs to (many-to-many — a type can be in several branches at once, like
+ * "room" under both "hotel" and "residential units").
  *
- * Organizational only: booking/pricing keys on the item type key, never the
- * branch. Kept separate from the simple branch CRUD
- * ({@see PlatformServiceItemGroupController}).
+ * Branches are a global pool (platform_service_id is nullable) — a branch spans
+ * several services when it holds item types from more than one. Organizational
+ * only: booking/pricing keys on the item type key, never the branch.
  */
 class ServiceBranchBoardController extends Controller
 {
@@ -37,13 +38,14 @@ class ServiceBranchBoardController extends Controller
 
         $types = PlatformServiceItemType::query()
             ->where('platform_service_id', $serviceId)
+            ->with('groups:id')
             ->ordered()
-            ->get(['id', 'platform_service_id', 'group_id', 'key', 'name_ar', 'name_en', 'is_active'])
+            ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'is_active'])
             ->map(fn (PlatformServiceItemType $t) => [
                 'id' => (int) $t->id,
                 'key' => (string) $t->key,
                 'name' => $t->displayName('ar'),
-                'group_id' => $t->group_id !== null ? (int) $t->group_id : null,
+                'group_ids' => $t->groups->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
                 'is_active' => (bool) $t->is_active,
             ]);
 
@@ -82,12 +84,13 @@ class ServiceBranchBoardController extends Controller
         ]);
     }
 
-    public function assign(Request $request): JsonResponse
+    public function toggle(Request $request): JsonResponse
     {
         $data = $request->validate([
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
             'item_type_id' => ['required', 'integer'],
-            'group_id' => ['nullable', 'integer', 'exists:platform_service_item_groups,id'],
+            'group_id' => ['required', 'integer', 'exists:platform_service_item_groups,id'],
+            'attached' => ['required', 'boolean'],
         ]);
 
         $type = PlatformServiceItemType::query()
@@ -101,8 +104,11 @@ class ServiceBranchBoardController extends Controller
             ]);
         }
 
-        $type->group_id = $data['group_id'] ?? null;
-        $type->save();
+        if ((bool) $data['attached']) {
+            $type->groups()->syncWithoutDetaching([(int) $data['group_id']]);
+        } else {
+            $type->groups()->detach((int) $data['group_id']);
+        }
 
         return response()->json([
             'ok' => true,
@@ -159,8 +165,8 @@ class ServiceBranchBoardController extends Controller
 
     public function destroyBranch(PlatformServiceItemGroup $platformServiceItemGroup): JsonResponse
     {
-        // group_id on item types is nullOnDelete, so members fall back to
-        // "بدون فرع" instead of being deleted.
+        // The pivot rows cascade on the group's FK, so memberships are removed
+        // and the affected item types simply lose this branch.
         $platformServiceItemGroup->delete();
 
         return response()->json(['ok' => true]);
@@ -171,25 +177,25 @@ class ServiceBranchBoardController extends Controller
      */
     protected function usageByBranch()
     {
-        return PlatformServiceItemType::query()
-            ->whereNotNull('group_id')
-            ->selectRaw('group_id, platform_service_id, COUNT(*) AS n')
-            ->groupBy('group_id', 'platform_service_id')
+        return DB::table('platform_service_item_group_type as p')
+            ->join('platform_service_item_types as t', 't.id', '=', 'p.item_type_id')
+            ->selectRaw('p.group_id, t.platform_service_id, COUNT(*) AS n')
+            ->groupBy('p.group_id', 't.platform_service_id')
             ->get()
             ->groupBy('group_id');
     }
 
     /**
      * [group_id => count] of the given service's item types per branch, for the
-     * live chip counts after an assign.
+     * live chip counts after a toggle.
      */
     protected function countsForService(int $serviceId): array
     {
-        return PlatformServiceItemType::query()
-            ->where('platform_service_id', $serviceId)
-            ->whereNotNull('group_id')
-            ->selectRaw('group_id, COUNT(*) AS n')
-            ->groupBy('group_id')
+        return DB::table('platform_service_item_group_type as p')
+            ->join('platform_service_item_types as t', 't.id', '=', 'p.item_type_id')
+            ->where('t.platform_service_id', $serviceId)
+            ->selectRaw('p.group_id, COUNT(*) AS n')
+            ->groupBy('p.group_id')
             ->pluck('n', 'group_id')
             ->map(fn ($n) => (int) $n)
             ->all();

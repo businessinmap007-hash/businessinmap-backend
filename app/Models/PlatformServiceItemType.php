@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class PlatformServiceItemType extends Model
 {
@@ -11,7 +12,6 @@ class PlatformServiceItemType extends Model
 
     protected $fillable = [
         'platform_service_id',
-        'group_id',
         'key',
         'name_ar',
         'name_en',
@@ -23,7 +23,6 @@ class PlatformServiceItemType extends Model
 
     protected $casts = [
         'platform_service_id' => 'integer',
-        'group_id' => 'integer',
         'is_default' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
@@ -40,9 +39,18 @@ class PlatformServiceItemType extends Model
         return $this->belongsTo(PlatformService::class, 'platform_service_id');
     }
 
-    public function group(): BelongsTo
+    /**
+     * Branches this item type belongs to. An item type can be in several
+     * branches at once (e.g. "room" under "hotel" and "residential units").
+     */
+    public function groups(): BelongsToMany
     {
-        return $this->belongsTo(PlatformServiceItemGroup::class, 'group_id');
+        return $this->belongsToMany(
+            PlatformServiceItemGroup::class,
+            'platform_service_item_group_type',
+            'item_type_id',
+            'group_id'
+        );
     }
 
     public function displayName(?string $locale = null): string

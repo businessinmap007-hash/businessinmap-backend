@@ -32,10 +32,10 @@ class PlatformServiceItemTypeController extends Controller
         $rows = PlatformServiceItemType::query()
             ->with([
                 'service:id,key,name_ar,name_en,is_active',
-                'group:id,platform_service_id,key,name_ar,name_en',
+                'groups:id,platform_service_id,key,name_ar,name_en',
             ])
             ->when($serviceId > 0, fn ($query) => $query->where('platform_service_id', $serviceId))
-            ->when($groupId > 0, fn ($query) => $query->where('group_id', $groupId))
+            ->when($groupId > 0, fn ($query) => $query->whereHas('groups', fn ($g) => $g->where('platform_service_item_groups.id', $groupId)))
             ->when($active !== '' && $active !== null, fn ($query) => $query->where('is_active', (int) $active))
             ->when($q !== '', function ($query) use ($q) {
                 $term = '%' . mb_strtolower($q) . '%';
@@ -47,7 +47,6 @@ class PlatformServiceItemTypeController extends Controller
                 });
             })
             ->orderBy('platform_service_id')
-            ->orderByRaw('COALESCE(group_id, 999999) ASC')
             ->ordered()
             ->paginate(50)
             ->withQueryString();
@@ -177,14 +176,6 @@ class PlatformServiceItemTypeController extends Controller
                     ->ignore($ignoreId),
             ],
 
-            'group_id' => [
-                'nullable',
-                'integer',
-                // The branch must belong to the same service as the item type.
-                Rule::exists('platform_service_item_groups', 'id')
-                    ->where(fn ($query) => $query->where('platform_service_id', $request->input('platform_service_id'))),
-            ],
-
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
 
@@ -197,7 +188,6 @@ class PlatformServiceItemTypeController extends Controller
             'key.regex' => 'المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
         ], [
             'platform_service_id' => 'الخدمة',
-            'group_id' => 'الفرع',
             'key' => 'المفتاح',
             'name_ar' => 'الاسم العربي',
             'name_en' => 'الاسم الإنجليزي',
@@ -211,7 +201,6 @@ class PlatformServiceItemTypeController extends Controller
         $data['name_ar'] = trim((string) ($data['name_ar'] ?? ''));
         $data['name_en'] = trim((string) ($data['name_en'] ?? '')) ?: null;
 
-        $data['group_id'] = ! empty($data['group_id']) ? (int) $data['group_id'] : null;
         $data['is_default'] = (int) $request->boolean('is_default');
         $data['is_active'] = (int) $request->boolean('is_active');
         $data['sort_order'] = max(0, (int) ($data['sort_order'] ?? 0));

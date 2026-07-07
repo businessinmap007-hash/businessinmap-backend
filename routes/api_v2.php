@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
+use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
 use App\Http\Controllers\Api\V2\OfferBoostController;
@@ -26,6 +27,12 @@ Route::prefix('v2')->group(function () {
     Route::prefix('search')->group(function () {
         Route::get('offers', [SearchOffersController::class, 'index']);
         Route::get('business/{business}/offers', [SearchOffersController::class, 'business'])->whereNumber('business');
+    });
+
+    // Customer discovery: specialty (category child) -> service + item types -> businesses.
+    Route::prefix('discovery')->group(function () {
+        Route::get('filters', [DiscoveryController::class, 'filters']);
+        Route::get('businesses', [DiscoveryController::class, 'businesses']);
     });
 
     Route::middleware('auth:sanctum')->group(function () {

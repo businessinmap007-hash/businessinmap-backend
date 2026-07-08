@@ -33,23 +33,84 @@ class OperationGuarantorService
         return $guarantee ? $guarantee->availableCoverage() : 0.0;
     }
 
+    /** Accepted friends' frozen contribution (excludes the requester's own self row). */
+    public function friendsCoverage(string $operationType, int $operationId, User $requester): float
+    {
+        return round((float) OperationGuarantor::query()
+            ->forOperation($operationType, $operationId)
+            ->active()
+            ->where('guarantor_user_id', '!=', (int) $requester->id)
+            ->sum('covered_amount'), 2);
+    }
+
     /**
      * Combined coverage for an operation = the requester's own available
-     * coverage plus every accepted friend's frozen contribution.
+     * coverage (self rows excluded — self is represented by availableCoverage)
+     * plus every accepted friend's frozen contribution.
      */
     public function combinedCoverage(string $operationType, int $operationId, User $requester): float
     {
-        $friends = (float) OperationGuarantor::query()
-            ->forOperation($operationType, $operationId)
-            ->active()
-            ->sum('covered_amount');
-
-        return round($this->selfCoverage($requester) + $friends, 2);
+        return round($this->selfCoverage($requester) + $this->friendsCoverage($operationType, $operationId, $requester), 2);
     }
 
     public function isOperationCovered(string $operationType, int $operationId, User $requester, float $required): bool
     {
         return $this->combinedCoverage($operationType, $operationId, $requester) >= round($required, 2);
+    }
+
+    /**
+     * Freeze the requester's OWN guarantee coverage for the operation (called at
+     * operation start). Recorded as a self row so releaseOperation returns it
+     * alongside the friends'. Idempotent per operation.
+     */
+    public function freezeSelf(string $operationType, int $operationId, User $requester, float $amount): ?OperationGuarantor
+    {
+        $amount = round($amount, 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($operationType, $operationId, $requester, $amount) {
+            $existing = OperationGuarantor::query()
+                ->forOperation($operationType, $operationId)
+                ->where('guarantor_user_id', (int) $requester->id)
+                ->active()
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $guarantee = $this->coverage->activeGuarantee($requester, GuaranteeLevel::TARGET_CLIENT);
+
+            if (! $guarantee || ! $guarantee->isUsable()) {
+                throw ValidationException::withMessages(['guarantee' => 'لا تملك ضمانًا نشطًا صالحًا.']);
+            }
+
+            $guarantee = UserGuarantee::query()->whereKey($guarantee->id)->lockForUpdate()->first();
+
+            if (! $guarantee->covers($amount)) {
+                throw ValidationException::withMessages(['guarantee' => 'سعة ضمانك لا تكفي لتجميد هذه القيمة.']);
+            }
+
+            $guarantee->used_coverage_amount = round((float) $guarantee->used_coverage_amount + $amount, 2);
+            $guarantee->save();
+
+            return OperationGuarantor::create([
+                'operation_type' => $operationType,
+                'operation_id' => $operationId,
+                'requester_user_id' => (int) $requester->id,
+                'guarantor_user_id' => (int) $requester->id,
+                'user_guarantee_id' => (int) $guarantee->id,
+                'covered_amount' => $amount,
+                'status' => OperationGuarantor::STATUS_ACCEPTED,
+                'invited_at' => now(),
+                'responded_at' => now(),
+                'meta' => ['is_self' => true],
+            ]);
+        });
     }
 
     /**

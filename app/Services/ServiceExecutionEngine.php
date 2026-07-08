@@ -577,6 +577,30 @@ class ServiceExecutionEngine
                         ]);
                     }
                 }
+
+                // Freeze the requester's OWN guarantee coverage actually used
+                // (guarantee applied minus what accepted friends already froze).
+                // Friends were frozen on accept; this locks the client's share
+                // for the duration of the operation (released on completion /
+                // dispute resolution). Coverage is frozen, never charged.
+                if ($booking->user) {
+                    $guaranteeApplied = round((float) data_get($readiness, 'deposit.guarantee_applied', 0), 2);
+                    $friendsFrozen = $this->operationGuarantors->friendsCoverage(
+                        OperationGuarantor::OP_BOOKING,
+                        (int) $booking->id,
+                        $booking->user
+                    );
+                    $selfFreeze = round(max($guaranteeApplied - $friendsFrozen, 0), 2);
+
+                    if ($selfFreeze > 0) {
+                        $this->operationGuarantors->freezeSelf(
+                            OperationGuarantor::OP_BOOKING,
+                            (int) $booking->id,
+                            $booking->user,
+                            $selfFreeze
+                        );
+                    }
+                }
             }
 
             $this->chargeExecutionFeeOnce($booking);

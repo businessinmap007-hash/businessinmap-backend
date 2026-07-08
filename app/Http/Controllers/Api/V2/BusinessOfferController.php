@@ -214,7 +214,9 @@ final class BusinessOfferController extends Controller
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'is_refundable' => ['nullable', 'boolean'],
             'payment_model' => ['nullable', 'string', 'max:50'],
-            'ranking_score' => ['nullable', 'numeric', 'min:0'],
+            // ranking_score is intentionally NOT accepted from the client: it
+            // drives public discovery ordering, so a business could self-boost
+            // above competitors. It is system-owned (preserved/defaulted below).
             'status' => ['nullable', Rule::in([
                 CommercialOffer::STATUS_ACTIVE,
                 CommercialOffer::STATUS_PAUSED,
@@ -233,7 +235,8 @@ final class BusinessOfferController extends Controller
         $data['currency'] = (string) ($data['currency'] ?? ($existing->currency ?? 'EGP'));
         $data['availability_mode'] = (string) ($data['availability_mode'] ?? ($existing->availability_mode ?? CommercialOffer::AVAILABILITY_INSTANT));
         $data['is_refundable'] = $request->boolean('is_refundable', (bool) ($existing->is_refundable ?? false));
-        $data['ranking_score'] = (float) ($data['ranking_score'] ?? ($existing->ranking_score ?? 0));
+        // System-owned: never taken from the request. Preserve on update, 0 on create.
+        $data['ranking_score'] = (float) ($existing->ranking_score ?? 0);
         $data['status'] = (string) ($data['status'] ?? ($existing->status ?? CommercialOffer::STATUS_ACTIVE));
         $data['meta'] = array_merge((array) ($existing->meta ?? []), (array) ($data['meta'] ?? []), [
             'source' => 'api_v2_business_offers',

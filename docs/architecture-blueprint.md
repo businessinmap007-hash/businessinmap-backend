@@ -261,7 +261,7 @@ deferred.)
   (`business_deposit_policies`); existing bookings unchanged (verified booking
   invoice deposit now equals `Booking::depositAmount()`).
 
-### Phase 5 — Cleanup *(in progress)*
+### ✅ Phase 5 — Cleanup (done)
 - **✅ Smoke tests (done).** Feature tests around the paths built in Phases 2–4,
   using `DatabaseTransactions` (the dev `business` DB is rolled back, never
   mutated) and reusing stable rows while seeding the volatile parts:
@@ -270,12 +270,18 @@ deferred.)
   `CustomerCartTest` (per-business grouping, qty merge, checkout flip,
   server-sourced price), `DepositSingleSourceTest` (columns retired, invoice
   deposit == held policy deposit). 16 passing (45 assertions).
-- **Remaining:** remove dead relations/controllers/views from the retirements
-  (e.g. emptied Options CRUD — note Options are only *partially* dead: #12
-  «أنماط خدمة» + deferred product-catalog groups are kept as attributes, so
-  removal needs per-file analysis) and prune stale docs. A pre-existing
-  `bookableItemsLookup` dead-column bug is being fixed in a separate task.
-- **Accept:** no references to retired concepts; green smoke tests (tests ✅).
+- **✅ Dead-code sweep (done).** Findings after per-file analysis: the big
+  dead classes were already gone (`BookingEngine`, `BookingTestController` —
+  commit aa35607); Phase 4 already stripped the deposit columns/UI; **Options
+  CRUD is intentionally alive** (manages the kept attribute groups — #12
+  «أنماط خدمة» + deferred product-catalog groups — so it was *not* removed).
+  Genuinely dead and removed: `resources/views/admin-v2/categories/options.blade.php`
+  (orphaned category-level options view, superseded by `category-child-options`,
+  not returned by any controller and pointing at a non-existent route). Pruned
+  stale deposit docs in `services-blueprint.md`. The pre-existing
+  `bookableItemsLookup` dead-column bug is handled in a separate task.
+- **Accept:** ✅ no live references to retired concepts; green smoke tests
+  (16 passing).
 
 ---
 

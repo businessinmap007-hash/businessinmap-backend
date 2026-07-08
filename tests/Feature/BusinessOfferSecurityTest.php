@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessPartnership;
 use App\Models\CommercialOffer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -86,6 +87,62 @@ class BusinessOfferSecurityTest extends TestCase
         }
 
         $this->assertSame(0.0, (float) $offer->fresh()->ranking_score, 'ranking_score must stay system-owned');
+    }
+
+    public function test_cannot_resell_another_owner_without_partnership(): void
+    {
+        $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
+        if (count($businesses) < 2) {
+            $this->markTestSkipped('Needs two business users.');
+        }
+        [$ownerId, $sellerId] = $businesses;
+
+        // No partnership exists (rolled back). The seller must be rejected.
+        Sanctum::actingAs(User::find($sellerId));
+
+        $this->postJson('/api/v2/business/offers', [
+            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
+            'offerable_id' => 0,
+            'owner_business_id' => $ownerId,
+            'base_price' => 100,
+            'final_price' => 90,
+        ])->assertStatus(422)->assertJsonValidationErrors(['owner_business_id']);
+    }
+
+    public function test_can_resell_with_active_partnership(): void
+    {
+        $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
+        if (count($businesses) < 2) {
+            $this->markTestSkipped('Needs two business users.');
+        }
+        [$ownerId, $sellerId] = $businesses;
+
+        BusinessPartnership::create([
+            'owner_business_id' => $ownerId,
+            'partner_business_id' => $sellerId,
+            'relationship_type' => BusinessPartnership::TYPE_RESELLER,
+            'status' => BusinessPartnership::STATUS_ACTIVE,
+        ]);
+
+        Sanctum::actingAs(User::find($sellerId));
+
+        $res = $this->postJson('/api/v2/business/offers', [
+            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
+            'offerable_id' => 0,
+            'owner_business_id' => $ownerId,
+            'base_price' => 100,
+            'final_price' => 90,
+        ]);
+
+        // The partnership clears the ownership guard. Creation may still be
+        // gated by subscription — but it must NOT fail on owner_business_id.
+        if ($res->status() === 422) {
+            $this->assertArrayNotHasKey('owner_business_id', $res->json('errors') ?? [], 'partnership must satisfy the ownership guard');
+            $this->markTestSkipped('Creation gated downstream (not by ownership): ' . $res->getContent());
+        }
+
+        $res->assertCreated();
+        $this->assertSame($ownerId, (int) $res->json('data.offer.owner_business_id'));
     }
 
     public function test_business_cannot_update_another_businesses_offer(): void

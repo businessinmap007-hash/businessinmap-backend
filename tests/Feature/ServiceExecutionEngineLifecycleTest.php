@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\Deposit;
 use App\Models\WalletTransaction;
 use App\Services\ServiceExecutionEngine;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -118,5 +119,60 @@ class ServiceExecutionEngineLifecycleTest extends TestCase
             ->where('type', 'platform_fee')
             ->count();
         $this->assertSame($feesBefore, $feesAfter, 'no new fee transactions on a repeat charge');
+    }
+
+    /**
+     * Put the booking into a state that can legally start: movable status, both
+     * parties confirmed, no deposit required (policies removed), fees a no-op
+     * (consent off). This isolates the transition itself from deposit/fee money.
+     */
+    private function prepareMovableConfirmedNoDeposit(): void
+    {
+        DB::table('business_deposit_policies')->where('business_id', $this->booking->business_id)->delete();
+        Deposit::query()->where('target_type', Booking::class)->where('target_id', $this->booking->id)->delete();
+        $this->disableConsentForParties();
+
+        $meta = is_array($this->booking->meta) ? $this->booking->meta : [];
+        $meta['_start_confirm'] = ['client' => true, 'business' => true];
+        unset($meta['_execution_fee'], $meta['_financial_guard']);
+        $this->booking->meta = $meta;
+        $this->booking->status = Booking::STATUS_ACCEPTED;
+        $this->booking->save();
+    }
+
+    public function test_move_to_in_progress_happy_path_without_deposit(): void
+    {
+        $this->prepareMovableConfirmedNoDeposit();
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $fresh = Booking::query()->whereKey($this->booking->id)->first();
+        $this->assertSame(Booking::STATUS_IN_PROGRESS, $fresh->status, 'a ready booking must start execution');
+        $this->assertTrue((bool) data_get($fresh->meta, '_financial_guard.ok'), 'the financial guard must pass');
+        $this->assertNotEmpty(data_get($fresh->meta, '_execution_fee.charged_at'), 'the execution fee must be stamped');
+    }
+
+    public function test_move_to_in_progress_rejected_when_parties_not_confirmed(): void
+    {
+        $this->prepareMovableConfirmedNoDeposit();
+
+        // Withdraw the confirmations — the transition must now be refused.
+        $meta = $this->booking->meta;
+        $meta['_start_confirm'] = ['client' => false, 'business' => false];
+        $this->booking->meta = $meta;
+        $this->booking->save();
+
+        try {
+            $this->engine->moveBookingToInProgress($this->booking);
+            $this->fail('starting without both confirmations must throw');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('تأكيد الطرفين', implode(' ', $e->errors()['status'] ?? []));
+        }
+
+        $this->assertSame(
+            Booking::STATUS_ACCEPTED,
+            Booking::query()->whereKey($this->booking->id)->value('status'),
+            'an unconfirmed booking must stay accepted'
+        );
     }
 }

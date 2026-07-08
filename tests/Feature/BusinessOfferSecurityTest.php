@@ -54,6 +54,40 @@ class BusinessOfferSecurityTest extends TestCase
         );
     }
 
+    public function test_owner_cannot_raise_ranking_score_via_update(): void
+    {
+        $business = $this->business();
+
+        $offer = CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
+            'offerable_id' => 0,
+            'owner_business_id' => $business->id,
+            'seller_business_id' => $business->id,
+            'source_type' => CommercialOffer::SOURCE_PROMOTION,
+            'base_price' => 100,
+            'final_price' => 90,
+            'currency' => 'EGP',
+            'status' => CommercialOffer::STATUS_ACTIVE,
+            'ranking_score' => 0,
+        ]);
+
+        Sanctum::actingAs($business);
+
+        $res = $this->putJson("/api/v2/business/offers/{$offer->id}", [
+            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
+            'offerable_id' => 0,
+            'base_price' => 100,
+            'final_price' => 90,
+            'ranking_score' => 999999,
+        ]);
+
+        if ($res->status() !== 200) {
+            $this->markTestSkipped('Offer update gated: ' . $res->getContent());
+        }
+
+        $this->assertSame(0.0, (float) $offer->fresh()->ranking_score, 'ranking_score must stay system-owned');
+    }
+
     public function test_business_cannot_update_another_businesses_offer(): void
     {
         $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();

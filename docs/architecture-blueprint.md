@@ -222,8 +222,15 @@ deferred.)
     `business_catalog_listings` joined to the deduped master). Each row links to
     its source's own edit screen; adding stays per-source. Client-side source
     filter with per-source counts. Verified (biz #212: 10 bespoke + 1 retail).
-  - **Remaining:** customer browse of retail listings (extend Api/V2 discovery)
-    + one customer cart/order across bespoke + retail.
+  - **✅ Customer retail discovery (done).** `Api/V2/RetailDiscoveryController`
+    applies offer=filter=index to `business_catalog_listings`: `retail/filters`
+    (product categories + brands that have active listings, with counts),
+    `retail/products` (paginated browse with child/brand/q filters; each product
+    shows price range + businesses count), `retail/products/{id}` (one master +
+    every business selling it, cheapest first). Masters scoped
+    whereNull(deleted_at). Verified (2 businesses on one product → price range
+    10–14.5, cheapest-first offers, 404 on missing).
+  - **Remaining:** one customer cart/order across bespoke + retail.
 - **Accept:** a business can sell both a bespoke item and a catalog product
   through one cart/order; the catalog shows deduped masters.
 

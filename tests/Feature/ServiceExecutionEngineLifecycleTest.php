@@ -32,7 +32,10 @@ class ServiceExecutionEngineLifecycleTest extends TestCase
 
         $this->engine = app(ServiceExecutionEngine::class);
 
-        $booking = Booking::query()->whereNotNull('user_id')->whereNotNull('business_id')->first();
+        $booking = Booking::withTrashed()->whereNotNull('user_id')->whereNotNull('business_id')->first();
+        if ($booking && $booking->trashed()) {
+            $booking->restore();
+        }
         if (! $booking) {
             $this->markTestSkipped('Needs a booking.');
         }

@@ -39,7 +39,10 @@ class WalletFeeServiceTest extends TestCase
 
         $this->fees = app(WalletFeeService::class);
 
-        $booking = Booking::query()->whereNotNull('user_id')->whereNotNull('business_id')->first();
+        $booking = Booking::withTrashed()->whereNotNull('user_id')->whereNotNull('business_id')->first();
+        if ($booking && $booking->trashed()) {
+            $booking->restore();
+        }
         if (! $booking) {
             $this->markTestSkipped('Needs a booking.');
         }

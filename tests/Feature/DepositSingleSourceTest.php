@@ -38,7 +38,10 @@ class DepositSingleSourceTest extends TestCase
 
     public function test_unified_invoice_deposit_equals_the_held_policy_deposit(): void
     {
-        $booking = Booking::query()->whereNotNull('business_id')->first();
+        $booking = Booking::withTrashed()->whereNotNull('business_id')->first();
+        if ($booking && $booking->trashed()) {
+            $booking->restore();
+        }
         if (! $booking) {
             $this->markTestSkipped('Needs at least one booking.');
         }

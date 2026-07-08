@@ -37,7 +37,7 @@ class BookingDepositServiceTest extends TestCase
         $this->deposits = app(BookingDepositService::class);
         $this->wallet = app(WalletService::class);
 
-        $booking = Booking::query()
+        $booking = Booking::withTrashed()
             ->whereNotNull('user_id')
             ->whereNotNull('business_id')
             ->whereColumn('user_id', '!=', 'business_id')
@@ -45,6 +45,10 @@ class BookingDepositServiceTest extends TestCase
 
         if (! $booking) {
             $this->markTestSkipped('Needs a booking with distinct client and business.');
+        }
+
+        if ($booking->trashed()) {
+            $booking->restore();
         }
 
         $this->booking = $booking;

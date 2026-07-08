@@ -37,8 +37,11 @@ class DepositsEscrowService
         $usingDirectAmounts = $clientAmount !== null || $businessAmount !== null;
 
         if ($usingDirectAmounts) {
-            $clientAmount = $this->normalizeAmount($clientAmount ?? 0);
-            $businessAmount = $this->normalizeAmount($businessAmount ?? 0);
+            // A single side may legitimately be 0 (e.g. business counter-hold
+            // disabled or guarantee-covered). Only the TOTAL must be positive,
+            // so tolerate a 0 sub-amount instead of rejecting it here.
+            $clientAmount = (float) ($clientAmount ?? 0) > 0 ? $this->normalizeAmount($clientAmount) : '0.00';
+            $businessAmount = (float) ($businessAmount ?? 0) > 0 ? $this->normalizeAmount($businessAmount) : '0.00';
 
             $totalAmount = $this->normalizeAmount((float) $clientAmount + (float) $businessAmount);
 

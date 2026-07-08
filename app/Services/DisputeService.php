@@ -5,13 +5,16 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\OperationGuarantor;
 use App\Models\PlatformService;
+use App\Services\Guarantees\OperationGuarantorService;
 use Illuminate\Validation\ValidationException;
 
 class DisputeService
 {
     public function __construct(
         protected DepositsEscrowService $depositsEscrowService,
+        protected OperationGuarantorService $operationGuarantors,
     ) {
     }
 
@@ -149,6 +152,11 @@ class DisputeService
                 resolutionType: $resolutionType,
                 resolutionPayload: $resolutionPayload
             );
+
+            // Dispute over: return the frozen guarantee coverage (client's own +
+            // any friend co-guarantors) — it was held throughout the dispute and
+            // is never charged.
+            $this->operationGuarantors->releaseOperation(OperationGuarantor::OP_BOOKING, (int) $disputeable->id);
         }
 
         $payload = is_array($dispute->resolution_payload ?? null)

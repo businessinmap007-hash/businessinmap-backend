@@ -6,6 +6,8 @@ use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\DepositEvent;
 use App\Models\Dispute;
+use App\Models\OperationGuarantor;
+use App\Services\Guarantees\OperationGuarantorService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +17,18 @@ class BookingDepositService
     public function __construct(
         protected DepositsEscrowService $depositsEscrowService,
         protected DisputeService $disputeService,
+        protected OperationGuarantorService $operationGuarantors,
     ) {
+    }
+
+    /**
+     * Return any frozen guarantee coverage (client's own + friend co-guarantors)
+     * for a booking. Safe to call even when there is no guarantee involved.
+     * Used on completion and refund so coverage is never left frozen.
+     */
+    public function releaseGuarantees(Booking $booking): void
+    {
+        $this->operationGuarantors->releaseOperation(OperationGuarantor::OP_BOOKING, (int) $booking->id);
     }
 
     public function latestDeposit(?Booking $booking): ?Deposit
@@ -117,6 +130,9 @@ class BookingDepositService
         $this->markHoldStatuses($deposit, 'released');
         $this->event($deposit, 'wallet_hold_released');
 
+        // Completion: also return any frozen guarantee coverage.
+        $this->releaseGuarantees($booking);
+
         return $deposit;
     }
 
@@ -134,6 +150,9 @@ class BookingDepositService
 
         $this->markHoldStatuses($deposit, 'refunded');
         $this->event($deposit, 'wallet_hold_refunded');
+
+        // Return any frozen guarantee coverage alongside the wallet refund.
+        $this->releaseGuarantees($booking);
 
         return $deposit;
     }

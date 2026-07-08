@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
+use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
@@ -53,6 +54,12 @@ Route::prefix('v2')->group(function () {
             Route::delete('items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
             Route::post('{business}/checkout', [CartController::class, 'checkout'])->whereNumber('business');
         });
+
+        // Friend co-guarantors for an operation (guarantee-as-deposit).
+        Route::get('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'index'])->whereNumber('booking');
+        Route::post('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'invite'])->whereNumber('booking');
+        Route::post('guarantors/{guarantor}/accept', [OperationGuarantorController::class, 'accept'])->whereNumber('guarantor');
+        Route::post('guarantors/{guarantor}/decline', [OperationGuarantorController::class, 'decline'])->whereNumber('guarantor');
 
         Route::prefix('notifications')->group(function () {
             Route::get('/', [NotificationCenterController::class, 'index']);

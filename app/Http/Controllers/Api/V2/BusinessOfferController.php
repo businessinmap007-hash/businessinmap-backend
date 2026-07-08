@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessPartnership;
 use App\Models\CommercialOffer;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
 use App\Services\Commercial\OfferFollowMatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 final class BusinessOfferController extends Controller
 {
@@ -178,6 +180,27 @@ final class BusinessOfferController extends Controller
         ]);
     }
 
+    /**
+     * True when $ownerId has an active partnership authorizing $sellerId to
+     * resell on its behalf (within the partnership's validity window).
+     */
+    private function ownerAuthorizesSeller(int $ownerId, int $sellerId): bool
+    {
+        if ($ownerId <= 0 || $sellerId <= 0) {
+            return false;
+        }
+
+        $now = now();
+
+        return BusinessPartnership::query()
+            ->where('owner_business_id', $ownerId)
+            ->where('partner_business_id', $sellerId)
+            ->where('status', BusinessPartnership::STATUS_ACTIVE)
+            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
+            ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now))
+            ->exists();
+    }
+
     private function validatedData(Request $request, int $businessId, ?CommercialOffer $existing = null): array
     {
         $data = $request->validate([
@@ -229,6 +252,18 @@ final class BusinessOfferController extends Controller
         $data['offerable_id'] = (int) ($data['offerable_id'] ?? 0);
         $data['owner_business_id'] = (int) ($data['owner_business_id'] ?? $businessId);
         $data['seller_business_id'] = $businessId;
+
+        // Reselling another business's product requires that owner's permission:
+        // an active partnership (owner -> this seller). Selling your own product
+        // (owner === seller) is always allowed. Without this, a business could
+        // attribute an offer to any other business as "owner" and pollute their
+        // storefront in discovery (offers are filterable by owner_business_id).
+        if ($data['owner_business_id'] !== $businessId
+            && ! $this->ownerAuthorizesSeller($data['owner_business_id'], $businessId)) {
+            throw ValidationException::withMessages([
+                'owner_business_id' => 'لا تملك إذنًا لإعادة بيع منتجات هذا البزنس. يلزم اتفاق شراكة نشط مع المالك.',
+            ]);
+        }
         $data['source_type'] = (string) ($data['source_type'] ?? CommercialOffer::SOURCE_PROMOTION);
         $data['audience_type'] = (string) ($data['audience_type'] ?? ($existing->audience_type ?? CommercialOffer::AUDIENCE_BOTH));
         $data['source_id'] = $data['source_id'] ?? null;

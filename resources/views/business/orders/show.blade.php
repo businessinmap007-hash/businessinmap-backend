@@ -40,7 +40,7 @@
                     <tbody>
                         @forelse($lines as $line)
                             <tr>
-                                <td>{{ $line->menuItem?->name_ar ?: ('#' . $line->menu_id) }}</td>
+                                <td>{{ $line->display_name }}</td>
                                 <td>{{ number_format((float) $line->price, 2) }}</td>
                                 <td>{{ (int) $line->qty }}</td>
                                 <td class="a2-fw-900">{{ number_format((float) $line->total_price, 2) }}</td>
@@ -78,7 +78,28 @@
                         <input class="a2-input" id="qty" name="qty" type="number" min="1" value="1" required>
                     </div>
                     <div class="a2-filter-actions">
-                        <button class="a2-btn a2-btn-primary" type="submit">إضافة</button>
+                        <button class="a2-btn a2-btn-primary" type="submit">إضافة صنف</button>
+                    </div>
+                </form>
+            @endif
+
+            @if($listings->isNotEmpty())
+                <form method="POST" action="{{ route('business.orders.product.add', $order->id) }}" class="a2-filterbar" style="margin-top:12px;">
+                    @csrf
+                    <div class="a2-filter-md">
+                        <label class="a2-label" for="listing_id">منتج تجزئة</label>
+                        <select class="a2-select" id="listing_id" name="listing_id" required>
+                            @foreach($listings as $lst)
+                                <option value="{{ $lst->id }}">{{ $lst->product_name }} — {{ number_format((float) $lst->price, 2) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="a2-filter-sm">
+                        <label class="a2-label" for="product_qty">الكمية</label>
+                        <input class="a2-input" id="product_qty" name="qty" type="number" min="1" value="1" required>
+                    </div>
+                    <div class="a2-filter-actions">
+                        <button class="a2-btn a2-btn-primary" type="submit">إضافة منتج</button>
                     </div>
                 </form>
             @endif

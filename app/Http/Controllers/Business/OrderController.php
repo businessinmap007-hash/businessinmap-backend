@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Services\MenuOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -95,11 +97,60 @@ class OrderController extends Controller
             ->orderBy('id')
             ->get(['id', 'name_ar', 'name_en', 'base_price']);
 
+        $listings = DB::table('business_catalog_listings as l')
+            ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
+            ->where('l.business_id', $this->businessId())
+            ->where('l.is_active', 1)
+            ->orderByDesc('l.id')
+            ->get(['l.id', 'l.price', 'p.name_ar as product_name']);
+
+        // Resolve a display name per line from its offering (menu item or listing).
+        $menuNames = $menuItems->pluck('name_ar', 'id');
+        $listingNames = $listings->pluck('product_name', 'id');
+
+        foreach ($order->items as $line) {
+            $line->display_name = match ((string) $line->offering_type) {
+                MenuItem::class => $menuNames[$line->offering_id] ?? ($line->menuItem?->name_ar ?: '#' . $line->menu_id),
+                BusinessCatalogListing::class => $listingNames[$line->offering_id] ?? ('منتج #' . $line->offering_id),
+                default => $line->menuItem?->name_ar ?: ('#' . $line->menu_id),
+            };
+        }
+
         return view('business.orders.show', [
             'order' => $order,
             'lines' => $order->items,
             'menuItems' => $menuItems,
+            'listings' => $listings,
         ]);
+    }
+
+    public function addProduct(Request $request, int $id): RedirectResponse
+    {
+        $order = $this->scopedOrder($id);
+
+        $data = $request->validate([
+            'listing_id' => ['required', 'integer'],
+            'qty' => ['required', 'integer', 'min:1', 'max:999'],
+        ], [], ['listing_id' => 'المنتج', 'qty' => 'الكمية']);
+
+        $listing = BusinessCatalogListing::query()
+            ->where('business_id', $this->businessId())
+            ->where('is_active', 1)
+            ->find((int) $data['listing_id']);
+
+        if (! $listing) {
+            return back()->withErrors(['listing_id' => 'هذا المنتج غير متاح في منتجاتك.']);
+        }
+
+        $this->orders->addOffering(
+            $order,
+            BusinessCatalogListing::class,
+            (int) $listing->id,
+            (int) $data['qty'],
+            (float) $listing->price
+        );
+
+        return back()->with('success', 'تمت إضافة المنتج للطلب.');
     }
 
     public function addFood(Request $request, int $id): RedirectResponse

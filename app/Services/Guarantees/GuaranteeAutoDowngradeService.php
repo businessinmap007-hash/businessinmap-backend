@@ -107,43 +107,50 @@ final class GuaranteeAutoDowngradeService
             $transactionType = $isDowngrade ? 'upgrade' : 'lock';
             $logicalType = $isDowngrade ? 'downgrade' : 'coverage_sync';
 
-            GuaranteeTransaction::create([
-                'user_id' => (int) $lockedGuarantee->user_id,
-                'user_guarantee_id' => (int) $lockedGuarantee->id,
-                'type' => $transactionType,
-                'amount' => 0,
-                'coverage_amount' => $newCoverage,
-                'balance_before' => null,
-                'balance_after' => null,
-                'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
-                'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'reason' => $isDowngrade
-                    ? 'Guarantee auto downgrade'
-                    : 'Guarantee coverage status sync',
-                'idempotency_key' => $meta['idempotency_key'] ?? $this->buildIdempotencyKey(
-                    $lockedGuarantee,
-                    $oldEffectiveLevelId,
-                    $newEffectiveLevelId,
-                    $referenceType,
-                    $referenceId
-                ),
-                'meta' => array_merge($meta, [
-                    'logical_type' => $logicalType,
-                    'stored_type' => $transactionType,
-                    'old_effective_level_id' => $oldEffectiveLevelId,
-                    'new_effective_level_id' => $newEffectiveLevelId,
-                    'old_status' => $oldStatus,
-                    'new_status' => $newStatus,
-                    'old_coverage_amount' => $oldCoverage,
-                    'new_coverage_amount' => $newCoverage,
-                    'completed_operations_count' => (int) $lockedGuarantee->completed_operations_count,
-                    'trust_score' => (float) $lockedGuarantee->trust_score,
-                    'disputes_lost_count' => (int) $lockedGuarantee->disputes_lost_count,
-                    'late_cancellations_count' => (int) $lockedGuarantee->late_cancellations_count,
-                ]),
-            ]);
+            $idempotencyKey = $meta['idempotency_key'] ?? $this->buildIdempotencyKey(
+                $lockedGuarantee,
+                $oldEffectiveLevelId,
+                $newEffectiveLevelId,
+                $referenceType,
+                $referenceId
+            );
+
+            // Idempotent: the same downgrade/sync (same key) is logged once.
+            // Re-runs (e.g. repeated admin sync) skip the insert instead of
+            // hitting the unique constraint.
+            if (! GuaranteeTransaction::query()->where('idempotency_key', $idempotencyKey)->exists()) {
+                GuaranteeTransaction::create([
+                    'user_id' => (int) $lockedGuarantee->user_id,
+                    'user_guarantee_id' => (int) $lockedGuarantee->id,
+                    'type' => $transactionType,
+                    'amount' => 0,
+                    'coverage_amount' => $newCoverage,
+                    'balance_before' => null,
+                    'balance_after' => null,
+                    'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
+                    'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'reason' => $isDowngrade
+                        ? 'Guarantee auto downgrade'
+                        : 'Guarantee coverage status sync',
+                    'idempotency_key' => $idempotencyKey,
+                    'meta' => array_merge($meta, [
+                        'logical_type' => $logicalType,
+                        'stored_type' => $transactionType,
+                        'old_effective_level_id' => $oldEffectiveLevelId,
+                        'new_effective_level_id' => $newEffectiveLevelId,
+                        'old_status' => $oldStatus,
+                        'new_status' => $newStatus,
+                        'old_coverage_amount' => $oldCoverage,
+                        'new_coverage_amount' => $newCoverage,
+                        'completed_operations_count' => (int) $lockedGuarantee->completed_operations_count,
+                        'trust_score' => (float) $lockedGuarantee->trust_score,
+                        'disputes_lost_count' => (int) $lockedGuarantee->disputes_lost_count,
+                        'late_cancellations_count' => (int) $lockedGuarantee->late_cancellations_count,
+                    ]),
+                ]);
+            }
 
             return [
                 'changed' => true,
@@ -224,35 +231,39 @@ final class GuaranteeAutoDowngradeService
             $logicalType = $bestLevel ? 'downgrade' : 'suspend';
             $storedType = $bestLevel ? 'upgrade' : 'lock';
 
-            GuaranteeTransaction::create([
-                'user_id' => (int) $lockedGuarantee->user_id,
-                'user_guarantee_id' => (int) $lockedGuarantee->id,
-                'type' => $storedType,
-                'amount' => 0,
-                'coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
-                'balance_before' => null,
-                'balance_after' => null,
-                'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
-                'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'reason' => $bestLevel
-                    ? 'Guarantee grace period expired - downgraded'
-                    : 'Guarantee grace period expired - suspended',
-                'idempotency_key' => $meta['idempotency_key'] ?? $this->buildGraceIdempotencyKey($lockedGuarantee, $referenceType, $referenceId),
-                'meta' => array_merge($meta, [
-                    'logical_type' => $logicalType,
-                    'stored_type' => $storedType,
-                    'old_purchased_level_id' => $oldPurchasedLevelId,
-                    'new_purchased_level_id' => $bestLevel ? (int) $bestLevel->id : null,
-                    'old_effective_level_id' => $oldEffectiveLevelId,
-                    'new_effective_level_id' => $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null,
-                    'old_status' => $oldStatus,
-                    'new_status' => (string) $lockedGuarantee->status,
-                    'old_coverage_amount' => $oldCoverage,
-                    'new_coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
-                ]),
-            ]);
+            $idempotencyKey = $meta['idempotency_key'] ?? $this->buildGraceIdempotencyKey($lockedGuarantee, $referenceType, $referenceId);
+
+            if (! GuaranteeTransaction::query()->where('idempotency_key', $idempotencyKey)->exists()) {
+                GuaranteeTransaction::create([
+                    'user_id' => (int) $lockedGuarantee->user_id,
+                    'user_guarantee_id' => (int) $lockedGuarantee->id,
+                    'type' => $storedType,
+                    'amount' => 0,
+                    'coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                    'balance_before' => null,
+                    'balance_after' => null,
+                    'locked_before' => round((float) $lockedGuarantee->locked_amount, 2),
+                    'locked_after' => round((float) $lockedGuarantee->locked_amount, 2),
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'reason' => $bestLevel
+                        ? 'Guarantee grace period expired - downgraded'
+                        : 'Guarantee grace period expired - suspended',
+                    'idempotency_key' => $idempotencyKey,
+                    'meta' => array_merge($meta, [
+                        'logical_type' => $logicalType,
+                        'stored_type' => $storedType,
+                        'old_purchased_level_id' => $oldPurchasedLevelId,
+                        'new_purchased_level_id' => $bestLevel ? (int) $bestLevel->id : null,
+                        'old_effective_level_id' => $oldEffectiveLevelId,
+                        'new_effective_level_id' => $lockedGuarantee->effective_level_id ? (int) $lockedGuarantee->effective_level_id : null,
+                        'old_status' => $oldStatus,
+                        'new_status' => (string) $lockedGuarantee->status,
+                        'old_coverage_amount' => $oldCoverage,
+                        'new_coverage_amount' => round((float) $lockedGuarantee->current_coverage_amount, 2),
+                    ]),
+                ]);
+            }
 
             return [
                 'changed' => true,

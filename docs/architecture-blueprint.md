@@ -244,11 +244,22 @@ deferred.)
   through one cart/order (Phase 3b order lines + 3d cart); the catalog shows
   deduped masters. (Bespoke booking intentionally kept on the booking flow.)
 
-### Phase 4 — Single-source the deposit config
-- Consolidate `business_deposit_policies` and `business_service_prices.deposit_*`
-  into one resolution path; keep the engine's behaviour identical.
-- **Accept:** deposit resolves from one documented source; existing bookings
+### ✅ Phase 4 — Single-source the deposit config (done)
+- The engine already resolved deposit solely from `business_deposit_policies`
+  (`BookingDepositPolicyResolver` → `BookingDepositCalculator` → engine). The
+  only second source was `business_service_prices.deposit_*`, feeding a
+  display/snapshot path (`BookingFoodService::unifiedInvoice`) that could
+  disagree with the held amount.
+- **Change:** `unifiedInvoice` now shows the booking's actually resolved deposit
+  (`Booking::depositAmount()`), so the invoice always matches what is held; the
+  AdminV2 booking payload derives deposit from the resolved policy. The per-price
+  `deposit_enabled`/`deposit_percent` columns are retired (removed from model,
+  both price controllers, the index `selectRaw` `deposit_hold_amount`, and the
+  owner/admin price forms + lists; migration drops them). Engine behaviour
   unchanged.
+- **Accept:** ✅ deposit resolves from one documented source
+  (`business_deposit_policies`); existing bookings unchanged (verified booking
+  invoice deposit now equals `Booking::depositAmount()`).
 
 ### Phase 5 — Cleanup
 - Remove dead relations/controllers/views left by the above (e.g. emptied

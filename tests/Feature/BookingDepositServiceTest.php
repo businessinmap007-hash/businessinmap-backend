@@ -113,4 +113,41 @@ class BookingDepositServiceTest extends TestCase
         $this->assertEqualsWithDelta(900.0, (float) $w->balance, 0.001, 'funds are held only once');
         $this->assertEqualsWithDelta(100.0, (float) $w->locked_balance, 0.001);
     }
+
+    public function test_refund_restores_funds_and_marks_the_deposit_refunded(): void
+    {
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+
+        $refunded = $this->deposits->refundForBooking($this->booking);
+
+        $this->assertTrue($refunded->isRefunded());
+
+        $w = $this->clientWallet();
+        $this->assertEqualsWithDelta(1000.0, (float) $w->balance, 0.001, 'refund returns the held funds');
+        $this->assertEqualsWithDelta(0.0, (float) $w->locked_balance, 0.001);
+    }
+
+    public function test_refund_is_idempotent(): void
+    {
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+
+        $first = $this->deposits->refundForBooking($this->booking);
+        $second = $this->deposits->refundForBooking($this->booking);
+
+        $this->assertSame($first->id, $second->id, 'a second refund is a no-op');
+        $this->assertTrue($second->isRefunded());
+
+        $w = $this->clientWallet();
+        $this->assertEqualsWithDelta(1000.0, (float) $w->balance, 0.001, 'funds refunded only once');
+        $this->assertEqualsWithDelta(0.0, (float) $w->locked_balance, 0.001);
+    }
+
+    public function test_a_released_deposit_cannot_be_refunded(): void
+    {
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+        $this->deposits->releaseForBooking($this->booking);
+
+        $this->expectException(ValidationException::class);
+        $this->deposits->refundForBooking($this->booking);
+    }
 }

@@ -215,8 +215,15 @@ deferred.)
   «منتجاتي» (`/business/products`): scoped CRUD + ajax product picker over the
   deduped master (excludes already-listed; only active, non-duplicate masters
   are listable). Verified end-to-end. Customer browse of listings → 3d.
-- **3d Unified UX.** One owner "my offerings" screen (source-aware presets) + one
-  customer cart/browse across bespoke + retail.
+- **3d Unified UX** *(in progress)*.
+  - **✅ Owner "my offerings" screen (done).** `Business\OfferingController` +
+    `/business/offerings` («عروضي») aggregate everything the owner sells in one
+    source-tagged table (bespoke `business_service_prices`, menu items, retail
+    `business_catalog_listings` joined to the deduped master). Each row links to
+    its source's own edit screen; adding stays per-source. Client-side source
+    filter with per-source counts. Verified (biz #212: 10 bespoke + 1 retail).
+  - **Remaining:** customer browse of retail listings (extend Api/V2 discovery)
+    + one customer cart/order across bespoke + retail.
 - **Accept:** a business can sell both a bespoke item and a catalog product
   through one cart/order; the catalog shows deduped masters.
 

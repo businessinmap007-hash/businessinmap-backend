@@ -53,7 +53,7 @@ class BusinessServicePriceResolverTest extends TestCase
             ->delete();
     }
 
-    private function seed(string $itemType, float $price, bool $active = true): BusinessServicePrice
+    private function seedPrice(string $itemType, float $price, bool $active = true): BusinessServicePrice
     {
         return BusinessServicePrice::create([
             'business_id' => $this->businessId,
@@ -68,7 +68,7 @@ class BusinessServicePriceResolverTest extends TestCase
 
     public function test_resolves_exact_item_type(): void
     {
-        $row = $this->seed('room_test', 500);
+        $row = $this->seedPrice('room_test', 500);
 
         $got = $this->resolver->resolve($this->businessId, $this->serviceId, $this->childId, 'room_test');
 
@@ -78,8 +78,8 @@ class BusinessServicePriceResolverTest extends TestCase
 
     public function test_exact_item_type_beats_default(): void
     {
-        $this->seed(BusinessServicePrice::DEFAULT_ITEM_TYPE, 300);
-        $exact = $this->seed('room_test', 500);
+        $this->seedPrice(BusinessServicePrice::DEFAULT_ITEM_TYPE, 300);
+        $exact = $this->seedPrice('room_test', 500);
 
         $got = $this->resolver->resolve($this->businessId, $this->serviceId, $this->childId, 'room_test');
 
@@ -89,7 +89,7 @@ class BusinessServicePriceResolverTest extends TestCase
 
     public function test_falls_back_to_default_when_item_type_absent(): void
     {
-        $default = $this->seed(BusinessServicePrice::DEFAULT_ITEM_TYPE, 300);
+        $default = $this->seedPrice(BusinessServicePrice::DEFAULT_ITEM_TYPE, 300);
 
         // Asking for an item type that has no row falls back to the default type.
         $got = $this->resolver->resolve($this->businessId, $this->serviceId, $this->childId, 'does_not_exist');
@@ -99,7 +99,7 @@ class BusinessServicePriceResolverTest extends TestCase
 
     public function test_inactive_price_does_not_resolve(): void
     {
-        $this->seed('room_test', 500, active: false);
+        $this->seedPrice('room_test', 500, active: false);
 
         $got = $this->resolver->resolve($this->businessId, $this->serviceId, $this->childId, 'room_test');
 

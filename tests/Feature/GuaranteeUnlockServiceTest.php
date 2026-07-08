@@ -62,7 +62,7 @@ class GuaranteeUnlockServiceTest extends TestCase
 
     private function guarantee(): UserGuarantee
     {
-        return UserGuarantee::withTrashed()->where('user_id', $this->user->id)->where('target_type', 'client')->latest('id')->first();
+        return UserGuarantee::query()->where('user_id', $this->user->id)->where('target_type', 'client')->latest('id')->first();
     }
 
     public function test_unlock_returns_backing_money_to_balance_and_cancels_the_guarantee(): void

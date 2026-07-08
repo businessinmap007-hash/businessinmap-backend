@@ -184,6 +184,11 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
         $w = Wallet::query()->where('user_id', $this->clientId)->first();
         $this->assertEqualsWithDelta(960.0, (float) $w->balance, 0.001);
         $this->assertEqualsWithDelta(40.0, (float) $w->locked_balance, 0.001);
+
+        // The applied guarantee coverage (60) is frozen on the client's own guarantee.
+        $g = UserGuarantee::query()->where('user_id', $this->clientId)->where('target_type', 'client')->first();
+        $this->assertEqualsWithDelta(60.0, (float) $g->used_coverage_amount, 0.001, 'self guarantee coverage frozen');
+        $this->assertEqualsWithDelta(0.0, $g->availableCoverage(), 0.001);
     }
 
     public function test_full_guarantee_coverage_needs_no_wallet_hold(): void
@@ -207,5 +212,9 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
         $w = Wallet::query()->where('user_id', $this->clientId)->first();
         $this->assertEqualsWithDelta(1000.0, (float) $w->balance, 0.001, 'wallet untouched');
         $this->assertEqualsWithDelta(0.0, (float) $w->locked_balance, 0.001);
+
+        // The whole deposit is frozen on the guarantee instead of the wallet.
+        $g = UserGuarantee::query()->where('user_id', $this->clientId)->where('target_type', 'client')->first();
+        $this->assertEqualsWithDelta(100.0, (float) $g->used_coverage_amount, 0.001, 'full deposit frozen on the guarantee');
     }
 }

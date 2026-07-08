@@ -199,8 +199,16 @@ deferred.)
   curation (`curation_status=pending`). Prevents re-introducing the duplication.
   **Next for catalog scale:** add real barcodes (GS1), expand the category tree
   beyond grocery, and feed products via import files rather than manual entry.
-- **3b Menu → bespoke offerings.** Model menu dishes through the offering model
-  (empty → easy).
+- **✅ 3b Order lines accept any offering (done).** `order_items` now carries a
+  polymorphic `offering_type`/`offering_id` (menu_id made nullable — retail lines
+  have none). `MenuOrderService::addOffering()` adds any offering at a
+  caller-sourced price; `addLine()` delegates for menu items. `recalc()` sums
+  `total_price` so mixed orders total correctly. `Business\OrderController::show()`
+  loads the owner's active listings, resolves a per-line `display_name` by
+  offering type, and `addProduct()` adds a scoped active listing at its price
+  (route `orders/{id}/product`). The order view shows `display_name` and a
+  parallel "add retail product" form. Verified end-to-end: a mixed order (2×menu
+  50 + 3×listing 12.5 + 15 delivery) totals 152.50 with correct offering types.
 - **✅ 3c Retail listings (done).** `business_catalog_listings` (business + master
   product + price + stock, unique per business/product). `CatalogProduct`
   (SoftDeletes → masters only) + `BusinessCatalogListing`. Owner panel

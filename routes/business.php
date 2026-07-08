@@ -66,6 +66,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
         Route::post('orders/{id}/food', [OrderController::class, 'addFood'])->whereNumber('id')->name('orders.food.add');
+        Route::post('orders/{id}/product', [OrderController::class, 'addProduct'])->whereNumber('id')->name('orders.product.add');
         Route::delete('orders/{id}/food', [OrderController::class, 'removeFood'])->whereNumber('id')->name('orders.food.remove');
         Route::delete('orders/{id}', [OrderController::class, 'destroy'])->whereNumber('id')->name('orders.destroy');
     });

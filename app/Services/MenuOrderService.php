@@ -12,16 +12,27 @@ use Illuminate\Support\Facades\DB;
  */
 class MenuOrderService
 {
-    public function addLine(Order $order, int $menuId, int $qty, float $price, ?int $sizeId = null): void
-    {
-        DB::transaction(function () use ($order, $menuId, $qty, $price, $sizeId) {
+    /**
+     * Add any offering to the order — a bespoke menu item or a retail catalog
+     * listing. Price is sourced by the caller from the offering (never posted).
+     */
+    public function addOffering(
+        Order $order,
+        string $offeringType,
+        int $offeringId,
+        int $qty,
+        float $price,
+        ?int $menuId = null,
+        ?int $sizeId = null
+    ): void {
+        DB::transaction(function () use ($order, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId) {
             $qty = max(1, $qty);
             $price = round($price, 2);
 
             $order->items()->create([
                 'menu_id' => $menuId,
-                'offering_type' => \App\Models\MenuItem::class,
-                'offering_id' => $menuId,
+                'offering_type' => $offeringType,
+                'offering_id' => $offeringId,
                 'size_id' => $sizeId,
                 'addons' => null,
                 'qty' => $qty,
@@ -31,6 +42,12 @@ class MenuOrderService
 
             $this->recalc($order);
         });
+    }
+
+    /** Convenience: add a bespoke menu item line. */
+    public function addLine(Order $order, int $menuId, int $qty, float $price, ?int $sizeId = null): void
+    {
+        $this->addOffering($order, \App\Models\MenuItem::class, $menuId, $qty, $price, $menuId, $sizeId);
     }
 
     public function removeLine(Order $order, int $orderItemId): void

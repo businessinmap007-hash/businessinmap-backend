@@ -97,9 +97,12 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
             );
         }
 
-        // Ready + confirmed booking priced at 1000.
+        // Ready + confirmed booking priced at 1000. Pin the pricing meta so the
+        // deposit base is deterministic (depositPolicy reads pricing.final_price
+        // before the booking's price column).
         $meta = is_array($booking->meta) ? $booking->meta : [];
         $meta['_start_confirm'] = ['client' => true, 'business' => true];
+        $meta['pricing'] = ['final_price' => 1000];
         unset($meta['_execution_fee'], $meta['_financial_guard']);
         $booking->meta = $meta;
         $booking->price = 1000;

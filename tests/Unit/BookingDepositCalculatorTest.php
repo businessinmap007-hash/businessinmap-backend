@@ -90,4 +90,47 @@ class BookingDepositCalculatorTest extends TestCase
         $this->assertTrue($out['wallet_hold_required']);
         $this->assertSame((float) $out['amount'], (float) $out['hold']);
     }
+
+    /** An active client guarantee (self-owned) covering the deposit. */
+    private function clientGuarantee(float $coverage): array
+    {
+        return ['enabled' => true, 'status' => 'active', 'available_coverage' => $coverage];
+    }
+
+    public function test_general_guarantee_covers_and_skips_the_wallet_hold(): void
+    {
+        // deposit = 10% of 1000 = 100; the client's own guarantee covers 500.
+        $out = $this->calc(
+            $this->basePolicy(['client_guarantee_strategy' => 'general_guarantee']),
+            ['total_amount' => 1000, 'guarantees' => ['client' => $this->clientGuarantee(500)]]
+        );
+
+        $this->assertTrue($out['client_guarantee_covered']);
+        $this->assertFalse($out['wallet_hold_required'], 'a covering guarantee means no wallet hold');
+        $this->assertSame(0.0, (float) $out['hold']);
+    }
+
+    public function test_insufficient_guarantee_still_requires_a_hold(): void
+    {
+        // Coverage 50 < deposit 100 → not covered → hold still required.
+        $out = $this->calc(
+            $this->basePolicy(['client_guarantee_strategy' => 'general_guarantee']),
+            ['total_amount' => 1000, 'guarantees' => ['client' => $this->clientGuarantee(50)]]
+        );
+
+        $this->assertFalse($out['client_guarantee_covered']);
+        $this->assertTrue($out['wallet_hold_required']);
+    }
+
+    public function test_per_operation_strategy_never_uses_the_guarantee(): void
+    {
+        // Default strategy is per_operation_hold: even a huge guarantee is ignored.
+        $out = $this->calc(
+            $this->basePolicy(['client_guarantee_strategy' => 'per_operation_hold']),
+            ['total_amount' => 1000, 'guarantees' => ['client' => $this->clientGuarantee(5000)]]
+        );
+
+        $this->assertFalse($out['client_guarantee_covered']);
+        $this->assertTrue($out['wallet_hold_required']);
+    }
 }

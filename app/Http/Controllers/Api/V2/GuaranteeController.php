@@ -8,6 +8,7 @@ use App\Models\GuaranteeTransaction;
 use App\Models\UserGuarantee;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
+use App\Services\Guarantees\GuaranteeUnlockService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -142,6 +143,27 @@ final class GuaranteeController extends Controller
                 'reason' => (string) ($result['reason'] ?? 'done'),
                 'level' => ! empty($result['level']) ? $this->levelPayload($result['level']) : null,
                 'guarantee' => $guarantee ? $this->guaranteePayload($guarantee->refresh()) : null,
+            ],
+        ]);
+    }
+
+    /** Unlock the user's guarantee and return its backing money to the wallet. */
+    public function unlock(Request $request, GuaranteeUnlockService $service)
+    {
+        $data = $request->validate([
+            'target_type' => ['nullable', Rule::in([GuaranteeLevel::TARGET_CLIENT, GuaranteeLevel::TARGET_BUSINESS])],
+        ]);
+
+        $targetType = $this->resolveTargetType($request, $data['target_type'] ?? null);
+
+        $result = $service->unlockToBalance($request->user(), $targetType);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم فكّ الضمان وتحويل قيمته إلى الرصيد.',
+            'data' => [
+                'unlocked_amount' => (float) $result['amount'],
+                'guarantee' => $this->guaranteePayload($result['guarantee']),
             ],
         ]);
     }

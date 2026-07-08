@@ -969,8 +969,6 @@ class BookingController extends Controller
                 'is_active',
                 'discount_enabled',
                 'discount_percent',
-                'deposit_enabled',
-                'deposit_percent',
             ])
             ->where('is_active', 1)
             ->get();

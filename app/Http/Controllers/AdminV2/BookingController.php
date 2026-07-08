@@ -415,11 +415,8 @@ class BookingController extends Controller
                 'item_type',
                 'title',
                 'code',
-                'price',
                 'capacity',
                 'quantity',
-                'deposit_enabled',
-                'deposit_percent',
             ]);
 
         if ($selectedBookableId > 0 && ! $rows->contains('id', $selectedBookableId)) {
@@ -432,11 +429,8 @@ class BookingController extends Controller
                     'item_type',
                     'title',
                     'code',
-                    'price',
                     'capacity',
                     'quantity',
-                    'deposit_enabled',
-                    'deposit_percent',
                 ]);
 
             if ($selectedItem) {

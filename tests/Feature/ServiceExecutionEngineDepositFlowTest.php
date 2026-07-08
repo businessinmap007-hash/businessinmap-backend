@@ -43,11 +43,17 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
         $this->engine = app(ServiceExecutionEngine::class);
         $walletSvc = app(WalletService::class);
 
-        $booking = Booking::query()
+        // Find any booking record (dev data may have them soft-deleted); restore
+        // it inside this rolled-back transaction so the engine can operate on it.
+        $booking = Booking::withTrashed()
             ->whereNotNull('user_id')
             ->whereNotNull('business_id')
             ->whereColumn('user_id', '!=', 'business_id')
             ->first();
+
+        if ($booking && $booking->trashed()) {
+            $booking->restore();
+        }
 
         $business = $booking?->business;
 

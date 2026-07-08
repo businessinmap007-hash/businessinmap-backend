@@ -30,9 +30,13 @@ class OperationGuarantorApiTest extends TestCase
     {
         parent::setUp();
 
-        $booking = Booking::query()
+        $booking = Booking::withTrashed()
             ->whereNotNull('user_id')->whereNotNull('business_id')
             ->whereColumn('user_id', '!=', 'business_id')->first();
+
+        if ($booking && $booking->trashed()) {
+            $booking->restore();
+        }
 
         $levelId = (int) DB::table('guarantee_levels')->value('id');
         $client = $booking?->user;

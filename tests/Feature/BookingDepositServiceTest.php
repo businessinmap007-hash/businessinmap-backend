@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\Deposit;
+use App\Models\Dispute;
 use App\Models\Wallet;
 use App\Services\BookingDepositService;
 use App\Services\WalletService;
@@ -149,5 +150,52 @@ class BookingDepositServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->deposits->refundForBooking($this->booking);
+    }
+
+    public function test_external_deposit_submit_then_verify(): void
+    {
+        $this->booking->price = 500;
+        $this->booking->save();
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+
+        $submitted = $this->deposits->submitExternalDeposit($this->booking, 200, 'REF-1');
+        $this->assertSame('submitted', (string) $submitted->external_deposit_status);
+        $this->assertEqualsWithDelta(200.0, (float) $submitted->external_deposit_amount, 0.001);
+
+        $verified = $this->deposits->verifyExternalDeposit($this->booking, 999);
+        $this->assertSame('verified', (string) $verified->external_deposit_status);
+        $this->assertNotNull($verified->external_verified_at);
+        // remaining = bookingTotal(500) - external(200)
+        $this->assertEqualsWithDelta(300.0, (float) $verified->remaining_amount_after_external, 0.001);
+    }
+
+    public function test_verify_external_deposit_requires_a_submission(): void
+    {
+        // Freeze leaves external_deposit_status = 'not_required'; verify must reject.
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+
+        $this->expectException(ValidationException::class);
+        $this->deposits->verifyExternalDeposit($this->booking);
+    }
+
+    public function test_open_dispute_creates_one_and_is_idempotent(): void
+    {
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+
+        $first = $this->deposits->openDisputeForBooking($this->booking, $this->clientId);
+        $second = $this->deposits->openDisputeForBooking($this->booking, $this->clientId);
+
+        $this->assertSame($first->id, $second->id, 'an already-open dispute is reused, not duplicated');
+        $this->assertSame(Booking::class, $first->disputeable_type);
+        $this->assertSame((int) $this->booking->id, (int) $first->disputeable_id);
+    }
+
+    public function test_cannot_open_dispute_after_deposit_is_final(): void
+    {
+        $this->deposits->freezeForBooking($this->booking, 100, $this->policy(100));
+        $this->deposits->releaseForBooking($this->booking); // RELEASED = final
+
+        $this->expectException(ValidationException::class);
+        $this->deposits->openDisputeForBooking($this->booking, $this->clientId);
     }
 }

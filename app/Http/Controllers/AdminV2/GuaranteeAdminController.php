@@ -9,6 +9,7 @@ use App\Models\UserGuarantee;
 use App\Services\Guarantees\GuaranteeAutoDowngradeService;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\Guarantees\GuaranteeExpirationService;
+use App\Services\Guarantees\GuaranteeUnlockService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -264,6 +265,15 @@ final class GuaranteeAdminController extends Controller
         );
 
         return $this->backWithActionResult($result, 'تم فحص انتهاء الضمان.');
+    }
+
+    public function unlockToBalance(UserGuarantee $guarantee, GuaranteeUnlockService $service)
+    {
+        $result = $service->unlockToBalance($guarantee->user, (string) $guarantee->target_type);
+
+        $amount = number_format((float) ($result['amount'] ?? 0), 2);
+
+        return back()->with('success', "تم فكّ الضمان وتحويل قيمته ({$amount}) إلى رصيد المحفظة.");
     }
 
     private function forceStatus(

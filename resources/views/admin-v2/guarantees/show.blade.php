@@ -110,6 +110,11 @@
                 <button type="submit" class="a2-btn a2-btn-sm a2-btn-success" onclick="return confirm('إعادة تفعيل الضمان ومحاولة مزامنته؟')">Reactivate</button>
             </form>
 
+            <form method="POST" action="{{ route('admin.guarantees.unlock-to-balance', $guarantee->id) }}">
+                @csrf
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-primary" onclick="return confirm('فكّ الضمان وتحويل قيمته إلى رصيد المحفظة؟ (يُرفض إن كان جزء منه محجوزًا لعملية)')">فكّ وتحويل لرصيد</button>
+            </form>
+
             <form method="POST" action="{{ route('admin.guarantees.suspend', $guarantee->id) }}">
                 @csrf
                 <button type="submit" class="a2-btn a2-btn-sm a2-btn-danger" onclick="return confirm('تعليق الضمان يدويًا؟')">Suspend</button>

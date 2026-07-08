@@ -52,8 +52,8 @@ class GuaranteeTransactionFixesTest extends TestCase
             'current_coverage_amount' => 0,
             'used_coverage_amount' => 0,
             'locked_amount' => 999999,
-            'completed_operations_count' => 999999,
-            'trust_score' => 999999,
+            'completed_operations_count' => 100000,
+            'trust_score' => 100,
             'disputes_lost_count' => 0,
             'late_cancellations_count' => 0,
         ])->id;

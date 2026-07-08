@@ -32,14 +32,14 @@ class CatalogProductController extends Controller
             ->withQueryString();
 
         $stats = [
-            'total' => DB::table('catalog_products')->count(),
-            'active' => DB::table('catalog_products')->where('is_active', 1)->count(),
-            'approved' => DB::table('catalog_products')->where('approval_status', 'approved')->count(),
+            'total' => $this->catalogQuery()->count(),
+            'active' => $this->catalogQuery()->where('is_active', 1)->count(),
+            'approved' => $this->catalogQuery()->where('approval_status', 'approved')->count(),
             'children' => DB::table('product_category_children')->count(),
-            'unique' => Schema::hasColumn('catalog_products', 'duplicate_status') ? DB::table('catalog_products')->where('duplicate_status', 'unique')->count() : null,
-            'master' => Schema::hasColumn('catalog_products', 'duplicate_status') ? DB::table('catalog_products')->where('duplicate_status', 'master')->count() : null,
-            'duplicate' => Schema::hasColumn('catalog_products', 'duplicate_status') ? DB::table('catalog_products')->where('duplicate_status', 'duplicate')->count() : null,
-            'review' => Schema::hasColumn('catalog_products', 'duplicate_status') ? DB::table('catalog_products')->where('duplicate_status', 'review')->count() : null,
+            'unique' => Schema::hasColumn('catalog_products', 'duplicate_status') ? $this->catalogQuery()->where('duplicate_status', 'unique')->count() : null,
+            'master' => Schema::hasColumn('catalog_products', 'duplicate_status') ? $this->catalogQuery()->where('duplicate_status', 'master')->count() : null,
+            'duplicate' => Schema::hasColumn('catalog_products', 'duplicate_status') ? $this->catalogQuery()->where('duplicate_status', 'duplicate')->count() : null,
+            'review' => Schema::hasColumn('catalog_products', 'duplicate_status') ? $this->catalogQuery()->where('duplicate_status', 'review')->count() : null,
         ];
 
         return view('admin-v2.catalog-products.index', compact('rows', 'children', 'brands', 'stats', 'q', 'childId', 'brandId', 'status', 'duplicateStatus', 'perPage'));
@@ -83,6 +83,18 @@ class CatalogProductController extends Controller
             ->with('success', 'تم تنفيذ العملية بنجاح.');
     }
 
+    /** Base builder that excludes soft-deleted rows (e.g. merged duplicates). */
+    protected function catalogQuery(): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('catalog_products');
+
+        if (Schema::hasColumn('catalog_products', 'deleted_at')) {
+            $query->whereNull('deleted_at');
+        }
+
+        return $query;
+    }
+
     protected function baseQuery(string $q, int $childId, int $brandId, string $status, string $duplicateStatus)
     {
         return DB::table('catalog_products as cp')
@@ -96,6 +108,7 @@ class CatalogProductController extends Controller
                 'cp.duplicate_status', 'cp.duplicate_master_id',
                 'pc.name_ar as category_name_ar', 'pcc.name_ar as child_name_ar', 'cb.name_ar as brand_name_ar', 'cu.code as unit_code'
             )
+            ->when(Schema::hasColumn('catalog_products', 'deleted_at'), fn ($query) => $query->whereNull('cp.deleted_at'))
             ->when($childId > 0, fn ($query) => $query->where('cp.product_category_child_id', $childId))
             ->when($brandId > 0, fn ($query) => $query->where('cp.brand_id', $brandId))
             ->when($duplicateStatus !== '', fn ($query) => $query->where('cp.duplicate_status', $duplicateStatus))

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
+use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\PushTokenController;
+use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,9 +35,25 @@ Route::prefix('v2')->group(function () {
     Route::prefix('discovery')->group(function () {
         Route::get('filters', [DiscoveryController::class, 'filters']);
         Route::get('businesses', [DiscoveryController::class, 'businesses']);
+
+        // Retail: browse catalog products businesses sell -> product -> offers.
+        Route::prefix('retail')->group(function () {
+            Route::get('filters', [RetailDiscoveryController::class, 'filters']);
+            Route::get('products', [RetailDiscoveryController::class, 'products']);
+            Route::get('products/{product}', [RetailDiscoveryController::class, 'show'])->whereNumber('product');
+        });
     });
 
     Route::middleware('auth:sanctum')->group(function () {
+        // Customer cart over the offering layer (retail listings + menu items).
+        Route::prefix('cart')->group(function () {
+            Route::get('/', [CartController::class, 'index']);
+            Route::post('items', [CartController::class, 'addItem']);
+            Route::patch('items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
+            Route::delete('items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
+            Route::post('{business}/checkout', [CartController::class, 'checkout'])->whereNumber('business');
+        });
+
         Route::prefix('notifications')->group(function () {
             Route::get('/', [NotificationCenterController::class, 'index']);
             Route::get('unread-count', [NotificationCenterController::class, 'unreadCount']);

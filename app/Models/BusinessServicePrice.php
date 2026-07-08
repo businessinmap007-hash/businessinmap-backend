@@ -36,8 +36,6 @@ class BusinessServicePrice extends Model
         'charge_amount',
         'currency',
         'is_active',
-        'deposit_enabled',
-        'deposit_percent',
         'discount_enabled',
         'discount_percent',
     ];
@@ -52,8 +50,6 @@ class BusinessServicePrice extends Model
         'charge_amount'      => 'decimal:2',
         'currency'           => 'string',
         'is_active'          => 'boolean',
-        'deposit_enabled'    => 'boolean',
-        'deposit_percent'    => 'integer',
         'discount_enabled'   => 'boolean',
         'discount_percent'   => 'integer',
     ];
@@ -290,26 +286,6 @@ class BusinessServicePrice extends Model
         return max(round($original - $this->discountAmount($quantity), 2), 0);
     }
 
-    public function depositPercent(): int
-    {
-        if (! (bool) $this->deposit_enabled) {
-            return 0;
-        }
-
-        return max(0, min((int) ($this->deposit_percent ?? 0), 100));
-    }
-
-    public function depositAmount(int $quantity = 1): float
-    {
-        $percent = $this->depositPercent();
-
-        if ($percent <= 0) {
-            return 0.00;
-        }
-
-        return round($this->finalPrice($quantity) * ($percent / 100), 2);
-    }
-
     public function priceSnapshot(int $quantity = 1): array
     {
         $quantity = max((int) $quantity, 1);
@@ -335,10 +311,6 @@ class BusinessServicePrice extends Model
 
             'final_price' => $final,
             'currency' => $this->currencyCode(),
-
-            'deposit_enabled' => (bool) $this->deposit_enabled,
-            'deposit_percent' => $this->depositPercent(),
-            'deposit_amount' => $this->depositAmount($quantity),
 
             'is_active' => (bool) $this->is_active,
         ];

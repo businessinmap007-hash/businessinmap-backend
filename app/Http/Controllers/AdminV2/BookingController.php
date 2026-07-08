@@ -600,8 +600,10 @@ class BookingController extends Controller
                 'currency' => (string) ($businessPrice->currency ?? 'EGP'),
                 'discount_enabled' => (bool) ($businessPrice->discount_enabled ?? false),
                 'discount_percent' => (int) ($businessPrice->discount_percent ?? 0),
-                'deposit_enabled' => (bool) ($businessPrice->deposit_enabled ?? false),
-                'deposit_percent' => (int) ($businessPrice->deposit_percent ?? 0),
+                // Deposit is single-source from the resolved policy (Phase 4);
+                // business_service_prices no longer carries deposit config.
+                'deposit_enabled' => (bool) ($calc['deposit_policy']['enabled'] ?? false),
+                'deposit_percent' => (int) round((float) ($calc['deposit_policy']['configured_percent'] ?? 0)),
                 'child_id' => (int) ($businessPrice->child_id ?? 0),
             ],
             'bookable' => $bookable ? [

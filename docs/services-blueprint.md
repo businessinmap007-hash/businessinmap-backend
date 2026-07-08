@@ -89,10 +89,12 @@ Booking (table / unit + time)
 - Deposit is a **hold / guarantee**, not an extra charge (deducted from the
   final total at execution) — consistent with the existing deposit engine
   (`BookingDepositService`, `deposits`).
-- Computed on the **unified total (table + food)**, per the business's policy
-  (`business_service_prices.deposit_*`, gated by `platform_services.supports_deposit`).
-- Deposit precedence mirrors price: configured per type in
-  `business_service_prices`.
+- Single-source (Phase 4): resolved from `business_deposit_policies` via
+  `BookingDepositPolicyResolver` → `BookingDepositCalculator`, gated by
+  `platform_services.supports_deposit`. The unified invoice displays the
+  booking's actually-held deposit (`Booking::depositAmount()`), so the shown
+  amount always matches what the engine holds. The old per-price
+  `business_service_prices.deposit_*` columns were retired.
 
 ---
 

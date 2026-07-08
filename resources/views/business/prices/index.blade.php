@@ -57,7 +57,6 @@
                     <th>النوع</th>
                     <th>السعر</th>
                     <th>الخصم</th>
-                    <th>التأمين</th>
                     <th>الحالة</th>
                     <th class="a2-text-right">إجراءات</th>
                 </tr>
@@ -91,13 +90,6 @@
                             @endif
                         </td>
                         <td>
-                            @if((int) $row->deposit_enabled === 1)
-                                <span class="a2-pill a2-pill-sub">{{ (int) $row->deposit_percent }}%</span>
-                            @else
-                                <span class="a2-muted">—</span>
-                            @endif
-                        </td>
-                        <td>
                             @if($row->is_active)
                                 <span class="a2-pill a2-pill-success">مفعّل</span>
                             @else
@@ -117,7 +109,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="a2-empty">لا توجد أسعار بعد. أضف سعرًا لكل نوع تقدّمه.</td>
+                        <td colspan="7" class="a2-empty">لا توجد أسعار بعد. أضف سعرًا لكل نوع تقدّمه.</td>
                     </tr>
                 @endforelse
             </tbody>

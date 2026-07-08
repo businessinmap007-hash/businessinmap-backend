@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
-use App\Models\PlatformService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -60,8 +59,6 @@ class BusinessServicePriceController extends Controller
                 'is_active' => 1,
                 'currency' => 'EGP',
                 'price' => 0,
-                'deposit_enabled' => 0,
-                'deposit_percent' => 0,
                 'discount_enabled' => 0,
                 'discount_percent' => 0,
             ]),
@@ -153,8 +150,6 @@ class BusinessServicePriceController extends Controller
             'charge_amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable'],
-            'deposit_enabled' => ['nullable'],
-            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'discount_enabled' => ['nullable'],
             'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
         ], [], [
@@ -170,17 +165,7 @@ class BusinessServicePriceController extends Controller
 
         $this->assertAllowed($serviceId, $itemType);
 
-        $depositEnabled = (int) $request->boolean('deposit_enabled');
         $discountEnabled = (int) $request->boolean('discount_enabled');
-
-        // Deposit only where the platform service allows it.
-        $supportsDeposit = (bool) PlatformService::query()
-            ->where('id', $serviceId)
-            ->value('supports_deposit');
-
-        if (! $supportsDeposit) {
-            $depositEnabled = 0;
-        }
 
         $chargeMode = (string) ($data['charge_mode'] ?? BusinessServicePrice::CHARGE_STANDARD);
         if (! in_array($chargeMode, BusinessServicePrice::CHARGE_MODES, true)) {
@@ -199,8 +184,6 @@ class BusinessServicePriceController extends Controller
             'charge_amount' => $chargeAmount,
             'currency' => strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP',
             'is_active' => (int) $request->boolean('is_active'),
-            'deposit_enabled' => $depositEnabled,
-            'deposit_percent' => $depositEnabled ? (int) ($data['deposit_percent'] ?? 0) : 0,
             'discount_enabled' => $discountEnabled,
             'discount_percent' => $discountEnabled ? (int) ($data['discount_percent'] ?? 0) : 0,
         ];

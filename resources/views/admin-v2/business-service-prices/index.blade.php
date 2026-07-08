@@ -152,11 +152,6 @@
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">بها ديبوزت</div>
-            <div class="a2-stat-value">{{ $stats['deposit_rows'] ?? 0 }}</div>
-        </div>
-
-        <div class="a2-stat-card">
             <div class="a2-stat-label">البزنسات</div>
             <div class="a2-stat-value">{{ $stats['business_count'] ?? 0 }}</div>
         </div>
@@ -197,7 +192,6 @@
                         <th style="min-width:120px;">Price</th>
                         <th style="min-width:120px;">Discount</th>
                         <th style="min-width:150px;">Final Service Price</th>
-                        <th style="min-width:130px;">Deposit Hold</th>
                         <th style="min-width:120px;">Cash</th>
                         <th style="min-width:100px;">Status</th>
                         <th style="min-width:160px;">Actions</th>
@@ -270,18 +264,6 @@
                             <div class="a2-muted a2-mt-8">{{ $currency }}</div>
                         </td>
 
-                        <td>
-                            @if((int)$row->deposit_enabled === 1)
-                                <span class="a2-pill a2-pill-success">
-                                    {{ (int)$row->deposit_percent }}%
-                                </span>
-                                <div class="a2-muted a2-mt-8">
-                                    {{ number_format((float)$row->deposit_hold_amount, 2) }}
-                                </div>
-                            @else
-                                <span class="a2-muted">—</span>
-                            @endif
-                        </td>
 
                         <td>
                             {{ number_format((float)$row->cash_due_on_execution, 2) }}
@@ -318,7 +300,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="a2-empty-cell">
+                        <td colspan="11" class="a2-empty-cell">
                             لا توجد بيانات
                         </td>
                     </tr>

@@ -36,7 +36,7 @@ class BusinessServicePriceController extends Controller
         $selectedBusiness = $businessId > 0 ? $this->businessOption($businessId) : null;
 
         $baseQuery = BusinessServicePrice::query()
-            ->selectRaw("business_service_prices.*, CASE WHEN discount_enabled = 1 THEN ROUND(price * discount_percent / 100, 2) ELSE 0 END as discount_amount, CASE WHEN discount_enabled = 1 THEN ROUND(price - (price * discount_percent / 100), 2) ELSE ROUND(price, 2) END as final_service_price, CASE WHEN deposit_enabled = 1 THEN ROUND((CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END) * deposit_percent / 100, 2) ELSE 0 END as deposit_hold_amount, ROUND(CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END, 2) as cash_due_on_execution")
+            ->selectRaw("business_service_prices.*, CASE WHEN discount_enabled = 1 THEN ROUND(price * discount_percent / 100, 2) ELSE 0 END as discount_amount, CASE WHEN discount_enabled = 1 THEN ROUND(price - (price * discount_percent / 100), 2) ELSE ROUND(price, 2) END as final_service_price, ROUND(CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END, 2) as cash_due_on_execution")
             ->with(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_child_id', 'child:id,name_ar,name_en,reorder'])
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
             ->when($businessId > 0, fn ($query) => $query->where('business_id', $businessId))
@@ -56,7 +56,6 @@ class BusinessServicePriceController extends Controller
         $stats = [
             'total_rows' => BusinessServicePrice::count(),
             'active_rows' => BusinessServicePrice::where('is_active', 1)->count(),
-            'deposit_rows' => BusinessServicePrice::where('deposit_enabled', 1)->count(),
             'avg_price' => BusinessServicePrice::avg('price'),
             'business_count' => BusinessServicePrice::distinct('business_id')->count(),
             'children_count' => BusinessServicePrice::query()->whereNotNull('child_id')->distinct('child_id')->count('child_id'),
@@ -75,7 +74,7 @@ class BusinessServicePriceController extends Controller
     {
         $services = $this->servicesForForm();
         $children = CategoryChild::query()->select(['id', 'name_ar', 'name_en', 'reorder'])->orderByRaw('COALESCE(reorder, 999999) ASC')->orderBy('id')->get();
-        $row = new BusinessServicePrice(['is_active' => 1, 'price' => 0, 'currency' => 'EGP', 'deposit_enabled' => 0, 'deposit_percent' => 0, 'discount_enabled' => 0, 'discount_percent' => 0]);
+        $row = new BusinessServicePrice(['is_active' => 1, 'price' => 0, 'currency' => 'EGP', 'discount_enabled' => 0, 'discount_percent' => 0]);
 
         // Preload only the business re-selected after a failed submit; the rest
         // is searched on demand instead of embedding ~1,750 businesses.
@@ -217,8 +216,6 @@ class BusinessServicePriceController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable'],
-            'deposit_enabled' => ['nullable'],
-            'deposit_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'discount_enabled' => ['nullable'],
             'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
         ], [], ['business_id' => 'البزنس', 'child_id' => 'القسم الفرعي', 'service_id' => 'الخدمة', 'bookable_item_type' => 'نوع العنصر', 'price' => 'السعر']);
@@ -227,9 +224,7 @@ class BusinessServicePriceController extends Controller
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP';
         $data['price'] = round((float) $data['price'], 2);
         $data['is_active'] = (int) $request->boolean('is_active');
-        $data['deposit_enabled'] = (int) $request->boolean('deposit_enabled');
         $data['discount_enabled'] = (int) $request->boolean('discount_enabled');
-        $data['deposit_percent'] = (int) ($data['deposit_percent'] ?? 0);
         $data['discount_percent'] = (int) ($data['discount_percent'] ?? 0);
 
         $business = User::query()->select(['id', 'type', 'category_id', 'category_child_id', 'name'])->where('id', $data['business_id'])->where('type', 'business')->first();
@@ -256,12 +251,6 @@ class BusinessServicePriceController extends Controller
             throw ValidationException::withMessages(['bookable_item_type' => 'نوع العنصر غير متاح لهذا القسم الفرعي داخل هذه الخدمة. اضبطه من Service Catalog Matrix أولًا.']);
         }
 
-        if (! (bool) $service->supports_deposit) {
-            $data['deposit_enabled'] = 0;
-            $data['deposit_percent'] = 0;
-        } elseif (! $data['deposit_enabled']) {
-            $data['deposit_percent'] = 0;
-        }
         if (! $data['discount_enabled']) $data['discount_percent'] = 0;
 
         return $data;

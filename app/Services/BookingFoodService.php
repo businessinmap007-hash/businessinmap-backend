@@ -159,13 +159,11 @@ class BookingFoodService
         $total = $bsp->unifiedTotal($foodTotal, $quantity);
         $tableCharge = round(max($total - $foodTotal, 0), 2);
 
-        $depositAmount = 0.00;
-        $supportsDeposit = (bool) ($bsp->service?->supports_deposit ?? false);
-
-        if ($supportsDeposit && (bool) ($bsp->deposit_enabled ?? false)) {
-            $percent = max(0, min((int) ($bsp->deposit_percent ?? 0), 100));
-            $depositAmount = round($total * $percent / 100, 2);
-        }
+        // Deposit is single-source: the amount actually resolved/held from the
+        // business deposit policy (Phase 4). The invoice reflects that number
+        // rather than recomputing from a per-price percent — so the displayed
+        // deposit always matches what the engine holds.
+        $depositAmount = round($booking->depositAmount(), 2);
 
         return [
             'currency' => (string) ($bsp->currency ?: 'EGP'),

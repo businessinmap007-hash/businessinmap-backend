@@ -6,7 +6,9 @@ use App\Models\Booking;
 use App\Models\BusinessDepositPolicy;
 use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
+use App\Models\GuaranteeLevel;
 use App\Models\User;
+use App\Models\UserGuarantee;
 use App\Models\Wallet;
 use App\Services\ServiceExecutionEngine;
 use App\Services\WalletService;
@@ -31,6 +33,8 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
     private Booking $booking;
 
     private int $clientId;
+
+    private int $levelId;
 
     protected function setUp(): void
     {
@@ -88,8 +92,11 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Clean deposit slate + no fees (isolate the deposit hold).
+        // Clean deposit slate + no fees + no client guarantee (start from zero
+        // guarantee coverage so each test controls it explicitly).
+        $this->levelId = (int) DB::table('guarantee_levels')->value('id');
         Deposit::query()->where('target_type', Booking::class)->where('target_id', $booking->id)->delete();
+        UserGuarantee::query()->where('user_id', $this->clientId)->where('target_type', 'client')->delete();
         foreach ([$this->clientId, $businessId] as $uid) {
             DB::table('user_service_fee_consents')->updateOrInsert(
                 ['user_id' => $uid],
@@ -136,5 +143,69 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
         $w = Wallet::query()->where('user_id', $this->clientId)->first();
         $this->assertEqualsWithDelta(900.0, (float) $w->balance, 0.001);
         $this->assertEqualsWithDelta(100.0, (float) $w->locked_balance, 0.001);
+    }
+
+    /** Give the client a self-owned, active guarantee with the given coverage. */
+    private function seedClientGuarantee(float $coverage): void
+    {
+        if ($this->levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        UserGuarantee::create([
+            'user_id' => $this->clientId,
+            'target_type' => GuaranteeLevel::TARGET_CLIENT,
+            'purchased_level_id' => $this->levelId,
+            'effective_level_id' => $this->levelId,
+            'status' => UserGuarantee::STATUS_ACTIVE,
+            'current_coverage_amount' => $coverage,
+            'used_coverage_amount' => 0,
+        ]);
+    }
+
+    public function test_guarantee_and_wallet_combine_partially_to_cover_the_deposit(): void
+    {
+        // Deposit is 100. Guarantee covers 60; the wallet holds only the 40 remainder.
+        $this->seedClientGuarantee(60);
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $this->assertSame(
+            Booking::STATUS_IN_PROGRESS,
+            Booking::query()->whereKey($this->booking->id)->value('status')
+        );
+
+        $deposit = Deposit::query()
+            ->where('target_type', Booking::class)->where('target_id', $this->booking->id)
+            ->latest('id')->first();
+        $this->assertNotNull($deposit);
+        $this->assertEqualsWithDelta(40.0, (float) $deposit->client_amount, 0.001, 'wallet holds only the remainder');
+
+        $w = Wallet::query()->where('user_id', $this->clientId)->first();
+        $this->assertEqualsWithDelta(960.0, (float) $w->balance, 0.001);
+        $this->assertEqualsWithDelta(40.0, (float) $w->locked_balance, 0.001);
+    }
+
+    public function test_full_guarantee_coverage_needs_no_wallet_hold(): void
+    {
+        // Guarantee covers the whole 100 deposit → no wallet hold at all.
+        $this->seedClientGuarantee(100);
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $this->assertSame(
+            Booking::STATUS_IN_PROGRESS,
+            Booking::query()->whereKey($this->booking->id)->value('status')
+        );
+
+        // No wallet deposit was frozen.
+        $frozen = Deposit::query()
+            ->where('target_type', Booking::class)->where('target_id', $this->booking->id)
+            ->where('status', 'frozen')->exists();
+        $this->assertFalse($frozen, 'a fully-covered deposit needs no wallet freeze');
+
+        $w = Wallet::query()->where('user_id', $this->clientId)->first();
+        $this->assertEqualsWithDelta(1000.0, (float) $w->balance, 0.001, 'wallet untouched');
+        $this->assertEqualsWithDelta(0.0, (float) $w->locked_balance, 0.001);
     }
 }

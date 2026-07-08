@@ -100,8 +100,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">الخصم والتأمين</div>
-                <div class="a2-card-sub">التأمين ضمان/حجز فقط. بعض الخدمات لا تدعمه.</div>
+                <div class="a2-card-title">الخصم</div>
+                <div class="a2-card-sub">التأمين يُدار مركزيًا من سياسة التأمين، لا من هنا.</div>
             </div>
         </div>
 
@@ -110,23 +110,12 @@
                 <input type="checkbox" name="discount_enabled" id="discount_enabled" value="1" @checked((bool) old('discount_enabled', (int) ($row->discount_enabled ?? 0)))>
                 <span>تفعيل الخصم</span>
             </label>
-
-            <label class="a2-check-card">
-                <input type="checkbox" name="deposit_enabled" id="deposit_enabled" value="1" @checked((bool) old('deposit_enabled', (int) ($row->deposit_enabled ?? 0)))>
-                <span>تفعيل التأمين</span>
-            </label>
         </div>
 
         <div class="a2-form-grid-3">
             <div class="a2-form-group">
                 <label class="a2-label" for="discount_percent">نسبة الخصم %</label>
                 <input class="a2-input" id="discount_percent" name="discount_percent" value="{{ old('discount_percent', (int) ($row->discount_percent ?? 0)) }}" inputmode="numeric" placeholder="0">
-            </div>
-
-            <div class="a2-form-group">
-                <label class="a2-label" for="deposit_percent">نسبة التأمين %</label>
-                <input class="a2-input" id="deposit_percent" name="deposit_percent" value="{{ old('deposit_percent', (int) ($row->deposit_percent ?? 0)) }}" inputmode="numeric" placeholder="0">
-                <div class="a2-hint a2-mt-8 js-bp-deposit-hint"></div>
             </div>
         </div>
     </div>
@@ -140,13 +129,9 @@
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         const typesByService = @json($allowedTypesByService ?? []);
-        const supportsDeposit = @json($supportsDepositByService);
         const serviceSelect = document.querySelector('.js-bp-service');
         const typeSelect = document.querySelector('.js-bp-type');
 
-        const depositEnabled = document.getElementById('deposit_enabled');
-        const depositPercent = document.getElementById('deposit_percent');
-        const depositHint = document.querySelector('.js-bp-deposit-hint');
         const discountEnabled = document.getElementById('discount_enabled');
         const discountPercent = document.getElementById('discount_percent');
 
@@ -175,20 +160,6 @@
             });
         }
 
-        function refreshDeposit() {
-            const serviceId = String(serviceSelect?.value || '');
-            const ok = !!supportsDeposit[serviceId];
-            if (depositHint) depositHint.textContent = ok ? 'هذه الخدمة تدعم التأمين كضمان.' : 'هذه الخدمة لا تدعم التأمين.';
-            if (depositEnabled) {
-                depositEnabled.disabled = !ok;
-                if (!ok) depositEnabled.checked = false;
-            }
-            if (depositPercent) {
-                depositPercent.disabled = !ok || !depositEnabled?.checked;
-                if (!ok) depositPercent.value = 0;
-            }
-        }
-
         function refreshDiscount() {
             if (!discountEnabled || !discountPercent) return;
             discountPercent.disabled = !discountEnabled.checked;
@@ -214,14 +185,11 @@
         serviceSelect?.addEventListener('change', function () {
             typeSelect.dataset.currentValue = '';
             rebuildTypes();
-            refreshDeposit();
         });
-        depositEnabled?.addEventListener('change', refreshDeposit);
         discountEnabled?.addEventListener('change', refreshDiscount);
         chargeMode?.addEventListener('change', refreshCharge);
 
         rebuildTypes();
-        refreshDeposit();
         refreshDiscount();
         refreshCharge();
     });

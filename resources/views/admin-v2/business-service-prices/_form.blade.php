@@ -208,17 +208,6 @@
             >
             <span>تفعيل الخصم</span>
         </label>
-
-        <label class="a2-check-card">
-            <input
-                type="checkbox"
-                name="deposit_enabled"
-                value="1"
-                id="deposit_enabled"
-                @checked((bool) old('deposit_enabled', (int) ($row->deposit_enabled ?? 0)))
-            >
-            <span>تفعيل الديبوزت</span>
-        </label>
     </div>
 
     <div class="a2-form-grid-3">
@@ -234,24 +223,6 @@
             >
 
             @error('discount_percent')
-                <div class="a2-error">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div class="a2-form-group">
-            <label class="a2-label">نسبة الديبوزت %</label>
-            <input
-                class="a2-input"
-                name="deposit_percent"
-                id="deposit_percent"
-                value="{{ old('deposit_percent', (int) ($row->deposit_percent ?? 0)) }}"
-                inputmode="numeric"
-                placeholder="0"
-            >
-
-            <div class="a2-section-subtitle" id="deposit_hint" style="margin-top:8px;margin-bottom:0;"></div>
-
-            @error('deposit_percent')
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>
@@ -279,10 +250,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const serviceSelect = document.querySelector('.js-service-select');
     const bookableTypeSelect = document.querySelector('.js-bookable-type-select');
     const bookableTypeHint = document.querySelector('.js-bookable-type-hint');
-
-    const depositEnabled = document.getElementById('deposit_enabled');
-    const depositPercent = document.getElementById('deposit_percent');
-    const depositHint = document.getElementById('deposit_hint');
 
     const discountEnabled = document.getElementById('discount_enabled');
     const discountPercent = document.getElementById('discount_percent');
@@ -439,35 +406,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    function refreshDepositUI() {
-        if (!serviceSelect) return;
-
-        const selected = serviceSelect.options[serviceSelect.selectedIndex];
-        const supportsDeposit = selected ? String(selected.dataset.supportsDeposit || '0') === '1' : false;
-
-        if (depositHint) {
-            depositHint.textContent = supportsDeposit
-                ? 'هذه الخدمة تدعم الديبوزت كضمان فقط، ورسوم استخدام الخدمة مستقلة عنه.'
-                : 'هذه الخدمة لا تدعم الديبوزت.';
-        }
-
-        if (depositEnabled) {
-            depositEnabled.disabled = !supportsDeposit;
-            if (!supportsDeposit) {
-                depositEnabled.checked = false;
-            }
-        }
-
-        if (depositPercent) {
-            depositPercent.removeAttribute('max');
-            depositPercent.disabled = !supportsDeposit || !depositEnabled.checked;
-
-            if (!supportsDeposit) {
-                depositPercent.value = 0;
-            }
-        }
-    }
-
     function refreshDiscountUI() {
         if (!discountEnabled || !discountPercent) return;
 
@@ -489,12 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
         serviceSelect.addEventListener('change', function () {
             if (bookableTypeSelect) bookableTypeSelect.dataset.currentValue = '';
             refreshBookableTypeOptions();
-            refreshDepositUI();
         });
-    }
-
-    if (depositEnabled) {
-        depositEnabled.addEventListener('change', refreshDepositUI);
     }
 
     if (discountEnabled) {
@@ -503,7 +436,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     initBusinessSelect();
     refreshBookableTypeOptions();
-    refreshDepositUI();
     refreshDiscountUI();
 });
 </script>

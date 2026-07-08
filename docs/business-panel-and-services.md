@@ -160,9 +160,12 @@ food + delivery fee − discount. No deposit (a booking concept).
 ### 2.6 Deposit
 
 Deposit is a **hold/guarantee** (deducted at execution, not an extra charge),
-gated by `platform_services.supports_deposit`, configured per type in
-`business_service_prices` (`deposit_enabled` / `deposit_percent`), and computed
-on the **combined** total for a unified invoice.
+gated by `platform_services.supports_deposit`. It is **single-source** (Phase 4):
+resolved solely from `business_deposit_policies` via `BookingDepositPolicyResolver`
+→ `BookingDepositCalculator`. The unified invoice shows the booking's actually
+resolved deposit (`Booking::depositAmount()`), so the displayed amount always
+matches what the engine holds. The old per-price `business_service_prices`
+`deposit_enabled`/`deposit_percent` columns were retired.
 
 ---
 

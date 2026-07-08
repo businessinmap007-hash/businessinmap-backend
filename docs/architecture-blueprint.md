@@ -261,11 +261,21 @@ deferred.)
   (`business_deposit_policies`); existing bookings unchanged (verified booking
   invoice deposit now equals `Booking::depositAmount()`).
 
-### Phase 5 — Cleanup
-- Remove dead relations/controllers/views left by the above (e.g. emptied
-  Options CRUD), prune stale docs, add tests around the discovery + pricing +
-  deposit paths (the cross-cutting gap noted in review).
-- **Accept:** no references to retired concepts; green smoke tests.
+### Phase 5 — Cleanup *(in progress)*
+- **✅ Smoke tests (done).** Feature tests around the paths built in Phases 2–4,
+  using `DatabaseTransactions` (the dev `business` DB is rolled back, never
+  mutated) and reusing stable rows while seeding the volatile parts:
+  `DiscoveryTest` (bespoke offer=filter=index), `RetailDiscoveryTest` (browse
+  price-range/count, offers cheapest-first, 404, inactive hidden),
+  `CustomerCartTest` (per-business grouping, qty merge, checkout flip,
+  server-sourced price), `DepositSingleSourceTest` (columns retired, invoice
+  deposit == held policy deposit). 16 passing (45 assertions).
+- **Remaining:** remove dead relations/controllers/views from the retirements
+  (e.g. emptied Options CRUD — note Options are only *partially* dead: #12
+  «أنماط خدمة» + deferred product-catalog groups are kept as attributes, so
+  removal needs per-file analysis) and prune stale docs. A pre-existing
+  `bookableItemsLookup` dead-column bug is being fixed in a separate task.
+- **Accept:** no references to retired concepts; green smoke tests (tests ✅).
 
 ---
 

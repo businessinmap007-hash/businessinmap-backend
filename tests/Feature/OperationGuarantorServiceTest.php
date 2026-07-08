@@ -142,4 +142,15 @@ class OperationGuarantorServiceTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->svc->invite('booking', $this->opId, $this->requester, $this->friend);
     }
+
+    public function test_self_freeze_locks_only_the_operation_amount_not_the_whole_guarantee(): void
+    {
+        // Requester's guarantee covers 1500. A 200 operation must freeze only
+        // 200, leaving 1300 available for other operations within coverage.
+        $this->svc->freezeSelf('booking', $this->opId, $this->requester, 200);
+
+        $g = UserGuarantee::query()->where('user_id', $this->requester->id)->where('target_type', 'client')->first();
+        $this->assertEqualsWithDelta(200.0, (float) $g->used_coverage_amount, 0.001, 'only the operation amount is frozen');
+        $this->assertEqualsWithDelta(1300.0, $g->availableCoverage(), 0.001, 'the rest stays available for other operations');
+    }
 }

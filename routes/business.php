@@ -7,6 +7,7 @@ use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\MenuItemController;
+use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,8 @@ Route::prefix('business')->name('business.')->group(function () {
 
     Route::middleware(['business.panel'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('offerings', [OfferingController::class, 'index'])->name('offerings.index');
 
         Route::get('bookable-items', [BookableItemController::class, 'index'])->name('bookable-items.index');
         Route::get('bookable-items/create', [BookableItemController::class, 'create'])->name('bookable-items.create');

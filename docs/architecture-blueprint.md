@@ -215,7 +215,7 @@ deferred.)
   «منتجاتي» (`/business/products`): scoped CRUD + ajax product picker over the
   deduped master (excludes already-listed; only active, non-duplicate masters
   are listable). Verified end-to-end. Customer browse of listings → 3d.
-- **3d Unified UX** *(in progress)*.
+- **✅ 3d Unified UX (done).**
   - **✅ Owner "my offerings" screen (done).** `Business\OfferingController` +
     `/business/offerings` («عروضي») aggregate everything the owner sells in one
     source-tagged table (bespoke `business_service_prices`, menu items, retail
@@ -230,9 +230,19 @@ deferred.)
     every business selling it, cheapest first). Masters scoped
     whereNull(deleted_at). Verified (2 businesses on one product → price range
     10–14.5, cheapest-first offers, 404 on missing).
-  - **Remaining:** one customer cart/order across bespoke + retail.
-- **Accept:** a business can sell both a bespoke item and a catalog product
-  through one cart/order; the catalog shows deduped masters.
+  - **✅ Customer cart (done).** A cart is a draft `Order` (status='cart') per
+    business; lines are the same polymorphic `order_items` as real orders, so
+    checkout is a status flip with no data copy. `CustomerCartService` resolves
+    business + price server-side from each offering, merges same-offering lines,
+    reuses `MenuOrderService::recalc`. `Api/V2/CartController` (auth-scoped):
+    `GET cart`, `POST cart/items`, `PATCH`/`DELETE cart/items/{item}`,
+    `POST cart/{business}/checkout`. Verified end-to-end (merge, per-business
+    split, qty edit, remove, checkout→pending, empty-cart rejected). Scope:
+    goods offerings (retail + menu); bespoke booking stays on the mature booking
+    rails (deposit/wallet/consent) rather than a goods cart.
+- **Accept:** ✅ a business can sell both a menu item and a catalog product
+  through one cart/order (Phase 3b order lines + 3d cart); the catalog shows
+  deduped masters. (Bespoke booking intentionally kept on the booking flow.)
 
 ### Phase 4 — Single-source the deposit config
 - Consolidate `business_deposit_policies` and `business_service_prices.deposit_*`

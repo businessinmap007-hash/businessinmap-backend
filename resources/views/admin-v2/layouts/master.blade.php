@@ -9,6 +9,10 @@
 
     <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+    {{-- Global admin hot-fixes (selects/dropdowns/form grids). Loaded after
+         tom-select so its .ts-* overrides win. The data-admin-fixes marker tells
+         booking-protection-preview.js not to inject a duplicate copy. --}}
+    <link rel="stylesheet" href="{{ asset('admin-v2/css/admin-fixes.css') }}" data-admin-fixes="1">
 
     @yield('head')
     @stack('styles')

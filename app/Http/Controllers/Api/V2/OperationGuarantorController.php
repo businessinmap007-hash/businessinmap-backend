@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\OperationGuarantor;
 use App\Models\User;
 use App\Services\Guarantees\OperationGuarantorService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Http\Request;
 
 /**
@@ -17,8 +19,10 @@ use Illuminate\Http\Request;
  */
 final class OperationGuarantorController extends Controller
 {
-    public function __construct(private readonly OperationGuarantorService $guarantors)
-    {
+    public function __construct(
+        private readonly OperationGuarantorService $guarantors,
+        private readonly InAppNotificationService $notifications,
+    ) {
     }
 
     /** The booking's client lists its co-guarantors. */
@@ -68,7 +72,22 @@ final class OperationGuarantorController extends Controller
 
         $guarantor = $this->guarantors->invite(OperationGuarantor::OP_BOOKING, $booking, $user, $friend);
 
-        // TODO(notifications): notify $friend of the pending co-guarantor request.
+        // Notify the friend only when this is a fresh invite (invite() reuses an
+        // existing pending/accepted row — don't re-ping on a duplicate request).
+        if ((string) $guarantor->status === OperationGuarantor::STATUS_INVITED && $guarantor->wasRecentlyCreated) {
+            $requesterName = trim((string) ($user->name ?? ''));
+
+            $this->notify('coguarantor_invited', (int) $friend->id, $guarantor, [
+                'actor_id' => (int) $user->id,
+                'title_ar' => 'دعوة لمشاركتك في ضمان عملية',
+                'title_en' => 'Co-guarantor request',
+                'body_ar' => trim(($requesterName !== '' ? $requesterName . ' ' : '') . 'يطلب مشاركتك في ضمان عملية حجز.'),
+                'body_en' => trim(($requesterName !== '' ? $requesterName . ': ' : '') . 'requested your guarantee for a booking.'),
+                'action_type' => 'open_coguarantor_request',
+                'action_url' => '/guarantors/' . $guarantor->id,
+                'meta' => ['booking_id' => (int) $booking, 'requester_id' => (int) $user->id],
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => ['guarantor' => $this->present($guarantor)]], 201);
     }
@@ -85,7 +104,25 @@ final class OperationGuarantorController extends Controller
             return $row;
         }
 
+        $wasInvited = (string) $row->status === OperationGuarantor::STATUS_INVITED;
+
         $row = $this->guarantors->accept($row, (float) $data['amount']);
+
+        // Notify the requester their friend accepted — only on the real
+        // transition (accept() is idempotent on an already-accepted row).
+        if ($wasInvited) {
+            $friendName = trim((string) ($request->user()->name ?? ''));
+
+            $this->notify('coguarantor_accepted', (int) $row->requester_user_id, $row, [
+                'actor_id' => (int) $row->guarantor_user_id,
+                'title_ar' => 'تم قبول طلب الضمان',
+                'title_en' => 'Co-guarantor accepted',
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'قبل ضمان عمليتك بمبلغ ' . number_format((float) $row->covered_amount, 2) . '.'),
+                'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'accepted to guarantee your operation (' . number_format((float) $row->covered_amount, 2) . ').'),
+                'action_type' => 'open_operation',
+                'meta' => ['covered_amount' => (float) $row->covered_amount],
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => ['guarantor' => $this->present($row)]]);
     }
@@ -98,7 +135,25 @@ final class OperationGuarantorController extends Controller
             return $row;
         }
 
+        $wasInvited = (string) $row->status === OperationGuarantor::STATUS_INVITED;
+
         $row = $this->guarantors->decline($row);
+
+        // Notify the requester their friend declined — only on the real
+        // transition (decline() is a no-op on a non-invited row).
+        if ($wasInvited) {
+            $friendName = trim((string) ($request->user()->name ?? ''));
+
+            $this->notify('coguarantor_declined', (int) $row->requester_user_id, $row, [
+                'actor_id' => (int) $row->guarantor_user_id,
+                'title_ar' => 'تم رفض طلب الضمان',
+                'title_en' => 'Co-guarantor declined',
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'اعتذر عن ضمان عمليتك.'),
+                'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'declined to guarantee your operation.'),
+                'action_type' => 'open_operation',
+                'meta' => [],
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => ['guarantor' => $this->present($row)]]);
     }
@@ -113,6 +168,28 @@ final class OperationGuarantorController extends Controller
         }
 
         return $row;
+    }
+
+    /**
+     * Write a co-guarantor in-app notification. Best-effort: a notification
+     * failure must never break the invite/accept/decline API response. The row
+     * is always attached as the notifiable + source so clients can deep-link
+     * back to it; source_type carries the event key.
+     */
+    private function notify(string $eventKey, int $userId, OperationGuarantor $row, array $data): void
+    {
+        try {
+            $this->notifications->create(array_merge([
+                'user_id' => $userId,
+                'type' => AppNotification::TYPE_GUARANTEE,
+                'notifiable_type' => OperationGuarantor::class,
+                'notifiable_id' => (int) $row->id,
+                'source_type' => $eventKey,
+                'source_id' => (int) $row->id,
+            ], $data));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function present(OperationGuarantor $g): array

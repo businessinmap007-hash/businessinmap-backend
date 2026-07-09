@@ -211,7 +211,7 @@
                         <span id="bookable_required_badge" class="bk-mini-badge is-hidden">مطلوب</span>
                     </label>
                     <input type="hidden" name="bookable_item_id" id="bookable_item_id" value="{{ $selectedBookableId }}">
-                    <select name="bookable_id" id="bookable_id" class="a2-select">
+                    <select name="bookable_id" id="bookable_id" class="a2-select" data-no-ts="1">
                         <option value="">بدون عنصر محدد</option>
                     </select>
                     <div id="bookable_hint" class="a2-hint">اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.</div>

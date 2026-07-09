@@ -73,6 +73,12 @@
                 ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
                 ['label' => 'Bookable Allocations', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
                 ['label' => 'Commercial Offers', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
+            ]],
+            ['label' => 'Offers & Marketing', 'type' => 'section', 'children' => [
+                ['label' => 'Offer Performance', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
+                ['label' => 'Offer Boost Packages', 'route' => 'admin.offer-boost-packages.index', 'active' => 'admin.offer-boost-packages.'],
+                ['label' => 'Offer Follows', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],
+                ['label' => 'Business Offers Subscriptions', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
                 ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],

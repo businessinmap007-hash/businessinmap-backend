@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\GuaranteeLevel;
 use App\Models\OperationGuarantor;
@@ -107,5 +108,61 @@ class OperationGuarantorApiTest extends TestCase
         // The client (not the invited friend) must not be able to accept.
         Sanctum::actingAs($this->client);
         $this->postJson("/api/v2/guarantors/{$guarantorId}/accept", ['amount' => 200])->assertForbidden();
+    }
+
+    private function notificationExists(int $userId, string $eventKey, int $guarantorId): bool
+    {
+        return AppNotification::query()
+            ->where('user_id', $userId)
+            ->where('source_type', $eventKey)
+            ->where('source_id', $guarantorId)
+            ->where('notifiable_type', OperationGuarantor::class)
+            ->exists();
+    }
+
+    public function test_invite_notifies_the_friend(): void
+    {
+        Sanctum::actingAs($this->client);
+        $invite = $this->postJson("/api/v2/bookings/{$this->booking->id}/guarantors", [
+            'guarantor_user_id' => $this->friend->id,
+        ])->assertCreated();
+        $guarantorId = (int) $invite->json('data.guarantor.id');
+
+        $this->assertTrue(
+            $this->notificationExists((int) $this->friend->id, 'coguarantor_invited', $guarantorId),
+            'friend should receive a co-guarantor invite notification'
+        );
+    }
+
+    public function test_accept_and_decline_notify_the_requester(): void
+    {
+        // Accept path notifies the client.
+        Sanctum::actingAs($this->client);
+        $guarantorId = (int) $this->postJson("/api/v2/bookings/{$this->booking->id}/guarantors", [
+            'guarantor_user_id' => $this->friend->id,
+        ])->assertCreated()->json('data.guarantor.id');
+
+        Sanctum::actingAs($this->friend);
+        $this->postJson("/api/v2/guarantors/{$guarantorId}/accept", ['amount' => 200])->assertOk();
+
+        $this->assertTrue(
+            $this->notificationExists((int) $this->client->id, 'coguarantor_accepted', $guarantorId),
+            'client should be notified their friend accepted'
+        );
+
+        // Decline path (a fresh invite) notifies the client.
+        OperationGuarantor::query()->forOperation('booking', (int) $this->booking->id)->delete();
+        Sanctum::actingAs($this->client);
+        $declineId = (int) $this->postJson("/api/v2/bookings/{$this->booking->id}/guarantors", [
+            'guarantor_user_id' => $this->friend->id,
+        ])->assertCreated()->json('data.guarantor.id');
+
+        Sanctum::actingAs($this->friend);
+        $this->postJson("/api/v2/guarantors/{$declineId}/decline")->assertOk();
+
+        $this->assertTrue(
+            $this->notificationExists((int) $this->client->id, 'coguarantor_declined', $declineId),
+            'client should be notified their friend declined'
+        );
     }
 }

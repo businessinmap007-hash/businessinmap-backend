@@ -217,7 +217,7 @@ class BookableAllocationController extends Controller
 
         $data['owner_business_id'] = (int) $partnership->owner_business_id;
         $data['partner_business_id'] = (int) $partnership->partner_business_id;
-        $data['platform_service_id'] = $data['platform_service_id'] ?: (int) $bookable->service_id;
+        $data['platform_service_id'] = ($data['platform_service_id'] ?? null) ?: (int) $bookable->service_id;
         $data['quantity_sold'] = (int) ($data['quantity_sold'] ?? 0);
         $data['quantity_reserved'] = (int) ($data['quantity_reserved'] ?? 0);
         $data['quantity_released'] = (int) ($data['quantity_released'] ?? 0);

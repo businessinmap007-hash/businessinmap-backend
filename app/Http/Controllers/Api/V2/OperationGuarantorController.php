@@ -8,7 +8,7 @@ use App\Models\Booking;
 use App\Models\OperationGuarantor;
 use App\Models\User;
 use App\Services\Guarantees\OperationGuarantorService;
-use App\Services\Notifications\InAppNotificationService;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Http\Request;
 
 /**
@@ -21,7 +21,7 @@ final class OperationGuarantorController extends Controller
 {
     public function __construct(
         private readonly OperationGuarantorService $guarantors,
-        private readonly InAppNotificationService $notifications,
+        private readonly NotificationDispatcherService $notifications,
     ) {
     }
 
@@ -171,7 +171,8 @@ final class OperationGuarantorController extends Controller
     }
 
     /**
-     * Write a co-guarantor in-app notification. Best-effort: a notification
+     * Dispatch a co-guarantor notification through the full pipeline (in-app +
+     * Firebase push, gated by the channel rule). Best-effort: a notification
      * failure must never break the invite/accept/decline API response. The row
      * is always attached as the notifiable + source so clients can deep-link
      * back to it; source_type carries the event key.
@@ -179,8 +180,7 @@ final class OperationGuarantorController extends Controller
     private function notify(string $eventKey, int $userId, OperationGuarantor $row, array $data): void
     {
         try {
-            $this->notifications->create(array_merge([
-                'user_id' => $userId,
+            $this->notifications->dispatch($eventKey, $userId, array_merge([
                 'type' => AppNotification::TYPE_GUARANTEE,
                 'notifiable_type' => OperationGuarantor::class,
                 'notifiable_id' => (int) $row->id,

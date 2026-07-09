@@ -3,7 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\AppNotification;
-use App\Models\UserDeviceToken;
+use App\Models\UserPushToken;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -11,10 +11,13 @@ final class FirebasePushService
 {
     public function sendToUser(int $userId, AppNotification $notification, array $payload = []): array
     {
-        $tokens = UserDeviceToken::query()
+        // Read from user_push_tokens — the live device-token store populated by
+        // POST api/v2/push-tokens (PushTokenController). The legacy
+        // user_device_tokens table is unused/unmigrated.
+        $tokens = UserPushToken::query()
             ->where('user_id', $userId)
             ->where('is_active', 1)
-            ->pluck('device_token')
+            ->pluck('token')
             ->filter()
             ->unique()
             ->values();

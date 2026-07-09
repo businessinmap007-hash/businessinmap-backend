@@ -136,7 +136,7 @@
 
             <div class="a2-form-group">
                 <label class="a2-label">Category Child</label>
-                <select class="a2-select" name="category_child_id" id="business_category_child_id">
+                <select class="a2-select" name="category_child_id" id="business_category_child_id" data-no-ts="1">
                     <option value="">-- اختر القسم الفرعي --</option>
                     @foreach(($children ?? []) as $child)
                         <option value="{{ $child->id }}" @selected($currentChildId === (int) $child->id)>

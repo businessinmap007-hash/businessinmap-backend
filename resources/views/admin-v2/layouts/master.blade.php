@@ -236,6 +236,38 @@
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
+    {{-- Global: turn every native <select> into a searchable tom-select.
+         Runs on `load` so per-view custom inits (which run on DOMContentLoaded)
+         claim their selects first and are skipped here. Opt a select out with
+         data-no-ts="1" / class="no-ts" (used for JS-driven cascade selects whose
+         options are rebuilt natively, e.g. booking bookable_id, user category
+         child). Transient inline-edit selects (.a2-inline-edit) are skipped too. --}}
+    <script>
+    (function () {
+        function initTomSelects() {
+            if (typeof TomSelect === 'undefined') return;
+
+            document.querySelectorAll('select').forEach(function (el) {
+                if (el.tomselect) return;                 // already a tom-select
+                if (el.closest('.ts-wrapper')) return;    // already wrapped
+                if (el.matches('[data-no-ts], .no-ts, .a2-inline-edit')) return;
+
+                try {
+                    new TomSelect(el, {
+                        create: false,
+                        allowEmptyOption: true,
+                        maxOptions: null,
+                    });
+                } catch (e) {
+                    /* leave the element as a native select */
+                }
+            });
+        }
+
+        window.addEventListener('load', initTomSelects);
+    })();
+    </script>
+
     @if(Route::has('admin.bookings.protectionPreview'))
         <script>
             window.BIM_BOOKING_PROTECTION_PREVIEW_URL = @json(route('admin.bookings.protectionPreview'));

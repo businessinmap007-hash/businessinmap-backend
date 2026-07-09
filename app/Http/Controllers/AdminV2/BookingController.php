@@ -312,14 +312,17 @@ class BookingController extends Controller
         }
         if ($currentStatus === Booking::STATUS_COMPLETED) {
             $this->bookingGuaranteeIntegration->recordCompleted($booking);
+            $this->bookingDepositService->releaseGuarantees($booking);
         }
 
         if ($currentStatus === Booking::STATUS_CANCELLED) {
             $this->bookingGuaranteeIntegration->recordCancelled($booking);
+            $this->bookingDepositService->releaseGuarantees($booking);
         }
 
         if ($currentStatus === Booking::STATUS_REJECTED) {
             $this->bookingGuaranteeIntegration->recordCancelled($booking);
+            $this->bookingDepositService->releaseGuarantees($booking);
         }
 
         if ($booking->isFinalStatus()) {
@@ -849,6 +852,11 @@ class BookingController extends Controller
 
             $booking->refresh();
 
+            // Guarantee-only (no wallet deposit) completion returns any frozen
+            // guarantee coverage. Idempotent + safe when a deposit release
+            // already returned it.
+            $this->bookingDepositService->releaseGuarantees($booking);
+
             $this->serviceEventDispatcher->bookingCompleted(
                 booking: $booking,
                 actorId: auth()->id(),
@@ -887,6 +895,9 @@ class BookingController extends Controller
 
             $booking->status = Booking::STATUS_CANCELLED;
             $booking->save();
+
+            // Return any frozen guarantee coverage on cancellation.
+            $this->bookingDepositService->releaseGuarantees($booking);
 
             $this->serviceEventDispatcher->bookingCancelled(
                 booking: $booking,

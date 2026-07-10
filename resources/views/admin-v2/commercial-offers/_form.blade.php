@@ -134,12 +134,33 @@
     <div class="a2-card">
         <h2 class="a2-section-title">توجيه B2B (اختياري)</h2>
         <div class="a2-help">
-            للعروض الموجَّهة للشركات: حدّد تصنيفات كاملة و/أو أقسامًا فرعية محددة
-            (يمكن أن تكون من آباء مختلفين). اتركها فارغة ليظهر العرض لكل الجمهور المحدد.
+            استهدف <strong>الأب كاملًا</strong> ليصل العرض لكل أقسامه، أو اختر
+            <strong>أقسامًا فرعية محددة</strong>. اختر التصنيف بالأسفل لعرض أقسامه فقط،
+            أو ابحث باسم القسم مباشرة (اسم الأب يظهر بجواره لتعرف إن كان من شركات أو محلات).
+            اتركها فارغة ليظهر العرض لكل الجمهور المحدد.
         </div>
 
+        @php
+            $childName = fn ($c) => $c->name_ar ?: $c->name_en ?: ('#' . $c->id);
+            $parentLabel = function ($c) {
+                $names = $c->parents
+                    ->map(fn ($p) => $p->name_ar ?: $p->name_en ?: ('#' . $p->id))
+                    ->filter()
+                    ->values();
+
+                return $names->isEmpty() ? 'بدون تصنيف' : $names->join(' / ');
+            };
+
+            // Data the cascade script needs: each child's label + its parent ids.
+            $childOptionData = $categoryChildren->map(fn ($c) => [
+                'id' => (int) $c->id,
+                'label' => $childName($c) . ' — ' . $parentLabel($c),
+                'parents' => $c->parents->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            ])->values();
+        @endphp
+
         <div class="a2-field">
-            <label class="a2-label">تصنيفات كاملة</label>
+            <label class="a2-label">تصنيفات كاملة (استهداف الأب مباشرة)</label>
             <select class="a2-select" name="target_categories[]" multiple data-placeholder="ابحث واختر تصنيفات…">
                 @foreach($rootCategories as $cat)
                     <option value="{{ $cat->id }}" @selected(in_array((int) $cat->id, $selectedTargetCategories, true))>
@@ -151,17 +172,76 @@
         </div>
 
         <div class="a2-field">
+            <label class="a2-label">تصفية حسب التصنيف (لعرض أقسامه فقط)</label>
+            <select id="b2b-parent-filter" class="a2-select" multiple data-placeholder="اختر تصنيفًا لعرض أقسامه…">
+                @foreach($rootCategories as $cat)
+                    <option value="{{ $cat->id }}">#{{ $cat->id }} — {{ $cat->name_ar ?: $cat->name_en }}</option>
+                @endforeach
+            </select>
+            <div class="a2-help">اختياري — لا يُحفَظ، يضيّق قائمة الأقسام بالأسفل فقط. اتركه فارغًا للبحث في كل الأقسام.</div>
+        </div>
+
+        <div class="a2-field">
             <label class="a2-label">أقسام فرعية محددة</label>
-            <select class="a2-select" name="target_children[]" multiple data-placeholder="ابحث واختر أقسامًا فرعية…">
+            <select id="b2b-target-children" class="a2-select" name="target_children[]" multiple data-placeholder="ابحث باسم القسم…">
                 @foreach($categoryChildren as $child)
                     <option value="{{ $child->id }}" @selected(in_array((int) $child->id, $selectedTargetChildren, true))>
-                        #{{ $child->id }} — {{ $child->name_ar ?: $child->name_en }}
+                        {{ $childName($child) }} — {{ $parentLabel($child) }}
                     </option>
                 @endforeach
             </select>
-            <div class="a2-help">يمكن اختيار أقسام فرعية من تصنيفات (آباء) مختلفة.</div>
+            <div class="a2-help">كل قسم مكتوب بجواره اسم الأب. يمكن اختيار أقسام من تصنيفات مختلفة.</div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+    (function () {
+        var CHILD_OPTIONS = @json($childOptionData);
+
+        function setup() {
+            var filterEl = document.getElementById('b2b-parent-filter');
+            var childEl = document.getElementById('b2b-target-children');
+            var filterTS = filterEl && filterEl.tomselect;
+            var childTS = childEl && childEl.tomselect;
+
+            if (!filterTS || !childTS) {
+                // tom-select not ready yet (global init runs on window.load).
+                return false;
+            }
+
+            function refreshChildren() {
+                var selectedParents = new Set(filterTS.items.map(String));
+                var keepSelected = new Set(childTS.items.map(String));
+
+                childTS.clearOptions();
+                CHILD_OPTIONS.forEach(function (c) {
+                    var inParent = selectedParents.size === 0
+                        || c.parents.some(function (p) { return selectedParents.has(String(p)); });
+
+                    if (inParent || keepSelected.has(String(c.id))) {
+                        childTS.addOption({ value: String(c.id), text: c.label });
+                    }
+                });
+                childTS.refreshOptions(false);
+            }
+
+            filterTS.on('change', refreshChildren);
+            return true;
+        }
+
+        window.addEventListener('load', function () {
+            // The global tom-select initializer also runs on `load`; retry a few
+            // frames in case our listener fires before instances are attached.
+            if (setup()) return;
+            var tries = 0;
+            var timer = setInterval(function () {
+                if (setup() || ++tries > 20) clearInterval(timer);
+            }, 50);
+        });
+    })();
+    </script>
+    @endpush
 
     <div class="a2-card">
         <h2 class="a2-section-title">السعر والخصم</h2>

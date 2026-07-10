@@ -201,13 +201,20 @@ class CommercialOfferController extends Controller
         return back()->with('success', 'تم تغيير حالة العرض.');
     }
 
-    /** Root categories (21) + category children (304) for the B2B targeting pickers. */
+    /**
+     * Root categories (21) + category children (304, each with its parent
+     * category names) for the B2B targeting pickers. A child can live under
+     * several parents (62 do), so we carry the parents to (a) let the form
+     * label each child with its parent — so the admin can tell a "شركات" child
+     * from a "محلات" one — and (b) drive the parent → children cascade filter.
+     */
     private function taxonomyData(): array
     {
         return [
             'rootCategories' => Category::query()->where('parent_id', 0)
                 ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']),
             'categoryChildren' => CategoryChild::query()
+                ->with(['parents:id,name_ar,name_en'])
                 ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']),
         ];
     }

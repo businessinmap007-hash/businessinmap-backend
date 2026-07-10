@@ -101,9 +101,9 @@
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const groupId = @json((int) $row->id);
     const URLS = {
-        attach: @json(route('admin.platform-service-item-groups.types.attach', $row)),
-        detach: @json(route('admin.platform-service-item-groups.types.detach', $row)),
-        create: @json(route('admin.platform-service-item-groups.types.create', $row)),
+        attach: @json(route('admin.platform-service-item-groups.types.attach', $row, false)),
+        detach: @json(route('admin.platform-service-item-groups.types.detach', $row, false)),
+        create: @json(route('admin.platform-service-item-groups.types.create', $row, false)),
     };
 
     let types = @json($allTypes).map(t => ({ id: Number(t.id), key: t.key, name: t.name, service_id: Number(t.service_id), service_name: t.service_name, is_active: !!t.is_active, groupIds: (t.group_ids || []).map(Number) }));

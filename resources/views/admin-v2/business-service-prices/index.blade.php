@@ -98,7 +98,7 @@
             <select
                 class="a2-select a2-filter-md js-bsp-business-filter"
                 name="business_id"
-                data-remote-url="{{ route('admin.business_service_prices.business-lookup') }}"
+                data-remote-url="{{ route('admin.business_service_prices.business-lookup', [], false) }}"
                 data-placeholder="كل البزنسات"
             >
                 <option value="0">كل البزنسات</option>

@@ -192,7 +192,7 @@
 
 <script>
 (() => {
-    const uploadUrl = @json(route('admin.upload.image'));
+    const uploadUrl = @json(route('admin.upload.image', [], false));
     const token = @json(csrf_token());
 
     const el = {

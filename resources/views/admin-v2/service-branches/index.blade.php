@@ -56,9 +56,9 @@
                 <div class="a2-card-sub">النوع ممكن يتبع أكتر من فرع. لو متبوّب في فرع غير معروض بيظهر تحته «أيضًا في: …».</div>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
-                <span id="a2sbSaveState" class="a2-hint" style="margin:0;">محفوظ تلقائيًا</span>
-                <button type="button" id="a2sbSaveAll" class="a2-btn a2-btn-primary a2-btn-sm">
-                    <i class="ti ti-device-floppy"></i> حفظ الكل
+                <span id="a2sbSaveState" class="a2-hint" style="margin:0;">لا تغييرات غير محفوظة</span>
+                <button type="button" id="a2sbSaveAll" class="a2-btn a2-btn-primary a2-btn-sm" disabled>
+                    <i class="ti ti-device-floppy"></i> حفظ التغييرات
                 </button>
                 <div style="position:relative;">
                     <i class="ti ti-search" style="position:absolute; right:10px; top:9px; opacity:.5;"></i>
@@ -94,8 +94,26 @@
     let branches = @json($branches).map(b => ({ id: Number(b.id), name: b.name, count: Number(b.count_here || 0) }));
     let types = @json($types).map(t => ({ id: Number(t.id), key: t.key, name: t.name, groupIds: (t.group_ids || []).map(Number), is_active: !!t.is_active }));
 
-    const selected = new Set(branches.filter(b => b.count > 0).map(b => b.id));
-    if (selected.size === 0) branches.slice(0, 4).forEach(b => selected.add(b.id));
+    // Which branches show as columns is a per-service VIEW preference, persisted
+    // in localStorage so it survives refresh. It never touches saved data —
+    // hiding a column only hides it, the memberships underneath stay intact.
+    const colKey = 'a2sb_cols_' + serviceId;
+    const selected = new Set();
+    (function initCols() {
+        let stored = null;
+        try { stored = JSON.parse(localStorage.getItem(colKey) || 'null'); } catch (e) { stored = null; }
+        const existing = new Set(branches.map(b => b.id));
+        if (Array.isArray(stored)) {
+            stored.map(Number).forEach(id => { if (existing.has(id)) selected.add(id); });
+        }
+        if (selected.size === 0) {
+            branches.filter(b => b.count > 0).forEach(b => selected.add(b.id));
+            if (selected.size === 0) branches.slice(0, 4).forEach(b => selected.add(b.id));
+        }
+    })();
+    function persistCols() {
+        try { localStorage.setItem(colKey, JSON.stringify(Array.from(selected))); } catch (e) {}
+    }
 
     const chipsEl = document.getElementById('a2sbChips');
     const table = document.getElementById('a2sbMatrix');
@@ -117,19 +135,27 @@
     const saveStateEl = document.getElementById('a2sbSaveState');
     const saveAllBtn = document.getElementById('a2sbSaveAll');
 
-    // Reflect auto-save health next to the save button. 'dirty' means an auto-save
-    // failed, so "حفظ الكل" becomes the recovery action.
+    // Explicit-save model: matrix edits are staged per item type and only written
+    // to the DB when the user clicks "حفظ التغييرات" — nothing auto-saves.
+    const dirtyTypes = new Set();
+
     function setSaveState(kind) {
         if (!saveStateEl) return;
+        const n = dirtyTypes.size;
         const map = {
-            saved: ['محفوظ تلقائيًا', 'var(--a2-muted, #6b7280)'],
+            clean: ['لا تغييرات غير محفوظة', 'var(--a2-muted, #6b7280)'],
+            dirty: ['تغييرات غير محفوظة (' + n + ') — اضغط «حفظ التغييرات»', 'var(--a2-danger, #dc2626)'],
             saving: ['جارٍ الحفظ…', 'var(--a2-muted, #6b7280)'],
-            confirmed: ['تم حفظ الكل ✓', 'var(--a2-success, #16a34a)'],
-            dirty: ['تغييرات لم تُحفظ — اضغط «حفظ الكل»', 'var(--a2-danger, #dc2626)'],
+            saved: ['تم الحفظ ✓', 'var(--a2-success, #16a34a)'],
         };
-        const [text, color] = map[kind] || map.saved;
+        const [text, color] = map[kind] || map.clean;
         saveStateEl.textContent = text;
         saveStateEl.style.color = color;
+    }
+
+    function updateDirtyUi() {
+        setSaveState(dirtyTypes.size > 0 ? 'dirty' : 'clean');
+        if (saveAllBtn) saveAllBtn.disabled = dirtyTypes.size === 0;
     }
 
     async function api(url, body, method) {
@@ -230,54 +256,49 @@
             try {
                 await api(URLS.destroyTpl.replace('__ID__', id), null, 'DELETE');
                 types.forEach(t => { t.groupIds = t.groupIds.filter(g => g !== id); });
-                branches = branches.filter(b => b.id !== id); selected.delete(id);
+                branches = branches.filter(b => b.id !== id); selected.delete(id); persistCols();
                 render(); notify('تم حذف الفرع.', true);
             } catch (err) { notify(err.message, false); }
             return;
         }
         if (selected.has(id)) selected.delete(id); else selected.add(id);
+        persistCols();
         render();
     });
 
-    table.addEventListener('change', async (e) => {
+    table.addEventListener('change', (e) => {
         const box = e.target.closest('input[type=checkbox][data-type]');
         if (!box) return;
         const typeId = Number(box.dataset.type);
         const groupId = Number(box.dataset.b);
         const attached = box.checked;
         const t = types.find(x => x.id === typeId);
-        // Optimistically reflect the change locally so "حفظ الكل" can recover it
-        // even if this auto-save call fails.
+        // Stage the change locally only — no server call. It's written on "حفظ".
         t.groupIds = attached ? Array.from(new Set([...t.groupIds, groupId])) : t.groupIds.filter(g => g !== groupId);
-        setSaveState('saving');
-        try {
-            await api(URLS.toggle, { service_id: serviceId, item_type_id: typeId, group_id: groupId, attached });
-            recount(); renderChips();
-            renderMatrix();
-            notify('تم الحفظ.', true);
-            setSaveState('saved');
-        } catch (err) {
-            // Keep the optimistic local state; the row stays checked and the user
-            // can retry the whole board with "حفظ الكل".
-            notify(err.message, false);
-            setSaveState('dirty');
-        }
+        dirtyTypes.add(typeId);
+        recount(); renderChips();   // live branch counts reflect the pending edit
+        updateDirtyUi();
     });
 
     saveAllBtn?.addEventListener('click', async () => {
+        if (dirtyTypes.size === 0) { notify('لا توجد تغييرات للحفظ.', true); return; }
         saveAllBtn.disabled = true;
         setSaveState('saving');
         try {
-            const payload = { service_id: serviceId, types: types.map(t => ({ item_type_id: t.id, group_ids: t.groupIds })) };
+            // Send only the changed types, each with its COMPLETE branch set
+            // (including hidden columns) so nothing gets dropped.
+            const changed = types.filter(t => dirtyTypes.has(t.id));
+            const payload = { service_id: serviceId, types: changed.map(t => ({ item_type_id: t.id, group_ids: t.groupIds })) };
             const d = await api(URLS.save, payload);
+            dirtyTypes.clear();
             recount(); renderChips(); renderMatrix();
-            notify('تم حفظ كل التغييرات (' + (d.saved ?? types.length) + ' نوع).', true);
-            setSaveState('confirmed');
+            notify('تم حفظ التغييرات (' + (d.saved ?? changed.length) + ' نوع).', true);
+            setSaveState('saved');
         } catch (err) {
             notify(err.message, false);
             setSaveState('dirty');
         } finally {
-            saveAllBtn.disabled = false;
+            saveAllBtn.disabled = dirtyTypes.size === 0;
         }
     });
 
@@ -287,14 +308,20 @@
         try {
             const d = await api(URLS.store, { name_ar: name });
             branches.push({ id: Number(d.id), name: d.name, count: 0 });
-            selected.add(Number(d.id));
+            selected.add(Number(d.id)); persistCols();
             render(); notify('تم إنشاء الفرع.', true);
         } catch (err) { notify(err.message, false); }
     });
 
     searchEl.addEventListener('input', renderMatrix);
 
+    // Warn before leaving with unsaved matrix edits.
+    window.addEventListener('beforeunload', (e) => {
+        if (dirtyTypes.size > 0) { e.preventDefault(); e.returnValue = ''; }
+    });
+
     render();
+    updateDirtyUi();
 })();
 </script>
 @endpush

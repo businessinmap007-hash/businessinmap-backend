@@ -19,15 +19,9 @@
 
 <div>
 <label class="a2-label">Business</label>
-<select class="a2-input" name="business_id">
+<select class="a2-input" name="business_id"
+        data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="All — search by name or #id">
 <option value="">All</option>
-
-@foreach($businesses as $b)
-<option value="{{ $b->id }}">
-{{ $b->name }}
-</option>
-@endforeach
-
 </select>
 </div>
 

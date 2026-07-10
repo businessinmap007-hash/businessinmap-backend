@@ -27,13 +27,13 @@
 
     <div class="a2-card a2-mb-16">
         <form method="GET" action="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-filterbar">
-            <select class="a2-select a2-filter-lg" name="business_id" required>
+            <select class="a2-select a2-filter-lg" name="business_id" required
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}"
+                    data-placeholder="اختر البزنس — ابحث بالاسم أو الرقم #">
                 <option value="">اختر البزنس</option>
-                @foreach($businesses as $row)
-                    <option value="{{ $row->id }}" {{ $business && (int) $business->id === (int) $row->id ? 'selected' : '' }}>
-                        #{{ $row->id }} — {{ $row->name }}
-                    </option>
-                @endforeach
+                @if($business)
+                    <option value="{{ $business->id }}" selected>#{{ $business->id }} — {{ $business->name }}</option>
+                @endif
             </select>
             <div class="a2-filter-actions">
                 <button class="a2-btn a2-btn-primary" type="submit">عرض الاشتراك</button>

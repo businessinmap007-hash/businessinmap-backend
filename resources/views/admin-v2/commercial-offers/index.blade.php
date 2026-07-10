@@ -76,11 +76,13 @@
                 @endforeach
             </select>
 
-            <select class="a2-select a2-filter-sm" name="seller_business_id">
+            <select class="a2-select a2-filter-sm" name="seller_business_id"
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="كل البزنس — ابحث">
                 <option value="0">كل البزنس</option>
-                @foreach($businesses as $business)
-                    <option value="{{ $business->id }}" {{ (int) $sellerId === (int) $business->id ? 'selected' : '' }}>#{{ $business->id }} — {{ $business->name }}</option>
-                @endforeach
+                @php $selSeller = $sellerId ? $businesses->firstWhere('id', (int) $sellerId) : null; @endphp
+                @if($sellerId)
+                    <option value="{{ $sellerId }}" selected>#{{ $sellerId }}@if($selSeller) — {{ $selSeller->name }}@endif</option>
+                @endif
             </select>
 
             <select class="a2-select a2-filter-sm" name="per_page">

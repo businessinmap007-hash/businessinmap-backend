@@ -89,33 +89,6 @@ class CommercialOfferController extends Controller
         ]);
     }
 
-    /**
-     * Search-as-you-type business picker for the owner/seller fields. ~1,750
-     * businesses, so they are not embedded as static <option>s (that 500 cap
-     * silently dropped names sorting last, e.g. Arabic). Matches name or #id.
-     */
-    public function businessLookup(Request $request)
-    {
-        $term = trim((string) $request->get('q', ''));
-
-        $businesses = User::query()
-            ->select(['id', 'name'])
-            ->where('type', User::TYPE_BUSINESS)
-            ->when($term !== '', function (Builder $query) use ($term) {
-                $query->where(function (Builder $w) use ($term) {
-                    $w->where('name', 'like', "%{$term}%");
-                    if (is_numeric($term)) {
-                        $w->orWhere('id', (int) $term);
-                    }
-                });
-            })
-            ->orderBy('name')
-            ->limit(30)
-            ->get();
-
-        return response()->json(['ok' => true, 'businesses' => $businesses]);
-    }
-
     public function create(BusinessOffersSubscriptionService $subscriptionService)
     {
         return view('admin-v2.commercial-offers.create', [

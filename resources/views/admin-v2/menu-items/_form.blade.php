@@ -8,13 +8,14 @@
     <div class="a2-form-grid">
         <div class="a2-form-group">
             <label class="a2-label">البزنس</label>
-            <select class="a2-select" name="business_id" required>
+            @php $bizId = (int) old('business_id', $row->business_id ?? 0); @endphp
+            <select class="a2-select" name="business_id" required
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}"
+                    data-placeholder="اختر البزنس — ابحث بالاسم أو الرقم #">
                 <option value="">اختر البزنس</option>
-                @foreach($businesses as $b)
-                    <option value="{{ $b->id }}" @selected((int) old('business_id', $row->business_id ?? 0) === (int) $b->id)>
-                        {{ $b->name ?: ('#' . $b->id) }}
-                    </option>
-                @endforeach
+                @if($bizId)
+                    <option value="{{ $bizId }}" selected>#{{ $bizId }}@if($row->business) — {{ $row->business->name }}@endif</option>
+                @endif
             </select>
         </div>
 

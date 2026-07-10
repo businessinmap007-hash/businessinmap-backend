@@ -47,12 +47,12 @@
         @php
             $ownerId = (int) old('owner_business_id', $offer->owner_business_id);
             $sellerId = (int) old('seller_business_id', $offer->seller_business_id);
-            $bizLookupUrl = route('admin.commercial-offers.business-lookup', [], false);
+            $bizLookupUrl = route('admin.business-lookup', [], false);
         @endphp
 
         <div class="a2-field">
             <label class="a2-label">Owner Business</label>
-            <select class="a2-select" name="owner_business_id" required data-no-ts="1"
+            <select class="a2-select" name="owner_business_id" required
                     data-remote-url="{{ $bizLookupUrl }}" data-placeholder="اختر صاحب الأصل — ابحث بالاسم أو الرقم #">
                 <option value="">اختر صاحب الأصل</option>
                 @if($ownerId)
@@ -63,7 +63,7 @@
 
         <div class="a2-field">
             <label class="a2-label">Seller Business</label>
-            <select class="a2-select" name="seller_business_id" required data-no-ts="1"
+            <select class="a2-select" name="seller_business_id" required
                     data-remote-url="{{ $bizLookupUrl }}" data-placeholder="اختر البائع — ابحث بالاسم أو الرقم #">
                 <option value="">اختر البائع</option>
                 @if($sellerId)
@@ -207,47 +207,3 @@
     <button type="submit" class="a2-btn a2-btn-primary">حفظ العرض</button>
     <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
 </div>
-
-@push('scripts')
-<script>
-(function () {
-    // Server-side search-as-you-type for the owner/seller business pickers
-    // (~1,750 businesses; a static list dropped names sorting last, e.g. Arabic).
-    // The empty option is the placeholder (clears on focus) via allowEmptyOption:false.
-    function initRemoteBusinessSelect(el) {
-        if (! el || el.tomselect || typeof TomSelect === 'undefined') return;
-
-        const url = el.dataset.remoteUrl;
-        if (! url) return;
-
-        new TomSelect(el, {
-            create: false,
-            valueField: 'value',
-            labelField: 'text',
-            searchField: 'text',
-            maxOptions: 50,
-            allowEmptyOption: false,
-            placeholder: el.dataset.placeholder || 'ابحث…',
-            shouldLoad: function (q) { return q.length >= 1; },
-            load: function (q, callback) {
-                const u = new URL(url, window.location.origin);
-                u.searchParams.set('q', q);
-                fetch(u.toString(), { headers: { 'Accept': 'application/json' } })
-                    .then(function (r) { return r.json(); })
-                    .then(function (d) {
-                        const rows = (d && d.ok && Array.isArray(d.businesses)) ? d.businesses : [];
-                        callback(rows.map(function (b) {
-                            return { value: String(b.id), text: '#' + b.id + ' — ' + b.name };
-                        }));
-                    })
-                    .catch(function () { callback(); });
-            },
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('select[data-remote-url]').forEach(initRemoteBusinessSelect);
-    });
-})();
-</script>
-@endpush

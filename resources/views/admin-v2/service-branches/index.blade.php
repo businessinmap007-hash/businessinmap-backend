@@ -74,11 +74,14 @@
 (function () {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const serviceId = @json($serviceIdVal);
+    // Relative URLs (third arg false) so the auto-save fetch() stays same-origin
+    // regardless of APP_URL — an absolute URL breaks AJAX cross-origin when the
+    // panel is browsed on a different host/port than APP_URL.
     const URLS = {
-        toggle: @json(route('admin.service-branches.toggle')),
-        store: @json(route('admin.service-branches.branches.store')),
-        renameTpl: @json(route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'])),
-        destroyTpl: @json(route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'])),
+        toggle: @json(route('admin.service-branches.toggle', [], false)),
+        store: @json(route('admin.service-branches.branches.store', [], false)),
+        renameTpl: @json(route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'], false)),
+        destroyTpl: @json(route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'], false)),
     };
 
     let branches = @json($branches).map(b => ({ id: Number(b.id), name: b.name, count: Number(b.count_here || 0) }));

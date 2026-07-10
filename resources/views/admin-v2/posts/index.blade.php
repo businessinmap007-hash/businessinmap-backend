@@ -161,7 +161,7 @@
                             <button
                                 type="button"
                                 class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }} js-toggle-active"
-                                data-url="{{ route('admin.posts.toggleActive', $p) }}"
+                                data-url="{{ route('admin.posts.toggleActive', $p, false) }}"
                                 data-state="{{ $isActive ? 1 : 0 }}"
                                 aria-pressed="{{ $isActive ? 'true' : 'false' }}"
                                 title="تغيير الحالة"

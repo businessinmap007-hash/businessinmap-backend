@@ -250,7 +250,46 @@
             document.querySelectorAll('select').forEach(function (el) {
                 if (el.tomselect) return;                 // already a tom-select
                 if (el.closest('.ts-wrapper')) return;    // already wrapped
-                if (el.matches('[data-no-ts], .no-ts, .a2-inline-edit')) return;
+                if (el.matches('.a2-inline-edit')) return;
+
+                // Remote (search-as-you-type) selects: any select with
+                // data-remote-url is backed by a server lookup returning
+                // {ok, businesses:[{id,name}]}. Used for big lists (~1,750
+                // businesses) that can't be embedded as static <option>s.
+                const remoteUrl = el.dataset.remoteUrl;
+                if (remoteUrl) {
+                    try {
+                        new TomSelect(el, {
+                            create: false,
+                            valueField: 'value',
+                            labelField: 'text',
+                            searchField: 'text',
+                            maxOptions: 50,
+                            // Filter selects keep the empty option ("all")
+                            // selectable; required form selects use it as a
+                            // placeholder that clears on focus.
+                            allowEmptyOption: ! el.hasAttribute('required'),
+                            placeholder: el.dataset.placeholder || 'ابحث…',
+                            shouldLoad: function (q) { return q.length >= 1; },
+                            load: function (q, callback) {
+                                const u = new URL(remoteUrl, window.location.origin);
+                                u.searchParams.set('q', q);
+                                fetch(u.toString(), { headers: { 'Accept': 'application/json' } })
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (d) {
+                                        const rows = (d && d.ok && Array.isArray(d.businesses)) ? d.businesses : [];
+                                        callback(rows.map(function (b) {
+                                            return { value: String(b.id), text: '#' + b.id + ' — ' + b.name, child_id: String(b.category_child_id || '') };
+                                        }));
+                                    })
+                                    .catch(function () { callback(); });
+                            },
+                        });
+                    } catch (e) { /* leave as native */ }
+                    return;
+                }
+
+                if (el.matches('[data-no-ts], .no-ts')) return;
 
                 try {
                     new TomSelect(el, {

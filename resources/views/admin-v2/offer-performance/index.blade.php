@@ -28,13 +28,13 @@
 
     <div class="a2-card a2-card--tight a2-mb-16">
         <form method="GET" action="{{ route('admin.offer-performance.index') }}" class="a2-filterbar">
-            <select class="a2-select a2-filter-sm" name="business_id">
+            @php $selBizId = (int) ($filters['business_id'] ?? 0); $selBiz = $selBizId ? $businesses->firstWhere('id', $selBizId) : null; @endphp
+            <select class="a2-select a2-filter-sm" name="business_id"
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="كل البزنس — ابحث">
                 <option value="">كل البزنس</option>
-                @foreach($businesses as $business)
-                    <option value="{{ $business->id }}" {{ (int) ($filters['business_id'] ?? 0) === (int) $business->id ? 'selected' : '' }}>
-                        #{{ $business->id }} — {{ $business->name }}
-                    </option>
-                @endforeach
+                @if($selBizId)
+                    <option value="{{ $selBizId }}" selected>#{{ $selBizId }}@if($selBiz) — {{ $selBiz->name }}@endif</option>
+                @endif
             </select>
 
             <select class="a2-select a2-filter-sm" name="offer_id">

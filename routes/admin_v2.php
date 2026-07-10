@@ -66,6 +66,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::middleware(['admin.v2'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+        // Shared search-as-you-type business picker for every form/filter.
+        Route::get('business-lookup', \App\Http\Controllers\AdminV2\BusinessLookupController::class)->name('business-lookup');
         Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
 
         Route::prefix('users')->name('users.')->group(function () {
@@ -176,7 +179,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
             Route::get('/', [BusinessPartnershipController::class, 'index'])->name('index');
             Route::get('create', [BusinessPartnershipController::class, 'create'])->name('create');
-            Route::get('business-lookup', [BusinessPartnershipController::class, 'businessLookup'])->name('business-lookup');
             Route::post('/', [BusinessPartnershipController::class, 'store'])->name('store');
             Route::get('{businessPartnership}/edit', [BusinessPartnershipController::class, 'edit'])->whereNumber('businessPartnership')->name('edit');
             Route::put('{businessPartnership}', [BusinessPartnershipController::class, 'update'])->whereNumber('businessPartnership')->name('update');
@@ -196,7 +198,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
-        Route::get('commercial-offers/business-lookup', [CommercialOfferController::class, 'businessLookup'])->name('commercial-offers.business-lookup');
         Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
         Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
         Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');

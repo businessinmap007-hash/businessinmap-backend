@@ -196,6 +196,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
+        Route::get('commercial-offers/business-lookup', [CommercialOfferController::class, 'businessLookup'])->name('commercial-offers.business-lookup');
         Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
         Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
         Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');

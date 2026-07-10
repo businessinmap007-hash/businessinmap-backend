@@ -176,6 +176,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
             Route::get('/', [BusinessPartnershipController::class, 'index'])->name('index');
             Route::get('create', [BusinessPartnershipController::class, 'create'])->name('create');
+            Route::get('business-lookup', [BusinessPartnershipController::class, 'businessLookup'])->name('business-lookup');
             Route::post('/', [BusinessPartnershipController::class, 'store'])->name('store');
             Route::get('{businessPartnership}/edit', [BusinessPartnershipController::class, 'edit'])->whereNumber('businessPartnership')->name('edit');
             Route::put('{businessPartnership}', [BusinessPartnershipController::class, 'update'])->whereNumber('businessPartnership')->name('update');

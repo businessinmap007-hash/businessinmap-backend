@@ -73,6 +73,33 @@ class BusinessPartnershipController extends Controller
         ));
     }
 
+    /**
+     * Search-as-you-type business picker for the partnership form. There are
+     * ~1,750 businesses, so they are not embedded as static <option>s (that cap
+     * silently dropped names sorting last, e.g. Arabic). Matches name or #id.
+     */
+    public function businessLookup(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $businesses = User::query()
+            ->select(['id', 'name'])
+            ->where('type', User::TYPE_BUSINESS)
+            ->when($term !== '', function (Builder $query) use ($term) {
+                $query->where(function (Builder $w) use ($term) {
+                    $w->where('name', 'like', "%{$term}%");
+                    if (is_numeric($term)) {
+                        $w->orWhere('id', (int) $term);
+                    }
+                });
+            })
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json(['ok' => true, 'businesses' => $businesses]);
+    }
+
     public function create()
     {
         return view('admin-v2.business-partnerships.create', [
@@ -81,7 +108,6 @@ class BusinessPartnershipController extends Controller
                 'status' => BusinessPartnership::STATUS_PENDING,
                 'approval_required' => true,
             ]),
-            'businesses' => $this->businessOptions(),
         ]);
     }
 
@@ -108,7 +134,6 @@ class BusinessPartnershipController extends Controller
 
         return view('admin-v2.business-partnerships.edit', [
             'partnership' => $businessPartnership,
-            'businesses' => $this->businessOptions(),
         ]);
     }
 
@@ -205,14 +230,5 @@ class BusinessPartnershipController extends Controller
         }
 
         return $decoded;
-    }
-
-    private function businessOptions()
-    {
-        return User::query()
-            ->where('type', User::TYPE_BUSINESS)
-            ->orderBy('name')
-            ->limit(500)
-            ->get(['id', 'name', 'email', 'phone', 'category_id', 'category_child_id']);
     }
 }

@@ -23,7 +23,7 @@
     <form method="POST" action="{{ route('admin.business-partnerships.update', $partnership->id) }}">
         @csrf
         @method('PUT')
-        @include('admin-v2.business-partnerships._form', ['partnership' => $partnership, 'businesses' => $businesses])
+        @include('admin-v2.business-partnerships._form', ['partnership' => $partnership])
     </form>
 </div>
 @endsection

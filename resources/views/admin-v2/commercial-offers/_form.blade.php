@@ -132,6 +132,38 @@
     </div>
 
     <div class="a2-card">
+        <h2 class="a2-section-title">توجيه B2B (اختياري)</h2>
+        <div class="a2-help">
+            للعروض الموجَّهة للشركات: حدّد تصنيفات كاملة و/أو أقسامًا فرعية محددة
+            (يمكن أن تكون من آباء مختلفين). اتركها فارغة ليظهر العرض لكل الجمهور المحدد.
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">تصنيفات كاملة</label>
+            <select class="a2-select" name="target_categories[]" multiple data-placeholder="ابحث واختر تصنيفات…">
+                @foreach($rootCategories as $cat)
+                    <option value="{{ $cat->id }}" @selected(in_array((int) $cat->id, $selectedTargetCategories, true))>
+                        #{{ $cat->id }} — {{ $cat->name_ar ?: $cat->name_en }}
+                    </option>
+                @endforeach
+            </select>
+            <div class="a2-help">العرض يُوجَّه لكل الأقسام داخل هذه التصنيفات.</div>
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">أقسام فرعية محددة</label>
+            <select class="a2-select" name="target_children[]" multiple data-placeholder="ابحث واختر أقسامًا فرعية…">
+                @foreach($categoryChildren as $child)
+                    <option value="{{ $child->id }}" @selected(in_array((int) $child->id, $selectedTargetChildren, true))>
+                        #{{ $child->id }} — {{ $child->name_ar ?: $child->name_en }}
+                    </option>
+                @endforeach
+            </select>
+            <div class="a2-help">يمكن اختيار أقسام فرعية من تصنيفات (آباء) مختلفة.</div>
+        </div>
+    </div>
+
+    <div class="a2-card">
         <h2 class="a2-section-title">السعر والخصم</h2>
 
         <div class="a2-field">

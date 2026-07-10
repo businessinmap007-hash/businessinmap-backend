@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
+use App\Models\CategoryChild;
 use App\Models\CommercialOffer;
+use App\Models\CommercialOfferTarget;
 use App\Models\User;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class CommercialOfferController extends Controller
@@ -113,15 +117,23 @@ class CommercialOfferController extends Controller
             'statuses' => $this->statuses(),
             'subscriptionUsage' => null,
             'offersRules' => $subscriptionService->rules(),
-        ]);
+            'selectedTargetCategories' => [],
+            'selectedTargetChildren' => [],
+        ] + $this->taxonomyData());
     }
 
     public function store(Request $request, BusinessOffersSubscriptionService $subscriptionService)
     {
         $data = $this->validatedData($request);
+        [$categoryIds, $childIds] = $this->validatedTargets($request);
         $subscriptionService->ensureCanSaveOffer((int) $data['seller_business_id'], $data);
 
-        $offer = CommercialOffer::create($data);
+        $offer = DB::transaction(function () use ($data, $categoryIds, $childIds) {
+            $offer = CommercialOffer::create($data);
+            $this->syncTargets($offer, $categoryIds, $childIds);
+
+            return $offer;
+        });
 
         return redirect()
             ->route('admin.commercial-offers.edit', $offer->id)
@@ -130,7 +142,7 @@ class CommercialOfferController extends Controller
 
     public function edit(CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
     {
-        $commercialOffer->loadMissing(['ownerBusiness:id,name', 'sellerBusiness:id,name']);
+        $commercialOffer->loadMissing(['ownerBusiness:id,name', 'sellerBusiness:id,name', 'targets']);
 
         return view('admin-v2.commercial-offers.edit', [
             'offer' => $commercialOffer,
@@ -141,15 +153,21 @@ class CommercialOfferController extends Controller
             'statuses' => $this->statuses(),
             'subscriptionUsage' => $subscriptionService->usage((int) $commercialOffer->seller_business_id),
             'offersRules' => $subscriptionService->rules(),
-        ]);
+            'selectedTargetCategories' => $this->targetIdsOfType($commercialOffer, CommercialOfferTarget::TARGET_CATEGORY),
+            'selectedTargetChildren' => $this->targetIdsOfType($commercialOffer, CommercialOfferTarget::TARGET_CATEGORY_CHILD),
+        ] + $this->taxonomyData());
     }
 
     public function update(Request $request, CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
     {
         $data = $this->validatedData($request);
+        [$categoryIds, $childIds] = $this->validatedTargets($request);
         $subscriptionService->ensureCanSaveOffer((int) $data['seller_business_id'], $data, (int) $commercialOffer->id);
 
-        $commercialOffer->update($data);
+        DB::transaction(function () use ($commercialOffer, $data, $categoryIds, $childIds) {
+            $commercialOffer->update($data);
+            $this->syncTargets($commercialOffer, $categoryIds, $childIds);
+        });
 
         return redirect()
             ->route('admin.commercial-offers.edit', $commercialOffer->id)
@@ -181,6 +199,64 @@ class CommercialOfferController extends Controller
         ]);
 
         return back()->with('success', 'تم تغيير حالة العرض.');
+    }
+
+    /** Root categories (21) + category children (304) for the B2B targeting pickers. */
+    private function taxonomyData(): array
+    {
+        return [
+            'rootCategories' => Category::query()->where('parent_id', 0)
+                ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']),
+            'categoryChildren' => CategoryChild::query()
+                ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']),
+        ];
+    }
+
+    private function targetIdsOfType(CommercialOffer $offer, string $type): array
+    {
+        return $offer->targets
+            ->where('target_type', $type)
+            ->pluck('target_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /** @return array{0: int[], 1: int[]} [categoryIds, childIds] */
+    private function validatedTargets(Request $request): array
+    {
+        $data = $request->validate([
+            'target_categories' => ['nullable', 'array'],
+            'target_categories.*' => ['integer', 'exists:categories,id'],
+            'target_children' => ['nullable', 'array'],
+            'target_children.*' => ['integer', 'exists:category_children_master,id'],
+        ], [], [
+            'target_categories.*' => 'التصنيف',
+            'target_children.*' => 'القسم الفرعي',
+        ]);
+
+        $clean = fn ($ids) => array_values(array_unique(array_filter(array_map('intval', (array) ($ids ?? [])))));
+
+        return [$clean($data['target_categories'] ?? []), $clean($data['target_children'] ?? [])];
+    }
+
+    /** Replace an offer's targets with the given category + category-child ids. */
+    private function syncTargets(CommercialOffer $offer, array $categoryIds, array $childIds): void
+    {
+        $offer->targets()->delete();
+
+        foreach ($categoryIds as $categoryId) {
+            $offer->targets()->create([
+                'target_type' => CommercialOfferTarget::TARGET_CATEGORY,
+                'target_id' => $categoryId,
+            ]);
+        }
+
+        foreach ($childIds as $childId) {
+            $offer->targets()->create([
+                'target_type' => CommercialOfferTarget::TARGET_CATEGORY_CHILD,
+                'target_id' => $childId,
+            ]);
+        }
     }
 
     private function validatedData(Request $request): array

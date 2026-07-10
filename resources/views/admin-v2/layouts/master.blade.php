@@ -292,14 +292,16 @@
                 if (el.matches('[data-no-ts], .no-ts')) return;
 
                 try {
-                    new TomSelect(el, {
+                    const opts = {
                         create: false,
                         // Required selects: treat the empty <option> as a
                         // placeholder that clears on focus. Optional/filter
                         // selects keep the empty option selectable (e.g. "all").
                         allowEmptyOption: ! el.hasAttribute('required'),
                         maxOptions: 1000,
-                    });
+                    };
+                    if (el.dataset.placeholder) opts.placeholder = el.dataset.placeholder;
+                    new TomSelect(el, opts);
                 } catch (e) {
                     /* leave the element as a native select */
                 }

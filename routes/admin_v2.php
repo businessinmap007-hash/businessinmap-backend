@@ -166,6 +166,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('service-branches')->name('service-branches.')->group(function () {
             Route::get('/', [ServiceBranchBoardController::class, 'index'])->name('index');
             Route::post('toggle', [ServiceBranchBoardController::class, 'toggle'])->name('toggle');
+            Route::post('save', [ServiceBranchBoardController::class, 'save'])->name('save');
             Route::post('branches', [ServiceBranchBoardController::class, 'storeBranch'])->name('branches.store');
             Route::post('branches/{platformServiceItemGroup}/rename', [ServiceBranchBoardController::class, 'renameBranch'])->whereNumber('platformServiceItemGroup')->name('branches.rename');
             Route::delete('branches/{platformServiceItemGroup}', [ServiceBranchBoardController::class, 'destroyBranch'])->whereNumber('platformServiceItemGroup')->name('branches.destroy');

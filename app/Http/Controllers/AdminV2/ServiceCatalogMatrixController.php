@@ -19,7 +19,6 @@ class ServiceCatalogMatrixController extends Controller
     public function index(Request $request): View
     {
         $rootId = (int) $request->get('root_id', 0);
-        $serviceId = (int) $request->get('service_id', 0);
 
         $roots = $this->roots();
         $activeRoot = $rootId > 0 ? $roots->firstWhere('id', $rootId) : $roots->first();
@@ -27,25 +26,21 @@ class ServiceCatalogMatrixController extends Controller
         $children = collect($activeRoot?->children ?? [])->values();
         $childIds = $children->pluck('id')->map(fn ($id) => (int) $id)->filter()->values()->all();
 
-        $services = $this->services();
-        $activeService = $serviceId > 0 ? $services->firstWhere('id', $serviceId) : $services->first();
-        $activeServiceId = (int) optional($activeService)->id;
-
-        $itemTypes = $this->itemTypesForService($activeServiceId);
-        $matrix = $this->matrix($activeRootId, $childIds, $activeServiceId);
+        // Every active service, each carrying its own item types, so the page
+        // can show all services at once as expandable cards (multi-select).
+        $services = $this->servicesWithItemTypes();
         $serviceUsageCounts = $this->serviceUsageCounts($activeRootId, $childIds);
+        $childActiveServices = $this->childActiveServices($activeRootId, $childIds);
 
         return view('admin-v2.service-catalog-matrix.index', [
             'roots' => $roots,
             'services' => $services,
             'children' => $children,
-            'itemTypes' => $itemTypes,
-            'matrix' => $matrix,
+            'childCount' => $children->count(),
             'serviceUsageCounts' => $serviceUsageCounts,
+            'childActiveServices' => $childActiveServices,
             'activeRootId' => $activeRootId,
-            'activeServiceId' => $activeServiceId,
             'activeRoot' => $activeRoot,
-            'activeService' => $activeService,
         ]);
     }
 
@@ -53,11 +48,14 @@ class ServiceCatalogMatrixController extends Controller
     {
         $data = $request->validate([
             'root_id' => ['required', 'integer', 'exists:categories,id'],
-            'service_id' => ['required', 'integer', 'exists:platform_services,id'],
+            'services' => ['required', 'array', 'min:1'],
+            'services.*' => ['integer', 'exists:platform_services,id'],
             'child_ids' => ['required', 'array', 'min:1'],
             'child_ids.*' => ['integer', 'exists:category_children_master,id'],
+            // item_types is keyed by service id: item_types[<serviceId>][] = key
             'item_types' => ['nullable', 'array'],
-            'item_types.*' => ['string', 'max:100'],
+            'item_types.*' => ['nullable', 'array'],
+            'item_types.*.*' => ['string', 'max:100'],
             'mode' => ['required', 'in:replace,append,remove,disable_service'],
             'requires_bookable_item' => ['nullable'],
             'supports_quantity' => ['nullable'],
@@ -66,14 +64,13 @@ class ServiceCatalogMatrixController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ], [], [
             'root_id' => 'القسم الرئيسي',
-            'service_id' => 'الخدمة',
+            'services' => 'الخدمات',
             'child_ids' => 'الأقسام الفرعية',
             'item_types' => 'اختيارات الخدمة',
             'mode' => 'طريقة التطبيق',
         ]);
 
         $root = Category::query()->where('id', (int) $data['root_id'])->where('parent_id', 0)->firstOrFail();
-        $service = PlatformService::query()->where('id', (int) $data['service_id'])->where('is_active', 1)->firstOrFail();
 
         $selectedChildIds = collect($data['child_ids'])
             ->map(fn ($id) => (int) $id)
@@ -93,89 +90,119 @@ class ServiceCatalogMatrixController extends Controller
             return back()->withErrors(['child_ids' => 'اختر قسمًا فرعيًا مرتبطًا بهذا القسم الرئيسي.'])->withInput();
         }
 
-        $allowedServiceItemTypes = $this->itemTypesForService((int) $service->id)
-            ->pluck('key')
-            ->map(fn ($key) => (string) $key)
-            ->all();
-
-        $selectedItemTypes = collect($data['item_types'] ?? [])
-            ->map(fn ($key) => trim((string) $key))
-            ->filter(fn ($key) => $key !== '' && in_array($key, $allowedServiceItemTypes, true))
+        $serviceIds = collect($data['services'])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
 
+        $services = PlatformService::query()
+            ->whereIn('id', $serviceIds)
+            ->where('is_active', 1)
+            ->get()
+            ->keyBy('id');
+
+        if ($services->isEmpty()) {
+            return back()->withErrors(['services' => 'اختر خدمة واحدة على الأقل.'])->withInput();
+        }
+
+        $itemTypesByService = is_array($data['item_types'] ?? null) ? $data['item_types'] : [];
         $mode = (string) $data['mode'];
 
-        DB::transaction(function () use ($validChildIds, $root, $service, $selectedItemTypes, $mode, $request) {
-            foreach ($validChildIds as $index => $childId) {
-                $childId = (int) $childId;
-                $sortOrder = $index + 1;
+        DB::transaction(function () use ($services, $validChildIds, $root, $itemTypesByService, $mode, $request) {
+            foreach ($services as $service) {
+                $allowed = $this->itemTypesForService((int) $service->id)
+                    ->pluck('key')
+                    ->map(fn ($key) => (string) $key)
+                    ->all();
 
-                if ($mode === 'disable_service') {
-                    $this->disablePair((int) $root->id, $childId, (int) $service->id);
-                    continue;
-                }
-
-                $config = CategoryServiceConfig::query()
-                    ->where('category_id', (int) $root->id)
-                    ->where('child_id', $childId)
-                    ->where('platform_service_id', (int) $service->id)
-                    ->first();
-
-                $current = is_array($config?->config ?? null) ? $config->config : [];
-                $currentTypes = collect($current['allowed_item_types'] ?? [])
+                $selectedItemTypes = collect($itemTypesByService[(int) $service->id] ?? [])
                     ->map(fn ($key) => trim((string) $key))
-                    ->filter()
+                    ->filter(fn ($key) => $key !== '' && in_array($key, $allowed, true))
                     ->unique()
                     ->values()
                     ->all();
 
-                $nextTypes = match ($mode) {
-                    'append' => collect($currentTypes)->merge($selectedItemTypes)->unique()->values()->all(),
-                    'remove' => collect($currentTypes)->reject(fn ($key) => in_array($key, $selectedItemTypes, true))->values()->all(),
-                    default => $selectedItemTypes,
-                };
+                foreach ($validChildIds as $index => $childId) {
+                    $childId = (int) $childId;
 
-                CategoryPlatformService::query()->updateOrCreate(
-                    [
-                        'category_id' => (int) $root->id,
-                        'child_id' => $childId,
-                        'platform_service_id' => (int) $service->id,
-                    ],
-                    [
-                        'is_active' => 1,
-                        'sort_order' => $sortOrder,
-                        'meta' => [
-                            'source' => 'service_catalog_matrix',
-                            'last_catalog_sync_at' => now()->toDateTimeString(),
-                        ],
-                        'updated_at' => now(),
-                    ]
-                );
+                    if ($mode === 'disable_service') {
+                        $this->disablePair((int) $root->id, $childId, (int) $service->id);
+                        continue;
+                    }
 
-                CategoryServiceConfig::query()->updateOrCreate(
-                    [
-                        'category_id' => (int) $root->id,
-                        'child_id' => $childId,
-                        'platform_service_id' => (int) $service->id,
-                    ],
-                    [
-                        'config' => $this->mergeServiceConfig($current, $nextTypes, $request, $service),
-                        'is_active' => 1,
-                        'sort_order' => $sortOrder,
-                        'updated_at' => now(),
-                    ]
-                );
+                    $this->applyServiceToChild(
+                        (int) $root->id,
+                        $childId,
+                        $service,
+                        $selectedItemTypes,
+                        $index + 1,
+                        $mode,
+                        $request
+                    );
+                }
             }
         });
 
         return redirect()
-            ->route('admin.service-catalog-matrix.index', [
-                'root_id' => (int) $root->id,
-                'service_id' => (int) $service->id,
-            ])
-            ->with('success', 'تم تحديث كتالوج الخدمة للأقسام الفرعية المختارة بنجاح.');
+            ->route('admin.service-catalog-matrix.index', ['root_id' => (int) $root->id])
+            ->with('success', 'تم تحديث كتالوج الخدمات للأقسام الفرعية المختارة بنجاح.');
+    }
+
+    /** Write one (root, child, service) pair: link + config, honoring the mode. */
+    protected function applyServiceToChild(int $rootId, int $childId, PlatformService $service, array $selectedItemTypes, int $sortOrder, string $mode, Request $request): void
+    {
+        $config = CategoryServiceConfig::query()
+            ->where('category_id', $rootId)
+            ->where('child_id', $childId)
+            ->where('platform_service_id', (int) $service->id)
+            ->first();
+
+        $current = is_array($config?->config ?? null) ? $config->config : [];
+        $currentTypes = collect($current['allowed_item_types'] ?? [])
+            ->map(fn ($key) => trim((string) $key))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $nextTypes = match ($mode) {
+            'append' => collect($currentTypes)->merge($selectedItemTypes)->unique()->values()->all(),
+            'remove' => collect($currentTypes)->reject(fn ($key) => in_array($key, $selectedItemTypes, true))->values()->all(),
+            default => $selectedItemTypes,
+        };
+
+        CategoryPlatformService::query()->updateOrCreate(
+            [
+                'category_id' => $rootId,
+                'child_id' => $childId,
+                'platform_service_id' => (int) $service->id,
+            ],
+            [
+                'is_active' => 1,
+                'sort_order' => $sortOrder,
+                'meta' => [
+                    'source' => 'service_catalog_matrix',
+                    'last_catalog_sync_at' => now()->toDateTimeString(),
+                ],
+                'updated_at' => now(),
+            ]
+        );
+
+        CategoryServiceConfig::query()->updateOrCreate(
+            [
+                'category_id' => $rootId,
+                'child_id' => $childId,
+                'platform_service_id' => (int) $service->id,
+            ],
+            [
+                'config' => $this->mergeServiceConfig($current, $nextTypes, $request, $service),
+                'is_active' => 1,
+                'sort_order' => $sortOrder,
+                'updated_at' => now(),
+            ]
+        );
     }
 
     protected function roots()
@@ -222,42 +249,42 @@ class ServiceCatalogMatrixController extends Controller
             ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'sort_order']);
     }
 
-    protected function matrix(int $rootId, array $childIds, int $serviceId): array
+    /** Active services, each with an `item_types` collection attached. */
+    protected function servicesWithItemTypes()
     {
-        if ($rootId <= 0 || $serviceId <= 0 || empty($childIds)) {
+        $services = $this->services();
+
+        $itemTypesByService = PlatformServiceItemType::query()
+            ->whereIn('platform_service_id', $services->pluck('id')->all())
+            ->where('is_active', 1)
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('name_ar')
+            ->orderBy('id')
+            ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'sort_order'])
+            ->groupBy('platform_service_id');
+
+        return $services->map(function ($service) use ($itemTypesByService) {
+            $service->item_types = collect($itemTypesByService->get($service->id, collect()))->values();
+
+            return $service;
+        });
+    }
+
+    /** [childId => [serviceId, ...]] for the root's currently-active service links. */
+    protected function childActiveServices(int $rootId, array $childIds): array
+    {
+        if ($rootId <= 0 || empty($childIds)) {
             return [];
         }
 
-        $links = CategoryPlatformService::query()
+        return CategoryPlatformService::query()
             ->where('category_id', $rootId)
-            ->where('platform_service_id', $serviceId)
             ->whereIn('child_id', $childIds)
-            ->get()
-            ->keyBy('child_id');
-
-        $configs = CategoryServiceConfig::query()
-            ->where('category_id', $rootId)
-            ->where('platform_service_id', $serviceId)
-            ->whereIn('child_id', $childIds)
-            ->get()
-            ->keyBy('child_id');
-
-        $matrix = [];
-
-        foreach ($childIds as $childId) {
-            $link = $links->get($childId);
-            $config = $configs->get($childId);
-            $configArray = is_array($config?->config ?? null) ? $config->config : [];
-
-            $matrix[(int) $childId] = [
-                'service_active' => (bool) ($link?->is_active ?? false),
-                'config_active' => (bool) ($config?->is_active ?? false),
-                'allowed_item_types' => collect($configArray['allowed_item_types'] ?? [])->map(fn ($v) => (string) $v)->values()->all(),
-                'notes' => (string) ($configArray['notes'] ?? ''),
-            ];
-        }
-
-        return $matrix;
+            ->where('is_active', 1)
+            ->get(['child_id', 'platform_service_id'])
+            ->groupBy('child_id')
+            ->map(fn ($rows) => $rows->pluck('platform_service_id')->map(fn ($id) => (int) $id)->unique()->values()->all())
+            ->all();
     }
 
     protected function serviceUsageCounts(int $rootId, array $childIds): array

@@ -55,9 +55,15 @@
                 <div class="a2-card-title">المصفوفة — علّم فروع كل نوع</div>
                 <div class="a2-card-sub">النوع ممكن يتبع أكتر من فرع. لو متبوّب في فرع غير معروض بيظهر تحته «أيضًا في: …».</div>
             </div>
-            <div style="position:relative;">
-                <i class="ti ti-search" style="position:absolute; right:10px; top:9px; opacity:.5;"></i>
-                <input type="text" id="a2sbSearch" class="a2-input" placeholder="ابحث عن نوع…" style="width:220px; padding-right:30px;" autocomplete="off">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="a2sbSaveState" class="a2-hint" style="margin:0;">محفوظ تلقائيًا</span>
+                <button type="button" id="a2sbSaveAll" class="a2-btn a2-btn-primary a2-btn-sm">
+                    <i class="ti ti-device-floppy"></i> حفظ الكل
+                </button>
+                <div style="position:relative;">
+                    <i class="ti ti-search" style="position:absolute; right:10px; top:9px; opacity:.5;"></i>
+                    <input type="text" id="a2sbSearch" class="a2-input" placeholder="ابحث عن نوع…" style="width:220px; padding-right:30px;" autocomplete="off">
+                </div>
             </div>
         </div>
 
@@ -79,6 +85,7 @@
     // panel is browsed on a different host/port than APP_URL.
     const URLS = {
         toggle: @json(route('admin.service-branches.toggle', [], false)),
+        save: @json(route('admin.service-branches.save', [], false)),
         store: @json(route('admin.service-branches.branches.store', [], false)),
         renameTpl: @json(route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'], false)),
         destroyTpl: @json(route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'], false)),
@@ -105,6 +112,24 @@
         flash.style.display = 'block';
         clearTimeout(notify._t);
         notify._t = setTimeout(() => { flash.style.display = 'none'; }, 3000);
+    }
+
+    const saveStateEl = document.getElementById('a2sbSaveState');
+    const saveAllBtn = document.getElementById('a2sbSaveAll');
+
+    // Reflect auto-save health next to the save button. 'dirty' means an auto-save
+    // failed, so "حفظ الكل" becomes the recovery action.
+    function setSaveState(kind) {
+        if (!saveStateEl) return;
+        const map = {
+            saved: ['محفوظ تلقائيًا', 'var(--a2-muted, #6b7280)'],
+            saving: ['جارٍ الحفظ…', 'var(--a2-muted, #6b7280)'],
+            confirmed: ['تم حفظ الكل ✓', 'var(--a2-success, #16a34a)'],
+            dirty: ['تغييرات لم تُحفظ — اضغط «حفظ الكل»', 'var(--a2-danger, #dc2626)'],
+        };
+        const [text, color] = map[kind] || map.saved;
+        saveStateEl.textContent = text;
+        saveStateEl.style.color = color;
     }
 
     async function api(url, body, method) {
@@ -221,14 +246,39 @@
         const groupId = Number(box.dataset.b);
         const attached = box.checked;
         const t = types.find(x => x.id === typeId);
+        // Optimistically reflect the change locally so "حفظ الكل" can recover it
+        // even if this auto-save call fails.
+        t.groupIds = attached ? Array.from(new Set([...t.groupIds, groupId])) : t.groupIds.filter(g => g !== groupId);
+        setSaveState('saving');
         try {
-            const d = await api(URLS.toggle, { service_id: serviceId, item_type_id: typeId, group_id: groupId, attached });
-            t.groupIds = attached ? Array.from(new Set([...t.groupIds, groupId])) : t.groupIds.filter(g => g !== groupId);
+            await api(URLS.toggle, { service_id: serviceId, item_type_id: typeId, group_id: groupId, attached });
             recount(); renderChips();
-            table.querySelectorAll('th').forEach(() => {});
             renderMatrix();
             notify('تم الحفظ.', true);
-        } catch (err) { box.checked = !attached; notify(err.message, false); }
+            setSaveState('saved');
+        } catch (err) {
+            // Keep the optimistic local state; the row stays checked and the user
+            // can retry the whole board with "حفظ الكل".
+            notify(err.message, false);
+            setSaveState('dirty');
+        }
+    });
+
+    saveAllBtn?.addEventListener('click', async () => {
+        saveAllBtn.disabled = true;
+        setSaveState('saving');
+        try {
+            const payload = { service_id: serviceId, types: types.map(t => ({ item_type_id: t.id, group_ids: t.groupIds })) };
+            const d = await api(URLS.save, payload);
+            recount(); renderChips(); renderMatrix();
+            notify('تم حفظ كل التغييرات (' + (d.saved ?? types.length) + ' نوع).', true);
+            setSaveState('confirmed');
+        } catch (err) {
+            notify(err.message, false);
+            setSaveState('dirty');
+        } finally {
+            saveAllBtn.disabled = false;
+        }
     });
 
     document.getElementById('a2sbAddBranch').addEventListener('click', async () => {

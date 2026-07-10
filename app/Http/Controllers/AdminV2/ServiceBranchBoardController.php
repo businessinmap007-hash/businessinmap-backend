@@ -116,6 +116,56 @@ class ServiceBranchBoardController extends Controller
         ]);
     }
 
+    /**
+     * Bulk "save all": re-sync the whole matrix for one service in a single
+     * transaction. Belongs alongside the per-toggle auto-save as a safety net /
+     * explicit confirmation — the client sends each type's COMPLETE branch set
+     * (including branches not shown as columns), so hidden memberships survive.
+     */
+    public function save(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'service_id' => ['required', 'integer', 'exists:platform_services,id'],
+            'types' => ['nullable', 'array'],
+            'types.*.item_type_id' => ['required', 'integer'],
+            'types.*.group_ids' => ['nullable', 'array'],
+            'types.*.group_ids.*' => ['integer', 'exists:platform_service_item_groups,id'],
+        ], [], [
+            'service_id' => 'الخدمة',
+        ]);
+
+        $serviceId = (int) $data['service_id'];
+
+        // Desired branch set per item type, keyed by type id.
+        $desired = collect($data['types'] ?? [])
+            ->keyBy(fn ($row) => (int) $row['item_type_id']);
+
+        // Only touch item types that actually belong to this service.
+        $types = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->whereIn('id', $desired->keys()->map(fn ($id) => (int) $id)->all())
+            ->get(['id']);
+
+        DB::transaction(function () use ($types, $desired) {
+            foreach ($types as $type) {
+                $groupIds = collect($desired->get((int) $type->id)['group_ids'] ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $type->groups()->sync($groupIds);
+            }
+        });
+
+        return response()->json([
+            'ok' => true,
+            'saved' => $types->count(),
+            'counts' => $this->countsForService($serviceId),
+        ]);
+    }
+
     public function storeBranch(Request $request): JsonResponse
     {
         $data = $request->validate([

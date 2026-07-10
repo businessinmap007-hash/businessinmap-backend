@@ -255,8 +255,11 @@
                 try {
                     new TomSelect(el, {
                         create: false,
-                        allowEmptyOption: true,
-                        maxOptions: null,
+                        // Required selects: treat the empty <option> as a
+                        // placeholder that clears on focus. Optional/filter
+                        // selects keep the empty option selectable (e.g. "all").
+                        allowEmptyOption: ! el.hasAttribute('required'),
+                        maxOptions: 1000,
                     });
                 } catch (e) {
                     /* leave the element as a native select */

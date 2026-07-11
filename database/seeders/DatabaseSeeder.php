@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
            DeliveryChildBranchesSeeder::class,
            BookingBranchesSeeder::class,
            BookingChildBranchesSeeder::class,
+           MenuBranchesSeeder::class,
+           MenuChildBranchesSeeder::class,
 
 
 

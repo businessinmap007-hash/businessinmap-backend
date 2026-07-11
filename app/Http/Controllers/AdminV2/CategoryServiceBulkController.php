@@ -9,6 +9,8 @@ use App\Models\CategoryChildServiceFee;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
+use App\Models\PlatformServiceItemGroup;
+use App\Models\PlatformServiceItemType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +36,60 @@ class CategoryServiceBulkController extends Controller
         return collect($value)
             ->map(fn ($v) => trim((string) $v))
             ->filter(fn ($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeIntArray($value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Branch (item_group) ids the admin ticked for one service in the bulk form.
+     */
+    private function selectedGroupIds(Request $request, int $serviceId): array
+    {
+        return $this->normalizeIntArray($request->input("item_groups.{$serviceId}", []));
+    }
+
+    /**
+     * The allowed item-type KEYS for a (service) selection: the union of every
+     * type reachable through the ticked branches PLUS any individually ticked
+     * (ungrouped / fine-tuned) types. This is what the owner panel later filters
+     * its pickable types against (CategoryServiceConfig.config.allowed_item_types).
+     */
+    private function resolveAllowedItemTypes(Request $request, int $serviceId): array
+    {
+        $explicit = $this->normalizeArray($request->input("allowed_item_types.{$serviceId}", []));
+        $groupIds = $this->selectedGroupIds($request, $serviceId);
+
+        $fromGroups = [];
+
+        if (! empty($groupIds)) {
+            $fromGroups = DB::table('platform_service_item_group_type as gt')
+                ->join('platform_service_item_types as t', 't.id', '=', 'gt.item_type_id')
+                ->whereIn('gt.group_id', $groupIds)
+                ->where('t.platform_service_id', $serviceId)
+                ->pluck('t.key')
+                ->map(fn ($k) => (string) $k)
+                ->all();
+        }
+
+        return collect($explicit)
+            ->merge($fromGroups)
+            ->map(fn ($k) => trim((string) $k))
+            ->filter(fn ($k) => $k !== '')
             ->unique()
             ->values()
             ->all();
@@ -73,7 +129,6 @@ class CategoryServiceBulkController extends Controller
             'supports_quantity' => $this->toBool($request->input('supports_quantity')),
             'supports_guest_count' => $this->toBool($request->input('supports_guest_count')),
             'supports_extras' => $this->toBool($request->input('supports_extras')),
-            'allowed_item_types' => $this->normalizeArray($request->input('allowed_item_types')),
             'required_fields' => $this->normalizeArray($request->input('required_fields')),
         ];
     }
@@ -100,12 +155,28 @@ class CategoryServiceBulkController extends Controller
 
     private function serviceConfigPayload(Request $request, PlatformService $service): array
     {
-        return match ((string) $service->key) {
+        $config = match ((string) $service->key) {
             PlatformService::KEY_BOOKING => $this->bookingConfigPayload($request),
             PlatformService::KEY_MENU => $this->menuConfigPayload($request),
             PlatformService::KEY_DELIVERY => $this->deliveryConfigPayload($request),
             default => [],
         };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Branch-driven allowed item types (services-bulk §4)
+        |--------------------------------------------------------------------------
+        | The admin picks item_groups (branches) appropriate to the child; we keep
+        | the ticked group ids for round-tripping the UI, and store the expanded
+        | union of their item-type keys as `allowed_item_types` — the single field
+        | the owner panel / booking read paths already consume. Applies to every
+        | service, not only booking.
+        |--------------------------------------------------------------------------
+        */
+        $config['item_groups'] = $this->selectedGroupIds($request, (int) $service->id);
+        $config['allowed_item_types'] = $this->resolveAllowedItemTypes($request, (int) $service->id);
+
+        return $config;
     }
 
     private function serviceFeePayload(Request $request, int $sortOrder = 1, ?int $serviceId = null): array
@@ -229,6 +300,14 @@ class CategoryServiceBulkController extends Controller
             rootId: $activeRootId,
             childIds: $activeChildIds
         );
+
+        $serviceBranches = $this->serviceBranches($services);
+
+        $configMatrix = $this->configMatrixForRootChildren(
+            rootId: $activeRootId,
+            childIds: $activeChildIds
+        );
+
         return view('admin-v2.categories.services-bulk', [
             'roots' => $roots,
             'services' => $services,
@@ -236,7 +315,121 @@ class CategoryServiceBulkController extends Controller
             'activeServiceCounts' => $activeServiceCounts,
             'activeChildrenCount' => $activeChildrenCount,
             'feeMatrix' => $feeMatrix,
+            'serviceBranches' => $serviceBranches,
+            'configMatrix' => $configMatrix,
         ]);
+    }
+
+    /**
+     * Per-service branch tree for the "allowed types" picker:
+     * [serviceId => ['branches' => [['id','name','types'=>[['id','key','name']]]], 'ungrouped' => [...]]].
+     * A type can appear under several branches (many-to-many); types with no
+     * branch fall into `ungrouped` so they stay reachable.
+     */
+    private function serviceBranches($services): array
+    {
+        $serviceIds = collect($services)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        if (empty($serviceIds)) {
+            return [];
+        }
+
+        $typeRows = PlatformServiceItemType::query()
+            ->whereIn('platform_service_id', $serviceIds)
+            ->where('is_active', 1)
+            ->with('groups:id')
+            ->ordered()
+            ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en']);
+
+        $groupNames = PlatformServiceItemGroup::query()
+            ->ordered()
+            ->get(['id', 'name_ar', 'name_en'])
+            ->keyBy('id');
+
+        $result = [];
+
+        foreach ($services as $service) {
+            $serviceId = (int) $service->id;
+            $branchMap = [];
+            $ungrouped = [];
+
+            foreach ($typeRows->where('platform_service_id', $serviceId) as $type) {
+                $typeArr = [
+                    'id' => (int) $type->id,
+                    'key' => (string) $type->key,
+                    'name' => $type->displayName('ar'),
+                ];
+
+                $groupIds = $type->groups->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+                if (empty($groupIds)) {
+                    $ungrouped[] = $typeArr;
+                    continue;
+                }
+
+                foreach ($groupIds as $groupId) {
+                    $group = $groupNames->get($groupId);
+
+                    if (! $group) {
+                        continue;
+                    }
+
+                    if (! isset($branchMap[$groupId])) {
+                        $branchMap[$groupId] = [
+                            'id' => $groupId,
+                            'name' => $group->displayName('ar'),
+                            'types' => [],
+                        ];
+                    }
+
+                    $branchMap[$groupId]['types'][] = $typeArr;
+                }
+            }
+
+            $result[$serviceId] = [
+                'branches' => array_values($branchMap),
+                'ungrouped' => $ungrouped,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Existing allowed-types selection per child+service, for pre-filling the
+     * picker: [childId => [serviceId => ['item_groups'=>[], 'allowed_item_types'=>[]]]].
+     */
+    private function configMatrixForRootChildren(int $rootId, array $childIds): array
+    {
+        if ($rootId <= 0 || empty($childIds)) {
+            return [];
+        }
+
+        $matrix = [];
+
+        $rows = CategoryServiceConfig::query()
+            ->where('category_id', $rootId)
+            ->whereIn('child_id', $childIds)
+            ->where('is_active', 1)
+            ->get(['child_id', 'platform_service_id', 'config']);
+
+        foreach ($rows as $row) {
+            $childId = (int) $row->child_id;
+            $serviceId = (int) $row->platform_service_id;
+
+            if ($childId <= 0 || $serviceId <= 0) {
+                continue;
+            }
+
+            $config = is_array($row->config) ? $row->config : [];
+
+            $matrix[$childId][$serviceId] = [
+                'item_groups' => $this->normalizeIntArray($config['item_groups'] ?? []),
+                'allowed_item_types' => $this->normalizeArray($config['allowed_item_types'] ?? []),
+            ];
+        }
+
+        return $matrix;
     }
 
     private function activeServiceCountsForRoot(int $rootId, array $childIds): array
@@ -347,6 +540,15 @@ class CategoryServiceBulkController extends Controller
 
             'service_fees.*.currency' => ['nullable', 'string', 'max:10'],
             'service_fees.*.fee_notes' => ['nullable', 'string', 'max:1000'],
+
+            // Branch (item_group) selection per service — services-bulk §4.
+            'item_groups' => ['nullable', 'array'],
+            'item_groups.*' => ['nullable', 'array'],
+            'item_groups.*.*' => ['integer', 'exists:platform_service_item_groups,id'],
+
+            'allowed_item_types' => ['nullable', 'array'],
+            'allowed_item_types.*' => ['nullable', 'array'],
+            'allowed_item_types.*.*' => ['string', 'max:191'],
         ], [], [
             'root_id' => 'القسم الرئيسي',
             'category_ids' => 'الأقسام الفرعية',

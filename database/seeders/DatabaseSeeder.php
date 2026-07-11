@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             // CategoryUserSeeder::class,
             // CategoryTargetSeeder::class,
            CategoryPlatformServiceSeeder::class,
+           DeliveryBranchesSeeder::class,
 
 
 

@@ -4,6 +4,19 @@
 @section('body_class', 'admin-v2 admin-v2-services-bulk')
 
 @section('content')
+<style>
+    .a2-branch-block { border: 1px solid var(--a2-border, #e5e7eb); border-radius: 10px; padding: 14px; background: var(--a2-soft-bg, #fafafa); }
+    .a2-branch-list { display: flex; flex-direction: column; gap: 8px; }
+    .a2-branch { border: 1px solid var(--a2-border, #e5e7eb); border-radius: 8px; padding: 8px 10px; background: #fff; }
+    .a2-branch-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .a2-branch-ungrouped-label { color: var(--a2-muted, #6b7280); }
+    .a2-branch-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--a2-border, #e5e7eb); }
+    .a2-check-sm { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .a2-check-sm small { color: var(--a2-muted, #9ca3af); }
+    .a2-btn-sm { padding: 2px 10px; font-size: 12px; }
+    .a2-branch.is-selected { border-color: var(--a2-primary, #2563eb); box-shadow: 0 0 0 1px var(--a2-primary, #2563eb) inset; }
+    .a2-branch-types label input:disabled + span { opacity: .55; }
+</style>
 @php
     $rootsSafe = collect($roots ?? []);
     $servicesSafe = collect($services ?? []);
@@ -12,6 +25,8 @@
     $activeServiceCountsSafe = $activeServiceCounts ?? [];
     $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
     $feeMatrixSafe = $feeMatrix ?? [];
+    $serviceBranchesSafe = $serviceBranches ?? [];
+    $configMatrixSafe = $configMatrix ?? [];
     $hasOldInput = count(old()) > 0;
 
     $nameOf = function ($item) {
@@ -307,6 +322,100 @@
                                     </div>
                                 </div>
 
+                                @php
+                                    $branchData = $serviceBranchesSafe[$serviceId] ?? ['branches' => [], 'ungrouped' => []];
+                                    $oldGroups = collect(old("item_groups.$serviceId", []))->map(fn ($v) => (int) $v)->all();
+                                    $oldTypes = collect(old("allowed_item_types.$serviceId", []))->map(fn ($v) => (string) $v)->all();
+                                @endphp
+
+                                @if(! empty($branchData['branches']) || ! empty($branchData['ungrouped']))
+                                    <div class="a2-branch-block a2-mt-16" data-service-id="{{ $serviceId }}">
+                                        <h4 class="a2-section-title">الفروع والأنواع المسموحة</h4>
+                                        <div class="a2-section-subtitle">
+                                            اختر الفروع المناسبة لهذا التصنيف — صاحب الحساب سيختار مما تحدده هنا فقط.
+                                            اترك الكل فارغًا للسماح بجميع الأنواع. تُطبّق على كل الفروع المحددة.
+                                        </div>
+
+                                        <div class="a2-alert a2-alert-warning js-branch-mixed-warning" hidden>
+                                            الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار،
+                                            وأي حفظ جديد سيطبّق الاختيار الحالي على كل المحدد.
+                                        </div>
+
+                                        <div class="a2-branch-list a2-mt-12">
+                                            @foreach($branchData['branches'] as $branch)
+                                                <div class="a2-branch">
+                                                    <div class="a2-branch-head">
+                                                        <label class="a2-check">
+                                                            <input
+                                                                type="checkbox"
+                                                                class="js-branch-checkbox"
+                                                                name="item_groups[{{ $serviceId }}][]"
+                                                                value="{{ $branch['id'] }}"
+                                                                data-service-id="{{ $serviceId }}"
+                                                                data-group-id="{{ $branch['id'] }}"
+                                                                @checked(in_array((int) $branch['id'], $oldGroups, true))
+                                                            >
+                                                            <span>
+                                                                <strong>{{ $branch['name'] }}</strong>
+                                                                <span class="a2-pill a2-pill-gray">{{ count($branch['types']) }}</span>
+                                                            </span>
+                                                        </label>
+
+                                                        <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm js-branch-toggle">
+                                                            الأنواع
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="a2-branch-types" hidden>
+                                                        @foreach($branch['types'] as $type)
+                                                            <label class="a2-check a2-check-sm">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="js-type-checkbox"
+                                                                    name="allowed_item_types[{{ $serviceId }}][]"
+                                                                    value="{{ $type['key'] }}"
+                                                                    data-service-id="{{ $serviceId }}"
+                                                                    data-group-id="{{ $branch['id'] }}"
+                                                                    @checked(in_array((string) $type['key'], $oldTypes, true))
+                                                                >
+                                                                <span>{{ $type['name'] }} <small dir="ltr">{{ $type['key'] }}</small></span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endforeach
+
+                                            @if(! empty($branchData['ungrouped']))
+                                                <div class="a2-branch">
+                                                    <div class="a2-branch-head">
+                                                        <span class="a2-branch-ungrouped-label"><strong>بدون فرع</strong></span>
+                                                        <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm js-branch-toggle">
+                                                            الأنواع
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="a2-branch-types" hidden>
+                                                        @foreach($branchData['ungrouped'] as $type)
+                                                            <label class="a2-check a2-check-sm">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="js-type-checkbox"
+                                                                    name="allowed_item_types[{{ $serviceId }}][]"
+                                                                    value="{{ $type['key'] }}"
+                                                                    data-service-id="{{ $serviceId }}"
+                                                                    data-group-id="0"
+                                                                    @checked(in_array((string) $type['key'], $oldTypes, true))
+                                                                >
+                                                                <span>{{ $type['name'] }} <small dir="ltr">{{ $type['key'] }}</small></span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+
                                 <div class="a2-form-grid a2-mt-16">
                                     <div class="a2-form-group">
                                         <label class="a2-label">العملة</label>
@@ -453,6 +562,7 @@
 
 <script>
 window.BIM_SERVICE_FEE_MATRIX = @json($feeMatrixSafe ?? []);
+window.BIM_SERVICE_CONFIG_MATRIX = @json($configMatrixSafe ?? []);
 window.BIM_HAS_OLD_INPUT = @json($hasOldInput);
 </script>
 
@@ -472,6 +582,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedModeLabel = document.getElementById('selectedModeLabel');
 
     const feeMatrix = window.BIM_SERVICE_FEE_MATRIX || {};
+    const configMatrix = window.BIM_SERVICE_CONFIG_MATRIX || {};
     const hasOldInput = !!window.BIM_HAS_OLD_INPUT;
     const serviceDefaults = {};
 
@@ -741,6 +852,148 @@ document.addEventListener('DOMContentLoaded', function () {
     function fillVisibleServiceFeeCards() {
         getSelectedServiceIds().forEach(function (serviceId) {
             fillServiceFeeCard(serviceId);
+            applyBranchSelection(serviceId);
+        });
+    }
+
+    /* ----- Branch (allowed types) picker — services-bulk §4 ----- */
+
+    function branchBlock(serviceId) {
+        return document.querySelector('.a2-branch-block[data-service-id="' + serviceId + '"]');
+    }
+
+    function setBranchNestedTypes(branchCheckbox, checked) {
+        const branchEl = branchCheckbox.closest('.a2-branch');
+
+        if (!branchEl) {
+            return;
+        }
+
+        branchEl.querySelectorAll('.js-type-checkbox').forEach(function (type) {
+            type.checked = checked;
+        });
+
+        branchEl.classList.toggle('is-selected', checked);
+    }
+
+    function sameAsSet(a, b) {
+        const sa = (a || []).map(String).sort();
+        const sb = (b || []).map(String).sort();
+        return JSON.stringify(sa) === JSON.stringify(sb);
+    }
+
+    function getCommonServiceConfig(serviceId) {
+        const selectedChildIds = getSelectedChildIds();
+
+        let first = null;
+        let mixed = false;
+        let rowsFound = 0;
+
+        selectedChildIds.forEach(function (childId) {
+            const row = configMatrix[String(childId)] && configMatrix[String(childId)][String(serviceId)]
+                ? configMatrix[String(childId)][String(serviceId)]
+                : null;
+
+            if (!row) {
+                return;
+            }
+
+            rowsFound++;
+
+            if (!first) {
+                first = row;
+                return;
+            }
+
+            if (!sameAsSet(first.item_groups, row.item_groups)
+                || !sameAsSet(first.allowed_item_types, row.allowed_item_types)) {
+                mixed = true;
+            }
+        });
+
+        if (first && selectedChildIds.length > 0 && rowsFound < selectedChildIds.length) {
+            mixed = true;
+        }
+
+        return { row: first, mixed: mixed };
+    }
+
+    function applyBranchSelection(serviceId) {
+        const block = branchBlock(serviceId);
+
+        if (!block) {
+            return;
+        }
+
+        /*
+        | Returning from a validation error: keep the checkbox state the server
+        | re-rendered from old(), only refresh the selected-branch visuals.
+        */
+        if (hasOldInput) {
+            block.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
+                const branchEl = branchCb.closest('.a2-branch');
+                if (branchEl) {
+                    branchEl.classList.toggle('is-selected', branchCb.checked);
+                }
+            });
+            return;
+        }
+
+        block.querySelectorAll('.js-branch-checkbox, .js-type-checkbox').forEach(function (cb) {
+            cb.checked = false;
+        });
+        block.querySelectorAll('.a2-branch').forEach(function (branchEl) {
+            branchEl.classList.remove('is-selected');
+        });
+
+        const result = getCommonServiceConfig(serviceId);
+        const mixedBox = block.querySelector('.js-branch-mixed-warning');
+
+        if (mixedBox) {
+            mixedBox.hidden = !result.mixed;
+        }
+
+        const row = result.row;
+
+        if (!row) {
+            return;
+        }
+
+        const groupIds = (row.item_groups || []).map(String);
+        const allowedTypes = (row.allowed_item_types || []).map(String);
+        const coveredKeys = new Set();
+
+        block.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
+            if (groupIds.indexOf(String(branchCb.dataset.groupId)) === -1) {
+                return;
+            }
+
+            branchCb.checked = true;
+            setBranchNestedTypes(branchCb, true);
+
+            const branchEl = branchCb.closest('.a2-branch');
+            if (branchEl) {
+                branchEl.querySelectorAll('.js-type-checkbox').forEach(function (type) {
+                    coveredKeys.add(String(type.value));
+                });
+            }
+        });
+
+        allowedTypes.forEach(function (key) {
+            if (coveredKeys.has(String(key))) {
+                return;
+            }
+
+            const typeCb = Array.prototype.find.call(
+                block.querySelectorAll('.js-type-checkbox'),
+                function (cb) {
+                    return String(cb.value) === String(key) && !cb.checked;
+                }
+            );
+
+            if (typeCb) {
+                typeCb.checked = true;
+            }
         });
     }
 
@@ -782,6 +1035,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (isSelected) {
                 fillServiceFeeCard(serviceId);
+                applyBranchSelection(serviceId);
             } else {
                 setServiceFeeCardState(card, false, false);
             }
@@ -890,6 +1144,39 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('input[name="mode"]').forEach(function (input) {
         input.addEventListener('change', function () {
             syncAll();
+        });
+    });
+
+    document.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
+        branchCb.addEventListener('change', function () {
+            setBranchNestedTypes(branchCb, branchCb.checked);
+        });
+    });
+
+    document.querySelectorAll('.js-type-checkbox').forEach(function (typeCb) {
+        typeCb.addEventListener('change', function () {
+            /* Unticking any type of a fully-selected branch drops that branch to
+               explicit fine-tuned mode (the remaining ticked types still apply). */
+            if (typeCb.checked) {
+                return;
+            }
+
+            const branchEl = typeCb.closest('.a2-branch');
+            const branchCb = branchEl ? branchEl.querySelector('.js-branch-checkbox') : null;
+
+            if (branchCb && branchCb.checked) {
+                branchCb.checked = false;
+                branchEl.classList.remove('is-selected');
+            }
+        });
+    });
+
+    document.querySelectorAll('.js-branch-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const types = btn.closest('.a2-branch').querySelector('.a2-branch-types');
+            if (types) {
+                types.hidden = !types.hidden;
+            }
         });
     });
 

@@ -146,5 +146,31 @@ class BookingBranchesSeeder extends Seeder
                 $group->itemTypes()->syncWithoutDetaching($typeIds);
             }
         }
+
+        $this->cleanupLegacyMemberships($serviceId);
+    }
+
+    /**
+     * Legacy cleanup: the two old sports-field types were cross-listed under
+     * `services_tasks` by an early import. They belong to `sports` only —
+     * detach them from services_tasks (their sports membership stays).
+     */
+    protected function cleanupLegacyMemberships(int $serviceId): void
+    {
+        $tasks = PlatformServiceItemGroup::where('key', 'services_tasks')->first();
+
+        if (! $tasks) {
+            return;
+        }
+
+        $fieldTypeIds = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->whereIn('key', ['five_side_field', 'full_field'])
+            ->pluck('id')
+            ->all();
+
+        if (! empty($fieldTypeIds)) {
+            $tasks->itemTypes()->detach($fieldTypeIds);
+        }
     }
 }

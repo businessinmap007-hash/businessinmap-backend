@@ -33,8 +33,11 @@ branch picker couldn't reach them.
 
 The legacy placeholder type `category` («افتراضي») stays ungrouped on purpose.
 
-Curation note (pre-existing, untouched): `services_tasks` also carries the two
-old sports-field types (`five_side_field`, `full_field`) from an earlier import.
+Curation note: `services_tasks` used to carry the two old sports-field types
+(`five_side_field`, `full_field`) from an earlier import — **cleaned**: they are
+detached from services_tasks (sports-only now) by
+`BookingBranchesSeeder::cleanupLegacyMemberships()`, and the affected child
+configs were re-expanded (80 → 78 types).
 
 ## 3. Root → branch mapping (applied, 160 children)
 

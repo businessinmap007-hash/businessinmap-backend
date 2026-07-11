@@ -16,10 +16,12 @@ use Illuminate\Database\Seeder;
  * 5 new specialised branches (m2m), so a bakery child gets only «مخبوزات
  * وحلويات» instead of the whole dump. Idempotent.
  *
- * Left untouched on purpose: the placeholder type `menu` («منيو», ungrouped),
- * the legacy `3dmax` menu-type sitting in the training branch (pre-existing
- * import garbage — flagged in docs), and `ultra_modern` (unclear legacy label,
- * stays supermarket-only).
+ * Left untouched on purpose: the placeholder type `menu` («منيو», ungrouped).
+ *
+ * Legacy cleanup (see cleanupLegacyTypes): `3dmax` is detached from the
+ * *training* branch (a menu-type in a booking branch was import garbage) but
+ * kept active — a live business price references it; `ultra_modern` (unclear
+ * legacy label, zero references) is detached from supermarket and deactivated.
  */
 class MenuBranchesSeeder extends Seeder
 {
@@ -102,6 +104,36 @@ class MenuBranchesSeeder extends Seeder
             if (! empty($typeIds)) {
                 $group->itemTypes()->syncWithoutDetaching($typeIds);
             }
+        }
+
+        $this->cleanupLegacyTypes($serviceId);
+    }
+
+    protected function cleanupLegacyTypes(int $serviceId): void
+    {
+        // 3dmax: menu-service type wrongly cross-linked into the booking
+        // `training` branch. Detach only — it keeps an active business price.
+        $threeDMax = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('key', '3dmax')
+            ->first();
+
+        $training = PlatformServiceItemGroup::where('key', 'training')->first();
+
+        if ($threeDMax && $training) {
+            $training->itemTypes()->detach($threeDMax->id);
+        }
+
+        // ultra_modern: meaningless legacy label, zero references anywhere —
+        // detach from supermarket and deactivate.
+        $ultraModern = PlatformServiceItemType::query()
+            ->where('platform_service_id', $serviceId)
+            ->where('key', 'ultra_modern')
+            ->first();
+
+        if ($ultraModern) {
+            $ultraModern->groups()->detach();
+            $ultraModern->update(['is_active' => 0]);
         }
     }
 }

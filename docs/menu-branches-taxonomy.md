@@ -27,10 +27,14 @@ branches so specialised children get only what fits:
 | `grocery_pantry` ➕ | بقالة ومواد غذائية | 14 |
 | `household_personal` ➕ | منظفات وعناية ومنزلية | 7 |
 
-Left untouched on purpose: placeholder type `menu` («منيو», ungrouped),
-`ultra_modern` (unclear legacy label, supermarket-only), and the stray `3dmax`
-menu-type sitting in the *training* branch (pre-existing import garbage — clean
-up separately if desired).
+Left untouched on purpose: placeholder type `menu` («منيو», ungrouped).
+
+Legacy cleanup (`MenuBranchesSeeder::cleanupLegacyTypes()`): the stray `3dmax`
+menu-type was detached from the *training* branch but **kept active** — business
+212 («فندق الاندلس») holds a live price on it (price row id 13; also a stray
+`five_side_field` price, id 18 — flagged for manual review, clearly test data on
+a hotel account). `ultra_modern` (no references anywhere) was detached from
+supermarket and deactivated; the supermarket children re-expanded 53 → 52 types.
 
 ## 3. Child mapping (applied, 19 children)
 

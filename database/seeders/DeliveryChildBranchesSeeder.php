@@ -25,19 +25,42 @@ use Illuminate\Support\Facades\DB;
  */
 class DeliveryChildBranchesSeeder extends Seeder
 {
+    /** Platform service key this seeder configures. */
+    protected function serviceKey(): string
+    {
+        return 'delivery';
+    }
+
+    /** Data file with the approved [root slug => [child name => branch keys]] map. */
+    protected function dataFile(): string
+    {
+        return __DIR__ . '/data/delivery_child_branches.php';
+    }
+
+    /** Behaviour defaults for a config row that doesn't exist yet. */
+    protected function newConfigDefaults(): array
+    {
+        return [
+            'has_delivery' => true,
+            'delivery_type' => 'distance',
+            'max_radius_km' => 0,
+            'supports_scheduled_delivery' => false,
+        ];
+    }
+
     public function run(): void
     {
-        $delivery = PlatformService::where('key', 'delivery')->first();
+        $service = PlatformService::where('key', $this->serviceKey())->first();
 
-        if (! $delivery) {
-            $this->command?->warn('Delivery service not found — run PlatformServiceSeeder first.');
+        if (! $service) {
+            $this->command?->warn("Service '{$this->serviceKey()}' not found — run PlatformServiceSeeder first.");
 
             return;
         }
 
-        $serviceId = (int) $delivery->id;
+        $serviceId = (int) $service->id;
 
-        $map = require __DIR__ . '/data/delivery_child_branches.php';
+        $map = require $this->dataFile();
 
         // branch key => [id, member type keys of the delivery service]
         $branches = DB::table('platform_service_item_groups')->pluck('id', 'key')->all();
@@ -107,7 +130,7 @@ class DeliveryChildBranchesSeeder extends Seeder
             }
         }
 
-        $this->command?->info("Delivery child branches applied: {$applied}");
+        $this->command?->info("{$this->serviceKey()} child branches applied: {$applied}");
 
         if (! empty($missingRoots)) {
             $this->command?->warn('Missing roots: ' . implode(', ', $missingRoots));
@@ -154,12 +177,7 @@ class DeliveryChildBranchesSeeder extends Seeder
             $data = is_array($config->config) ? $config->config : [];
 
             if (! $config->exists) {
-                $data += [
-                    'has_delivery' => true,
-                    'delivery_type' => 'distance',
-                    'max_radius_km' => 0,
-                    'supports_scheduled_delivery' => false,
-                ];
+                $data += $this->newConfigDefaults();
             }
 
             $data['item_groups'] = $groupIds;

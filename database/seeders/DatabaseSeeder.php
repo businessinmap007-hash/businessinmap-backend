@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
            CategoryPlatformServiceSeeder::class,
            DeliveryBranchesSeeder::class,
            DeliveryChildBranchesSeeder::class,
+           BookingBranchesSeeder::class,
+           BookingChildBranchesSeeder::class,
 
 
 

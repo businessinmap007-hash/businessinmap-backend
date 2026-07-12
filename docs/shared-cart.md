@@ -33,9 +33,24 @@ migration: `2026_07_15_000000_create_shared_cart.php` (كله محروس/idempot
   (صاحب السطر أو المضيف)، checkout/leave يفحصان الدور.
 - `placeOrder` مشترك بين checkout الشخصي والمشترك.
 
+## الدفع والفوترة (كاش عند الاستلام)
+الدفع **كله كاش عند وصول الطلب**، وكل مشارك يرى **فاتورته الخاصة** محسوبة على
+**طلبه هو فقط**:
+- `items_subtotal` = مجموع أصنافه.
+- `service_fee` = رسم المنصة (client fee من `CategoryChildServiceFee` لـ(طفل
+  البزنس + خدمة menu)، fixed أو percent) — يُعاد استخدام `amountFor(PAYER_CLIENT)`.
+- `tax` = نسبة عامة (config `bim.menu_tax_rate_percent`، افتراضي 14% مصر) على
+  (أصنافه + رسم خدمته).
+- `total` = المجموع.
+
+المنطق في `MenuBillingService` (`feeRowForBusiness` + `bill`). `SharedCartController`
+يفرض `payment_method='cash'` عند checkout.
+
 ## العرض
-`participants[]{user_id,name,role,items_count,subtotal}` (نصيب كل شخص) +
-`items[]{...,added_by,options}` + `totals.grand_total`.
+`participants[]{user_id,name,role,items_count,items_subtotal,service_fee,tax,total}`
+(فاتورة كل شخص) + `items[]{...,added_by,options}` +
+`totals{items,items_subtotal,service_fee,tax,grand_total}` +
+`payment_method:'cash'`. `grand_total` = مجموع فواتير الجميع.
 
 ## الاختبارات
 `SharedCartTest` (8): مشاركة idempotent، انضمام/توكن خطأ، نسب السطور والإجمالي،
@@ -43,7 +58,8 @@ migration: `2026_07_15_000000_create_shared_cart.php` (كله محروس/idempot
 الإجمالي ذو الصلة 71 أخضر.
 
 ## توسعات مؤجّلة (خارج MVP)
-- **تقسيم الدفع لكل شخص** (كلٌّ يدفع نصيبه من محفظته) — الأنصبة محسوبة أصلاً في
-  `breakdown`، يبقى ربط الدفع المتعدد.
-- إشعار المضيف عند انضمام عضو (`InAppNotificationService` جاهز).
-- إلغاء السلة المشتركة من المضيف؛ واجهة ويب.
+- تطبيق نفس الفوترة (رسم خدمة + ضريبة) على **الطلبات الشخصية** (`CartController`) —
+  الآن مطبّقة على السلة المشتركة فقط؛ الطلب الشخصي ما زال طعاماً خاماً (تفادياً
+  لكسر اختبارات cart القائمة). يُنسّق مع المستخدم لاحقاً.
+- ضريبة يحددها المطعم (بدل النسبة العامة) لو اختلف التسجيل الضريبي.
+- إشعار المضيف عند انضمام عضو (`InAppNotificationService` جاهز)؛ إلغاء السلة؛ واجهة ويب.

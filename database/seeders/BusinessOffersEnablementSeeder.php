@@ -39,6 +39,7 @@ class BusinessOffersEnablementSeeder extends Seeder
                 PlatformService::KEY_BOOKING,
                 PlatformService::KEY_MENU,
                 PlatformService::KEY_DELIVERY,
+                PlatformService::KEY_RETAIL,
             ])
             ->pluck('id')
             ->all();

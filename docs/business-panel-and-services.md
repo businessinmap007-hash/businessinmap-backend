@@ -60,8 +60,17 @@ the units & prices controllers):
 | My Units | `Business\BookableItemController` | `business.bookable-items.*` | inventory CRUD (code/capacity/qty/active), **no price** |
 | My Prices | `Business\BusinessServicePriceController` | `business.prices.*` | price + deposit + discount + **charge mode** per (service, type) |
 | My Menu | `Business\MenuItemController` | `business.menu.*` | menu items CRUD (name/price/desc/active/sort) |
+| My Products | `Business\CatalogListingController` | `business.products.*` | list catalog masters with own price/stock (`business_catalog_listings`); **retail-scoped** |
 | My Bookings | `Business\BookingController` | `business.bookings.*` | list + show; **add/remove dine-in food** + live unified invoice |
 | Menu Orders | `Business\OrderController` | `business.orders.*` | standalone delivery/pickup orders + food + total |
+
+**My Products retail scoping.** `CatalogListingController` uses
+`ResolvesOwnerCatalog` and the retail mirror: `retailScope()` reads the child's
+allowed retail item-type keys → `product_category_children.slug` →
+`catalog_products.product_category_child_id`. `productLookup`/`store` restrict to
+that id set (owners of non-retail children get 403); `store` re-applies the
+filter in the `catalog_product_id` exists-rule so a crafted id can't bypass the
+picker. See [retail-branches-taxonomy.md](retail-branches-taxonomy.md).
 
 All views live under `resources/views/business/<screen>/`.
 

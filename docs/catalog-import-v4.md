@@ -112,3 +112,19 @@ product_bim_code,attribute_code,value_text_ar,value_text_en,value_number,value_b
 - استخدم `slug` و`code` و`bim_code` فقط.
 - الباركود غير المؤكد يترك فارغًا.
 - الصور التجارية الرسمية لا تستخدم إلا بترخيص أو مصدر مسموح.
+
+## ربط الكتالوج بخدمة التجزئة (retail)
+
+منذ 2026-07-13 صار تصنيف الكتالوج **مرآةً 1:1** لفروع خدمة retail
+(انظر [retail-branches-taxonomy.md](retail-branches-taxonomy.md)):
+
+- `product_category_slug` في `products.csv` يجب أن يساوي **مفتاح فرع retail**
+  (مثل `home_furnishings`) = `product_categories.slug`.
+- `product_category_child_slug` يجب أن يساوي **مفتاح نوع العنصر** (مثل
+  `furniture`) = `product_category_children.slug`.
+
+التصنيفات تُزرَع مسبقاً بواسطة `RetailProductTaxonomySeeder`، فالاستيراد يعمل
+**upsert داخل** الصفوف المزروعة ولا ينشئ تصنيفات جديدة إطلاقاً (0 categories على
+`--dry-run` بملفات متوافقة). أي slug جديد يعني نوعاً غير موجود في التصنيف — راجعه
+قبل الاستيراد. الـFK المركب `cp_child_matches_parent_fk` يفرض أن يكون
+`product_category_slug` هو الأب الفعلي للـchild slug.

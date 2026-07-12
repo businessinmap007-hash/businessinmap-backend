@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\BusinessCatalogListing;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SeedsRetailCatalog;
 use Tests\TestCase;
 
 /**
@@ -16,16 +16,18 @@ use Tests\TestCase;
 class RetailDiscoveryTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetailCatalog;
 
     /** @return array{0:int,1:int,2:int} [businessA, businessB, productId] */
     private function seedTwoSellersOfOneProduct(): array
     {
         $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
-        $productId = (int) DB::table('catalog_products')->whereNull('deleted_at')->value('id');
 
-        if (count($businesses) < 2 || $productId <= 0) {
-            $this->markTestSkipped('Needs two business users and one catalog master.');
+        if (count($businesses) < 2) {
+            $this->markTestSkipped('Needs two business users.');
         }
+
+        $productId = $this->makeCatalogProduct();
 
         [$a, $b] = $businesses;
         BusinessCatalogListing::create(['business_id' => $a, 'catalog_product_id' => $productId, 'sku' => 'RA', 'price' => 10.00, 'currency' => 'EGP', 'stock' => 5, 'is_active' => 1]);
@@ -73,10 +75,10 @@ class RetailDiscoveryTest extends TestCase
     public function test_inactive_listing_is_not_discoverable(): void
     {
         $businesses = User::query()->where('type', 'business')->take(1)->pluck('id')->all();
-        $productId = (int) DB::table('catalog_products')->whereNull('deleted_at')->value('id');
-        if (! $businesses || $productId <= 0) {
-            $this->markTestSkipped('Needs a business user and a catalog master.');
+        if (! $businesses) {
+            $this->markTestSkipped('Needs a business user.');
         }
+        $productId = $this->makeCatalogProduct();
 
         BusinessCatalogListing::create(['business_id' => $businesses[0], 'catalog_product_id' => $productId, 'sku' => 'INACT', 'price' => 99.00, 'currency' => 'EGP', 'stock' => 1, 'is_active' => 0]);
 

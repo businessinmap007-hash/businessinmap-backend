@@ -37,6 +37,15 @@ class PlatformServiceSeeder extends Seeder
                 'supports_deposit' => false,
                 'max_deposit_percent' => 0,
             ],
+            [
+                'key' => 'retail',
+                'name_ar' => 'التجزئة',
+                'name_en' => 'Retail',
+                'is_active' => true,
+                'sort_order' => 4,
+                'supports_deposit' => false,
+                'max_deposit_percent' => 0,
+            ],
         ];
 
         foreach ($rows as $row) {

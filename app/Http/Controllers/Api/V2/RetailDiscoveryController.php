@@ -22,6 +22,22 @@ final class RetailDiscoveryController extends Controller
     /** Product categories and brands that actually have active listings. */
     public function filters(Request $request)
     {
+        // Branch-level (product_categories == retail branches) rollup.
+        $branches = DB::table('business_catalog_listings as l')
+            ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
+            ->join('product_categories as pc', 'pc.id', '=', 'p.product_category_id')
+            ->where('l.is_active', 1)
+            ->whereNull('p.deleted_at')
+            ->groupBy('pc.id', 'pc.name_ar', 'pc.name_en')
+            ->selectRaw('pc.id, pc.name_ar, pc.name_en, COUNT(DISTINCT p.id) AS products')
+            ->orderByDesc('products')
+            ->get()
+            ->map(fn ($c) => [
+                'id' => (int) $c->id,
+                'name' => $this->label($c->name_ar, $c->name_en, 'فرع #' . $c->id),
+                'products' => (int) $c->products,
+            ])->values();
+
         $categories = DB::table('business_catalog_listings as l')
             ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
             ->join('product_category_children as c', 'c.id', '=', 'p.product_category_child_id')
@@ -55,6 +71,7 @@ final class RetailDiscoveryController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
+                'branches' => $branches,
                 'categories' => $categories,
                 'brands' => $brands,
             ],
@@ -68,12 +85,14 @@ final class RetailDiscoveryController extends Controller
     public function products(Request $request)
     {
         $data = $request->validate([
+            'category_id' => ['nullable', 'integer', 'min:1'],
             'child_id' => ['nullable', 'integer', 'min:1'],
             'brand_id' => ['nullable', 'integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $categoryId = (int) ($data['category_id'] ?? 0);
         $childId = (int) ($data['child_id'] ?? 0);
         $brandId = (int) ($data['brand_id'] ?? 0);
         $q = trim((string) ($data['q'] ?? ''));
@@ -88,6 +107,7 @@ final class RetailDiscoveryController extends Controller
             ->leftJoin('catalog_brands as b', 'b.id', '=', 'p.brand_id')
             ->leftJoin('product_category_children as c', 'c.id', '=', 'p.product_category_child_id')
             ->whereNull('p.deleted_at')
+            ->when($categoryId > 0, fn ($query) => $query->where('p.product_category_id', $categoryId))
             ->when($childId > 0, fn ($query) => $query->where('p.product_category_child_id', $childId))
             ->when($brandId > 0, fn ($query) => $query->where('p.brand_id', $brandId))
             ->when($q !== '', function ($query) use ($q) {
@@ -131,6 +151,7 @@ final class RetailDiscoveryController extends Controller
             'success' => true,
             'data' => [
                 'query' => [
+                    'category_id' => $categoryId ?: null,
                     'child_id' => $childId ?: null,
                     'brand_id' => $brandId ?: null,
                     'q' => $q ?: null,

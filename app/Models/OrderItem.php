@@ -11,6 +11,7 @@ class OrderItem extends Model
     // type later); `menu_id` is kept for backward compatibility.
     protected $fillable = [
         'order_id',
+        'added_by_user_id',
         'menu_id',
         'offering_type',
         'offering_id',
@@ -36,6 +37,11 @@ class OrderItem extends Model
     public function menuItem()
     {
         return $this->belongsTo(MenuItem::class, 'menu_id');
+    }
+
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by_user_id');
     }
 
     /**

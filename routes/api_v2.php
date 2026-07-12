@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
+use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use Illuminate\Support\Facades\Route;
 
@@ -57,6 +58,17 @@ Route::prefix('v2')->group(function () {
             Route::patch('items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
             Route::delete('items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
             Route::post('{business}/checkout', [CartController::class, 'checkout'])->whereNumber('business');
+
+            // Shared (group) cart: host shares, friends join by token, each adds
+            // their own attributed lines; the host checks out one invoice.
+            Route::post('{business}/share', [SharedCartController::class, 'share'])->whereNumber('business');
+            Route::post('join/{token}', [SharedCartController::class, 'join']);
+            Route::get('shared/{order}', [SharedCartController::class, 'show'])->whereNumber('order');
+            Route::post('shared/{order}/items', [SharedCartController::class, 'addItem'])->whereNumber('order');
+            Route::patch('shared/{order}/items/{item}', [SharedCartController::class, 'updateItem'])->whereNumber(['order', 'item']);
+            Route::delete('shared/{order}/items/{item}', [SharedCartController::class, 'removeItem'])->whereNumber(['order', 'item']);
+            Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order');
+            Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
         });
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).

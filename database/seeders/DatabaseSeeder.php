@@ -17,7 +17,11 @@ class DatabaseSeeder extends Seeder
             // CategoryOptionSeeder::class,
             // CategoryUserSeeder::class,
             // CategoryTargetSeeder::class,
-           CategoryPlatformServiceSeeder::class,
+           // CategoryPlatformServiceSeeder — retired 2026-07-13: it seeded the
+           // dropped category_booking_profiles table (removed 2026_03_19) and
+           // legacy root-level (child_id NULL) links for hotel/restaurant/sports.
+           // Service enablement is now child-level via services-bulk + the branch
+           // child-seeders below.
            DeliveryBranchesSeeder::class,
            DeliveryChildBranchesSeeder::class,
            BookingBranchesSeeder::class,

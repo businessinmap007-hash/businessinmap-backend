@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
+use App\Models\MenuSection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -43,6 +45,7 @@ class MenuItemController extends Controller
                         ->orWhereRaw('LOWER(name_en) LIKE ?', [$term]);
                 });
             })
+            ->with('section:id,name_ar')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderByDesc('id')
             ->paginate(50)
@@ -59,7 +62,18 @@ class MenuItemController extends Controller
     {
         return view('business.menu.create', [
             'row' => new MenuItem(['is_active' => 1, 'sort_order' => 0, 'base_price' => 0]),
+            'sections' => $this->sections(),
         ]);
+    }
+
+    /** The owner's sections for the item form dropdown. */
+    private function sections()
+    {
+        return MenuSection::query()
+            ->where('business_id', $this->businessId())
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id')
+            ->get(['id', 'name_ar']);
     }
 
     public function store(Request $request): RedirectResponse
@@ -73,7 +87,13 @@ class MenuItemController extends Controller
 
     public function edit(int $id): View
     {
-        return view('business.menu.edit', ['row' => $this->scopedItem($id)]);
+        $row = $this->scopedItem($id);
+        $row->load(['variants' => fn ($q) => $q->orderBy('id'), 'extras' => fn ($q) => $q->orderBy('id')]);
+
+        return view('business.menu.edit', [
+            'row' => $row,
+            'sections' => $this->sections(),
+        ]);
     }
 
     public function update(Request $request, int $id): RedirectResponse
@@ -97,6 +117,10 @@ class MenuItemController extends Controller
         $data = $request->validate([
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
+            'menu_section_id' => [
+                'nullable', 'integer',
+                Rule::exists('menu_sections', 'id')->where('business_id', $this->businessId()),
+            ],
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -105,11 +129,13 @@ class MenuItemController extends Controller
         ], [], [
             'name_ar' => 'الاسم العربي',
             'base_price' => 'السعر',
+            'menu_section_id' => 'القسم',
         ]);
 
         return [
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
+            'menu_section_id' => ($data['menu_section_id'] ?? null) ?: null,
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),

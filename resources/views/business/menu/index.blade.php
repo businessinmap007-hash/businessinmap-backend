@@ -9,6 +9,7 @@
         <div class="a2-page-subtitle">الأصناف التي يمكن للعميل طلبها — تخصّك أنت فقط.</div>
     </div>
     <div class="a2-page-actions">
+        <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">الأقسام</a>
         <a href="{{ route('business.menu.create') }}" class="a2-btn a2-btn-primary">إضافة صنف</a>
     </div>
 </div>
@@ -45,6 +46,7 @@
                 <tr>
                     <th>#</th>
                     <th>الاسم</th>
+                    <th>القسم</th>
                     <th>السعر</th>
                     <th>الترتيب</th>
                     <th>الحالة</th>
@@ -58,6 +60,13 @@
                         <td>
                             <div class="a2-fw-900">{{ $row->name_ar ?: '—' }}</div>
                             <div class="a2-muted" dir="ltr">{{ $row->name_en ?: '' }}</div>
+                        </td>
+                        <td>
+                            @if($row->section)
+                                <span class="a2-pill a2-pill-gray">{{ $row->section->name_ar }}</span>
+                            @else
+                                <span class="a2-muted">—</span>
+                            @endif
                         </td>
                         <td class="a2-fw-900">{{ number_format((float) $row->base_price, 2) }}</td>
                         <td>{{ (int) $row->sort_order }}</td>
@@ -81,7 +90,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="a2-empty">لا توجد أصناف بعد. ابدأ بإضافة منيو نشاطك.</td>
+                        <td colspan="7" class="a2-empty">لا توجد أصناف بعد. ابدأ بإضافة منيو نشاطك.</td>
                     </tr>
                 @endforelse
             </tbody>

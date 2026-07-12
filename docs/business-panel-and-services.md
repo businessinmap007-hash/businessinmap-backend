@@ -59,7 +59,8 @@ the units & prices controllers):
 | Dashboard | `Business\DashboardController` | `business.dashboard` | owner's own counts |
 | My Units | `Business\BookableItemController` | `business.bookable-items.*` | inventory CRUD (code/capacity/qty/active), **no price** |
 | My Prices | `Business\BusinessServicePriceController` | `business.prices.*` | price + deposit + discount + **charge mode** per (service, type) |
-| My Menu | `Business\MenuItemController` | `business.menu.*` | menu items CRUD (name/price/desc/active/sort) |
+| My Menu | `Business\MenuItemController` | `business.menu.*` | menu items CRUD (name/price/desc/**section**/active/sort) + inline **variants & extras** management |
+| Menu Sections | `Business\MenuSectionController` | `business.menu-sections.*` | named groups (مقبلات/رئيسي/حلويات) that organise the menu |
 | My Products | `Business\CatalogListingController` | `business.products.*` | list catalog masters with own price/stock (`business_catalog_listings`); **retail-scoped** |
 | My Bookings | `Business\BookingController` | `business.bookings.*` | list + show; **add/remove dine-in food** + live unified invoice |
 | Menu Orders | `Business\OrderController` | `business.orders.*` | standalone delivery/pickup orders + food + total |
@@ -71,6 +72,22 @@ allowed retail item-type keys → `product_category_children.slug` →
 that id set (owners of non-retail children get 403); `store` re-applies the
 filter in the `catalog_product_id` exists-rule so a crafted id can't bypass the
 picker. See [retail-branches-taxonomy.md](retail-branches-taxonomy.md).
+
+**Menu sections + variants/extras.** `menu_items.menu_section_id` → `menu_sections`
+(per-business, migration `2026_07_14_000000`; legacy `category_id` untouched). The
+owner manages sections on their own screen and picks one per item; variants
+(`menu_item_variants`, sizes) and extras (`menu_item_extras`, add-ons) are managed
+inline on the menu-item edit page (`business.menu.variants.*` / `business.menu.extras.*`,
+scoped to the owner's items).
+
+**Customer menu browse.** `GET /api/v2/discovery/menu/{business}` (public,
+`Api\V2\MenuDiscoveryController`) returns the active menu grouped by sections,
+each item with `base_price`, `variants` (price via `MenuItemVariant::resolvePrice`)
+and `extras`. The customer then adds to the cart with optional `size_id` + `extras[]`
+(`POST /api/v2/cart/items`); `CustomerCartService` prices the line server-side
+(variant + Σ extras), stores `order_items.size_id`/`addons`, and merges only lines
+with an identical selection signature (size + sorted extra ids). See
+[menu-customer-experience.md](menu-customer-experience.md).
 
 All views live under `resources/views/business/<screen>/`.
 

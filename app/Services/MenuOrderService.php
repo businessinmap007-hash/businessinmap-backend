@@ -23,9 +23,10 @@ class MenuOrderService
         int $qty,
         float $price,
         ?int $menuId = null,
-        ?int $sizeId = null
+        ?int $sizeId = null,
+        ?array $addons = null
     ): void {
-        DB::transaction(function () use ($order, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId) {
+        DB::transaction(function () use ($order, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons) {
             $qty = max(1, $qty);
             $price = round($price, 2);
 
@@ -34,7 +35,7 @@ class MenuOrderService
                 'offering_type' => $offeringType,
                 'offering_id' => $offeringId,
                 'size_id' => $sizeId,
-                'addons' => null,
+                'addons' => $addons ?: null,
                 'qty' => $qty,
                 'price' => $price,
                 'total_price' => round($price * $qty, 2),

@@ -7,6 +7,9 @@ use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\MenuItemController;
+use App\Http\Controllers\Business\MenuItemExtraController;
+use App\Http\Controllers\Business\MenuItemVariantController;
+use App\Http\Controllers\Business\MenuSectionController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
 use Illuminate\Support\Facades\Route;
@@ -44,12 +47,27 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::put('prices/{id}', [BusinessServicePriceController::class, 'update'])->whereNumber('id')->name('prices.update');
         Route::delete('prices/{id}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('id')->name('prices.destroy');
 
+        Route::get('menu-sections', [MenuSectionController::class, 'index'])->name('menu-sections.index');
+        Route::get('menu-sections/create', [MenuSectionController::class, 'create'])->name('menu-sections.create');
+        Route::post('menu-sections', [MenuSectionController::class, 'store'])->name('menu-sections.store');
+        Route::get('menu-sections/{id}/edit', [MenuSectionController::class, 'edit'])->whereNumber('id')->name('menu-sections.edit');
+        Route::put('menu-sections/{id}', [MenuSectionController::class, 'update'])->whereNumber('id')->name('menu-sections.update');
+        Route::delete('menu-sections/{id}', [MenuSectionController::class, 'destroy'])->whereNumber('id')->name('menu-sections.destroy');
+
         Route::get('menu', [MenuItemController::class, 'index'])->name('menu.index');
         Route::get('menu/create', [MenuItemController::class, 'create'])->name('menu.create');
         Route::post('menu', [MenuItemController::class, 'store'])->name('menu.store');
         Route::get('menu/{id}/edit', [MenuItemController::class, 'edit'])->whereNumber('id')->name('menu.edit');
         Route::put('menu/{id}', [MenuItemController::class, 'update'])->whereNumber('id')->name('menu.update');
         Route::delete('menu/{id}', [MenuItemController::class, 'destroy'])->whereNumber('id')->name('menu.destroy');
+
+        // Variants (sizes) + extras (add-ons) for a menu item.
+        Route::post('menu/{menuItem}/variants', [MenuItemVariantController::class, 'store'])->whereNumber('menuItem')->name('menu.variants.store');
+        Route::put('menu/{menuItem}/variants/{variant}', [MenuItemVariantController::class, 'update'])->whereNumber(['menuItem', 'variant'])->name('menu.variants.update');
+        Route::delete('menu/{menuItem}/variants/{variant}', [MenuItemVariantController::class, 'destroy'])->whereNumber(['menuItem', 'variant'])->name('menu.variants.destroy');
+        Route::post('menu/{menuItem}/extras', [MenuItemExtraController::class, 'store'])->whereNumber('menuItem')->name('menu.extras.store');
+        Route::put('menu/{menuItem}/extras/{extra}', [MenuItemExtraController::class, 'update'])->whereNumber(['menuItem', 'extra'])->name('menu.extras.update');
+        Route::delete('menu/{menuItem}/extras/{extra}', [MenuItemExtraController::class, 'destroy'])->whereNumber(['menuItem', 'extra'])->name('menu.extras.destroy');
 
         Route::get('products', [CatalogListingController::class, 'index'])->name('products.index');
         Route::get('products/create', [CatalogListingController::class, 'create'])->name('products.create');

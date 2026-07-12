@@ -13,6 +13,7 @@ class MenuItem extends Model
 
     protected $fillable = [
         'business_id',
+        'menu_section_id',
         'category_id',
         'name_ar',
         'name_en',
@@ -26,6 +27,7 @@ class MenuItem extends Model
 
     protected $casts = [
         'business_id' => 'integer',
+        'menu_section_id' => 'integer',
         'category_id' => 'integer',
         'base_price' => 'decimal:2',
         'is_active' => 'boolean',
@@ -35,6 +37,11 @@ class MenuItem extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(MenuSection::class, 'menu_section_id');
     }
 
     public function variants(): HasMany

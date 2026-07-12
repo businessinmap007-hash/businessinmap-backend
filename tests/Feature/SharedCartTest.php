@@ -82,11 +82,12 @@ class SharedCartTest extends TestCase
 
         // Same item from two people = two distinct, attributed lines.
         $this->assertCount(2, $res->json('data.cart.items'));
-        $this->assertSame(150.0, (float) $res->json('data.cart.totals.grand_total')); // 1*50 + 2*50
+        // Raw items subtotal is tax-independent (1*50 + 2*50).
+        $this->assertSame(150.0, (float) $res->json('data.cart.totals.items_subtotal'));
 
         $breakdown = collect($res->json('data.cart.participants'));
-        $this->assertSame(50.0, (float) $breakdown->firstWhere('user_id', $this->host->id)['subtotal']);
-        $this->assertSame(100.0, (float) $breakdown->firstWhere('user_id', $this->member->id)['subtotal']);
+        $this->assertSame(50.0, (float) $breakdown->firstWhere('user_id', $this->host->id)['items_subtotal']);
+        $this->assertSame(100.0, (float) $breakdown->firstWhere('user_id', $this->member->id)['items_subtotal']);
         $this->assertSame('host', $breakdown->firstWhere('user_id', $this->host->id)['role']);
     }
 

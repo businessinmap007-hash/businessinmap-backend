@@ -7,18 +7,23 @@ use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Services\CustomerCartService;
+use App\Services\MenuBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Shared (group) cart — friends join the host's cart via a share token and each
- * adds their own lines; the host pays one invoice. Every endpoint is scoped to
- * a participant of the cart. See CustomerCartService.
+ * adds their own lines. Payment is cash on arrival: every participant sees their
+ * OWN bill (their items + their share of the service fee + tax, on their order
+ * only). Every endpoint is scoped to a participant of the cart. See
+ * CustomerCartService + MenuBillingService.
  */
 final class SharedCartController extends Controller
 {
-    public function __construct(private readonly CustomerCartService $cart)
-    {
+    public function __construct(
+        private readonly CustomerCartService $cart,
+        private readonly MenuBillingService $billing,
+    ) {
     }
 
     /** Open the caller's cart for a business as a shared cart. */
@@ -101,8 +106,10 @@ final class SharedCartController extends Controller
             'fulfillment_type' => ['nullable', 'in:delivery,pickup,dine_in'],
             'address' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['nullable', 'string', 'max:50'],
         ]);
+
+        // Shared carts are cash-on-arrival; each participant pays their own share.
+        $data['payment_method'] = 'cash';
 
         $placed = $this->cart->checkoutShared((int) $request->user()->id, $order, $data);
 
@@ -149,17 +156,24 @@ final class SharedCartController extends Controller
             'total_price' => (float) $line->total_price,
         ])->values();
 
-        // Per-participant breakdown (sum of that person's lines).
+        // Per-participant bill: their items + their share of the service fee +
+        // tax, on their own order only (cash on arrival).
+        $feeRow = $this->billing->feeRowForBusiness((int) $order->business_id);
         $byUser = $order->items->groupBy('added_by_user_id');
-        $breakdown = $order->participants->map(function ($p) use ($byUser) {
+
+        $breakdown = $order->participants->map(function ($p) use ($byUser, $feeRow) {
             $lines = $byUser->get($p->user_id) ?? collect();
+            $bill = $this->billing->bill((float) $lines->sum('total_price'), $feeRow);
 
             return [
                 'user_id' => (int) $p->user_id,
                 'name' => (string) ($p->user->name ?? ''),
                 'role' => (string) $p->role,
                 'items_count' => (int) $lines->sum('qty'),
-                'subtotal' => round((float) $lines->sum('total_price'), 2),
+                'items_subtotal' => $bill['items_subtotal'],
+                'service_fee' => $bill['service_fee'],
+                'tax' => $bill['tax'],
+                'total' => $bill['total'],
             ];
         })->values();
 
@@ -168,6 +182,7 @@ final class SharedCartController extends Controller
             'status' => (string) $order->status,
             'is_shared' => (bool) $order->is_shared,
             'share_token' => $order->share_token,
+            'payment_method' => 'cash',
             'business' => $order->business ? [
                 'id' => (int) $order->business->id,
                 'name' => (string) $order->business->name,
@@ -178,7 +193,10 @@ final class SharedCartController extends Controller
             'items' => $items,
             'totals' => [
                 'items' => (int) $items->sum('qty'),
-                'grand_total' => (float) $order->final_total,
+                'items_subtotal' => round((float) $breakdown->sum('items_subtotal'), 2),
+                'service_fee' => round((float) $breakdown->sum('service_fee'), 2),
+                'tax' => round((float) $breakdown->sum('tax'), 2),
+                'grand_total' => round((float) $breakdown->sum('total'), 2),
             ],
         ];
     }

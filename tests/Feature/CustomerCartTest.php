@@ -7,8 +7,8 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\SeedsRetailCatalog;
 use Tests\TestCase;
 
 /**
@@ -19,6 +19,7 @@ use Tests\TestCase;
 class CustomerCartTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetailCatalog;
 
     private User $customer;
 
@@ -38,11 +39,12 @@ class CustomerCartTest extends TestCase
 
         $this->customer = User::query()->orderBy('id')->first();
         $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
-        $products = DB::table('catalog_products')->whereNull('deleted_at')->take(2)->pluck('id')->all();
 
-        if (! $this->customer || count($businesses) < 2 || count($products) < 2) {
-            $this->markTestSkipped('Needs a user, two businesses and two catalog masters.');
+        if (! $this->customer || count($businesses) < 2) {
+            $this->markTestSkipped('Needs a user and two businesses.');
         }
+
+        $products = [$this->makeCatalogProduct('furniture'), $this->makeCatalogProduct('mattresses')];
 
         [$this->businessA, $this->businessB] = array_map('intval', $businesses);
 

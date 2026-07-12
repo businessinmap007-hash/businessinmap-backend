@@ -152,19 +152,22 @@ Session-based mini panel, separate from AdminV2.
 Coverage analysis across all roots/children (see the three `*-branches-taxonomy.md`
 docs) surfaced exactly ONE genuine service gap plus ranked candidates:
 
-### 8.1 Retail / Products — **recommended, tied to the catalog_products rebuild**
+### 8.1 Retail / Products — ✅ IMPLEMENTED 2026-07-13
 
-Evidence from live data: the **معارض root (29/29 children)** has no fitting
-service at all (showrooms sell goods — no booking/menu semantics), and the **52
-non-food محلات children** have delivery enabled with no catalog service to
-generate the order (menu is food-only). Both are halves of one missing flow.
+Evidence from live data: the **معارض root (29/29 children)** had no fitting
+service at all (showrooms sell goods — no booking/menu semantics), and the
+**non-food محلات children** had delivery enabled with no catalog service to
+generate the order (menu is food-only). Both were halves of one missing flow.
 
-**Decision to record:** when `catalog_products` is wiped and rebuilt (already
-planned), build it as the **5th typed platform service** (`key: retail`), NOT a
-parallel subsystem — it then inherits the whole branch pattern for free:
-item types → branches (ملابس / أثاث / إلكترونيات / قطع غيار …) → services-bulk
-child assignment → owner catalog scoping → offers enablement rule picks it up
-automatically (a child with retail active may publish offers).
+**Done:** built as the **5th typed platform service** (`key: retail`, id 10),
+NOT a parallel subsystem — it inherits the whole branch pattern: 8 branches / 53
+item types → services-bulk child assignment (81 children) → owner catalog
+scoping → offers enablement (29 معارض children became eligible). The catalog was
+wiped and rebuilt with a **1:1 mirror**: retail branch key == `product_categories.slug`,
+item-type key == `product_category_children.slug`, so owner "My Products" scopes
+via `allowed_item_types → product_category_children.slug → catalog_products`.
+Pricing/stock stay on `business_catalog_listings`. Full record:
+[retail-branches-taxonomy.md](retail-branches-taxonomy.md).
 
 ### 8.2 Programs & follow-up subscriptions (برامج المتابعة) — candidate #2
 

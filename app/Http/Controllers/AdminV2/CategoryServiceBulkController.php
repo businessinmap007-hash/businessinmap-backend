@@ -153,12 +153,23 @@ class CategoryServiceBulkController extends Controller
         ];
     }
 
+    private function retailConfigPayload(Request $request): array
+    {
+        // Retail behaviour is minimal — price/stock live on business_catalog_listings,
+        // not in the config. The branch picker (item_groups / allowed_item_types) is
+        // appended generically for every service in serviceConfigPayload().
+        return [
+            'supports_stock' => $this->toBool($request->input('retail_supports_stock'), true),
+        ];
+    }
+
     private function serviceConfigPayload(Request $request, PlatformService $service): array
     {
         $config = match ((string) $service->key) {
             PlatformService::KEY_BOOKING => $this->bookingConfigPayload($request),
             PlatformService::KEY_MENU => $this->menuConfigPayload($request),
             PlatformService::KEY_DELIVERY => $this->deliveryConfigPayload($request),
+            PlatformService::KEY_RETAIL => $this->retailConfigPayload($request),
             default => [],
         };
 

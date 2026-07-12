@@ -15,13 +15,16 @@ class PlatformService extends Model
     public const KEY_MENU = 'menu';
     public const KEY_DELIVERY = 'delivery';
     public const KEY_BUSINESS_OFFERS = 'business_offers';
+    public const KEY_RETAIL = 'retail';
 
     protected $fillable = [
         'key',
         'name_ar',
         'name_en',
         'is_active',
+        'sort_order',
         'supports_deposit',
+        'max_deposit_percent',
         'rules',
         'meta',
     ];

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
+use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
 use App\Http\Controllers\Api\V2\OfferBoostController;
@@ -43,6 +44,9 @@ Route::prefix('v2')->group(function () {
             Route::get('products', [RetailDiscoveryController::class, 'products']);
             Route::get('products/{product}', [RetailDiscoveryController::class, 'show'])->whereNumber('product');
         });
+
+        // Menu: browse a business's menu grouped by sections, with variants + extras.
+        Route::get('menu/{business}', [MenuDiscoveryController::class, 'show'])->whereNumber('business');
     });
 
     Route::middleware('auth:sanctum')->group(function () {

@@ -49,13 +49,20 @@ final class CartController extends Controller
             'kind' => ['required', 'in:retail,menu'],
             'offering_id' => ['required', 'integer', 'min:1'],
             'qty' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'size_id' => ['nullable', 'integer', 'min:1'],
+            'extras' => ['nullable', 'array'],
+            'extras.*' => ['integer', 'min:1'],
         ], [], ['kind' => 'نوع العرض', 'offering_id' => 'العرض', 'qty' => 'الكمية']);
 
         $order = $this->cart->addItem(
             (int) $request->user()->id,
             (string) $data['kind'],
             (int) $data['offering_id'],
-            (int) ($data['qty'] ?? 1)
+            (int) ($data['qty'] ?? 1),
+            [
+                'size_id' => $data['size_id'] ?? null,
+                'extras' => $data['extras'] ?? [],
+            ]
         );
 
         return response()->json(['success' => true, 'data' => ['cart' => $this->presentCart($order)]], 201);
@@ -104,6 +111,7 @@ final class CartController extends Controller
     {
         $order->loadMissing('items', 'business:id,name,logo');
         $names = $this->displayNames($order);
+        $sizeNames = $this->sizeNames($order);
 
         $items = $order->items->map(fn ($line) => [
             'id' => (int) $line->id,
@@ -111,6 +119,11 @@ final class CartController extends Controller
             'offering_id' => (int) $line->offering_id,
             'name' => $names[(string) $line->offering_type][(int) $line->offering_id]
                 ?? ('#' . ($line->offering_id ?: $line->menu_id)),
+            'options' => [
+                'size' => $line->size_id ? ($sizeNames[(int) $line->size_id] ?? null) : null,
+                'extras' => collect(is_array($line->addons) ? $line->addons : [])
+                    ->map(fn ($a) => (string) ($a['name'] ?? ''))->filter()->values()->all(),
+            ],
             'qty' => (int) $line->qty,
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
@@ -155,5 +168,21 @@ final class CartController extends Controller
         }
 
         return $names;
+    }
+
+    /** [size_id => variant name] for the order's menu lines that carry a size. */
+    private function sizeNames(Order $order): array
+    {
+        $sizeIds = $order->items->pluck('size_id')->filter()->unique();
+
+        if ($sizeIds->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('menu_item_variants')
+            ->whereIn('id', $sizeIds)
+            ->pluck('name_ar', 'id')
+            ->map(fn ($n) => (string) $n)
+            ->all();
     }
 }

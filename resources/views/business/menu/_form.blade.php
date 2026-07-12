@@ -28,6 +28,19 @@
         </div>
 
         <div class="a2-form-group">
+            <label class="a2-label" for="menu_section_id">القسم</label>
+            <select class="a2-input" id="menu_section_id" name="menu_section_id">
+                <option value="">— بدون قسم —</option>
+                @foreach(($sections ?? []) as $section)
+                    <option value="{{ $section->id }}" @selected((int) old('menu_section_id', $row->menu_section_id ?? 0) === (int) $section->id)>{{ $section->name_ar }}</option>
+                @endforeach
+            </select>
+            @if(($sections ?? collect())->isEmpty())
+                <small class="a2-help"><a href="{{ route('business.menu-sections.create') }}">أضف أقساماً</a> لتنظيم المنيو (مقبلات، رئيسي، حلويات…).</small>
+            @endif
+        </div>
+
+        <div class="a2-form-group">
             <label class="a2-label" for="base_price">السعر <span class="a2-danger">*</span></label>
             <input class="a2-input" id="base_price" name="base_price" value="{{ old('base_price', $row->base_price ?? 0) }}" inputmode="decimal" placeholder="0.00" required>
         </div>

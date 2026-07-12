@@ -144,3 +144,43 @@ Session-based mini panel, separate from AdminV2.
    business's policy.
 6. Table charge mode is **per-business configurable** (free / reservation fee /
    minimum charge).
+
+---
+
+## 8. Future platform services (recorded 2026-07-12)
+
+Coverage analysis across all roots/children (see the three `*-branches-taxonomy.md`
+docs) surfaced exactly ONE genuine service gap plus ranked candidates:
+
+### 8.1 Retail / Products — **recommended, tied to the catalog_products rebuild**
+
+Evidence from live data: the **معارض root (29/29 children)** has no fitting
+service at all (showrooms sell goods — no booking/menu semantics), and the **52
+non-food محلات children** have delivery enabled with no catalog service to
+generate the order (menu is food-only). Both are halves of one missing flow.
+
+**Decision to record:** when `catalog_products` is wiped and rebuilt (already
+planned), build it as the **5th typed platform service** (`key: retail`), NOT a
+parallel subsystem — it then inherits the whole branch pattern for free:
+item types → branches (ملابس / أثاث / إلكترونيات / قطع غيار …) → services-bulk
+child assignment → owner catalog scoping → offers enablement rule picks it up
+automatically (a child with retail active may publish offers).
+
+### 8.2 Programs & follow-up subscriptions (برامج المتابعة) — candidate #2
+
+Gym/nutrition follow-up (workout plans: كارديو/تضخيم/تخسيس/لياقة + meal plans +
+supplements) is a **periodic program subscription**, not a slot booking. The
+sellable unit fits the pattern (service `programs`, types = program kinds,
+branches = fitness/nutrition), but the follow-up content (weekly schedules,
+meals, progress) needs its own domain module. Build after Retail, driven by
+demand from الرياضة (جيم/مدرب) and الصحة (تخسيص وتغذية).
+
+### 8.3 NOT platform services (feature modules instead)
+
+- **Medical history + prescriptions (روشتة)**: an attachment of the clinic
+  booking domain (records per user, prescriptions issued by a clinic business,
+  shareable to a pharmacy business → becomes a pharmacy order). Bridges
+  booking→delivery; carries privacy/consent requirements. Not a service.
+- **RFQ / quote requests**: parked — the `business_consulting` booking branch
+  (added 2026-07-12) covers consultation-style businesses for now.
+- **Rental / تأجير**: a booking branch when needed, never a service.

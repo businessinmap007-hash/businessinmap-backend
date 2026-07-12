@@ -11,9 +11,10 @@ Booking had 10 branches but **3 were empty** (clinic, restaurant_table,
 entertainment_leisure) and **77 active item types belonged to no branch** — the
 branch picker couldn't reach them.
 
-## 2. The 13-branch division
+## 2. The branch division (13 at first pass, +1 later = 14)
 
-10 existing branches (now fully populated) + 3 new ones the data demanded:
+10 existing branches (now fully populated) + 3 new ones the data demanded,
+plus `business_consulting` added 2026-07-12 (see below):
 
 | Branch (key) | الاسم | Notes |
 |---|---|---|
@@ -30,6 +31,7 @@ branch picker couldn't reach them.
 | `tourism_travel` ➕ | سياحة ورحلات | حج وعمرة، سياحة دولية، سياحة علاجية |
 | `real_estate` ➕ | عقارات ووحدات | شقة/فيلا/شاليه/استوديو — **cross-listed with `hotel`** (m2m) |
 | `beauty_care` ➕ | تجميل وعناية | 6 new types (حلاقة، تصفيف، صبغة، مكياج، عرايس، سبا) for the كوافير root |
+| `business_consulting` ➕ | استشارات وأعمال | 6 new consultation types (قانونية، محاسبية، تسويقية، تقنية، أعمال، معاينة) + cross-listed generic/online slots + the 4 business types; serves the 17 pure-service children (تسويق، محاماة، تأمين، برمجيات، مقاولات…) previously excluded from everything — سياحة/رحلات also get tourism_travel, تنسيق حفلات also gets halls_events |
 
 The legacy placeholder type `category` («افتراضي») stays ungrouped on purpose.
 

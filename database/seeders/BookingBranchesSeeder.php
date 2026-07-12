@@ -37,6 +37,7 @@ class BookingBranchesSeeder extends Seeder
             'tourism_travel' => ['سياحة ورحلات', 'Tourism & Travel'],
             'real_estate' => ['عقارات ووحدات', 'Real Estate & Units'],
             'beauty_care' => ['تجميل وعناية', 'Beauty & Care'],
+            'business_consulting' => ['استشارات وأعمال', 'Consulting & Business'],
         ];
 
         $sort = 1 + (int) PlatformServiceItemGroup::max('sort_order');
@@ -54,7 +55,8 @@ class BookingBranchesSeeder extends Seeder
             );
         }
 
-        // ---- new beauty types (the كوافير root has none today) ----
+        // ---- new types: beauty (كوافير root had none) + consulting (for the
+        // pure-service children: محاماة، تسويق، تأمين، برمجيات…) ----
         $newTypes = [
             ['mens_haircut', 'حلاقة رجالي', 'Men\'s Haircut'],
             ['womens_hairstyling', 'تصفيف حريمي', 'Women\'s Hairstyling'],
@@ -62,6 +64,13 @@ class BookingBranchesSeeder extends Seeder
             ['makeup_session', 'جلسة مكياج', 'Makeup Session'],
             ['bridal_package', 'باكدج عرايس', 'Bridal Package'],
             ['spa_massage', 'سبا ومساج', 'Spa & Massage'],
+
+            ['legal_consultation', 'استشارة قانونية', 'Legal Consultation'],
+            ['accounting_tax_consultation', 'استشارة محاسبية وضرائب', 'Accounting & Tax Consultation'],
+            ['marketing_consultation', 'استشارة تسويقية', 'Marketing Consultation'],
+            ['technical_it_consultation', 'استشارة تقنية', 'Technical / IT Consultation'],
+            ['business_consultation', 'استشارة أعمال', 'Business Consultation'],
+            ['site_visit_assessment', 'معاينة وتقييم بالموقع', 'On-site Visit & Assessment'],
         ];
 
         $typeSort = 1 + (int) PlatformServiceItemType::where('platform_service_id', $serviceId)->max('sort_order');
@@ -126,6 +135,16 @@ class BookingBranchesSeeder extends Seeder
             'beauty_care' => [
                 'mens_haircut', 'womens_hairstyling', 'hair_coloring',
                 'makeup_session', 'bridal_package', 'spa_massage',
+            ],
+            // consulting: the 6 new types + cross-listed generic slot + the 4
+            // business types that also live in services_tasks
+            'business_consulting' => [
+                'legal_consultation', 'accounting_tax_consultation',
+                'marketing_consultation', 'technical_it_consultation',
+                'business_consultation', 'site_visit_assessment',
+                'consultation_slot', 'online_session',
+                'customer_service', 'quality_management',
+                'strategic_planning', 'warehouse_management',
             ],
         ];
 

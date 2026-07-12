@@ -122,6 +122,11 @@ return [
         'قاعات تدريب' => ['training'],
     ],
 
+    // ── تكنولوجيا ──
+    'technology' => [
+        'برمجة' => ['business_consulting'],
+    ],
+
     // ── مطاعم وكافيهات ──
     'restaurants-cafes' => [
         'أكل بيتى' => ['restaurant_table'],
@@ -146,6 +151,14 @@ return [
         'معرض' => ['real_estate'],
         'مكتب' => ['real_estate'],
         'ورشة' => ['real_estate'],
+    ],
+
+    // ── مكاتب ──
+    'offices' => [
+        'تنسيق حفلات' => ['halls_events', 'business_consulting'],
+        'دعاية وإعلان' => ['business_consulting'],
+        'محاسبة' => ['business_consulting'],
+        'محاماه' => ['business_consulting'],
     ],
 
     // ── الصحة ──
@@ -194,6 +207,22 @@ return [
         'ممارسة عامة' => ['clinic', 'health_medical'],
         'نساء و ولادة' => ['clinic', 'health_medical'],
         'نطق وتخاطب' => ['clinic', 'health_medical'],
+    ],
+
+    // ── شركات ──
+    'companies' => [
+        'أمن' => ['business_consulting'],
+        'برمجيات' => ['business_consulting'],
+        'تحويل أموال' => ['business_consulting'],
+        'تسويق' => ['business_consulting'],
+        'تنسيق حفلات' => ['halls_events', 'business_consulting'],
+        'دعاية وإعلان' => ['business_consulting'],
+        'رحلات' => ['tourism_travel', 'business_consulting'],
+        'سياحة' => ['tourism_travel', 'business_consulting'],
+        'شركات تأمين' => ['business_consulting'],
+        'صرافة نقود' => ['business_consulting'],
+        'مقاولات' => ['business_consulting'],
+        'مقاولات بنية تحتية' => ['business_consulting'],
     ],
 
     // ── فنادق سياحية ──

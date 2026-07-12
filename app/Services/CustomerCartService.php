@@ -8,21 +8,25 @@ use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderParticipant;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
  * The customer's cart, unified over the offering layer (Phase 3d). A cart IS a
- * draft Order (status='cart') — one per business — and its lines are the same
- * polymorphic `order_items` used by real orders, so checkout is just a status
- * flip and no data is copied between tables. Goods offerings only (retail
- * catalog listings + menu items); bespoke booking stays on the booking rails.
+ * draft Order (status='cart') and its lines are the same polymorphic
+ * `order_items` used by real orders, so checkout is just a status flip.
  *
- * Menu items may carry a chosen variant (size_id) and extras (addons). Price is
- * always resolved server-side from the offering + its variant/extras — never
- * trusted from the client. Two lines of the same item with different
- * variant/extras stay distinct; identical selections merge (quantities add).
+ * Two shapes share the same rails:
+ *  - Personal cart: one per (user, business); the owner is orders.user_id and
+ *    lines carry added_by_user_id = null.
+ *  - Shared (group) cart: the host owns the Order; friends join via a share
+ *    token and each adds lines attributed by added_by_user_id. The host pays one
+ *    invoice at checkout. See order_participants + the 2026_07_15 migration.
+ *
+ * Prices (incl. menu variants/extras) are always resolved server-side.
  */
 class CustomerCartService
 {
@@ -39,41 +43,28 @@ class CustomerCartService
     {
     }
 
+    // ─────────────────────────── Personal cart ───────────────────────────
+
     /**
-     * Add an offering to the customer's cart. $options may carry menu
-     * customisation: ['size_id' => int, 'extras' => [id, ...] | [['id'=>,'qty'=>], ...]].
-     * Adding an identical selection again increments its quantity.
+     * Add an offering to the customer's personal cart. $options may carry menu
+     * customisation: ['size_id' => int, 'extras' => [id, ...]].
      */
     public function addItem(int $userId, string $kind, int $offeringId, int $qty, array $options = []): Order
     {
         $qty = max(1, $qty);
-        [$businessId, $offeringType, $price, $menuId, $sizeId, $addons] =
-            $this->resolveOffering($kind, $offeringId, $options);
+        $resolved = $this->resolveOffering($kind, $offeringId, $options);
+        $businessId = $resolved[0];
 
-        return DB::transaction(function () use ($userId, $businessId, $offeringType, $offeringId, $price, $menuId, $sizeId, $addons, $qty) {
+        return DB::transaction(function () use ($userId, $businessId, $offeringId, $resolved, $qty) {
             $cart = $this->draftFor($userId, $businessId);
-
-            $signature = $this->lineSignature($sizeId, $addons);
-
-            $line = $cart->items()
-                ->where('offering_type', $offeringType)
-                ->where('offering_id', $offeringId)
-                ->get()
-                ->first(fn (OrderItem $l) => $this->lineSignature($l->size_id, $l->addons) === $signature);
-
-            if ($line) {
-                $this->setQty($line, (int) $line->qty + $qty);
-            } else {
-                $this->orders->addOffering($cart, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons);
-            }
-
+            $this->mergeOrCreateLine($cart, $offeringId, $resolved, $qty, null);
             $this->orders->recalc($cart);
 
             return $cart->refresh();
         });
     }
 
-    /** Change a line's quantity. qty<=0 removes the line. */
+    /** Change a personal-cart line's quantity. qty<=0 removes the line. */
     public function updateItemQty(int $userId, int $itemId, int $qty): Order
     {
         $line = $this->scopedItem($userId, $itemId);
@@ -90,7 +81,7 @@ class CustomerCartService
         return $cart->refresh();
     }
 
-    /** Remove a line from the cart. */
+    /** Remove a line from the personal cart. */
     public function removeItem(int $userId, int $itemId): Order
     {
         $line = $this->scopedItem($userId, $itemId);
@@ -102,7 +93,7 @@ class CustomerCartService
         return $cart->refresh();
     }
 
-    /** All of the customer's carts (one per business), with items loaded. */
+    /** All of the customer's own carts (one per business), with items loaded. */
     public function carts(int $userId): Collection
     {
         return Order::query()
@@ -113,7 +104,7 @@ class CustomerCartService
             ->get();
     }
 
-    /** One business's cart for the customer, or null if empty. */
+    /** One business's personal cart for the customer, or null if empty. */
     public function cartFor(int $userId, int $businessId): ?Order
     {
         return Order::query()
@@ -124,10 +115,7 @@ class CustomerCartService
             ->first();
     }
 
-    /**
-     * Turn a business's cart into a real (pending) order. The cart must have
-     * items. Returns the placed order.
-     */
+    /** Turn a business's personal cart into a pending order. */
     public function checkout(int $userId, int $businessId, array $data): Order
     {
         return DB::transaction(function () use ($userId, $businessId, $data) {
@@ -142,17 +130,179 @@ class CustomerCartService
                 throw ValidationException::withMessages(['cart' => 'السلة فارغة.']);
             }
 
-            $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
-            $cart->address = (string) ($data['address'] ?? $cart->address ?? '');
-            $cart->notes = $data['notes'] ?? $cart->notes;
-            $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
-            $cart->status = self::STATUS_PENDING;
-            $cart->save();
-
-            $this->orders->recalc($cart);
+            $this->placeOrder($cart, $data);
 
             return $cart->refresh();
         });
+    }
+
+    // ─────────────────────────── Shared cart ───────────────────────────
+
+    /**
+     * Open the host's cart for a business as a shared cart, returning it with a
+     * share token. Idempotent — re-sharing keeps the same token.
+     */
+    public function share(int $hostId, int $businessId): Order
+    {
+        return DB::transaction(function () use ($hostId, $businessId) {
+            $cart = $this->draftFor($hostId, $businessId);
+
+            if (! $cart->share_token) {
+                $cart->share_token = Str::random(40);
+            }
+            $cart->is_shared = true;
+            $cart->save();
+
+            OrderParticipant::firstOrCreate(
+                ['order_id' => $cart->id, 'user_id' => $hostId],
+                ['role' => OrderParticipant::ROLE_HOST]
+            );
+
+            return $cart->fresh(['participants.user:id,name', 'business:id,name,logo']);
+        });
+    }
+
+    /** Join a shared cart by its token (must be an open, shared cart). */
+    public function join(int $userId, string $token): Order
+    {
+        $cart = Order::query()
+            ->where('share_token', $token)
+            ->where('is_shared', 1)
+            ->where('status', self::STATUS_CART)
+            ->firstOrFail();
+
+        OrderParticipant::firstOrCreate(
+            ['order_id' => $cart->id, 'user_id' => $userId],
+            ['role' => OrderParticipant::ROLE_MEMBER]
+        );
+
+        return $this->sharedCartFor($userId, (int) $cart->id);
+    }
+
+    /** Add an offering to a shared cart, attributed to the adder. */
+    public function addToShared(int $userId, int $orderId, string $kind, int $offeringId, int $qty, array $options = []): Order
+    {
+        $this->participantOrFail($userId, $orderId);
+        $qty = max(1, $qty);
+        $resolved = $this->resolveOffering($kind, $offeringId, $options);
+
+        DB::transaction(function () use ($orderId, $offeringId, $resolved, $qty, $userId) {
+            $cart = Order::query()
+                ->where('status', self::STATUS_CART)
+                ->where('is_shared', 1)
+                ->lockForUpdate()
+                ->findOrFail($orderId);
+
+            $this->mergeOrCreateLine($cart, $offeringId, $resolved, $qty, $userId);
+            $this->orders->recalc($cart);
+        });
+
+        return $this->sharedCartFor($userId, $orderId);
+    }
+
+    /** Change a shared-cart line's quantity (adder or host only). qty<=0 removes. */
+    public function updateSharedLine(int $userId, int $orderId, int $itemId, int $qty): Order
+    {
+        $line = $this->editableSharedLine($userId, $orderId, $itemId);
+        $cart = $line->order;
+
+        if ($qty <= 0) {
+            $line->delete();
+        } else {
+            $this->setQty($line, $qty);
+        }
+
+        $this->orders->recalc($cart);
+
+        return $this->sharedCartFor($userId, $orderId);
+    }
+
+    /** Remove a shared-cart line (adder or host only). */
+    public function removeSharedLine(int $userId, int $orderId, int $itemId): Order
+    {
+        $line = $this->editableSharedLine($userId, $orderId, $itemId);
+        $cart = $line->order;
+
+        $line->delete();
+        $this->orders->recalc($cart);
+
+        return $this->sharedCartFor($userId, $orderId);
+    }
+
+    /** Place a shared cart as a pending order — host only, one invoice. */
+    public function checkoutShared(int $hostId, int $orderId, array $data): Order
+    {
+        $participant = $this->participantOrFail($hostId, $orderId);
+
+        if (! $participant->isHost()) {
+            abort(403, 'المضيف فقط يمكنه إتمام الطلب.');
+        }
+
+        return DB::transaction(function () use ($orderId, $data) {
+            $cart = Order::query()
+                ->where('status', self::STATUS_CART)
+                ->where('is_shared', 1)
+                ->lockForUpdate()
+                ->findOrFail($orderId);
+
+            if ($cart->items()->count() === 0) {
+                throw ValidationException::withMessages(['cart' => 'السلة فارغة.']);
+            }
+
+            $this->placeOrder($cart, $data);
+
+            return $cart->refresh();
+        });
+    }
+
+    /** A member leaves a shared cart — their lines are removed. Host can't leave. */
+    public function leaveShared(int $userId, int $orderId): void
+    {
+        $participant = $this->participantOrFail($userId, $orderId);
+
+        if ($participant->isHost()) {
+            abort(422, 'المضيف لا يمكنه المغادرة.');
+        }
+
+        DB::transaction(function () use ($userId, $orderId, $participant) {
+            OrderItem::query()->where('order_id', $orderId)->where('added_by_user_id', $userId)->delete();
+            $participant->delete();
+
+            $cart = Order::find($orderId);
+            if ($cart) {
+                $this->orders->recalc($cart);
+            }
+        });
+    }
+
+    /** Load a shared cart the user participates in (403 otherwise). */
+    public function sharedCartFor(int $userId, int $orderId): Order
+    {
+        $this->participantOrFail($userId, $orderId);
+
+        return Order::query()
+            ->where('is_shared', 1)
+            ->with([
+                'items.addedBy:id,name',
+                'participants.user:id,name',
+                'business:id,name,logo',
+            ])
+            ->findOrFail($orderId);
+    }
+
+    // ─────────────────────────── Internals ───────────────────────────
+
+    /** Apply fulfilment/payment fields and flip a draft cart to pending. */
+    private function placeOrder(Order $cart, array $data): void
+    {
+        $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
+        $cart->address = (string) ($data['address'] ?? $cart->address ?? '');
+        $cart->notes = $data['notes'] ?? $cart->notes;
+        $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
+        $cart->status = self::STATUS_PENDING;
+        $cart->save();
+
+        $this->orders->recalc($cart);
     }
 
     /** Find-or-create the customer's draft order for a business. */
@@ -175,6 +325,35 @@ class CustomerCartService
                 'address' => '',
             ]
         );
+    }
+
+    /**
+     * Merge into an existing identical line (same offering + size + extras +
+     * adder) or create a new one on the given cart.
+     */
+    private function mergeOrCreateLine(Order $cart, int $offeringId, array $resolved, int $qty, ?int $addedBy): void
+    {
+        [$businessId, $offeringType, $price, $menuId, $sizeId, $addons] = $resolved;
+
+        if ((int) $cart->business_id !== (int) $businessId) {
+            throw ValidationException::withMessages(['offering_id' => 'هذا العرض لا يخص نشاط هذه السلة.']);
+        }
+
+        $signature = $this->lineSignature($sizeId, $addons, $addedBy);
+
+        $line = $cart->items()
+            ->where('offering_type', $offeringType)
+            ->where('offering_id', $offeringId)
+            ->when($addedBy !== null, fn ($q) => $q->where('added_by_user_id', $addedBy))
+            ->when($addedBy === null, fn ($q) => $q->whereNull('added_by_user_id'))
+            ->get()
+            ->first(fn (OrderItem $l) => $this->lineSignature($l->size_id, $l->addons, $l->added_by_user_id) === $signature);
+
+        if ($line) {
+            $this->setQty($line, (int) $line->qty + $qty);
+        } else {
+            $this->orders->addOffering($cart, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons, $addedBy);
+        }
     }
 
     /**
@@ -207,7 +386,6 @@ class CustomerCartService
         $unit = $base;
         $sizeId = null;
 
-        // Variant (size) — must belong to the item and be active.
         if (! empty($options['size_id'])) {
             $variant = MenuItemVariant::query()
                 ->where('menu_item_id', $menu->id)
@@ -222,26 +400,17 @@ class CustomerCartService
             $sizeId = (int) $variant->id;
         }
 
-        // Extras (add-ons) — each must belong to the item and be active.
         $addons = $this->resolveExtras($menu->id, $options['extras'] ?? []);
         foreach ($addons as $addon) {
             $unit += (float) $addon['price'] * (int) $addon['qty'];
         }
 
-        return [
-            (int) $menu->business_id,
-            $type,
-            round($unit, 2),
-            (int) $menu->id,
-            $sizeId,
-            $addons ?: null,
-        ];
+        return [(int) $menu->business_id, $type, round($unit, 2), (int) $menu->id, $sizeId, $addons ?: null];
     }
 
     /**
      * Normalise + validate the extras selection into
-     * [['id','name','price','qty'], ...]. Accepts a list of ids or of
-     * ['id'=>, 'qty'=>] pairs. Each extra must belong to the item and be active.
+     * [['id','name','price','qty'], ...]. Each extra must belong to the item.
      */
     private function resolveExtras(int $menuItemId, $extras): array
     {
@@ -249,7 +418,6 @@ class CustomerCartService
             return [];
         }
 
-        // qty per requested extra id (default 1).
         $wanted = [];
         foreach ($extras as $e) {
             if (is_array($e)) {
@@ -278,7 +446,6 @@ class CustomerCartService
             throw ValidationException::withMessages(['extras' => 'إحدى الإضافات المختارة غير متاحة.']);
         }
 
-        // Stable order (by id) so the line signature is deterministic.
         return $rows->sortBy('id')->map(function (MenuItemExtra $x) use ($wanted) {
             $qty = min((int) $wanted[$x->id], (int) ($x->max_qty ?: 1));
 
@@ -292,11 +459,11 @@ class CustomerCartService
     }
 
     /**
-     * A stable signature for a line's customisation, so identical selections
-     * merge and different ones stay distinct. Built from size_id + the sorted
-     * (extra id, qty) pairs only — names/prices are derived, not part of identity.
+     * A stable signature for a line's identity: size_id + sorted (extra id, qty)
+     * pairs + the adder. Including the adder keeps two people's identical items
+     * on separate, attributable lines while merging one person's repeats.
      */
-    private function lineSignature(?int $sizeId, $addons): string
+    private function lineSignature(?int $sizeId, $addons, ?int $addedBy = null): string
     {
         $pairs = [];
         foreach ((is_array($addons) ? $addons : []) as $a) {
@@ -304,10 +471,10 @@ class CustomerCartService
         }
         sort($pairs);
 
-        return md5(json_encode(['s' => (int) $sizeId, 'e' => $pairs]));
+        return md5(json_encode(['s' => (int) $sizeId, 'e' => $pairs, 'u' => (int) $addedBy]));
     }
 
-    /** A cart line owned by the customer (only within a cart, never a placed order). */
+    /** A personal-cart line owned by the customer (never a placed order). */
     private function scopedItem(int $userId, int $itemId): OrderItem
     {
         return OrderItem::query()
@@ -316,6 +483,38 @@ class CustomerCartService
                 ->where('user_id', $userId)
                 ->where('status', self::STATUS_CART))
             ->firstOrFail();
+    }
+
+    /** The user's participant row on a shared cart, or 403. */
+    private function participantOrFail(int $userId, int $orderId): OrderParticipant
+    {
+        $participant = OrderParticipant::query()
+            ->where('order_id', $orderId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (! $participant) {
+            abort(403, 'لست مشاركاً في هذه السلة.');
+        }
+
+        return $participant;
+    }
+
+    /** A shared-cart line the user may edit (its adder, or the host). */
+    private function editableSharedLine(int $userId, int $orderId, int $itemId): OrderItem
+    {
+        $participant = $this->participantOrFail($userId, $orderId);
+
+        $line = OrderItem::query()->where('order_id', $orderId)->find($itemId);
+        if (! $line) {
+            abort(404, 'السطر غير موجود.');
+        }
+
+        if (! $participant->isHost() && (int) $line->added_by_user_id !== $userId) {
+            abort(403, 'لا يمكنك تعديل طلب مشارك آخر.');
+        }
+
+        return $line;
     }
 
     private function setQty(OrderItem $line, int $qty): void

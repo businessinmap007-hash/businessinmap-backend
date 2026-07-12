@@ -33,11 +33,14 @@ class Order extends Model
         'address',
         'notes',
         'status',
+        'share_token',
+        'is_shared',
 
     ];
 
     protected $casts = [
         'booking_id' => 'integer',
+        'is_shared' => 'boolean',
     ];
 
     public function user()
@@ -72,6 +75,16 @@ class Order extends Model
     public function escrow()
     {
         return $this->hasOne(Escrow::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(OrderParticipant::class);
+    }
+
+    public function isSharedCart(): bool
+    {
+        return (bool) $this->is_shared;
     }
 
 }

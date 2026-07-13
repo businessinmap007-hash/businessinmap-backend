@@ -168,6 +168,10 @@ class SharedCartBillingTest extends TestCase
 
         $this->postJson("/api/v2/cart/shared/{$orderId}/checkout", ['fulfillment_type' => 'dine_in'])->assertCreated();
 
-        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'pending', 'payment_method' => 'cash']);
+        // Persisted: service fee (10% of 100) + tax (14% of 110) + final total.
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId, 'status' => 'pending', 'payment_method' => 'cash',
+            'service_fee' => '10.00', 'tax' => '15.40', 'final_total' => '125.40',
+        ]);
     }
 }

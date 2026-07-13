@@ -39,8 +39,10 @@ class CustomerCartService
         'menu' => MenuItem::class,
     ];
 
-    public function __construct(protected MenuOrderService $orders)
-    {
+    public function __construct(
+        protected MenuOrderService $orders,
+        protected MenuBillingService $billing,
+    ) {
     }
 
     // ─────────────────────────── Personal cart ───────────────────────────
@@ -292,7 +294,10 @@ class CustomerCartService
 
     // ─────────────────────────── Internals ───────────────────────────
 
-    /** Apply fulfilment/payment fields and flip a draft cart to pending. */
+    /**
+     * Apply fulfilment/payment fields, flip a draft cart to pending, and persist
+     * the menu service fee + tax on the order (final_total includes them).
+     */
     private function placeOrder(Order $cart, array $data): void
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
@@ -302,7 +307,17 @@ class CustomerCartService
         $cart->status = self::STATUS_PENDING;
         $cart->save();
 
+        // total = raw food; then fold in the service fee + tax (+ retail, - discount).
         $this->orders->recalc($cart);
+
+        $bill = $this->billing->orderBill($cart);
+        $delivery = round((float) $cart->delivery_fee, 2);
+        $discount = round((float) $cart->discount, 2);
+
+        $cart->service_fee = $bill['service_fee'];
+        $cart->tax = $bill['tax'];
+        $cart->final_total = round($bill['menu_payable'] + $bill['retail_subtotal'] + $delivery - $discount, 2);
+        $cart->save();
     }
 
     /** Find-or-create the customer's draft order for a business. */

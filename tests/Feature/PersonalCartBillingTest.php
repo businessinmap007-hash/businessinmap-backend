@@ -80,6 +80,14 @@ class PersonalCartBillingTest extends TestCase
         $this->assertSame(50.0, (float) $bill['retail_subtotal']);
         // final = menu(125.4) + retail(50) = 175.4
         $this->assertSame(175.4, (float) $cart['final_total']);
+
+        // Checkout persists service fee + tax + final total on the order.
+        $orderId = (int) $cart['id'];
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId, 'status' => 'pending',
+            'service_fee' => '10.00', 'tax' => '15.40', 'final_total' => '175.40',
+        ]);
     }
 
     public function test_inclusive_flag_applies_to_personal_cart(): void

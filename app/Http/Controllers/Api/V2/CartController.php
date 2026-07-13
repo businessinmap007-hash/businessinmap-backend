@@ -138,19 +138,12 @@ final class CartController extends Controller
         ])->values();
 
         // Menu (food) lines get the service fee + tax; retail lines are plain.
-        $menuSubtotal = (float) $order->items
-            ->where('offering_type', MenuItem::class)->sum('total_price');
-        $retailSubtotal = (float) $order->items
-            ->where('offering_type', BusinessCatalogListing::class)->sum('total_price');
-
-        $businessId = (int) $order->business_id;
-        $feeRow = $this->billing->feeRowForBusiness($businessId);
-        [$incService, $incTax] = $this->billing->inclusiveFlagsForBusiness($businessId);
-        $bill = $this->billing->bill($menuSubtotal, $feeRow, $incService, $incTax);
-
+        // orderBill groups by biller so this matches the value persisted at
+        // checkout (see CustomerCartService::placeOrder).
+        $bill = $this->billing->orderBill($order);
         $deliveryFee = round((float) $order->delivery_fee, 2);
         $discount = round((float) $order->discount, 2);
-        $finalTotal = round($bill['total'] + $retailSubtotal + $deliveryFee - $discount, 2);
+        $finalTotal = round($bill['menu_payable'] + $bill['retail_subtotal'] + $deliveryFee - $discount, 2);
 
         return [
             'id' => (int) $order->id,
@@ -164,8 +157,8 @@ final class CartController extends Controller
             'items' => $items,
             'items_count' => $items->sum('qty'),
             'bill' => [
-                'menu_subtotal' => $bill['items_subtotal'],
-                'retail_subtotal' => round($retailSubtotal, 2),
+                'menu_subtotal' => $bill['menu_subtotal'],
+                'retail_subtotal' => $bill['retail_subtotal'],
                 'service_fee' => $bill['service_fee'],
                 'service_included' => $bill['service_included'],
                 'tax' => $bill['tax'],
@@ -173,7 +166,7 @@ final class CartController extends Controller
                 'delivery_fee' => $deliveryFee,
                 'discount' => $discount,
             ],
-            'total' => round($menuSubtotal + $retailSubtotal, 2),
+            'total' => round($bill['menu_subtotal'] + $bill['retail_subtotal'], 2),
             'delivery_fee' => $deliveryFee,
             'discount' => $discount,
             'final_total' => $finalTotal,

@@ -69,6 +69,12 @@ Route::get('/t/{token}/qr', [App\Http\Controllers\SharedCartWebController::class
 Route::get('/t/{token}', [App\Http\Controllers\SharedCartWebController::class, 'table'])
     ->name('table.scan.web');
 
+// Public storefront QR (BIM-13.4): a permanent business-profile sticker/card.
+Route::get('/b/{business}/qr', [App\Http\Controllers\BusinessProfileWebController::class, 'qr'])
+    ->whereNumber('business')->name('storefront.qr');
+Route::get('/b/{business}', [App\Http\Controllers\BusinessProfileWebController::class, 'show'])
+    ->whereNumber('business')->name('storefront.show');
+
 Route::get('/_disabled/category-products', function () {
     abort(404);
 })->name('category.products');

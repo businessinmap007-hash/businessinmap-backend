@@ -133,13 +133,15 @@ Route::prefix('v2')->group(function () {
         // or open its dine-in shared cart.
         Route::post('table/{token}/scan', [TableController::class, 'scan']);
 
-        // Placed orders: the customer's own history + detail.
+        // Placed orders: the customer's own history + detail + cancel.
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
 
-        // Placed orders: the business's incoming-order queue + detail.
+        // Placed orders: the business's incoming-order queue + detail + reject.
         Route::get('business/orders', [OrderController::class, 'businessIndex']);
         Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
+        Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
 
         // Business menu management: sections + items (+ variants/extras).
         Route::prefix('business/menu')->group(function () {

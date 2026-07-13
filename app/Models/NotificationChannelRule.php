@@ -45,6 +45,8 @@ class NotificationChannelRule extends Model
         return [
             'menu_order_created' => ['طلب منيو جديد', 'New menu order', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 2, 'order_new'],
             'menu_order_cancelled' => ['إلغاء طلب منيو', 'Menu order cancelled', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, true, 0, 'order_cancelled'],
+            'menu_order_completed' => ['اكتمال توصيل الطلب', 'Order delivered', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
+            'delivery_assigned' => ['قبول موصّل للطلب', 'Driver accepted delivery', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'booking_created' => ['حجز جديد', 'New booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 3, 'booking_new'],
             'booking_confirmed' => ['تأكيد حجز', 'Booking confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'booking_cancelled' => ['إلغاء حجز', 'Booking cancelled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, true, 0, 'booking_cancelled'],

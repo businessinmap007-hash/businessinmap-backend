@@ -308,6 +308,11 @@ class User extends Authenticatable
             ->orderByDesc('id');
     }
 
+    public function addresses()
+    {
+        return $this->hasMany(Address::class, 'user_id');
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');

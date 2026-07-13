@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\TableController;
+use App\Http\Controllers\Api\V2\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -75,6 +76,10 @@ Route::prefix('v2')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
         Route::post('profile/password', [ProfileController::class, 'updatePassword']);
+
+        // Wallet: balance summary + ledger (read-only).
+        Route::get('wallet', [WalletController::class, 'show']);
+        Route::get('wallet/transactions', [WalletController::class, 'transactions']);
 
         Route::prefix('addresses')->group(function () {
             Route::get('/', [AddressController::class, 'index']);

@@ -10,6 +10,7 @@ use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
+use App\Http\Controllers\Business\ShareStoreController;
 use App\Http\Controllers\Business\TableController;
 use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
@@ -53,6 +54,9 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::put('menu-settings', [MenuSettingsController::class, 'update'])->name('menu-settings.update');
 
         // Restaurant tables + their permanent QR stickers (BIM-13.3).
+        // Storefront QR — "share your store" (BIM-13.4).
+        Route::get('share-store', [ShareStoreController::class, 'show'])->name('share-store');
+
         Route::get('tables', [TableController::class, 'index'])->name('tables.index');
         Route::post('tables', [TableController::class, 'store'])->name('tables.store');
         Route::get('tables/print', [TableController::class, 'print'])->name('tables.print');

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V2\AddressController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
+use App\Http\Controllers\Api\V2\BusinessMenuItemController;
+use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\DeliveryController;
@@ -129,6 +131,28 @@ Route::prefix('v2')->group(function () {
         // Placed orders: the business's incoming-order queue + detail.
         Route::get('business/orders', [OrderController::class, 'businessIndex']);
         Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
+
+        // Business menu management: sections + items (+ variants/extras).
+        Route::prefix('business/menu')->group(function () {
+            Route::get('sections', [BusinessMenuSectionController::class, 'index']);
+            Route::post('sections', [BusinessMenuSectionController::class, 'store']);
+            Route::match(['put', 'patch'], 'sections/{section}', [BusinessMenuSectionController::class, 'update'])->whereNumber('section');
+            Route::delete('sections/{section}', [BusinessMenuSectionController::class, 'destroy'])->whereNumber('section');
+
+            Route::get('items', [BusinessMenuItemController::class, 'index']);
+            Route::post('items', [BusinessMenuItemController::class, 'store']);
+            Route::get('items/{item}', [BusinessMenuItemController::class, 'show'])->whereNumber('item');
+            Route::match(['put', 'patch'], 'items/{item}', [BusinessMenuItemController::class, 'update'])->whereNumber('item');
+            Route::delete('items/{item}', [BusinessMenuItemController::class, 'destroy'])->whereNumber('item');
+
+            Route::post('items/{item}/variants', [BusinessMenuItemController::class, 'storeVariant'])->whereNumber('item');
+            Route::match(['put', 'patch'], 'items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'updateVariant'])->whereNumber(['item', 'variant']);
+            Route::delete('items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'destroyVariant'])->whereNumber(['item', 'variant']);
+
+            Route::post('items/{item}/extras', [BusinessMenuItemController::class, 'storeExtra'])->whereNumber('item');
+            Route::match(['put', 'patch'], 'items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'updateExtra'])->whereNumber(['item', 'extra']);
+            Route::delete('items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'destroyExtra'])->whereNumber(['item', 'extra']);
+        });
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and
         // confirm the handover by scanning it (flips the order to completed).

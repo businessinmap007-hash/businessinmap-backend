@@ -26,6 +26,10 @@ class Order extends Model
         'fulfillment_type',
         'booking_id',
         'business_table_id',
+        'delivery_driver_id',
+        'delivery_stage',
+        'pickup_token',
+        'delivery_token',
         'total',
         'delivery_fee',
         'discount',
@@ -46,6 +50,7 @@ class Order extends Model
     protected $casts = [
         'booking_id' => 'integer',
         'business_table_id' => 'integer',
+        'delivery_driver_id' => 'integer',
         'is_shared' => 'boolean',
         'handover_confirmed_at' => 'datetime',
     ];
@@ -53,6 +58,11 @@ class Order extends Model
     public function businessTable()
     {
         return $this->belongsTo(BusinessTable::class, 'business_table_id');
+    }
+
+    public function deliveryDriver()
+    {
+        return $this->belongsTo(DeliveryDriver::class, 'delivery_driver_id');
     }
 
     public function user()

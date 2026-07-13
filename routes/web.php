@@ -81,6 +81,12 @@ Route::get('/h/{token}/qr', [App\Http\Controllers\HandoverWebController::class, 
 Route::get('/h/{token}', [App\Http\Controllers\HandoverWebController::class, 'scan'])
     ->name('handover.scan.web');
 
+// Connected delivery loop: /dp = driver confirms pickup, /dd = customer confirms receipt.
+Route::get('/dp/{token}/qr', [App\Http\Controllers\DeliveryWebController::class, 'pickupQr'])->name('delivery.pickup.qr');
+Route::get('/dp/{token}', [App\Http\Controllers\DeliveryWebController::class, 'pickup'])->name('delivery.pickup.web');
+Route::get('/dd/{token}/qr', [App\Http\Controllers\DeliveryWebController::class, 'deliverQr'])->name('delivery.deliver.qr');
+Route::get('/dd/{token}', [App\Http\Controllers\DeliveryWebController::class, 'deliver'])->name('delivery.deliver.web');
+
 Route::get('/_disabled/category-products', function () {
     abort(404);
 })->name('category.products');

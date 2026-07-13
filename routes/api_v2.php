@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
+use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -82,6 +83,19 @@ Route::prefix('v2')->group(function () {
         // confirm the handover by scanning it (flips the order to completed).
         Route::post('orders/{order}/handover/issue', [OrderHandoverController::class, 'issue'])->whereNumber('order');
         Route::post('handover/{token}/confirm', [OrderHandoverController::class, 'confirm']);
+
+        // Connected delivery loop: driver accepts → pickup QR (stage 1) → delivery
+        // QR (stage 2) → completed + restaurant notified + success ledgered.
+        Route::prefix('delivery')->group(function () {
+            Route::post('register', [DeliveryController::class, 'register']);
+            Route::post('availability', [DeliveryController::class, 'availability']);
+            Route::get('available-orders', [DeliveryController::class, 'available']);
+            Route::post('orders/{order}/accept', [DeliveryController::class, 'accept'])->whereNumber('order');
+            Route::post('orders/{order}/pickup-token', [DeliveryController::class, 'issuePickupToken'])->whereNumber('order');
+            Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
+            Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
+            Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
+        });
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).
         Route::get('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'index'])->whereNumber('booking');

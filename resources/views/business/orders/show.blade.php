@@ -29,6 +29,17 @@
     <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
 @endif
 
+@if($handoverToken)
+    <div class="a2-card a2-card--section" style="text-align:center;">
+        <div class="a2-card-title">تأكيد التسليم</div>
+        <div class="a2-card-sub" style="margin-bottom:12px;">اعرض هذا الرمز للعميل ليمسحه ويؤكد استلام الطلب.</div>
+        <img src="{{ route('handover.qr', $handoverToken, false) }}" alt="رمز تأكيد التسليم" width="200" height="200"
+             style="border:1px solid var(--a2-line,#e6e9ef);border-radius:12px;background:#fff;">
+    </div>
+@elseif($order->handover_confirmed_at)
+    <div class="a2-alert a2-alert-success">تم تأكيد تسليم هذا الطلب في {{ $order->handover_confirmed_at->format('Y-m-d H:i') }}.</div>
+@endif
+
 <div class="a2-form-grid">
     <div>
         <div class="a2-card a2-card--section">

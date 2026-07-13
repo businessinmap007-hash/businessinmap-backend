@@ -56,8 +56,12 @@ Route::prefix('admin')->middleware(['web'])->group(function () {
 
 // Shared (group) cart web entry: a share link/QR opens this page, which joins
 // + renders the cart via the v2 API. Self-contained; no server auth required.
+Route::get('/cart/join/{token}/qr', [App\Http\Controllers\SharedCartWebController::class, 'qr'])
+    ->name('cart.shared.qr');
 Route::get('/cart/join/{token}', [App\Http\Controllers\SharedCartWebController::class, 'join'])
     ->name('cart.shared.join');
+Route::get('/cart/share/{business}', [App\Http\Controllers\SharedCartWebController::class, 'share'])
+    ->whereNumber('business')->name('cart.shared.host');
 
 Route::get('/_disabled/category-products', function () {
     abort(404);

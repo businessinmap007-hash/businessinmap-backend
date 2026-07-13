@@ -106,6 +106,11 @@
             ['label' => 'Payments', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
             ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
         ]],
+        ['label' => 'Delivery & Tables', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.'], 'children' => [
+            ['label' => 'Delivery Drivers', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
+            ['label' => 'Delivery Completions', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
+            ['label' => 'Restaurant Tables', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
+        ]],
         ['label' => 'Content', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
             ['label' => 'Posts', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],
             ['label' => 'Jobs', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],

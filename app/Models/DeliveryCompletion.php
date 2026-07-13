@@ -37,4 +37,9 @@ class DeliveryCompletion extends Model
     {
         return $this->belongsTo(DeliveryDriver::class, 'delivery_driver_id');
     }
+
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'business_id');
+    }
 }

@@ -24,8 +24,10 @@ use App\Http\Controllers\AdminV2\{
     CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
+    BusinessTableAdminController,
     CommercialOfferController,
     DashboardController,
+    DeliveryAdminController,
     DisputeController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
@@ -269,6 +271,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::delete('{extra}', [MenuItemExtraController::class, 'destroy'])->whereNumber('extra')->name('destroy');
             });
         });
+
+        // Connected delivery loop oversight (drivers + success ledger).
+        Route::prefix('delivery')->name('delivery.')->group(function () {
+            Route::get('drivers', [DeliveryAdminController::class, 'drivers'])->name('drivers.index');
+            Route::post('drivers/{driver}/toggle', [DeliveryAdminController::class, 'toggle'])->whereNumber('driver')->name('drivers.toggle');
+            Route::get('completions', [DeliveryAdminController::class, 'completions'])->name('completions.index');
+        });
+
+        // Restaurant tables (table QR) read oversight.
+        Route::get('business-tables', [BusinessTableAdminController::class, 'index'])->name('business-tables.index');
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
             Route::get('/', [WalletTransactionController::class, 'index'])->name('index');

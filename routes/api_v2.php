@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\DeliveryController;
+use App\Http\Controllers\Api\V2\DeviceTokenController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -202,6 +203,11 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [PushTokenController::class, 'store']);
             Route::delete('/', [PushTokenController::class, 'destroy']);
         });
+
+        // Firebase device token (separate from push-tokens above — different
+        // store; see the parallel-token-store note). Merged in from the former
+        // routes/api_v2_push.php.
+        Route::post('push-token', [DeviceTokenController::class, 'register']);
 
         Route::prefix('guarantees')->group(function () {
             Route::get('levels', [GuaranteeController::class, 'levels']);

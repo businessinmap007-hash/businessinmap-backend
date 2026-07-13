@@ -35,6 +35,9 @@ use App\Http\Controllers\AdminV2\{
     MenuItemController,
     MenuItemExtraController,
     MenuItemVariantController,
+    NotificationCenterAdminController,
+    OfferBoostPackageController,
+    OfferFollowDashboardController,
     OfferPerformanceController,
     OptionController,
     OptionGroupController,
@@ -56,6 +59,7 @@ use App\Http\Controllers\AdminV2\{
     Users\UserController,
     WalletNoteTemplateController,
     WalletOpsController,
+    WalletOverviewController,
     WalletTransactionController
 };
 
@@ -382,5 +386,28 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('albums', AlbumController::class)->names('albums');
         Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');
         Route::delete('albums/{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.delete');
+
+        // ── Merged in from the former routes/admin_v2_extras.php. Kept at the
+        // end of this group so the offer-boost-packages redirect stubs above
+        // still take precedence over the real routes below (same as the prior
+        // load order admin_v2 → admin_v2_extras).
+        Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
+        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->name('offer-follows.index');
+
+        Route::prefix('notification-center')->name('notification-center.')->group(function () {
+            Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
+            Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
+        });
+
+        Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->group(function () {
+            Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');
+            Route::get('create', [OfferBoostPackageController::class, 'create'])->name('create');
+            Route::post('/', [OfferBoostPackageController::class, 'store'])->name('store');
+            Route::get('boost', [OfferBoostPackageController::class, 'boostForm'])->name('boost-form');
+            Route::post('boost', [OfferBoostPackageController::class, 'activateBoost'])->name('activate');
+            Route::get('{offerBoostPackage}/edit', [OfferBoostPackageController::class, 'edit'])->whereNumber('offerBoostPackage')->name('edit');
+            Route::put('{offerBoostPackage}', [OfferBoostPackageController::class, 'update'])->whereNumber('offerBoostPackage')->name('update');
+            Route::post('{offerBoostPackage}/toggle', [OfferBoostPackageController::class, 'toggle'])->whereNumber('offerBoostPackage')->name('toggle');
+        });
     });
 });

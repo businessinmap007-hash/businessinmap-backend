@@ -46,6 +46,14 @@ migration: `2026_07_15_000000_create_shared_cart.php` (كله محروس/idempot
 المنطق في `MenuBillingService` (`feeRowForBusiness` + `bill`). `SharedCartController`
 يفرض `payment_method='cash'` عند checkout.
 
+**شمول السعر (اختيار المالك):** جدول `business_menu_settings` (migration
+`2026_07_16`) بعلمين `prices_include_service` / `prices_include_tax`، يضبطهما
+المالك في شاشة **إعدادات المنيو** (`business.menu-settings.*`). لو السعر **شامل**
+مكوّناً فلا يُضاف فوقه، ويُحتسب المكوّن **عكسياً** من السعر الشامل للعرض
+(`bill()` يحلّ `net` بصيغة مغلقة لكل الحالات الأربع). الافتراضي (كلاهما غير شامل)
+= السلوك الأصلي (يُضاف الاثنان فوق السعر). كل سطر مشارك يحمل `service_included` /
+`tax_included`.
+
 ## العرض
 `participants[]{user_id,name,role,items_count,items_subtotal,service_fee,tax,total}`
 (فاتورة كل شخص) + `items[]{...,added_by,options}` +

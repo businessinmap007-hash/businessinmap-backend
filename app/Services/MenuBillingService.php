@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BusinessMenuSetting;
 use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
 use App\Models\User;
@@ -12,8 +13,14 @@ use App\Models\User;
  * percentage). Used to show each participant of a shared cart their own share
  * (service fee + tax on their own order only); payment is cash on arrival.
  *
- * The service fee reuses the BIM primitive CategoryChildServiceFee::amountFor
- * (fixed = flat per person's order; percent = % of their items).
+ * A restaurant may declare (business_menu_settings) that its displayed prices
+ * already INCLUDE the service fee and/or tax. When a component is included it is
+ * NOT added on top — its amount is instead back-calculated (embedded in the
+ * price) for the bill, and `total` stays equal to the picked items subtotal for
+ * that component. The default (both excluded) adds both on top — the original
+ * behaviour, unchanged.
+ *
+ * The service fee reuses the BIM primitive CategoryChildServiceFee::amountFor.
  */
 class MenuBillingService
 {
@@ -36,6 +43,17 @@ class MenuBillingService
             ->first();
     }
 
+    /** [prices_include_service, prices_include_tax] for a business (defaults false). */
+    public function inclusiveFlagsForBusiness(int $businessId): array
+    {
+        $row = BusinessMenuSetting::query()->where('business_id', $businessId)->first();
+
+        return [
+            (bool) ($row->prices_include_service ?? false),
+            (bool) ($row->prices_include_tax ?? false),
+        ];
+    }
+
     /** The configured menu tax rate (percent). */
     public function taxRatePercent(): float
     {
@@ -43,25 +61,53 @@ class MenuBillingService
     }
 
     /**
-     * Build a bill for an items subtotal against a (possibly null) fee row.
-     * Service fee is the client fee on the items; tax is applied to
-     * (items + service fee). Returns items_subtotal / service_fee / tax / total.
+     * Build a bill for a displayed items subtotal against a (possibly null) fee
+     * row and the business's inclusive flags.
+     *
+     * Model: net (food value) → service = client fee on net → tax = rate on
+     * (net + service). The displayed subtotal S already contains whichever
+     * components are "included": S = net + inc_service·service + inc_tax·tax.
+     * We solve net in closed form, then report the true service/tax amounts and
+     * total = net + service + tax (= S + the components added on top).
+     *
+     * With both flags false this reduces to net = S and total = S + service +
+     * tax — the original behaviour.
      */
-    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow): array
+    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow, bool $incService = false, bool $incTax = false): array
     {
-        $items = round(max($itemsSubtotal, 0), 2);
+        $s = round(max($itemsSubtotal, 0), 2);
+        $tr = $this->taxRatePercent() / 100;
 
-        $serviceFee = $feeRow
-            ? round((float) $feeRow->amountFor(CategoryChildServiceFee::PAYER_CLIENT, $items), 2)
-            : 0.0;
+        $chargeable = $feeRow && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT);
+        $isPercent = $chargeable && ($feeRow->client_fee_type ?: 'fixed') === CategoryChildServiceFee::CALC_TYPE_PERCENT;
+        $sp = $isPercent ? ((float) $feeRow->client_fee_amount) / 100 : 0.0;
+        $fixed = ($chargeable && ! $isPercent) ? (float) $feeRow->client_fee_amount : 0.0;
 
-        $tax = round(($items + $serviceFee) * $this->taxRatePercent() / 100, 2);
+        // Solve net (food value) from the displayed subtotal.
+        if ($isPercent) {
+            // S = net·(1 + incS·sp + incT·(1+sp)·tr)
+            $denom = 1 + ($incService ? $sp : 0) + ($incTax ? (1 + $sp) * $tr : 0);
+            $net = $denom > 0 ? $s / $denom : $s;
+        } else {
+            // service is fixed F: S = net·(1 + incT·tr) + incS·F + incT·F·tr
+            $denom = 1 + ($incTax ? $tr : 0);
+            $net = $denom > 0 ? ($s - ($incService ? $fixed : 0) - ($incTax ? $fixed * $tr : 0)) / $denom : $s;
+        }
+
+        $net = round(max($net, 0), 2);
+
+        $serviceFee = $chargeable ? round((float) $feeRow->amountFor(CategoryChildServiceFee::PAYER_CLIENT, $net), 2) : 0.0;
+        $tax = round(($net + $serviceFee) * $tr, 2);
+
+        $total = round($s + ($incService ? 0 : $serviceFee) + ($incTax ? 0 : $tax), 2);
 
         return [
-            'items_subtotal' => $items,
+            'items_subtotal' => $s,
             'service_fee' => $serviceFee,
+            'service_included' => $incService,
             'tax' => $tax,
-            'total' => round($items + $serviceFee + $tax, 2),
+            'tax_included' => $incTax,
+            'total' => $total,
         ];
     }
 }

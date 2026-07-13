@@ -104,6 +104,60 @@ class SharedCartBillingTest extends TestCase
         $this->assertSame('cash', $res->json('data.cart.payment_method'));
     }
 
+    public function test_inclusive_prices_are_not_added_on_top(): void
+    {
+        // Owner declares prices already include service + tax.
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'prices_include_service' => 1,
+            'prices_include_tax' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // 125.40 = 100 net + 10 service (10%) + 15.40 tax (14% of 110).
+        $item = $this->seedMenuItem($this->biz->id, null, 125.40, 'وجبة شاملة')->id;
+
+        Sanctum::actingAs($this->host);
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/share")->json('data.order_id');
+        $this->postJson("/api/v2/cart/shared/{$orderId}/items", ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
+
+        $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
+            ->firstWhere('user_id', $this->host->id);
+
+        $this->assertSame(125.40, (float) $host['items_subtotal']);
+        $this->assertSame(10.0, (float) $host['service_fee']);
+        $this->assertTrue((bool) $host['service_included']);
+        $this->assertSame(15.4, (float) $host['tax']);
+        $this->assertTrue((bool) $host['tax_included']);
+        $this->assertSame(125.40, (float) $host['total']); // nothing added on top
+    }
+
+    public function test_mixed_service_added_tax_included(): void
+    {
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'prices_include_service' => 0,
+            'prices_include_tax' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // 115.40 = 100 net + 15.40 tax (included); service (10) added on top.
+        $item = $this->seedMenuItem($this->biz->id, null, 115.40, 'وجبة شاملة ضريبة')->id;
+
+        Sanctum::actingAs($this->host);
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/share")->json('data.order_id');
+        $this->postJson("/api/v2/cart/shared/{$orderId}/items", ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
+
+        $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
+            ->firstWhere('user_id', $this->host->id);
+
+        $this->assertSame(10.0, (float) $host['service_fee']);
+        $this->assertFalse((bool) $host['service_included']);
+        $this->assertSame(15.4, (float) $host['tax']);
+        $this->assertTrue((bool) $host['tax_included']);
+        $this->assertSame(125.40, (float) $host['total']); // 115.40 + 10 service
+    }
+
     public function test_checkout_forces_cash(): void
     {
         $item = $this->seedMenuItem($this->biz->id, null, 100.0)->id;

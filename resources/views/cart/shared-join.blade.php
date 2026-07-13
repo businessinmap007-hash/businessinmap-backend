@@ -37,19 +37,27 @@
         .person .name { font-weight: 600; }
         .person .lines { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-top: 8px; font-size: 13px; color: var(--muted); }
         .person .lines .tot { color: var(--ink); font-weight: 700; }
-        .item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+        .item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 14px; }
         .item:first-of-type { border-top: 0; }
         .item .opt { color: var(--muted); font-size: 12px; margin-top: 2px; }
         .item .by { color: var(--brand); font-size: 12px; margin-top: 2px; }
+        .item .ctl { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+        .stepper button { border: 0; background: #f8fafc; width: 32px; height: 32px; font-size: 17px; cursor: pointer; color: var(--ink); }
+        .stepper button:active { background: #eef2f7; }
+        .stepper .q { min-width: 30px; text-align: center; font-weight: 700; }
+        .icon-btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; height: 32px; padding: 0 10px; cursor: pointer; color: var(--danger); font-size: 13px; }
         .totals .row { padding: 6px 0; }
         .totals .grand { font-size: 18px; font-weight: 800; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; }
         .btn { appearance: none; border: 0; border-radius: 11px; padding: 13px 18px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; }
+        .btn:disabled { opacity: .6; cursor: default; }
         .btn-primary { background: var(--brand); color: var(--brand-ink); }
-        .btn-primary:disabled { opacity: .6; cursor: default; }
         .btn-ghost { background: transparent; color: var(--brand); border: 1px solid var(--line); }
+        .btn-danger { background: #fff; color: var(--danger); border: 1px solid #fecdca; }
+        .btn-ok { background: var(--ok); color: #fff; }
         .field { display: block; margin-top: 10px; }
         .field label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
-        .field input { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; font: inherit; background: #fff; }
+        .field input, .field select { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; font: inherit; background: #fff; }
         .note { background: #f0f6ff; border: 1px solid #d6e4ff; color: #1d4ed8; border-radius: 11px; padding: 11px 13px; font-size: 13px; }
         .alert { border-radius: 11px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; }
         .alert-danger { background: #fef3f2; border: 1px solid #fecdca; color: var(--danger); }
@@ -57,7 +65,13 @@
         .center { text-align: center; }
         .spin { width: 22px; height: 22px; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; display: inline-block; animation: sp .8s linear infinite; }
         @keyframes sp { to { transform: rotate(360deg); } }
-        .copy { font-size: 12px; }
+        .mrow { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); }
+        .mrow:first-of-type { border-top: 0; }
+        .mrow .add-ctl { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .mrow select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: #fff; }
+        .mrow .extras { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; font-size: 12px; }
+        .mrow .extras label { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); }
+        .grp-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 2px; }
     </style>
 </head>
 <body>
@@ -86,7 +100,13 @@
 
     <div id="loading" class="card center hidden"><span class="spin"></span></div>
 
-    {{-- Rendered cart. --}}
+    {{-- Terminal state (left / cancelled / checked out). --}}
+    <div id="terminal" class="card center hidden">
+        <div id="terminal-title" class="sec-title" style="margin-bottom:6px;"></div>
+        <div id="terminal-body" class="muted"></div>
+    </div>
+
+    {{-- Rendered cart + management. --}}
     <div id="cart" class="hidden">
         <div class="card">
             <div class="biz">
@@ -109,6 +129,16 @@
             <div id="items-empty" class="muted hidden" style="padding:8px 0;">لا توجد أصناف بعد.</div>
         </div>
 
+        {{-- Add items: lazy-loaded menu browser. --}}
+        <div class="card">
+            <div class="row">
+                <div class="sec-title" style="margin:0;">أضف أصنافك</div>
+                <button id="toggle-menu" class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:13px;">تصفّح المنيو</button>
+            </div>
+            <div id="menu-loading" class="center hidden" style="padding:12px 0;"><span class="spin"></span></div>
+            <div id="menu" class="hidden" style="margin-top:8px;"></div>
+        </div>
+
         <div class="card totals">
             <div class="row"><span class="muted">إجمالي الأصناف</span><span id="t-sub">—</span></div>
             <div class="row"><span class="muted">رسوم الخدمة</span><span id="t-fee">—</span></div>
@@ -117,8 +147,28 @@
             <div class="note" style="margin-top:14px;">الدفع نقداً عند الوصول · كل مشارك يدفع فاتورته.</div>
         </div>
 
+        {{-- Role-based actions. --}}
+        <div id="host-actions" class="card hidden">
+            <div class="field" style="margin-top:0;">
+                <label for="fulfillment">طريقة الاستلام</label>
+                <select id="fulfillment">
+                    <option value="dine_in">في المطعم</option>
+                    <option value="pickup">استلام</option>
+                    <option value="delivery">توصيل</option>
+                </select>
+            </div>
+            <div style="display:grid;gap:10px;margin-top:14px;">
+                <button id="checkout-btn" class="btn btn-ok">إتمام الطلب</button>
+                <button id="cancel-btn" class="btn btn-danger">إلغاء السلة</button>
+            </div>
+        </div>
+
+        <div id="member-actions" class="card hidden">
+            <button id="leave-btn" class="btn btn-danger">مغادرة السلة</button>
+        </div>
+
         <div class="card">
-            <div class="row"><span class="muted copy">شارك هذا الرابط مع أصدقائك</span><button id="copy-link" class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:13px;">نسخ الرابط</button></div>
+            <div class="row"><span class="muted" style="font-size:12px;">شارك هذا الرابط مع أصدقائك</span><button id="copy-link" class="btn btn-ghost" style="width:auto;padding:8px 14px;font-size:13px;">نسخ الرابط</button></div>
         </div>
     </div>
 </div>
@@ -130,30 +180,51 @@
     const JOIN_URL = '/api/v2/cart/join/' + encodeURIComponent(TOKEN);
     const CUR = 'ج.م';
 
+    const state = { cart: null, menuLoaded: false };
+
     const $ = (id) => document.getElementById(id);
     const show = (id) => $(id).classList.remove('hidden');
     const hide = (id) => $(id).classList.add('hidden');
     const money = (n) => (Number(n) || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + CUR;
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 
-    function fail(msg) { const a = $('alert'); a.textContent = msg; show('alert'); }
+    function fail(msg) { const a = $('alert'); a.textContent = msg; show('alert'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     function clearFail() { hide('alert'); }
     function getToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
     function setToken(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {} }
-
     function roleLabel(r) { return r === 'host' ? 'المضيف' : 'عضو'; }
 
+    // Thin API wrapper: attaches the bearer token, normalises errors.
+    async function api(method, url, body) {
+        const token = getToken();
+        if (!token) { showGate(); return { handled: true }; }
+        const opts = { method, headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' } };
+        if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+        let res;
+        try { res = await fetch(url, opts); }
+        catch (e) { fail('تعذّر الاتصال بالخادم.'); return { handled: true }; }
+        if (res.status === 401) { setToken(''); fail('انتهت صلاحية رمز الدخول. أدخله من جديد.'); showGate(); return { handled: true }; }
+        let json = null; try { json = await res.json(); } catch (e) {}
+        return { res, json };
+    }
+
+    function editable(it) {
+        const v = state.cart && state.cart.viewer;
+        return !!(v && (v.is_host || (it.added_by && it.added_by.id === v.user_id)));
+    }
+
     function renderCart(cart) {
-        // Business
+        state.cart = cart;
+
         $('biz-name').textContent = cart.business ? cart.business.name : '—';
         if (cart.business && cart.business.logo) {
             const img = document.createElement('img');
-            img.src = cart.business.logo; img.alt = ''; img.className = '';
-            img.width = 52; img.height = 52; img.style.borderRadius = '12px'; img.style.objectFit = 'cover';
-            $('biz-logo').replaceWith(img); img.id = 'biz-logo';
+            img.src = cart.business.logo; img.alt = ''; img.width = 52; img.height = 52;
+            img.style.borderRadius = '12px'; img.style.objectFit = 'cover';
+            const cur = $('biz-logo'); cur.replaceWith(img); img.id = 'biz-logo';
         }
+        $('my-role').textContent = cart.viewer ? roleLabel(cart.viewer.role) : 'مشارك';
 
-        // Participants
         const parts = cart.participants || [];
         $('ppl-count').textContent = parts.length + ' مشارك';
         $('participants').innerHTML = parts.map((p) => `
@@ -170,7 +241,6 @@
                 </div>
             </div>`).join('');
 
-        // Items
         const items = cart.items || [];
         if (items.length === 0) { show('items-empty'); $('items').innerHTML = ''; }
         else {
@@ -179,56 +249,195 @@
                 const opts = [];
                 if (it.options && it.options.size) opts.push(esc(it.options.size));
                 if (it.options && it.options.extras && it.options.extras.length) opts.push(it.options.extras.map(esc).join('، '));
+                const canEdit = editable(it);
+                const ctl = canEdit ? `
+                    <div class="ctl">
+                        <span class="stepper">
+                            <button data-act="dec" data-id="${it.id}" data-qty="${it.qty}">−</button>
+                            <span class="q">${it.qty}</span>
+                            <button data-act="inc" data-id="${it.id}" data-qty="${it.qty}">＋</button>
+                        </span>
+                        <button class="icon-btn" data-act="del" data-id="${it.id}">حذف</button>
+                    </div>` : '';
                 return `
                 <div class="item">
                     <div>
                         <div>${esc(it.name)} <span class="muted">×${it.qty}</span></div>
                         ${opts.length ? `<div class="opt">${opts.join(' · ')}</div>` : ''}
                         <div class="by">أضافه: ${esc(it.added_by && it.added_by.name) || '—'}</div>
+                        ${ctl}
                     </div>
                     <div style="white-space:nowrap;font-weight:600;">${money(it.total_price)}</div>
                 </div>`;
             }).join('');
         }
 
-        // Totals
         const t = cart.totals || {};
         $('t-sub').textContent = money(t.items_subtotal);
         $('t-fee').textContent = money(t.service_fee);
         $('t-tax').textContent = money(t.tax);
         $('t-grand').textContent = money(t.grand_total);
 
-        hide('intro'); hide('loading'); hide('gate'); clearFail();
+        // Role-based action cards.
+        const isHost = cart.viewer && cart.viewer.is_host;
+        (isHost ? show : hide)('host-actions');
+        (!isHost && cart.viewer ? show : hide)('member-actions');
+
+        hide('intro'); hide('loading'); hide('gate'); hide('terminal'); clearFail();
         show('cart');
     }
 
-    async function join() {
-        const token = getToken();
-        if (!token) { showGate(); return; }
-
-        hide('intro'); hide('gate'); clearFail(); show('loading');
-        try {
-            const res = await fetch(JOIN_URL, {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
-            });
-
-            if (res.status === 401) { hide('loading'); setToken(''); fail('انتهت صلاحية رمز الدخول. أدخله من جديد.'); showGate(); return; }
-            if (res.status === 404) { hide('loading'); fail('رابط السلة غير صالح أو تم إتمام الطلب.'); return; }
-            if (!res.ok) { hide('loading'); fail('تعذّر الانضمام إلى السلة. حاول مرة أخرى.'); show('intro'); return; }
-
-            const body = await res.json();
-            const cart = body && body.data && body.data.cart;
-            if (!cart) { hide('loading'); fail('استجابة غير متوقعة من الخادم.'); show('intro'); return; }
-            renderCart(cart);
-        } catch (e) {
-            hide('loading'); fail('تعذّر الاتصال بالخادم.'); show('intro');
-        }
+    function terminal(title, body) {
+        hide('cart'); hide('loading'); hide('intro'); clearFail();
+        $('terminal-title').textContent = title;
+        $('terminal-body').textContent = body;
+        show('terminal');
     }
 
-    function showGate() { hide('intro'); hide('cart'); hide('loading'); show('gate'); }
+    async function join() {
+        if (!getToken()) { showGate(); return; }
+        hide('intro'); hide('gate'); clearFail(); show('loading');
+        const { res, json, handled } = await api('POST', JOIN_URL);
+        if (handled) { hide('loading'); return; }
+        if (res.status === 404) { hide('loading'); fail('رابط السلة غير صالح أو تم إتمام الطلب.'); return; }
+        if (!res.ok) { hide('loading'); fail('تعذّر الانضمام إلى السلة.'); show('intro'); return; }
+        const cart = json && json.data && json.data.cart;
+        if (!cart) { hide('loading'); fail('استجابة غير متوقعة من الخادم.'); show('intro'); return; }
+        renderCart(cart);
+    }
 
-    // Wire up.
+    // ── Line operations ──
+    async function changeQty(itemId, qty) {
+        const oid = state.cart.id;
+        const { res, json, handled } = await api('PATCH', `/api/v2/cart/shared/${oid}/items/${itemId}`, { qty });
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر تعديل الكمية.'); return; }
+        renderCart(json.data.cart);
+    }
+    async function removeLine(itemId) {
+        const oid = state.cart.id;
+        const { res, json, handled } = await api('DELETE', `/api/v2/cart/shared/${oid}/items/${itemId}`);
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر حذف الصنف.'); return; }
+        renderCart(json.data.cart);
+    }
+
+    // ── Add items (menu browser) ──
+    async function loadMenu() {
+        if (state.menuLoaded) { $('menu').classList.toggle('hidden'); return; }
+        const bizId = state.cart.business && state.cart.business.id;
+        if (!bizId) return;
+        show('menu-loading');
+        let json = null;
+        try { json = await (await fetch('/api/v2/discovery/menu/' + bizId, { headers: { 'Accept': 'application/json' } })).json(); }
+        catch (e) { hide('menu-loading'); fail('تعذّر تحميل المنيو.'); return; }
+        hide('menu-loading');
+        const sections = (json && json.data && json.data.sections) || [];
+        if (!sections.length) { $('menu').innerHTML = '<div class="muted" style="padding:8px 0;">لا يوجد منيو متاح.</div>'; }
+        else { $('menu').innerHTML = sections.map(renderSection).join(''); }
+        state.menuLoaded = true;
+        show('menu');
+    }
+    function renderSection(sec) {
+        return `<div class="grp-title">${esc(sec.name)}</div>` + (sec.items || []).map(renderMenuItem).join('');
+    }
+    function renderMenuItem(it) {
+        const sizeSel = (it.variants && it.variants.length) ? `
+            <select data-role="size" data-item="${it.id}">
+                <option value="">الحجم الافتراضي</option>
+                ${it.variants.map((v) => `<option value="${v.id}">${esc(v.name)} · ${money(v.price)}</option>`).join('')}
+            </select>` : '';
+        const extras = (it.extras && it.extras.length) ? `
+            <div class="extras">${it.extras.map((e) => `<label><input type="checkbox" data-role="extra" data-item="${it.id}" value="${e.id}"> ${esc(e.name)} (+${money(e.price)})</label>`).join('')}</div>` : '';
+        return `
+        <div class="mrow" data-mitem="${it.id}">
+            <div style="flex:1;">
+                <div>${esc(it.name)}</div>
+                <div class="muted" style="font-size:12px;">${money(it.base_price)}</div>
+                ${extras}
+            </div>
+            <div style="text-align:left;">
+                <div class="add-ctl">
+                    ${sizeSel}
+                    <span class="stepper">
+                        <button data-role="mdec" data-item="${it.id}">−</button>
+                        <span class="q" data-role="mqty" data-item="${it.id}">1</span>
+                        <button data-role="minc" data-item="${it.id}">＋</button>
+                    </span>
+                    <button class="btn btn-primary" style="width:auto;padding:8px 14px;font-size:13px;" data-role="add" data-item="${it.id}">أضف</button>
+                </div>
+            </div>
+        </div>`;
+    }
+    function menuQtyEl(itemId) { return $('menu').querySelector(`[data-role="mqty"][data-item="${itemId}"]`); }
+    async function addMenuItem(itemId) {
+        const qtyEl = menuQtyEl(itemId);
+        const qty = Math.max(1, parseInt(qtyEl ? qtyEl.textContent : '1', 10) || 1);
+        const sizeEl = $('menu').querySelector(`[data-role="size"][data-item="${itemId}"]`);
+        const sizeId = sizeEl && sizeEl.value ? parseInt(sizeEl.value, 10) : null;
+        const extras = Array.from($('menu').querySelectorAll(`[data-role="extra"][data-item="${itemId}"]:checked`)).map((c) => parseInt(c.value, 10));
+        const oid = state.cart.id;
+        const payload = { kind: 'menu', offering_id: itemId, qty };
+        if (sizeId) payload.size_id = sizeId;
+        if (extras.length) payload.extras = extras;
+        const { res, json, handled } = await api('POST', `/api/v2/cart/shared/${oid}/items`, payload);
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر إضافة الصنف.'); return; }
+        renderCart(json.data.cart);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Lifecycle ──
+    async function checkout() {
+        if (!confirm('تأكيد إتمام الطلب؟')) return;
+        const oid = state.cart.id;
+        const { res, handled } = await api('POST', `/api/v2/cart/shared/${oid}/checkout`, { fulfillment_type: $('fulfillment').value });
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر إتمام الطلب.'); return; }
+        terminal('تم إرسال الطلب ✓', 'استلم المطعم طلبكم. الدفع نقداً عند الوصول، وكل مشارك يدفع فاتورته.');
+    }
+    async function cancelCart() {
+        if (!confirm('إلغاء السلة الجماعية نهائياً؟')) return;
+        const oid = state.cart.id;
+        const { res, handled } = await api('DELETE', `/api/v2/cart/shared/${oid}`);
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر إلغاء السلة.'); return; }
+        terminal('أُلغيت السلة', 'تم إلغاء السلة الجماعية. تم إخطار المشاركين.');
+    }
+    async function leaveCart() {
+        if (!confirm('مغادرة السلة؟ ستُحذف أصنافك.')) return;
+        const oid = state.cart.id;
+        const { res, handled } = await api('POST', `/api/v2/cart/shared/${oid}/leave`);
+        if (handled) return;
+        if (!res.ok) { fail('تعذّر مغادرة السلة.'); return; }
+        terminal('غادرت السلة', 'تمت مغادرتك للسلة الجماعية وحُذفت أصنافك.');
+    }
+
+    function showGate() { hide('intro'); hide('cart'); hide('loading'); hide('terminal'); show('gate'); }
+
+    // ── Event wiring (delegated) ──
+    $('items').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-act]'); if (!b) return;
+        const id = parseInt(b.dataset.id, 10);
+        if (b.dataset.act === 'del') return removeLine(id);
+        const qty = parseInt(b.dataset.qty, 10) || 1;
+        if (b.dataset.act === 'inc') return changeQty(id, qty + 1);
+        if (b.dataset.act === 'dec') return changeQty(id, qty - 1); // qty 0 removes server-side
+    });
+    $('menu').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-role]'); if (!b) return;
+        const id = parseInt(b.dataset.item, 10);
+        const qtyEl = menuQtyEl(id);
+        if (b.dataset.role === 'add') return addMenuItem(id);
+        if (!qtyEl) return;
+        let q = parseInt(qtyEl.textContent, 10) || 1;
+        if (b.dataset.role === 'minc') qtyEl.textContent = q + 1;
+        if (b.dataset.role === 'mdec') qtyEl.textContent = Math.max(1, q - 1);
+    });
+    $('toggle-menu').addEventListener('click', loadMenu);
+    $('checkout-btn').addEventListener('click', checkout);
+    $('cancel-btn').addEventListener('click', cancelCart);
+    $('leave-btn').addEventListener('click', leaveCart);
     $('save-token').addEventListener('click', () => {
         const v = $('token-input').value.trim();
         if (!v) { $('token-input').focus(); return; }
@@ -240,7 +449,6 @@
         catch (e) { fail('تعذّر نسخ الرابط.'); }
     });
 
-    // Boot: if we already have a token, join immediately; otherwise show intro.
     if (getToken()) join(); else show('intro');
 })();
 </script>

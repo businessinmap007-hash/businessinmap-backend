@@ -212,6 +212,25 @@ class SharedCartTest extends TestCase
         );
     }
 
+    public function test_response_carries_the_viewer_identity_and_role(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        // Member sees themselves as a non-host member.
+        Sanctum::actingAs($this->member);
+        $joined = $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+        $this->assertSame($this->member->id, (int) $joined->json('data.cart.viewer.user_id'));
+        $this->assertSame('member', $joined->json('data.cart.viewer.role'));
+        $this->assertFalse($joined->json('data.cart.viewer.is_host'));
+
+        // Host sees themselves as host.
+        Sanctum::actingAs($this->host);
+        $shown = $this->getJson("/api/v2/cart/shared/{$orderId}")->assertOk();
+        $this->assertSame($this->host->id, (int) $shown->json('data.cart.viewer.user_id'));
+        $this->assertTrue($shown->json('data.cart.viewer.is_host'));
+    }
+
     public function test_host_can_cancel_and_the_cart_is_discarded(): void
     {
         $orderId = $this->shareAsHost();

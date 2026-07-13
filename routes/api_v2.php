@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
+use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
@@ -35,6 +36,14 @@ Route::prefix('v2')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
+
+        // Password reset by emailed code. Throttled to blunt abuse/enumeration.
+        Route::middleware('throttle:6,1')->prefix('password')->group(function () {
+            Route::post('forgot', [PasswordResetController::class, 'forgot']);
+            Route::post('resend', [PasswordResetController::class, 'resend']);
+            Route::post('verify', [PasswordResetController::class, 'verify']);
+            Route::post('reset', [PasswordResetController::class, 'reset']);
+        });
     });
 
     Route::prefix('offers')->group(function () {

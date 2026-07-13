@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
@@ -24,6 +25,12 @@ use App\Http\Controllers\Api\V2\TableController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
+    // Auth: the mobile app's token entry point (v2 is self-sufficient, no v1).
+    Route::prefix('auth')->group(function () {
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('login', [AuthController::class, 'login']);
+    });
+
     Route::prefix('offers')->group(function () {
         Route::get('/', [OfferDiscoveryController::class, 'index']);
         Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
@@ -54,6 +61,13 @@ Route::prefix('v2')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->group(function () {
+        // Account: current user + token lifecycle.
+        Route::prefix('auth')->group(function () {
+            Route::get('me', [AuthController::class, 'me']);
+            Route::post('logout', [AuthController::class, 'logout']);
+            Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        });
+
         // Customer cart over the offering layer (retail listings + menu items).
         Route::prefix('cart')->group(function () {
             Route::get('/', [CartController::class, 'index']);

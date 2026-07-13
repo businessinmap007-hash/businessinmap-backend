@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V2\AddressController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
+use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
@@ -66,6 +68,19 @@ Route::prefix('v2')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('logout', [AuthController::class, 'logout']);
             Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        });
+
+        // Own profile + saved address book.
+        Route::get('profile', [ProfileController::class, 'show']);
+        Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
+        Route::post('profile/password', [ProfileController::class, 'updatePassword']);
+
+        Route::prefix('addresses')->group(function () {
+            Route::get('/', [AddressController::class, 'index']);
+            Route::post('/', [AddressController::class, 'store']);
+            Route::match(['put', 'patch'], '{address}', [AddressController::class, 'update'])->whereNumber('address');
+            Route::post('{address}/primary', [AddressController::class, 'setPrimary'])->whereNumber('address');
+            Route::delete('{address}', [AddressController::class, 'destroy'])->whereNumber('address');
         });
 
         // Customer cart over the offering layer (retail listings + menu items).

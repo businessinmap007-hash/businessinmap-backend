@@ -77,9 +77,17 @@ Route::prefix('v2')->group(function () {
         Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
         Route::post('profile/password', [ProfileController::class, 'updatePassword']);
 
-        // Wallet: balance summary + ledger (read-only).
-        Route::get('wallet', [WalletController::class, 'show']);
-        Route::get('wallet/transactions', [WalletController::class, 'transactions']);
+        // Wallet: balance/ledger (read) + money movements + PIN.
+        Route::prefix('wallet')->group(function () {
+            Route::get('/', [WalletController::class, 'show']);
+            Route::get('transactions', [WalletController::class, 'transactions']);
+            Route::post('deposit', [WalletController::class, 'deposit']);
+            Route::post('withdraw', [WalletController::class, 'withdraw']);
+            Route::post('transfer', [WalletController::class, 'transfer']);
+            Route::get('pin', [WalletController::class, 'pinStatus']);
+            Route::post('pin', [WalletController::class, 'setPin']);
+            Route::post('pin/verify', [WalletController::class, 'verifyPin']);
+        });
 
         Route::prefix('addresses')->group(function () {
             Route::get('/', [AddressController::class, 'index']);

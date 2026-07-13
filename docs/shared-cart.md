@@ -70,10 +70,15 @@ migration: `2026_07_15_000000_create_shared_cart.php` (كله محروس/idempot
 أسطر **المنيو** تحمل رسم الخدمة + الضريبة (مع علمي الشمول)، وأسطر **retail** تبقى
 بسعرها الخام (لا ضريبة menu). الاستجابة تكسب كتلة `bill`
 {menu_subtotal, retail_subtotal, service_fee, service_included, tax, tax_included,
-delivery_fee, discount}، و`final_total` صار يشمل رسم الخدمة والضريبة. الفوترة
-حسابية وقت العرض (غير مخزّنة على الطلب) — كالسلة المشتركة.
+delivery_fee, discount}، و`final_total` صار يشمل رسم الخدمة والضريبة.
+
+## التخزين عند الـcheckout (2026-07-16)
+عند إتمام الطلب (شخصي أو مشترك) تُخزَّن القيم على `orders`: عمودا `service_fee` +
+`tax` (migration `2026_07_17`) و`final_total` المحدَّث. المنطق في
+`CustomerCartService::placeOrder` عبر `MenuBillingService::orderBill` (يجمّع أسطر
+المنيو حسب صاحبها — يهمّ للرسم الثابت في السلة المشتركة). العرض يستخدم نفس
+`orderBill` فيطابق المخزَّن تماماً.
 
 ## توسعات مؤجّلة (خارج MVP)
 - ضريبة يحددها المطعم (بدل النسبة العامة) لو اختلف التسجيل الضريبي.
-- تخزين رسم الخدمة/الضريبة على الطلب عند checkout (الآن حسابية وقت العرض فقط).
 - إشعار المضيف عند انضمام عضو (`InAppNotificationService` جاهز)؛ إلغاء السلة؛ واجهة ويب.

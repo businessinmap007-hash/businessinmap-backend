@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\BusinessCatalogListing;
 use App\Models\BusinessMenuSetting;
 use App\Models\CategoryChildServiceFee;
+use App\Models\MenuItem;
+use App\Models\Order;
 use App\Models\PlatformService;
 use App\Models\User;
 
@@ -108,6 +111,48 @@ class MenuBillingService
             'tax' => $tax,
             'tax_included' => $incTax,
             'total' => $total,
+        ];
+    }
+
+    /**
+     * Order-level bill: menu (food) lines are billed per "biller" (grouped by
+     * added_by_user_id, so a shared cart bills each participant on their own
+     * order — matters for a fixed fee); retail lines stay plain. Returns the
+     * summed service_fee / tax, the menu payable (items + added fee/tax), the
+     * retail subtotal, and the owner's inclusive flags.
+     */
+    public function orderBill(Order $order): array
+    {
+        $order->loadMissing('items');
+
+        $businessId = (int) $order->business_id;
+        $feeRow = $this->feeRowForBusiness($businessId);
+        [$incService, $incTax] = $this->inclusiveFlagsForBusiness($businessId);
+
+        $menuLines = $order->items->where('offering_type', MenuItem::class);
+        $retailSubtotal = round((float) $order->items
+            ->where('offering_type', BusinessCatalogListing::class)->sum('total_price'), 2);
+
+        $serviceFee = 0.0;
+        $tax = 0.0;
+        $menuPayable = 0.0;
+
+        // Group by biller (added_by_user_id); a personal cart has one null group.
+        foreach ($menuLines->groupBy(fn ($l) => (int) ($l->added_by_user_id ?? 0)) as $lines) {
+            $bill = $this->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax);
+            $serviceFee += $bill['service_fee'];
+            $tax += $bill['tax'];
+            $menuPayable += $bill['total'];
+        }
+
+        return [
+            'menu_subtotal' => round((float) $menuLines->sum('total_price'), 2),
+            'retail_subtotal' => $retailSubtotal,
+            'service_fee' => round($serviceFee, 2),
+            'service_included' => $incService,
+            'tax' => round($tax, 2),
+            'tax_included' => $incTax,
+            'menu_payable' => round($menuPayable, 2),
         ];
     }
 }

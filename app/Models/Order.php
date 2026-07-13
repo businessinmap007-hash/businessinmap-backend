@@ -28,6 +28,8 @@ class Order extends Model
         'total',
         'delivery_fee',
         'discount',
+        'service_fee',
+        'tax',
         'final_total',
         'payment_method',
         'address',

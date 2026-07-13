@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
+use App\Http\Controllers\Api\V2\TableController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -71,6 +72,10 @@ Route::prefix('v2')->group(function () {
             Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
             Route::delete('shared/{order}', [SharedCartController::class, 'cancel'])->whereNumber('order');
         });
+
+        // Restaurant-table QR (BIM-13.3): scan a table's permanent token to join
+        // or open its dine-in shared cart.
+        Route::post('table/{token}/scan', [TableController::class, 'scan']);
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).
         Route::get('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'index'])->whereNumber('booking');

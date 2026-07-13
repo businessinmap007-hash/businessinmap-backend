@@ -7,6 +7,7 @@ use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
 use App\Models\AppNotification;
+use App\Models\BusinessTable;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderParticipant;
@@ -229,6 +230,68 @@ class CustomerCartService
         }
     }
 
+    /**
+     * Scan a restaurant table (BIM-13.3): join the table's open shared cart, or
+     * open a new one tagged to the table if none is active. The first scanner is
+     * the host; later scanners join as members (and the host is notified). The
+     * lock on the table row serialises concurrent scanners so exactly one cart
+     * opens per table.
+     */
+    public function joinOrCreateForTable(int $userId, BusinessTable $table): Order
+    {
+        $orderId = DB::transaction(function () use ($userId, $table) {
+            // Serialise concurrent scanners of the same table.
+            BusinessTable::query()->whereKey($table->id)->lockForUpdate()->first();
+
+            $cart = Order::query()
+                ->where('business_table_id', $table->id)
+                ->where('business_id', $table->business_id)
+                ->where('status', self::STATUS_CART)
+                ->where('is_shared', 1)
+                ->first();
+
+            if ($cart) {
+                $participant = OrderParticipant::firstOrCreate(
+                    ['order_id' => $cart->id, 'user_id' => $userId],
+                    ['role' => OrderParticipant::ROLE_MEMBER]
+                );
+                if ($participant->wasRecentlyCreated) {
+                    $this->notifyHostOfJoin($cart, $userId);
+                }
+
+                return (int) $cart->id;
+            }
+
+            // First scanner opens the table cart as host.
+            $cart = Order::create([
+                'user_id' => $userId,
+                'business_id' => $table->business_id,
+                'business_table_id' => $table->id,
+                'status' => self::STATUS_CART,
+                'is_shared' => true,
+                'share_token' => Str::random(40),
+                'fulfillment_type' => Order::FULFILLMENT_DINE_IN,
+                'booking_id' => null,
+                'total' => 0,
+                'discount' => 0,
+                'delivery_fee' => 0,
+                'final_total' => 0,
+                'payment_method' => 'cash',
+                'address' => '',
+            ]);
+
+            OrderParticipant::create([
+                'order_id' => $cart->id,
+                'user_id' => $userId,
+                'role' => OrderParticipant::ROLE_HOST,
+            ]);
+
+            return (int) $cart->id;
+        });
+
+        return $this->sharedCartFor($userId, $orderId);
+    }
+
     /** Add an offering to a shared cart, attributed to the adder. */
     public function addToShared(int $userId, int $orderId, string $kind, int $offeringId, int $qty, array $options = []): Order
     {
@@ -449,7 +512,11 @@ class CustomerCartService
         $cart->save();
     }
 
-    /** Find-or-create the customer's draft order for a business. */
+    /**
+     * Find-or-create the customer's draft order for a business. Table carts
+     * (business_table_id set) are excluded so a personal/friend cart is never
+     * confused with a table's dine-in cart for the same user + business.
+     */
     private function draftFor(int $userId, int $businessId): Order
     {
         return Order::firstOrCreate(
@@ -457,6 +524,7 @@ class CustomerCartService
                 'user_id' => $userId,
                 'business_id' => $businessId,
                 'status' => self::STATUS_CART,
+                'business_table_id' => null,
             ],
             [
                 'fulfillment_type' => Order::FULFILLMENT_DELIVERY,

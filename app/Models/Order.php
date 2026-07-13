@@ -25,6 +25,7 @@ class Order extends Model
         'business_id',
         'fulfillment_type',
         'booking_id',
+        'business_table_id',
         'total',
         'delivery_fee',
         'discount',
@@ -42,8 +43,14 @@ class Order extends Model
 
     protected $casts = [
         'booking_id' => 'integer',
+        'business_table_id' => 'integer',
         'is_shared' => 'boolean',
     ];
+
+    public function businessTable()
+    {
+        return $this->belongsTo(BusinessTable::class, 'business_table_id');
+    }
 
     public function user()
     {

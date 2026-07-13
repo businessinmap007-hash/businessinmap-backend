@@ -6,9 +6,12 @@ use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
+use App\Models\AppNotification;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderParticipant;
+use App\Models\User;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -42,6 +45,7 @@ class CustomerCartService
     public function __construct(
         protected MenuOrderService $orders,
         protected MenuBillingService $billing,
+        protected NotificationDispatcherService $notifications,
     ) {
     }
 
@@ -173,12 +177,56 @@ class CustomerCartService
             ->where('status', self::STATUS_CART)
             ->firstOrFail();
 
-        OrderParticipant::firstOrCreate(
+        $participant = OrderParticipant::firstOrCreate(
             ['order_id' => $cart->id, 'user_id' => $userId],
             ['role' => OrderParticipant::ROLE_MEMBER]
         );
 
+        // Notify the host only on a genuinely new join (idempotent re-joins stay
+        // silent), and never for the host joining their own cart.
+        if ($participant->wasRecentlyCreated) {
+            $this->notifyHostOfJoin($cart, $userId);
+        }
+
         return $this->sharedCartFor($userId, (int) $cart->id);
+    }
+
+    /**
+     * Tell the host that a member just joined their shared cart. Best-effort:
+     * a notification failure must never break the join. Routed through the full
+     * pipeline (in-app + realtime + push, gated by the channel rule).
+     */
+    private function notifyHostOfJoin(Order $cart, int $joinerId): void
+    {
+        $hostId = (int) $cart->user_id;
+        if ($hostId <= 0 || $hostId === $joinerId) {
+            return;
+        }
+
+        try {
+            $joinerName = (string) (User::query()->whereKey($joinerId)->value('name') ?? '');
+            $prefix = $joinerName !== '' ? $joinerName . ' ' : '';
+
+            $this->notifications->dispatch('shared_cart_member_joined', $hostId, [
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => $joinerId,
+                'body_ar' => trim($prefix . 'انضم إلى سلتك الجماعية.'),
+                'body_en' => trim(($joinerName !== '' ? $joinerName . ' ' : '') . 'joined your shared cart.'),
+                'action_type' => 'open_shared_cart',
+                'action_url' => '/cart/shared/' . $cart->id,
+                'notifiable_type' => Order::class,
+                'notifiable_id' => (int) $cart->id,
+                'source_id' => (int) $cart->id,
+                'meta' => [
+                    'order_id' => (int) $cart->id,
+                    'business_id' => (int) $cart->business_id,
+                    'member_id' => $joinerId,
+                    'member_name' => $joinerName,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Add an offering to a shared cart, attributed to the adder. */

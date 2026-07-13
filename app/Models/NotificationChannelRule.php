@@ -57,6 +57,7 @@ class NotificationChannelRule extends Model
             'coguarantor_declined' => ['رفض طلب الضمان', 'Co-guarantor declined', AppNotification::TYPE_GUARANTEE, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'guarantee'],
             'dispute_opened' => ['نزاع جديد', 'Dispute opened', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_URGENT, true, true, true, true, false, true, 5, 'warning'],
             'offer_matched' => ['عرض مناسب لمتابعتك', 'Offer matched your follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'offer'],
+            'shared_cart_member_joined' => ['انضمام عضو للسلة الجماعية', 'Member joined shared cart', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'system_announcement' => ['تنبيه من النظام', 'System announcement', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'system'],
         ];
     }

@@ -57,10 +57,21 @@ class MenuBillingService
         ];
     }
 
-    /** The configured menu tax rate (percent). */
+    /** The global (default) menu tax rate (percent). */
     public function taxRatePercent(): float
     {
         return (float) config('bim.menu_tax_rate_percent', 14);
+    }
+
+    /**
+     * The tax rate (percent) for a business: the owner's own rate when set,
+     * otherwise the global config rate. An owner rate of 0 is honoured (tax-free).
+     */
+    public function taxRatePercentForBusiness(int $businessId): float
+    {
+        $rate = BusinessMenuSetting::query()->where('business_id', $businessId)->value('tax_rate_percent');
+
+        return $rate === null ? $this->taxRatePercent() : (float) $rate;
     }
 
     /**
@@ -76,10 +87,10 @@ class MenuBillingService
      * With both flags false this reduces to net = S and total = S + service +
      * tax — the original behaviour.
      */
-    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow, bool $incService = false, bool $incTax = false): array
+    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow, bool $incService = false, bool $incTax = false, ?float $taxRatePercent = null): array
     {
         $s = round(max($itemsSubtotal, 0), 2);
-        $tr = $this->taxRatePercent() / 100;
+        $tr = ($taxRatePercent ?? $this->taxRatePercent()) / 100;
 
         $chargeable = $feeRow && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT);
         $isPercent = $chargeable && ($feeRow->client_fee_type ?: 'fixed') === CategoryChildServiceFee::CALC_TYPE_PERCENT;
@@ -128,6 +139,7 @@ class MenuBillingService
         $businessId = (int) $order->business_id;
         $feeRow = $this->feeRowForBusiness($businessId);
         [$incService, $incTax] = $this->inclusiveFlagsForBusiness($businessId);
+        $taxRate = $this->taxRatePercentForBusiness($businessId);
 
         $menuLines = $order->items->where('offering_type', MenuItem::class);
         $retailSubtotal = round((float) $order->items
@@ -139,7 +151,7 @@ class MenuBillingService
 
         // Group by biller (added_by_user_id); a personal cart has one null group.
         foreach ($menuLines->groupBy(fn ($l) => (int) ($l->added_by_user_id ?? 0)) as $lines) {
-            $bill = $this->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax);
+            $bill = $this->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax, $taxRate);
             $serviceFee += $bill['service_fee'];
             $tax += $bill['tax'];
             $menuPayable += $bill['total'];

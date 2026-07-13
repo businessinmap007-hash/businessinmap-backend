@@ -15,12 +15,14 @@ class BusinessMenuSetting extends Model
         'business_id',
         'prices_include_service',
         'prices_include_tax',
+        'tax_rate_percent',
     ];
 
     protected $casts = [
         'business_id' => 'integer',
         'prices_include_service' => 'boolean',
         'prices_include_tax' => 'boolean',
+        'tax_rate_percent' => 'float',
     ];
 
     public function business(): BelongsTo

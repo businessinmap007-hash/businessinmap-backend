@@ -158,6 +158,63 @@ class SharedCartBillingTest extends TestCase
         $this->assertSame(125.40, (float) $host['total']); // 115.40 + 10 service
     }
 
+    public function test_owner_set_tax_rate_overrides_the_global_rate(): void
+    {
+        // Global default is 14%; the owner sets their own 8%.
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'prices_include_service' => 0,
+            'prices_include_tax' => 0,
+            'tax_rate_percent' => 8,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $item = $this->seedMenuItem($this->biz->id, null, 100.0, 'طبق')->id;
+
+        Sanctum::actingAs($this->host);
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/share")->json('data.order_id');
+        $this->postJson("/api/v2/cart/shared/{$orderId}/items", ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
+
+        $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
+            ->firstWhere('user_id', $this->host->id);
+
+        // items 100, fee 10, tax = 110 * 8% = 8.8, total 118.8 (not 15.4/125.4).
+        $this->assertSame(10.0, (float) $host['service_fee']);
+        $this->assertSame(8.8, (float) $host['tax']);
+        $this->assertSame(118.8, (float) $host['total']);
+
+        // And the owner rate is persisted onto the order at checkout.
+        $this->postJson("/api/v2/cart/shared/{$orderId}/checkout", ['fulfillment_type' => 'dine_in'])->assertCreated();
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId, 'tax' => '8.80', 'final_total' => '118.80',
+        ]);
+    }
+
+    public function test_owner_zero_tax_rate_is_honoured(): void
+    {
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'prices_include_service' => 0,
+            'prices_include_tax' => 0,
+            'tax_rate_percent' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $item = $this->seedMenuItem($this->biz->id, null, 100.0, 'طبق بلا ضريبة')->id;
+
+        Sanctum::actingAs($this->host);
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/share")->json('data.order_id');
+        $this->postJson("/api/v2/cart/shared/{$orderId}/items", ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
+
+        $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
+            ->firstWhere('user_id', $this->host->id);
+
+        // A zero owner rate means tax-free (must NOT fall back to the 14% global).
+        $this->assertSame(10.0, (float) $host['service_fee']);
+        $this->assertSame(0.0, (float) $host['tax']);
+        $this->assertSame(110.0, (float) $host['total']);
+    }
+
     public function test_checkout_forces_cash(): void
     {
         $item = $this->seedMenuItem($this->biz->id, null, 100.0)->id;

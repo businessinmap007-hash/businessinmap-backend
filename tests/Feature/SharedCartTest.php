@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
@@ -156,5 +157,58 @@ class SharedCartTest extends TestCase
         $orderId = $this->shareAsHost();
         Sanctum::actingAs($this->host);
         $this->postJson("/api/v2/cart/shared/{$orderId}/leave")->assertStatus(422);
+    }
+
+    public function test_host_is_notified_when_a_member_joins(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        $before = AppNotification::query()
+            ->where('user_id', $this->host->id)
+            ->where('source_type', 'shared_cart_member_joined')
+            ->count();
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        $note = AppNotification::query()
+            ->where('user_id', $this->host->id)
+            ->where('source_type', 'shared_cart_member_joined')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($note, 'the host should receive a join notification');
+        $this->assertSame($this->member->id, (int) $note->actor_id, 'the actor is the joining member');
+        $this->assertSame((int) $orderId, (int) $note->notifiable_id);
+        $this->assertSame(Order::class, (string) $note->notifiable_type);
+        $this->assertSame($this->member->id, (int) ($note->meta['member_id'] ?? 0));
+        $this->assertSame(
+            $before + 1,
+            AppNotification::query()
+                ->where('user_id', $this->host->id)
+                ->where('source_type', 'shared_cart_member_joined')
+                ->count()
+        );
+    }
+
+    public function test_rejoining_does_not_notify_the_host_again(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        $this->assertSame(
+            1,
+            AppNotification::query()
+                ->where('user_id', $this->host->id)
+                ->where('source_type', 'shared_cart_member_joined')
+                ->where('actor_id', $this->member->id)
+                ->count(),
+            'an idempotent re-join must not create a second notification'
+        );
     }
 }

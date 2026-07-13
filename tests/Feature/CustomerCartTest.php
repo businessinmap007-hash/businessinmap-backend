@@ -36,6 +36,7 @@ class CustomerCartTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['bim.menu_tax_rate_percent' => 14]);
 
         $this->customer = User::query()->orderBy('id')->first();
         $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
@@ -64,8 +65,9 @@ class CustomerCartTest extends TestCase
         $res = $this->getJson('/api/v2/cart')->assertOk();
 
         $this->assertSame(2, (int) $res->json('data.totals.businesses'));
-        // businessA cart = 2*10 + 1*75 = 95 ; businessB cart = 4 ; grand = 99
-        $this->assertSame(99.0, (float) $res->json('data.totals.grand_total'));
+        // businessA: retail 2*10=20 (plain) + menu 75 → +14% tax 10.5 = 85.5 → 105.5
+        // businessB: retail 4 (plain) = 4 ; grand = 109.5
+        $this->assertSame(109.5, (float) $res->json('data.totals.grand_total'));
     }
 
     public function test_adding_same_offering_merges_quantity(): void

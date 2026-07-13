@@ -7,6 +7,7 @@ use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Services\CustomerCartService;
+use App\Services\MenuBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -15,11 +16,17 @@ use Illuminate\Support\Facades\DB;
  * are polymorphic order_items over the offering layer. Goods offerings only
  * (retail catalog listings + menu items). All endpoints are scoped to the
  * authenticated customer.
+ *
+ * Menu (food) lines carry a service fee + tax (via MenuBillingService, honouring
+ * the owner's inclusive-price settings); retail lines are billed at their plain
+ * price. The billing is computed at presentation time.
  */
 final class CartController extends Controller
 {
-    public function __construct(private readonly CustomerCartService $cart)
-    {
+    public function __construct(
+        private readonly CustomerCartService $cart,
+        private readonly MenuBillingService $billing,
+    ) {
     }
 
     /** All the customer's carts, one block per business. */
@@ -36,6 +43,7 @@ final class CartController extends Controller
                 'totals' => [
                     'businesses' => $carts->count(),
                     'items' => $carts->sum(fn ($c) => $c['items_count']),
+                    // Payable across all carts, incl. menu service fee + tax.
                     'grand_total' => round($carts->sum(fn ($c) => $c['final_total']), 2),
                 ],
             ],
@@ -129,6 +137,21 @@ final class CartController extends Controller
             'total_price' => (float) $line->total_price,
         ])->values();
 
+        // Menu (food) lines get the service fee + tax; retail lines are plain.
+        $menuSubtotal = (float) $order->items
+            ->where('offering_type', MenuItem::class)->sum('total_price');
+        $retailSubtotal = (float) $order->items
+            ->where('offering_type', BusinessCatalogListing::class)->sum('total_price');
+
+        $businessId = (int) $order->business_id;
+        $feeRow = $this->billing->feeRowForBusiness($businessId);
+        [$incService, $incTax] = $this->billing->inclusiveFlagsForBusiness($businessId);
+        $bill = $this->billing->bill($menuSubtotal, $feeRow, $incService, $incTax);
+
+        $deliveryFee = round((float) $order->delivery_fee, 2);
+        $discount = round((float) $order->discount, 2);
+        $finalTotal = round($bill['total'] + $retailSubtotal + $deliveryFee - $discount, 2);
+
         return [
             'id' => (int) $order->id,
             'status' => (string) $order->status,
@@ -140,10 +163,20 @@ final class CartController extends Controller
             'fulfillment_type' => (string) $order->fulfillment_type,
             'items' => $items,
             'items_count' => $items->sum('qty'),
-            'total' => (float) $order->total,
-            'delivery_fee' => (float) $order->delivery_fee,
-            'discount' => (float) $order->discount,
-            'final_total' => (float) $order->final_total,
+            'bill' => [
+                'menu_subtotal' => $bill['items_subtotal'],
+                'retail_subtotal' => round($retailSubtotal, 2),
+                'service_fee' => $bill['service_fee'],
+                'service_included' => $bill['service_included'],
+                'tax' => $bill['tax'],
+                'tax_included' => $bill['tax_included'],
+                'delivery_fee' => $deliveryFee,
+                'discount' => $discount,
+            ],
+            'total' => round($menuSubtotal + $retailSubtotal, 2),
+            'delivery_fee' => $deliveryFee,
+            'discount' => $discount,
+            'final_total' => $finalTotal,
         ];
     }
 

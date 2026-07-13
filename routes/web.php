@@ -63,6 +63,12 @@ Route::get('/cart/join/{token}', [App\Http\Controllers\SharedCartWebController::
 Route::get('/cart/share/{business}', [App\Http\Controllers\SharedCartWebController::class, 'share'])
     ->whereNumber('business')->name('cart.shared.host');
 
+// Restaurant-table QR (BIM-13.3): a permanent sticker points at /t/{token}.
+Route::get('/t/{token}/qr', [App\Http\Controllers\SharedCartWebController::class, 'tableQr'])
+    ->name('table.qr');
+Route::get('/t/{token}', [App\Http\Controllers\SharedCartWebController::class, 'table'])
+    ->name('table.scan.web');
+
 Route::get('/_disabled/category-products', function () {
     abort(404);
 })->name('category.products');

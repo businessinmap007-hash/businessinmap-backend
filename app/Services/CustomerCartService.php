@@ -325,6 +325,87 @@ class CustomerCartService
         });
     }
 
+    /**
+     * Cancel (discard) a shared cart — host only. A shared cart is a draft order
+     * with no financial side effects, so cancelling deletes it entirely (lines +
+     * participants + the order). Members are notified before the cart is gone.
+     */
+    public function cancelShared(int $hostId, int $orderId): void
+    {
+        $participant = $this->participantOrFail($hostId, $orderId);
+
+        if (! $participant->isHost()) {
+            abort(403, 'المضيف فقط يمكنه إلغاء السلة.');
+        }
+
+        $cart = Order::query()
+            ->where('status', self::STATUS_CART)
+            ->where('is_shared', 1)
+            ->find($orderId);
+
+        if (! $cart) {
+            abort(404, 'السلة غير موجودة أو تم إتمامها.');
+        }
+
+        // Snapshot the members (everyone but the host) before we delete the rows.
+        $memberIds = OrderParticipant::query()
+            ->where('order_id', $orderId)
+            ->where('user_id', '!=', $hostId)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        DB::transaction(function () use ($orderId) {
+            OrderItem::query()->where('order_id', $orderId)->delete();
+            OrderParticipant::query()->where('order_id', $orderId)->delete();
+            Order::query()->whereKey($orderId)->delete();
+        });
+
+        $this->notifyMembersOfCancel($cart, $memberIds, $hostId);
+    }
+
+    /**
+     * Tell each member the host cancelled the shared cart. Best-effort: routed
+     * through the full pipeline, run after the cancel has committed so a
+     * notification failure can never roll back the cancellation.
+     */
+    private function notifyMembersOfCancel(Order $cart, array $memberIds, int $hostId): void
+    {
+        if (empty($memberIds)) {
+            return;
+        }
+
+        try {
+            $hostName = (string) (User::query()->whereKey($hostId)->value('name') ?? '');
+            $prefix = $hostName !== '' ? $hostName . ' ' : '';
+
+            foreach ($memberIds as $memberId) {
+                if ($memberId <= 0 || $memberId === $hostId) {
+                    continue;
+                }
+
+                $this->notifications->dispatch('shared_cart_cancelled', $memberId, [
+                    'type' => AppNotification::TYPE_SYSTEM,
+                    'actor_id' => $hostId,
+                    'body_ar' => trim($prefix . 'ألغى السلة الجماعية.'),
+                    'body_en' => trim(($hostName !== '' ? $hostName . ' ' : '') . 'cancelled the shared cart.'),
+                    'action_type' => 'open_business',
+                    'notifiable_type' => Order::class,
+                    'notifiable_id' => (int) $cart->id,
+                    'source_id' => (int) $cart->id,
+                    'meta' => [
+                        'order_id' => (int) $cart->id,
+                        'business_id' => (int) $cart->business_id,
+                        'host_id' => $hostId,
+                        'host_name' => $hostName,
+                    ],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Load a shared cart the user participates in (403 otherwise). */
     public function sharedCartFor(int $userId, int $orderId): Order
     {

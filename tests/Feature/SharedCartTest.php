@@ -211,4 +211,54 @@ class SharedCartTest extends TestCase
             'an idempotent re-join must not create a second notification'
         );
     }
+
+    public function test_host_can_cancel_and_the_cart_is_discarded(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+        $this->postJson("/api/v2/cart/shared/{$orderId}/items", ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 2])->assertCreated();
+
+        Sanctum::actingAs($this->host);
+        $this->deleteJson("/api/v2/cart/shared/{$orderId}")->assertOk();
+
+        // Order, its lines and participants are all gone.
+        $this->assertDatabaseMissing('orders', ['id' => $orderId]);
+        $this->assertSame(0, OrderItem::query()->where('order_id', $orderId)->count());
+        $this->assertDatabaseMissing('order_participants', ['order_id' => $orderId]);
+
+        // The member was notified that the host cancelled.
+        $note = AppNotification::query()
+            ->where('user_id', $this->member->id)
+            ->where('source_type', 'shared_cart_cancelled')
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($note, 'the member should be notified of the cancellation');
+        $this->assertSame($this->host->id, (int) $note->actor_id);
+        $this->assertSame((int) $orderId, (int) ($note->meta['order_id'] ?? 0));
+    }
+
+    public function test_member_cannot_cancel_the_shared_cart(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+        $this->deleteJson("/api/v2/cart/shared/{$orderId}")->assertForbidden();
+
+        // The cart is untouched.
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => 'cart']);
+    }
+
+    public function test_outsider_cannot_cancel_the_shared_cart(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        Sanctum::actingAs($this->outsider);
+        $this->deleteJson("/api/v2/cart/shared/{$orderId}")->assertForbidden();
+        $this->assertDatabaseHas('orders', ['id' => $orderId]);
+    }
 }

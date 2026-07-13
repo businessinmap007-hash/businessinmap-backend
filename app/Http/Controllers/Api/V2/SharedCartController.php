@@ -129,6 +129,14 @@ final class SharedCartController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /** Cancel (discard) the shared cart — host only; members are notified. */
+    public function cancel(Request $request, int $order)
+    {
+        $this->cart->cancelShared((int) $request->user()->id, $order);
+
+        return response()->json(['success' => true]);
+    }
+
     /** Serialize a shared cart with attribution + per-participant breakdown. */
     private function present(Order $order): array
     {

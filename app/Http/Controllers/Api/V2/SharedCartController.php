@@ -44,16 +44,19 @@ final class SharedCartController extends Controller
     /** Join a shared cart by token. */
     public function join(Request $request, string $token)
     {
-        $order = $this->cart->join((int) $request->user()->id, $token);
+        $userId = (int) $request->user()->id;
+        $order = $this->cart->join($userId, $token);
 
-        return response()->json(['success' => true, 'data' => ['cart' => $this->present($order)]], 201);
+        return response()->json(['success' => true, 'data' => ['cart' => $this->present($order, $userId)]], 201);
     }
 
     /** View a shared cart (participants + attributed items + per-person breakdown). */
     public function show(Request $request, int $order)
     {
+        $userId = (int) $request->user()->id;
+
         return response()->json(['success' => true, 'data' => ['cart' => $this->present(
-            $this->cart->sharedCartFor((int) $request->user()->id, $order)
+            $this->cart->sharedCartFor($userId, $order), $userId
         )]]);
     }
 
@@ -69,8 +72,9 @@ final class SharedCartController extends Controller
             'extras.*' => ['integer', 'min:1'],
         ], [], ['kind' => 'نوع العرض', 'offering_id' => 'العرض', 'qty' => 'الكمية']);
 
+        $userId = (int) $request->user()->id;
         $cart = $this->cart->addToShared(
-            (int) $request->user()->id,
+            $userId,
             $order,
             (string) $data['kind'],
             (int) $data['offering_id'],
@@ -78,7 +82,7 @@ final class SharedCartController extends Controller
             ['size_id' => $data['size_id'] ?? null, 'extras' => $data['extras'] ?? []]
         );
 
-        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart)]], 201);
+        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart, $userId)]], 201);
     }
 
     /** Change a shared-cart line's quantity (adder or host). 0 removes. */
@@ -86,17 +90,19 @@ final class SharedCartController extends Controller
     {
         $data = $request->validate(['qty' => ['required', 'integer', 'min:0', 'max:999']], [], ['qty' => 'الكمية']);
 
-        $cart = $this->cart->updateSharedLine((int) $request->user()->id, $order, $item, (int) $data['qty']);
+        $userId = (int) $request->user()->id;
+        $cart = $this->cart->updateSharedLine($userId, $order, $item, (int) $data['qty']);
 
-        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart)]]);
+        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart, $userId)]]);
     }
 
     /** Remove a shared-cart line (adder or host). */
     public function removeItem(Request $request, int $order, int $item)
     {
-        $cart = $this->cart->removeSharedLine((int) $request->user()->id, $order, $item);
+        $userId = (int) $request->user()->id;
+        $cart = $this->cart->removeSharedLine($userId, $order, $item);
 
-        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart)]]);
+        return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart, $userId)]]);
     }
 
     /** Place the shared cart as a pending order (host only). */
@@ -111,13 +117,14 @@ final class SharedCartController extends Controller
         // Shared carts are cash-on-arrival; each participant pays their own share.
         $data['payment_method'] = 'cash';
 
-        $placed = $this->cart->checkoutShared((int) $request->user()->id, $order, $data);
+        $userId = (int) $request->user()->id;
+        $placed = $this->cart->checkoutShared($userId, $order, $data);
 
         return response()->json([
             'success' => true,
             'data' => ['order' => $this->present($placed->load([
                 'items.addedBy:id,name', 'participants.user:id,name', 'business:id,name,logo',
-            ]))],
+            ]), $userId)],
         ], 201);
     }
 
@@ -138,7 +145,7 @@ final class SharedCartController extends Controller
     }
 
     /** Serialize a shared cart with attribution + per-participant breakdown. */
-    private function present(Order $order): array
+    private function present(Order $order, ?int $viewerId = null): array
     {
         $order->loadMissing('items.addedBy:id,name', 'participants.user:id,name', 'business:id,name,logo');
         $names = $this->displayNames($order);
@@ -191,12 +198,25 @@ final class SharedCartController extends Controller
             ];
         })->values();
 
+        // Who is looking: lets a client show host-only actions (checkout/cancel)
+        // vs member actions (leave) and know which lines it may edit.
+        $viewer = null;
+        if ($viewerId !== null) {
+            $mine = $order->participants->firstWhere('user_id', $viewerId);
+            $viewer = [
+                'user_id' => $viewerId,
+                'role' => $mine ? (string) $mine->role : null,
+                'is_host' => $mine ? $mine->role === 'host' : false,
+            ];
+        }
+
         return [
             'id' => (int) $order->id,
             'status' => (string) $order->status,
             'is_shared' => (bool) $order->is_shared,
             'share_token' => $order->share_token,
             'payment_method' => 'cash',
+            'viewer' => $viewer,
             'business' => $order->business ? [
                 'id' => (int) $order->business->id,
                 'name' => (string) $order->business->name,

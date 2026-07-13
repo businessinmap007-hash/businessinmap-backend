@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
+use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
@@ -107,6 +108,14 @@ Route::prefix('v2')->group(function () {
         // Restaurant-table QR (BIM-13.3): scan a table's permanent token to join
         // or open its dine-in shared cart.
         Route::post('table/{token}/scan', [TableController::class, 'scan']);
+
+        // Placed orders: the customer's own history + detail.
+        Route::get('orders', [OrderController::class, 'index']);
+        Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
+
+        // Placed orders: the business's incoming-order queue + detail.
+        Route::get('business/orders', [OrderController::class, 'businessIndex']);
+        Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and
         // confirm the handover by scanning it (flips the order to completed).

@@ -24,16 +24,27 @@ class MenuSettingsController extends Controller
     {
         $row = BusinessMenuSetting::query()->firstOrNew(['business_id' => $this->businessId()]);
 
-        return view('business.menu-settings.edit', ['row' => $row]);
+        return view('business.menu-settings.edit', [
+            'row' => $row,
+            'defaultTaxRate' => (float) config('bim.menu_tax_rate_percent', 14),
+        ]);
     }
 
     public function update(Request $request): RedirectResponse
     {
+        $data = $request->validate([
+            // Empty → NULL → fall back to the global tax rate.
+            'tax_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [], ['tax_rate_percent' => 'نسبة الضريبة']);
+
+        $rate = $request->filled('tax_rate_percent') ? round((float) $data['tax_rate_percent'], 2) : null;
+
         BusinessMenuSetting::updateOrCreate(
             ['business_id' => $this->businessId()],
             [
                 'prices_include_service' => (int) $request->boolean('prices_include_service'),
                 'prices_include_tax' => (int) $request->boolean('prices_include_tax'),
+                'tax_rate_percent' => $rate,
             ]
         );
 

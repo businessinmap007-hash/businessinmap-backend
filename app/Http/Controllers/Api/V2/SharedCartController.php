@@ -170,11 +170,12 @@ final class SharedCartController extends Controller
         $businessId = (int) $order->business_id;
         $feeRow = $this->billing->feeRowForBusiness($businessId);
         [$incService, $incTax] = $this->billing->inclusiveFlagsForBusiness($businessId);
+        $taxRate = $this->billing->taxRatePercentForBusiness($businessId);
         $byUser = $order->items->groupBy('added_by_user_id');
 
-        $breakdown = $order->participants->map(function ($p) use ($byUser, $feeRow, $incService, $incTax) {
+        $breakdown = $order->participants->map(function ($p) use ($byUser, $feeRow, $incService, $incTax, $taxRate) {
             $lines = $byUser->get($p->user_id) ?? collect();
-            $bill = $this->billing->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax);
+            $bill = $this->billing->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax, $taxRate);
 
             return [
                 'user_id' => (int) $p->user_id,

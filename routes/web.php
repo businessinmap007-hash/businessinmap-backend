@@ -54,6 +54,11 @@ Route::prefix('admin')->middleware(['web'])->group(function () {
     Route::post('category-services-bulk/apply', [CategoryServiceBulkController::class, 'apply'])->name('admin.category-services-bulk.apply');
 });
 
+// Shared (group) cart web entry: a share link/QR opens this page, which joins
+// + renders the cart via the v2 API. Self-contained; no server auth required.
+Route::get('/cart/join/{token}', [App\Http\Controllers\SharedCartWebController::class, 'join'])
+    ->name('cart.shared.join');
+
 Route::get('/_disabled/category-products', function () {
     abort(404);
 })->name('category.products');

@@ -38,6 +38,8 @@ class Order extends Model
         'status',
         'share_token',
         'is_shared',
+        'handover_token',
+        'handover_confirmed_at',
 
     ];
 
@@ -45,6 +47,7 @@ class Order extends Model
         'booking_id' => 'integer',
         'business_table_id' => 'integer',
         'is_shared' => 'boolean',
+        'handover_confirmed_at' => 'datetime',
     ];
 
     public function businessTable()

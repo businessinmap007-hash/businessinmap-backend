@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
+use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
@@ -76,6 +77,11 @@ Route::prefix('v2')->group(function () {
         // Restaurant-table QR (BIM-13.3): scan a table's permanent token to join
         // or open its dine-in shared cart.
         Route::post('table/{token}/scan', [TableController::class, 'scan']);
+
+        // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and
+        // confirm the handover by scanning it (flips the order to completed).
+        Route::post('orders/{order}/handover/issue', [OrderHandoverController::class, 'issue'])->whereNumber('order');
+        Route::post('handover/{token}/confirm', [OrderHandoverController::class, 'confirm']);
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).
         Route::get('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'index'])->whereNumber('booking');

@@ -75,6 +75,12 @@ Route::get('/b/{business}/qr', [App\Http\Controllers\BusinessProfileWebControlle
 Route::get('/b/{business}', [App\Http\Controllers\BusinessProfileWebController::class, 'show'])
     ->whereNumber('business')->name('storefront.show');
 
+// Order-handover QR (BIM-13.5): the ready order's sticker points at /h/{token}.
+Route::get('/h/{token}/qr', [App\Http\Controllers\HandoverWebController::class, 'qr'])
+    ->name('handover.qr');
+Route::get('/h/{token}', [App\Http\Controllers\HandoverWebController::class, 'scan'])
+    ->name('handover.scan.web');
+
 Route::get('/_disabled/category-products', function () {
     abort(404);
 })->name('category.products');

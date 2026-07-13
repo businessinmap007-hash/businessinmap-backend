@@ -7,6 +7,7 @@ use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Services\MenuOrderService;
+use App\Services\OrderHandoverService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,8 +21,10 @@ use Illuminate\View\View;
  */
 class OrderController extends Controller
 {
-    public function __construct(protected MenuOrderService $orders)
-    {
+    public function __construct(
+        protected MenuOrderService $orders,
+        protected OrderHandoverService $handover,
+    ) {
     }
 
     private function businessId(): int
@@ -116,11 +119,18 @@ class OrderController extends Controller
             };
         }
 
+        // A ready (pending) order shows a one-time handover QR the staff presents
+        // to the customer, who scans it to confirm receipt (BIM-13.5).
+        $handoverToken = (string) $order->status === OrderHandoverService::STATUS_PENDING
+            ? $this->handover->issueFor($order, $this->businessId())
+            : null;
+
         return view('business.orders.show', [
             'order' => $order,
             'lines' => $order->items,
             'menuItems' => $menuItems,
             'listings' => $listings,
+            'handoverToken' => $handoverToken,
         ]);
     }
 

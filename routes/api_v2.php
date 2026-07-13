@@ -69,6 +69,7 @@ Route::prefix('v2')->group(function () {
             Route::delete('shared/{order}/items/{item}', [SharedCartController::class, 'removeItem'])->whereNumber(['order', 'item']);
             Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order');
             Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
+            Route::delete('shared/{order}', [SharedCartController::class, 'cancel'])->whereNumber('order');
         });
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).

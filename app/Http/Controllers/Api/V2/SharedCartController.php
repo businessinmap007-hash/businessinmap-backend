@@ -157,13 +157,16 @@ final class SharedCartController extends Controller
         ])->values();
 
         // Per-participant bill: their items + their share of the service fee +
-        // tax, on their own order only (cash on arrival).
-        $feeRow = $this->billing->feeRowForBusiness((int) $order->business_id);
+        // tax, on their own order only (cash on arrival). Whether the fee/tax are
+        // added on top or already included in the price is the owner's setting.
+        $businessId = (int) $order->business_id;
+        $feeRow = $this->billing->feeRowForBusiness($businessId);
+        [$incService, $incTax] = $this->billing->inclusiveFlagsForBusiness($businessId);
         $byUser = $order->items->groupBy('added_by_user_id');
 
-        $breakdown = $order->participants->map(function ($p) use ($byUser, $feeRow) {
+        $breakdown = $order->participants->map(function ($p) use ($byUser, $feeRow, $incService, $incTax) {
             $lines = $byUser->get($p->user_id) ?? collect();
-            $bill = $this->billing->bill((float) $lines->sum('total_price'), $feeRow);
+            $bill = $this->billing->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax);
 
             return [
                 'user_id' => (int) $p->user_id,
@@ -172,7 +175,9 @@ final class SharedCartController extends Controller
                 'items_count' => (int) $lines->sum('qty'),
                 'items_subtotal' => $bill['items_subtotal'],
                 'service_fee' => $bill['service_fee'],
+                'service_included' => $bill['service_included'],
                 'tax' => $bill['tax'],
+                'tax_included' => $bill['tax_included'],
                 'total' => $bill['total'],
             ];
         })->values();

@@ -10,6 +10,7 @@ use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
+use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,9 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('prices/{id}/edit', [BusinessServicePriceController::class, 'edit'])->whereNumber('id')->name('prices.edit');
         Route::put('prices/{id}', [BusinessServicePriceController::class, 'update'])->whereNumber('id')->name('prices.update');
         Route::delete('prices/{id}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('id')->name('prices.destroy');
+
+        Route::get('menu-settings', [MenuSettingsController::class, 'edit'])->name('menu-settings.edit');
+        Route::put('menu-settings', [MenuSettingsController::class, 'update'])->name('menu-settings.update');
 
         Route::get('menu-sections', [MenuSectionController::class, 'index'])->name('menu-sections.index');
         Route::get('menu-sections/create', [MenuSectionController::class, 'create'])->name('menu-sections.create');

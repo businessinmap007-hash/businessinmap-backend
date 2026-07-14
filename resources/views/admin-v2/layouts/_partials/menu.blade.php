@@ -56,7 +56,7 @@
                 ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
             ]],
         ]],
-        ['label' => 'Services & Pricing', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.', 'admin.push-settings.'], 'children' => [
+        ['label' => 'Services & Pricing', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
             ['label' => 'Service Setup', 'type' => 'section', 'children' => [
                 ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -80,7 +80,6 @@
                 ['label' => 'Offer Follows', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],
                 ['label' => 'Business Offers Subscriptions', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
                 ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
-                ['label' => 'Push Settings (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
             ]],
         ]],
         ['label' => 'Operations', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.'], 'children' => [
@@ -97,7 +96,7 @@
                 ['label' => 'Create Menu Item', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
             ]],
         ]],
-        ['label' => 'Wallet & Finance', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.payment-settings.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
+        ['label' => 'Wallet & Finance', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
             ['label' => 'Wallet Overview', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
             ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],
             ['label' => 'Wallet Recharge', 'route' => 'admin.wallet-ops.recharge.form', 'active' => 'admin.wallet-ops.'],
@@ -105,7 +104,6 @@
             ['label' => 'Guarantee Levels', 'route' => 'admin.guarantee-levels.index', 'active' => 'admin.guarantee-levels.'],
             ['label' => 'Wallet Notes', 'route' => 'admin.wallet-notes.index', 'active' => 'admin.wallet-notes.'],
             ['label' => 'Payments', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
-            ['label' => 'Payment Settings (Fawry)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
             ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
         ]],
         ['label' => 'Delivery & Tables', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [
@@ -119,6 +117,11 @@
             ['label' => 'Jobs', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],
             ['label' => 'Sponsors', 'route' => 'admin.sponsors.index', 'active' => 'admin.sponsors.'],
             ['label' => 'Albums', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
+        ]],
+        // App-level integration credentials (paste-and-go, no redeploy).
+        ['label' => 'App Settings', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.'], 'children' => [
+            ['label' => 'Payment Gateway (Fawry)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
+            ['label' => 'Push Notifications (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
         ]],
     ];
 @endphp

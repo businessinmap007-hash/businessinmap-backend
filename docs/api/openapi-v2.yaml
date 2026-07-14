@@ -1,0 +1,1078 @@
+openapi: 3.0.3
+info:
+  title: BIM (Business In Map) — Mobile API v2
+  version: "2.0.0"
+  description: |
+    The v2 API is the self-sufficient surface for the BIM mobile app. v1 is
+    abandoned; everything the app needs lives under `/api/v2`.
+
+    ## Conventions
+    - **Auth**: Sanctum personal-access (Bearer) tokens. Send
+      `Authorization: Bearer <token>`. Obtain one from `/auth/register` or
+      `/auth/login`. Endpoints tagged as *public* need no token.
+    - **Envelope**: successful responses are `{ "success": true, "data": ... }`;
+      some also carry `message`. Paginated lists use Laravel's paginator shape
+      (`data`, `links`, `meta`) — see `Paginated`.
+    - **Errors**: validation failures return HTTP 422 as
+      `{ "message": "...", "errors": { "field": ["..."] } }`. Auth failures are
+      401, forbidden 403, missing 404, state conflicts 409.
+    - **Idempotency**: money endpoints (`wallet/deposit|withdraw|transfer`)
+      honour an `Idempotency-Key` header — repeating a key returns the first
+      result instead of charging twice.
+    - **Money**: the wallet is a points/credit store (deposits, insurance, fees,
+      P2P transfer). It does NOT pay for menu orders — those are cash on arrival.
+
+servers:
+  - url: https://{host}/api/v2
+    description: Deployment (paths below are relative to /api/v2)
+    variables:
+      host:
+        default: businessinmap.com/testing
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Password Reset
+  - name: Profile
+  - name: Addresses
+  - name: Wallet
+  - name: Wallet Top-up
+  - name: Cart
+  - name: Shared Cart
+  - name: Orders (Customer)
+  - name: Orders (Business)
+  - name: Business Menu
+  - name: Business Offers
+  - name: Delivery
+  - name: Order Handover
+  - name: Tables
+  - name: Bookings
+  - name: Guarantees
+  - name: Operation Guarantors
+  - name: Notifications
+  - name: Push Tokens
+  - name: Offer Follows
+  - name: Discovery
+  - name: Offers (Discovery)
+  - name: Search
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Sanctum personal-access token.
+
+  parameters:
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string }
+      description: Repeat-safe key for money movements.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Authenticated but not allowed.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Resource not found / not owned.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Not allowed in the resource's current state.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Validation:
+      description: Validation failed.
+      content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } }
+
+  schemas:
+    Success:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+        data: {}
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    Paginated:
+      type: object
+      description: Laravel length-aware paginator.
+      properties:
+        current_page: { type: integer }
+        data: { type: array, items: {} }
+        per_page: { type: integer }
+        total: { type: integer }
+        last_page: { type: integer }
+        links: { type: array, items: { type: object } }
+    Account:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        type: { type: string, enum: [client, business] }
+        is_business: { type: boolean }
+        about: { type: string, nullable: true }
+        logo: { type: string, nullable: true }
+        cover: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        category_id: { type: integer, nullable: true }
+        category_child_id: { type: integer, nullable: true }
+        balance: { type: number }
+    TokenResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Account' }
+        token: { type: string, description: Bearer token to send on later requests. }
+    Address:
+      type: object
+      properties:
+        id: { type: integer }
+        country_id: { type: integer, nullable: true }
+        governorate_id: { type: integer }
+        city_id: { type: integer }
+        zip_code: { type: string, nullable: true }
+        address_line: { type: string }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        is_primary: { type: boolean }
+    WalletBalance:
+      type: object
+      properties:
+        balance: { type: number }
+        locked_balance: { type: number }
+        available_balance: { type: number }
+        total_in: { type: number }
+        total_out: { type: number }
+        status: { type: string }
+        last_activity_at: { type: string, format: date-time, nullable: true }
+    WalletTransaction:
+      type: object
+      properties:
+        id: { type: integer }
+        direction: { type: string, enum: [in, out] }
+        type: { type: string, enum: [deposit, withdraw, hold, release, refund, transfer, platform_fee] }
+        status: { type: string }
+        amount: { type: number }
+        balance_after: { type: number }
+        note: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    WalletTopup:
+      type: object
+      properties:
+        id: { type: integer }
+        gateway: { type: string, example: fawry }
+        merchant_ref: { type: string }
+        amount: { type: number }
+        currency: { type: string, example: EGP }
+        status: { type: string, enum: [pending, paid, failed, expired] }
+        method: { type: string, nullable: true }
+        paid_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [cart, pending, completed, cancelled] }
+        prep_status: { type: string, nullable: true, enum: [accepted, preparing, ready] }
+        fulfillment_type: { type: string, enum: [delivery, pickup, dine_in] }
+        delivery_stage: { type: string, nullable: true, enum: [assigned, picked_up, delivered] }
+        is_shared: { type: boolean }
+        totals:
+          type: object
+          properties:
+            total: { type: number }
+            delivery_fee: { type: number }
+            discount: { type: number }
+            service_fee: { type: number }
+            tax: { type: number }
+            final_total: { type: number }
+        payment_method: { type: string }
+        address: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        business: { type: object, nullable: true }
+        customer: { type: object, nullable: true }
+        items_count: { type: integer }
+        items: { type: array, items: { type: object } }
+        handover_confirmed_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+    MenuSection:
+      type: object
+      properties:
+        id: { type: integer }
+        name_ar: { type: string }
+        name_en: { type: string, nullable: true }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+    MenuItem:
+      type: object
+      properties:
+        id: { type: integer }
+        name_ar: { type: string }
+        name_en: { type: string, nullable: true }
+        menu_section_id: { type: integer, nullable: true }
+        description_ar: { type: string, nullable: true }
+        description_en: { type: string, nullable: true }
+        base_price: { type: number }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        variants: { type: array, items: { type: object } }
+        extras: { type: array, items: { type: object } }
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string }
+        priority: { type: string }
+        title_ar: { type: string, nullable: true }
+        title_en: { type: string, nullable: true }
+        body_ar: { type: string, nullable: true }
+        body_en: { type: string, nullable: true }
+        status: { type: string, enum: [unread, read, archived] }
+        action_type: { type: string, nullable: true }
+        action_url: { type: string, nullable: true }
+        meta: { type: object, nullable: true }
+        created_at: { type: string, format: date-time }
+
+paths:
+  # ─────────────────────────── Auth ───────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account (public)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, phone, password, password_confirmation]
+              properties:
+                name: { type: string, maxLength: 191 }
+                email: { type: string, format: email }
+                phone: { type: string, maxLength: 15 }
+                password: { type: string, minLength: 6 }
+                password_confirmation: { type: string }
+                type: { type: string, enum: [client, business] }
+                category_id: { type: integer }
+                category_child_id: { type: integer }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '422': { $ref: '#/components/responses/Validation' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in (public)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '422': { $ref: '#/components/responses/Validation' }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current account
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current token
+      responses: { '200': { description: OK } }
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Revoke every token for this account
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Password Reset ───────────────────────
+  /auth/password/forgot:
+    post:
+      tags: [Password Reset]
+      summary: Request a reset code by email (public, no enumeration, throttled 6/min)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses: { '200': { description: Generic answer whether or not the account exists. } }
+  /auth/password/resend:
+    post:
+      tags: [Password Reset]
+      summary: Resend the reset code (alias of forgot)
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string } } } } }
+      responses: { '200': { description: OK } }
+  /auth/password/verify:
+    post:
+      tags: [Password Reset]
+      summary: Check a code without consuming it (public)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email, code], properties: { email: { type: string }, code: { type: string } } }
+      responses:
+        '200': { description: Valid. }
+        '422': { $ref: '#/components/responses/Validation' }
+  /auth/password/reset:
+    post:
+      tags: [Password Reset]
+      summary: Set a new password with a valid code (public, revokes all tokens)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, password, password_confirmation]
+              properties:
+                email: { type: string }
+                code: { type: string }
+                password: { type: string, minLength: 6 }
+                password_confirmation: { type: string }
+      responses:
+        '200': { description: Password changed. }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ─────────────────────────── Profile ───────────────────────────
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Read own account
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } } } }
+    patch:
+      tags: [Profile]
+      summary: Edit basic fields
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                about: { type: string, nullable: true }
+                latitude: { type: number }
+                longitude: { type: number }
+                category_id: { type: integer }
+                category_child_id: { type: integer }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+  /profile/password:
+    post:
+      tags: [Profile]
+      summary: Change password (revokes other tokens)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string }
+                password: { type: string, minLength: 6 }
+                password_confirmation: { type: string }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ─────────────────────────── Addresses ───────────────────────────
+  /addresses:
+    get:
+      tags: [Addresses]
+      summary: List saved addresses (primary first)
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Addresses]
+      summary: Add an address (first one becomes primary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [governorate_id, city_id, address_line]
+              properties:
+                country_id: { type: integer }
+                governorate_id: { type: integer }
+                city_id: { type: integer }
+                address_line: { type: string, minLength: 5, maxLength: 191 }
+                zip_code: { type: string }
+                lat: { type: number }
+                lng: { type: number }
+                is_primary: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /addresses/{address}:
+    parameters: [{ name: address, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [Addresses]
+      summary: Update an address
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Addresses]
+      summary: Delete (promotes newest if it was primary)
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /addresses/{address}/primary:
+    post:
+      tags: [Addresses]
+      summary: Make this address primary
+      parameters: [{ name: address, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+
+  # ─────────────────────────── Wallet ───────────────────────────
+  /wallet:
+    get:
+      tags: [Wallet]
+      summary: Balance summary
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/WalletBalance' } } } } } } }
+  /wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: Paginated ledger (newest first)
+      parameters:
+        - { name: direction, in: query, schema: { type: string, enum: [in, out] } }
+        - { name: type, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+  /wallet/deposit:
+    post:
+      tags: [Wallet]
+      summary: Top up own wallet (points)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount], properties: { amount: { type: number, minimum: 0.01 }, note: { type: string } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/WalletTransaction' } } } } } } }
+  /wallet/withdraw:
+    post:
+      tags: [Wallet]
+      summary: Withdraw (PIN-gated)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount, pin], properties: { amount: { type: number, minimum: 0.01 }, pin: { type: string }, note: { type: string } } }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation', description: 'Wrong PIN or insufficient balance.' }
+  /wallet/transfer:
+    post:
+      tags: [Wallet]
+      summary: Transfer points to another user (PIN-gated, self blocked)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [to_user_id, amount, pin], properties: { to_user_id: { type: integer }, amount: { type: number, minimum: 0.01 }, pin: { type: string }, note: { type: string } } }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /wallet/pin:
+    get:
+      tags: [Wallet]
+      summary: Whether a wallet PIN is set
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Wallet]
+      summary: Set or change the PIN (change needs current_pin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [pin, pin_confirmation], properties: { pin: { type: string, pattern: '^\d{4,6}$' }, pin_confirmation: { type: string }, current_pin: { type: string } } }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+  /wallet/pin/verify:
+    post:
+      tags: [Wallet]
+      summary: Verify a PIN without spending
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [pin], properties: { pin: { type: string } } } } }
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Wallet Top-up ───────────────────────
+  /wallet/topup:
+    post:
+      tags: [Wallet Top-up]
+      summary: Start a real-money top-up (returns hosted-checkout payload)
+      description: Creates a `pending` intent and returns the gateway's hosted-checkout payload. The wallet is credited only by the gateway callback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount], properties: { amount: { type: number }, gateway: { type: string, example: fawry } } }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/WalletTopup' }
+                  payment:
+                    type: object
+                    properties:
+                      gateway: { type: string }
+                      merchant_ref: { type: string }
+                      init_url: { type: string }
+                      charge_request: { type: object }
+  /wallet/topup/{topup}:
+    get:
+      tags: [Wallet Top-up]
+      summary: Poll a top-up's status (own only)
+      parameters: [{ name: topup, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /wallet/topup/callback:
+    post:
+      tags: [Wallet Top-up]
+      summary: Gateway server-to-server callback (PUBLIC — the gateway calls it)
+      security: []
+      description: Verifies the signed payload, then idempotently credits the wallet. Not called by the app.
+      parameters: [{ name: gateway, in: query, schema: { type: string } }]
+      responses:
+        '200': { description: Acknowledged. }
+        '400': { description: Invalid signature. }
+        '422': { description: Amount mismatch. }
+
+  # ─────────────────────────── Cart ───────────────────────────
+  /cart:
+    get: { tags: [Cart], summary: Current draft cart, responses: { '200': { description: OK } } }
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add a line (retail or menu offering)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, offering_id]
+              properties:
+                kind: { type: string, enum: [retail, menu] }
+                offering_id: { type: integer }
+                qty: { type: integer, minimum: 1, maximum: 999 }
+                size_id: { type: integer, description: menu variant id }
+                extras: { type: array, items: { type: integer } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
+  /cart/items/{item}:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [Cart]
+      summary: Change a line's quantity (0 removes)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [qty], properties: { qty: { type: integer, minimum: 0, maximum: 999 } } } } } }
+      responses: { '200': { description: OK } }
+    delete: { tags: [Cart], summary: Remove a line, responses: { '200': { description: OK } } }
+  /cart/{business}/checkout:
+    post:
+      tags: [Cart]
+      summary: Place the order for a business (cash)
+      parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fulfillment_type: { type: string, enum: [delivery, pickup, dine_in] }
+                address: { type: string }
+                notes: { type: string }
+                payment_method: { type: string }
+      responses: { '200': { description: OK } }
+
+  # ──────────────────────── Shared Cart ────────────────────────
+  /cart/{business}/share:
+    post:
+      tags: [Shared Cart]
+      summary: Open a shared (group) cart and get its join token
+      parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /cart/join/{token}:
+    post:
+      tags: [Shared Cart]
+      summary: Join a shared cart by token
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /cart/shared/{order}:
+    parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Shared Cart], summary: View a shared cart, responses: { '200': { description: OK } } }
+    delete: { tags: [Shared Cart], summary: Cancel a shared cart (host), responses: { '200': { description: OK } } }
+  /cart/shared/{order}/items:
+    post:
+      tags: [Shared Cart]
+      summary: Add an attributed line to a shared cart
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /cart/shared/{order}/items/{item}:
+    parameters:
+      - { name: order, in: path, required: true, schema: { type: integer } }
+      - { name: item, in: path, required: true, schema: { type: integer } }
+    patch: { tags: [Shared Cart], summary: Update own shared-cart line, responses: { '200': { description: OK } } }
+    delete: { tags: [Shared Cart], summary: Remove own shared-cart line, responses: { '200': { description: OK } } }
+  /cart/shared/{order}/checkout:
+    post:
+      tags: [Shared Cart]
+      summary: Host checks out the shared cart (one invoice)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /cart/shared/{order}/leave:
+    post:
+      tags: [Shared Cart]
+      summary: Leave a shared cart (participant)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Orders (Customer) ───────────────────────
+  /orders:
+    get:
+      tags: [Orders (Customer)]
+      summary: The customer's placed orders (carts excluded)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, completed, cancelled] } }
+        - { name: fulfillment_type, in: query, schema: { type: string, enum: [delivery, pickup, dine_in] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+  /orders/{order}:
+    get:
+      tags: [Orders (Customer)]
+      summary: Order detail (party-only)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { $ref: '#/components/schemas/Order' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /orders/{order}/cancel:
+    post:
+      tags: [Orders (Customer)]
+      summary: Cancel a pending order (only before the business accepts)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500 } } } } } }
+      responses:
+        '200': { description: Cancelled }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /orders/{order}/handover/issue:
+    post:
+      tags: [Order Handover]
+      summary: Issue a one-time handover token for a ready order
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /handover/{token}/confirm:
+    post:
+      tags: [Order Handover]
+      summary: Confirm handover by scanning the token (flips to completed)
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Orders (Business) ───────────────────────
+  /business/orders:
+    get:
+      tags: [Orders (Business)]
+      summary: The business's incoming-order queue
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, completed, cancelled] } }
+        - { name: fulfillment_type, in: query, schema: { type: string, enum: [delivery, pickup, dine_in] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+  /business/orders/{order}:
+    get:
+      tags: [Orders (Business)]
+      summary: Business order detail
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/orders/{order}/accept:
+    post:
+      tags: [Orders (Business)]
+      summary: Accept a pending order (settles BIM's service fee from the business wallet)
+      description: prep_status → accepted. Blocks with 422 if the business wallet can't cover the platform service fee.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Accepted }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation', description: 'Insufficient business wallet balance for the fee.' }
+  /business/orders/{order}/preparing:
+    post:
+      tags: [Orders (Business)]
+      summary: Mark preparing (becomes visible to delivery drivers)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/ready:
+    post:
+      tags: [Orders (Business)]
+      summary: Mark ready
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/reject:
+    post:
+      tags: [Orders (Business)]
+      summary: Reject a pending order (only before acceptance)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
+      responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+
+  # ─────────────────────── Business Menu ───────────────────────
+  /business/menu/sections:
+    get: { tags: [Business Menu], summary: List sections, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    post:
+      tags: [Business Menu]
+      summary: Create a section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name_ar], properties: { name_ar: { type: string }, name_en: { type: string }, sort_order: { type: integer }, is_active: { type: boolean } } }
+      responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/menu/sections/{section}:
+    parameters: [{ name: section, in: path, required: true, schema: { type: integer } }]
+    patch: { tags: [Business Menu], summary: Update a section, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    delete: { tags: [Business Menu], summary: Delete a section, responses: { '200': { description: OK } } }
+  /business/menu/items:
+    get:
+      tags: [Business Menu]
+      summary: List items
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: is_active, in: query, schema: { type: boolean } }
+        - { name: menu_section_id, in: query, schema: { type: integer } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Menu]
+      summary: Create an item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name_ar, base_price]
+              properties:
+                name_ar: { type: string }
+                name_en: { type: string }
+                menu_section_id: { type: integer, description: Must belong to this business. }
+                description_ar: { type: string }
+                description_en: { type: string }
+                base_price: { type: number, minimum: 0 }
+                sort_order: { type: integer }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/menu/items/{item}:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Menu], summary: Item detail (with variants + extras), responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    patch: { tags: [Business Menu], summary: Update an item, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Menu], summary: Delete an item, responses: { '200': { description: OK } } }
+  /business/menu/items/{item}/variants:
+    post:
+      tags: [Business Menu]
+      summary: Add a variant (setting is_default clears the others)
+      parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, name_ar]
+              properties:
+                type: { type: string }
+                name_ar: { type: string }
+                name_en: { type: string }
+                price: { type: number }
+                price_delta: { type: number }
+                is_default: { type: boolean }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created } }
+  /business/menu/items/{item}/variants/{variant}:
+    parameters:
+      - { name: item, in: path, required: true, schema: { type: integer } }
+      - { name: variant, in: path, required: true, schema: { type: integer } }
+    patch: { tags: [Business Menu], summary: Update a variant, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Menu], summary: Delete a variant, responses: { '200': { description: OK } } }
+  /business/menu/items/{item}/extras:
+    post:
+      tags: [Business Menu]
+      summary: Add an extra
+      parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name_ar, price]
+              properties:
+                group_key: { type: string }
+                name_ar: { type: string }
+                name_en: { type: string }
+                price: { type: number, minimum: 0 }
+                max_qty: { type: integer, minimum: 1, maximum: 99 }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created } }
+  /business/menu/items/{item}/extras/{extra}:
+    parameters:
+      - { name: item, in: path, required: true, schema: { type: integer } }
+      - { name: extra, in: path, required: true, schema: { type: integer } }
+    patch: { tags: [Business Menu], summary: Update an extra, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Menu], summary: Delete an extra, responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Business Offers ───────────────────────
+  /business/offers:
+    get: { tags: [Business Offers], summary: The business's offers, responses: { '200': { description: OK } } }
+    post: { tags: [Business Offers], summary: Create an offer (matches followers), responses: { '201': { description: Created } } }
+  /business/offers/{offer}:
+    parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Offers], summary: Update an offer, responses: { '200': { description: OK } } }
+    patch: { tags: [Business Offers], summary: Update an offer, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Offers], summary: Delete an offer, responses: { '200': { description: OK } } }
+  /business/offers/{offer}/toggle:
+    post: { tags: [Business Offers], summary: Activate/pause an offer, parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /business/offers/{offer}/boost:
+    post: { tags: [Business Offers], summary: Activate a boost package on an offer, parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /business/offers/boost/packages:
+    get: { tags: [Business Offers], summary: Available boost packages, responses: { '200': { description: OK } } }
+  /business/offers/boost/purchases:
+    get: { tags: [Business Offers], summary: My boost purchases, responses: { '200': { description: OK } } }
+  /business/offers/performance/me:
+    get: { tags: [Business Offers], summary: My offer performance stats, responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Delivery ───────────────────────────
+  /delivery/register:
+    post: { tags: [Delivery], summary: Register as a delivery driver, responses: { '200': { description: OK } } }
+  /delivery/availability:
+    post:
+      tags: [Delivery]
+      summary: Toggle driver availability
+      requestBody: { content: { application/json: { schema: { type: object, properties: { active: { type: boolean } } } } } }
+      responses: { '200': { description: OK } }
+  /delivery/available-orders:
+    get: { tags: [Delivery], summary: Delivery orders open to take (preparing/ready, unassigned), responses: { '200': { description: OK } } }
+  /delivery/orders/{order}/accept:
+    post: { tags: [Delivery], summary: Take a delivery order, parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } } }
+  /delivery/orders/{order}/pickup-token:
+    post: { tags: [Delivery], summary: Restaurant issues the pickup QR token (stage 1), parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /delivery/pickup/{token}/confirm:
+    post: { tags: [Delivery], summary: Driver scans pickup token → picked_up, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+  /delivery/orders/{order}/delivery-token:
+    post: { tags: [Delivery], summary: Driver issues the delivery QR token (stage 2), parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /delivery/deliver/{token}/confirm:
+    post: { tags: [Delivery], summary: Customer scans delivery token → completed, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Tables ───────────────────────────
+  /table/{token}/scan:
+    post:
+      tags: [Tables]
+      summary: Scan a table's permanent QR to open/join its dine-in cart
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────────── Bookings ───────────────────────────
+  /bookings:
+    get: { tags: [Bookings], summary: My bookings, responses: { '200': { description: OK } } }
+    post: { tags: [Bookings], summary: Create a booking, responses: { '201': { description: Created } } }
+  /bookings/{booking}:
+    get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/financial-preview:
+    get: { tags: [Bookings], summary: Fee/deposit preview, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/accept:
+    post: { tags: [Bookings], summary: Business accepts, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/reject:
+    post: { tags: [Bookings], summary: Business rejects, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/cancel:
+    post: { tags: [Bookings], summary: Cancel, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/client-confirm:
+    post: { tags: [Bookings], summary: Client confirms, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/business-confirm:
+    post: { tags: [Bookings], summary: Business confirms, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/start:
+    post: { tags: [Bookings], summary: Start execution, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/complete:
+    post: { tags: [Bookings], summary: Complete, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────── Operation Guarantors ───────────────────
+  /bookings/{booking}/guarantors:
+    parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Operation Guarantors], summary: List a booking's friend guarantors, responses: { '200': { description: OK } } }
+    post: { tags: [Operation Guarantors], summary: Invite a friend to co-guarantee, responses: { '201': { description: Created } } }
+  /guarantors/{guarantor}/accept:
+    post: { tags: [Operation Guarantors], summary: Accept a co-guarantee invite, parameters: [{ name: guarantor, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /guarantors/{guarantor}/decline:
+    post: { tags: [Operation Guarantors], summary: Decline a co-guarantee invite, parameters: [{ name: guarantor, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Guarantees ───────────────────────────
+  /guarantees/levels:
+    get: { tags: [Guarantees], summary: Available guarantee levels, responses: { '200': { description: OK } } }
+  /guarantees/me:
+    get: { tags: [Guarantees], summary: My guarantee state, responses: { '200': { description: OK } } }
+  /guarantees/transactions:
+    get: { tags: [Guarantees], summary: My guarantee ledger, responses: { '200': { description: OK } } }
+  /guarantees/activate:
+    post:
+      tags: [Guarantees]
+      summary: Subscribe/activate a guarantee level (forces fee + rating consent)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { level_id: { type: integer }, target_type: { type: string, enum: [client, business] } } }
+      responses: { '200': { description: OK } }
+  /guarantees/unlock:
+    post:
+      tags: [Guarantees]
+      summary: Unlock the guarantee back to balance
+      requestBody: { content: { application/json: { schema: { type: object, properties: { target_type: { type: string, enum: [client, business] } } } } } }
+      responses: { '200': { description: OK } }
+  /guarantees/check-operation:
+    post:
+      tags: [Guarantees]
+      summary: Check whether the guarantee covers an operation amount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount, operation_type], properties: { amount: { type: number }, operation_type: { type: string }, operation_id: { type: integer }, target_type: { type: string }, context: { type: object } } }
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Notifications ───────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: The unified notification center (general + offer matches)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [unread, read, archived] } }
+        - { name: type, in: query, schema: { type: string } }
+        - { name: priority, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+  /notifications/unread-count:
+    get: { tags: [Notifications], summary: Unread count + per-type summary, responses: { '200': { description: OK } } }
+  /notifications/{notification}:
+    get: { tags: [Notifications], summary: Notification detail, parameters: [{ name: notification, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /notifications/{notification}/read:
+    post: { tags: [Notifications], summary: Mark read, parameters: [{ name: notification, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /notifications/{notification}/archive:
+    post: { tags: [Notifications], summary: Archive, parameters: [{ name: notification, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /notifications/mark-all-read:
+    post: { tags: [Notifications], summary: Mark all read, responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Push Tokens ───────────────────────
+  /push-tokens:
+    post:
+      tags: [Push Tokens]
+      summary: Register the device's push token (user_push_tokens — the single store)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token], properties: { token: { type: string }, platform: { type: string } } } } } }
+      responses: { '200': { description: OK } }
+    delete:
+      tags: [Push Tokens]
+      summary: Unregister a device token
+      requestBody: { content: { application/json: { schema: { type: object, properties: { token: { type: string } } } } } }
+      responses: { '200': { description: OK } }
+
+  # ─────────────────────── Offer Follows ───────────────────────
+  /offer-follows:
+    get: { tags: [Offer Follows], summary: My follows, responses: { '200': { description: OK } } }
+    post:
+      tags: [Offer Follows]
+      summary: Follow offers (keyword / business / category-child / offerable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [followable_type]
+              properties:
+                followable_type: { type: string }
+                followable_id: { type: integer }
+                keyword: { type: string }
+                category_id: { type: integer }
+                category_child_id: { type: integer }
+                audience_type: { type: string, enum: [b2c, b2b, both, private] }
+                min_price: { type: number }
+                max_price: { type: number }
+      responses: { '201': { description: Created } }
+  /offer-follows/{follow}:
+    delete: { tags: [Offer Follows], summary: Unfollow, parameters: [{ name: follow, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Discovery ───────────────────────────
+  /discovery/filters:
+    get: { tags: [Discovery], summary: Customer discovery filters (public), security: [], responses: { '200': { description: OK } } }
+  /discovery/businesses:
+    get: { tags: [Discovery], summary: Discover businesses (public), security: [], responses: { '200': { description: OK } } }
+  /discovery/menu/{business}:
+    get: { tags: [Discovery], summary: A business's menu grouped by sections (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /discovery/retail/filters:
+    get: { tags: [Discovery], summary: Retail filters (public), security: [], responses: { '200': { description: OK } } }
+  /discovery/retail/products:
+    get: { tags: [Discovery], summary: Browse retail products (public), security: [], responses: { '200': { description: OK } } }
+  /discovery/retail/products/{product}:
+    get: { tags: [Discovery], summary: Retail product + its offers (public), security: [], parameters: [{ name: product, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Offers (Discovery) ───────────────────────
+  /offers:
+    get: { tags: [Offers (Discovery)], summary: Browse offers (public), security: [], responses: { '200': { description: OK } } }
+  /offers/lowest:
+    get: { tags: [Offers (Discovery)], summary: Lowest offer for an offerable (public), security: [], responses: { '200': { description: OK } } }
+  /offers/business/{business}:
+    get: { tags: [Offers (Discovery)], summary: A business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /offers/{offer}:
+    get: { tags: [Offers (Discovery)], summary: Offer detail (public), security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /offers/{offer}/track:
+    post: { tags: [Offers (Discovery)], summary: Track an offer view/click (public), security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /offers/compare:
+    get: { tags: [Offers (Discovery)], summary: Compare offers (authed), responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Search ───────────────────────────
+  /search/offers:
+    get: { tags: [Search], summary: Search offers (public), security: [], responses: { '200': { description: OK } } }
+  /search/business/{business}/offers:
+    get: { tags: [Search], summary: Search a business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }

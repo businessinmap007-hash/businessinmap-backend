@@ -53,6 +53,7 @@ use App\Http\Controllers\AdminV2\{
     UploadController,
     CatalogBrandController,
     CatalogProductController,
+    PaymentSettingsController,
     ProductCategoryChildController,
     ProductCategoryController,
     UserServiceFeeConsentController,
@@ -339,6 +340,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [PaymentController::class, 'index'])->name('index');
             Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->whereNumber('paymentId')->name('confirm');
         });
+
+        // Live payment-gateway credentials (Fawry) — paste-and-go, no redeploy.
+        Route::get('payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings.edit');
+        Route::put('payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
 
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');

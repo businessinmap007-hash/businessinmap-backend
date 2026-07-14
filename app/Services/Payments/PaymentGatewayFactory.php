@@ -10,12 +10,17 @@ use InvalidArgumentException;
  */
 final class PaymentGatewayFactory
 {
+    public function __construct(private readonly PaymentSettingsService $settings)
+    {
+    }
+
     public function make(?string $name = null): PaymentGatewayInterface
     {
         $name = $name ?: (string) config('services.payments.default_gateway', 'fawry');
 
         return match ($name) {
-            'fawry' => new FawryGateway((array) config('services.fawry', [])),
+            // Env baseline overlaid with any admin-pasted credentials from the DB.
+            'fawry' => new FawryGateway($this->settings->fawryConfig()),
             default => throw new InvalidArgumentException("Unknown payment gateway [{$name}]."),
         };
     }

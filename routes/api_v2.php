@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\DeliveryController;
-use App\Http\Controllers\Api\V2\DeviceTokenController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -17,7 +16,6 @@ use App\Http\Controllers\Api\V2\OfferBoostController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
 use App\Http\Controllers\Api\V2\OfferDiscoveryController;
 use App\Http\Controllers\Api\V2\OfferFollowController;
-use App\Http\Controllers\Api\V2\OfferNotificationController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
@@ -215,15 +213,11 @@ Route::prefix('v2')->group(function () {
             Route::post('{notification}/archive', [NotificationCenterController::class, 'archive'])->whereNumber('notification');
         });
 
+        // Push notification device tokens (the single live store, user_push_tokens).
         Route::prefix('push-tokens')->group(function () {
             Route::post('/', [PushTokenController::class, 'store']);
             Route::delete('/', [PushTokenController::class, 'destroy']);
         });
-
-        // Firebase device token (separate from push-tokens above — different
-        // store; see the parallel-token-store note). Merged in from the former
-        // routes/api_v2_push.php.
-        Route::post('push-token', [DeviceTokenController::class, 'register']);
 
         Route::prefix('guarantees')->group(function () {
             Route::get('levels', [GuaranteeController::class, 'levels']);
@@ -253,21 +247,13 @@ Route::prefix('v2')->group(function () {
             Route::post('compare', [OfferComparisonController::class, 'compare']);
         });
 
-        Route::prefix('offer-notifications')->group(function () {
-            Route::get('/', [OfferNotificationController::class, 'index']);
-            Route::get('unread-count', [OfferNotificationController::class, 'unreadCount']);
-            Route::post('mark-all-read', [OfferNotificationController::class, 'markAllRead']);
-            Route::get('{notification}', [OfferNotificationController::class, 'show'])->whereNumber('notification');
-            Route::post('{notification}/read', [OfferNotificationController::class, 'markRead'])->whereNumber('notification');
-            Route::post('{notification}/archive', [OfferNotificationController::class, 'archive'])->whereNumber('notification');
-        });
-
+        // Offer-follow matches surface in the unified /notifications center
+        // (type=offer, via InAppNotificationService::createFromOfferFollowNotification),
+        // so there is no separate offer-notification inbox — only follow CRUD here.
         Route::prefix('offer-follows')->group(function () {
             Route::get('/', [OfferFollowController::class, 'index']);
             Route::post('/', [OfferFollowController::class, 'store']);
             Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
-            Route::get('notifications', [OfferFollowController::class, 'notifications']);
-            Route::post('notifications/{notification}/read', [OfferFollowController::class, 'markRead'])->whereNumber('notification');
         });
 
         Route::prefix('business/offers')->group(function () {

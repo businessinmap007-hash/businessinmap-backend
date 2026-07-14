@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
 use App\Models\OfferFollow;
-use App\Models\OfferFollowNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -99,53 +98,6 @@ final class OfferFollowController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Follow removed successfully.',
-        ]);
-    }
-
-    public function notifications(Request $request)
-    {
-        $user = $request->user();
-        $status = trim((string) $request->get('status', ''));
-
-        $query = OfferFollowNotification::query()
-            ->with(['offer.sellerBusiness:id,name,logo,type,category_id,category_child_id', 'follow'])
-            ->where('user_id', (int) $user->id)
-            ->latest('id');
-
-        if ($status !== '') {
-            $query->where('status', $status);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'notifications' => $query->paginate((int) $request->get('per_page', 20)),
-                'unread_count' => OfferFollowNotification::query()
-                    ->where('user_id', (int) $user->id)
-                    ->where('status', OfferFollowNotification::STATUS_UNREAD)
-                    ->count(),
-            ],
-        ]);
-    }
-
-    public function markRead(Request $request, int $notification)
-    {
-        $user = $request->user();
-
-        $row = OfferFollowNotification::query()
-            ->where('id', $notification)
-            ->where('user_id', (int) $user->id)
-            ->firstOrFail();
-
-        $row->update([
-            'status' => OfferFollowNotification::STATUS_READ,
-            'read_at' => now(),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Notification marked as read.',
-            'data' => ['notification' => $row->fresh()],
         ]);
     }
 }

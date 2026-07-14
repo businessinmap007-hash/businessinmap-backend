@@ -150,10 +150,15 @@ Route::prefix('v2')->group(function () {
         Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
 
-        // Placed orders: the business's incoming-order queue + detail + reject.
+        // Placed orders: the business's incoming-order queue + detail + lifecycle.
         Route::get('business/orders', [OrderController::class, 'businessIndex']);
         Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
         Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
+        // Prep lifecycle: accept (settles BIM fee from the business wallet) →
+        // preparing (order becomes visible to drivers) → ready.
+        Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
+        Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
+        Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
 
         // Business menu management: sections + items (+ variants/extras).
         Route::prefix('business/menu')->group(function () {

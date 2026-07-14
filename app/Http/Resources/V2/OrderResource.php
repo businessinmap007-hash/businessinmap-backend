@@ -16,6 +16,7 @@ class OrderResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'status' => (string) $this->status,
+            'prep_status' => $this->prep_status,
             'fulfillment_type' => (string) $this->fulfillment_type,
             'delivery_stage' => $this->delivery_stage,
             'is_shared' => (bool) $this->is_shared,

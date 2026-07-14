@@ -17,6 +17,21 @@ class Order extends Model
         self::FULFILLMENT_PICKUP,
     ];
 
+    /**
+     * Preparation sub-status: the business-driven progress of a `pending` order
+     * from acceptance to ready-for-fulfilment. null = just placed (awaiting the
+     * business). See the prep_status column (kept separate from `status`).
+     */
+    public const PREP_ACCEPTED = 'accepted';
+    public const PREP_PREPARING = 'preparing';
+    public const PREP_READY = 'ready';
+
+    public const PREP_STATUSES = [
+        self::PREP_ACCEPTED,
+        self::PREP_PREPARING,
+        self::PREP_READY,
+    ];
+
     // Columns match the orders table: total / delivery_fee / discount /
     // final_total (there is no `subtotal` column).
     protected $fillable = [
@@ -40,6 +55,7 @@ class Order extends Model
         'address',
         'notes',
         'status',
+        'prep_status',
         'share_token',
         'is_shared',
         'handover_token',

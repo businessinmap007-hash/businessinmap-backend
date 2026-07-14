@@ -27,10 +27,23 @@ use App\Models\User;
  */
 class MenuBillingService
 {
-    /** Resolve the client-fee row for a business's menu service, or null. */
+    /**
+     * Resolve the client-fee row for a business's menu service, or null.
+     *
+     * Gated on the business's fee-auto-charge consent: a business that has not
+     * opted in charges NO platform service fee (so the customer's bill is never
+     * inflated by a fee BIM will not collect at settlement). See
+     * OrderFeeSettlementService.
+     */
     public function feeRowForBusiness(int $businessId): ?CategoryChildServiceFee
     {
-        $childId = (int) (User::query()->whereKey($businessId)->value('category_child_id') ?? 0);
+        $business = User::query()->whereKey($businessId)->first(['id', 'category_child_id']);
+
+        if (! $business || ! $business->hasFeeAutoChargeEnabled()) {
+            return null;
+        }
+
+        $childId = (int) ($business->category_child_id ?? 0);
         $serviceId = (int) (PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id') ?? 0);
 
         if ($childId <= 0 || $serviceId <= 0) {

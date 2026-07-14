@@ -110,14 +110,27 @@ final class FirebasePushService
             'exp' => $now + 3600,
         ]));
 
+        // Guard against a malformed/pasted key so the admin "test" button and any
+        // live send fail gracefully (null) instead of emitting an openssl warning.
+        $privateKey = openssl_pkey_get_private($config['private_key']);
+        if ($privateKey === false) {
+            return null;
+        }
+
         $signature = '';
-        openssl_sign($header . '.' . $claim, $signature, $config['private_key'], OPENSSL_ALGO_SHA256);
+        if (! openssl_sign($header . '.' . $claim, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
+            return null;
+        }
         $jwt = $header . '.' . $claim . '.' . $this->base64Url($signature);
 
-        $response = Http::asForm()->post($config['token_uri'], [
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion' => $jwt,
-        ]);
+        try {
+            $response = Http::asForm()->post($config['token_uri'], [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
+        } catch (\Throwable) {
+            return null;
+        }
 
         if (! $response->successful()) {
             return null;
@@ -126,17 +139,37 @@ final class FirebasePushService
         return $response->json('access_token');
     }
 
-    private function serviceAccount(): array
+    /**
+     * Attempt to obtain an FCM access token from the current credentials. Used by
+     * the AdminV2 settings page to confirm a pasted service-account JSON is valid
+     * before go-live.
+     *
+     * @return array{ok: bool, project_id: ?string, reason: string}
+     */
+    public function verifyCredentials(): array
     {
-        $json = env('FCM_SERVICE_ACCOUNT_JSON');
+        $projectId = $this->projectId();
 
-        if (! $json && env('FCM_SERVICE_ACCOUNT_PATH') && is_file(base_path(env('FCM_SERVICE_ACCOUNT_PATH')))) {
-            $json = file_get_contents(base_path(env('FCM_SERVICE_ACCOUNT_PATH')));
+        if (! $projectId) {
+            return ['ok' => false, 'project_id' => null, 'reason' => 'no_project_id'];
         }
 
-        $data = $json ? json_decode($json, true) : [];
+        $token = $this->accessToken();
 
-        return is_array($data) ? $data : [];
+        if (! $token) {
+            return ['ok' => false, 'project_id' => $projectId, 'reason' => 'token_exchange_failed'];
+        }
+
+        return ['ok' => true, 'project_id' => $projectId, 'reason' => 'ok'];
+    }
+
+    private function serviceAccount(): array
+    {
+        // Prefer the runtime, admin-editable credential (encrypted in push_settings),
+        // then fall back to the env baseline.
+        $account = app(PushSettingsService::class)->firebaseServiceAccount();
+
+        return ! empty($account) ? $account : [];
     }
 
     private function base64Url(string $value): string

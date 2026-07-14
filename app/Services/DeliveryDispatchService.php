@@ -6,8 +6,10 @@ use App\Models\AppNotification;
 use App\Models\DeliveryCompletion;
 use App\Models\DeliveryDriver;
 use App\Models\Order;
+use App\Models\RatingOutcomeEvent;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Services\Ratings\RatingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +33,7 @@ class DeliveryDispatchService
 
     public function __construct(
         protected NotificationDispatcherService $notifications,
+        protected RatingService $ratingService,
     ) {
     }
 
@@ -237,6 +240,16 @@ class DeliveryDispatchService
 
             return $order;
         });
+
+        // Operation rating: a delivered order is a success for both the
+        // restaurant and the customer.
+        $this->ratingService->recordForBothParties(
+            businessUserId: (int) $order->business_id,
+            clientUserId: (int) $order->user_id,
+            outcome: RatingOutcomeEvent::OUTCOME_SUCCESS,
+            operationType: RatingOutcomeEvent::OP_ORDER,
+            operationId: (int) $order->id,
+        );
 
         $this->notifyBusiness($order, 'menu_order_completed', $byUserId, [
             'body_ar' => 'اكتمل توصيل طلبك رقم #' . $order->id . ' بنجاح.',

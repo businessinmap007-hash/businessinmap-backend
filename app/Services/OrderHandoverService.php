@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\RatingOutcomeEvent;
+use App\Services\Ratings\RatingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +19,11 @@ class OrderHandoverService
 {
     public const STATUS_PENDING = 'pending';
     public const STATUS_COMPLETED = 'completed';
+
+    public function __construct(
+        protected RatingService $ratingService,
+    ) {
+    }
 
     /**
      * Issue (or return the existing) one-time handover token for a ready order.
@@ -45,7 +52,7 @@ class OrderHandoverService
      */
     public function confirm(string $token, int $byUserId): Order
     {
-        return DB::transaction(function () use ($token, $byUserId) {
+        $order = DB::transaction(function () use ($token, $byUserId) {
             $order = Order::query()
                 ->where('handover_token', $token)
                 ->lockForUpdate()
@@ -68,6 +75,17 @@ class OrderHandoverService
 
             return $order;
         });
+
+        // Operation rating: a handed-over order is a success for both parties.
+        $this->ratingService->recordForBothParties(
+            businessUserId: (int) $order->business_id,
+            clientUserId: (int) $order->user_id,
+            outcome: RatingOutcomeEvent::OUTCOME_SUCCESS,
+            operationType: RatingOutcomeEvent::OP_ORDER,
+            operationId: (int) $order->id,
+        );
+
+        return $order;
     }
 
     /** The order's parties are its business and its customer. */

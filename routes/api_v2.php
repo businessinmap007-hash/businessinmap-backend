@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\RatingController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
 use App\Http\Controllers\Api\V2\OfferBoostController;
 use App\Http\Controllers\Api\V2\OfferComparisonController;
@@ -229,6 +230,12 @@ Route::prefix('v2')->group(function () {
             Route::post('activate', [GuaranteeController::class, 'activate']);
             Route::post('unlock', [GuaranteeController::class, 'unlock']);
             Route::post('check-operation', [GuaranteeController::class, 'checkOperationCoverage']);
+        });
+
+        // Operation-based rating (success/cancel/dispute %) read API.
+        Route::prefix('ratings')->group(function () {
+            Route::get('me', [RatingController::class, 'me']);
+            Route::get('user/{user}', [RatingController::class, 'show'])->whereNumber('user');
         });
 
         Route::prefix('bookings')->group(function () {

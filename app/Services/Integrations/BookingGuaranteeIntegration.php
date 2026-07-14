@@ -4,15 +4,18 @@ namespace App\Services\Integrations;
 
 use App\Models\Booking;
 use App\Models\GuaranteeLevel;
+use App\Models\RatingOutcomeEvent;
 use App\Services\Guarantees\GuaranteeCoverageService;
 use App\Models\User;
 use App\Services\Guarantees\GuaranteeScoreService;
+use App\Services\Ratings\RatingService;
 
 class BookingGuaranteeIntegration
 {
     public function __construct(
         protected GuaranteeCoverageService $guaranteeCoverageService,
-        protected GuaranteeScoreService $guaranteeScoreService
+        protected GuaranteeScoreService $guaranteeScoreService,
+        protected RatingService $ratingService
     ) {
     }
 
@@ -141,11 +144,39 @@ class BookingGuaranteeIntegration
 
         $this->recordForBothSides($booking, $result);
 
+        // Universal operation rating — for BOTH parties, guarantee or not. Its own
+        // ledger keeps it idempotent independent of this meta guard.
+        $this->recordOperationRating($booking, $result);
+
         $meta['_guarantee_stats'][$key] = now()->toDateTimeString();
 
         $booking->meta = $meta;
         $booking->save();
     }
+
+    /** Map a guarantee-score result to a rating outcome and record it for both parties. */
+    protected function recordOperationRating(Booking $booking, string $result): void
+    {
+        $outcome = match ($result) {
+            'completed' => RatingOutcomeEvent::OUTCOME_SUCCESS,
+            'cancelled', 'late_cancelled' => RatingOutcomeEvent::OUTCOME_CANCELLED,
+            'dispute_opened' => RatingOutcomeEvent::OUTCOME_DISPUTED,
+            default => null,
+        };
+
+        if ($outcome === null) {
+            return;
+        }
+
+        $this->ratingService->recordForBothParties(
+            businessUserId: (int) $booking->business_id,
+            clientUserId: (int) $booking->user_id,
+            outcome: $outcome,
+            operationType: RatingOutcomeEvent::OP_BOOKING,
+            operationId: (int) $booking->id,
+        );
+    }
+
     public function recordDisputeLostForClient(Booking $booking): void
     {
         $this->recordOnceForSide($booking, 'client', 'dispute_lost');

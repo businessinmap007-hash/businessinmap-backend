@@ -22,6 +22,12 @@ class Kernel extends ConsoleKernel
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();
+
+        // Safety net for missed gateway callbacks (Fawry money-in). No-op until
+        // gateway credentials are set, so it is safe to schedule now.
+        $schedule->command('wallet:reconcile-topups --minutes=15 --limit=200')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
     }
 
     protected function commands(): void

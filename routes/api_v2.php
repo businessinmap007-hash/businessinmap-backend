@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\WalletController;
+use App\Http\Controllers\Api\V2\WalletTopupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -76,6 +77,11 @@ Route::prefix('v2')->group(function () {
         Route::get('menu/{business}', [MenuDiscoveryController::class, 'show'])->whereNumber('business');
     });
 
+    // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the
+    // gateway calls it, not the app) — security is the signed-payload check.
+    // Optional ?gateway= selects the provider (defaults to config).
+    Route::post('wallet/topup/callback', [WalletTopupController::class, 'callback']);
+
     Route::middleware('auth:sanctum')->group(function () {
         // Account: current user + token lifecycle.
         Route::prefix('auth')->group(function () {
@@ -99,6 +105,11 @@ Route::prefix('v2')->group(function () {
             Route::get('pin', [WalletController::class, 'pinStatus']);
             Route::post('pin', [WalletController::class, 'setPin']);
             Route::post('pin/verify', [WalletController::class, 'verifyPin']);
+
+            // Real money-in: start a top-up (returns hosted-checkout payload) +
+            // poll its status. Crediting happens in the public callback above.
+            Route::post('topup', [WalletTopupController::class, 'store']);
+            Route::get('topup/{topup}', [WalletTopupController::class, 'show'])->whereNumber('topup');
         });
 
         Route::prefix('addresses')->group(function () {

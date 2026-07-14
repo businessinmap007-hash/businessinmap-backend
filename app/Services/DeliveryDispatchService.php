@@ -68,12 +68,17 @@ class DeliveryDispatchService
         return $driver;
     }
 
-    /** Ready delivery orders not yet taken by a driver. */
+    /**
+     * Delivery orders open for a driver to take: accepted by the business and at
+     * least into preparation (so a driver can get ready while the food is made),
+     * still pending and unassigned.
+     */
     public function availableOrders(int $limit = 50)
     {
         return Order::query()
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->where('status', self::STATUS_PENDING)
+            ->whereIn('prep_status', [Order::PREP_PREPARING, Order::PREP_READY])
             ->whereNull('delivery_driver_id')
             ->with('business:id,name,logo')
             ->orderBy('id')

@@ -8,27 +8,26 @@ use Illuminate\Http\Request;
 class BusinessOnly
 {
     /**
-     * Handle an incoming request.
-     *
-     * يسمح فقط لمستخدمي business بالدخول
+     * Handle an incoming request. The single, central "business accounts only"
+     * gate for the API — replaces the role checks that were duplicated inline in
+     * each business controller. Uses the canonical User::isBusiness() (type
+     * column), not the non-existent legacy `account_type`.
      */
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
 
-        // إذا المستخدم لم يسجل دخول
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'status' => 401,
+                'success' => false,
                 'message' => 'Unauthorized: Please login first.',
             ], 401);
         }
 
-        // التحقق من نوع الحساب
-        if ($user->account_type !== 'business') {
+        if (! $user->isBusiness()) {
             return response()->json([
-                'status' => 403,
-                'message' => 'Access Denied: Business accounts only.',
+                'success' => false,
+                'message' => 'إدارة حسابات الأعمال متاحة لحسابات الأعمال فقط.',
             ], 403);
         }
 

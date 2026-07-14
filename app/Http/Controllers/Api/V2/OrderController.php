@@ -62,13 +62,8 @@ final class OrderController extends Controller
             ->with(['business:id,name,logo', 'items.menuItem:id,name_ar,name_en'])
             ->findOrFail($order);
 
-        $isParty = (int) $model->user_id === $userId
-            || (int) $model->business_id === $userId
-            || $model->participants()->where('user_id', $userId)->exists();
-
-        if (! $isParty) {
-            abort(403, 'هذا الطلب ليس طلبك.');
-        }
+        // Party-only, via OrderPolicy (throws 403 for non-parties).
+        $this->authorize('view', $model);
 
         // Expose the customer only to the business side of the conversation.
         if ((int) $model->business_id === $userId) {

@@ -31,10 +31,6 @@ final class OfferBoostController extends Controller
     {
         $user = $request->user();
 
-        if (! $user || (string) $user->type !== 'business') {
-            return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
-        }
-
         $data = $request->validate([
             'package_id' => ['required', 'integer', 'exists:offer_boost_packages,id'],
         ]);
@@ -66,10 +62,6 @@ final class OfferBoostController extends Controller
     public function myPurchases(Request $request)
     {
         $user = $request->user();
-
-        if (! $user || (string) $user->type !== 'business') {
-            return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
-        }
 
         $rows = OfferBoostPurchase::query()
             ->with(['package', 'offer:id,title_ar,title_en,status,final_price,currency,audience_type'])

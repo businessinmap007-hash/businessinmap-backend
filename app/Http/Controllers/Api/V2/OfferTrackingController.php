@@ -64,13 +64,8 @@ final class OfferTrackingController extends Controller
 
     public function myPerformance(Request $request)
     {
-        $user = $request->user();
-
-        if (! $user || (string) $user->type !== 'business') {
-            return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
-        }
-
-        return $this->performanceForBusiness($request, (int) $user->id);
+        // Business-only route (gated by the `business` middleware).
+        return $this->performanceForBusiness($request, (int) $request->user()->id);
     }
 
     public function performanceForBusiness(Request $request, int $businessId)

@@ -93,6 +93,9 @@ class GuaranteeActivationService
                 'commercial_operations_enabled' => true,
             ])->save();
 
+            // A guarantee can't be a way to dodge service fees: force fee + rating.
+            app(\App\Services\ServiceFeeConsentEnforcer::class)->enforce($user, 'تفعيل ضمان تلقائي');
+
             GuaranteeTransaction::create([
                 'user_id' => (int) $user->id,
                 'user_guarantee_id' => (int) $guarantee->id,

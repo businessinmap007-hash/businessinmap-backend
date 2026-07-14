@@ -54,6 +54,7 @@ use App\Http\Controllers\AdminV2\{
     CatalogBrandController,
     CatalogProductController,
     PaymentSettingsController,
+    PushSettingsController,
     ProductCategoryChildController,
     ProductCategoryController,
     UserServiceFeeConsentController,
@@ -344,6 +345,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Live payment-gateway credentials (Fawry) — paste-and-go, no redeploy.
         Route::get('payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings.edit');
         Route::put('payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
+
+        // Live push credentials (Firebase service-account JSON) — paste-and-go.
+        Route::get('push-settings', [PushSettingsController::class, 'edit'])->name('push-settings.edit');
+        Route::put('push-settings', [PushSettingsController::class, 'update'])->name('push-settings.update');
+        Route::post('push-settings/test', [PushSettingsController::class, 'test'])->name('push-settings.test');
 
         Route::prefix('disputes')->name('disputes.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');

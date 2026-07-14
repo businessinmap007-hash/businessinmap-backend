@@ -232,10 +232,13 @@ Route::prefix('v2')->group(function () {
             Route::post('check-operation', [GuaranteeController::class, 'checkOperationCoverage']);
         });
 
-        // Operation-based rating (success/cancel/dispute %) read API.
+        // Operation-based rating: objective %'s + subjective star reviews.
         Route::prefix('ratings')->group(function () {
             Route::get('me', [RatingController::class, 'me']);
             Route::get('user/{user}', [RatingController::class, 'show'])->whereNumber('user');
+            Route::get('user/{user}/reviews', [RatingController::class, 'reviews'])->whereNumber('user');
+            // Star review — gated on a real, completed operation between the parties.
+            Route::post('review', [RatingController::class, 'review']);
         });
 
         Route::prefix('bookings')->group(function () {

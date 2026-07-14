@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PasswordResetCodeMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
@@ -139,21 +141,21 @@ final class PasswordResetController extends Controller
         }
     }
 
-    /** Email the code. Best-effort — failures are logged, not surfaced. */
+    /**
+     * Email the code. Best-effort — a mail-transport failure must NOT 500 the
+     * forgot request (nor reveal that the account exists), but it IS logged as a
+     * warning with context so a broken production mailer is observable.
+     */
     private function sendCode(User $user, string $code): void
     {
         try {
-            Mail::send('emails.email', [
-                'subject' => 'إستعادة كلمة المرور - BIM',
-                'content' => ['code' => $code],
-            ], function ($m) use ($user) {
-                $m->to($user->email);
-                $m->subject('إستعادة كلمة المرور - BIM');
-                $m->from('info@businessinmap.com');
-                $m->replyTo('info@businessinmap.com');
-            });
+            Mail::to($user->email)->send(new PasswordResetCodeMail($code));
         } catch (\Throwable $e) {
-            report($e);
+            Log::warning('Password reset email failed to send.', [
+                'email' => $user->email,
+                'mailer' => config('mail.default'),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

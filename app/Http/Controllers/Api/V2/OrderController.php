@@ -28,6 +28,7 @@ final class OrderController extends Controller
     public function __construct(
         private readonly NotificationDispatcherService $notifications,
         private readonly OrderFeeSettlementService $feeSettlement,
+        private readonly \App\Services\Ratings\RatingService $ratingService,
     ) {
     }
 
@@ -256,7 +257,7 @@ final class OrderController extends Controller
      */
     private function cancelPendingOrder(callable $finder, ?string $reason): Order
     {
-        return DB::transaction(function () use ($finder, $reason) {
+        $model = DB::transaction(function () use ($finder, $reason) {
             /** @var Order|null $model */
             $model = $finder();
             if (! $model) {
@@ -280,6 +281,17 @@ final class OrderController extends Controller
 
             return $model;
         });
+
+        // Operation rating: a cancelled order counts against both parties.
+        $this->ratingService->recordForBothParties(
+            businessUserId: (int) $model->business_id,
+            clientUserId: (int) $model->user_id,
+            outcome: \App\Models\RatingOutcomeEvent::OUTCOME_CANCELLED,
+            operationType: \App\Models\RatingOutcomeEvent::OP_ORDER,
+            operationId: (int) $model->id,
+        );
+
+        return $model;
     }
 
     private function reason(Request $request): ?string

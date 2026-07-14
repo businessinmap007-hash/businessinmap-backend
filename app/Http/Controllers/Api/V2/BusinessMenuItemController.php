@@ -152,14 +152,10 @@ final class BusinessMenuItemController extends Controller
 
     // ─────────────────────────── Helpers ───────────────────────────
 
+    /** The acting business's id. The business-only gate is the `business` middleware. */
     private function businessId(Request $request): int
     {
-        $user = $request->user();
-        if (! $user->isBusiness()) {
-            abort(403, 'إدارة المنيو متاحة لحسابات الأعمال فقط.');
-        }
-
-        return (int) $user->id;
+        return (int) $request->user()->id;
     }
 
     private function ownItem(Request $request, int $itemId): MenuItem

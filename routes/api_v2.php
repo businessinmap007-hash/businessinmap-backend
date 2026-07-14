@@ -149,17 +149,20 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
-        Route::get('business/orders', [OrderController::class, 'businessIndex']);
-        Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
-        Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
-        // Prep lifecycle: accept (settles BIM fee from the business wallet) →
-        // preparing (order becomes visible to drivers) → ready.
-        Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
-        Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
-        Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+        // Business-only, gated centrally by the `business` middleware.
+        Route::middleware('business')->group(function () {
+            Route::get('business/orders', [OrderController::class, 'businessIndex']);
+            Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
+            Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
+            // Prep lifecycle: accept (settles BIM fee from the business wallet) →
+            // preparing (order becomes visible to drivers) → ready.
+            Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
+            Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
+            Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+        });
 
         // Business menu management: sections + items (+ variants/extras).
-        Route::prefix('business/menu')->group(function () {
+        Route::prefix('business/menu')->middleware('business')->group(function () {
             Route::get('sections', [BusinessMenuSectionController::class, 'index']);
             Route::post('sections', [BusinessMenuSectionController::class, 'store']);
             Route::match(['put', 'patch'], 'sections/{section}', [BusinessMenuSectionController::class, 'update'])->whereNumber('section');
@@ -256,7 +259,7 @@ Route::prefix('v2')->group(function () {
             Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
         });
 
-        Route::prefix('business/offers')->group(function () {
+        Route::prefix('business/offers')->middleware('business')->group(function () {
             Route::get('/', [BusinessOfferController::class, 'index']);
             Route::post('/', [BusinessOfferController::class, 'store']);
             Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);

@@ -53,6 +53,58 @@ final class RatingController extends Controller
         ]);
     }
 
+    /** GET /api/v2/ratings/user/{user}/reviews — star reviews a user received. */
+    public function reviews(Request $request, int $user)
+    {
+        $target = User::query()->find($user);
+
+        if (! $target) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        $perPage = min(max((int) $request->get('per_page', 20), 1), 50);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user_id' => (int) $target->id,
+                'reviews' => $this->ratings->reviewsFor((int) $target->id, $this->roleFor($target), $perPage),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v2/ratings/review — submit (or update) a star review. Only allowed
+     * for a real, completed operation the caller took part in.
+     */
+    public function review(Request $request)
+    {
+        $data = $request->validate([
+            'operation_type' => ['required', 'string', 'in:booking,order'],
+            'operation_id' => ['required', 'integer', 'min:1'],
+            'stars' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $result = $this->ratings->submitReview(
+            rater: $request->user(),
+            operationType: (string) $data['operation_type'],
+            operationId: (int) $data['operation_id'],
+            stars: (int) $data['stars'],
+            comment: $data['comment'] ?? null,
+        );
+
+        if (! $result['ok']) {
+            return response()->json(['success' => false, 'message' => $result['message']], $result['status']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حفظ التقييم.',
+            'data' => ['review' => $result['review']],
+        ], 201);
+    }
+
     private function roleFor(User $user): string
     {
         return $user->isBusiness()

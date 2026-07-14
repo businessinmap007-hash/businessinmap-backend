@@ -60,6 +60,7 @@ use App\Http\Controllers\AdminV2\{
     WalletNoteTemplateController,
     WalletOpsController,
     WalletOverviewController,
+    WalletTopupAdminController,
     WalletTransactionController
 };
 
@@ -285,6 +286,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Restaurant tables (table QR) read oversight.
         Route::get('business-tables', [BusinessTableAdminController::class, 'index'])->name('business-tables.index');
+
+        // Wallet top-ups (money-in) oversight for reconciliation.
+        Route::get('wallet-topups', [WalletTopupAdminController::class, 'index'])->name('wallet-topups.index');
 
         Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
             Route::get('/', [WalletTransactionController::class, 'index'])->name('index');

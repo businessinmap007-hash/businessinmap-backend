@@ -261,6 +261,9 @@ final class GuaranteeAutoUpgradeService
             'commercial_operations_enabled' => true,
         ])->save();
 
+        // A guarantee can't be a way to dodge service fees: force fee + rating.
+        app(\App\Services\ServiceFeeConsentEnforcer::class)->enforce($user, 'ترقية/تفعيل ضمان');
+
         return [
             'changed' => true,
             'reason' => $oldLevelId ? 'upgraded' : 'created',

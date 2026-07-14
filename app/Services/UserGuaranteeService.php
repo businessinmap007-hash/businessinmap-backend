@@ -294,6 +294,9 @@ class UserGuaranteeService
             'rating_enabled' => true,
             'commercial_operations_enabled' => true,
         ])->save();
+
+        // A guarantee can't be a way to dodge service fees: force fee + rating.
+        app(ServiceFeeConsentEnforcer::class)->enforce($user, 'شراء/تفعيل ضمان');
     }
 
     protected function resolveTargetType(User $user): string

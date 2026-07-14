@@ -155,6 +155,16 @@ class DepositsEscrowService
                 $this->hold($businessId, $businessAmount, $deposit, 'Hold business deposit');
             }
 
+            // A deposit can't be a way to dodge service fees: force fee + rating
+            // on whichever party actually posted a hold.
+            $enforcer = app(\App\Services\ServiceFeeConsentEnforcer::class);
+            if ((float) $clientAmount > 0) {
+                $enforcer->enforceById((int) $clientId, 'استخدام ديبوزت (عميل)');
+            }
+            if ((float) $businessAmount > 0) {
+                $enforcer->enforceById((int) $businessId, 'استخدام ديبوزت (نشاط)');
+            }
+
             return $deposit;
         });
     }

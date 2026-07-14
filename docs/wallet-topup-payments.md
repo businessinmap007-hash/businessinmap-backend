@@ -106,14 +106,30 @@ processor. So they are enabled **through Fawry's hosted checkout**:
   Merchant ID + processing cert tied to Fawry + domain verification, and the
   gateway's token-decrypt endpoint. Deferred.
 
-## 5. What remains (phases 3–5 — TODO)
+## 5. Phases 3–5 (DONE)
 
-3. **Methods** — card + Apple Pay + Fawry cash/kiosk via the hosted checkout;
-   confirm with Fawry which are enabled, then wire the app.
-4. **Reconciliation** — an admin view of top-ups (status + gateway ref) and a
-   safety-net status-poll job (like the old `checkFawryOrders`).
-5. **Tests** — promote the throwaway verification into permanent
-   `tests/Feature` (idempotency, bad-signature, pending→paid, no double-credit).
+3. **Methods** — `POST /wallet/topup` accepts an optional `payment_method`
+   (`card` | `apple_pay` | `google_pay` | `fawry_cash` | `mobile_wallet` |
+   `valu`). `FawryGateway::mapMethod` forces Fawry's `paymentMethod` for the
+   distinct rails (`fawry_cash`→`PayAtFawry`, `mobile_wallet`→`MWALLET`,
+   `valu`→`VALU`); card / Apple Pay / Google Pay are left to the hosted page,
+   which presents them from the card rails when enabled on the merchant. The
+   requested method is stored in the intent's `meta.requested_method`.
+4. **Reconciliation** —
+   - `App\Services\Payments\WalletTopupService` now owns settlement
+     (`markPaid` / `markFailed`), shared by the callback AND the poller so both
+     credit identically and idempotently (`wallet_topup:{id}`).
+   - `FawryGateway::fetchStatus` polls Fawry's `/ECommerceWeb/Fawry/payments/
+     status/v2` (signature = sha256(merchantCode+merchantRefNum+secKey)); returns
+     null when unconfigured/unreachable.
+   - Command `php artisan wallet:reconcile-topups {--minutes=15} {--limit=200}`
+     settles pending intents the callback missed. **Schedule it every ~5 min in
+     production once Fawry creds are set.**
+   - AdminV2 oversight page `admin/wallet-topups` (status/amount/refs/method +
+     per-status totals) under "Delivery & Tables" in the sidebar.
+5. **Tests** — `WalletTopupCallbackTest` (signature / idempotency / amount-tamper
+   / PAID / FAILED / owner-scoped) + `WalletTopupMethodsReconcileTest` (method
+   forcing, settlement idempotency, poll no-op without creds, admin view).
 
 ## 6. Go-live checklist / landmines
 

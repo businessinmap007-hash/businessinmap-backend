@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\WalletTopupResource;
 use App\Models\WalletTopup;
+use App\Services\Payments\Dtos\CallbackResult;
 use App\Services\Payments\PaymentGatewayFactory;
-use App\Services\WalletService;
+use App\Services\Payments\WalletTopupService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -20,9 +20,12 @@ use Illuminate\Support\Facades\Log;
  */
 final class WalletTopupController extends Controller
 {
+    /** App-selectable payment methods (mapped to the gateway in the gateway). */
+    private const METHODS = ['card', 'apple_pay', 'google_pay', 'fawry_cash', 'mobile_wallet', 'valu'];
+
     public function __construct(
-        private readonly WalletService $wallet,
         private readonly PaymentGatewayFactory $gateways,
+        private readonly WalletTopupService $topups,
     ) {
     }
 
@@ -36,10 +39,12 @@ final class WalletTopupController extends Controller
                 'max:' . config('services.payments.topup_max', 50000),
             ],
             'gateway' => ['nullable', 'string', 'max:40'],
+            'payment_method' => ['nullable', 'string', 'in:' . implode(',', self::METHODS)],
         ]);
 
         $user = $request->user();
         $gateway = $this->gateways->make($data['gateway'] ?? null);
+        $method = $data['payment_method'] ?? null;
 
         $topup = new WalletTopup([
             'user_id' => (int) $user->id,
@@ -58,10 +63,13 @@ final class WalletTopupController extends Controller
             'mobile' => (string) ($user->phone ?? ''),
             'email' => (string) ($user->email ?? ''),
             'name' => (string) ($user->name ?? ''),
-        ]);
+        ], $method);
 
         $topup->update([
-            'meta' => array_merge((array) $topup->meta, ['charge_request' => $charge->chargeRequest]),
+            'meta' => array_merge((array) $topup->meta, [
+                'requested_method' => $method,
+                'charge_request' => $charge->chargeRequest,
+            ]),
         ]);
 
         return (new WalletTopupResource($topup))->additional([
@@ -106,12 +114,8 @@ final class WalletTopupController extends Controller
 
         // Not a success signal → record terminal failure once, then ack.
         if (! $result->isPaid()) {
-            if ($topup->isPending() && $result->status === \App\Services\Payments\Dtos\CallbackResult::STATUS_FAILED) {
-                $topup->update([
-                    'status' => WalletTopup::STATUS_FAILED,
-                    'gateway_ref' => $result->gatewayRef,
-                    'method' => $result->method,
-                ]);
+            if ($result->status === CallbackResult::STATUS_FAILED) {
+                $this->topups->markFailed($topup, $result->gatewayRef, $result->method);
             }
 
             return response()->json(['success' => true]);
@@ -128,37 +132,7 @@ final class WalletTopupController extends Controller
             return response()->json(['success' => false, 'message' => 'amount mismatch'], 422);
         }
 
-        DB::transaction(function () use ($topup, $result) {
-            /** @var WalletTopup $locked */
-            $locked = WalletTopup::where('id', $topup->id)->lockForUpdate()->first();
-
-            if ($locked->isPaid()) {
-                return; // already credited — idempotent ack
-            }
-
-            // Credit the points wallet. Idempotency keyed on the intent id so a
-            // replayed callback can never double-credit even if gateway_ref moves.
-            $this->wallet->deposit(
-                (int) $locked->user_id,
-                $locked->amount,
-                'شحن رصيد عبر ' . $locked->gateway,
-                'wallet_topup',
-                (string) $locked->id,
-                'wallet_topup:' . $locked->id,
-                [
-                    'gateway' => $locked->gateway,
-                    'method' => $result->method,
-                    'gateway_ref' => $result->gatewayRef,
-                ],
-            );
-
-            $locked->update([
-                'status' => WalletTopup::STATUS_PAID,
-                'gateway_ref' => $result->gatewayRef,
-                'method' => $result->method,
-                'paid_at' => now(),
-            ]);
-        });
+        $this->topups->markPaid($topup, $result->gatewayRef, $result->method);
 
         return response()->json(['success' => true]);
     }

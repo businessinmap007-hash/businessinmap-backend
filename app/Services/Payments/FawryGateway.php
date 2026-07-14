@@ -5,6 +5,8 @@ namespace App\Services\Payments;
 use App\Models\WalletTopup;
 use App\Services\Payments\Dtos\CallbackResult;
 use App\Services\Payments\Dtos\ChargeResult;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Fawry (Egypt) hosted-checkout gateway. Cleaned port of the logic that lived
@@ -28,7 +30,7 @@ final class FawryGateway implements PaymentGatewayInterface
         return 'fawry';
     }
 
-    public function createCharge(WalletTopup $topup, array $customer = []): ChargeResult
+    public function createCharge(WalletTopup $topup, array $customer = [], ?string $method = null): ChargeResult
     {
         $charge = [
             'merchantCode' => (string) ($this->config['merchant_code'] ?? ''),
@@ -47,9 +49,62 @@ final class FawryGateway implements PaymentGatewayInterface
             'authCaptureModePayment' => false,
         ];
 
+        // Force a specific Fawry payment method when the app asked for one that
+        // maps to a distinct rail; card / Apple Pay / Google Pay are left to the
+        // hosted page (which presents them from the card rails when enabled).
+        $fawryMethod = $this->mapMethod($method);
+        if ($fawryMethod !== null) {
+            $charge['paymentMethod'] = $fawryMethod;
+        }
+
         $charge['signature'] = $this->signCharge($charge);
 
         return new ChargeResult('fawry', (string) $topup->merchant_ref, $this->initUrl(), $charge);
+    }
+
+    /**
+     * Poll Fawry's payment-status API for a top-up. Signature is
+     * sha256(merchantCode + merchantRefNum + secureKey). Returns null when
+     * credentials are missing or the request fails.
+     */
+    public function fetchStatus(WalletTopup $topup): ?CallbackResult
+    {
+        if ($this->securityKey() === '' || (string) ($this->config['merchant_code'] ?? '') === '') {
+            return null;
+        }
+
+        $merchantCode = (string) $this->config['merchant_code'];
+        $ref = (string) $topup->merchant_ref;
+        $signature = hash('sha256', $merchantCode . $ref . $this->securityKey());
+
+        try {
+            $base = rtrim((string) ($this->config['base_url'] ?? 'https://atfawry.com'), '/');
+            $response = Http::timeout(15)->acceptJson()->get(
+                $base . '/ECommerceWeb/Fawry/payments/status/v2',
+                ['merchantCode' => $merchantCode, 'merchantRefNumber' => $ref, 'signature' => $signature]
+            );
+
+            if (! $response->ok()) {
+                return null;
+            }
+
+            return $this->parseCallback((array) $response->json());
+        } catch (\Throwable $e) {
+            Log::warning('Fawry status poll failed.', ['ref' => $ref, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /** App-level method → Fawry `paymentMethod`, or null to leave it to the page. */
+    private function mapMethod(?string $method): ?string
+    {
+        return match ($method) {
+            'fawry_cash' => 'PayAtFawry',
+            'mobile_wallet' => 'MWALLET',
+            'valu' => 'VALU',
+            default => null, // card / apple_pay / google_pay / null → hosted page
+        };
     }
 
     public function verifyCallbackSignature(array $payload): bool

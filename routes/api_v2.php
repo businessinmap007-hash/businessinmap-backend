@@ -66,6 +66,9 @@ Route::prefix('v2')->group(function () {
         Route::get('schedules', [TripScheduleController::class, 'search']);
     });
 
+    // Vehicle/cargo classes for the scheduling service (picker + filter). Public.
+    Route::get('schedules/vehicle-types', [TripScheduleController::class, 'vehicleTypes']);
+
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {
         Route::get('filters', [DiscoveryController::class, 'filters']);

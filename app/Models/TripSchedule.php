@@ -29,9 +29,17 @@ class TripSchedule extends Model
     public const STATUS_EXPIRED = 'expired';
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const SCOPE_DOMESTIC = 'domestic';
+    public const SCOPE_INTERNATIONAL = 'international';
+
     protected $fillable = [
         'business_id',
         'mode',
+        'vehicle_type_id',
+        'vehicle_label',
+        'scope',
+        'origin_country_id',
+        'destination_country_id',
         'origin_governorate_id',
         'origin_city_id',
         'destination_governorate_id',
@@ -54,6 +62,9 @@ class TripSchedule extends Model
 
     protected $casts = [
         'business_id' => 'integer',
+        'vehicle_type_id' => 'integer',
+        'origin_country_id' => 'integer',
+        'destination_country_id' => 'integer',
         'origin_governorate_id' => 'integer',
         'origin_city_id' => 'integer',
         'destination_governorate_id' => 'integer',
@@ -77,9 +88,29 @@ class TripSchedule extends Model
         return [self::PATTERN_WEEKLY, self::PATTERN_ONE_OFF, self::PATTERN_ON_DEMAND];
     }
 
+    public static function scopes(): array
+    {
+        return [self::SCOPE_DOMESTIC, self::SCOPE_INTERNATIONAL];
+    }
+
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    public function vehicleType(): BelongsTo
+    {
+        return $this->belongsTo(PlatformServiceItemType::class, 'vehicle_type_id');
+    }
+
+    public function originCountry(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'origin_country_id');
+    }
+
+    public function destinationCountry(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'destination_country_id');
     }
 
     public function originGovernorate(): BelongsTo

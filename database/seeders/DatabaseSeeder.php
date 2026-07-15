@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
 
        PlatformServiceSeeder::class,
+           ScheduleVehicleTypesSeeder::class,
            // ServiceFeesSeeder::class,
          
             // CategorySeeder::class,

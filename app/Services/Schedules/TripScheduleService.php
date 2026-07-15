@@ -31,8 +31,14 @@ final class TripScheduleService
     {
         $originGov = (int) ($filters['origin_governorate_id'] ?? 0);
         $destGov = (int) ($filters['destination_governorate_id'] ?? 0);
+        $originCountry = (int) ($filters['origin_country_id'] ?? 0);
+        $destCountry = (int) ($filters['destination_country_id'] ?? 0);
 
-        if ($originGov <= 0 || $destGov <= 0) {
+        $hasGovPair = $originGov > 0 && $destGov > 0;
+        $hasCountryPair = $originCountry > 0 && $destCountry > 0;
+
+        // Need one full anchor pair: governorate (domestic) or country (intl).
+        if (! $hasGovPair && ! $hasCountryPair) {
             return collect();
         }
 
@@ -40,16 +46,35 @@ final class TripScheduleService
 
         $query = TripSchedule::query()
             ->active()
-            ->where('origin_governorate_id', $originGov)
-            ->where('destination_governorate_id', $destGov)
             ->with([
                 'business:id,name,logo,image',
                 'originGovernorate:id,name_ar,name_en',
                 'destinationGovernorate:id,name_ar,name_en',
+                'originCountry:id,name_ar,name_en',
+                'destinationCountry:id,name_ar,name_en',
+                'vehicleType:id,key,name_ar,name_en',
             ]);
+
+        if ($hasGovPair) {
+            $query->where('origin_governorate_id', $originGov)
+                ->where('destination_governorate_id', $destGov);
+        }
+
+        if ($hasCountryPair) {
+            $query->where('origin_country_id', $originCountry)
+                ->where('destination_country_id', $destCountry);
+        }
 
         if (! empty($filters['mode'])) {
             $query->where('mode', (string) $filters['mode']);
+        }
+
+        if (! empty($filters['scope'])) {
+            $query->where('scope', (string) $filters['scope']);
+        }
+
+        if (! empty($filters['vehicle_type_id'])) {
+            $query->where('vehicle_type_id', (int) $filters['vehicle_type_id']);
         }
 
         if ($dayOfWeek !== null) {

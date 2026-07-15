@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformService;
+use App\Models\PlatformServiceItemType;
 use App\Models\TripSchedule;
 use App\Services\Schedules\TripScheduleService;
 use Illuminate\Http\Request;
@@ -24,8 +26,13 @@ final class TripScheduleController extends Controller
     public function search(Request $request, TripScheduleService $service)
     {
         $filters = $request->validate([
-            'origin_governorate_id' => ['required', 'integer', 'exists:governorates,id'],
-            'destination_governorate_id' => ['required', 'integer', 'exists:governorates,id'],
+            // Anchor by governorate pair (domestic) OR country pair (international).
+            'origin_governorate_id' => ['nullable', 'integer', 'exists:governorates,id', 'required_without:origin_country_id'],
+            'destination_governorate_id' => ['nullable', 'integer', 'exists:governorates,id', 'required_without:destination_country_id'],
+            'origin_country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'destination_country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'scope' => ['nullable', Rule::in(TripSchedule::scopes())],
+            'vehicle_type_id' => ['nullable', 'integer'],
             'date' => ['nullable', 'date'],
             'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'mode' => ['nullable', Rule::in(TripSchedule::modes())],
@@ -41,6 +48,41 @@ final class TripScheduleController extends Controller
             'success' => true,
             'data' => ['results' => $results, 'count' => $results->count()],
         ]);
+    }
+
+    /**
+     * The platform-standard vehicle/cargo classes for the scheduling service —
+     * the picker for both the carrier's publish form and the customer's filter.
+     * Optional ?mode= narrows to one trip mode.
+     */
+    public function vehicleTypes(Request $request)
+    {
+        $service = PlatformService::query()->where('key', PlatformService::KEY_SCHEDULES)->first();
+
+        if (! $service) {
+            return response()->json(['success' => true, 'data' => ['vehicle_types' => []]]);
+        }
+
+        $mode = trim((string) $request->get('mode', ''));
+
+        $types = PlatformServiceItemType::query()
+            ->forService((int) $service->id)
+            ->active()
+            ->ordered()
+            ->get()
+            ->filter(fn (PlatformServiceItemType $t) => $mode === '' || (string) data_get($t->meta, 'mode') === $mode)
+            ->map(fn (PlatformServiceItemType $t) => [
+                'id' => (int) $t->id,
+                'key' => (string) $t->key,
+                'name' => $t->displayName(),
+                'mode' => data_get($t->meta, 'mode'),
+                'scope' => data_get($t->meta, 'scope'),
+                'default_unit' => data_get($t->meta, 'default_unit'),
+                'is_default' => (bool) $t->is_default,
+            ])
+            ->values();
+
+        return response()->json(['success' => true, 'data' => ['vehicle_types' => $types]]);
     }
 
     /** The calling business's own published schedules. */
@@ -130,13 +172,21 @@ final class TripScheduleController extends Controller
     private function validatedData(Request $request, int $businessId, ?TripSchedule $existing = null): array
     {
         $pattern = (string) $request->input('schedule_pattern', $existing->schedule_pattern ?? TripSchedule::PATTERN_WEEKLY);
+        $scope = (string) $request->input('scope', $existing->scope ?? TripSchedule::SCOPE_DOMESTIC);
+        $isIntl = $scope === TripSchedule::SCOPE_INTERNATIONAL;
 
         $data = $request->validate([
             'mode' => ['required', Rule::in(TripSchedule::modes())],
-            'origin_governorate_id' => ['required', 'integer', 'exists:governorates,id'],
+            'vehicle_type_id' => ['nullable', 'integer', 'exists:platform_service_item_types,id'],
+            'vehicle_label' => ['nullable', 'string', 'max:120'],
+            'scope' => ['nullable', Rule::in(TripSchedule::scopes())],
+            // Domestic legs anchor on governorate; international on country.
+            'origin_governorate_id' => [Rule::requiredIf(! $isIntl), 'nullable', 'integer', 'exists:governorates,id'],
             'origin_city_id' => ['nullable', 'integer', 'exists:cities,id'],
-            'destination_governorate_id' => ['required', 'integer', 'exists:governorates,id', 'different:origin_governorate_id'],
+            'destination_governorate_id' => [Rule::requiredIf(! $isIntl), 'nullable', 'integer', 'exists:governorates,id'],
             'destination_city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            'origin_country_id' => [Rule::requiredIf($isIntl), 'nullable', 'integer', 'exists:countries,id'],
+            'destination_country_id' => [Rule::requiredIf($isIntl), 'nullable', 'integer', 'exists:countries,id'],
             'schedule_pattern' => ['required', Rule::in(TripSchedule::patterns())],
             'day_of_week' => [Rule::requiredIf($pattern === TripSchedule::PATTERN_WEEKLY), 'nullable', 'integer', 'between:0,6'],
             'trip_date' => [Rule::requiredIf($pattern === TripSchedule::PATTERN_ONE_OFF), 'nullable', 'date'],
@@ -171,6 +221,31 @@ final class TripScheduleController extends Controller
             }
         }
 
+        // Origin and destination must differ, on whichever axis anchors the leg.
+        if ($isIntl) {
+            if (! empty($data['origin_country_id']) && (int) $data['origin_country_id'] === (int) ($data['destination_country_id'] ?? 0)) {
+                throw ValidationException::withMessages(['destination_country_id' => 'دولة الوصول يجب أن تختلف عن دولة المصدر.']);
+            }
+        } else {
+            if (! empty($data['origin_governorate_id']) && (int) $data['origin_governorate_id'] === (int) ($data['destination_governorate_id'] ?? 0)) {
+                throw ValidationException::withMessages(['destination_governorate_id' => 'محافظة الوصول يجب أن تختلف عن محافظة المصدر.']);
+            }
+        }
+
+        // A vehicle type must belong to the scheduling service (not another one).
+        if (! empty($data['vehicle_type_id'])) {
+            $serviceId = PlatformService::query()->where('key', PlatformService::KEY_SCHEDULES)->value('id');
+            $ok = PlatformServiceItemType::query()
+                ->whereKey((int) $data['vehicle_type_id'])
+                ->where('platform_service_id', (int) $serviceId)
+                ->exists();
+
+            if (! $ok) {
+                throw ValidationException::withMessages(['vehicle_type_id' => 'نوع المركبة غير صالح لخدمة الجدولة.']);
+            }
+        }
+
+        $data['scope'] = $isIntl ? TripSchedule::SCOPE_INTERNATIONAL : TripSchedule::SCOPE_DOMESTIC;
         $data['is_return_leg'] = $request->boolean('is_return_leg', (bool) ($existing->is_return_leg ?? false));
         $data['currency'] = (string) ($data['currency'] ?? ($existing->currency ?? 'EGP'));
         $data['status'] = (string) ($data['status'] ?? ($existing->status ?? TripSchedule::STATUS_ACTIVE));
@@ -189,13 +264,24 @@ final class TripScheduleController extends Controller
                 'logo' => $s->business->logo,
             ] : null,
             'mode' => (string) $s->mode,
+            'vehicle_type' => $s->vehicle_type_id ? [
+                'id' => (int) $s->vehicle_type_id,
+                'key' => optional($s->vehicleType)->key,
+                'name' => $s->relationLoaded('vehicleType') && $s->vehicleType ? $s->vehicleType->displayName() : null,
+            ] : null,
+            'vehicle_label' => $s->vehicle_label,
+            'scope' => (string) $s->scope,
             'origin' => [
-                'governorate_id' => (int) $s->origin_governorate_id,
+                'country_id' => $s->origin_country_id ? (int) $s->origin_country_id : null,
+                'country' => optional($s->originCountry)->name_ar,
+                'governorate_id' => $s->origin_governorate_id ? (int) $s->origin_governorate_id : null,
                 'governorate' => optional($s->originGovernorate)->name_ar,
                 'city_id' => $s->origin_city_id ? (int) $s->origin_city_id : null,
             ],
             'destination' => [
-                'governorate_id' => (int) $s->destination_governorate_id,
+                'country_id' => $s->destination_country_id ? (int) $s->destination_country_id : null,
+                'country' => optional($s->destinationCountry)->name_ar,
+                'governorate_id' => $s->destination_governorate_id ? (int) $s->destination_governorate_id : null,
                 'governorate' => optional($s->destinationGovernorate)->name_ar,
                 'city_id' => $s->destination_city_id ? (int) $s->destination_city_id : null,
             ],

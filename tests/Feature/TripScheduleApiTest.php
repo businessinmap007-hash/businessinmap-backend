@@ -306,6 +306,34 @@ class TripScheduleApiTest extends TestCase
         $this->assertContains($id, collect($res->json('data.results'))->pluck('schedule.id')->all());
     }
 
+    public function test_search_can_filter_by_city(): void
+    {
+        $cities = \App\Models\City::query()->orderBy('id')->limit(2)->pluck('id');
+        if ($cities->count() < 2) {
+            $this->markTestSkipped('Needs 2 cities.');
+        }
+
+        Sanctum::actingAs($this->business);
+        $id = (int) $this->postJson('/api/v2/business/schedules', $this->payload([
+            'origin_city_id' => (int) $cities[0],
+            'destination_city_id' => (int) $cities[1],
+        ]))->json('data.schedule.id');
+
+        $base = [
+            'origin_governorate_id' => $this->cairo,
+            'destination_governorate_id' => $this->damietta,
+            'day_of_week' => 0,
+        ];
+
+        // Matching origin city → included.
+        $hit = $this->getJson('/api/v2/search/schedules?'.http_build_query($base + ['origin_city_id' => (int) $cities[0]]));
+        $this->assertContains($id, collect($hit->json('data.results'))->pluck('schedule.id')->all());
+
+        // A different origin city → excluded.
+        $miss = $this->getJson('/api/v2/search/schedules?'.http_build_query($base + ['origin_city_id' => (int) $cities[1]]));
+        $this->assertNotContains($id, collect($miss->json('data.results'))->pluck('schedule.id')->all());
+    }
+
     public function test_countries_lookup_for_international_picker(): void
     {
         Country::updateOrCreate(['iso2' => 'SA'], ['name_ar' => 'السعودية', 'name_en' => 'Saudi Arabia']);

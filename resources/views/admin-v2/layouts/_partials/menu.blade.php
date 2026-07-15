@@ -36,92 +36,96 @@
     };
 
     $menu = [
-        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
-        ['label' => 'Users', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
-        ['label' => 'Classification & Catalog', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
-            ['label' => 'Categories', 'type' => 'section', 'children' => [
-                ['label' => 'Root Categories', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
-                ['label' => 'Category Children', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
-                ['label' => 'Category Child Options', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
-                ['label' => 'Options', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
-                ['label' => 'Option Groups', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
+        ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
+        ['label' => 'المستخدمون', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
+        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+            ['label' => 'التصنيفات', 'type' => 'section', 'children' => [
+                ['label' => 'التصنيفات الرئيسية', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
+                ['label' => 'التصنيفات الفرعية', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
+                ['label' => 'خيارات التصنيفات الفرعية', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+                ['label' => 'الخيارات', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
+                ['label' => 'مجموعات الخيارات', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
             ]],
-            ['label' => 'Product Catalog', 'type' => 'section', 'children' => [
-                ['label' => 'Catalog Products', 'route' => 'admin.catalog-products.index', 'active' => 'admin.catalog-products.'],
-                ['label' => 'Product Categories', 'route' => 'admin.product-categories.index', 'active' => 'admin.product-categories.'],
-                ['label' => 'Product Category Children', 'route' => 'admin.product-category-children.index', 'active' => 'admin.product-category-children.'],
-                ['label' => 'Catalog Brands', 'route' => 'admin.catalog-brands.index', 'active' => 'admin.catalog-brands.'],
-                ['label' => 'Catalog Manufacturers', 'route' => 'admin.catalog-manufacturers.index', 'active' => 'admin.catalog-manufacturers.'],
-                ['label' => 'Units', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
-                ['label' => 'Attributes', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
-            ]],
-        ]],
-        ['label' => 'Services & Pricing', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
-            ['label' => 'Service Setup', 'type' => 'section', 'children' => [
-                ['label' => 'Platform Services', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
-                ['label' => 'Platform Service Item Types', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
-                ['label' => 'Item Type Branches', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
-                ['label' => 'Service Branch Board', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
-                ['label' => 'Service Catalog Matrix', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
-            ]],
-            ['label' => 'Linking & Pricing', 'type' => 'section', 'children' => [
-                ['label' => 'Category Services Bulk', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
-                ['label' => 'Business Service Prices', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
-                ['label' => 'Fee Promotions', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
-            ]],
-            ['label' => 'Commercial Operations', 'type' => 'section', 'children' => [
-                ['label' => 'Business Partnerships', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
-                ['label' => 'Bookable Allocations', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
-                ['label' => 'Commercial Offers', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
-            ]],
-            ['label' => 'Offers & Marketing', 'type' => 'section', 'children' => [
-                ['label' => 'Offer Performance', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
-                ['label' => 'Offer Boost Packages', 'route' => 'admin.offer-boost-packages.index', 'active' => 'admin.offer-boost-packages.'],
-                ['label' => 'Offer Follows', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],
-                ['label' => 'Business Offers Subscriptions', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
-                ['label' => 'Notification Center', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
+            ['label' => 'كتالوج المنتجات', 'type' => 'section', 'children' => [
+                ['label' => 'منتجات الكتالوج', 'route' => 'admin.catalog-products.index', 'active' => 'admin.catalog-products.'],
+                ['label' => 'تصنيفات المنتجات', 'route' => 'admin.product-categories.index', 'active' => 'admin.product-categories.'],
+                ['label' => 'التصنيفات الفرعية للمنتجات', 'route' => 'admin.product-category-children.index', 'active' => 'admin.product-category-children.'],
+                ['label' => 'العلامات التجارية', 'route' => 'admin.catalog-brands.index', 'active' => 'admin.catalog-brands.'],
+                ['label' => 'المصنّعون', 'route' => 'admin.catalog-manufacturers.index', 'active' => 'admin.catalog-manufacturers.'],
+                ['label' => 'الوحدات', 'route' => 'admin.catalog-units.index', 'active' => 'admin.catalog-units.'],
+                ['label' => 'الخصائص', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
             ]],
         ]],
-        ['label' => 'Operations', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.'], 'children' => [
-            ['label' => 'Bookings', 'type' => 'section', 'children' => [
-                ['label' => 'All Bookings', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
-                ['label' => 'Create Booking', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
-                ['label' => 'Bookable Items', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
-                ['label' => 'Create Bookable Item', 'route' => 'admin.bookable-items.create', 'active_routes' => ['admin.bookable-items.create']],
-                ['label' => 'Bookable Bulk Operations', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
-                ['label' => 'Disputes', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
+        ['label' => 'الخدمات والتسعير', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
+            ['label' => 'إعداد الخدمات', 'type' => 'section', 'children' => [
+                ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
+                ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
+                ['label' => 'فروع أنواع العناصر', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
+                ['label' => 'لوحة فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
+                ['label' => 'مصفوفة كتالوج الخدمات', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
             ]],
-            ['label' => 'Menu', 'type' => 'section', 'children' => [
-                ['label' => 'Menu Items', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
-                ['label' => 'Create Menu Item', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+            ['label' => 'الربط والتسعير', 'type' => 'section', 'children' => [
+                ['label' => 'ربط الخدمات بالتصنيفات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
+                ['label' => 'أسعار خدمات الأعمال', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
+                ['label' => 'عروض الرسوم', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
+            ]],
+            ['label' => 'العمليات التجارية', 'type' => 'section', 'children' => [
+                ['label' => 'شراكات الأعمال', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
+                ['label' => 'مخصصات الحجز', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
+                ['label' => 'العروض التجارية', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
+            ]],
+            ['label' => 'العروض والتسويق', 'type' => 'section', 'children' => [
+                ['label' => 'أداء العروض', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
+                ['label' => 'باقات تعزيز العروض', 'route' => 'admin.offer-boost-packages.index', 'active' => 'admin.offer-boost-packages.'],
+                ['label' => 'متابعات العروض', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],
+                ['label' => 'اشتراكات عروض الأعمال', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
+                ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => 'Wallet & Finance', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
-            ['label' => 'Wallet Overview', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
-            ['label' => 'Wallet Transactions', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],
-            ['label' => 'Wallet Recharge', 'route' => 'admin.wallet-ops.recharge.form', 'active' => 'admin.wallet-ops.'],
-            ['label' => 'Guarantees', 'route' => 'admin.guarantees.index', 'active' => 'admin.guarantees.'],
-            ['label' => 'Guarantee Levels', 'route' => 'admin.guarantee-levels.index', 'active' => 'admin.guarantee-levels.'],
-            ['label' => 'Wallet Notes', 'route' => 'admin.wallet-notes.index', 'active' => 'admin.wallet-notes.'],
-            ['label' => 'Payments', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
-            ['label' => 'Subscriptions', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
+        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.'], 'children' => [
+            ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
+                ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
+                ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
+                ['label' => 'عناصر الحجز', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
+                ['label' => 'إنشاء عنصر حجز', 'route' => 'admin.bookable-items.create', 'active_routes' => ['admin.bookable-items.create']],
+                ['label' => 'عمليات الحجز الجماعية', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
+                ['label' => 'النزاعات', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
+            ]],
+            ['label' => 'المنيو', 'type' => 'section', 'children' => [
+                ['label' => 'عناصر المنيو', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
+                ['label' => 'إنشاء عنصر منيو', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+            ]],
         ]],
-        ['label' => 'Delivery & Tables', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [
-            ['label' => 'Delivery Drivers', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
-            ['label' => 'Delivery Completions', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
-            ['label' => 'Restaurant Tables', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
-            ['label' => 'Wallet Top-ups', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
+        ['label' => 'الجدولة والخطوط', 'route' => 'admin.trip-schedules.index', 'icon' => 'ticket', 'active' => ['admin.trip-schedules.'], 'children' => [
+            ['label' => 'خطوط التشغيل', 'route' => 'admin.trip-schedules.index', 'active_routes' => ['admin.trip-schedules.index']],
+            ['label' => 'حجوزات الرحلات', 'route' => 'admin.trip-schedules.reservations', 'active_routes' => ['admin.trip-schedules.reservations']],
         ]],
-        ['label' => 'Content', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
-            ['label' => 'Posts', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],
-            ['label' => 'Jobs', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],
-            ['label' => 'Sponsors', 'route' => 'admin.sponsors.index', 'active' => 'admin.sponsors.'],
-            ['label' => 'Albums', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
+        ['label' => 'المحفظة والمالية', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
+            ['label' => 'نظرة عامة على المحفظة', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
+            ['label' => 'معاملات المحفظة', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],
+            ['label' => 'شحن المحفظة', 'route' => 'admin.wallet-ops.recharge.form', 'active' => 'admin.wallet-ops.'],
+            ['label' => 'الضمانات', 'route' => 'admin.guarantees.index', 'active' => 'admin.guarantees.'],
+            ['label' => 'مستويات الضمان', 'route' => 'admin.guarantee-levels.index', 'active' => 'admin.guarantee-levels.'],
+            ['label' => 'ملاحظات المحفظة', 'route' => 'admin.wallet-notes.index', 'active' => 'admin.wallet-notes.'],
+            ['label' => 'المدفوعات', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
+            ['label' => 'الاشتراكات', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
+        ]],
+        ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [
+            ['label' => 'سائقو التوصيل', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
+            ['label' => 'عمليات التوصيل المكتملة', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
+            ['label' => 'طاولات المطاعم', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
+            ['label' => 'شحن الأرصدة', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
+        ]],
+        ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
+            ['label' => 'المنشورات', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],
+            ['label' => 'الوظائف', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],
+            ['label' => 'الرعاة', 'route' => 'admin.sponsors.index', 'active' => 'admin.sponsors.'],
+            ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
         ]],
         // App-level integration credentials (paste-and-go, no redeploy).
-        ['label' => 'App Settings', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.'], 'children' => [
-            ['label' => 'Payment Gateway (Fawry)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
-            ['label' => 'Push Notifications (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
+        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.'], 'children' => [
+            ['label' => 'بوابة الدفع (فوري)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
+            ['label' => 'الإشعارات (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
         ]],
     ];
 @endphp

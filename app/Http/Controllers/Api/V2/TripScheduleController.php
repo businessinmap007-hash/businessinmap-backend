@@ -34,6 +34,7 @@ final class TripScheduleController extends Controller
         $results = $service->search($filters)->map(fn (array $row) => [
             'schedule' => $this->serialize($row['schedule']),
             'trust' => $row['trust'],
+            'remaining_capacity' => $row['remaining_capacity'],
         ]);
 
         return response()->json([

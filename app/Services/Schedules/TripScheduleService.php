@@ -19,7 +19,8 @@ use Illuminate\Support\Collection;
 final class TripScheduleService
 {
     public function __construct(
-        private readonly RatingService $ratings
+        private readonly RatingService $ratings,
+        private readonly TripReservationService $reservations
     ) {}
 
     /**
@@ -65,13 +66,18 @@ final class TripScheduleService
             $schedules->pluck('business_id')->map(fn ($id) => (int) $id)->unique()->all()
         );
 
+        $remaining = $this->reservations->remainingCapacityFor(
+            $schedules->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+
         return $schedules
-            ->map(function (TripSchedule $schedule) use ($trustByBusiness) {
+            ->map(function (TripSchedule $schedule) use ($trustByBusiness, $remaining) {
                 $trust = $trustByBusiness[(int) $schedule->business_id] ?? $this->emptyTrust();
 
                 return [
                     'schedule' => $schedule,
                     'trust' => $trust,
+                    'remaining_capacity' => $remaining[(int) $schedule->id] ?? null,
                     'rank_key' => $this->rankKey($trust),
                 ];
             })

@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\TableController;
+use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
@@ -274,11 +275,27 @@ Route::prefix('v2')->group(function () {
             Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
         });
 
+        // Scheduling/routes: customer reserves capacity on a leg, lists own
+        // reservations, cancels. Open to any authenticated user.
+        Route::prefix('schedules')->group(function () {
+            Route::get('my-reservations', [TripReservationController::class, 'myReservations']);
+            Route::post('{schedule}/reserve', [TripReservationController::class, 'reserve'])->whereNumber('schedule');
+            Route::post('reservations/{reservation}/cancel', [TripReservationController::class, 'cancel'])->whereNumber('reservation');
+        });
+
         // Scheduling/routes service: a business publishes + manages its own trip
-        // legs (freight / passenger / limousine / distribution), incl. backhaul.
+        // legs (freight / passenger / limousine / distribution), incl. backhaul,
+        // and handles the reservations that come in against them.
         Route::prefix('business/schedules')->middleware('business')->group(function () {
             Route::get('/', [TripScheduleController::class, 'index']);
             Route::post('/', [TripScheduleController::class, 'store']);
+
+            // Incoming reservations for the carrier: list + confirm/complete/reject.
+            Route::get('reservations', [TripReservationController::class, 'incoming']);
+            Route::post('reservations/{reservation}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('reservation');
+            Route::post('reservations/{reservation}/complete', [TripReservationController::class, 'complete'])->whereNumber('reservation');
+            Route::post('reservations/{reservation}/reject', [TripReservationController::class, 'reject'])->whereNumber('reservation');
+
             Route::match(['put', 'patch'], '{schedule}', [TripScheduleController::class, 'update'])->whereNumber('schedule');
             Route::delete('{schedule}', [TripScheduleController::class, 'destroy'])->whereNumber('schedule');
         });

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Country;
 use App\Models\Governorate;
+use App\Models\PlatformServiceItemType;
 use App\Models\TripSchedule;
 use App\Models\User;
 use App\Models\UserGuarantee;
@@ -221,6 +223,82 @@ class TripScheduleApiTest extends TestCase
 
         Sanctum::actingAs($this->otherBusiness);
         $this->deleteJson("/api/v2/business/schedules/{$id}")->assertNotFound();
+    }
+
+    public function test_vehicle_types_lookup_lists_classes_by_mode(): void
+    {
+        $res = $this->getJson('/api/v2/schedules/vehicle-types?mode=passenger');
+        $res->assertOk();
+
+        $keys = collect($res->json('data.vehicle_types'))->pluck('key')->all();
+        $this->assertContains('passenger_minibus', $keys);
+        $this->assertNotContains('container_20ft', $keys); // that is freight/international
+    }
+
+    public function test_publish_with_vehicle_type_is_searchable_and_filterable(): void
+    {
+        $minibus = (int) PlatformServiceItemType::query()->where('key', 'passenger_minibus')->value('id');
+
+        Sanctum::actingAs($this->business);
+        $create = $this->postJson('/api/v2/business/schedules', $this->payload([
+            'mode' => TripSchedule::MODE_PASSENGER,
+            'vehicle_type_id' => $minibus,
+            'vehicle_label' => 'هيونداي H1',
+        ]));
+        $create->assertCreated()
+            ->assertJsonPath('data.schedule.vehicle_type.id', $minibus)
+            ->assertJsonPath('data.schedule.vehicle_label', 'هيونداي H1');
+        $id = (int) $create->json('data.schedule.id');
+
+        $res = $this->getJson('/api/v2/search/schedules?'.http_build_query([
+            'origin_governorate_id' => $this->cairo,
+            'destination_governorate_id' => $this->damietta,
+            'day_of_week' => 0,
+            'vehicle_type_id' => $minibus,
+        ]));
+        $this->assertContains($id, collect($res->json('data.results'))->pluck('schedule.id')->all());
+    }
+
+    public function test_international_leg_anchors_on_country(): void
+    {
+        // Self-sufficient: create two throwaway countries (rolled back).
+        $countries = collect([
+            Country::create(['name_ar' => 'دولة أ', 'name_en' => 'Country A', 'iso2' => 'XA']),
+            Country::create(['name_ar' => 'دولة ب', 'name_en' => 'Country B', 'iso2' => 'XB']),
+        ])->pluck('id');
+        $container = (int) PlatformServiceItemType::query()->where('key', 'container_20ft')->value('id');
+
+        Sanctum::actingAs($this->business);
+        $create = $this->postJson('/api/v2/business/schedules', [
+            'mode' => TripSchedule::MODE_FREIGHT,
+            'scope' => 'international',
+            'origin_country_id' => (int) $countries[0],
+            'destination_country_id' => (int) $countries[1],
+            'vehicle_type_id' => $container,
+            'schedule_pattern' => TripSchedule::PATTERN_ON_DEMAND,
+            'capacity' => 28,
+            'capacity_unit' => 'cbm',
+            'price' => 5000,
+        ]);
+        $create->assertCreated()->assertJsonPath('data.schedule.scope', 'international');
+        $id = (int) $create->json('data.schedule.id');
+
+        // Found by country pair (no governorate involved).
+        $res = $this->getJson('/api/v2/search/schedules?'.http_build_query([
+            'origin_country_id' => (int) $countries[0],
+            'destination_country_id' => (int) $countries[1],
+        ]));
+        $this->assertContains($id, collect($res->json('data.results'))->pluck('schedule.id')->all());
+    }
+
+    public function test_international_requires_a_country_pair(): void
+    {
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/business/schedules', [
+            'mode' => TripSchedule::MODE_FREIGHT,
+            'scope' => 'international',
+            'schedule_pattern' => TripSchedule::PATTERN_ON_DEMAND,
+        ])->assertStatus(422)->assertJsonValidationErrors('origin_country_id');
     }
 
     public function test_client_account_is_rejected(): void

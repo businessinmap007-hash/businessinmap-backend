@@ -7,7 +7,8 @@ use App\Models\UserGuarantee;
 class GuaranteeScoreService
 {
     public function __construct(
-        protected GuaranteeAutoDowngradeService $guaranteeAutoDowngradeService
+        protected GuaranteeAutoDowngradeService $guaranteeAutoDowngradeService,
+        protected GuaranteeBoostEvaluator $boostEvaluator
     ) {
     }
 
@@ -60,9 +61,11 @@ class GuaranteeScoreService
             || (int) $guarantee->late_cancellations_count <= (int) $level->max_late_cancellations;
 
         if ($completedOk && $scoreOk && $lostDisputesOk && $lateCancelOk) {
+            $coverage = $this->boostEvaluator->activeCoverageFor($guarantee, $level);
             $guarantee->effective_level_id = (int) $level->id;
             $guarantee->status = UserGuarantee::STATUS_ACTIVE;
-            $guarantee->current_coverage_amount = (float) $level->active_coverage_amount;
+            $guarantee->current_coverage_amount = $coverage['coverage_amount'];
+            $guarantee->is_boosted = $coverage['is_boosted'];
             $guarantee->activated_at = $guarantee->activated_at ?: now();
 
             return;
@@ -72,6 +75,7 @@ class GuaranteeScoreService
             $guarantee->effective_level_id = null;
             $guarantee->status = UserGuarantee::STATUS_PENDING_OPERATIONS;
             $guarantee->current_coverage_amount = (float) $level->pending_coverage_amount;
+            $guarantee->is_boosted = false;
         }
     }
 

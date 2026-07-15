@@ -154,6 +154,10 @@ final class GuaranteeLevelAdminController extends Controller
             'required_locked_amount' => ['required', 'numeric', 'min:0'],
             'pending_coverage_amount' => ['required', 'numeric', 'min:0'],
             'active_coverage_amount' => ['required', 'numeric', 'min:0'],
+            'boost_coverage_amount' => ['nullable', 'numeric', 'min:0', 'gte:active_coverage_amount'],
+            'boost_min_operations' => ['nullable', 'integer', 'min:0'],
+            'boost_min_success_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'boost_max_dispute_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'required_completed_operations' => ['required', 'integer', 'min:0'],
             'required_trust_score' => ['required', 'numeric', 'min:0', 'max:100'],
             'max_lost_disputes' => ['nullable', 'integer', 'min:0'],
@@ -166,6 +170,12 @@ final class GuaranteeLevelAdminController extends Controller
         $data['is_active'] = $request->boolean('is_active');
         $data['max_lost_disputes'] = $data['max_lost_disputes'] === null || $data['max_lost_disputes'] === '' ? null : (int) $data['max_lost_disputes'];
         $data['max_late_cancellations'] = $data['max_late_cancellations'] === null || $data['max_late_cancellations'] === '' ? null : (int) $data['max_late_cancellations'];
+
+        // Boost is optional: a blank coverage means "no reputation boost on this level".
+        $data['boost_coverage_amount'] = ($data['boost_coverage_amount'] ?? '') === '' ? null : round((float) $data['boost_coverage_amount'], 2);
+        $data['boost_min_operations'] = ($data['boost_min_operations'] ?? '') === '' ? null : (int) $data['boost_min_operations'];
+        $data['boost_min_success_rate'] = ($data['boost_min_success_rate'] ?? '') === '' ? null : round((float) $data['boost_min_success_rate'], 2);
+        $data['boost_max_dispute_rate'] = ($data['boost_max_dispute_rate'] ?? '') === '' ? null : round((float) $data['boost_max_dispute_rate'], 2);
         $data['meta'] = $this->decodeMeta($data['meta_json'] ?? null);
         unset($data['meta_json']);
 

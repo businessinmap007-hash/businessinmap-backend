@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 final class GuaranteeAutoDowngradeService
 {
+    public function __construct(
+        private readonly GuaranteeBoostEvaluator $boostEvaluator
+    ) {}
+
     public function syncEffectiveLevel(
         UserGuarantee $guarantee,
         ?string $referenceType = null,
@@ -61,10 +65,13 @@ final class GuaranteeAutoDowngradeService
                 $lockedGuarantee->effective_level_id = null;
                 $lockedGuarantee->status = UserGuarantee::STATUS_PENDING_OPERATIONS;
                 $lockedGuarantee->current_coverage_amount = round((float) $lockedGuarantee->pending_coverage_amount, 2);
+                $lockedGuarantee->is_boosted = false;
             } else {
+                $coverage = $this->boostEvaluator->activeCoverageFor($lockedGuarantee, $bestLevel);
                 $lockedGuarantee->effective_level_id = (int) $bestLevel->id;
                 $lockedGuarantee->status = UserGuarantee::STATUS_ACTIVE;
-                $lockedGuarantee->current_coverage_amount = round((float) $bestLevel->active_coverage_amount, 2);
+                $lockedGuarantee->current_coverage_amount = $coverage['coverage_amount'];
+                $lockedGuarantee->is_boosted = $coverage['is_boosted'];
                 $lockedGuarantee->activated_at = $lockedGuarantee->activated_at ?: now();
             }
 
@@ -202,6 +209,7 @@ final class GuaranteeAutoDowngradeService
                 $lockedGuarantee->effective_level_id = null;
                 $lockedGuarantee->status = UserGuarantee::STATUS_SUSPENDED;
                 $lockedGuarantee->current_coverage_amount = 0;
+                $lockedGuarantee->is_boosted = false;
                 $lockedGuarantee->grace_until = null;
             } else {
                 $lockedGuarantee->purchased_level_id = (int) $bestLevel->id;
@@ -211,9 +219,16 @@ final class GuaranteeAutoDowngradeService
                     : UserGuarantee::STATUS_PENDING_OPERATIONS;
                 $lockedGuarantee->pending_coverage_amount = round((float) $bestLevel->pending_coverage_amount, 2);
                 $lockedGuarantee->active_coverage_amount = round((float) $bestLevel->active_coverage_amount, 2);
-                $lockedGuarantee->current_coverage_amount = $lockedGuarantee->effective_level_id
-                    ? round((float) $bestLevel->active_coverage_amount, 2)
-                    : round((float) $bestLevel->pending_coverage_amount, 2);
+
+                if ($lockedGuarantee->effective_level_id) {
+                    $coverage = $this->boostEvaluator->activeCoverageFor($lockedGuarantee, $bestLevel);
+                    $lockedGuarantee->current_coverage_amount = $coverage['coverage_amount'];
+                    $lockedGuarantee->is_boosted = $coverage['is_boosted'];
+                } else {
+                    $lockedGuarantee->current_coverage_amount = round((float) $bestLevel->pending_coverage_amount, 2);
+                    $lockedGuarantee->is_boosted = false;
+                }
+
                 $lockedGuarantee->grace_until = null;
             }
 

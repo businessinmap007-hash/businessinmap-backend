@@ -77,6 +77,15 @@ final class TripScheduleService
             $query->where('vehicle_type_id', (int) $filters['vehicle_type_id']);
         }
 
+        // Optional finer anchor: pin the exact origin/destination city.
+        if (! empty($filters['origin_city_id'])) {
+            $query->where('origin_city_id', (int) $filters['origin_city_id']);
+        }
+
+        if (! empty($filters['destination_city_id'])) {
+            $query->where('destination_city_id', (int) $filters['destination_city_id']);
+        }
+
         if ($dayOfWeek !== null) {
             $query->matchingDay($dayOfWeek, $date);
         }

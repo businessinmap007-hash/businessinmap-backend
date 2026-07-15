@@ -32,6 +32,8 @@ final class TripScheduleController extends Controller
             'destination_governorate_id' => ['nullable', 'integer', 'exists:governorates,id', 'required_without:destination_country_id'],
             'origin_country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'destination_country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'origin_city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            'destination_city_id' => ['nullable', 'integer', 'exists:cities,id'],
             'scope' => ['nullable', Rule::in(TripSchedule::scopes())],
             'vehicle_type_id' => ['nullable', 'integer'],
             'date' => ['nullable', 'date'],

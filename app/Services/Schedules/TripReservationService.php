@@ -42,19 +42,7 @@ final class TripReservationService
             /** @var TripSchedule $locked */
             $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
 
-            // Null capacity = unlimited (e.g. on-demand). Otherwise enforce it.
-            if ($locked->capacity !== null) {
-                $held = (int) TripReservation::query()
-                    ->where('trip_schedule_id', $locked->id)
-                    ->holdingCapacity()
-                    ->sum('units');
-
-                if ($held + $units > (int) $locked->capacity) {
-                    throw ValidationException::withMessages([
-                        'units' => 'السعة المتاحة لا تكفي لهذا الحجز.',
-                    ]);
-                }
-            }
+            $this->assertCapacity($locked, $units);
 
             $unitPrice = $locked->price !== null ? round((float) $locked->price, 2) : null;
 
@@ -66,10 +54,65 @@ final class TripReservationService
                 'unit_price' => $unitPrice,
                 'total_price' => $unitPrice !== null ? round($unitPrice * $units, 2) : null,
                 'currency' => (string) $locked->currency,
+                'source' => TripReservation::SOURCE_APP,
                 'status' => TripReservation::STATUS_PENDING,
                 'notes' => $notes,
             ]);
         });
+    }
+
+    /**
+     * Carrier blocks capacity for seats sold OFF the app (a direct deal). Holds
+     * capacity like a real reservation but has no in-app client and never
+     * touches the rating ledger. Released with cancel().
+     */
+    public function blockOffline(TripSchedule $schedule, int $units, ?string $notes = null): TripReservation
+    {
+        $units = max(1, $units);
+
+        return DB::transaction(function () use ($schedule, $units, $notes) {
+            /** @var TripSchedule $locked */
+            $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
+
+            $this->assertCapacity($locked, $units);
+
+            $unitPrice = $locked->price !== null ? round((float) $locked->price, 2) : null;
+
+            return TripReservation::create([
+                'trip_schedule_id' => (int) $locked->id,
+                'business_id' => (int) $locked->business_id,
+                'client_id' => null,
+                'units' => $units,
+                'unit_price' => $unitPrice,
+                'total_price' => $unitPrice !== null ? round($unitPrice * $units, 2) : null,
+                'currency' => (string) $locked->currency,
+                'source' => TripReservation::SOURCE_OFFLINE,
+                'status' => TripReservation::STATUS_BLOCKED,
+                'notes' => $notes,
+            ]);
+        });
+    }
+
+    /**
+     * Enforce the leg's capacity against everything already holding it. Null
+     * capacity = unlimited (e.g. on-demand). Call inside the row-locked tx.
+     */
+    private function assertCapacity(TripSchedule $locked, int $units): void
+    {
+        if ($locked->capacity === null) {
+            return;
+        }
+
+        $held = (int) TripReservation::query()
+            ->where('trip_schedule_id', $locked->id)
+            ->holdingCapacity()
+            ->sum('units');
+
+        if ($held + $units > (int) $locked->capacity) {
+            throw ValidationException::withMessages([
+                'units' => 'السعة المتاحة لا تكفي لهذا الحجز.',
+            ]);
+        }
     }
 
     /** Carrier accepts a pending reservation. */
@@ -119,16 +162,21 @@ final class TripReservationService
         if (! in_array($reservation->status, [
             TripReservation::STATUS_PENDING,
             TripReservation::STATUS_CONFIRMED,
+            TripReservation::STATUS_BLOCKED,
         ], true)) {
             throw ValidationException::withMessages(['status' => 'لا يمكن إلغاء هذا الحجز في حالته الحالية.']);
         }
 
-        $wasConfirmed = $reservation->status === TripReservation::STATUS_CONFIRMED;
+        // Only a real, confirmed in-app dealing leaves a cancel on reputation.
+        // Pending requests and carrier offline holds release with no rating hit.
+        $ledgerCancel = $reservation->status === TripReservation::STATUS_CONFIRMED
+            && $reservation->source === TripReservation::SOURCE_APP
+            && (int) $reservation->client_id > 0;
 
-        return DB::transaction(function () use ($reservation, $wasConfirmed) {
+        return DB::transaction(function () use ($reservation, $ledgerCancel) {
             $reservation->update(['status' => TripReservation::STATUS_CANCELLED]);
 
-            if ($wasConfirmed) {
+            if ($ledgerCancel) {
                 $this->ratings->recordForBothParties(
                     businessUserId: (int) $reservation->business_id,
                     clientUserId: (int) $reservation->client_id,

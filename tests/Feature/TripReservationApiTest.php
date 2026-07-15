@@ -78,6 +78,16 @@ class TripReservationApiTest extends TestCase
             ->where('user_id', $userId)->where('role', $role)->value('cancelled_count');
     }
 
+    private function searchRow(int $scheduleId): array
+    {
+        $search = $this->getJson('/api/v2/search/schedules?'.http_build_query([
+            'origin_governorate_id' => $this->originGov,
+            'destination_governorate_id' => $this->destGov,
+        ]));
+
+        return collect($search->json('data.results'))->firstWhere('schedule.id', $scheduleId) ?? [];
+    }
+
     public function test_client_reserves_and_capacity_is_held(): void
     {
         $leg = $this->schedule(capacity: 2, price: 100);
@@ -166,6 +176,59 @@ class TripReservationApiTest extends TestCase
 
         $this->assertSame(0, $this->cancelledCount($this->business->id, UserOperationRating::ROLE_BUSINESS));
         $this->assertSame(0, $this->cancelledCount($this->client->id, UserOperationRating::ROLE_CLIENT));
+    }
+
+    public function test_carrier_offline_block_reduces_available_seats(): void
+    {
+        // A 14-seat microbus.
+        $leg = $this->schedule(capacity: 14, price: 50);
+
+        // The driver sold 7 seats off-app and blocks them.
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 7])
+            ->assertCreated()
+            ->assertJsonPath('data.reservation.source', 'offline')
+            ->assertJsonPath('data.reservation.status', 'blocked');
+
+        // Search now shows 7 seats left.
+        $this->assertSame(7, $this->searchRow($leg->id)['remaining_capacity']);
+
+        // A customer books 3 in-app → 4 left; blocking 5 more would overflow.
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 3])->assertCreated();
+        $this->assertSame(4, $this->searchRow($leg->id)['remaining_capacity']);
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 5])
+            ->assertStatus(422)->assertJsonValidationErrors('units');
+    }
+
+    public function test_offline_block_release_restores_capacity_without_rating(): void
+    {
+        $leg = $this->schedule(capacity: 1);
+
+        Sanctum::actingAs($this->business);
+        $rid = (int) $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])
+            ->json('data.reservation.id');
+        $this->assertSame(0, $this->searchRow($leg->id)['remaining_capacity']);
+
+        // Releasing the offline hold frees the seat and leaves reputation untouched.
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/reject")->assertOk();
+        $this->assertSame(1, $this->searchRow($leg->id)['remaining_capacity']);
+        $this->assertSame(0, $this->cancelledCount($this->business->id, UserOperationRating::ROLE_BUSINESS));
+    }
+
+    public function test_a_carrier_cannot_block_seats_on_a_foreign_schedule(): void
+    {
+        $leg = $this->schedule();
+
+        $otherBusiness = User::query()->where('type', 'business')->where('id', '!=', $this->business->id)->first();
+        if (! $otherBusiness) {
+            $this->markTestSkipped('Needs a second business.');
+        }
+
+        Sanctum::actingAs($otherBusiness);
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])->assertNotFound();
     }
 
     public function test_carrier_cannot_touch_a_reservation_that_is_not_theirs(): void

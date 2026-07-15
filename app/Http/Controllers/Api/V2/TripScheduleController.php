@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Country;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\TripSchedule;
@@ -83,6 +84,35 @@ final class TripScheduleController extends Controller
             ->values();
 
         return response()->json(['success' => true, 'data' => ['vehicle_types' => $types]]);
+    }
+
+    /**
+     * Countries for the INTERNATIONAL shipping picker only. Domestic legs choose
+     * a governorate instead; this list is not used in domestic mode. Optional
+     * ?q= filters by Arabic/English name or ISO code.
+     */
+    public function countries(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        $countries = Country::query()
+            ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
+                $w->where('name_ar', 'like', "%{$q}%")
+                    ->orWhere('name_en', 'like', "%{$q}%")
+                    ->orWhere('iso2', 'like', "%{$q}%")
+                    ->orWhere('iso3', 'like', "%{$q}%");
+            }))
+            ->orderBy('name_ar')
+            ->get(['id', 'name_ar', 'name_en', 'iso2', 'iso3', 'phone_code', 'flag'])
+            ->map(fn (Country $c) => [
+                'id' => (int) $c->id,
+                'name_ar' => $c->name_ar,
+                'name_en' => $c->name_en,
+                'iso2' => $c->iso2,
+                'flag' => $c->flag,
+            ]);
+
+        return response()->json(['success' => true, 'data' => ['countries' => $countries]]);
     }
 
     /** The calling business's own published schedules. */
@@ -195,6 +225,7 @@ final class TripScheduleController extends Controller
             'capacity' => ['nullable', 'integer', 'min:0'],
             'capacity_unit' => ['nullable', 'string', 'max:24'],
             'price' => ['nullable', 'numeric', 'min:0'],
+            'deposit_per_unit' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_return_leg' => ['nullable', 'boolean'],
             'parent_trip_id' => ['nullable', 'integer', 'exists:trip_schedules,id'],
@@ -293,6 +324,7 @@ final class TripScheduleController extends Controller
             'capacity' => $s->capacity !== null ? (int) $s->capacity : null,
             'capacity_unit' => $s->capacity_unit,
             'price' => $s->price !== null ? (float) $s->price : null,
+            'deposit_per_unit' => $s->deposit_per_unit !== null ? (float) $s->deposit_per_unit : null,
             'currency' => (string) $s->currency,
             'is_return_leg' => (bool) $s->is_return_leg,
             'parent_trip_id' => $s->parent_trip_id ? (int) $s->parent_trip_id : null,

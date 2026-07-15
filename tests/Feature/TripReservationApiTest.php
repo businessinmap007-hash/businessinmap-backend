@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\RatingOutcomeEvent;
 use App\Models\TripReservation;
 use App\Models\TripSchedule;
@@ -51,7 +52,7 @@ class TripReservationApiTest extends TestCase
         }
     }
 
-    private function schedule(int $capacity = 2, float $price = 100): TripSchedule
+    private function schedule(int $capacity = 2, float $price = 100, float $depositPerUnit = 0): TripSchedule
     {
         return TripSchedule::create([
             'business_id' => $this->business->id,
@@ -62,8 +63,17 @@ class TripReservationApiTest extends TestCase
             'capacity' => $capacity,
             'capacity_unit' => 'seat',
             'price' => $price,
+            'deposit_per_unit' => $depositPerUnit > 0 ? $depositPerUnit : null,
             'status' => TripSchedule::STATUS_ACTIVE,
         ]);
+    }
+
+    private function fundClientWallet(float $balance): void
+    {
+        \App\Models\Wallet::updateOrCreate(
+            ['user_id' => $this->client->id],
+            ['balance' => $balance, 'locked_balance' => 0, 'status' => \App\Models\Wallet::STATUS_ACTIVE]
+        );
     }
 
     private function successCount(int $userId, string $role): int
@@ -229,6 +239,57 @@ class TripReservationApiTest extends TestCase
 
         Sanctum::actingAs($otherBusiness);
         $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])->assertNotFound();
+    }
+
+    public function test_deposit_is_held_on_reserve_and_released_on_cancel(): void
+    {
+        $this->fundClientWallet(300);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $res = $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2]);
+        $res->assertCreated();
+        $this->assertSame(100.0, (float) $res->json('data.reservation.deposit_held'));
+        $rid = (int) $res->json('data.reservation.id');
+
+        // 100 moved from balance to locked.
+        $wallet = \App\Models\Wallet::query()->where('user_id', $this->client->id)->first();
+        $this->assertSame(200.0, (float) $wallet->balance);
+        $this->assertSame(100.0, (float) $wallet->locked_balance);
+
+        // Cancelling returns the held deposit.
+        $this->postJson("/api/v2/schedules/reservations/{$rid}/cancel")->assertOk();
+        $wallet->refresh();
+        $this->assertSame(300.0, (float) $wallet->balance);
+        $this->assertSame(0.0, (float) $wallet->locked_balance);
+    }
+
+    public function test_reserve_fails_when_wallet_cannot_cover_the_deposit(): void
+    {
+        $this->fundClientWallet(40); // needs 100
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])->assertStatus(422);
+
+        // Nothing was reserved (transaction rolled back), so capacity is intact.
+        $this->assertSame(0, TripReservation::query()->where('trip_schedule_id', $leg->id)->count());
+    }
+
+    public function test_reserving_notifies_the_carrier(): void
+    {
+        $leg = $this->schedule();
+
+        Sanctum::actingAs($this->client);
+        $rid = (int) $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 1])->json('data.reservation.id');
+
+        $this->assertTrue(
+            AppNotification::query()
+                ->where('user_id', $this->business->id)
+                ->where('notifiable_type', TripReservation::class)
+                ->where('notifiable_id', $rid)
+                ->exists()
+        );
     }
 
     public function test_carrier_cannot_touch_a_reservation_that_is_not_theirs(): void

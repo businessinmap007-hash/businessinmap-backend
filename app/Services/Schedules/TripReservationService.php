@@ -6,7 +6,9 @@ use App\Models\TripReservation;
 use App\Models\TripSchedule;
 use App\Models\User;
 use App\Models\UserOperationRating;
+use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Ratings\RatingService;
+use App\Services\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,7 +21,9 @@ use Illuminate\Validation\ValidationException;
 final class TripReservationService
 {
     public function __construct(
-        private readonly RatingService $ratings
+        private readonly RatingService $ratings,
+        private readonly WalletService $wallet,
+        private readonly NotificationDispatcherService $notifications
     ) {}
 
     /**
@@ -38,7 +42,7 @@ final class TripReservationService
             throw ValidationException::withMessages(['schedule' => 'لا يمكنك حجز خط تشغيل تملكه.']);
         }
 
-        return DB::transaction(function () use ($client, $schedule, $units, $notes) {
+        $reservation = DB::transaction(function () use ($client, $schedule, $units, $notes) {
             /** @var TripSchedule $locked */
             $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
 
@@ -46,7 +50,7 @@ final class TripReservationService
 
             $unitPrice = $locked->price !== null ? round((float) $locked->price, 2) : null;
 
-            return TripReservation::create([
+            $reservation = TripReservation::create([
                 'trip_schedule_id' => (int) $locked->id,
                 'business_id' => (int) $locked->business_id,
                 'client_id' => (int) $client->id,
@@ -58,7 +62,31 @@ final class TripReservationService
                 'status' => TripReservation::STATUS_PENDING,
                 'notes' => $notes,
             ]);
+
+            // Optional refundable deposit: hold it now (rolls the whole thing
+            // back — no reservation, no held capacity — if funds are short).
+            $deposit = round((float) ($locked->deposit_per_unit ?? 0) * $units, 2);
+
+            if ($deposit > 0) {
+                $this->wallet->hold(
+                    userId: (int) $client->id,
+                    amount: $deposit,
+                    referenceType: 'trip_reservation',
+                    referenceId: (string) $reservation->id,
+                    note: 'عربون حجز رحلة',
+                    idempotencyKey: 'trip_res_hold_'.$reservation->id
+                );
+
+                $reservation->update(['deposit_held' => $deposit]);
+            }
+
+            return $reservation;
         });
+
+        // Notify the carrier of the new reservation.
+        $this->notify('trip_reservation_created', (int) $reservation->business_id, (int) $client->id, $reservation);
+
+        return $reservation;
     }
 
     /**
@@ -124,6 +152,9 @@ final class TripReservationService
 
         $reservation->update(['status' => TripReservation::STATUS_CONFIRMED]);
 
+        // Notify the customer their reservation was accepted.
+        $this->notify('trip_reservation_confirmed', (int) $reservation->client_id, (int) $reservation->business_id, $reservation);
+
         return $reservation->refresh();
     }
 
@@ -137,8 +168,10 @@ final class TripReservationService
             throw ValidationException::withMessages(['status' => 'لا يمكن إكمال حجز غير مؤكد.']);
         }
 
-        return DB::transaction(function () use ($reservation) {
+        $result = DB::transaction(function () use ($reservation) {
             $reservation->update(['status' => TripReservation::STATUS_COMPLETED]);
+
+            $this->releaseDeposit($reservation);
 
             $this->ratings->recordForBothParties(
                 businessUserId: (int) $reservation->business_id,
@@ -150,6 +183,10 @@ final class TripReservationService
 
             return $reservation->refresh();
         });
+
+        $this->notify('trip_reservation_completed', (int) $reservation->client_id, (int) $reservation->business_id, $reservation);
+
+        return $result;
     }
 
     /**
@@ -157,7 +194,7 @@ final class TripReservationService
      * against reputation once the carrier had confirmed (a real dealing); a
      * never-confirmed pending request cancels with no rating impact.
      */
-    public function cancel(TripReservation $reservation): TripReservation
+    public function cancel(TripReservation $reservation, ?int $actorId = null): TripReservation
     {
         if (! in_array($reservation->status, [
             TripReservation::STATUS_PENDING,
@@ -173,8 +210,11 @@ final class TripReservationService
             && $reservation->source === TripReservation::SOURCE_APP
             && (int) $reservation->client_id > 0;
 
-        return DB::transaction(function () use ($reservation, $ledgerCancel) {
+        $result = DB::transaction(function () use ($reservation, $ledgerCancel) {
             $reservation->update(['status' => TripReservation::STATUS_CANCELLED]);
+
+            // A held deposit is always returned to the client on cancel.
+            $this->releaseDeposit($reservation);
 
             if ($ledgerCancel) {
                 $this->ratings->recordForBothParties(
@@ -188,6 +228,71 @@ final class TripReservationService
 
             return $reservation->refresh();
         });
+
+        // Tell the party that did not initiate the cancellation.
+        $recipient = $this->counterparty($reservation, $actorId);
+        $this->notify('trip_reservation_cancelled', $recipient, $actorId ?? 0, $reservation);
+
+        return $result;
+    }
+
+    private function releaseDeposit(TripReservation $reservation): void
+    {
+        $held = round((float) $reservation->deposit_held, 2);
+
+        if ($held <= 0 || ! $reservation->client_id || data_get($reservation->meta, 'deposit_released')) {
+            return;
+        }
+
+        $this->wallet->release(
+            userId: (int) $reservation->client_id,
+            amount: $held,
+            referenceType: 'trip_reservation',
+            referenceId: (string) $reservation->id,
+            note: 'استرجاع عربون حجز رحلة',
+            idempotencyKey: 'trip_res_release_'.$reservation->id
+        );
+
+        $reservation->update([
+            'meta' => array_merge((array) ($reservation->meta ?? []), ['deposit_released' => true]),
+        ]);
+    }
+
+    /** The party that did NOT act; defaults to the carrier when the actor is unknown. */
+    private function counterparty(TripReservation $reservation, ?int $actorId): int
+    {
+        if ($actorId && (int) $actorId === (int) $reservation->client_id) {
+            return (int) $reservation->business_id;
+        }
+
+        if ($actorId && (int) $actorId === (int) $reservation->business_id) {
+            return (int) ($reservation->client_id ?? 0);
+        }
+
+        return (int) $reservation->business_id;
+    }
+
+    private function notify(string $eventKey, int $recipientId, int $actorId, TripReservation $reservation): void
+    {
+        if ($recipientId <= 0) {
+            return;
+        }
+
+        try {
+            $this->notifications->dispatch($eventKey, $recipientId, [
+                'actor_id' => $actorId > 0 ? $actorId : null,
+                'notifiable_type' => TripReservation::class,
+                'notifiable_id' => (int) $reservation->id,
+                'source_id' => (int) $reservation->id,
+                'service_type' => 'schedules',
+                'meta' => [
+                    'trip_schedule_id' => (int) $reservation->trip_schedule_id,
+                    'units' => (int) $reservation->units,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Notifications are best-effort; never break the reservation flow.
+        }
     }
 
     /**

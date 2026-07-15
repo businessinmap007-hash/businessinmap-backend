@@ -291,6 +291,16 @@ class TripScheduleApiTest extends TestCase
         $this->assertContains($id, collect($res->json('data.results'))->pluck('schedule.id')->all());
     }
 
+    public function test_countries_lookup_for_international_picker(): void
+    {
+        Country::updateOrCreate(['iso2' => 'SA'], ['name_ar' => 'السعودية', 'name_en' => 'Saudi Arabia']);
+
+        $res = $this->getJson('/api/v2/schedules/countries?q=Saudi');
+        $res->assertOk();
+        $names = collect($res->json('data.countries'))->pluck('name_en')->all();
+        $this->assertContains('Saudi Arabia', $names);
+    }
+
     public function test_international_requires_a_country_pair(): void
     {
         Sanctum::actingAs($this->business);

@@ -60,7 +60,7 @@ final class TripReservationController extends Controller
             ->where('client_id', (int) $request->user()->id)
             ->firstOrFail();
 
-        $service->cancel($row);
+        $service->cancel($row, (int) $request->user()->id);
 
         return response()->json(['success' => true, 'message' => 'تم إلغاء الحجز.']);
     }
@@ -138,7 +138,7 @@ final class TripReservationController extends Controller
     public function reject(Request $request, int $reservation, TripReservationService $service)
     {
         $row = $this->carrierReservationOrFail($request, $reservation);
-        $service->cancel($row);
+        $service->cancel($row, (int) $request->user()->id);
 
         return response()->json(['success' => true, 'message' => 'تم رفض/إلغاء الحجز.']);
     }
@@ -162,6 +162,7 @@ final class TripReservationController extends Controller
             'units' => (int) $r->units,
             'unit_price' => $r->unit_price !== null ? (float) $r->unit_price : null,
             'total_price' => $r->total_price !== null ? (float) $r->total_price : null,
+            'deposit_held' => (float) $r->deposit_held,
             'currency' => (string) $r->currency,
             'status' => (string) $r->status,
             'notes' => $r->notes,

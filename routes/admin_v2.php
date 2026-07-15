@@ -32,6 +32,7 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     JobPostController,
+    TripScheduleAdminController,
     MenuItemController,
     MenuItemExtraController,
     MenuItemVariantController,
@@ -311,6 +312,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{guaranteeLevel}', [GuaranteeLevelAdminController::class, 'update'])->whereNumber('guaranteeLevel')->name('update');
             Route::delete('{guaranteeLevel}', [GuaranteeLevelAdminController::class, 'destroy'])->whereNumber('guaranteeLevel')->name('destroy');
             Route::post('{guaranteeLevel}/toggle', [GuaranteeLevelAdminController::class, 'toggle'])->whereNumber('guaranteeLevel')->name('toggle');
+        });
+
+        // Scheduling/routes service oversight (read-only).
+        Route::prefix('trip-schedules')->name('trip-schedules.')->group(function () {
+            Route::get('/', [TripScheduleAdminController::class, 'schedules'])->name('index');
+            Route::get('reservations', [TripScheduleAdminController::class, 'reservations'])->name('reservations');
         });
 
         Route::prefix('guarantees')->name('guarantees.')->group(function () {

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One published trip leg in the scheduling/routes service. See the
@@ -52,6 +53,7 @@ class TripSchedule extends Model
         'capacity',
         'capacity_unit',
         'price',
+        'deposit_per_unit',
         'currency',
         'is_return_leg',
         'parent_trip_id',
@@ -73,6 +75,7 @@ class TripSchedule extends Model
         'trip_date' => 'date',
         'capacity' => 'integer',
         'price' => 'decimal:2',
+        'deposit_per_unit' => 'decimal:2',
         'is_return_leg' => 'boolean',
         'parent_trip_id' => 'integer',
         'meta' => 'array',
@@ -126,6 +129,11 @@ class TripSchedule extends Model
     public function parentTrip(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_trip_id');
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(TripReservation::class, 'trip_schedule_id');
     }
 
     public function scopeActive(Builder $query): Builder

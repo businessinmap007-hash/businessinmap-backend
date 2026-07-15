@@ -42,6 +42,7 @@ class TripReservation extends Model
         'units',
         'unit_price',
         'total_price',
+        'deposit_held',
         'currency',
         'source',
         'status',
@@ -56,6 +57,7 @@ class TripReservation extends Model
         'units' => 'integer',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'deposit_held' => 'decimal:2',
         'meta' => 'array',
     ];
 

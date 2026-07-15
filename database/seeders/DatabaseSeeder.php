@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
 
        PlatformServiceSeeder::class,
            ScheduleVehicleTypesSeeder::class,
+           WorldCountriesSeeder::class,
            // ServiceFeesSeeder::class,
          
             // CategorySeeder::class,

@@ -68,6 +68,8 @@ Route::prefix('v2')->group(function () {
 
     // Vehicle/cargo classes for the scheduling service (picker + filter). Public.
     Route::get('schedules/vehicle-types', [TripScheduleController::class, 'vehicleTypes']);
+    // Country picker for INTERNATIONAL legs only (domestic uses governorates).
+    Route::get('schedules/countries', [TripScheduleController::class, 'countries']);
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {

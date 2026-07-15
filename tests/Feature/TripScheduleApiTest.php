@@ -235,6 +235,21 @@ class TripScheduleApiTest extends TestCase
         $this->assertNotContains('container_20ft', $keys); // that is freight/international
     }
 
+    public function test_vehicle_types_are_formally_grouped_by_mode(): void
+    {
+        $res = $this->getJson('/api/v2/schedules/vehicle-types?group=mode_freight');
+        $res->assertOk();
+
+        $types = collect($res->json('data.vehicle_types'));
+        $this->assertNotEmpty($types);
+        // Every returned class belongs to the formal freight group.
+        $this->assertTrue($types->every(fn ($t) => ($t['group']['key'] ?? null) === 'mode_freight'));
+
+        $keys = $types->pluck('key')->all();
+        $this->assertContains('container_20ft', $keys);
+        $this->assertNotContains('passenger_minibus', $keys);
+    }
+
     public function test_publish_with_vehicle_type_is_searchable_and_filterable(): void
     {
         $minibus = (int) PlatformServiceItemType::query()->where('key', 'passenger_minibus')->value('id');

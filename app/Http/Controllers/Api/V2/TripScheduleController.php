@@ -65,22 +65,30 @@ final class TripScheduleController extends Controller
         }
 
         $mode = trim((string) $request->get('mode', ''));
+        $group = trim((string) $request->get('group', ''));
 
         $types = PlatformServiceItemType::query()
             ->forService((int) $service->id)
             ->active()
+            ->with('groups:id,key,name_ar,name_en')
             ->ordered()
             ->get()
             ->filter(fn (PlatformServiceItemType $t) => $mode === '' || (string) data_get($t->meta, 'mode') === $mode)
-            ->map(fn (PlatformServiceItemType $t) => [
-                'id' => (int) $t->id,
-                'key' => (string) $t->key,
-                'name' => $t->displayName(),
-                'mode' => data_get($t->meta, 'mode'),
-                'scope' => data_get($t->meta, 'scope'),
-                'default_unit' => data_get($t->meta, 'default_unit'),
-                'is_default' => (bool) $t->is_default,
-            ])
+            ->filter(fn (PlatformServiceItemType $t) => $group === '' || $t->groups->contains('key', $group))
+            ->map(function (PlatformServiceItemType $t) {
+                $g = $t->groups->first();
+
+                return [
+                    'id' => (int) $t->id,
+                    'key' => (string) $t->key,
+                    'name' => $t->displayName(),
+                    'mode' => data_get($t->meta, 'mode'),
+                    'scope' => data_get($t->meta, 'scope'),
+                    'default_unit' => data_get($t->meta, 'default_unit'),
+                    'is_default' => (bool) $t->is_default,
+                    'group' => $g ? ['id' => (int) $g->id, 'key' => (string) $g->key, 'name' => $g->displayName()] : null,
+                ];
+            })
             ->values();
 
         return response()->json(['success' => true, 'data' => ['vehicle_types' => $types]]);

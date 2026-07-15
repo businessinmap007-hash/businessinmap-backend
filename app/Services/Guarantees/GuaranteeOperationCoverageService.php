@@ -141,6 +141,7 @@ final class GuaranteeOperationCoverageService
             'status' => $guarantee ? (string) $guarantee->status : null,
             'locked_amount' => $guarantee ? round((float) $guarantee->locked_amount, 2) : 0.0,
             'current_coverage_amount' => $guarantee ? round((float) $guarantee->current_coverage_amount, 2) : 0.0,
+            'is_boosted' => $guarantee ? (bool) $guarantee->is_boosted : false,
             'used_coverage_amount' => $guarantee ? round((float) $guarantee->used_coverage_amount, 2) : 0.0,
             'available_coverage_amount' => $guarantee ? round((float) $guarantee->availableCoverage(), 2) : 0.0,
             'purchased_level_id' => $guarantee && $guarantee->purchased_level_id ? (int) $guarantee->purchased_level_id : null,

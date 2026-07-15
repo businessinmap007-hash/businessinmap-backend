@@ -12,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 final class GuaranteeAutoUpgradeService
 {
+    public function __construct(
+        private readonly GuaranteeBoostEvaluator $boostEvaluator
+    ) {}
+
     public function autoUpgrade(
         User $user,
         ?string $targetType = null,
@@ -275,9 +279,11 @@ final class GuaranteeAutoUpgradeService
     protected function refreshCoverageStatus(UserGuarantee $guarantee, GuaranteeLevel $level): void
     {
         if ($this->qualifiesForFullCoverage($guarantee, $level)) {
+            $coverage = $this->boostEvaluator->activeCoverageFor($guarantee, $level);
             $guarantee->effective_level_id = (int) $level->id;
             $guarantee->status = UserGuarantee::STATUS_ACTIVE;
-            $guarantee->current_coverage_amount = (float) $level->active_coverage_amount;
+            $guarantee->current_coverage_amount = $coverage['coverage_amount'];
+            $guarantee->is_boosted = $coverage['is_boosted'];
             $guarantee->activated_at = $guarantee->activated_at ?: now();
 
             return;
@@ -286,6 +292,7 @@ final class GuaranteeAutoUpgradeService
         $guarantee->effective_level_id = null;
         $guarantee->status = UserGuarantee::STATUS_PENDING_OPERATIONS;
         $guarantee->current_coverage_amount = (float) $level->pending_coverage_amount;
+        $guarantee->is_boosted = false;
     }
 
     protected function qualifiesForFullCoverage(UserGuarantee $guarantee, GuaranteeLevel $level): bool

@@ -71,6 +71,31 @@
     </div>
 
     <div class="a2-card">
+        <h2 class="a2-section-title">تعزيز التغطية بالتقييم (Boost)</h2>
+        <p class="a2-help">تغطية أعلى تُمنح تلقائيًا لأصحاب التقييم الممتاز، وتُسحب فور تراجع السلوك. اترك المبلغ فارغًا لتعطيل التعزيز على هذا المستوى.</p>
+
+        <div class="a2-field">
+            <label class="a2-label">Boost Coverage Amount</label>
+            <input class="a2-input" type="number" step="0.01" min="0" name="boost_coverage_amount" value="{{ old('boost_coverage_amount', $level->boost_coverage_amount) }}" placeholder="فارغ = بدون تعزيز (مثال: active × 1.25)">
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">Boost: Min Completed Operations</label>
+            <input class="a2-input" type="number" min="0" name="boost_min_operations" value="{{ old('boost_min_operations', $level->boost_min_operations) }}" placeholder="مثال: 5">
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">Boost: Min Success Rate %</label>
+            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_min_success_rate" value="{{ old('boost_min_success_rate', $level->boost_min_success_rate) }}" placeholder="مثال: 90">
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">Boost: Max Dispute Rate %</label>
+            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_max_dispute_rate" value="{{ old('boost_max_dispute_rate', $level->boost_max_dispute_rate) }}" placeholder="مثال: 5 — فارغ = بدون حد">
+        </div>
+    </div>
+
+    <div class="a2-card">
         <h2 class="a2-section-title">شروط التأهيل</h2>
 
         <div class="a2-field">

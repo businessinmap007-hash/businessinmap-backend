@@ -45,6 +45,7 @@ class GuaranteeCoverageService
             'status' => (string) $guarantee->status,
             'locked_amount' => (float) $guarantee->locked_amount,
             'current_coverage_amount' => (float) $guarantee->current_coverage_amount,
+            'is_boosted' => (bool) $guarantee->is_boosted,
             'used_coverage_amount' => (float) $guarantee->used_coverage_amount,
             'available_coverage' => (float) $guarantee->availableCoverage(),
             'purchased_level_id' => (int) $guarantee->purchased_level_id,

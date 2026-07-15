@@ -46,6 +46,15 @@ class PlatformServiceSeeder extends Seeder
                 'supports_deposit' => false,
                 'max_deposit_percent' => 0,
             ],
+            [
+                'key' => 'schedules',
+                'name_ar' => 'الجدولة والخطوط',
+                'name_en' => 'Scheduling & Routes',
+                'is_active' => true,
+                'sort_order' => 5,
+                'supports_deposit' => true,
+                'max_deposit_percent' => 100,
+            ],
         ];
 
         foreach ($rows as $row) {

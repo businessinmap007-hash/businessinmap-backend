@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\TableController;
+use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +59,10 @@ Route::prefix('v2')->group(function () {
     Route::prefix('search')->group(function () {
         Route::get('offers', [SearchOffersController::class, 'index']);
         Route::get('business/{business}/offers', [SearchOffersController::class, 'business'])->whereNumber('business');
+
+        // Scheduling/routes: carriers on a route + day, ranked by trust
+        // (guarantee coverage + operation rating). Public discovery.
+        Route::get('schedules', [TripScheduleController::class, 'search']);
     });
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
@@ -267,6 +272,15 @@ Route::prefix('v2')->group(function () {
             Route::get('/', [OfferFollowController::class, 'index']);
             Route::post('/', [OfferFollowController::class, 'store']);
             Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
+        });
+
+        // Scheduling/routes service: a business publishes + manages its own trip
+        // legs (freight / passenger / limousine / distribution), incl. backhaul.
+        Route::prefix('business/schedules')->middleware('business')->group(function () {
+            Route::get('/', [TripScheduleController::class, 'index']);
+            Route::post('/', [TripScheduleController::class, 'store']);
+            Route::match(['put', 'patch'], '{schedule}', [TripScheduleController::class, 'update'])->whereNumber('schedule');
+            Route::delete('{schedule}', [TripScheduleController::class, 'destroy'])->whereNumber('schedule');
         });
 
         Route::prefix('business/offers')->middleware('business')->group(function () {

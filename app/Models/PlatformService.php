@@ -16,6 +16,7 @@ class PlatformService extends Model
     public const KEY_DELIVERY = 'delivery';
     public const KEY_BUSINESS_OFFERS = 'business_offers';
     public const KEY_RETAIL = 'retail';
+    public const KEY_SCHEDULES = 'schedules';
 
     protected $fillable = [
         'key',

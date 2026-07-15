@@ -18,12 +18,18 @@ class TripReservation extends Model
     public const STATUS_CONFIRMED = 'confirmed';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_BLOCKED = 'blocked'; // carrier's offline seat hold
+
+    // Where the reservation came from.
+    public const SOURCE_APP = 'app';
+    public const SOURCE_OFFLINE = 'offline';
 
     /** Statuses that hold capacity against the leg. */
     public const ACTIVE_STATUSES = [
         self::STATUS_PENDING,
         self::STATUS_CONFIRMED,
         self::STATUS_COMPLETED,
+        self::STATUS_BLOCKED,
     ];
 
     /** Rating operation type — folds trips into the universal reputation. */
@@ -37,6 +43,7 @@ class TripReservation extends Model
         'unit_price',
         'total_price',
         'currency',
+        'source',
         'status',
         'notes',
         'meta',

@@ -290,6 +290,9 @@ Route::prefix('v2')->group(function () {
             Route::get('/', [TripScheduleController::class, 'index']);
             Route::post('/', [TripScheduleController::class, 'store']);
 
+            // Carrier blocks capacity for an off-app deal (direct sale).
+            Route::post('{schedule}/block', [TripReservationController::class, 'block'])->whereNumber('schedule');
+
             // Incoming reservations for the carrier: list + confirm/complete/reject.
             Route::get('reservations', [TripReservationController::class, 'incoming']);
             Route::post('reservations/{reservation}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('reservation');

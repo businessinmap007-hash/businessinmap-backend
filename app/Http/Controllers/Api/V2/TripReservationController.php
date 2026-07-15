@@ -67,6 +67,31 @@ final class TripReservationController extends Controller
 
     // ---- Carrier (business) side ---------------------------------------
 
+    /**
+     * Carrier blocks capacity for an off-app deal (seats sold directly to a
+     * customer), so remaining_capacity stays accurate. Release via /reject.
+     */
+    public function block(Request $request, int $schedule, TripReservationService $service)
+    {
+        $data = $request->validate([
+            'units' => ['required', 'integer', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $leg = TripSchedule::query()
+            ->where('id', $schedule)
+            ->where('business_id', (int) $request->user()->id)
+            ->firstOrFail();
+
+        $hold = $service->blockOffline($leg, (int) $data['units'], $data['notes'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حجز المقاعد يدويًا (تعامل خارج التطبيق).',
+            'data' => ['reservation' => $this->serialize($hold)],
+        ], 201);
+    }
+
     public function incoming(Request $request)
     {
         $status = trim((string) $request->get('status', ''));
@@ -132,7 +157,8 @@ final class TripReservationController extends Controller
             'id' => (int) $r->id,
             'trip_schedule_id' => (int) $r->trip_schedule_id,
             'business_id' => (int) $r->business_id,
-            'client_id' => (int) $r->client_id,
+            'client_id' => $r->client_id ? (int) $r->client_id : null,
+            'source' => (string) $r->source,
             'units' => (int) $r->units,
             'unit_price' => $r->unit_price !== null ? (float) $r->unit_price : null,
             'total_price' => $r->total_price !== null ? (float) $r->total_price : null,

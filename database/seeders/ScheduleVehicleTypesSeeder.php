@@ -3,24 +3,43 @@
 namespace Database\Seeders;
 
 use App\Models\PlatformService;
+use App\Models\PlatformServiceItemGroup;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Database\Seeder;
 
 /**
  * The platform-standard vehicle/cargo classes for the scheduling service, as
- * PlatformServiceItemType rows keyed to the `schedules` service. `meta.mode`
- * groups each under its trip mode; `meta.scope` marks international-only classes
- * (containers / LCL); `meta.default_unit` seeds the capacity unit in the UI.
- * Re-runnable (updateOrCreate on key).
+ * PlatformServiceItemType rows keyed to the `schedules` service. Each class is
+ * formally grouped under its trip mode via a PlatformServiceItemGroup branch
+ * (the same mechanism booking uses: hotel/clinic/…). `meta.mode` is kept as a
+ * lightweight mirror; `meta.scope` marks international-only classes (containers
+ * / LCL); `meta.default_unit` seeds the capacity unit. Re-runnable.
  */
 class ScheduleVehicleTypesSeeder extends Seeder
 {
+    /** mode => [name_ar, name_en, sort_order] */
+    private const MODE_GROUPS = [
+        'passenger' => ['نقل الركاب', 'Passenger transport', 1],
+        'limousine' => ['ليموزين', 'Limousine', 2],
+        'freight' => ['شحن البضائع', 'Freight', 3],
+        'distribution' => ['التوزيع', 'Distribution', 4],
+    ];
+
     public function run(): void
     {
         $service = PlatformService::query()->where('key', PlatformService::KEY_SCHEDULES)->first();
 
         if (! $service) {
             return; // PlatformServiceSeeder must run first.
+        }
+
+        // Formal mode branches (PlatformServiceItemGroup), one per trip mode.
+        $groups = [];
+        foreach (self::MODE_GROUPS as $mode => [$ar, $en, $order]) {
+            $groups[$mode] = PlatformServiceItemGroup::updateOrCreate(
+                ['platform_service_id' => (int) $service->id, 'key' => 'mode_'.$mode],
+                ['name_ar' => $ar, 'name_en' => $en, 'sort_order' => $order, 'is_active' => true]
+            );
         }
 
         $types = [
@@ -48,7 +67,7 @@ class ScheduleVehicleTypesSeeder extends Seeder
         ];
 
         foreach ($types as $i => [$key, $ar, $en, $mode, $scope, $unit, $isDefault]) {
-            PlatformServiceItemType::updateOrCreate(
+            $type = PlatformServiceItemType::updateOrCreate(
                 ['platform_service_id' => (int) $service->id, 'key' => $key],
                 [
                     'name_ar' => $ar,
@@ -59,6 +78,11 @@ class ScheduleVehicleTypesSeeder extends Seeder
                     'meta' => ['mode' => $mode, 'scope' => $scope, 'default_unit' => $unit],
                 ]
             );
+
+            // Attach the class to its formal mode branch.
+            if (isset($groups[$mode])) {
+                $type->groups()->sync([(int) $groups[$mode]->id]);
+            }
         }
     }
 }

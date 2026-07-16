@@ -35,6 +35,32 @@ class TripReservation extends Model
     /** Rating operation type — folds trips into the universal reputation. */
     public const OP_TRIP = 'trip';
 
+    /**
+     * Arabic labels, held here so the carrier's panel and the admin's oversight
+     * can never describe the same status differently.
+     *
+     * @return array<string, string>
+     */
+    public static function statusLabels(): array
+    {
+        return [
+            self::STATUS_PENDING => 'بانتظار التأكيد',
+            self::STATUS_CONFIRMED => 'مؤكد',
+            self::STATUS_COMPLETED => 'مكتمل',
+            self::STATUS_CANCELLED => 'ملغي',
+            self::STATUS_BLOCKED => 'حجز يدوي',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function sourceLabels(): array
+    {
+        return [
+            self::SOURCE_APP => 'التطبيق',
+            self::SOURCE_OFFLINE => 'خارج التطبيق',
+        ];
+    }
+
     protected $fillable = [
         'trip_schedule_id',
         'business_id',

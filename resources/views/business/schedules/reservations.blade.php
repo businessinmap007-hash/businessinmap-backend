@@ -7,14 +7,7 @@
     use App\Models\TripSchedule;
 
     $dayLabels = TripSchedule::dayLabels();
-
-    $statusLabels = [
-        TripReservation::STATUS_PENDING => 'بانتظار التأكيد',
-        TripReservation::STATUS_CONFIRMED => 'مؤكد',
-        TripReservation::STATUS_COMPLETED => 'مكتمل',
-        TripReservation::STATUS_CANCELLED => 'ملغي',
-        TripReservation::STATUS_BLOCKED => 'حجز يدوي',
-    ];
+    $statusLabels = TripReservation::statusLabels();
 
     $statusPills = [
         TripReservation::STATUS_PENDING => 'a2-pill-warning',

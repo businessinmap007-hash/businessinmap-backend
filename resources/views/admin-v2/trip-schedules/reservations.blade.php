@@ -4,6 +4,15 @@
 @section('topbar_title', 'Trip Reservations')
 @section('body_class', 'admin-v2-trip-reservations')
 
+@php
+    use App\Models\TripReservation;
+    use App\Models\TripSchedule;
+
+    $statusLabels = TripReservation::statusLabels();
+    $sourceLabels = TripReservation::sourceLabels();
+    $modeLabels = TripSchedule::modeLabels();
+@endphp
+
 @section('content')
 <div class="a2-page">
     <div class="a2-page-head">
@@ -20,15 +29,16 @@
         <form method="GET" action="{{ route('admin.trip-schedules.reservations') }}" class="a2-filterbar">
             <select class="a2-select a2-filter-sm" name="status">
                 <option value="">كل الحالات</option>
-                @foreach(['pending'=>'قيد الانتظار','confirmed'=>'مؤكد','completed'=>'مكتمل','cancelled'=>'ملغي','blocked'=>'حجز يدوي'] as $k=>$label)
+                @foreach($statusLabels as $k => $label)
                     <option value="{{ $k }}" {{ $status === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="source">
                 <option value="">كل المصادر</option>
-                <option value="app" {{ $source === 'app' ? 'selected' : '' }}>التطبيق</option>
-                <option value="offline" {{ $source === 'offline' ? 'selected' : '' }}>خارج التطبيق</option>
+                @foreach($sourceLabels as $k => $label)
+                    <option value="{{ $k }}" {{ $source === $k ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="per_page">
@@ -64,18 +74,25 @@
                     @forelse($reservations as $r)
                         <tr>
                             <td>{{ $r->id }}</td>
-                            <td>#{{ $r->trip_schedule_id }} <span class="a2-muted">{{ optional($r->schedule)->mode }}</span></td>
+                            <td>
+                                #{{ $r->trip_schedule_id }}
+                                <span class="a2-muted">{{ $modeLabels[optional($r->schedule)->mode] ?? optional($r->schedule)->mode }}</span>
+                            </td>
                             <td class="a2-text-right">{{ optional($r->business)->name ?: '#'.$r->business_id }}</td>
                             <td class="a2-text-right">{{ $r->client_id ? (optional($r->client)->name ?: '#'.$r->client_id) : '—' }}</td>
                             <td>
-                                <span class="a2-pill {{ $r->source === 'offline' ? 'a2-pill-gray' : 'a2-pill-success' }}">
-                                    {{ $r->source === 'offline' ? 'خارج التطبيق' : 'التطبيق' }}
+                                <span class="a2-pill {{ $r->source === TripReservation::SOURCE_OFFLINE ? 'a2-pill-gray' : 'a2-pill-success' }}">
+                                    {{ $sourceLabels[$r->source] ?? $r->source }}
                                 </span>
                             </td>
                             <td>{{ (int) $r->units }}</td>
                             <td>{{ $r->total_price !== null ? number_format((float) $r->total_price, 2) : '—' }}</td>
                             <td>{{ (float) $r->deposit_held > 0 ? number_format((float) $r->deposit_held, 2) : '—' }}</td>
-                            <td><span class="a2-pill a2-pill-gray">{{ $r->status }}</span></td>
+                            <td>
+                                <span class="a2-pill {{ $r->status === TripReservation::STATUS_COMPLETED ? 'a2-pill-success' : 'a2-pill-gray' }}">
+                                    {{ $statusLabels[$r->status] ?? $r->status }}
+                                </span>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="9" class="a2-empty-cell">لا توجد حجوزات.</td></tr>

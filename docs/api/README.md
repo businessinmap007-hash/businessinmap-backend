@@ -60,5 +60,16 @@ visible to drivers at `preparing`. Fulfilment completes via the QR flows
 ## Keeping this in sync
 
 The spec is hand-maintained. When you add or change a `/api/v2` route or a
-request/response shape, update `openapi-v2.yaml` in the same change. Verify the
-route inventory with `php artisan route:list --path=api/v2`.
+request/response shape, update `openapi-v2.yaml` in the same change.
+
+`OpenApiSpecCoverageTest` enforces this: it fails if a route is undocumented, if
+the spec documents a path no route serves, if a `$ref` dangles, or if an
+operation uses an undeclared tag. Run it with
+
+```bash
+php artisan test --filter=OpenApiSpecCoverageTest
+```
+
+It checks that every path *exists*, not that its body is accurate — request and
+response shapes are still on you. To eyeball the route inventory directly:
+`php artisan route:list --path=api/v2`.

@@ -2,7 +2,7 @@
 
 ## Master Documentation Index
 
-Version: 1.0 (Draft)
+Version: 2.0 — last reviewed 2026-07-16
 
 ---
 
@@ -117,23 +117,62 @@ Covers:
 
 ---
 
+## 06 - Final Engineering Reference (BIM-12.1)
+
+File:
+
+```text
+docs/06_ENGINEERING_REFERENCE.md
+```
+
+Covers:
+
+- DB map (143 tables by domain)
+- Modules map (the six typed platform services)
+- Routes / controllers / models / services maps
+- Wallet, booking, deposit, order and trip-reservation lifecycles
+- Fee resolution layering (base → rules → promotion)
+- Pending tasks and the legacy cleanup plan
+- Testing conventions
+
+Docs 01–05 explain intent and history; 06 is the map of what actually exists,
+generated from the codebase and database rather than from memory.
+
+---
+
+## API reference
+
+```text
+docs/api/openapi-v2.yaml
+docs/api/README.md
+```
+
+The whole `/api/v2` surface (129 paths). `OpenApiSpecCoverageTest` fails if a
+route is added without documenting it.
+
+---
+
 # 3. Recommended Reading Order
 
 For a new developer:
 
 ```text
 01_PROJECT_FOUNDATION.md
+06_ENGINEERING_REFERENCE.md
 02_DATABASE_AND_BUSINESS_CORE.md
 03_BOOKING_WALLET_DEPOSIT_GUARANTEE.md
 04_ADMIN_ARCHITECTURE_AND_DEVELOPMENT_GUIDE.md
 05_PROJECT_AUDIT_AND_ROADMAP.md
 ```
 
+Read §0 of `06_ENGINEERING_REFERENCE.md` before running anything: the test suite
+runs against the real development database, and the wrong testing trait wipes it.
+
 For current development work:
 
 ```text
+06_ENGINEERING_REFERENCE.md
 05_PROJECT_AUDIT_AND_ROADMAP.md
-02_DATABASE_AND_BUSINESS_CORE.md
 03_BOOKING_WALLET_DEPOSIT_GUARANTEE.md
 ```
 
@@ -141,23 +180,12 @@ For current development work:
 
 # 4. Current Working Recommendation
 
-The next recommended implementation sequence is:
+The numbered roadmap (BIM-0 … BIM-13) is **complete**, including BIM-3.5 (the
+dynamic fee rules engine) and BIM-12.1 (this documentation set). The 5-phase
+architecture reorganization and the 7-point v2 gap list are also closed.
 
-```text
-BIM-0.1
-BIM-2.3
-BIM-3.2
-BIM-3.3
-BIM Guarantee Finalization
-```
-
-Meaning:
-
-1. Clean Admin V2 routes.
-2. Stabilize category services bulk.
-3. Stabilize category child service fees.
-4. Stabilize bulk service fee editing.
-5. Finalize guarantee/deposit implementation.
+There is no named next phase — remaining work is ad-hoc and listed under
+"Pending tasks" in `06_ENGINEERING_REFERENCE.md`.
 
 ---
 

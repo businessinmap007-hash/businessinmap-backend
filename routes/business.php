@@ -12,6 +12,8 @@ use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
 use App\Http\Controllers\Business\ShareStoreController;
 use App\Http\Controllers\Business\TableController;
+use App\Http\Controllers\Business\TripReservationController;
+use App\Http\Controllers\Business\TripScheduleController;
 use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
@@ -92,6 +94,23 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('products/{id}/edit', [CatalogListingController::class, 'edit'])->whereNumber('id')->name('products.edit');
         Route::put('products/{id}', [CatalogListingController::class, 'update'])->whereNumber('id')->name('products.update');
         Route::delete('products/{id}', [CatalogListingController::class, 'destroy'])->whereNumber('id')->name('products.destroy');
+
+        // Scheduling service: the carrier publishes trip legs, then works the
+        // reservation desk for them. Static paths stay ahead of the dynamic
+        // {id} ones so /schedules/reservations can never be read as a leg id.
+        Route::get('schedules', [TripScheduleController::class, 'index'])->name('schedules.index');
+        Route::get('schedules/create', [TripScheduleController::class, 'create'])->name('schedules.create');
+        Route::post('schedules', [TripScheduleController::class, 'store'])->name('schedules.store');
+
+        Route::get('schedules/reservations', [TripReservationController::class, 'index'])->name('schedules.reservations.index');
+        Route::post('schedules/reservations/{id}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('id')->name('schedules.reservations.confirm');
+        Route::post('schedules/reservations/{id}/complete', [TripReservationController::class, 'complete'])->whereNumber('id')->name('schedules.reservations.complete');
+        Route::post('schedules/reservations/{id}/reject', [TripReservationController::class, 'reject'])->whereNumber('id')->name('schedules.reservations.reject');
+
+        Route::get('schedules/{id}/edit', [TripScheduleController::class, 'edit'])->whereNumber('id')->name('schedules.edit');
+        Route::put('schedules/{id}', [TripScheduleController::class, 'update'])->whereNumber('id')->name('schedules.update');
+        Route::delete('schedules/{id}', [TripScheduleController::class, 'destroy'])->whereNumber('id')->name('schedules.destroy');
+        Route::post('schedules/{schedule}/block', [TripReservationController::class, 'block'])->whereNumber('schedule')->name('schedules.block');
 
         Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
         Route::get('bookings/{id}', [BookingController::class, 'show'])->whereNumber('id')->name('bookings.show');

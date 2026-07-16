@@ -96,6 +96,57 @@ class TripSchedule extends Model
         return [self::SCOPE_DOMESTIC, self::SCOPE_INTERNATIONAL];
     }
 
+    /** @return array<string, string> */
+    public static function modeLabels(): array
+    {
+        return [
+            self::MODE_FREIGHT => 'شحن بضائع',
+            self::MODE_PASSENGER => 'نقل ركاب',
+            self::MODE_LIMOUSINE => 'ليموزين',
+            self::MODE_DISTRIBUTION => 'توزيع',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function patternLabels(): array
+    {
+        return [
+            self::PATTERN_WEEKLY => 'أسبوعي متكرر',
+            self::PATTERN_ONE_OFF => 'رحلة بتاريخ محدد',
+            self::PATTERN_ON_DEMAND => 'عند الطلب',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function scopeLabels(): array
+    {
+        return [
+            self::SCOPE_DOMESTIC => 'محلي',
+            self::SCOPE_INTERNATIONAL => 'دولي',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public static function statusLabels(): array
+    {
+        return [
+            self::STATUS_ACTIVE => 'مفعل',
+            self::STATUS_PAUSED => 'موقوف',
+            self::STATUS_EXPIRED => 'منتهٍ',
+            self::STATUS_CANCELLED => 'ملغي',
+        ];
+    }
+
+    /**
+     * Weekday names for day_of_week, which the schema fixes at 0=Sun .. 6=Sat.
+     *
+     * @return array<int, string>
+     */
+    public static function dayLabels(): array
+    {
+        return [0 => 'الأحد', 1 => 'الإثنين', 2 => 'الثلاثاء', 3 => 'الأربعاء', 4 => 'الخميس', 5 => 'الجمعة', 6 => 'السبت'];
+    }
+
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');

@@ -4,6 +4,17 @@
 @section('topbar_title', 'Trip Schedules')
 @section('body_class', 'admin-v2-trip-schedules')
 
+@php
+    use App\Models\TripSchedule;
+
+    // Shared with the carrier's own panel, so a mode/status/day never reads one
+    // way for the admin and another for the business.
+    $modeLabels = TripSchedule::modeLabels();
+    $statusLabels = TripSchedule::statusLabels();
+    $scopeLabels = TripSchedule::scopeLabels();
+    $dayLabels = TripSchedule::dayLabels();
+@endphp
+
 @section('content')
 <div class="a2-page">
     <div class="a2-page-head">
@@ -41,20 +52,21 @@
 
             <select class="a2-select a2-filter-sm" name="mode">
                 <option value="">كل الأنماط</option>
-                @foreach(['freight'=>'شحن','passenger'=>'ركاب','limousine'=>'ليموزين','distribution'=>'توزيع'] as $k=>$label)
+                @foreach($modeLabels as $k => $label)
                     <option value="{{ $k }}" {{ $mode === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="scope">
                 <option value="">محلي + دولي</option>
-                <option value="domestic" {{ $scope === 'domestic' ? 'selected' : '' }}>محلي</option>
-                <option value="international" {{ $scope === 'international' ? 'selected' : '' }}>دولي</option>
+                @foreach($scopeLabels as $k => $label)
+                    <option value="{{ $k }}" {{ $scope === $k ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
                 <option value="">كل الحالات</option>
-                @foreach(['active'=>'مفعل','paused'=>'موقوف','expired'=>'منتهٍ','cancelled'=>'ملغي'] as $k=>$label)
+                @foreach($statusLabels as $k => $label)
                     <option value="{{ $k }}" {{ $status === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
@@ -95,11 +107,11 @@
                         <tr>
                             <td>{{ $s->id }}</td>
                             <td class="a2-text-right">{{ optional($s->business)->name ?: '#'.$s->business_id }}</td>
-                            <td>{{ $s->mode }}{{ $s->is_return_leg ? ' ↩' : '' }}</td>
+                            <td>{{ $modeLabels[$s->mode] ?? $s->mode }}{{ $s->is_return_leg ? ' ↩' : '' }}</td>
                             <td>{{ optional($s->vehicleType)->name_ar ?: ($s->vehicle_label ?: '—') }}</td>
                             <td>
-                                <span class="a2-pill {{ $s->scope === 'international' ? 'a2-pill-gray' : 'a2-pill-success' }}">
-                                    {{ $s->scope === 'international' ? 'دولي' : 'محلي' }}
+                                <span class="a2-pill {{ $s->scope === TripSchedule::SCOPE_INTERNATIONAL ? 'a2-pill-gray' : 'a2-pill-success' }}">
+                                    {{ $scopeLabels[$s->scope] ?? $s->scope }}
                                 </span>
                             </td>
                             <td class="a2-text-right">
@@ -110,10 +122,10 @@
                                 @endif
                             </td>
                             <td>
-                                @if($s->schedule_pattern === 'weekly')
-                                    يوم {{ $s->day_of_week }}
-                                @elseif($s->schedule_pattern === 'one_off')
-                                    {{ optional($s->trip_date)->toDateString() }}
+                                @if($s->schedule_pattern === TripSchedule::PATTERN_WEEKLY)
+                                    {{ $dayLabels[$s->day_of_week] ?? '—' }}
+                                @elseif($s->schedule_pattern === TripSchedule::PATTERN_ONE_OFF)
+                                    {{ optional($s->trip_date)->toDateString() ?: '—' }}
                                 @else
                                     عند الطلب
                                 @endif
@@ -123,7 +135,9 @@
                             <td>{{ $s->price !== null ? number_format((float) $s->price, 2) : '—' }} / {{ $s->deposit_per_unit ? number_format((float) $s->deposit_per_unit, 2) : '—' }}</td>
                             <td>{{ (int) $s->active_reservations_count }}</td>
                             <td>
-                                <span class="a2-pill {{ $s->status === 'active' ? 'a2-pill-success' : 'a2-pill-gray' }}">{{ $s->status }}</span>
+                                <span class="a2-pill {{ $s->status === TripSchedule::STATUS_ACTIVE ? 'a2-pill-success' : 'a2-pill-gray' }}">
+                                    {{ $statusLabels[$s->status] ?? $s->status }}
+                                </span>
                             </td>
                         </tr>
                     @empty

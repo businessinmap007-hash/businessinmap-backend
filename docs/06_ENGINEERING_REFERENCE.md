@@ -247,12 +247,8 @@ never-confirmed pending request cancels with no rating hit.
 ## 9. Pending tasks
 
 **Open:**
-- The AdminV2 trip-schedules oversight page has never been opened in a browser
-  (blades compile, routes registered, tests pass).
-- Currency data worth a second look: Bulgaria is recorded as EUR (eurozone entry
-  Jan 2026) and Curaçao/Sint Maarten as XCG (Caribbean guilder, 2025).
 - `catalog_products` is empty (§10) — retail has no master data until a real
-  import feed exists.
+  import feed exists. Needs a data source decision, not code.
 - AdminV2 has almost no per-action `->can()` checks. Not an active vulnerability
   (middleware + owner scoping hold), but a defence-in-depth gap.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps

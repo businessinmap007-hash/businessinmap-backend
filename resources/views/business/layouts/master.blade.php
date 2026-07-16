@@ -27,6 +27,7 @@
                 <a href="{{ route('business.tables.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الطاولات</a>
                 <a href="{{ route('business.share-store') }}" class="a2-btn a2-btn-ghost a2-btn-sm">شارك متجرك</a>
                 <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">منتجاتي</a>
+                <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">خطوط التشغيل</a>
                 <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">حجوزاتي</a>
                 <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الطلبات</a>
                 @auth

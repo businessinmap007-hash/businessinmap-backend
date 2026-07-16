@@ -12,8 +12,6 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\V1\{
     RegistrationController,
     LoginController,
-    ForgotPasswordController,
-    ResetPasswordController,
     UsersController,
     SettingsController,
     JobController,
@@ -70,10 +68,25 @@ Route::prefix('v1')->group(function () {
     Route::post('register', [RegistrationController::class, 'store']);
     Route::post('login',    [LoginController::class, 'login']);
 
-    Route::post('password/forgot',        [ForgotPasswordController::class, 'getResetTokens']);
-    Route::post('password/check',         [ResetPasswordController::class,  'check']);
-    Route::post('password/reset',         [ResetPasswordController::class,  'reset']);
-    Route::post('password/forgot/resend', [ForgotPasswordController::class, 'resendResetPasswordCode']);
+    /*
+    |--------------------------------------------------------------------------
+    | Password reset — REMOVED 2026-07-16 (BIM-14.0). Use /api/v2/auth/password/*
+    |--------------------------------------------------------------------------
+    | These four routes were an unauthenticated account takeover, live on the
+    | public `api` middleware with no throttle:
+    |
+    |   password/reset  -> ResetPasswordController@reset took email + password
+    |                      and set the password WITHOUT verifying any code.
+    |                      Knowing an email was enough to own the account,
+    |                      including admin accounts.
+    |   password/forgot -> ForgotPasswordController@getResetTokens returned
+    |                      'code' => $user->action_code in the response body,
+    |                      stored it in plaintext, and leaked account existence.
+    |
+    | Api\V2\PasswordResetController replaces them properly: hashed code, 15-min
+    | expiry, 5-attempt lock, no enumeration, code never returned, throttle:6,1.
+    | Guarded by V1PasswordRoutesRemovedTest — do not reinstate these.
+    */
 
     // Settings
     Route::prefix('general')->group(function () {

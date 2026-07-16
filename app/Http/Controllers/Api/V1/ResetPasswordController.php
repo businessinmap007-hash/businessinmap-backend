@@ -11,6 +11,19 @@ use App\Models\User;
 use Validator;
 use Illuminate\Support\Facades\App;
 
+/**
+ * ⚠️ UNROUTED AND UNSAFE — DO NOT REGISTER THIS AGAIN (BIM-14.0, 2026-07-16).
+ *
+ * reset() below takes an email and a password and sets that password WITHOUT
+ * verifying any code — knowing an email address was enough to seize the account,
+ * including admin accounts. It was publicly routed until 2026-07-16.
+ *
+ * The routes were removed from routes/api.php; the file is kept only because v1
+ * is a porting reference. Use Api\V2\PasswordResetController
+ * (/api/v2/auth/password/*) — hashed code, expiry, attempt lock, no enumeration.
+ *
+ * V1PasswordRoutesRemovedTest fails if these routes ever come back.
+ */
 class ResetPasswordController extends Controller
 {
     public function __construct(Request $request)

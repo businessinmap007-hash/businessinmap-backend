@@ -11,6 +11,19 @@ use Illuminate\Support\Facades\App;
 
 use Validator;
 
+/**
+ * ⚠️ UNROUTED AND UNSAFE — DO NOT REGISTER THIS AGAIN (BIM-14.0, 2026-07-16).
+ *
+ * getResetTokens() below returns the reset code in its own API response body,
+ * stores it in plaintext on users.action_code, and reveals whether an account
+ * exists. It was publicly routed until 2026-07-16.
+ *
+ * The routes were removed from routes/api.php; the file is kept only because v1
+ * is a porting reference. Use Api\V2\PasswordResetController
+ * (/api/v2/auth/password/*) — the code is hashed, emailed, and never returned.
+ *
+ * V1PasswordRoutesRemovedTest fails if these routes ever come back.
+ */
 class ForgotPasswordController extends Controller
 {
     /*

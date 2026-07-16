@@ -56,7 +56,7 @@
                 ['label' => 'الخصائص', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
             ]],
         ]],
-        ['label' => 'الخدمات والتسعير', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
+        ['label' => 'الخدمات والتسعير', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.service-fee-rules.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
             ['label' => 'إعداد الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -67,6 +67,7 @@
             ['label' => 'الربط والتسعير', 'type' => 'section', 'children' => [
                 ['label' => 'ربط الخدمات بالتصنيفات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
                 ['label' => 'أسعار خدمات الأعمال', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
+                ['label' => 'قواعد الرسوم الديناميكية', 'route' => 'admin.service-fee-rules.index', 'active' => 'admin.service-fee-rules.'],
                 ['label' => 'عروض الرسوم', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
             ]],
             ['label' => 'العمليات التجارية', 'type' => 'section', 'children' => [

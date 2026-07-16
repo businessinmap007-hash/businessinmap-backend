@@ -48,9 +48,25 @@ tags:
   - name: Delivery
   - name: Order Handover
   - name: Tables
+  - name: Schedules
+    description: |
+      Scheduling / routes service. A carrier publishes trip legs — "we run
+      Cairo→Damietta every Sunday, 14 seats" — and customers search a route and
+      day. One entity serves four modes: freight, passenger, limousine and
+      distribution. Domestic legs anchor on governorates, international ones on
+      countries.
+  - name: Schedules (Carrier)
+    description: Publishing legs and working their reservation desk. Business accounts only.
   - name: Bookings
   - name: Guarantees
   - name: Operation Guarantors
+  - name: Ratings
+    description: |
+      Two different things share the word "rating". The **operation rating** is
+      objective and automatic — every completed/cancelled/disputed operation is
+      ledgered, giving success and dispute percentages. A **star review** is
+      subjective, written by a party, and only allowed after a real completed
+      operation between the two.
   - name: Notifications
   - name: Push Tokens
   - name: Offer Follows
@@ -256,6 +272,92 @@ components:
         action_url: { type: string, nullable: true }
         meta: { type: object, nullable: true }
         created_at: { type: string, format: date-time }
+
+    TripSchedule:
+      type: object
+      description: One published trip leg.
+      properties:
+        id: { type: integer }
+        business_id: { type: integer }
+        business: { type: object, nullable: true, description: 'Carrier {id,name,logo}; present on search results.' }
+        mode: { type: string, enum: [freight, passenger, limousine, distribution] }
+        vehicle_type: { type: object, nullable: true, description: 'The platform vehicle/cargo class {id,key,name}.' }
+        vehicle_label: { type: string, nullable: true, description: The carrier's own name for the vehicle. }
+        scope: { type: string, enum: [domestic, international] }
+        origin:
+          type: object
+          description: Governorate anchors a domestic leg; country anchors an international one.
+          properties:
+            country_id: { type: integer, nullable: true }
+            country: { type: string, nullable: true }
+            governorate_id: { type: integer, nullable: true }
+            governorate: { type: string, nullable: true }
+            city_id: { type: integer, nullable: true }
+        destination:
+          type: object
+          properties:
+            country_id: { type: integer, nullable: true }
+            country: { type: string, nullable: true }
+            governorate_id: { type: integer, nullable: true }
+            governorate: { type: string, nullable: true }
+            city_id: { type: integer, nullable: true }
+        schedule_pattern: { type: string, enum: [weekly, one_off, on_demand] }
+        day_of_week: { type: integer, nullable: true, minimum: 0, maximum: 6, description: '0=Sunday .. 6=Saturday. Set when schedule_pattern=weekly.' }
+        trip_date: { type: string, format: date, nullable: true, description: Set when schedule_pattern=one_off. }
+        departure_time: { type: string, nullable: true, example: '09:00' }
+        return_time: { type: string, nullable: true }
+        capacity: { type: integer, nullable: true, description: null means unlimited (e.g. on-demand). }
+        capacity_unit: { type: string, nullable: true, example: seat }
+        price: { type: number, nullable: true, description: Per unit. }
+        deposit_per_unit: { type: number, nullable: true, description: Refundable; held from the client's wallet on reserve. }
+        currency: { type: string, example: EGP }
+        is_return_leg: { type: boolean, description: A discounted backhaul off a parent trip. }
+        parent_trip_id: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        status: { type: string, enum: [active, paused, expired, cancelled] }
+    ScheduleTrust:
+      type: object
+      description: Why this carrier ranks where it does — the search's trust block.
+      properties:
+        has_guarantee: { type: boolean }
+        coverage_amount: { type: number, nullable: true }
+        success_rate: { type: number, nullable: true, description: Percentage of operations completed successfully. }
+        dispute_rate: { type: number, nullable: true }
+        stars: { type: number, nullable: true }
+    TripScheduleSearchResult:
+      type: object
+      properties:
+        schedule: { $ref: '#/components/schemas/TripSchedule' }
+        trust: { $ref: '#/components/schemas/ScheduleTrust' }
+        remaining_capacity: { type: integer, nullable: true, description: null means unlimited. Already nets off in-app and offline holds. }
+    TripReservation:
+      type: object
+      properties:
+        id: { type: integer }
+        trip_schedule_id: { type: integer }
+        business_id: { type: integer }
+        client_id: { type: integer, nullable: true, description: null for a carrier's offline hold. }
+        source: { type: string, enum: [app, offline] }
+        units: { type: integer }
+        unit_price: { type: number, nullable: true }
+        total_price: { type: number, nullable: true }
+        deposit_held: { type: number }
+        currency: { type: string }
+        status: { type: string, enum: [pending, confirmed, completed, cancelled, blocked] }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    VehicleType:
+      type: object
+      description: A platform-standard vehicle/cargo class for the scheduling service.
+      properties:
+        id: { type: integer }
+        key: { type: string, example: freight_refrigerated }
+        name: { type: string }
+        mode: { type: string, nullable: true }
+        scope: { type: string, nullable: true, enum: [domestic, international] }
+        default_unit: { type: string, nullable: true }
+        is_default: { type: boolean }
+        group: { type: object, nullable: true, description: 'The mode branch this class hangs off {id,key,name}.' }
 
 paths:
   # ─────────────────────────── Auth ───────────────────────────
@@ -915,6 +1017,356 @@ paths:
       summary: Scan a table's permanent QR to open/join its dine-in cart
       parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
+
+  # ─────────────────────────── Ratings ───────────────────────────
+  /ratings/me:
+    get: { tags: [Ratings], summary: My operation rating (percentages + stars), responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
+  /ratings/user/{user}:
+    get: { tags: [Ratings], summary: Another user's operation rating, parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /ratings/user/{user}/reviews:
+    get: { tags: [Ratings], summary: A user's star reviews, parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /ratings/review:
+    post:
+      tags: [Ratings]
+      summary: Leave a star review
+      description: Only allowed after a real completed operation between the two parties, and once per operation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_type, operation_id, stars]
+              properties:
+                operation_type: { type: string, enum: [booking, order] }
+                operation_id: { type: integer, minimum: 1 }
+                stars: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: 'No completed operation between the parties, or already reviewed.' }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ────────────────────────── Schedules ──────────────────────────
+  /search/schedules:
+    get:
+      tags: [Schedules]
+      summary: Find carriers on a route + day, ranked by trust (public)
+      security: []
+      description: |
+        Anchor the route with a governorate pair (domestic) **or** a country
+        pair (international) — one of the two is required on each end. Give
+        `date` or `day_of_week` to pin the day; omit both to list the whole
+        route. Results are ranked guaranteed → success rate → coverage → low
+        dispute → stars, and each carries `remaining_capacity`.
+
+        A leg matches a day when it is weekly on that weekday, one-off dated to
+        it, or on-demand (always available).
+      parameters:
+        - { name: origin_governorate_id, in: query, schema: { type: integer }, description: Required unless origin_country_id is given. }
+        - { name: destination_governorate_id, in: query, schema: { type: integer }, description: Required unless destination_country_id is given. }
+        - { name: origin_country_id, in: query, schema: { type: integer } }
+        - { name: destination_country_id, in: query, schema: { type: integer } }
+        - { name: origin_city_id, in: query, schema: { type: integer }, description: Pins the exact city inside the governorate anchor. }
+        - { name: destination_city_id, in: query, schema: { type: integer } }
+        - { name: date, in: query, schema: { type: string, format: date }, description: The weekday is derived from this. }
+        - { name: day_of_week, in: query, schema: { type: integer, minimum: 0, maximum: 6 }, description: 0=Sunday .. 6=Saturday. }
+        - { name: mode, in: query, schema: { type: string, enum: [freight, passenger, limousine, distribution] } }
+        - { name: scope, in: query, schema: { type: string, enum: [domestic, international] } }
+        - { name: vehicle_type_id, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      results: { type: array, items: { $ref: '#/components/schemas/TripScheduleSearchResult' } }
+                      count: { type: integer }
+        '422': { $ref: '#/components/responses/Validation' }
+  /schedules/vehicle-types:
+    get:
+      tags: [Schedules]
+      summary: The vehicle/cargo classes for the scheduling service (public)
+      security: []
+      description: The picker for the carrier's publish form and the customer's filter.
+      parameters:
+        - { name: mode, in: query, schema: { type: string, enum: [freight, passenger, limousine, distribution] } }
+        - { name: group, in: query, schema: { type: string, example: mode_freight }, description: Filter by the class's mode branch key. }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      vehicle_types: { type: array, items: { $ref: '#/components/schemas/VehicleType' } }
+  /schedules/countries:
+    get:
+      tags: [Schedules]
+      summary: Country picker for international legs (public)
+      security: []
+      description: |
+        International legs only — a domestic leg picks a governorate instead.
+        Mirrors ISO 3166-1's officially assigned codes.
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Filters on Arabic/English name or ISO code. }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      countries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string }
+                            iso2: { type: string }
+                            flag: { type: string, description: 'Emoji, derived from the ISO2 code.' }
+  /schedules/{schedule}/reserve:
+    post:
+      tags: [Schedules]
+      summary: Reserve capacity on a leg
+      description: |
+        Capacity is checked under a row lock, so concurrent reservations can
+        never oversell a leg. If the leg sets `deposit_per_unit`, that much ×
+        `units` is held from the caller's wallet inside the same transaction —
+        short funds roll the whole reserve back (422, no capacity taken). The
+        deposit is released on complete or cancel. You cannot reserve your own leg.
+      parameters: [{ name: schedule, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                units: { type: integer, minimum: 1, default: 1 }
+                notes: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Created — pending the carrier's confirmation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      reservation: { $ref: '#/components/schemas/TripReservation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Leg not bookable, capacity short, or wallet short of the deposit., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /schedules/my-reservations:
+    get:
+      tags: [Schedules]
+      summary: My reservations
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { description: 'Paginated TripReservation.', content: { application/json: { schema: { $ref: '#/components/schemas/Paginated' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /schedules/reservations/{reservation}/cancel:
+    post:
+      tags: [Schedules]
+      summary: Cancel my reservation
+      description: |
+        Releases the capacity and returns any held deposit. A cancel only marks
+        reputation once the carrier had confirmed (a real dealing); a
+        never-confirmed pending request cancels with no rating hit.
+      parameters: [{ name: reservation, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not cancellable in its current state., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+
+  # ────────────────────── Schedules (Carrier) ──────────────────────
+  /business/schedules:
+    get:
+      tags: [Schedules (Carrier)]
+      summary: My published legs
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { description: 'Paginated TripSchedule.', content: { application/json: { schema: { $ref: '#/components/schemas/Paginated' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Publish a leg
+      description: |
+        `scope` decides the geography: domestic requires the governorate pair,
+        international the country pair. Origin must differ from destination on
+        whichever axis anchors the leg. `day_of_week` is required for a weekly
+        leg, `trip_date` for a one-off. A `vehicle_type_id` must belong to the
+        scheduling service, and a `parent_trip_id` must be a leg you own.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode, schedule_pattern]
+              properties:
+                mode: { type: string, enum: [freight, passenger, limousine, distribution] }
+                scope: { type: string, enum: [domestic, international], default: domestic }
+                vehicle_type_id: { type: integer, nullable: true }
+                vehicle_label: { type: string, maxLength: 120, nullable: true }
+                origin_governorate_id: { type: integer, nullable: true, description: Required when scope=domestic. }
+                destination_governorate_id: { type: integer, nullable: true, description: Required when scope=domestic. }
+                origin_city_id: { type: integer, nullable: true }
+                destination_city_id: { type: integer, nullable: true }
+                origin_country_id: { type: integer, nullable: true, description: Required when scope=international. }
+                destination_country_id: { type: integer, nullable: true, description: Required when scope=international. }
+                schedule_pattern: { type: string, enum: [weekly, one_off, on_demand] }
+                day_of_week: { type: integer, minimum: 0, maximum: 6, nullable: true, description: Required when schedule_pattern=weekly. 0=Sunday. }
+                trip_date: { type: string, format: date, nullable: true, description: Required when schedule_pattern=one_off. }
+                departure_time: { type: string, example: '09:00', nullable: true }
+                return_time: { type: string, nullable: true }
+                capacity: { type: integer, minimum: 0, nullable: true, description: Omit for unlimited. }
+                capacity_unit: { type: string, maxLength: 24, nullable: true }
+                price: { type: number, minimum: 0, nullable: true }
+                deposit_per_unit: { type: number, minimum: 0, nullable: true }
+                currency: { type: string, maxLength: 10, default: EGP }
+                is_return_leg: { type: boolean, default: false }
+                parent_trip_id: { type: integer, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+                status: { type: string, enum: [active, paused, expired, cancelled], default: active }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      schedule: { $ref: '#/components/schemas/TripSchedule' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/schedules/{schedule}:
+    parameters: [{ name: schedule, in: path, required: true, schema: { type: integer } }]
+    put:
+      tags: [Schedules (Carrier)]
+      summary: Update a leg I own
+      requestBody: { content: { application/json: { schema: { type: object, description: Same body as publish. } } } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+    patch:
+      tags: [Schedules (Carrier)]
+      summary: Update a leg I own
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Schedules (Carrier)]
+      summary: Delete a leg I own
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/schedules/{schedule}/block:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Block capacity for seats sold off the app
+      description: |
+        A direct deal outside BIM still consumes the vehicle, so the carrier
+        blocks those units here and `remaining_capacity` stays honest (a 14-seat
+        microbus with 7 sold directly shows 7 left). The hold takes capacity
+        like a real reservation but has no in-app client and never touches the
+        rating ledger or a wallet. Release it via the reject endpoint.
+      parameters: [{ name: schedule, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [units]
+              properties:
+                units: { type: integer, minimum: 1 }
+                notes: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Created — a reservation with status=blocked, source=offline.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      reservation: { $ref: '#/components/schemas/TripReservation' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Capacity short., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/reservations:
+    get:
+      tags: [Schedules (Carrier)]
+      summary: Reservations on my legs
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, confirmed, completed, cancelled, blocked] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses:
+        '200': { description: 'Paginated TripReservation.', content: { application/json: { schema: { $ref: '#/components/schemas/Paginated' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /business/schedules/reservations/{reservation}/confirm:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Accept a pending reservation
+      parameters: [{ name: reservation, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not pending., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/reservations/{reservation}/complete:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Complete a confirmed reservation
+      description: |
+        Records a success for **both** parties in the universal operation
+        rating (this is how a carrier's or limousine captain's reputation is
+        built from real trips) and releases any held deposit back to the client.
+        Only a confirmed reservation can be completed.
+      parameters: [{ name: reservation, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not confirmed., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/reservations/{reservation}/reject:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Reject a reservation, or release an offline hold
+      description: Frees the capacity. Also the way to release a `blocked` offline hold.
+      parameters: [{ name: reservation, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not cancellable in its current state., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
 
   # ─────────────────────────── Bookings ───────────────────────────
   /bookings:

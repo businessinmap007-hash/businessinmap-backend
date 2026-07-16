@@ -45,6 +45,7 @@ use App\Http\Controllers\AdminV2\{
     PaymentController,
     PlatformServiceController,
     PlatformServiceFeePromotionController,
+    ServiceFeeRuleController,
     PlatformServiceItemGroupController,
     PlatformServiceItemTypeController,
     ServiceBranchBoardController,
@@ -166,6 +167,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show'])->names('platform-service-fee-promotions');
         Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
+
+        // BIM-3.5 — dynamic fee rules (the policy layer between the static base
+        // fee and the promotions above).
+        Route::resource('service-fee-rules', ServiceFeeRuleController::class)->except(['show'])->names('service-fee-rules');
+        Route::post('service-fee-rules/{serviceFeeRule}/toggle', [ServiceFeeRuleController::class, 'toggle'])->whereNumber('serviceFeeRule')->name('service-fee-rules.toggle');
 
         Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
         Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/attach', [PlatformServiceItemGroupController::class, 'attachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.attach');

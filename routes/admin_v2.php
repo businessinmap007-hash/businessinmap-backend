@@ -133,7 +133,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
-            Route::get('bulk/edit', fn () => redirect()->route('admin.categories.services-bulk.index'))->name('bulk.edit');
+            // Was a closure redirecting to categories.services-bulk, which made the
+            // sidebar's «خيارات التصنيفات الفرعية» open «Bulk Services + Fees» — a
+            // different screen entirely — while CategoryChildOptionController@bulkEdit
+            // and its view sat unreachable. Options are the ATTRIBUTES axis, not the
+            // services one (see docs/architecture-blueprint.md §3.1); the two must not
+            // share a screen.
+            Route::get('bulk/edit', [CategoryChildOptionController::class, 'bulkEdit'])->name('bulk.edit');
             Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])->name('bulk.update');
             Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
             Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->whereNumber('categoryChild')->name('update');

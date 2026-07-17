@@ -88,19 +88,19 @@ options.
 
 ---
 
-## 4. Routes map — 873 routes
+## 4. Routes map — 881 routes
 
 | Surface | Routes | File | Guard |
 |---|---:|---|---|
-| Admin panel (v2 + legacy) | 486 | `routes/admin_v2.php`, `routes/admin.php` | `admin.v2` / `admin` |
-| Mobile API v2 | 153 | `routes/api_v2.php` | `auth:sanctum` (+ `business`) |
-| Legacy API v1 | 101 | `routes/api.php` | sanctum |
+| Admin panel (v2 + legacy) | 489 | `routes/admin_v2.php`, `routes/admin.php` | `admin.v2` / `admin` |
+| Mobile API v2 | 162 | `routes/api_v2.php` | `auth:sanctum` (+ `business`) |
+| Legacy API v1 | 97 | `routes/api.php` | sanctum |
 | Business owner panel | 73 | `routes/business.php` | `business.panel` |
 | Web/public | 60 | `routes/web.php` | — |
 
 - **v2 is the self-sufficient app surface**; v1 is abandoned but kept (§10).
-- **`/api/v2` is fully documented** in `docs/api/openapi-v2.yaml` (129 paths /
-  153 operations) and `OpenApiSpecCoverageTest` **fails the build** if you add a
+- **`/api/v2` is fully documented** in `docs/api/openapi-v2.yaml` (137 paths /
+  162 operations) and `OpenApiSpecCoverageTest` **fails the build** if you add a
   route without documenting it.
 - Route ordering rule: static paths before dynamic `{id}` ones.
 - `VerifyCsrfToken::$except` is **empty** — CSRF is enforced on every web route.
@@ -298,6 +298,12 @@ never-confirmed pending request cancels with no rating hit.
   not the identity.
 - **Admin surface for held deletions.** `deletion_hold_reason` is set by the
   sweep and read by nobody yet — an AdminV2 screen should list them.
+- **The address book is not wired to menu checkout.**
+  `POST /api/v2/cart/{business}/checkout` takes `address` as a free **string**,
+  not an `address_id`. Now that addresses actually work (§14), delivery orders
+  should reference a saved address rather than re-typing one — otherwise there is
+  no governorate on the order and `ServiceFeeRuleEngine` has nothing to match a
+  geo fee rule against.
 
 **Done and worth not re-litigating:** the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
@@ -326,7 +332,7 @@ still being ported. Build on `Api/V2` and `AdminV2` only.
 
 ## 11. Testing
 
-72 test files, **434 passing / 3 skipped**. Conventions:
+85 test files (82 Feature / 3 Unit), **541 passing / 3 skipped**. Conventions:
 
 - `use DatabaseTransactions` — always (see §0).
 - Find-or-create existing rows; `markTestSkipped` when a fixture is absent rather
@@ -340,6 +346,53 @@ Guards that will fail the build if you drift:
 - `OpenApiSpecCoverageTest` — an undocumented `/api/v2` route.
 - `WorldCountriesSeederTest` — the country list must stay exactly ISO 3166-1.
 - `AuthorizationTest` — the `/business/*` gate.
+
+### 11.1 Journey tests, and why they are a different kind of test
+
+`MenuOrderJourneyTest` and `DiscoveryJourneyTest` walk a whole service the way
+the app walks it. They exist because BIM-11.1 proved that *"has passing tests"
+is not "works"*: the old `AddressApiTest` was green for months while creating an
+address was **impossible**. The test invented its own ids using the same wrong
+assumption as the code, and those invented ids happened to satisfy the very
+constraint the real ones could not.
+
+So the rule, and the whole point:
+
+> **Every id the client uses must come out of a previous API response.**
+
+Never `$item->id` from a seeded model — always the id the app would actually be
+holding at that moment. If the app cannot discover it, the test cannot proceed,
+**and that is the bug being hunted**. Seeding the merchant's own setup directly
+is fine: that is the merchant's journey, not the customer's.
+
+This discipline paid for itself immediately. It found a second bug of exactly
+the BIM-11.1 shape: `discovery/filters` and `discovery/businesses` both *require*
+`child_id`, and no v2 endpoint returned one — 434 categories and 304 specialties
+in the database, and the app could not reach a single business. Nothing caught it
+because every existing test handed itself a `child_id` straight out of the DB,
+which a real client cannot do. Fixed by `Api/V2/CategoryController` (§15).
+
+### 11.2 Landmine: Laravel caches the authenticated user per test method
+
+Swapping the `Authorization: Bearer` header does **not** re-authenticate. The
+auth manager resolves the user once and caches it for the rest of the test
+method, so the **first** identity silently sticks and every later request is
+still that user. A journey test that switches sides without clearing it asserts
+nothing — it will happily "prove" the restaurant can see the order while in fact
+still asking as the customer.
+
+```php
+private function actingWithToken(string $token): self
+{
+    $this->app['auth']->forgetGuards();   // not decoration
+
+    return $this->withHeader('Authorization', 'Bearer ' . $token);
+}
+```
+
+Confirmed in isolation: client token → `200 /cart`; swap to the business token →
+`403 /business/orders`; after `forgetGuards()` → `200`. Any test that changes
+actor mid-method needs this.
 
 ---
 
@@ -468,3 +521,43 @@ decision to keep legacy code stands. Do not build on it.
 > posted the *same id* as both `governorate_id` and `city_id`, because it encoded
 > the same wrong assumption as the code. A test can only catch what it does not
 > also believe.
+
+---
+
+## 15. Classification: the front door (root → specialty → discovery)
+
+Discovery is keyed on `child_id`, and until `Api\V2\CategoryController` existed
+**no v2 endpoint returned one**. `discovery/filters` and `discovery/businesses`
+both require it, so a real client could not reach a single business — the same
+shape as the address bug in §14: a required parameter with no discovery path.
+Found by `DiscoveryJourneyTest` (§11.1), not by reading code.
+
+The structure, read out of the data rather than assumed:
+
+- **21 root categories** — `categories.parent_id = 0`. **Zero, not NULL**; nothing
+  in this table uses NULL, and a `whereNull('parent_id')` returns nothing.
+- Roots link to specialties in `category_children_master` **through**
+  `category_parent_child`. All 418 links hang off roots; the `categories`
+  self-tree below a root carries none, so it is **not** part of this path.
+- `child_id` is a `category_children_master.id` — that is what discovery matches.
+
+So the app's path is two hops, and it needs both:
+
+```
+GET /api/v2/categories                        → root categories
+GET /api/v2/categories/{id}/specialties       → each `id` IS discovery's child_id
+GET /api/v2/discovery/businesses?child_id=…
+```
+
+Both are public — browsing what exists must not require an account.
+
+Two things worth keeping straight:
+
+- **A business is only findable when *both* are true**: `users.category_child_id`
+  is set **and** an active `business_service_prices` row exists for that child. A
+  price row alone is invisible. The `businesses` count on each specialty mirrors
+  exactly what `DiscoveryController` searches, so the app can tell a dead end
+  before the customer taps it (`?sellable=1` drops them).
+- `categories.per_month` / `per_year` are the **abandoned subscription pricing**
+  and are deliberately not exposed. `DiscoveryJourneyTest` asserts they never
+  appear in the response.

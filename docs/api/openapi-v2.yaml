@@ -37,6 +37,12 @@ tags:
   - name: Password Reset
   - name: Account deletion
   - name: Profile
+  - name: Categories
+    description: |
+      The marketplace's front door: root category → specialty → discovery.
+      Discovery *requires* a `child_id` and nothing else in v2 returns one, so
+      this is the only path an app has to its first business listing. `id` on a
+      specialty is that `child_id`.
   - name: Locations
   - name: Addresses
   - name: Wallet
@@ -477,6 +483,72 @@ paths:
       responses:
         '200': { description: Password changed. }
         '422': { $ref: '#/components/responses/Validation' }
+
+  # ──────────────────── Classification — the front door ────────────────────
+  # /discovery/* REQUIRES a child_id and nothing in v2 returned one, so the app
+  # could not browse a single business. root category -> specialty -> discovery.
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Root categories — the app's opening screen (public)
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string, nullable: true }
+                            slug: { type: string, nullable: true }
+                            image: { type: string, nullable: true }
+
+  /categories/{category}/specialties:
+    get:
+      tags: [Categories]
+      summary: The specialties under a category — these ids are discovery's child_id (public)
+      security: []
+      description: >
+        `id` here is what /discovery/filters and /discovery/businesses take as
+        child_id. `businesses` is how many businesses actually sell it, so the
+        app can tell a dead end before the customer taps it.
+      parameters:
+        - { name: category, in: path, required: true, schema: { type: integer } }
+        - { name: sellable, in: query, schema: { type: boolean }, description: Drop specialties nobody sells. }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      specialties:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer, description: discovery's child_id }
+                            name_ar: { type: string }
+                            name_en: { type: string, nullable: true }
+                            businesses: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ──────────────────── Geography (BIM-11.1) ────────────────────
   # Public: an address is picked at registration and checkout, before there is a

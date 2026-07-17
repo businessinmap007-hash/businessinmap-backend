@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
+use App\Http\Controllers\Api\V2\CategoryController;
 use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
@@ -91,6 +92,14 @@ Route::prefix('v2')->group(function () {
     // implementation in LocationController — the same list has no business
     // being built twice.
     Route::get('schedules/countries', [LocationController::class, 'countries']);
+
+    // Classification — the front door. Discovery below REQUIRES a child_id and
+    // nothing in v2 returned one, so the app could not browse a single business.
+    // root category -> specialty (child_id) -> discovery.
+    Route::prefix('categories')->group(function () {
+        Route::get('/', [CategoryController::class, 'index']);
+        Route::get('{category}/specialties', [CategoryController::class, 'specialties'])->whereNumber('category');
+    });
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {

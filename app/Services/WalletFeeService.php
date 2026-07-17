@@ -9,6 +9,7 @@ use App\Models\PlatformServiceFeePromotion;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
+use App\Services\Wallet\PlatformTreasuryService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -23,7 +24,10 @@ class WalletFeeService
 
     public const DEFAULT_FEE_CODE = CategoryChildServiceFee::DEFAULT_FEE_CODE;
 
-    public function __construct(protected ServiceFeeRuleEngine $rules) {}
+    public function __construct(
+        protected ServiceFeeRuleEngine $rules,
+        protected PlatformTreasuryService $treasury
+    ) {}
 
     public function resolveBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
     {
@@ -438,7 +442,7 @@ class WalletFeeService
         $wallet->last_activity_at = now();
         $wallet->save();
 
-        return WalletTransaction::create([
+        $transaction = WalletTransaction::create([
             'wallet_id' => (int) $wallet->id,
             'user_id' => $userId,
 
@@ -465,6 +469,18 @@ class WalletFeeService
                 line: $line
             ),
         ]);
+
+        // The other half of the movement. Without this the fee left the payer
+        // and was credited to nobody — money out of the ledger entirely.
+        $this->treasury->credit(
+            amount: $amount,
+            purpose: PlatformTreasuryService::PURPOSE_FEE,
+            referenceId: (string) $booking->id,
+            idempotencyKey: $idempotencyKey.':treasury',
+            meta: ['booking_id' => (int) $booking->id, 'fee_code' => $feeCode, 'payer' => $payer]
+        );
+
+        return $transaction;
     }
 
     protected function buildTransactionMeta(

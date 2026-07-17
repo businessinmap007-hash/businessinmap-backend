@@ -52,11 +52,35 @@ it. That single fact drives three things at once:
 - **Index** — what the discovery search matches on.
 
 Consequences (locked):
-- **Options are redundant** for discovery/classification — the filter is
-  `category_child` (specialty) + `item_types` (subjects offered). Options retire.
+- **Options are redundant** for *classification* — the specialty filter is
+  `category_child` + `item_types`. Options do **not** retire entirely: they are
+  the platform's **attributes** axis (§3.1).
 - **Branches** are an organisational grouping only; booking/pricing always keys
   on the item-type `key`, never the branch.
 - Premium/variant of a type = a **distinct item type** (keeps pricing single-source).
+
+### 3.1 The three axes (and the test that separates them)
+
+Item types and options are not competing systems — they answer different
+questions, and a business needs all three answered:
+
+| Axis | Question | Source of truth |
+|---|---|---|
+| 1. Classification | **Who are you?** | `categories` → `category_children_master` |
+| 2. Attributes | **How do you deal?** | `options` + `category_child_option` + `option_user` |
+| 3. Offering | **What do you sell?** | `item_types` + `business_service_prices`, catalog |
+
+The customer walks them in order: *محل موبيلات* (1) → *عنده تقسيط؟* (2) → *أنواع
+الموبايلات المعروضة* (3).
+
+**The test, and it is the whole rule:**
+
+> **Can the merchant put a price on it on its own?**
+> yes → **item type** (`قاعة أفراح: 5000`) · no → **option** (`من 200 إلى 300 فرد`)
+
+Getting axis 2 wrong is what makes the platform feel crowded: with no attributes
+axis, everything is forced into item types, and a dimension like *capacity* turns
+into 10 fake "types" nobody can price.
 
 ### Usage (both personas)
 
@@ -74,9 +98,9 @@ Customer                         Business owner
 ## 4. What is legacy / being retired or unified
 
 1. **Options / OptionGroups** — a legacy layer doing double duty (attributes +
-   pseudo-classification). **Retire fully**: migrate meaningful groups into item
-   types + branches (in progress); keep at most a small, single-purpose
-   "attributes" concept if any genuine attributes remain.
+   pseudo-classification). **Retire the classification half only**: specialty
+   groups migrated into item types + branches (done, Phase 1). The attributes
+   half **stays and is load-bearing** — see §3.1 and Phase 1b.
 2. **Menu vs Catalog** — two systems for the same idea ("sellable items in
    categories, priced, orderable"). **Unify** into one *offerings* model that
    varies by: **fulfilment** (book / dine-in / pickup / delivery = the
@@ -94,7 +118,9 @@ Customer                         Business owner
 
 1. Core model = classification → services → **item types (offer = filter =
    index)** → transactions. Do not rebuild it.
-2. **Options retire.** Discovery/filtering = `category_child` + `item_types`.
+2. **Options retire as classification, and survive as attributes** (§3.1). The
+   specialty filter is `category_child` + `item_types`; the *attributes* filter
+   (تقسيط، كاش، جملة، سعة القاعة) is `options`. The separator is the price test.
 3. **Branches are organisational only** and are a shared, cross-service,
    many-to-many pool (a type may sit in several branches).
 4. **Menu and Catalog unify** into one offerings model (fulfilment + richness).
@@ -133,6 +159,55 @@ catalogs deferred to Phase 3. Final disposition:
   remaining rows are attributes (#12) or Phase-3 catalog data. Retiring the
   Options admin screens waits until Phase 3 empties the catalog groups.
 
+### ✅ Phase 1b — Redistribute item types vs options (done 2026-07-17)
+
+Phase 1 moved specialties **out** of options. It never did the other direction:
+sort the item types themselves. `TaxonomyRedistributionSeeder` (idempotent) does,
+using the §3.1 price test. Guarded by `TaxonomyRedistributionTest`.
+
+**The finding.** «قاعات ومناسبات» held **39 entries of which only 9 were
+bookable** — the rest were a hall's **capacity (10)**, **class (7)** and a
+meaningless **«مقاس» scale (13)**. A customer hunting a wedding hall scrolled 39
+rows to reach 9 real ones. *That* is why the platform felt crowded; not "too many
+services".
+
+| | Before | After |
+|---|---:|---:|
+| Active item types | 405 | **334** |
+| — booking | 249 | **202** |
+| — menu | 68 | **44** |
+| Halls branch | 39 | **8** |
+| Option groups | 6 | **9** |
+
+What moved, and why:
+- **Dimensions → new option groups** «سعة القاعة» (10), «فئة القاعة» (7),
+  «مرافق ومعدات» (wifi, whiteboard — nobody buys wifi).
+- **«مقاس 4..16» deleted** — meaningless scale, zero references (owner's call).
+- **Products misfiled in booking retired** (12): «خدمات ومهمات» is a *craftsmen*
+  branch and held لعب أطفال، خضروات، موبايل، كمبيوتر. retail already has each.
+- **Import duplicates merged** (27): the `_2`/`_1` suffixes (`canned_food_2`,
+  `pasta_2`, «مواد غذائية 1/2») are the fingerprint of an import that never
+  deduped. Also `electricity`→`electrical`, `football_5_field`→`five_side_field`,
+  `vip`→`hall_vip`. Distinct real products (فسيخ، رنجة، بهارات، فحم، عصائر) were
+  deliberately **not** merged — specific is not duplicate.
+- **Option group #12 cleaned**: 42 → 28, dropping specialties that wandered in
+  (حجز طيران، حجز فنادق، شغالة، دادة أطفال، بترول، أخشاب، الكريتال، «spear 1»…).
+  Kept on purpose: بيع وشراء · إستيراد · تصدير · تسليم أرض المصنع · شحن — those
+  are commercial *modes*, not products.
+
+**Rules that made it safe:**
+- **Deactivate, never delete** an item type (`is_active=0` + unbranch). A live
+  `business_service_prices` row may reference the key — precedent set by
+  `MenuBranchesSeeder`, which kept `3dmax` active for exactly that reason.
+  `options` has no `is_active` column, so retired options are deleted; safe only
+  because just 4 `category_child_option` links and 2 `option_user` rows exist.
+- **Remap references before retiring.** `business_service_prices.bookable_item_type`
+  **and** `category_service_configs.config.allowed_item_types`. That second one is
+  the trap: configs name item types by **key inside a JSON array**, so a retired
+  key throws no error — the merchant is simply still offered it, silently.
+- Business 212 is **«فندق الاندلس», a real 2020 account**, not test data. Its
+  room types are asserted to survive.
+
 ### ✅ Phase 2 — Wire discovery on the offer=filter principle (done)
 - `Api/V2/DiscoveryController` + public routes:
   - `GET /v2/discovery/filters?child_id=&service_id=` — the services a category
@@ -147,6 +222,39 @@ catalogs deferred to Phase 3. Final disposition:
 - **Accept (met):** verified the "training centre" journey — adding an `english`
   offering makes it appear under the «تدريب ودورات» branch filter and returns the
   centre when filtered by `item_types=[english]`.
+
+### Phase 1c — Wire the attributes axis  *(NOT DONE — the axis is dead)*
+
+Phase 1b sorted *what* is an attribute. Nothing **reads** attributes yet, and the
+measurements say the axis collapsed rather than being switched off:
+
+| | Now |
+|---|---|
+| Children with any option | **2 of 304** |
+| Businesses with any option | **1 of 1,748** |
+| Attribute filter in `DiscoveryController` | **none** |
+
+The cause is on record in the database itself: `temp_category_option_mapping`
+(108 rows) and `temp_unmatched_category_option_ids` (109) are the receipt of the
+category restructure — `category_child_option` pointed at **old category ids**,
+109 links needed remapping, and only 4 survive. It broke; nobody decided it.
+
+So `تقسيط` sits in `options[203]` exactly where §3.1 says it belongs, and **no
+code path can reach it**. Three pieces are missing (the AdminV2 screens
+`category-child-options` (+ a bulk editor), `options` and `option-groups` are
+already built and alive):
+
+1. **Relink** — which attributes apply to which specialty (rebuild from the temp
+   tables, or start clean).
+2. **Merchant self-service** — a business picks its own attributes. `option_user`
+   is admin-written today.
+3. **Customer filter** — `discovery/filters` returns the available attributes;
+   `discovery/businesses` accepts `options[]`. A small addition, not a rebuild.
+
+Blocker for the owner's own example: **«محل موبيلات» is not a specialty** — no
+`category_children_master` row matches موبايل. It exists only as item types
+(`mobiles_accessories` in retail). So the journey *shop kind → تقسيط → product
+types* cannot run until that classification gap is closed too.
 
 ### Phase 3 — Unify Menu / Catalog into one offerings layer  *(largest)*
 

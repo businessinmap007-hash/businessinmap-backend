@@ -4,9 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAddressRequest;
 use App\Models\Address;
-use App\Models\Location;
+use App\Models\Country;
 use Illuminate\Http\Request;
 
+/**
+ * ⚠️ Legacy web address form — routed but non-functional, and left in place
+ * rather than deleted (v1 is kept deliberately; parts are still being ported).
+ *
+ * index() renders `addresses.index`, a view that does not exist, so it throws.
+ * store() used to look up `locations` for name_en = 'Egypt' in a table where all
+ * 71 rows have an empty name_en, so it always answered "الدولة الافتراضية غير
+ * موجودة". Between them, no address was ever created — the table has zero rows.
+ *
+ * The live address book is Api\V2\AddressController. The id-space bug is fixed
+ * here anyway so this cannot quietly write governorate ids from a different
+ * table into the same columns if anyone revives it.
+ */
 class AddressController extends Controller
 {
     /**
@@ -14,8 +27,7 @@ class AddressController extends Controller
      */
     public function index()
     {
-        // الدول من locations (النظام الجديد)
-        $countries = Location::where('type', 'country')->get();
+        $countries = Country::query()->orderBy('name_ar')->get();
 
         return view('addresses.index', compact('countries'));
     }
@@ -25,13 +37,13 @@ class AddressController extends Controller
      */
     public function store(StoreAddressRequest $request)
     {
-        // الدولة الافتراضية (مصر)
-        $country = Location::where('type', 'country')
-                           ->where('name_en', 'Egypt')
-                           ->first();
+        // Derived from the chosen governorate rather than hardcoded to Egypt:
+        // `countries` now holds all 249 ISO countries.
+        $governorate = \App\Models\Governorate::query()->find($request->governorate_id);
+        $country = $governorate?->country;
 
         if (!$country) {
-            return returnedResponse(500, 'الدولة الافتراضية غير موجودة');
+            return returnedResponse(422, 'المحافظة المختارة غير مرتبطة بدولة');
         }
 
         // إلغاء أي عنوان أساسي سابق

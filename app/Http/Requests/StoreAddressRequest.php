@@ -14,9 +14,14 @@ class StoreAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // النظام الجديد
-            'governorate_id' => 'required|exists:locations,id',
-            'city_id'        => 'required|exists:locations,id',
+            // `locations` was never the new system despite the comment that used
+            // to sit here: it holds 71 country rows with empty names and no
+            // governorates or cities at all. The live tables are governorates /
+            // cities — see Api\V2\AddressController and §14 of the engineering
+            // reference. Corrected here so this request cannot write ids from a
+            // different id space into the same columns if it is ever revived.
+            'governorate_id' => 'required|exists:governorates,id',
+            'city_id'        => 'required|exists:cities,id',
             'address_line'   => 'required|string|min:5|max:255',
 
             // GPS (اختياري)

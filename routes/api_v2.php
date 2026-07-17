@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\LocationController;
 use App\Http\Controllers\Api\V2\RatingController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
 use App\Http\Controllers\Api\V2\OfferBoostController;
@@ -56,6 +57,16 @@ Route::prefix('v2')->group(function () {
     Route::middleware('throttle:6,1')
         ->post('account/deletion/cancel', [AccountDeletionController::class, 'cancel']);
 
+    // Geography (BIM-11.1) — public: an address is picked at registration and
+    // checkout, before there is a token. Without these the address book cannot
+    // be used at all: POST /addresses requires ids nothing could discover.
+    Route::prefix('locations')->group(function () {
+        Route::get('countries', [LocationController::class, 'countries']);
+        Route::get('governorates', [LocationController::class, 'governorates']);
+        Route::get('cities/search', [LocationController::class, 'searchCities']);
+        Route::get('cities', [LocationController::class, 'cities']);
+    });
+
     Route::prefix('offers')->group(function () {
         Route::get('/', [OfferDiscoveryController::class, 'index']);
         Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
@@ -76,7 +87,10 @@ Route::prefix('v2')->group(function () {
     // Vehicle/cargo classes for the scheduling service (picker + filter). Public.
     Route::get('schedules/vehicle-types', [TripScheduleController::class, 'vehicleTypes']);
     // Country picker for INTERNATIONAL legs only (domestic uses governorates).
-    Route::get('schedules/countries', [TripScheduleController::class, 'countries']);
+    // Kept as a path because the app already calls it, but pointed at the one
+    // implementation in LocationController — the same list has no business
+    // being built twice.
+    Route::get('schedules/countries', [LocationController::class, 'countries']);
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {

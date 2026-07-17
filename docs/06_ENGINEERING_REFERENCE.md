@@ -56,7 +56,7 @@ Grouped by what owns them. (`SHOW TABLES` count: 144.)
 | **Commercial / B2B** | `commercial_offers`, `commercial_offer_targets`, `business_partnerships`, `offer_follows`, `offer_follow_notifications`, `offer_tracking_events`, `offer_boost_packages`, `offer_boost_purchases`, `subscriptions`, `coupons` |
 | **QR (BIM-13)** | `business_tables` (+ tokens carried on orders/carts) |
 | **Notifications** | `app_notifications`, `notification_channel_rules`, `notification_delivery_logs`, `user_push_tokens`, `push_settings`, `notifications`, `notifications_old` |
-| **Geography** | `countries` (249 — full ISO 3166-1), `governorates` (27), `cities` (1,339), `addresses`, `locations`, `location_id_mappings` |
+| **Geography** | `countries` (249 — full ISO 3166-1), `governorates` (27), `cities` (1,339), `addresses` — **live**. `locations` (71, all unnamed countries), `location_id_mappings` (0) — **dead, see §14** |
 | **Content** | `posts`, `albums`, `images`, `banners`, `sponsors`, `comments`, `likes`, `applies`, `services`, `products`, `product_categories`, `product_category_children`, `wishlists`, `follow_user`, `business_gifts` |
 | **Messaging** | `conversations`, `messages` |
 | **Legacy / scratch** | `posts_backup_images`, `temp_category_option_mapping`, `temp_unmatched_category_option_ids`, `cars`, `rides`, `target_user`, `business_client_allowlist`, `business_client_relationships`, `service_events`, `service_order_rejections`, `failed_jobs`, `migrations` |
@@ -281,6 +281,13 @@ never-confirmed pending request cancels with no rating hit.
   "fixes" it by adding a button.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
   instead of using `TripSchedule::modeLabels()` etc.
+- **Nearest-city-by-GPS** (the rest of BIM-11.1). `LocationHelper::detectFromLatLng`
+  exists but is not wired to any v2 endpoint, so the app cannot offer "use my
+  location" — only the manual pickers.
+- **The legacy web address form** (`AddressController` + `StoreAddressRequest`) is
+  routed but unreachable: `resources/views/addresses/` does not exist. Its id
+  space is fixed so it cannot corrupt `addresses`, but it should probably be
+  retired — kept for now under the keep-v1 rule.
 - **Fines system** (deferred by decision). The `PURPOSE_FINE` treasury bucket and
   the `users.banned_at` + `blocked_identities` machinery already exist, so this
   needs the fraud *detection* and the appeal path, not a redesign. Two things to
@@ -414,3 +421,50 @@ would drift.
 > listed real transactions for anyone who could open the panel, so gating the
 > wallet screens alone would have moved the leak rather than closed it. The
 > money is now not even queried unless the viewer holds `admin.money`.
+
+---
+
+## 14. Geography: `locations` is dead, `countries`/`governorates`/`cities` is live (BIM-11.1)
+
+Two parallel geo systems existed. This is the verdict, so nobody re-litigates it:
+
+| | Rows | Verdict |
+|---|---:|---|
+| `countries` | 249 (full ISO 3166-1, named, flags) | **Live.** Source of truth. |
+| `governorates` | 27 | **Live.** |
+| `cities` | 1,339 | **Live.** |
+| `locations` | 71 — all `type=country`, **`name_ar` AND `name_en` empty on every row**, zero governorates, zero cities | **Dead tree.** Never populated. |
+| `location_id_mappings` | 0 | Dead. |
+
+Everything written in the last year already read the live tables: the v1 dropdown
+API (`/api/v1/{countries,governorates,cities}`), the scheduling service, and the
+BIM-3.5 fee-rule admin. Only the address book pointed at `locations` — in four
+places at once, which is why **`addresses` had zero rows and no delivery could be
+ordered**:
+
+1. **A foreign key** on all three columns → `locations(id)`. The floor under the
+   bug: even with everything else fixed, the insert died on the constraint.
+2. `Api\V2\AddressController` validated `exists:locations,id`, so
+   `governorate_id=1` (القاهرة) was **rejected** (locations starts at id 2) while
+   `governorate_id=2` **passed by matching a country**.
+3. `Address` model related country/governorate/city to `Location`, so
+   `$address->city` could only ever be null.
+4. The legacy web form looked up `locations` for `name_en='Egypt'` in a table
+   where every name is empty → always 500. Its view does not exist either.
+
+> `ServiceFeeRuleEngine` reads `addresses.governorate_id` raw and compares it to
+> ids the fee-rule admin took from `governorates`. Two id spaces, compared as
+> one — latent only because no address could exist. Enabling addresses without
+> fixing this would have activated it.
+
+Migration `2026_08_07_000000` repoints the foreign keys and **throws if
+`addresses` is non-empty**, because the no-data-migration argument only holds
+while the table is empty.
+
+`locations` itself is left in place: v1 controllers still reference it, and the
+decision to keep legacy code stands. Do not build on it.
+
+> The pre-existing `AddressApiTest` passed while all of this was broken: it
+> posted the *same id* as both `governorate_id` and `city_id`, because it encoded
+> the same wrong assumption as the code. A test can only catch what it does not
+> also believe.

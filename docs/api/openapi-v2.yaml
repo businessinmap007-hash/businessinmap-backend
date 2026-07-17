@@ -37,6 +37,7 @@ tags:
   - name: Password Reset
   - name: Account deletion
   - name: Profile
+  - name: Locations
   - name: Addresses
   - name: Wallet
   - name: Wallet Top-up
@@ -477,6 +478,153 @@ paths:
         '200': { description: Password changed. }
         '422': { $ref: '#/components/responses/Validation' }
 
+  # ──────────────────── Geography (BIM-11.1) ────────────────────
+  # Public: an address is picked at registration and checkout, before there is a
+  # token. Source of truth is countries / governorates / cities — NOT the
+  # `locations` tree, which holds only unnamed country rows.
+  /locations/countries:
+    get:
+      tags: [Locations]
+      summary: All countries (public)
+      security: []
+      description: Full ISO 3166-1 officially assigned list.
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Filters on Arabic/English name or ISO code. }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      countries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string }
+                            iso2: { type: string }
+                            phone_code: { type: string, nullable: true }
+                            flag: { type: string, nullable: true }
+
+  /locations/governorates:
+    get:
+      tags: [Locations]
+      summary: Governorates of one country (public)
+      security: []
+      description: >
+        country_id is required and not defaulted: a silent default returns a
+        plausible-looking list for the wrong country and the caller cannot tell.
+      parameters:
+        - { name: country_id, in: query, required: true, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      governorates:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            country_id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string }
+                            latitude: { type: number, nullable: true }
+                            longitude: { type: number, nullable: true }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  /locations/cities:
+    get:
+      tags: [Locations]
+      summary: Cities of one governorate (public)
+      security: []
+      description: Capped at 300 — the picker is a search box, not a scroll.
+      parameters:
+        - { name: governorate_id, in: query, required: true, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      cities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            governorate_id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string }
+                            latitude: { type: number, nullable: true }
+                            longitude: { type: number, nullable: true }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  /locations/cities/search:
+    get:
+      tags: [Locations]
+      summary: Type-ahead city search across governorates (public)
+      security: []
+      description: >
+        For "I know the town, not the governorate". Each row carries its
+        governorate so the form can fill the parent in from the child. Capped at 30.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1 } }
+        - { name: governorate_id, in: query, schema: { type: integer }, description: Optional narrowing. }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      cities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            name_ar: { type: string }
+                            name_en: { type: string }
+                            governorate:
+                              type: object
+                              nullable: true
+                              properties:
+                                id: { type: integer }
+                                country_id: { type: integer }
+                                name_ar: { type: string }
+                                name_en: { type: string }
+        '422': { $ref: '#/components/responses/Validation' }
+
   # ──────────────────── Account deletion (BIM-15.1) ────────────────────
   /account/deletion:
     get:
@@ -637,6 +785,11 @@ paths:
     post:
       tags: [Addresses]
       summary: Add an address (first one becomes primary)
+      description: >
+        Ids come from /locations/* — governorate_id from /locations/governorates
+        and city_id from /locations/cities. The hierarchy is enforced: the city
+        must belong to the governorate, and the governorate to the country. Omit
+        country_id and it is derived from the governorate.
       requestBody:
         required: true
         content:
@@ -645,9 +798,9 @@ paths:
               type: object
               required: [governorate_id, city_id, address_line]
               properties:
-                country_id: { type: integer }
-                governorate_id: { type: integer }
-                city_id: { type: integer }
+                country_id: { type: integer, description: Optional; derived from the governorate when absent. }
+                governorate_id: { type: integer, description: From /locations/governorates. }
+                city_id: { type: integer, description: From /locations/cities. Must belong to governorate_id. }
                 address_line: { type: string, minLength: 5, maxLength: 191 }
                 zip_code: { type: string }
                 lat: { type: number }

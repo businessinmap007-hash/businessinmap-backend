@@ -288,8 +288,45 @@ clearing, and a client account has no attributes to set.
 `category_children_master` row matches موبايل; it exists only as item types
 (`mobiles_accessories` in retail). The journey *shop kind → تقسيط → product
 types* on the owner's own example still can't run end to end until that
-classification gap closes. Bulk-backfilling `category_child_option` beyond
-child 68 is admin data-entry work, not a code gap.
+classification gap closes.
+
+**Bulk-linked all 304 children (2026-07-18), not just admin data-entry after all.**
+`database/seeders/LinkCategoryChildrenToOptionsSeeder.php` took
+`category_child_option` from 1 real child (68, plus 12 the owner had just
+hand-linked for real estate) to all 304 — **9,124 rows**. Additive-only (never
+deletes/edits an existing row) and re-runnable. Two linking rules:
+
+1. **Group 12 «أنماط خدمة وتجارية» is universal** — every child gets all 24
+   commerce/payment-mode options. Linking only makes an attribute *available*
+   to pick via `/profile/options`; the business still opts in per-attribute
+   itself, so this costs nothing even for a specialty (a surgeon) where most
+   of the 24 make no sense.
+2. **The 5 catalog groups (vehicles/furniture/real-estate/fashion/packaging)
+   and venue amenities (23) are matched by a normalized-Arabic keyword regex
+   against the child's own name** — not by root category. A root mixes
+   unrelated themes (`المحلات أو أونلاين` holds both فواكه and قطع غيار
+   سيارات), so the child's name is the more precise signal. Patterns were
+   validated against the real 304-row list before running (caught: `كوتشي`
+   ≠ a vehicle despite containing `كوتش`; `مكتبية` ≠ real estate despite
+   containing `مكتب`; `معرض سيارات` ≠ real estate despite containing `معرض`;
+   `آثاث` uses alef-madda so a plain-alef pattern silently misses it —
+   Arabic text matching needs alef/ta-marbuta/alef-maksura normalization).
+
+Independent proof the approach was right: while this was being designed, the
+owner had *already* hand-linked all 12 real-estate children to all 18
+real-estate options through the bulk editor — the exact same 12 children the
+keyword pattern derived on its own. The seeder skipped all 216 of those
+(already present) and only added what wasn't there yet.
+
+Guarded by `tests/Feature/CategoryChildOptionLinkingTest.php`: every child
+carries the universal group, no vehicle option leaked onto a restaurant/
+pharmacy/law-firm child, the owner's manual real-estate linking survived
+untouched, and the seeder is idempotent.
+
+If the owner moves more service items into an existing option group, re-run
+the seeder — it re-derives each group's option list at run time, so newly
+active options reach already-matched children with no further wiring. A
+brand-new group only needs one new pattern line in `RULES`.
 
 ### Phase 3 — Unify Menu / Catalog into one offerings layer  *(largest)*
 

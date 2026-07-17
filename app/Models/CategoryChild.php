@@ -62,7 +62,9 @@ class CategoryChild extends Model
             'child_id',
             'option_id'
         )
-            ->where('options.is_active', 1)
+            ->when(\Illuminate\Support\Facades\Schema::hasColumn('options', 'is_active'), function ($q) {
+                $q->where('options.is_active', 1);
+            })
             ->orderBy('category_child_option.reorder')
             ->orderBy('options.id');
     }

@@ -829,6 +829,31 @@ paths:
       responses:
         '200': { description: OK }
         '422': { $ref: '#/components/responses/Validation' }
+  /profile/options:
+    get:
+      tags: [Profile]
+      summary: The attributes catalog for a business's own specialty, marked with its current picks
+      responses: { '200': { description: OK }, '403': { description: Not a business account } }
+    patch:
+      tags: [Profile]
+      summary: A business sets which attributes describe it (full replace)
+      description: >
+        option_ids must all belong to the option set linked to the business's own
+        category_child_id (category_child_option) — a business can only pick
+        attributes valid for its own specialty. Send an empty array to clear all.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [option_ids]
+              properties:
+                option_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a business account }
+        '422': { $ref: '#/components/responses/Validation' }
   /profile/password:
     post:
       tags: [Profile]
@@ -1831,8 +1856,10 @@ paths:
   # ─────────────────────────── Discovery ───────────────────────────
   /discovery/filters:
     get: { tags: [Discovery], summary: Customer discovery filters (public), security: [], responses: { '200': { description: OK } } }
+  /discovery/attributes:
+    get: { tags: [Discovery], summary: Attribute (option) filters for a category child, with business counts (public), security: [], responses: { '200': { description: OK } } }
   /discovery/businesses:
-    get: { tags: [Discovery], summary: Discover businesses (public), security: [], responses: { '200': { description: OK } } }
+    get: { tags: [Discovery], summary: Discover businesses — filterable by service/item types and by option_ids[] (all must match) (public), security: [], responses: { '200': { description: OK } } }
   /discovery/menu/{business}:
     get: { tags: [Discovery], summary: A business's menu grouped by sections (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /discovery/retail/filters:

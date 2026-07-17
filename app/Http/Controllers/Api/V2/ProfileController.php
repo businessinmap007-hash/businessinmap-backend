@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\AccountResource;
+use App\Models\CategoryChild;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -42,6 +44,88 @@ final class ProfileController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);
+    }
+
+    /**
+     * GET /api/v2/profile/options — the attributes catalog for the business's
+     * own specialty (category_child_id), with the ones it currently carries
+     * marked selected. Attributes describe the BUSINESS, never priced alone.
+     */
+    public function showOptions(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'business') {
+            abort(403, 'Only a business account has attributes.');
+        }
+
+        return response()->json(['success' => true, 'data' => $this->optionsPayload($user)]);
+    }
+
+    /** PATCH /api/v2/profile/options — a business sets which attributes describe it. */
+    public function updateOptions(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'business') {
+            abort(403, 'Only a business account has attributes to set.');
+        }
+
+        $data = $request->validate([
+            'option_ids' => ['present', 'array'],
+            'option_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $optionIds = array_values(array_unique(array_map('intval', $data['option_ids'])));
+
+        $allowed = DB::table('category_child_option')
+            ->where('child_id', (int) $user->category_child_id)
+            ->pluck('option_id')
+            ->all();
+
+        $invalid = array_diff($optionIds, $allowed);
+
+        if ($invalid) {
+            throw ValidationException::withMessages([
+                'option_ids' => ['هذه الخصائص لا تنتمي لتخصص نشاطك المُختار: ' . implode(', ', $invalid)],
+            ]);
+        }
+
+        $user->options()->sync($optionIds);
+
+        return response()->json(['success' => true, 'data' => $this->optionsPayload($user->fresh())]);
+    }
+
+    /** The option catalog for a business's specialty, marked with its current picks. */
+    private function optionsPayload($user): array
+    {
+        $childId = (int) ($user->category_child_id ?? 0);
+        $selected = $user->options()->pluck('options.id')->all();
+
+        $options = $childId
+            ? (CategoryChild::query()->find($childId)?->activeOptions()->with('group')->get() ?? collect())
+            : collect();
+
+        $groups = [];
+        foreach ($options as $o) {
+            $gid = (int) ($o->group_id ?? 0);
+            $groups[$gid] ??= [
+                'id' => $gid ?: null,
+                'name' => $o->group?->displayName ?? '',
+                'options' => [],
+            ];
+            $groups[$gid]['options'][] = [
+                'id' => (int) $o->id,
+                'name' => $o->displayName,
+                'selected' => in_array((int) $o->id, $selected, true),
+            ];
+        }
+
+        return [
+            'child_id' => $childId ?: null,
+            'groups' => array_values($groups),
+            'selected_ids' => $selected,
+        ];
     }
 
     /** POST /api/v2/profile/password — change password (revokes other tokens). */

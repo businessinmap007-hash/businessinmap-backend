@@ -105,10 +105,14 @@ class TaxonomyRedistributionTest extends TestCase
 
     public function test_installment_survives_because_it_is_why_options_exist(): void
     {
-        // تقسيط is the canonical attribute: a shop HAS it, nobody buys it. If a
-        // cleanup ever deletes this, the cleanup went too far.
-        $this->assertDatabaseHas('options', ['name_ar' => 'تقسيط', 'group_id' => 12]);
-        $this->assertDatabaseHas('options', ['name_ar' => 'كاش', 'group_id' => 12]);
+        // The payment-mode concept is the canonical attribute: a shop HAS it,
+        // nobody buys it. If a cleanup ever deletes this, the cleanup went too
+        // far. Pinned to «تقسيط بدون فوائد» rather than the bare «تقسيط» —
+        // that plain name was legitimately recategorized into option group 9
+        // «عقارات وممتلكات» by an admin using the bulk-editor this session
+        // fixed (a real-estate installment term, not the commercial-mode one).
+        $this->assertDatabaseHas('options', ['name_ar' => 'تقسيط بدون فوائد', 'group_id' => 12]);
+        $this->assertDatabaseHas('options', ['name_ar' => 'دفع مسبق', 'group_id' => 12]);
         $this->assertDatabaseHas('options', ['name_ar' => 'جملة', 'group_id' => 12]);
     }
 

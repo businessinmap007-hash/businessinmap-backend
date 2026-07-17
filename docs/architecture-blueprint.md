@@ -238,38 +238,58 @@ What moved, and why:
   offering makes it appear under the «تدريب ودورات» branch filter and returns the
   centre when filtered by `item_types=[english]`.
 
-### Phase 1c — Wire the attributes axis  *(NOT DONE — the axis is dead)*
+### ✅ Phase 1c — Wire the attributes axis (done 2026-07-18)
 
-Phase 1b sorted *what* is an attribute. Nothing **reads** attributes yet, and the
-measurements say the axis collapsed rather than being switched off:
+Phase 1b sorted *what* is an attribute. Nothing **read** attributes before this
+— the measurements said the axis had collapsed rather than being switched off:
 
-| | Now |
-|---|---|
-| Children with any option | **2 of 304** |
-| Businesses with any option | **1 of 1,748** |
-| Attribute filter in `DiscoveryController` | **none** |
+| | Before | After |
+|---|---|---|
+| Children with any option | 2 of 304 | unchanged — see note below |
+| Businesses with any option | 1 of 1,748 | unchanged (no bulk backfill run) |
+| Attribute filter in `DiscoveryController` | none | `GET discovery/attributes` + `businesses(option_ids[])` |
+| Merchant self-service | none (`option_user` admin-only) | `GET`/`PATCH /profile/options` |
 
-The cause is on record in the database itself: `temp_category_option_mapping`
-(108 rows) and `temp_unmatched_category_option_ids` (109) are the receipt of the
-category restructure — `category_child_option` pointed at **old category ids**,
-109 links needed remapping, and only 4 survive. It broke; nobody decided it.
+**Why relinking wasn't a data-recovery job:** `temp_category_option_mapping`
+(108 rows) only maps `old_category_id → new_child_id` — it never carried
+`option_id`. `category_child_option` itself was already down to 3 rows (all
+child 68) by the time this was checked, so there was no lost linkage to
+restore, only a live mechanism to finish wiring. What shipped:
 
-So `تقسيط` sits in `options[203]` exactly where §3.1 says it belongs, and **no
-code path can reach it**. Three pieces are missing (the AdminV2 screens
-`category-child-options` (+ a bulk editor), `options` and `option-groups` are
-already built and alive):
+1. **Customer filter** — `DiscoveryController::attributes($child_id)` returns
+   the option groups/options actually linked to that child (via
+   `CategoryChild::activeOptions()`), each with a business count. `businesses()`
+   now accepts `option_ids[]` and requires **all** of them (AND, not OR — a
+   filter narrows). Found and fixed a live bug on the way:
+   `CategoryChild::activeOptions()` hardcoded `where('options.is_active', 1)`
+   but `options` has **no `is_active` column** — every call would have thrown
+   "Unknown column" (nothing had ever called it).
+2. **Merchant self-service** — `ProfileController::showOptions`/`updateOptions`.
+   A business can only sync `option_ids` that are linked to its **own**
+   `category_child_id` via `category_child_option` (422 otherwise) — it cannot
+   claim an attribute outside its own specialty. Full-replace semantics
+   (`option_ids: []` clears everything), ported from the v1
+   `businessOptions`/`sync()` precedent.
+3. **Relink (admin-driven, ongoing)** — no bulk backfill script was run. The
+   `category-child-options` bulk editor (routing fixed last session) is now the
+   live, correct destination, and it is *already being used*: while this slice
+   was in progress, ~18 real-estate option rows (أرض, عمارة, شقة, تقسيط, كاش,
+   إيجار…) were moved from group 12 into group 9 «عقارات وممتلكات» by a
+   concurrent admin edit — the exact "review both and decide" work the owner
+   named as needed. `TaxonomyRedistributionTest` was updated to pin group 12's
+   canary to `تقسيط بدون فوائد`/`دفع مسبق` (survivors) instead of the
+   now-relocated bare `تقسيط`/`كاش`.
 
-1. **Relink** — which attributes apply to which specialty (rebuild from the temp
-   tables, or start clean).
-2. **Merchant self-service** — a business picks its own attributes. `option_user`
-   is admin-written today.
-3. **Customer filter** — `discovery/filters` returns the available attributes;
-   `discovery/businesses` accepts `options[]`. A small addition, not a rebuild.
+Guarded by `tests/Feature/AttributesAxisApiTest.php` (5 tests): the endpoint
+shape + counts, AND-filtering, scope-to-own-specialty rejection, full-replace
+clearing, and a client account has no attributes to set.
 
-Blocker for the owner's own example: **«محل موبيلات» is not a specialty** — no
-`category_children_master` row matches موبايل. It exists only as item types
-(`mobiles_accessories` in retail). So the journey *shop kind → تقسيط → product
-types* cannot run until that classification gap is closed too.
+**Still open:** «محل موبيلات» is still not a specialty — no
+`category_children_master` row matches موبايل; it exists only as item types
+(`mobiles_accessories` in retail). The journey *shop kind → تقسيط → product
+types* on the owner's own example still can't run end to end until that
+classification gap closes. Bulk-backfilling `category_child_option` beyond
+child 68 is admin data-entry work, not a code gap.
 
 ### Phase 3 — Unify Menu / Catalog into one offerings layer  *(largest)*
 

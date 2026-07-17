@@ -104,6 +104,9 @@ Route::prefix('v2')->group(function () {
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {
         Route::get('filters', [DiscoveryController::class, 'filters']);
+        // Attributes axis (options): business-level properties like «تقسيط»,
+        // distinct from the offering axis above (services/item types).
+        Route::get('attributes', [DiscoveryController::class, 'attributes']);
         Route::get('businesses', [DiscoveryController::class, 'businesses']);
 
         // Retail: browse catalog products businesses sell -> product -> offers.
@@ -134,6 +137,10 @@ Route::prefix('v2')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
         Route::post('profile/password', [ProfileController::class, 'updatePassword']);
+        // Attributes axis self-service: a business picks the options that
+        // describe it, scoped to what its own specialty (child) allows.
+        Route::get('profile/options', [ProfileController::class, 'showOptions']);
+        Route::match(['put', 'patch'], 'profile/options', [ProfileController::class, 'updateOptions']);
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

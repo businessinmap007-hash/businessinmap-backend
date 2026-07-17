@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\CategoryChild;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -118,8 +119,59 @@ final class DiscoveryController extends Controller
     }
 
     /**
-     * Businesses in a category child that offer the chosen service / item types.
-     * Each result carries the matched item types it actually offers.
+     * The attributes axis for a category child: option groups + options that
+     * were actually linked to it (category_child_option), each with how many
+     * businesses in that child currently carry it (option_user). A business-
+     * level property like «تقسيط» — never something a merchant prices alone.
+     */
+    public function attributes(Request $request)
+    {
+        $data = $request->validate([
+            'child_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $childId = (int) $data['child_id'];
+
+        $options = CategoryChild::query()->find($childId)?->activeOptions()->with('group')->get()
+            ?? collect();
+
+        $counts = DB::table('option_user as ou')
+            ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->where('u.type', 'business')
+            ->where('u.category_child_id', $childId)
+            ->whereIn('ou.option_id', $options->pluck('id'))
+            ->groupBy('ou.option_id')
+            ->selectRaw('ou.option_id, COUNT(DISTINCT ou.user_id) AS businesses')
+            ->pluck('businesses', 'option_id');
+
+        $groups = [];
+        foreach ($options as $o) {
+            $gid = (int) ($o->group_id ?? 0);
+            $groups[$gid] ??= [
+                'id' => $gid ?: null,
+                'name' => $o->group ? $this->label($o->group->name_ar, $o->group->name_en, '') : '',
+                'options' => [],
+            ];
+            $groups[$gid]['options'][] = [
+                'id' => (int) $o->id,
+                'name' => $this->label($o->name_ar, $o->name_en, ''),
+                'businesses' => (int) ($counts[$o->id] ?? 0),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'child_id' => $childId,
+                'groups' => array_values($groups),
+            ],
+        ]);
+    }
+
+    /**
+     * Businesses in a category child that offer the chosen service / item types
+     * and (optionally) carry every selected attribute. Each result carries the
+     * matched item types it actually offers.
      */
     public function businesses(Request $request)
     {
@@ -128,6 +180,8 @@ final class DiscoveryController extends Controller
             'service_id' => ['nullable', 'integer', 'min:1'],
             'item_types' => ['nullable', 'array'],
             'item_types.*' => ['string', 'max:100'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -135,6 +189,10 @@ final class DiscoveryController extends Controller
         $childId = (int) $data['child_id'];
         $serviceId = (int) ($data['service_id'] ?? 0);
         $itemTypes = array_values(array_filter((array) ($data['item_types'] ?? []), fn ($t) => trim((string) $t) !== ''));
+        $optionIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) ($data['option_ids'] ?? [])),
+            fn ($id) => $id > 0
+        )));
         $q = trim((string) ($data['q'] ?? ''));
 
         $offerExists = function (Builder $query) use ($serviceId, $itemTypes) {
@@ -160,6 +218,16 @@ final class DiscoveryController extends Controller
                 ->orWhere('phone', 'like', "%{$q}%")));
 
         $offerExists($query);
+
+        // A business must carry EVERY selected attribute — narrowing, not
+        // widening, is what a filter is for.
+        foreach ($optionIds as $optionId) {
+            $query->whereExists(function ($sub) use ($optionId) {
+                $sub->from('option_user')
+                    ->whereColumn('option_user.user_id', 'users.id')
+                    ->where('option_user.option_id', $optionId);
+            });
+        }
 
         $businesses = $query
             ->orderBy('name')
@@ -187,6 +255,7 @@ final class DiscoveryController extends Controller
                     'child_id' => $childId,
                     'service_id' => $serviceId ?: null,
                     'item_types' => $itemTypes,
+                    'option_ids' => $optionIds,
                     'q' => $q ?: null,
                 ],
                 'businesses' => $businesses,

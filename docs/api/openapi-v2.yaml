@@ -35,6 +35,7 @@ security:
 tags:
   - name: Auth
   - name: Password Reset
+  - name: Account deletion
   - name: Profile
   - name: Addresses
   - name: Wallet
@@ -474,6 +475,113 @@ paths:
                 password_confirmation: { type: string }
       responses:
         '200': { description: Password changed. }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ──────────────────── Account deletion (BIM-15.1) ────────────────────
+  /account/deletion:
+    get:
+      tags: [Account deletion]
+      summary: May I delete my account, and if not, why not?
+      description: >
+        Eligibility is a read of its own so the app can show what must be
+        finished first. Blocker codes: banned, platform_account, open_dispute,
+        pending_bookings, pending_orders, pending_deliveries,
+        pending_reservations, guarantor_obligation, locked_balance.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      can_delete: { type: boolean }
+                      blockers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            code: { type: string }
+                            message: { type: string }
+                            count: { type: integer }
+                      grace_days: { type: integer }
+                      pending_deletion: { type: boolean }
+                      balance_transfer:
+                        type: object
+                        properties:
+                          allowed: { type: boolean }
+                          reason: { type: string, nullable: true }
+                          available_at: { type: string, nullable: true }
+    post:
+      tags: [Account deletion]
+      summary: Request deletion (soft delete + wallet freeze + revoke all tokens)
+      description: >
+        Password-confirmed. The balance does NOT move: the account is restorable
+        for grace_days, after which the balance escheats to the platform and the
+        identity is anonymized. A 422 carries the blocker list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+                reason: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: Deletion requested.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      deletion_requested_at: { type: string }
+                      restorable_until: { type: string }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  /account/deletion/cancel:
+    post:
+      tags: [Account deletion]
+      summary: Restore an account inside the grace window (public, throttled)
+      description: >
+        Public by necessity — requesting deletion revoked every token, so there
+        is nothing to authenticate with. It verifies the password itself and is
+        throttled like the login it effectively is. One message covers unknown
+        account, wrong password and expired window, so it cannot be used to
+        discover which addresses exist.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Account restored; a fresh token is returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  token: { type: string }
         '422': { $ref: '#/components/responses/Validation' }
 
   # ─────────────────────────── Profile ───────────────────────────

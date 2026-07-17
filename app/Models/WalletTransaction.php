@@ -24,6 +24,9 @@ class WalletTransaction extends Model
     public const TYPE_RELEASE      = 'release';
     public const TYPE_REFUND       = 'refund';
     public const TYPE_PLATFORM_FEE = 'platform_fee';
+    // Present in the column enum but previously without constants.
+    public const TYPE_TRANSFER     = 'transfer';
+    public const TYPE_ADJUSTMENT   = 'adjustment';
 
     public const REFERENCE_TYPE_BOOKING = 'booking';
 

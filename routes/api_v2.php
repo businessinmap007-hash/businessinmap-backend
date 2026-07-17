@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V2\AccountDeletionController;
 use App\Http\Controllers\Api\V2\AddressController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
@@ -48,6 +49,12 @@ Route::prefix('v2')->group(function () {
             Route::post('reset', [PasswordResetController::class, 'reset']);
         });
     });
+
+    // Cancelling a deletion cannot be authenticated — requesting it revoked
+    // every token. It verifies the password itself, so it is throttled like the
+    // login it effectively is.
+    Route::middleware('throttle:6,1')
+        ->post('account/deletion/cancel', [AccountDeletionController::class, 'cancel']);
 
     Route::prefix('offers')->group(function () {
         Route::get('/', [OfferDiscoveryController::class, 'index']);
@@ -104,6 +111,12 @@ Route::prefix('v2')->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
         Route::post('profile/password', [ProfileController::class, 'updatePassword']);
+
+        // Delete my account (BIM-15.1). Eligibility is a read of its own so the
+        // app can show what must be finished first, instead of the user finding
+        // out by being refused.
+        Route::get('account/deletion', [AccountDeletionController::class, 'eligibility']);
+        Route::post('account/deletion', [AccountDeletionController::class, 'store']);
 
         // Wallet: balance/ledger (read) + money movements + PIN.
         Route::prefix('wallet')->group(function () {

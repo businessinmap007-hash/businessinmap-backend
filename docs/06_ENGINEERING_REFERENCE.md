@@ -36,9 +36,9 @@ type* is simultaneously its offer, the customer's filter, and the search index.
 
 ---
 
-## 2. DB map — 143 tables
+## 2. DB map — 144 tables
 
-Grouped by what owns them. (`SHOW TABLES` count: 143.)
+Grouped by what owns them. (`SHOW TABLES` count: 144.)
 
 | Domain | Tables |
 |---|---|
@@ -52,7 +52,7 @@ Grouped by what owns them. (`SHOW TABLES` count: 143.)
 | **Delivery** | `delivery_orders`, `delivery_order_items`, `delivery_drivers`, `delivery_completions`, `driver_locations`, `drivers`, `couriers` |
 | **Scheduling (6th service)** | `trip_schedules`, `trip_reservations` |
 | **Money** | `wallets` (799), `wallet_transactions` (1,305), `wallet_pins`, `wallet_topups`, `wallet_note_templates`, `payments`, `payment_settings`, `deposits`, `deposit_events` |
-| **Trust** | `user_guarantees`, `guarantee_levels`, `guarantee_transactions`, `operation_guarantors`, `user_operation_ratings`, `rating_outcome_events`, `operation_reviews`, `ratings`, `disputes`, `dispute_warnings` |
+| **Trust** | `user_guarantees`, `guarantee_levels`, `guarantee_transactions`, `operation_guarantors`, `user_operation_ratings`, `rating_outcome_events`, `operation_reviews`, `ratings`, `disputes`, `dispute_warnings`, `blocked_identities` (BIM-15.1 ban list — hashed, survives anonymization) |
 | **Commercial / B2B** | `commercial_offers`, `commercial_offer_targets`, `business_partnerships`, `offer_follows`, `offer_follow_notifications`, `offer_tracking_events`, `offer_boost_packages`, `offer_boost_purchases`, `subscriptions`, `coupons` |
 | **QR (BIM-13)** | `business_tables` (+ tokens carried on orders/carts) |
 | **Notifications** | `app_notifications`, `notification_channel_rules`, `notification_delivery_logs`, `user_push_tokens`, `push_settings`, `notifications`, `notifications_old` |
@@ -203,6 +203,32 @@ reverses it.
 > A type not in the enum fails with "Data truncated" — which silently broke every
 > platform fee until 2026-07-08.
 
+`WalletService::ensureActive()` guards **every** movement (deposit, withdraw,
+hold, release, refund, transfer, captureLocked), so `wallets.status = blocked` is
+a real freeze in both directions, not a flag. This is what makes the deletion
+grace window safe — and why `AccountDeletionService::escheatBalance()` writes its
+debit directly instead of calling `withdraw()`: by then the wallet is frozen on
+purpose, and unfreezing it to empty it would reopen the window the freeze closes.
+
+### Account deletion (BIM-15.1)
+```
+request()  day 0   soft delete + wallet freeze + revoke tokens — NO money moves
+restore()  ≤grace  account and balance both come back untouched
+finalize() >grace  escheat to treasury (PURPOSE_ESCHEAT) + anonymize identity
+```
+Blocked while the user could still owe or be owed: open dispute (either side),
+pending operations as client **or** business, an accepted `operation_guarantors`
+obligation, `locked_balance > 0` (escrow is not theirs to take), a ban, or the
+treasury itself. `finalize()` refuses to seize contested money — locked balance
+or a dispute that appeared after the request sets `deletion_hold_reason` and
+waits for a human. Swept daily by `accounts:finalize-deletions`.
+
+The row is never hard-deleted: other people's ledger, ratings and invoices point
+at that id. Anonymization empties the person out and keeps `created_at` (the
+product's decision) — and **hashes the identity into `blocked_identities` first
+when the account is banned**, because it destroys the very email and phone a ban
+is enforced on.
+
 ### Booking
 ```
 pending → accepted → in_progress → completed
@@ -249,14 +275,27 @@ never-confirmed pending request cancels with no rating hit.
 **Open:**
 - `catalog_products` is empty (§10) — retail has no master data until a real
   import feed exists. Needs a data source decision, not code.
-- AdminV2 has almost no per-action `->can()` checks. Not an active vulnerability
-  (middleware + owner scoping hold), but a defence-in-depth gap.
+- **BIM-14.1** — AdminV2 has almost no per-action `->can()` checks. Not an active
+  vulnerability (middleware + owner scoping hold), but a defence-in-depth gap,
+  and a sweep across ~69 controllers. Worth its own session; do money/fees/
+  disputes/users first.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
   instead of using `TripSchedule::modeLabels()` etc.
+- **Fines system** (deferred by decision). The `PURPOSE_FINE` treasury bucket and
+  the `users.banned_at` + `blocked_identities` machinery already exist, so this
+  needs the fraud *detection* and the appeal path, not a redesign. Two things to
+  settle first: seizing a balance the instant fraud is suspected is legally
+  risky (freeze → review → deduct, reusing `disputes`, is safer), and email+phone
+  bans are inherently weak — numbers get recycled and addresses are free. The
+  durable fraud signal is the transaction graph around `user_operation_ratings`,
+  not the identity.
+- **Admin surface for held deletions.** `deletion_hold_reason` is set by the
+  sweep and read by nobody yet — an AdminV2 screen should list them.
 
 **Done and worth not re-litigating:** the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
-subsystems, mail, authz, docs), BIM-13 QR, and BIM-3.5.
+subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury, and
+BIM-15.1 account deletion.
 
 ---
 

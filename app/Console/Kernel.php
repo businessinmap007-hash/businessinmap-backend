@@ -28,6 +28,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('wallet:reconcile-topups --minutes=15 --limit=200')
             ->everyFiveMinutes()
             ->withoutOverlapping();
+
+        // The day-31 sweep (BIM-15.1). Daily and off-peak: the grace window is
+        // measured in days, so nothing is gained by running it often, and this
+        // is the one job that takes money irreversibly.
+        $schedule->command('accounts:finalize-deletions --limit=100')
+            ->dailyAt('03:30')
+            ->withoutOverlapping();
     }
 
     protected function commands(): void

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\WalletTransactionResource;
 use App\Models\WalletPin;
 use App\Models\WalletTransaction;
+use App\Services\AccountDeletionService;
 use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,8 +21,10 @@ use Illuminate\Validation\ValidationException;
  */
 final class WalletController extends Controller
 {
-    public function __construct(private readonly WalletService $wallet)
-    {
+    public function __construct(
+        private readonly WalletService $wallet,
+        private readonly AccountDeletionService $deletion,
+    ) {
     }
 
     /** GET /api/v2/wallet — balance summary. */
@@ -124,6 +127,15 @@ final class WalletController extends Controller
         }
 
         $this->assertPin($fromId, $data['pin']);
+
+        // A transfer out is how money leaves an account for good, so it waits
+        // for the cooldown after the last operation or dispute — otherwise a
+        // user could trade, drain the wallet and vanish before the other side
+        // notices anything was wrong.
+        $gate = $this->deletion->balanceTransferGate($request->user());
+        if (! $gate['allowed']) {
+            throw ValidationException::withMessages(['amount' => [$gate['reason']]]);
+        }
 
         $result = $this->wallet->transfer(
             $fromId,

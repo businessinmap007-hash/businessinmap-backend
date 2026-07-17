@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AdminV2\{
+    AdminRoleController,
     AlbumController,
     Auth\LoginController,
     BookableAllocationController,
@@ -392,6 +393,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('push-settings', [PushSettingsController::class, 'edit'])->name('push-settings.edit');
             Route::put('push-settings', [PushSettingsController::class, 'update'])->name('push-settings.update');
             Route::post('push-settings/test', [PushSettingsController::class, 'test'])->name('push-settings.test');
+        });
+
+        // Who may do what. Its own ability, NOT SETTINGS: whoever can hand out
+        // MONEY effectively has MONEY, so bundling it with the push-credentials
+        // screen would have quietly made SETTINGS equal to everything.
+        Route::prefix('admin-roles')->name('admin-roles.')->middleware('can:' . AdminAbility::ROLES)->group(function () {
+            Route::get('/', [AdminRoleController::class, 'index'])->name('index');
+            Route::get('{user}/edit', [AdminRoleController::class, 'edit'])->whereNumber('user')->name('edit');
+            Route::put('{user}', [AdminRoleController::class, 'update'])->whereNumber('user')->name('update');
         });
 
         Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {

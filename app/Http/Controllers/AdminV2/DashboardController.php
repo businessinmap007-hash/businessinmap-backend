@@ -12,12 +12,22 @@ use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\WalletTransaction;
+use App\Support\AdminAbility;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        // BIM-14.1. The dashboard was the hole in the money boundary: it summed
+        // platform fees and listed real transactions for anyone who could open
+        // the panel, so gating the wallet screens alone would have moved the
+        // leak rather than closed it. Money is computed only for those allowed
+        // to see it — not merely hidden in the view, since a query that never
+        // runs cannot leak.
+        $canSeeMoney = (bool) $request->user()?->can(AdminAbility::MONEY);
+
         $stats = [
             'users' => $this->safeCount(User::class),
             'businesses' => $this->safeCount(User::class, fn ($q) => $q->where('type', 'business')),
@@ -32,7 +42,7 @@ class DashboardController extends Controller
 
             'bookings' => $this->safeCount(Booking::class),
             'open_disputes' => $this->safeCount(Deposit::class, fn ($q) => $q->where('status', 'dispute')),
-            'wallet_transactions' => $this->safeCount(WalletTransaction::class),
+            'wallet_transactions' => $canSeeMoney ? $this->safeCount(WalletTransaction::class) : null,
         ];
 
         $bookingStats = [
@@ -43,7 +53,7 @@ class DashboardController extends Controller
             'cancelled' => $this->safeCount(Booking::class, fn ($q) => $q->where('status', 'cancelled')),
         ];
 
-        $walletStats = [
+        $walletStats = $canSeeMoney ? [
             'platform_fees' => $this->safeSum(
                 WalletTransaction::class,
                 'amount',
@@ -59,7 +69,7 @@ class DashboardController extends Controller
                 'amount',
                 fn ($q) => $q->where('direction', 'out')->where('status', 'completed')
             ),
-        ];
+        ] : null;
 
         $latestBookings = $this->safeLatest(Booking::class, [
             'id',
@@ -71,7 +81,7 @@ class DashboardController extends Controller
             'created_at',
         ], 8);
 
-        $latestWalletTransactions = $this->safeLatest(WalletTransaction::class, [
+        $latestWalletTransactions = $canSeeMoney ? $this->safeLatest(WalletTransaction::class, [
             'id',
             'user_id',
             'wallet_id',
@@ -80,7 +90,7 @@ class DashboardController extends Controller
             'amount',
             'status',
             'created_at',
-        ], 8);
+        ], 8) : collect();
 
         $openDisputesCount = (int) ($stats['open_disputes'] ?? 0);
 

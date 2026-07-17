@@ -12,6 +12,10 @@
 
     $stats = $stats ?? [];
     $bookingStats = $bookingStats ?? [];
+
+    // BIM-14.1 — null (not []) is the controller saying "not yours to see": the
+    // money was never queried, so there is nothing here to accidentally print.
+    $canSeeMoney = ($walletStats ?? null) !== null;
     $walletStats = $walletStats ?? [];
 
     $latestBookings = collect($latestBookings ?? []);
@@ -34,7 +38,7 @@
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">الحجوزات</a>
             @endif
 
-            @if(Route::has('admin.wallet-transactions.index'))
+            @if(Route::has('admin.wallet-transactions.index') && auth()->user()?->can(\App\Support\AdminAbility::MONEY))
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">المحفظة</a>
             @endif
 
@@ -103,21 +107,23 @@
             </div>
         </div>
 
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">Wallet Transactions</div>
-            <div class="a2-stat-value">{{ $n($stats['wallet_transactions'] ?? 0) }}</div>
-            <div class="a2-stat-note">
-                إجمالي حركات المحافظ
+        @if($canSeeMoney)
+            <div class="a2-stat-card">
+                <div class="a2-stat-label">Wallet Transactions</div>
+                <div class="a2-stat-value">{{ $n($stats['wallet_transactions'] ?? 0) }}</div>
+                <div class="a2-stat-note">
+                    إجمالي حركات المحافظ
+                </div>
             </div>
-        </div>
 
-        <div class="a2-stat-card">
-            <div class="a2-stat-label">Platform Fees</div>
-            <div class="a2-stat-value">{{ $m($walletStats['platform_fees'] ?? 0) }}</div>
-            <div class="a2-stat-note">
-                Completed platform_fee
+            <div class="a2-stat-card">
+                <div class="a2-stat-label">Platform Fees</div>
+                <div class="a2-stat-value">{{ $m($walletStats['platform_fees'] ?? 0) }}</div>
+                <div class="a2-stat-note">
+                    Completed platform_fee
+                </div>
             </div>
-        </div>
+        @endif
     </div>
 
     <div class="a2-card-grid-2 a2-mt-16">
@@ -149,6 +155,7 @@
             </div>
         </div>
 
+        @if($canSeeMoney)
         <div class="a2-card">
             <div class="a2-header">
                 <div>
@@ -183,6 +190,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <div class="a2-card-grid-2 a2-mt-16">
@@ -234,6 +242,7 @@
             </div>
         </div>
 
+        @if($canSeeMoney)
         <div class="a2-card">
             <div class="a2-header">
                 <div>
@@ -287,6 +296,7 @@
                 </table>
             </div>
         </div>
+        @endif
     </div>
 
     @if($openDisputesCount > 0)

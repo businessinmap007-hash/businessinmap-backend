@@ -13,21 +13,29 @@ use Illuminate\Support\Facades\DB;
  *
  * The rule that drives every decision here:
  *
- *   Can the merchant put a PRICE on it on its own?
- *     yes → item type  ("قاعة أفراح: 5000")   — offer = filter = index
- *     no  → option     ("من 200 إلى 300 فرد") — a property you filter by
+ * There are THREE axes, asked in order (blueprint §3.1):
+ *   1. Can the merchant put a PRICE on it alone?  → item type ("قاعة أفراح: 5000")
+ *   2. No — does it describe the whole BUSINESS?   → option    ("تقسيط", "كاش")
+ *   3. Does it describe one bookable UNIT?          → unit row  (bookable_items)
  *
- * That rule exposed the real reason the platform felt crowded, and it was not
- * "too many services". The «قاعات ومناسبات» branch held 39 entries of which only
- * 9 were bookable: the other 30 were a hall's capacity (10), its class (7) and a
+ * That exposed the real reason the platform felt crowded, and it was not "too
+ * many services". The «قاعات ومناسبات» branch held 39 entries of which only 9
+ * were bookable: the other 30 were a hall's capacity (10), its class (7) and a
  * «مقاس» scale (13). A customer hunting a wedding hall scrolled 39 rows to find
- * 9 real ones. Capacity and class are not things you buy — they are how you
- * narrow down the thing you buy.
+ * 9 real ones.
+ *
+ * Capacity and class are axis 3, NOT axis 2 — they describe one hall, not the
+ * business. An option "this venue has a 300-500 hall" still leaves the customer
+ * hunting inside, and a capacity is a NUMBER (>= 320), not a bucket. So they are
+ * deactivated as item types and their home is `bookable_items.capacity` (an
+ * existing column) and `bookable_items.meta.class`. Only AMENITIES (wifi) become
+ * an option — a business-level yes/no. An earlier version of this seeder put
+ * capacity/class in option groups too; dropMisplacedDimensionGroups() reverses
+ * that.
  *
  * The blueprint already said options survive as attributes (Phase 1 kept group
  * #12 «أنماط خدمة وتجارية» — cash/installment — as "the legitimate residual role
- * for options"). This seeder is that decision finally applied to the item types
- * that were never sorted.
+ * for options").
  *
  * Deactivate, never delete, for item types: a live `business_service_prices` row
  * may reference a key, and MenuBranchesSeeder already set that precedent (it
@@ -39,33 +47,41 @@ use Illuminate\Support\Facades\DB;
  */
 class TaxonomyRedistributionSeeder extends Seeder
 {
-    /** Hall capacity — a range, not a thing you buy. */
+    /**
+     * Hall CAPACITY — the keys of the item types that encoded it.
+     *
+     * These are deactivated (a capacity is not a bookable thing), but they do
+     * NOT become options. Capacity is a THIRD axis: it describes one bookable
+     * UNIT, not the whole business. A wedding venue has three halls at 100 / 300
+     * / 800 — an option on the business would say "this venue has a 300-500 hall"
+     * and still leave the customer hunting inside. It lives on
+     * `bookable_items.capacity` (an existing integer column), where a filter can
+     * be exact (>= 320) instead of a bucket. An earlier version of this seeder
+     * wrongly turned these into an option group; dropMisplacedDimensionGroups()
+     * undoes that.
+     */
     private const HALL_CAPACITY = [
-        'from_10_to_20_person' => ['من 10 إلى 20 فرد', '10 to 20 people'],
-        'from_20_to_40_person' => ['من 20 إلى 40 فرد', '20 to 40 people'],
-        'from_40_to_60_person' => ['من 40 إلى 60 فرد', '40 to 60 people'],
-        'from_60_to_100_person' => ['من 60 إلى 100 فرد', '60 to 100 people'],
-        'from_100_to_150_person' => ['من 100 إلى 150 فرد', '100 to 150 people'],
-        'from_150_to_200_person' => ['من 150 إلى 200 فرد', '150 to 200 people'],
-        'from_200_to_300_person' => ['من 200 إلى 300 فرد', '200 to 300 people'],
-        // The key really is misspelled "monitorfrom_" in the source data.
-        'monitorfrom_300_to_500_person' => ['من 300 إلى 500 فرد', '300 to 500 people'],
-        'from_500_to_750_person' => ['من 500 إلى 750 فرد', '500 to 750 people'],
-        'from_750_to_1000_person' => ['من 750 إلى 1000 فرد', '750 to 1000 people'],
+        'from_10_to_20_person', 'from_20_to_40_person', 'from_40_to_60_person',
+        'from_60_to_100_person', 'from_100_to_150_person', 'from_150_to_200_person',
+        'from_200_to_300_person', 'monitorfrom_300_to_500_person',
+        'from_500_to_750_person', 'from_750_to_1000_person',
     ];
 
-    /** Hall class — a grade, not a thing you buy. */
+    /** Hall CLASS — a grade of one unit, not a thing you buy. Lives on
+     * `bookable_items.meta.class`. Deactivated as item types; not options. */
     private const HALL_CLASS = [
-        '1st_class' => ['فئة أولى', '1st class'],
-        '2nd_class' => ['فئة ثانية', '2nd class'],
-        '3th_class' => ['فئة ثالثة', '3rd class'],
-        '4rd_class' => ['فئة رابعة', '4th class'],
-        '5th_class' => ['فئة خامسة', '5th class'],
-        '6th_class' => ['فئة سادسة', '6th class'],
-        '7th_class' => ['فئة سابعة', '7th class'],
+        '1st_class', '2nd_class', '3th_class', '4rd_class',
+        '5th_class', '6th_class', '7th_class',
     ];
 
-    /** Facilities a venue HAS. Nobody buys wifi. */
+    /** Option groups a prior version of this seeder created by mistake. */
+    private const MISPLACED_DIMENSION_GROUPS = ['سعة القاعة', 'فئة القاعة'];
+
+    /**
+     * Facilities a venue HAS. Nobody buys wifi, and unlike capacity it is a
+     * yes/no property of the whole business, not a number on one unit — so this
+     * one genuinely is an option (axis 2).
+     */
     private const VENUE_AMENITIES = [
         'wifi' => ['واي فاي', 'Wi-Fi'],
         'whiteboard' => ['وايت بورد', 'Whiteboard'],
@@ -155,7 +171,8 @@ class TaxonomyRedistributionSeeder extends Seeder
 
     public function run(): void
     {
-        $this->dimensionsToOptions();
+        $this->amenitiesToOptions();
+        $this->dropMisplacedDimensionGroups();
         $this->retireItemTypes();
         $this->mergeDuplicates();
         $this->cleanServiceModesGroup();
@@ -163,42 +180,59 @@ class TaxonomyRedistributionSeeder extends Seeder
     }
 
     /**
-     * Create the option groups the dimensions move into. The item types
-     * themselves are retired by retireItemTypes(); this only builds the
-     * destination.
+     * Only AMENITIES become options — the one dimension that is a business-level
+     * yes/no (axis 2). Capacity and class describe a single bookable unit
+     * (axis 3) and live on `bookable_items`, not here.
      */
-    private function dimensionsToOptions(): void
+    private function amenitiesToOptions(): void
     {
-        $groups = [
-            'hall_capacity' => ['سعة القاعة', 'Hall Capacity', self::HALL_CAPACITY],
-            'hall_class' => ['فئة القاعة', 'Hall Class', self::HALL_CLASS],
-            'venue_amenities' => ['مرافق ومعدات', 'Venue Amenities', self::VENUE_AMENITIES],
-        ];
+        // option_groups has no `key` column — the Arabic name is the identity.
+        $group = OptionGroup::updateOrCreate(
+            ['name_ar' => 'مرافق ومعدات'],
+            ['name_en' => 'Venue Amenities', 'reorder' => 1 + (int) OptionGroup::max('reorder'), 'is_active' => 1]
+        );
 
-        $sort = 1 + (int) OptionGroup::max('reorder');
-
-        foreach ($groups as $key => [$ar, $en, $members]) {
-            // option_groups has no `key` column — the Arabic name is the identity.
-            $group = OptionGroup::updateOrCreate(
-                ['name_ar' => $ar],
-                ['name_en' => $en, 'reorder' => $sort++, 'is_active' => 1]
+        foreach (self::VENUE_AMENITIES as [$optionAr, $optionEn]) {
+            Option::updateOrCreate(
+                ['group_id' => $group->id, 'name_ar' => $optionAr],
+                ['name_en' => $optionEn]
             );
-
-            foreach ($members as [$optionAr, $optionEn]) {
-                Option::updateOrCreate(
-                    ['group_id' => $group->id, 'name_ar' => $optionAr],
-                    ['name_en' => $optionEn]
-                );
-            }
         }
+    }
+
+    /**
+     * Undo the earlier mistake: capacity/class were briefly turned into option
+     * groups. They are a per-unit axis, so the groups are removed and their
+     * options with them. Self-correcting — safe whether or not they exist.
+     */
+    private function dropMisplacedDimensionGroups(): void
+    {
+        $groupIds = OptionGroup::query()
+            ->whereIn('name_ar', self::MISPLACED_DIMENSION_GROUPS)
+            ->pluck('id');
+
+        if ($groupIds->isEmpty()) {
+            return;
+        }
+
+        $optionIds = Option::query()->whereIn('group_id', $groupIds)->pluck('id');
+
+        // Cascade by hand — no foreign keys on either pivot.
+        if ($optionIds->isNotEmpty()) {
+            DB::table('category_child_option')->whereIn('option_id', $optionIds)->delete();
+            DB::table('option_user')->whereIn('option_id', $optionIds)->delete();
+            Option::query()->whereIn('id', $optionIds)->delete();
+        }
+
+        OptionGroup::query()->whereIn('id', $groupIds)->delete();
     }
 
     /** Deactivate + unbranch everything that is no longer an item type. */
     private function retireItemTypes(): void
     {
         $retire = array_merge(
-            array_keys(self::HALL_CAPACITY),
-            array_keys(self::HALL_CLASS),
+            self::HALL_CAPACITY,
+            self::HALL_CLASS,
             array_keys(self::VENUE_AMENITIES),
             self::JUNK_SIZES,
             self::MISFILED_PRODUCTS,

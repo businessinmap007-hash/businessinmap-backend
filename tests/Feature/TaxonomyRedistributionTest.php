@@ -68,18 +68,39 @@ class TaxonomyRedistributionTest extends TestCase
         $this->assertContains('قاعة أفراح', $types->all(), 'the branch must still hold the halls themselves');
     }
 
-    public function test_the_dimensions_that_left_are_reachable_as_options(): void
+    public function test_amenities_are_an_option_but_capacity_and_class_are_not(): void
     {
-        foreach (['سعة القاعة' => 10, 'فئة القاعة' => 7, 'مرافق ومعدات' => 2] as $name => $expected) {
-            $group = DB::table('option_groups')->where('name_ar', $name)->first();
+        // Amenities are a business-level yes/no → axis 2 → an option.
+        $amenities = DB::table('option_groups')->where('name_ar', 'مرافق ومعدات')->first();
+        $this->assertNotNull($amenities, 'the amenities option group must exist');
+        $this->assertSame(2, DB::table('options')->where('group_id', $amenities->id)->count());
 
-            $this->assertNotNull($group, "the «{$name}» option group must exist — the dimension has to land somewhere");
-            $this->assertSame(
-                $expected,
-                DB::table('options')->where('group_id', $group->id)->count(),
-                "«{$name}» lost its options"
+        // Capacity and class describe one bookable UNIT → axis 3 → they must NOT
+        // be options. An earlier pass wrongly made them option groups; that is
+        // the mistake this asserts stays fixed.
+        foreach (['سعة القاعة', 'فئة القاعة'] as $wrong) {
+            $this->assertNull(
+                DB::table('option_groups')->where('name_ar', $wrong)->first(),
+                "«{$wrong}» is a per-unit dimension — it belongs on bookable_items, not in options"
             );
         }
+    }
+
+    public function test_capacity_lives_on_the_bookable_unit(): void
+    {
+        // The home for capacity is bookable_items.capacity — an existing column,
+        // where a filter can be exact rather than a bucket.
+        $this->assertTrue(
+            \Illuminate\Support\Facades\Schema::hasColumn('bookable_items', 'capacity'),
+            'capacity has nowhere to live if this column is gone'
+        );
+
+        // No option, anywhere, should be a capacity bucket.
+        $buckets = DB::table('options')
+            ->where('name_ar', 'like', '%فرد%')
+            ->where('name_ar', 'like', 'من %')
+            ->count();
+        $this->assertSame(0, $buckets, 'a "من X إلى Y فرد" option is a capacity bucket that should be a number on the unit');
     }
 
     public function test_installment_survives_because_it_is_why_options_exist(): void

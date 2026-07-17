@@ -56,7 +56,10 @@ class AdminOptionsScreensTest extends TestCase
         // renders without it is not managing attributes.
         $response->assertSee('تقسيط', false);
         $response->assertSee('أنماط خدمة وتجارية', false);
-        $response->assertSee('سعة القاعة', false);
+        // Amenities are a real attribute; capacity/class are NOT (they moved to
+        // bookable_items), so the options screen must not offer them.
+        $response->assertSee('مرافق ومعدات', false);
+        $response->assertDontSee('سعة القاعة', false);
     }
 
     public function test_the_two_sidebar_entries_lead_to_different_screens(): void

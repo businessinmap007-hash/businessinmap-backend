@@ -67,20 +67,30 @@ questions, and a business needs all three answered:
 | Axis | Question | Source of truth |
 |---|---|---|
 | 1. Classification | **Who are you?** | `categories` → `category_children_master` |
-| 2. Attributes | **How do you deal?** | `options` + `category_child_option` + `option_user` |
+| 2. Attributes | **How does the BUSINESS deal?** | `options` + `category_child_option` + `option_user` |
 | 3. Offering | **What do you sell?** | `item_types` + `business_service_prices`, catalog |
+| 4. Unit property | **What is true of ONE bookable unit?** | `bookable_items` (`capacity`, `meta`) |
 
-The customer walks them in order: *محل موبيلات* (1) → *عنده تقسيط؟* (2) → *أنواع
-الموبايلات المعروضة* (3).
+The customer walks them: *محل موبيلات* (1) → *عنده تقسيط؟* (2) → *أنواع
+الموبايلات المعروضة* (3) → *قاعة تسع 350* (4).
 
-**The test, and it is the whole rule:**
+**The test, asked in order:**
 
-> **Can the merchant put a price on it on its own?**
-> yes → **item type** (`قاعة أفراح: 5000`) · no → **option** (`من 200 إلى 300 فرد`)
+> 1. Can the merchant put a **price** on it alone? → **item type** (`قاعة أفراح: 5000`)
+> 2. No — does it describe the **whole business**? → **option** (`تقسيط`, `كاش`)
+> 3. Does it describe **one unit**? → **unit row** (`bookable_items.capacity = 350`)
 
-Getting axis 2 wrong is what makes the platform feel crowded: with no attributes
+Getting this wrong is what makes the platform feel crowded: with no attributes
 axis, everything is forced into item types, and a dimension like *capacity* turns
 into 10 fake "types" nobody can price.
+
+**Capacity is axis 4, not 2 — the correction that proves the axes matter.** It
+was first moved into an option group «سعة القاعة». Wrong: a capacity is a
+NUMBER, and an option on the business («this venue has a 300-500 hall») still
+leaves the customer hunting inside a multi-hall venue. It belongs on the unit —
+`bookable_items.capacity` (existing column), filtered `>= 320`, exact. Class
+likewise → `bookable_items.meta.class`. Only a **business-level yes/no**
+(amenities: wifi) is a true option.
 
 ### Usage (both personas)
 
@@ -177,11 +187,16 @@ services".
 | — booking | 249 | **202** |
 | — menu | 68 | **44** |
 | Halls branch | 39 | **8** |
-| Option groups | 6 | **9** |
+| Option groups | 6 | **7** |
 
 What moved, and why:
-- **Dimensions → new option groups** «سعة القاعة» (10), «فئة القاعة» (7),
-  «مرافق ومعدات» (wifi, whiteboard — nobody buys wifi).
+- **Amenities → new option group** «مرافق ومعدات» (wifi, whiteboard — a
+  business-level yes/no, nobody buys wifi).
+- **Capacity & class → the bookable unit, NOT options.** First (wrongly) turned
+  into option groups «سعة القاعة»/«فئة القاعة»; corrected — they are axis 4
+  (§3.1), living on `bookable_items.capacity` and `.meta.class`. The item-type
+  definitions stay deactivated; `dropMisplacedDimensionGroups()` removes the
+  option groups.
 - **«مقاس 4..16» deleted** — meaningless scale, zero references (owner's call).
 - **Products misfiled in booking retired** (12): «خدمات ومهمات» is a *craftsmen*
   branch and held لعب أطفال، خضروات، موبايل، كمبيوتر. retail already has each.

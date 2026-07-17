@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
+use App\Support\AdminAbility;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -87,6 +88,12 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Three AdminV2 routes registered here rather than in routes/admin_v2.php.
+     * Found by AdminAbilityCoverageTest (BIM-14.1), which walks the router
+     * rather than the route file — precisely so a route hiding somewhere like a
+     * service provider cannot skip the ability checks.
+     */
     private function registerAdminV2ExtraRoutes(): void
     {
         Route::middleware(['web', 'admin.v2'])
@@ -94,12 +101,15 @@ class AppServiceProvider extends ServiceProvider
             ->name('admin.')
             ->group(function () {
                 Route::get('bookings/protection-preview', [\App\Http\Controllers\AdminV2\BookingProtectionController::class, 'preview'])
+                    ->middleware('can:' . AdminAbility::OPERATIONS)
                     ->name('bookings.protectionPreview');
 
                 Route::get('service-catalog-matrix', [\App\Http\Controllers\AdminV2\ServiceCatalogMatrixController::class, 'index'])
+                    ->middleware('can:' . AdminAbility::CATALOG)
                     ->name('service-catalog-matrix.index');
 
                 Route::post('service-catalog-matrix/apply', [\App\Http\Controllers\AdminV2\ServiceCatalogMatrixController::class, 'apply'])
+                    ->middleware('can:' . AdminAbility::CATALOG)
                     ->name('service-catalog-matrix.apply');
             });
     }

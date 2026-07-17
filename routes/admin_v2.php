@@ -67,6 +67,7 @@ use App\Http\Controllers\AdminV2\{
     WalletTopupAdminController,
     WalletTransactionController
 };
+use App\Support\AdminAbility;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -75,14 +76,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])->name('payments.callback.success');
 
+    // BIM-14.1 — every route below carries `admin.v2` (are you an admin?) AND a
+    // `can:` ability (which admin are you?). AdminAbilityCoverageTest enforces
+    // that pairing, so a new route added without an ability fails the suite
+    // instead of shipping open to anyone who can reach the panel.
     Route::middleware(['admin.v2'])->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::middleware('can:' . AdminAbility::ACCESS)->group(function () {
+            Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Shared search-as-you-type business picker for every form/filter.
-        Route::get('business-lookup', \App\Http\Controllers\AdminV2\BusinessLookupController::class)->name('business-lookup');
-        Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
+            // Shared search-as-you-type business picker for every form/filter.
+            Route::get('business-lookup', \App\Http\Controllers\AdminV2\BusinessLookupController::class)->name('business-lookup');
+            Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
+        });
 
-        Route::prefix('users')->name('users.')->group(function () {
+        Route::prefix('users')->name('users.')->middleware('can:' . AdminAbility::USERS)->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
             Route::delete('/', [UserController::class, 'bulkDestroy'])->name('bulkDestroy');
             Route::post('restore', [UserController::class, 'bulkRestore'])->name('bulkRestore');
@@ -96,7 +103,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{user}/toggle-suspend', [UserController::class, 'toggleSuspend'])->whereNumber('user')->name('toggleSuspend');
         });
 
-        Route::prefix('categories')->name('categories.')->group(function () {
+        Route::prefix('categories')->name('categories.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [CategoryController::class, 'index'])->name('index');
             Route::get('create', [CategoryController::class, 'create'])->name('create');
             Route::post('/', [CategoryController::class, 'store'])->name('store');
@@ -107,7 +114,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{category}/reorder', [CategoryController::class, 'updateReorder'])->whereNumber('category')->name('reorder');
         });
 
-        Route::prefix('category-children')->name('category-children.')->group(function () {
+        Route::prefix('category-children')->name('category-children.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [CategoryChildController::class, 'index'])->name('index');
             Route::get('create', [CategoryChildController::class, 'create'])->name('create');
             Route::post('/', [CategoryChildController::class, 'store'])->name('store');
@@ -118,68 +125,74 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{categoryChild}/parents/{parent}', [CategoryChildController::class, 'detachParent'])->whereNumber('categoryChild')->whereNumber('parent')->name('detach-parent');
         });
 
-        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->group(function () {
+        Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
             Route::get('apply', fn () => redirect()->route('admin.categories.index'))->name('apply.get');
             Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
         });
 
-        Route::prefix('category-child-options')->name('category-child-options.')->group(function () {
+        Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('bulk/edit', fn () => redirect()->route('admin.categories.services-bulk.index'))->name('bulk.edit');
             Route::post('bulk/update', [CategoryChildOptionController::class, 'bulkUpdate'])->name('bulk.update');
             Route::get('{categoryChild}', [CategoryChildOptionController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
             Route::put('{categoryChild}', [CategoryChildOptionController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
-        Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->group(function () {
+        Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->middleware('can:' . AdminAbility::FEES)->group(function () {
             Route::get('bulk/edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('bulk.edit');
             Route::post('bulk/update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('bulk.update');
             Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
             Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
-        Route::prefix('user-service-fee-consents')->name('user-service-fee-consents.')->group(function () {
+        Route::prefix('user-service-fee-consents')->name('user-service-fee-consents.')->middleware('can:' . AdminAbility::FEES)->group(function () {
             Route::get('{user}/edit', [UserServiceFeeConsentController::class, 'edit'])->whereNumber('user')->name('edit');
             Route::put('{user}', [UserServiceFeeConsentController::class, 'update'])->whereNumber('user')->name('update');
             Route::post('{user}/enable-charging', [UserServiceFeeConsentController::class, 'enableCharging'])->whereNumber('user')->name('enable-charging');
             Route::post('{user}/disable-charging', [UserServiceFeeConsentController::class, 'disableCharging'])->whereNumber('user')->name('disable-charging');
         });
 
-        Route::post('options/bulk-assign-group', [OptionController::class, 'bulkAssignGroup'])->name('options.bulk-assign-group');
-        Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])->name('options.bulk-delete');
-        Route::resource('options', OptionController::class)->except(['show']);
-        Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
+        Route::middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::post('options/bulk-assign-group', [OptionController::class, 'bulkAssignGroup'])->name('options.bulk-assign-group');
+            Route::delete('options/bulk-delete', [OptionController::class, 'bulkDelete'])->name('options.bulk-delete');
+            Route::resource('options', OptionController::class)->except(['show']);
+            Route::resource('option-groups', OptionGroupController::class)->except(['show'])->names('option-groups');
 
-        Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
-        Route::post('catalog-products/bulk-action', [CatalogProductController::class, 'bulkAction'])->name('catalog-products.bulk-action');
-        Route::post('catalog-products/{product}/inline-update', [CatalogProductController::class, 'inlineUpdate'])->whereNumber('product')->name('catalog-products.inline-update');
+            Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
+            Route::post('catalog-products/bulk-action', [CatalogProductController::class, 'bulkAction'])->name('catalog-products.bulk-action');
+            Route::post('catalog-products/{product}/inline-update', [CatalogProductController::class, 'inlineUpdate'])->whereNumber('product')->name('catalog-products.inline-update');
 
-        Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
-        Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');
-        Route::get('catalog-brands', [CatalogBrandController::class, 'index'])->name('catalog-brands.index');
+            Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
+            Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');
+            Route::get('catalog-brands', [CatalogBrandController::class, 'index'])->name('catalog-brands.index');
 
-        Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
-        Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
-        Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
+            Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
+            Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
+            Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
 
-        Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
-        Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');
+            Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
+            Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');
 
-        Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show'])->names('platform-service-fee-promotions');
-        Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
+            Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
+            Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/attach', [PlatformServiceItemGroupController::class, 'attachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.attach');
+            Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/detach', [PlatformServiceItemGroupController::class, 'detachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.detach');
+            Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/create', [PlatformServiceItemGroupController::class, 'storeType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.create');
+            Route::resource('platform-service-item-groups', PlatformServiceItemGroupController::class)->except(['show'])->names('platform-service-item-groups');
+        });
 
-        // BIM-3.5 — dynamic fee rules (the policy layer between the static base
-        // fee and the promotions above).
-        Route::resource('service-fee-rules', ServiceFeeRuleController::class)->except(['show'])->names('service-fee-rules');
-        Route::post('service-fee-rules/{serviceFeeRule}/toggle', [ServiceFeeRuleController::class, 'toggle'])->whereNumber('serviceFeeRule')->name('service-fee-rules.toggle');
+        // What the platform charges. Separate from CATALOG: deciding a fee is a
+        // different job from arranging the taxonomy it hangs on.
+        Route::middleware('can:' . AdminAbility::FEES)->group(function () {
+            Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show'])->names('platform-service-fee-promotions');
+            Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
 
-        Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
-        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/attach', [PlatformServiceItemGroupController::class, 'attachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.attach');
-        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/detach', [PlatformServiceItemGroupController::class, 'detachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.detach');
-        Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/create', [PlatformServiceItemGroupController::class, 'storeType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.create');
-        Route::resource('platform-service-item-groups', PlatformServiceItemGroupController::class)->except(['show'])->names('platform-service-item-groups');
+            // BIM-3.5 — dynamic fee rules (the policy layer between the static base
+            // fee and the promotions above).
+            Route::resource('service-fee-rules', ServiceFeeRuleController::class)->except(['show'])->names('service-fee-rules');
+            Route::post('service-fee-rules/{serviceFeeRule}/toggle', [ServiceFeeRuleController::class, 'toggle'])->whereNumber('serviceFeeRule')->name('service-fee-rules.toggle');
+        });
 
-        Route::prefix('service-branches')->name('service-branches.')->group(function () {
+        Route::prefix('service-branches')->name('service-branches.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [ServiceBranchBoardController::class, 'index'])->name('index');
             Route::post('toggle', [ServiceBranchBoardController::class, 'toggle'])->name('toggle');
             Route::post('save', [ServiceBranchBoardController::class, 'save'])->name('save');
@@ -188,12 +201,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('branches/{platformServiceItemGroup}', [ServiceBranchBoardController::class, 'destroyBranch'])->whereNumber('platformServiceItemGroup')->name('branches.destroy');
         });
 
-        Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types');
-        Route::get('business-service-prices/business-lookup', [BusinessServicePriceController::class, 'businessLookup'])->name('business_service_prices.business-lookup');
-        Route::get('business-service-prices/item-types-lookup', [BusinessServicePriceController::class, 'itemTypesLookup'])->name('business_service_prices.item-types-lookup');
-        Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
+        Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types')->middleware('can:' . AdminAbility::CATALOG);
 
-        Route::prefix('business-partnerships')->name('business-partnerships.')->group(function () {
+        Route::middleware('can:' . AdminAbility::COMMERCE)->group(function () {
+            Route::get('business-service-prices/business-lookup', [BusinessServicePriceController::class, 'businessLookup'])->name('business_service_prices.business-lookup');
+            Route::get('business-service-prices/item-types-lookup', [BusinessServicePriceController::class, 'itemTypesLookup'])->name('business_service_prices.item-types-lookup');
+            Route::resource('business-service-prices', BusinessServicePriceController::class)->except(['show'])->names('business_service_prices');
+        });
+
+        Route::prefix('business-partnerships')->name('business-partnerships.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
             Route::get('/', [BusinessPartnershipController::class, 'index'])->name('index');
             Route::get('create', [BusinessPartnershipController::class, 'create'])->name('create');
             Route::post('/', [BusinessPartnershipController::class, 'store'])->name('store');
@@ -204,7 +220,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{businessPartnership}/pause', [BusinessPartnershipController::class, 'pause'])->whereNumber('businessPartnership')->name('pause');
         });
 
-        Route::prefix('bookable-allocations')->name('bookable-allocations.')->group(function () {
+        Route::prefix('bookable-allocations')->name('bookable-allocations.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
             Route::get('/', [BookableAllocationController::class, 'index'])->name('index');
             Route::get('create', [BookableAllocationController::class, 'create'])->name('create');
             Route::post('/', [BookableAllocationController::class, 'store'])->name('store');
@@ -215,19 +231,21 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
         });
 
-        Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
-        Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
-        Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
-        Route::get('offer-boost-packages', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.index');
-        Route::get('offer-boost-packages/boost', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.boost-form');
+        Route::middleware('can:' . AdminAbility::COMMERCE)->group(function () {
+            Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
+            Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
+            Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
+            Route::get('offer-boost-packages', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.index');
+            Route::get('offer-boost-packages/boost', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.boost-form');
+        });
 
-        Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->group(function () {
+        Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
             Route::get('/', [BusinessOffersSubscriptionController::class, 'form'])->name('form');
             Route::post('activate', [BusinessOffersSubscriptionController::class, 'activate'])->name('activate');
             Route::post('deactivate', [BusinessOffersSubscriptionController::class, 'deactivate'])->name('deactivate');
         });
 
-        Route::prefix('bookable-items')->name('bookable-items.')->group(function () {
+        Route::prefix('bookable-items')->name('bookable-items.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('bulk', [BookableItemBulkController::class, 'index'])->name('bulk.index');
             Route::post('bulk/block', [BookableItemBulkController::class, 'applyBlock'])->name('bulk.block');
             Route::post('bulk/price', [BookableItemBulkController::class, 'applyPrice'])->name('bulk.price');
@@ -265,7 +283,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');
         });
 
-        Route::prefix('menu-items')->name('menu-items.')->group(function () {
+        Route::prefix('menu-items')->name('menu-items.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('/', [MenuItemController::class, 'index'])->name('index');
             Route::get('create', [MenuItemController::class, 'create'])->name('create');
             Route::post('/', [MenuItemController::class, 'store'])->name('store');
@@ -287,30 +305,34 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // Connected delivery loop oversight (drivers + success ledger).
-        Route::prefix('delivery')->name('delivery.')->group(function () {
+        Route::prefix('delivery')->name('delivery.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('drivers', [DeliveryAdminController::class, 'drivers'])->name('drivers.index');
             Route::post('drivers/{driver}/toggle', [DeliveryAdminController::class, 'toggle'])->whereNumber('driver')->name('drivers.toggle');
             Route::get('completions', [DeliveryAdminController::class, 'completions'])->name('completions.index');
         });
 
         // Restaurant tables (table QR) read oversight.
-        Route::get('business-tables', [BusinessTableAdminController::class, 'index'])->name('business-tables.index');
+        Route::get('business-tables', [BusinessTableAdminController::class, 'index'])->middleware('can:' . AdminAbility::OPERATIONS)->name('business-tables.index');
 
-        // Wallet top-ups (money-in) oversight for reconciliation.
-        Route::get('wallet-topups', [WalletTopupAdminController::class, 'index'])->name('wallet-topups.index');
+        // Everything that moves money, or authorises its movement, behind one
+        // ability — this is the boundary the whole exercise exists to draw.
+        Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
+            // Wallet top-ups (money-in) oversight for reconciliation.
+            Route::get('wallet-topups', [WalletTopupAdminController::class, 'index'])->name('wallet-topups.index');
 
-        Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
-            Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
-            Route::get('user/{user}', [WalletTransactionController::class, 'user'])->whereNumber('user')->name('user');
-            Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->whereNumber('walletTransaction')->name('show');
+            Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
+                Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
+                Route::get('user/{user}', [WalletTransactionController::class, 'user'])->whereNumber('user')->name('user');
+                Route::get('{walletTransaction}', [WalletTransactionController::class, 'show'])->whereNumber('walletTransaction')->name('show');
+            });
+
+            Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
+            Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');
+            Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
+            Route::post('wallet-ops/activate-guarantee', [WalletOpsController::class, 'activateGuarantee'])->name('wallet-ops.activate-guarantee');
         });
 
-        Route::get('wallet-ops/recharge', [WalletOpsController::class, 'rechargeForm'])->name('wallet-ops.recharge.form');
-        Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');
-        Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
-        Route::post('wallet-ops/activate-guarantee', [WalletOpsController::class, 'activateGuarantee'])->name('wallet-ops.activate-guarantee');
-
-        Route::prefix('guarantee-levels')->name('guarantee-levels.')->group(function () {
+        Route::prefix('guarantee-levels')->name('guarantee-levels.')->middleware('can:' . AdminAbility::TRUST)->group(function () {
             Route::get('/', [GuaranteeLevelAdminController::class, 'index'])->name('index');
             Route::get('create', [GuaranteeLevelAdminController::class, 'create'])->name('create');
             Route::post('/', [GuaranteeLevelAdminController::class, 'store'])->name('store');
@@ -321,12 +343,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         // Scheduling/routes service oversight (read-only).
-        Route::prefix('trip-schedules')->name('trip-schedules.')->group(function () {
+        Route::prefix('trip-schedules')->name('trip-schedules.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('/', [TripScheduleAdminController::class, 'schedules'])->name('index');
             Route::get('reservations', [TripScheduleAdminController::class, 'reservations'])->name('reservations');
         });
 
-        Route::prefix('guarantees')->name('guarantees.')->group(function () {
+        Route::prefix('guarantees')->name('guarantees.')->middleware('can:' . AdminAbility::TRUST)->group(function () {
             Route::get('/', [GuaranteeAdminController::class, 'index'])->name('index');
             Route::post('{guarantee}/sync-coverage', [GuaranteeAdminController::class, 'syncCoverage'])->whereNumber('guarantee')->name('sync');
             Route::post('{guarantee}/process-grace-now', [GuaranteeAdminController::class, 'processGraceNow'])->whereNumber('guarantee')->name('process-grace');
@@ -334,15 +356,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{guarantee}/expire-now', [GuaranteeAdminController::class, 'expireNow'])->whereNumber('guarantee')->name('expire-now');
             Route::post('{guarantee}/suspend', [GuaranteeAdminController::class, 'suspend'])->whereNumber('guarantee')->name('suspend');
             Route::post('{guarantee}/reactivate', [GuaranteeAdminController::class, 'reactivate'])->whereNumber('guarantee')->name('reactivate');
-            Route::post('{guarantee}/unlock-to-balance', [GuaranteeAdminController::class, 'unlockToBalance'])->whereNumber('guarantee')->name('unlock-to-balance');
+            // Frees locked coverage into spendable balance — a money movement
+            // wearing a trust-screen label, so it needs MONEY on top of TRUST.
+            Route::post('{guarantee}/unlock-to-balance', [GuaranteeAdminController::class, 'unlockToBalance'])->whereNumber('guarantee')->middleware('can:' . AdminAbility::MONEY)->name('unlock-to-balance');
             Route::post('{guarantee}/auto-upgrade', [GuaranteeAdminController::class, 'autoUpgrade'])->whereNumber('guarantee')->name('auto-upgrade');
             Route::post('{guarantee}/auto-downgrade', [GuaranteeAdminController::class, 'autoDowngrade'])->whereNumber('guarantee')->name('auto-downgrade');
             Route::get('{guarantee}', [GuaranteeAdminController::class, 'show'])->whereNumber('guarantee')->name('show');
         });
 
-        Route::resource('wallet-notes', WalletNoteTemplateController::class)->except(['show'])->names('wallet-notes');
+        Route::resource('wallet-notes', WalletNoteTemplateController::class)->except(['show'])->names('wallet-notes')->middleware('can:' . AdminAbility::MONEY);
 
-        Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
+        Route::prefix('subscriptions')->name('subscriptions.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
             Route::get('/', [SubscriptionController::class, 'index'])->name('index');
             Route::get('{subscription}', [SubscriptionController::class, 'show'])->whereNumber('subscription')->name('show');
             Route::get('{subscription}/edit', [SubscriptionController::class, 'edit'])->whereNumber('subscription')->name('edit');
@@ -350,32 +374,45 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{subscription}/toggle-active', [SubscriptionController::class, 'toggleActive'])->whereNumber('subscription')->name('toggle-active');
         });
 
-        Route::prefix('payments')->name('payments.')->group(function () {
-            Route::get('/', [PaymentController::class, 'index'])->name('index');
-            Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->whereNumber('paymentId')->name('confirm');
+        Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
+            Route::prefix('payments')->name('payments.')->group(function () {
+                Route::get('/', [PaymentController::class, 'index'])->name('index');
+                Route::post('{paymentId}/confirm', [PaymentController::class, 'confirm'])->whereNumber('paymentId')->name('confirm');
+            });
+
+            // Live payment-gateway credentials (Fawry) — paste-and-go, no
+            // redeploy. MONEY rather than SETTINGS: rewriting these redirects
+            // real money, which makes it the most dangerous form in the panel.
+            Route::get('payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings.edit');
+            Route::put('payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
         });
 
-        // Live payment-gateway credentials (Fawry) — paste-and-go, no redeploy.
-        Route::get('payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings.edit');
-        Route::put('payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
-
         // Live push credentials (Firebase service-account JSON) — paste-and-go.
-        Route::get('push-settings', [PushSettingsController::class, 'edit'])->name('push-settings.edit');
-        Route::put('push-settings', [PushSettingsController::class, 'update'])->name('push-settings.update');
-        Route::post('push-settings/test', [PushSettingsController::class, 'test'])->name('push-settings.test');
+        Route::middleware('can:' . AdminAbility::SETTINGS)->group(function () {
+            Route::get('push-settings', [PushSettingsController::class, 'edit'])->name('push-settings.edit');
+            Route::put('push-settings', [PushSettingsController::class, 'update'])->name('push-settings.update');
+            Route::post('push-settings/test', [PushSettingsController::class, 'test'])->name('push-settings.test');
+        });
 
-        Route::prefix('disputes')->name('disputes.')->group(function () {
+        Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
             Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->whereNumber('dispute')->name('under-review');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
-            Route::post('{dispute}/resolve/release-business', [DisputeController::class, 'resolveReleaseBusiness'])->whereNumber('dispute')->name('resolve.release-business');
-            Route::post('{dispute}/resolve/refund-client', [DisputeController::class, 'resolveRefundClient'])->whereNumber('dispute')->name('resolve.refund-client');
-            Route::post('{dispute}/resolve/split', [DisputeController::class, 'resolveSplit'])->whereNumber('dispute')->name('resolve.split');
+            // Triage above; payout below. These three decide who gets the money,
+            // so they need MONEY as well as DISPUTES — which is exactly what
+            // lets a support agent work the queue without being able to pay
+            // anyone out. resolve/no-action moves nothing, so it stays triage.
+            Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
+                Route::post('{dispute}/resolve/release-business', [DisputeController::class, 'resolveReleaseBusiness'])->whereNumber('dispute')->name('resolve.release-business');
+                Route::post('{dispute}/resolve/refund-client', [DisputeController::class, 'resolveRefundClient'])->whereNumber('dispute')->name('resolve.refund-client');
+                Route::post('{dispute}/resolve/split', [DisputeController::class, 'resolveSplit'])->whereNumber('dispute')->name('resolve.split');
+            });
+
             Route::post('{dispute}/resolve/no-action', [DisputeController::class, 'resolveNoAction'])->whereNumber('dispute')->name('resolve.no-action');
         });
 
-        Route::prefix('bookings')->name('bookings.')->group(function () {
+        Route::prefix('bookings')->name('bookings.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('/', [BookingController::class, 'index'])->name('index');
             Route::get('create', [BookingController::class, 'create'])->name('create');
             Route::post('/', [BookingController::class, 'store'])->name('store');
@@ -393,41 +430,49 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking')->name('start');
             Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking')->name('complete');
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking')->name('cancel');
-            Route::post('{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])->whereNumber('booking')->name('deposit.freeze');
-            Route::post('{booking}/deposit-release', [BookingController::class, 'depositRelease'])->whereNumber('booking')->name('deposit.release');
-            Route::post('{booking}/deposit-refund', [BookingController::class, 'depositRefund'])->whereNumber('booking')->name('deposit.refund');
+            // The deposit is somebody's escrow. Moving it from an operations
+            // screen is still moving it, so MONEY applies here too.
+            Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
+                Route::post('{booking}/deposit-freeze', [BookingController::class, 'depositFreeze'])->whereNumber('booking')->name('deposit.freeze');
+                Route::post('{booking}/deposit-release', [BookingController::class, 'depositRelease'])->whereNumber('booking')->name('deposit.release');
+                Route::post('{booking}/deposit-refund', [BookingController::class, 'depositRefund'])->whereNumber('booking')->name('deposit.refund');
+                Route::post('{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->whereNumber('booking')->name('deposit.agree.release');
+                Route::post('{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->whereNumber('booking')->name('deposit.agree.refund');
+            });
+
+            // Opening a dispute moves nothing — it is the request for a ruling.
             Route::post('{booking}/deposit-dispute-open', [BookingController::class, 'depositDisputeOpen'])->whereNumber('booking')->name('deposit.dispute.open');
-            Route::post('{booking}/deposit-agree-release', [BookingController::class, 'depositAgreeRelease'])->whereNumber('booking')->name('deposit.agree.release');
-            Route::post('{booking}/deposit-agree-refund', [BookingController::class, 'depositAgreeRefund'])->whereNumber('booking')->name('deposit.agree.refund');
         });
 
-        Route::resource('posts', PostController::class)->names('posts');
-        Route::post('posts/{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('posts.toggleActive');
-        Route::delete('posts/{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('posts.main_image.destroy');
-        Route::delete('posts/{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('posts.images.destroy');
+        Route::middleware('can:' . AdminAbility::CONTENT)->group(function () {
+            Route::resource('posts', PostController::class)->names('posts');
+            Route::post('posts/{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('posts.toggleActive');
+            Route::delete('posts/{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('posts.main_image.destroy');
+            Route::delete('posts/{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('posts.images.destroy');
 
-        Route::resource('jobs', JobPostController::class)->names('jobs');
+            Route::resource('jobs', JobPostController::class)->names('jobs');
 
-        Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
-        Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');
+            Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
+            Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');
 
-        Route::resource('albums', AlbumController::class)->names('albums');
-        Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');
-        Route::delete('albums/{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.delete');
+            Route::resource('albums', AlbumController::class)->names('albums');
+            Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');
+            Route::delete('albums/{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.delete');
+        });
 
         // ── Merged in from the former routes/admin_v2_extras.php. Kept at the
         // end of this group so the offer-boost-packages redirect stubs above
         // still take precedence over the real routes below (same as the prior
         // load order admin_v2 → admin_v2_extras).
-        Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->name('wallet-overview.index');
-        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->name('offer-follows.index');
+        Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->middleware('can:' . AdminAbility::MONEY)->name('wallet-overview.index');
+        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->middleware('can:' . AdminAbility::COMMERCE)->name('offer-follows.index');
 
-        Route::prefix('notification-center')->name('notification-center.')->group(function () {
+        Route::prefix('notification-center')->name('notification-center.')->middleware('can:' . AdminAbility::SETTINGS)->group(function () {
             Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
             Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
         });
 
-        Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->group(function () {
+        Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
             Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');
             Route::get('create', [OfferBoostPackageController::class, 'create'])->name('create');
             Route::post('/', [OfferBoostPackageController::class, 'store'])->name('store');

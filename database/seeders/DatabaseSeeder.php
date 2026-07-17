@@ -10,6 +10,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
 
+           // The treasury must exist before anything can charge a fee into it.
+           PlatformAccountSeeder::class,
        PlatformServiceSeeder::class,
            ScheduleVehicleTypesSeeder::class,
            WorldCountriesSeeder::class,

@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
+use App\Services\Wallet\PlatformTreasuryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,8 @@ use Illuminate\Validation\ValidationException;
 class OrderFeeSettlementService
 {
     public const REFERENCE_TYPE = 'order';
+
+    public function __construct(private readonly PlatformTreasuryService $treasury) {}
 
     /**
      * Settle the order's platform service fee against the business wallet.
@@ -81,7 +84,7 @@ class OrderFeeSettlementService
             $wallet->last_activity_at = now();
             $wallet->save();
 
-            return WalletTransaction::create([
+            $transaction = WalletTransaction::create([
                 'wallet_id' => (int) $wallet->id,
                 'user_id' => $businessId,
                 'status' => WalletTransaction::STATUS_COMPLETED,
@@ -105,6 +108,18 @@ class OrderFeeSettlementService
                     'source' => 'order_fee_settlement',
                 ],
             ]);
+
+            // The credit half: the fee is now held by the platform rather than
+            // debited into nowhere.
+            $this->treasury->credit(
+                amount: $fee,
+                purpose: PlatformTreasuryService::PURPOSE_FEE,
+                referenceId: (string) $order->id,
+                idempotencyKey: $idempotencyKey.':treasury',
+                meta: ['order_id' => (int) $order->id, 'fee_code' => 'menu_service', 'payer' => 'business']
+            );
+
+            return $transaction;
         });
     }
 }

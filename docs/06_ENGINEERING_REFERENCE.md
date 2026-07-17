@@ -275,10 +275,10 @@ never-confirmed pending request cancels with no rating hit.
 **Open:**
 - `catalog_products` is empty (§10) — retail has no master data until a real
   import feed exists. Needs a data source decision, not code.
-- **BIM-14.1** — AdminV2 has almost no per-action `->can()` checks. Not an active
-  vulnerability (middleware + owner scoping hold), but a defence-in-depth gap,
-  and a sweep across ~69 controllers. Worth its own session; do money/fees/
-  disputes/users first.
+- **No UI for granting abilities** (BIM-14.1 follow-up). Enforcement exists; the
+  only way to create a tier-2 admin today is `Bouncer::allow($user)->to(...)` in
+  tinker. A new `type=admin` account now starts with **no** abilities and sees
+  403 everywhere — correct, but it needs a roles screen to be usable.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
   instead of using `TripSchedule::modeLabels()` etc.
 - **Fines system** (deferred by decision). The `PURPOSE_FINE` treasury bucket and
@@ -294,8 +294,8 @@ never-confirmed pending request cancels with no rating hit.
 
 **Done and worth not re-litigating:** the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
-subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury, and
-BIM-15.1 account deletion.
+subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,
+BIM-15.1 account deletion, and BIM-14.1 AdminV2 abilities.
 
 ---
 
@@ -345,3 +345,43 @@ are a snapshot — if you are about to quote one in a decision, re-derive it:
 php artisan route:list --path=api/v2
 php artisan test
 ```
+
+---
+
+## 13. AdminV2 authorization (BIM-14.1)
+
+Two layers, and every route carries both:
+
+| Layer | Question | Where |
+|---|---|---|
+| `admin.v2` middleware | are you an admin at all? | `AdminV2Middleware` |
+| `can:<ability>` | *which* admin are you? | `routes/admin_v2.php` |
+
+The vocabulary is `App\Support\AdminAbility` — 11 abilities named after jobs, not
+screens. Bouncer was already installed but its abilities (`products_management`,
+`sliders_management`, `home_settings`) are v1-era and name nothing on this
+surface; they are left alone, not reused.
+
+**`admin.money` is the axis.** It covers the wallet screens *and* the
+money-moving actions that live inside other domains — resolving a dispute by
+refunding, releasing a booking deposit, unlocking a guarantee to balance, and the
+Fawry credentials form. Those require MONEY **in addition to** their own domain
+ability, which is what lets a support agent work the dispute queue all day
+without being able to pay anyone out. Triage and `resolve/no-action` move
+nothing, so they stay on `admin.disputes` alone.
+
+`AdminAbilityCoverageTest` is the load-bearing part: it walks the **router**, not
+the route file, and fails if any route carrying `admin.v2` lacks a `can:`. That
+is how the three routes hiding in `AppServiceProvider::registerAdminV2ExtraRoutes()`
+were found. No allowlist exists or is needed — login/logout/payment-callback sit
+outside the `admin.v2` group and are filtered out by construction.
+
+> Landmine: **route-model binding runs before `can:`** (`SubstituteBindings` is in
+> the `web` group; `can:` is route middleware). A 403 test against a made-up id
+> gets 404 and proves nothing — use a real row.
+
+> The `*` wildcard passes every check including abilities that do not exist yet.
+> Migration `2026_08_06_000000` granted it to the human admins that existed when
+> enforcement landed, because one of them had **zero** abilities and would have
+> lost the panel — with no UI to grant itself anything back. The treasury is
+> excluded: `type=admin` only so it is not a trading business.

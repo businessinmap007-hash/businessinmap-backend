@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
-use App\Models\Country;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\TripSchedule;
@@ -98,34 +97,11 @@ final class TripScheduleController extends Controller
         return response()->json(['success' => true, 'data' => ['vehicle_types' => $types]]);
     }
 
-    /**
-     * Countries for the INTERNATIONAL shipping picker only. Domestic legs choose
-     * a governorate instead; this list is not used in domestic mode. Optional
-     * ?q= filters by Arabic/English name or ISO code.
+    /*
+     * countries() lived here and now lives in Api\V2\LocationController: the
+     * same list was being built in two places. GET /api/v2/schedules/countries
+     * still works — the route points at that controller instead.
      */
-    public function countries(Request $request)
-    {
-        $q = trim((string) $request->get('q', ''));
-
-        $countries = Country::query()
-            ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
-                $w->where('name_ar', 'like', "%{$q}%")
-                    ->orWhere('name_en', 'like', "%{$q}%")
-                    ->orWhere('iso2', 'like', "%{$q}%")
-                    ->orWhere('iso3', 'like', "%{$q}%");
-            }))
-            ->orderBy('name_ar')
-            ->get(['id', 'name_ar', 'name_en', 'iso2', 'iso3', 'phone_code', 'flag'])
-            ->map(fn (Country $c) => [
-                'id' => (int) $c->id,
-                'name_ar' => $c->name_ar,
-                'name_en' => $c->name_en,
-                'iso2' => $c->iso2,
-                'flag' => $c->flag,
-            ]);
-
-        return response()->json(['success' => true, 'data' => ['countries' => $countries]]);
-    }
 
     /** The calling business's own published schedules. */
     public function index(Request $request)

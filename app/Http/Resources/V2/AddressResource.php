@@ -19,6 +19,26 @@ class AddressResource extends JsonResource
             'lat' => $this->lat !== null ? (float) $this->lat : null,
             'lng' => $this->lng !== null ? (float) $this->lng : null,
             'is_primary' => (bool) $this->is_primary,
+
+            // Names, not just ids: an address list that reads "city 42" forces
+            // the app to re-fetch the pickers just to draw a row it already has.
+            'country' => $this->nameOf($this->whenLoaded('country')),
+            'governorate' => $this->nameOf($this->whenLoaded('governorate')),
+            'city' => $this->nameOf($this->whenLoaded('city')),
+        ];
+    }
+
+    /** @return array{id:int,name_ar:?string,name_en:?string}|null */
+    private function nameOf($relation): ?array
+    {
+        if (! $relation instanceof \Illuminate\Database\Eloquent\Model) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $relation->id,
+            'name_ar' => $relation->name_ar,
+            'name_en' => $relation->name_en,
         ];
     }
 }

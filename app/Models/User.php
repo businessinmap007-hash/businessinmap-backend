@@ -85,7 +85,28 @@ class User extends Authenticatable
         'commercial_operations_enabled' => 'boolean',
 
         'deleted_at'        => 'datetime',
+
+        // BIM-15.1. Deliberately absent from $fillable: these decide whether an
+        // account still exists and whether its balance may be seized, so they
+        // are set explicitly by AccountDeletionService and never by a request
+        // payload reaching a create()/update().
+        'deletion_requested_at' => 'datetime',
+        'deletion_scheduled_at' => 'datetime',
+        'anonymized_at'         => 'datetime',
+        'banned_at'             => 'datetime',
     ];
+
+    /** A ban is permanent and blocks login, deletion and re-registration. */
+    public function isBanned(): bool
+    {
+        return $this->banned_at !== null;
+    }
+
+    /** Requested deletion and still inside the grace window (restorable). */
+    public function isPendingDeletion(): bool
+    {
+        return $this->deletion_requested_at !== null && $this->anonymized_at === null;
+    }
 
     public function setPasswordAttribute($value): void
     {

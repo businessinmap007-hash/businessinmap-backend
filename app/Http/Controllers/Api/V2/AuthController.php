@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\AccountResource;
+use App\Models\BlockedIdentity;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,15 @@ final class AuthController extends Controller
             'category_child_id' => ['nullable', 'integer', 'exists:category_children,id'],
         ]);
 
+        // A ban is on the identity, not on the row: without this, a banned user
+        // registers again with the same email and phone and the ban means
+        // nothing. The list is hashed, so this is a membership test only.
+        if (BlockedIdentity::isBlocked($data['email'], $data['phone'])) {
+            throw ValidationException::withMessages([
+                'email' => ['لا يمكن إنشاء حساب بهذه البيانات.'],
+            ]);
+        }
+
         $user = DB::transaction(function () use ($data) {
             return User::create([
                 'name' => $data['name'],
@@ -65,10 +75,21 @@ final class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // The SoftDeletes global scope already hides an account that requested
+        // deletion — it cannot log in during the grace window. Cancelling is the
+        // way back (POST /api/v2/account/deletion/cancel).
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['البريد الإلكتروني أو كلمة المرور غير صحيحة.'],
+            ]);
+        }
+
+        // Told plainly, and only after the password checked out: a ban is not a
+        // secret from its owner, but it must not leak to someone guessing.
+        if ($user->isBanned()) {
+            throw ValidationException::withMessages([
+                'email' => ['تم إيقاف هذا الحساب نهائيًا.'],
             ]);
         }
 

@@ -275,10 +275,10 @@ never-confirmed pending request cancels with no rating hit.
 **Open:**
 - `catalog_products` is empty (§10) — retail has no master data until a real
   import feed exists. Needs a data source decision, not code.
-- **No UI for granting abilities** (BIM-14.1 follow-up). Enforcement exists; the
-  only way to create a tier-2 admin today is `Bouncer::allow($user)->to(...)` in
-  tinker. A new `type=admin` account now starts with **no** abilities and sees
-  403 everywhere — correct, but it needs a roles screen to be usable.
+- **Creating a super-admin is server-only, on purpose.** The roles screen manages
+  the 12 named abilities and deliberately cannot mint or unmake a wildcard
+  holder — that takes a migration or tinker. Fine as-is; noted so nobody
+  "fixes" it by adding a button.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
   instead of using `TripSchedule::modeLabels()` etc.
 - **Fines system** (deferred by decision). The `PURPOSE_FINE` treasury bucket and
@@ -385,3 +385,32 @@ outside the `admin.v2` group and are filtered out by construction.
 > enforcement landed, because one of them had **zero** abilities and would have
 > lost the panel — with no UI to grant itself anything back. The treasury is
 > excluded: `type=admin` only so it is not a trading business.
+
+### The roles screen — إعدادات التطبيق → صلاحيات المشرفين
+
+`admin/admin-roles`, guarded by `admin.roles`, its **own** ability rather than
+`admin.settings`: whoever can hand out MONEY effectively has MONEY, so bundling
+it with the push-credentials screen would have quietly made SETTINGS equal to
+everything.
+
+Rules live in `AdminAbilityService`, not the controller — they are the security
+boundary and belong somewhere testable without an HTTP request:
+
+- **You can only grant what you hold.** This is what makes `admin.roles` safe to
+  delegate at all; without it, ROLES silently equals every ability at once.
+- **You cannot edit yourself** — closes self-escalation and self-lockout in one
+  rule.
+- **Abilities outside your scope survive an edit.** A disabled checkbox posts
+  nothing, which would otherwise read as "revoke it".
+- **Wildcards are untouchable here.** The UI cannot mint or unmake a root, and
+  the last super-admin cannot be stripped through a web form.
+- The treasury is not listed: it holds money, not powers.
+
+The sidebar hides what the admin cannot open, reading each item's required
+ability **off the route's own `can:` middleware** — a second copy of the mapping
+would drift.
+
+> The dashboard was the hole in the money boundary: it summed platform fees and
+> listed real transactions for anyone who could open the panel, so gating the
+> wallet screens alone would have moved the leak rather than closed it. The
+> money is now not even queried unless the viewer holds `admin.money`.

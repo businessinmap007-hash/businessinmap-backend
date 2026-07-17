@@ -124,11 +124,75 @@
             ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
         ]],
         // App-level integration credentials (paste-and-go, no redeploy).
-        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.'], 'children' => [
+        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.', 'admin.admin-roles.'], 'children' => [
             ['label' => 'بوابة الدفع (فوري)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
             ['label' => 'الإشعارات (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
+            ['label' => 'صلاحيات المشرفين', 'route' => 'admin.admin-roles.index', 'active' => 'admin.admin-roles.'],
         ]],
     ];
+
+    // BIM-14.1 — hide what this admin cannot open. The required ability is read
+    // off the route's own `can:` middleware rather than repeated here: a second
+    // copy of the mapping would drift, and a menu full of links that only 403
+    // is worse than no menu at all.
+    $canReach = function (?string $routeName) use (&$canReach): bool {
+        if (! $routeName || ! Route::has($routeName)) return false;
+
+        $user = auth()->user();
+        if (! $user) return false;
+
+        foreach (Route::getRoutes()->getByName($routeName)->gatherMiddleware() as $middleware) {
+            if (is_string($middleware) && str_starts_with($middleware, 'can:')) {
+                if (! $user->can(explode(',', substr($middleware, 4))[0])) return false;
+            }
+        }
+
+        return true;
+    };
+
+    $firstReachable = function (array $items) use (&$firstReachable, $canReach): ?string {
+        foreach ($items as $item) {
+            if (! empty($item['children']) && is_array($item['children'])) {
+                if ($found = $firstReachable($item['children'])) return $found;
+                continue;
+            }
+            if ($canReach($item['route'] ?? null)) return $item['route'];
+        }
+        return null;
+    };
+
+    $filterMenu = function (array $items) use (&$filterMenu, $canReach, $firstReachable): array {
+        $visible = [];
+
+        foreach ($items as $item) {
+            $children = $item['children'] ?? [];
+
+            if (is_array($children) && $children !== []) {
+                $keptChildren = $filterMenu($children);
+
+                if ($keptChildren === []) continue; // nothing left under it
+
+                $item['children'] = $keptChildren;
+
+                // A group's own link often points at its first child, which this
+                // admin may not be able to open — send them to one they can.
+                if (! $canReach($item['route'] ?? null)) {
+                    $item['route'] = $firstReachable($keptChildren) ?? ($item['route'] ?? null);
+                }
+
+                $visible[] = $item;
+                continue;
+            }
+
+            if (($item['type'] ?? null) === 'section') continue; // an empty heading
+
+            if ($canReach($item['route'] ?? null)) $visible[] = $item;
+        }
+
+        return $visible;
+    };
+
+    $menu = $filterMenu($menu);
 @endphp
 
 <ul class="a2-nav-list">

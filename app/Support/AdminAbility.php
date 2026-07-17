@@ -66,6 +66,19 @@ final class AdminAbility
     /** Platform configuration: push credentials, notification centre. */
     public const SETTINGS = 'admin.settings';
 
+    /**
+     * Grant and revoke other admins' abilities.
+     *
+     * The root power, and deliberately not folded into SETTINGS: whoever can
+     * hand out MONEY effectively has MONEY, so bundling this with the push
+     * credentials screen would have quietly made SETTINGS equal to everything.
+     *
+     * It is only safe because of the rule in AdminAbilityService: you can grant
+     * only what you already hold. That, plus not being able to edit yourself, is
+     * what stops this from being a one-click path to root.
+     */
+    public const ROLES = 'admin.roles';
+
     public const ALL = [
         self::ACCESS,
         self::USERS,
@@ -78,6 +91,7 @@ final class AdminAbility
         self::COMMERCE,
         self::CONTENT,
         self::SETTINGS,
+        self::ROLES,
     ];
 
     /**
@@ -102,7 +116,32 @@ final class AdminAbility
             self::COMMERCE => 'العروض والشراكات والاشتراكات',
             self::CONTENT => 'المحتوى (منشورات، وظائف، رعاة، ألبومات)',
             self::SETTINGS => 'إعدادات المنصة',
+            self::ROLES => 'صلاحيات المشرفين (منح وسحب)',
         ];
+    }
+
+    /** @return array<string, string> ability => what granting it actually lets someone do. */
+    public static function hints(): array
+    {
+        return [
+            self::ACCESS => 'بدونها لا يرى شيئًا في اللوحة إطلاقًا.',
+            self::USERS => 'عرض وتعديل وإيقاف وحذف حسابات المستخدمين.',
+            self::MONEY => '⚠️ يحرّك أموالًا حقيقية: شحن يدوي، تسوية نزاع، فك عربون، وبيانات بوابة الدفع.',
+            self::FEES => 'يحدّد ما تتقاضاه المنصة من كل عملية.',
+            self::DISPUTES => 'فرز النزاعات ومتابعتها. لا يستطيع صرف المال بدون صلاحية الأموال.',
+            self::TRUST => 'الضمانات ومستوياتها.',
+            self::CATALOG => 'التصنيفات والكتالوج وفروع الخدمات.',
+            self::OPERATIONS => 'الحجوزات والتوصيل والمنيو والرحلات.',
+            self::COMMERCE => 'العروض والشراكات والاشتراكات والتسعير.',
+            self::CONTENT => 'المنشورات والوظائف والرعاة والألبومات.',
+            self::SETTINGS => 'بيانات الإشعارات ومركز الإشعارات.',
+            self::ROLES => '⚠️ يمنح غيره صلاحيات — لكن لا يستطيع منح ما لا يملكه هو.',
+        ];
+    }
+
+    public static function hint(string $ability): string
+    {
+        return self::hints()[$ability] ?? '';
     }
 
     public static function label(string $ability): string

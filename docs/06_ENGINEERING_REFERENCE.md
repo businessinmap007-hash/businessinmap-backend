@@ -274,7 +274,11 @@ never-confirmed pending request cancels with no rating hit.
 
 **Open:**
 - `catalog_products` is empty (§10) — retail has no master data until a real
-  import feed exists. Needs a data source decision, not code.
+  import feed exists. Needs a data source decision, not code. This is also what
+  blocks a **retail journey test** (§11.1): four of the six services are walked
+  end to end, but retail has nothing to sell and its merchant side is web-panel
+  only (`business/products`) with no API at all. `business_offers` is the other
+  service still unwalked.
 - **Creating a super-admin is server-only, on purpose.** The roles screen manages
   the 12 named abilities and deliberately cannot mint or unmake a wildcard
   holder — that takes a migration or tinker. Fine as-is; noted so nobody
@@ -332,7 +336,7 @@ still being ported. Build on `Api/V2` and `AdminV2` only.
 
 ## 11. Testing
 
-85 test files (82 Feature / 3 Unit), **541 passing / 3 skipped**. Conventions:
+87 test files (84 Feature / 3 Unit), **555 passing / 3 skipped**. Conventions:
 
 - `use DatabaseTransactions` — always (see §0).
 - Find-or-create existing rows; `markTestSkipped` when a fixture is absent rather
@@ -349,12 +353,20 @@ Guards that will fail the build if you drift:
 
 ### 11.1 Journey tests, and why they are a different kind of test
 
-`MenuOrderJourneyTest` and `DiscoveryJourneyTest` walk a whole service the way
-the app walks it. They exist because BIM-11.1 proved that *"has passing tests"
-is not "works"*: the old `AddressApiTest` was green for months while creating an
-address was **impossible**. The test invented its own ids using the same wrong
-assumption as the code, and those invented ids happened to satisfy the very
-constraint the real ones could not.
+Four services are now walked end to end the way the app walks them:
+
+| Test | Covers |
+|---|---|
+| `DiscoveryJourneyTest` | launch → categories → specialties → discovery → book → carrier accepts |
+| `MenuOrderJourneyTest` | browse menu → cart (variants + extras) → checkout → the kitchen sees it |
+| `DeliveryJourneyTest` | order → kitchen → driver takes it → pickup scan → delivery scan → ledgered |
+| `SchedulesJourneyTest` | carrier publishes a leg → passenger searches → reserves → rides → both rated |
+
+They exist because BIM-11.1 proved that *"has passing tests" is not "works"*:
+the old `AddressApiTest` was green for months while creating an address was
+**impossible**. The test invented its own ids using the same wrong assumption as
+the code, and those invented ids happened to satisfy the very constraint the
+real ones could not.
 
 So the rule, and the whole point:
 

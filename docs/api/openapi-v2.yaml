@@ -81,6 +81,12 @@ tags:
   - name: Discovery
   - name: Offers (Discovery)
   - name: Search
+  - name: Jobs
+    description: |
+      A business posts a vacancy (any field, no fee/rating — closer to Offers
+      than to Booking/Menu). Public sees the job and an applicant COUNT only;
+      full applicant identity is visible only to the posting business via
+      GET /jobs/{post}/applicants.
 
 components:
   securitySchemes:
@@ -1888,3 +1894,39 @@ paths:
     get: { tags: [Search], summary: Search offers (public), security: [], responses: { '200': { description: OK } } }
   /search/business/{business}/offers:
     get: { tags: [Search], summary: Search a business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+
+  # ─────────────────────────── Jobs ───────────────────────────
+  /jobs:
+    get: { tags: [Jobs], summary: Browse open jobs — filterable by category_id/category_child_id (public), security: [], responses: { '200': { description: OK } } }
+    post:
+      tags: [Jobs]
+      summary: A business posts a vacancy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category_id, body]
+              properties:
+                category_id: { type: integer }
+                category_child_id: { type: integer, description: Must belong to category_id. }
+                title_ar: { type: string }
+                title_en: { type: string, description: At least one of title_ar/title_en is required. }
+                body: { type: string, description: The job description. }
+                requirements: { type: string }
+                salary: { type: string, description: 'Free text on purpose — often "يحدد بعد المقابلة", not a number.' }
+                interview_starts_at: { type: string, format: date-time }
+                expire_at: { type: string, format: date-time, description: When the ad itself closes. }
+      responses:
+        '201': { description: Created }
+        '403': { description: Not a business account }
+        '422': { $ref: '#/components/responses/Validation' }
+  /jobs/categories:
+    get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
+  /jobs/{post}:
+    get: { tags: [Jobs], summary: Job detail — includes applicants_count, never applicant identities (public), security: [], parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /jobs/{post}/apply:
+    post: { tags: [Jobs], summary: A client applies (once — a repeat is 422), parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /jobs/{post}/applicants:
+    get: { tags: [Jobs], summary: Full applicant list — the posting business only, parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business } } }

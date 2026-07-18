@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apply;
+use App\Models\Category;
+use App\Models\CategoryChild;
 use App\Models\Post;
 use Illuminate\Http\Request;
 
@@ -143,7 +146,24 @@ class JobPostController extends Controller
         abort_if($post->type !== 'job', 404);
 
         $item = $post;
-        return view('admin-v2.jobs.edit', compact('item'));
+        $categories = Category::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
+        $categoryChildren = CategoryChild::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
+
+        return view('admin-v2.jobs.edit', compact('item', 'categories', 'categoryChildren'));
+    }
+
+    /** Oversight only — who applied. Never edits an application. */
+    public function applicants(Post $post)
+    {
+        abort_if($post->type !== 'job', 404);
+
+        $applicants = Apply::query()
+            ->where('post_id', $post->id)
+            ->with('user:id,name,phone,email')
+            ->orderByDesc('id')
+            ->paginate(50);
+
+        return view('admin-v2.jobs.applicants', ['item' => $post, 'applicants' => $applicants]);
     }
 
     public function update(Request $request, Post $post)
@@ -198,6 +218,13 @@ class JobPostController extends Controller
             'is_active' => ['nullable','boolean'],
 
             'share_count' => ['nullable','integer','min:0'],
+
+            'category_id' => ['nullable','integer','exists:categories,id'],
+            'category_child_id' => ['nullable','integer','exists:category_children_master,id'],
+            // Free text on purpose — salary is often "يحدد بعد المقابلة", not a number.
+            'salary' => ['nullable','string','max:191'],
+            'requirements' => ['nullable','string'],
+            'interview_starts_at' => ['nullable','date'],
         ]);
 
         $data['is_active'] = (bool) ($data['is_active'] ?? false);

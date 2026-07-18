@@ -308,6 +308,16 @@ class User extends Authenticatable
         return $this->hasMany(Post::class);
     }
 
+    /**
+     * Job applications this account has submitted. Was missing entirely in
+     * v1 (a live BadMethodCallException on PostResource::isApplied for any
+     * authenticated /get/posts request) — v2 needs it to exist and be right.
+     */
+    public function applies()
+    {
+        return $this->hasMany(Apply::class, 'user_id');
+    }
+
     public function transactions()
     {
         return $this->hasMany(Transaction::class);

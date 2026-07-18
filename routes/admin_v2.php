@@ -466,7 +466,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('posts/{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('posts.main_image.destroy');
             Route::delete('posts/{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('posts.images.destroy');
 
-            Route::resource('jobs', JobPostController::class)->names('jobs');
+            // Every jobs/* blade view calls route(..., ['post' => ...]) (matching
+            // the controller's Post $post binding) — but Route::resource derives
+            // {job} by default from the resource name, which silently broke every
+            // generated link (index->show, show->edit, the delete modal...).
+            // Verified by actually clicking through, not by reading the routes.
+            Route::resource('jobs', JobPostController::class)->parameter('jobs', 'post')->names('jobs');
+            Route::post('jobs/{post}/toggle-active', [JobPostController::class, 'toggleActive'])->whereNumber('post')->name('jobs.toggleActive');
+            Route::get('jobs/{post}/applicants', [JobPostController::class, 'applicants'])->whereNumber('post')->name('jobs.applicants');
 
             Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
             Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');

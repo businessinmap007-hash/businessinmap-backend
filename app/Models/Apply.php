@@ -9,7 +9,12 @@ class Apply extends Model
 {
     protected $fillable = [
         'post_id',
-        'approved_at'
+        'user_id',
+        'approved_at',
+    ];
+
+    protected $casts = [
+        'approved_at' => 'datetime',
     ];
 
 

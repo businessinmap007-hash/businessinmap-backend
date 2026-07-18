@@ -573,3 +573,50 @@ Two things worth keeping straight:
 - `categories.per_month` / `per_year` are the **abandoned subscription pricing**
   and are deliberately not exposed. `DiscoveryJourneyTest` asserts they never
   appear in the response.
+
+## 16. Jobs (2026-07-18): a business posts a vacancy, a client applies
+
+v1's Jobs was fully broken: `Api\V1\JobController` referenced `App\Models\Job`,
+`App\Company`, `App\Product` — **none exist**; every method fatal-errors.
+`Api\V1\ApplyController` was never routed and also broken (`User::applies()`
+didn't exist). Only one part was real: `posts` with `type='job'` (47 live
+posts) + the `applies` table (143 live applications) — `AdminV2\JobPostController`
+already used this shape, but with none of the fields a real job posting needs
+and no applicant-management screen.
+
+**Deliberately not a platform service.** A job posting has no operation being
+executed, no fee split, no rating — it's an ad + applications, closer to
+Offers than to Booking/Menu/Delivery. Extended `posts` (migration
+`2026_08_08_000000_add_job_fields_to_posts`) rather than inventing a parallel
+table, keeping the 47 real historical posts intact:
+
+```
+posts: + category_id, category_child_id (nullable FKs — the browse taxonomy)
+       + salary       (STRING, on purpose — often "يحدد بعد المقابلة", not a number)
+       + requirements (text)
+       + interview_starts_at (when applications/interviews open;
+                               expire_at, already on the table, is when the ad closes)
+```
+
+**Visibility rule, enforced in `Api\V2\JobController`, not left to the client:**
+the public sees a job and `applicants_count`; only `GET /jobs/{post}/applicants`
+(gated on `post.user_id === auth id`) returns applicant identities. Fixed a
+real bug found along the way: `User` had no `applies()` relation at all — v1's
+`PostResource::isApplied` called it on every authenticated `get/posts` request
+and would throw. Added it; `Apply::$fillable` was also missing `user_id`.
+
+`GET /jobs/categories` — only categories/specialties with an open (active,
+unexpired) job, counted (parent total = sum of its children, matching the
+shape the owner specified: `مصانع=20` with `موبيليات=5 / دهانات=6 / حلويات=4 /
+مفروشات=5`).
+
+`AdminV2\JobPostController` gained the new fields plus `GET jobs/{post}/applicants`
+(oversight, read-only) — the gap the v1 audit flagged. Fixed a second real bug
+while wiring it: `Route::resource('jobs', ...)` derives the parameter `{job}`
+by default, but every `jobs/*` blade view (already, before this change) calls
+`route(..., ['post' => ...])` — every generated link (index→show, the delete
+modal, show→edit) has silently 500'd since the AdminV2 controller was written.
+Fixed with `->parameter('jobs', 'post')`. Caught by rendering the screens in
+`AdminV2JobsScreensTest`, not by reading the routes.
+
+Guarded by `JobsApiTest` (the v2 API) and `AdminV2JobsScreensTest`.

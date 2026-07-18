@@ -19,6 +19,13 @@ class Post extends Model
     'title_en',
     'body_ar',
     'body_en',
+
+    // Job fields (type='job' only — see 2026_08_08_000000_add_job_fields_to_posts).
+    'category_id',
+    'category_child_id',
+    'salary',
+    'requirements',
+    'interview_starts_at',
     ];
 
     // ✅ نخلي appends للعنوان فقط (بدون body)
@@ -27,6 +34,7 @@ class Post extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'expire_at' => 'datetime',
+        'interview_starts_at' => 'datetime',
     ];
 
     public function getTitleAttribute(): ?string
@@ -46,6 +54,29 @@ class Post extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function categoryChild()
+    {
+        return $this->belongsTo(CategoryChild::class, 'category_child_id');
+    }
+
+    public function scopeJobs($query)
+    {
+        return $query->where('type', 'job');
+    }
+
+    public function scopeOpenJobs($query)
+    {
+        return $query->jobs()->where('is_active', 1)
+            ->where(function ($w) {
+                $w->whereNull('expire_at')->orWhere('expire_at', '>=', now());
+            });
     }
 
     // ✅ صور متعددة من جدول images

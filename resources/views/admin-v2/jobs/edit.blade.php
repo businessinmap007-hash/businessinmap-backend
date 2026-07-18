@@ -20,6 +20,7 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index', $qsKeep) }}">رجوع</a>
         <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id] + $qsKeep) }}">عرض</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.applicants', ['post'=>$post->id]) }}">المتقدمون</a>
 
         <button type="button" class="a2-btn a2-btn-danger" id="btnOpenDeleteModal">
           حذف
@@ -58,12 +59,43 @@
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">Expire At</label>
+              <label class="a2-hint" style="font-weight:900;">Expire At (نهاية الإعلان)</label>
               <input class="a2-input" type="datetime-local" name="expire_at"
                      value="{{ old('expire_at', optional($post->expire_at)->format('Y-m-d\TH:i')) }}">
               <div class="a2-hint" style="margin-top:6px;">
                 اتركه فارغًا لو لا يوجد انتهاء.
               </div>
+            </div>
+
+            <div>
+              <label class="a2-hint" style="font-weight:900;">بداية التقديم/المقابلات</label>
+              <input class="a2-input" type="datetime-local" name="interview_starts_at"
+                     value="{{ old('interview_starts_at', optional($post->interview_starts_at)->format('Y-m-d\TH:i')) }}">
+            </div>
+
+            <div>
+              <label class="a2-hint" style="font-weight:900;">التصنيف الأب</label>
+              <select class="a2-input" name="category_id">
+                <option value="">— بدون —</option>
+                @foreach($categories as $c)
+                  <option value="{{ $c->id }}" @selected(old('category_id', $post->category_id) == $c->id)>{{ $c->name_ar ?: $c->name_en }}</option>
+                @endforeach
+              </select>
+            </div>
+
+            <div>
+              <label class="a2-hint" style="font-weight:900;">التخصص الفرعي</label>
+              <select class="a2-input" name="category_child_id">
+                <option value="">— بدون —</option>
+                @foreach($categoryChildren as $c)
+                  <option value="{{ $c->id }}" @selected(old('category_child_id', $post->category_child_id) == $c->id)>{{ $c->name_ar ?: $c->name_en }}</option>
+                @endforeach
+              </select>
+            </div>
+
+            <div>
+              <label class="a2-hint" style="font-weight:900;">المرتب</label>
+              <input class="a2-input" name="salary" value="{{ old('salary', $post->salary) }}" placeholder="مثال: يحدد بعد المقابلة">
             </div>
 
           </div>
@@ -88,8 +120,13 @@
             <div>
               <label class="a2-hint" style="font-weight:900;">الوصف</label>
               <textarea class="a2-input" name="body" rows="10"
-                      
-              style="min-height:140px;white-space:pre-wrap;">>{{ old('body', $post->body) }}</textarea>
+              style="min-height:140px;white-space:pre-wrap;">{{ old('body', $post->body) }}</textarea>
+            </div>
+
+            <div>
+              <label class="a2-hint" style="font-weight:900;">الشروط المطلوبة</label>
+              <textarea class="a2-input" name="requirements" rows="6"
+                style="min-height:100px;white-space:pre-wrap;">{{ old('requirements', $post->requirements) }}</textarea>
             </div>
 
             <div class="a2-form-actions" style="margin-top:6px;">

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\JobController;
 use App\Http\Controllers\Api\V2\LocationController;
 use App\Http\Controllers\Api\V2\RatingController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
@@ -120,6 +121,14 @@ Route::prefix('v2')->group(function () {
         Route::get('menu/{business}', [MenuDiscoveryController::class, 'show'])->whereNumber('business');
     });
 
+    // Jobs: a business posts a vacancy in any field, a client applies. Public
+    // browse + the category tree (only branches that actually have a job).
+    Route::prefix('jobs')->group(function () {
+        Route::get('/', [JobController::class, 'index']);
+        Route::get('categories', [JobController::class, 'categories']);
+        Route::get('{post}', [JobController::class, 'show'])->whereNumber('post');
+    });
+
     // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the
     // gateway calls it, not the app) — security is the signed-payload check.
     // Optional ?gateway= selects the provider (defaults to config).
@@ -141,6 +150,12 @@ Route::prefix('v2')->group(function () {
         // describe it, scoped to what its own specialty (child) allows.
         Route::get('profile/options', [ProfileController::class, 'showOptions']);
         Route::match(['put', 'patch'], 'profile/options', [ProfileController::class, 'updateOptions']);
+
+        // Jobs: a business posts one, a client applies. Applicant identities
+        // are visible only to the posting business — see JobController.
+        Route::post('jobs', [JobController::class, 'store']);
+        Route::post('jobs/{post}/apply', [JobController::class, 'apply'])->whereNumber('post');
+        Route::get('jobs/{post}/applicants', [JobController::class, 'applicants'])->whereNumber('post');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

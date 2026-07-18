@@ -9,15 +9,60 @@ use App\Enums\DepositStatus;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
+/**
+ * SECURITY (2026-07-18): every method here was reachable by ANY authenticated
+ * user with no ownership check at all — `auth:sanctum` and nothing else. A
+ * normal app user could freeze money in two arbitrary wallets, release or
+ * refund somebody else's escrow (choosing which party got the money), charge
+ * an execution fee on it, and enumerate the platform's entire escrow ledger.
+ *
+ * The write endpoints also bypass the services that actually own this
+ * lifecycle — `BookingDepositService` (create/release/refund alongside the
+ * booking) and `DisputeService` (release/refund on a ruling). All ten real
+ * deposits in the database originate from bookings; nothing legitimate has
+ * ever driven escrow through this REST surface.
+ *
+ * So: reads are scoped to the caller's own deposits, and the writes are
+ * admin-only. New work belongs on `Api\V2\DepositController`, which is
+ * deliberately read-only.
+ */
 class DepositController extends Controller
 {
     public function __construct(private DepositsEscrowService $service) {}
+
+    /** These bypass BookingDepositService/DisputeService — staff only. */
+    private function authorizeStaff(Request $request): void
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->isAdmin()) {
+            abort(403, 'Escrow is driven by the booking and dispute flows, not directly.');
+        }
+    }
+
+    /** A deposit is visible to the two parties named on it, and to staff. */
+    private function findVisible(Request $request, int $id): Deposit
+    {
+        $user = $request->user();
+        $deposit = Deposit::findOrFail($id);
+
+        if ($user && ($user->isAdmin()
+            || (int) $deposit->client_id === (int) $user->id
+            || (int) $deposit->business_id === (int) $user->id)) {
+            return $deposit;
+        }
+
+        // 404, not 403: a stranger must not be able to confirm the id exists.
+        abort(404);
+    }
 
     /**
      * إنشاء Deposit (جدية/ضمان للطرفين)
      */
     public function create(Request $request)
     {
+        $this->authorizeStaff($request);
+
         $data = $request->validate([
             'client_id' => 'required|integer',
             'business_id' => 'required|integer|different:client_id',
@@ -58,6 +103,8 @@ class DepositController extends Controller
      */
     public function startExecution(Request $request, int $id)
     {
+        $this->authorizeStaff($request);
+
         $deposit = Deposit::findOrFail($id);
 
         // ✅ status is Enum (DepositStatus)
@@ -81,6 +128,8 @@ class DepositController extends Controller
      */
     public function release(Request $request, int $id)
     {
+        $this->authorizeStaff($request);
+
         $deposit = Deposit::findOrFail($id);
         $deposit = $this->service->release($deposit);
 
@@ -95,6 +144,8 @@ class DepositController extends Controller
      */
     public function refund(Request $request, int $id)
     {
+        $this->authorizeStaff($request);
+
         $data = $request->validate([
             'refund_client' => 'required|boolean',
             'refund_business' => 'required|boolean',
@@ -119,7 +170,7 @@ class DepositController extends Controller
      */
     public function show(Request $request, int $id)
     {
-        $deposit = Deposit::findOrFail($id);
+        $deposit = $this->findVisible($request, $id);
 
         return response()->json([
             'deposit' => $deposit
@@ -141,6 +192,19 @@ class DepositController extends Controller
         ]);
 
         $q = Deposit::query()->orderByDesc('id');
+
+        // Was the whole platform's escrow ledger, filterable by any
+        // client_id/business_id the caller cared to name. Now a non-admin only
+        // ever sees rows they are a party to, whatever they pass in.
+        $user = $request->user();
+
+        if (! $user || ! $user->isAdmin()) {
+            $callerId = (int) ($user->id ?? 0);
+
+            $q->where(function ($w) use ($callerId) {
+                $w->where('client_id', $callerId)->orWhere('business_id', $callerId);
+            });
+        }
 
         if (!empty($data['status'])) {
             // ✅ DB stores enum value string (e.g. "frozen")

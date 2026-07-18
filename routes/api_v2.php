@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
 use App\Http\Controllers\Api\V2\DeliveryController;
+use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -204,6 +205,13 @@ Route::prefix('v2')->group(function () {
         Route::post('comments/{comment}/replies', [CommentController::class, 'reply'])->whereNumber('comment');
         Route::match(['put', 'patch'], 'comments/{comment}', [CommentController::class, 'update'])->whereNumber('comment');
         Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->whereNumber('comment');
+
+        // Escrow deposits — READ ONLY on purpose. Creating, releasing and
+        // refunding belong to BookingDepositService and DisputeService; v1
+        // exposed them raw with no authorization and let anyone move anyone's
+        // money. See Api\V2\DepositController.
+        Route::get('deposits', [DepositController::class, 'index']);
+        Route::get('deposits/{deposit}', [DepositController::class, 'show'])->whereNumber('deposit');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

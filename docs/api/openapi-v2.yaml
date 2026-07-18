@@ -87,6 +87,14 @@ tags:
       than to Booking/Menu). Public sees the job and an applicant COUNT only;
       full applicant identity is visible only to the posting business via
       GET /jobs/{post}/applicants.
+  - name: Deposits
+    description: |
+      Escrow held against an operation. **Read-only in v2, deliberately.**
+      Creating, releasing and refunding belong to the booking flow
+      (BookingDepositService) and to dispute rulings (DisputeService), which
+      know why the money is moving. v1 exposed those as raw REST with no
+      authorization at all; re-exposing them here would rebuild that hole.
+      You only ever see deposits you are a party to.
   - name: Posts
     description: |
       The social feed. Browsing is public, but sending a bearer token
@@ -1931,6 +1939,27 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
   /jobs/categories:
     get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
+  /deposits:
+    get:
+      tags: [Deposits]
+      summary: Escrow deposits this account is a party to
+      description: 'No filter can widen the scope beyond the caller.'
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [frozen, in_progress, released, refunded] } }
+        - { in: query, name: role, schema: { type: string, enum: [client, business] } }
+        - { in: query, name: per_page, schema: { type: integer, maximum: 50 } }
+      responses:
+        '200': { description: OK }
+  /deposits/{deposit}:
+    get:
+      tags: [Deposits]
+      summary: One deposit, if you are a party to it
+      description: '404 rather than 403 for a non-party, so ids cannot be probed.'
+      parameters:
+        - { in: path, name: deposit, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
   /posts:
     get:
       tags: [Posts]

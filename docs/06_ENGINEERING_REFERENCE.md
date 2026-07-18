@@ -788,3 +788,55 @@ Verified live against the real data: on post 6 (4 public + 3 private) a guest
 sees 4 and the post owner sees 7.
 
 Guarded by `CommentsApiV2Test` (14), most of it about who can see what.
+
+---
+
+## 19. Escrow deposits (2026-07-18): a broken-access-control fix, and a read-only v2
+
+### What was wrong
+
+`Api\V1\DepositController` had **six routes behind `auth:sanctum` and nothing
+else** — no policy, no ownership check, every method doing
+`Deposit::findOrFail($id)` and acting on it. Any signed-in app user could:
+
+| Endpoint | What it let a stranger do |
+|---|---|
+| `POST /deposits` | freeze money in **two arbitrary wallets**, naming `client_id` and `business_id` freely |
+| `POST /deposits/{id}/release` | release anyone's escrow |
+| `POST /deposits/{id}/refund` | refund anyone's escrow, **choosing which party got the money** |
+| `POST /deposits/{id}/start-execution` | trigger a service-fee charge on anyone's deposit |
+| `GET /deposits` | page the **entire platform escrow ledger**, filtered by any `client_id` |
+| `GET /deposits/{id}` | read any deposit |
+
+This is the v1-is-not-inert lesson again (see the password-reset takeover,
+BIM-14.0): `route:list` is the authority on what is live, not intuition about
+which files look abandoned.
+
+### Why the fix is shaped the way it is
+
+The escrow lifecycle is owned by two services, and **all ten deposits in the
+database were created by them**, every one attached to a `Booking`:
+
+- `BookingDepositService` — create/release/refund alongside the booking;
+- `DisputeService` — release/refund when a dispute is ruled on.
+
+Nothing legitimate has ever driven escrow through the REST surface. So the
+write endpoints are not "missing authorization" so much as a **raw bypass of
+the domain services that know why money should move**. Hence:
+
+- v1 reads are scoped to the caller's own deposits (admins still see all), and
+  a non-party gets **404, not 403** — 403 confirms the id exists.
+- v1 writes are **admin-only**. Being a party is not a licence to release your
+  own escrow on demand; that is what booking completion and dispute rulings are
+  for. The file stays (v1 is retained, not deleted).
+- **v2 is read-only on purpose.** `GET /deposits` (party-scoped, no filter can
+  widen it) and `GET /deposits/{deposit}` (404 for a non-party). Re-exposing
+  create/release/refund in a new namespace would rebuild the same hole.
+
+`V2\DepositResource` also stops returning the raw model: v1 shipped all ~50
+columns including the counterparty's wallet transaction ids, the external proof
+path, the verifier's user id and the full policy snapshot.
+
+Guarded by `DepositsAuthorizationTest` (13), which creates its own deposits and
+never calls a money-moving endpoint with a payload that could succeed — the ten
+real rows are asserted untouched.

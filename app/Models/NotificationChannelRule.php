@@ -61,6 +61,8 @@ class NotificationChannelRule extends Model
             'offer_matched' => ['عرض مناسب لمتابعتك', 'Offer matched your follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'offer'],
             'job_posted' => ['وظيفة جديدة في مجال تتابعه', 'New job in a field you follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'offer'],
             'job_application_approved' => ['تم قبول تقديمك على وظيفة', 'Your job application was accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, false, true, false, false, false, 0, 'system'],
+            'post_commented' => ['تعليق جديد على منشورك', 'New comment on your post', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'system'],
+            'comment_replied' => ['رد على تعليقك', 'Someone replied to your comment', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'system'],
             'trip_reservation_created' => ['حجز رحلة جديد', 'New trip reservation', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 2, 'booking_new'],
             'trip_reservation_confirmed' => ['تأكيد حجز الرحلة', 'Trip reservation confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_reservation_completed' => ['اكتمال الرحلة', 'Trip completed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],

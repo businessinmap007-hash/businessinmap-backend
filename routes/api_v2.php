@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
+use App\Http\Controllers\Api\V2\CommentController;
 use App\Http\Controllers\Api\V2\PostController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
@@ -140,7 +141,12 @@ Route::prefix('v2')->group(function () {
     Route::prefix('posts')->group(function () {
         Route::get('/', [PostController::class, 'index']);
         Route::get('{post}', [PostController::class, 'show'])->whereNumber('post');
+        // Reading comments is public; the public/private rule is applied as a
+        // query scope in CommentVisibilityService, not left to the client.
+        Route::get('{post}/comments', [CommentController::class, 'index'])->whereNumber('post');
     });
+
+    Route::get('comments/{comment}/replies', [CommentController::class, 'replies'])->whereNumber('comment');
 
     // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the
     // gateway calls it, not the app) — security is the signed-payload check.
@@ -191,6 +197,13 @@ Route::prefix('v2')->group(function () {
         Route::delete('posts/{post}', [PostController::class, 'destroy'])->whereNumber('post');
         Route::post('posts/{post}/share', [PostController::class, 'share'])->whereNumber('post');
         Route::post('posts/{post}/react', [PostController::class, 'react'])->whereNumber('post');
+
+        // Comments. v1 had store()/commentReplies() written but never routed,
+        // so the API could read comments and never write one.
+        Route::post('posts/{post}/comments', [CommentController::class, 'store'])->whereNumber('post');
+        Route::post('comments/{comment}/replies', [CommentController::class, 'reply'])->whereNumber('comment');
+        Route::match(['put', 'patch'], 'comments/{comment}', [CommentController::class, 'update'])->whereNumber('comment');
+        Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->whereNumber('comment');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

@@ -1967,6 +1967,113 @@ paths:
       responses:
         '201': { description: Created }
         '422': { $ref: '#/components/responses/Validation' }
+  /posts/{post}/comments:
+    get:
+      tags: [Posts]
+      summary: 'Top-level comments, filtered to what the reader may see'
+      description: >
+        Public reading. The post's author sees every comment; any other
+        signed-in reader sees public comments plus their own private ones; a
+        guest sees public only. Applied as a query scope, so paging stays
+        correct.
+      security: []
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+        - { in: query, name: per_page, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or it is a job posting' }
+    post:
+      tags: [Posts]
+      summary: Add a comment
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: { type: string, maxLength: 5000 }
+                status:
+                  type: string
+                  enum: [public, private]
+                  default: public
+                  description: 'private = visible only to you and the post owner.'
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /comments/{comment}/replies:
+    get:
+      tags: [Posts]
+      summary: Replies to a comment
+      description: 'Returns 404 when the parent comment itself is not readable by you.'
+      security: []
+      parameters:
+        - { in: path, name: comment, required: true, schema: { type: integer } }
+        - { in: query, name: per_page, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or the parent is private and not yours' }
+    post:
+      tags: [Posts]
+      summary: Reply to a comment
+      description: >
+        A reply can never be more visible than its parent — replying to a
+        private comment always produces a private reply, whatever status is
+        requested, or the private thread would leak.
+      parameters:
+        - { in: path, name: comment, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: { type: string, maxLength: 5000 }
+                status: { type: string, enum: [public, private] }
+      responses:
+        '201': { description: Created }
+        '404': { description: Parent not readable }
+  /comments/{comment}:
+    put:
+      tags: [Posts]
+      summary: Edit your own comment
+      parameters:
+        - { in: path, name: comment, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: { type: string, maxLength: 5000 }
+      responses:
+        '200': { description: OK }
+        '403': { description: 'Not your comment — the post owner moderates, but does not rewrite' }
+    patch:
+      tags: [Posts]
+      summary: Edit your own comment
+      parameters:
+        - { in: path, name: comment, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Not your comment }
+    delete:
+      tags: [Posts]
+      summary: Delete a comment (its author, or the post's author moderating)
+      description: 'Deleting a comment deletes its replies — they would otherwise be orphaned and unreachable.'
+      parameters:
+        - { in: path, name: comment, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Neither the comment author nor the post owner }
   /posts/mine:
     get:
       tags: [Posts]

@@ -33,6 +33,23 @@ use Illuminate\Support\Facades\DB;
  */
 final class PostController extends Controller
 {
+    /**
+     * `comments_count` deliberately counts PUBLIC top-level comments only.
+     *
+     * A private comment is visible to its author and the post's owner alone
+     * (CommentVisibilityService), so counting them would advertise a number
+     * most readers cannot open. One uniform, honest figure beats a per-viewer
+     * count that would cost a query per row on the feed.
+     */
+    private static function counts(): array
+    {
+        return [
+            'likes',
+            'dislikes',
+            'comments as comments_count' => fn ($q) => $q->where('status', 'public'),
+        ];
+    }
+
     public function __construct(
         private readonly PostAudienceService $audience,
         private readonly ImageUploadService $uploads,
@@ -108,7 +125,7 @@ final class PostController extends Controller
         abort_if($post->type === 'job', 404, 'Use /jobs for job postings.');
 
         $post->loadMissing(['user:id,name,logo,image', 'images'])
-            ->loadCount(['likes', 'dislikes', 'comments']);
+            ->loadCount(self::counts());
 
         $this->attachViewerState(collect([$post]), $this->viewer($request));
 
@@ -151,7 +168,7 @@ final class PostController extends Controller
         });
 
         $post->load(['user:id,name,logo,image', 'images'])
-            ->loadCount(['likes', 'dislikes', 'comments']);
+            ->loadCount(self::counts());
 
         return response()->json(['success' => true, 'data' => new PostResource($post)], 201);
     }
@@ -205,7 +222,7 @@ final class PostController extends Controller
         });
 
         $post->load(['user:id,name,logo,image', 'images'])
-            ->loadCount(['likes', 'dislikes', 'comments']);
+            ->loadCount(self::counts());
 
         return response()->json(['success' => true, 'data' => new PostResource($post)]);
     }
@@ -302,7 +319,7 @@ final class PostController extends Controller
     {
         return Post::query()
             ->with(['user:id,name,logo,image,latitude,longitude', 'images'])
-            ->withCount(['likes', 'dislikes', 'comments']);
+            ->withCount(self::counts());
     }
 
     private function applyOrdering(Builder $query, array $data): void

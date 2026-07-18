@@ -732,3 +732,59 @@ nobody could change.
 Guarded by `PostsApiV2Test` (14). Note its `tearDown`: uploads write real files
 and `DatabaseTransactions` rolls back the database but **not the filesystem**,
 so every path a test creates is deleted explicitly.
+
+---
+
+## 18. Comments (2026-07-18): the visibility rule, and the write path that never existed
+
+Comments could only be **read**. `Api\V1\CommentController::store()` and
+`commentReplies()` are written but **never routed** — only the two read methods
+are — so the API listed a `comments_count` nobody could add to. (Its
+`commentList()` is dead outright: it queries `commentable_id` and `is_agree`,
+neither of which is a column on `comments`.) The 81 existing rows came from the
+old app, not the API.
+
+### The rule
+
+`comments.status` is `public|private`. Private means "between me and the
+business" — a question you do not want the rest of the feed reading.
+
+| Reader | Sees |
+|---|---|
+| the post's author | every comment on their post |
+| any other signed-in reader | public comments **+ their own private ones** |
+| a guest | public only |
+
+`CommentVisibilityService` owns this as a **query scope**, so paging stays
+correct. v1 applied it inline in two controller methods by fetching both sets
+and `merge()`-ing them in PHP, and its private branch filtered on
+`['parent_id' => 0, 'user_id' => $user->id]` — so a user's **own private
+replies were hidden from the user who wrote them**. Regression-tested.
+
+Two consequences worth knowing:
+
+- **A reply can never be more visible than its parent.** Replying to a private
+  comment always yields a private reply, whatever `status` the client asks for;
+  otherwise a public reply would expose the private thread it hangs under.
+  `GET /comments/{comment}/replies` 404s when the parent is not readable by you.
+- **`comments_count` on a post counts PUBLIC top-level comments only** — one
+  uniform, honest figure. Counting private ones would advertise a number most
+  readers cannot open, and a per-viewer count would cost a query per feed row.
+
+### Moderation
+
+Deleting is allowed for the comment's author **or the post's author** (you
+moderate your own thread), and takes the replies with it — orphaned replies
+would be unreachable. Editing is author-only: the post owner moderates, but
+does not rewrite somebody's words.
+
+Notifications go through `NotificationDispatcherService` like everything else —
+new keys `post_commented` and `comment_replied` in
+`NotificationChannelRule::defaultEventKeys()` — **not** v1's
+`$post->notifications()->create()` against the legacy morph table. Nobody is
+ever notified of their own action.
+
+Verified live against the real data: on post 6 (4 public + 3 private) a guest
+sees 4 and the post owner sees 7.
+
+Guarded by `CommentsApiV2Test` (14), most of it about who can see what.

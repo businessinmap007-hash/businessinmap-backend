@@ -7,6 +7,8 @@ use App\Models\Apply;
 use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\Post;
+use App\Services\Jobs\JobFollowMatchingService;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -157,6 +159,9 @@ final class JobController extends Controller
 
         $post = Post::create($data);
 
+        // Live-notify everyone following this job's field.
+        app(JobFollowMatchingService::class)->notifyForJob($post);
+
         return response()->json(['success' => true, 'data' => $this->publicShape($post, withBody: true)], 201);
     }
 
@@ -217,6 +222,88 @@ final class JobController extends Controller
         ]);
 
         return response()->json(['success' => true, 'data' => $applicants]);
+    }
+
+    /**
+     * POST /api/v2/jobs/{post}/applicants/{apply}/approve — the posting
+     * business accepts one applicant. Idempotent; notifies the applicant.
+     * Does NOT close the job (a business may hire several) — that is /close.
+     */
+    public function approveApplicant(Request $request, Post $post, Apply $apply)
+    {
+        abort_if($post->type !== 'job', 404);
+        abort_if((int) $apply->post_id !== (int) $post->id, 404);
+
+        $user = $request->user();
+
+        if ((int) $post->user_id !== (int) $user->id) {
+            abort(403, 'Only the business that posted this job can accept an applicant.');
+        }
+
+        if (! $apply->approved_at) {
+            $apply->approved_at = now();
+            $apply->save();
+
+            app(NotificationDispatcherService::class)->dispatch('job_application_approved', (int) $apply->user_id, [
+                'actor_id' => (int) $post->user_id,
+                'body_ar' => $post->title_ar ?: $post->title_en ?: 'وظيفة',
+                'body_en' => $post->title_en ?: $post->title_ar ?: 'Job',
+                'action_type' => 'open_job',
+                'action_url' => '/jobs/' . $post->id,
+                'notifiable_type' => Post::class,
+                'notifiable_id' => (int) $post->id,
+                'source_type' => 'job_application_approved',
+                'source_id' => (int) $apply->id,
+                'meta' => ['job_id' => (int) $post->id, 'apply_id' => (int) $apply->id],
+            ]);
+        }
+
+        return response()->json(['success' => true, 'data' => [
+            'id' => $apply->id,
+            'approved_at' => $apply->approved_at?->toIso8601String(),
+        ]]);
+    }
+
+    /** POST /api/v2/jobs/{post}/close — the posting business stops accepting. */
+    public function close(Request $request, Post $post)
+    {
+        abort_if($post->type !== 'job', 404);
+
+        $user = $request->user();
+
+        if ((int) $post->user_id !== (int) $user->id) {
+            abort(403, 'Only the business that posted this job can close it.');
+        }
+
+        $post->is_active = false;
+        $post->save();
+
+        return response()->json(['success' => true, 'data' => ['id' => $post->id, 'is_active' => false]]);
+    }
+
+    /**
+     * GET /api/v2/jobs/mine/stats — the counters for the signed-in business:
+     * how many jobs it posted, total applicants, total accepted.
+     */
+    public function myStats(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->isBusiness()) {
+            abort(403, 'Only a business account has job stats.');
+        }
+
+        $jobIds = Post::query()->jobs()->where('user_id', $user->id)->pluck('id');
+
+        $applicantsTotal = Apply::query()->whereIn('post_id', $jobIds)->count();
+        $approvedTotal = Apply::query()->whereIn('post_id', $jobIds)->whereNotNull('approved_at')->count();
+
+        return response()->json(['success' => true, 'data' => [
+            'jobs_posted' => $jobIds->count(),
+            'jobs_open' => Post::query()->openJobs()->where('user_id', $user->id)->count(),
+            'applicants_total' => $applicantsTotal,
+            'approved_total' => $approvedTotal,
+        ]]);
     }
 
     private function publicShape(Post $post, bool $withBody = false): array

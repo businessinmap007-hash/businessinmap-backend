@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
+use App\Http\Controllers\Api\V2\JobFollowController;
 use App\Http\Controllers\Api\V2\LocationController;
 use App\Http\Controllers\Api\V2\RatingController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
@@ -154,8 +155,19 @@ Route::prefix('v2')->group(function () {
         // Jobs: a business posts one, a client applies. Applicant identities
         // are visible only to the posting business — see JobController.
         Route::post('jobs', [JobController::class, 'store']);
+        Route::get('jobs/mine/stats', [JobController::class, 'myStats']);
+
+        // Follow job fields → live push when a vacancy is posted there.
+        // Declared before the {post} routes; 'follows' is not numeric so it
+        // never collides, but keeping it first makes the intent obvious.
+        Route::get('jobs/follows', [JobFollowController::class, 'index']);
+        Route::post('jobs/follows', [JobFollowController::class, 'store']);
+        Route::delete('jobs/follows/{follow}', [JobFollowController::class, 'destroy'])->whereNumber('follow');
+
         Route::post('jobs/{post}/apply', [JobController::class, 'apply'])->whereNumber('post');
         Route::get('jobs/{post}/applicants', [JobController::class, 'applicants'])->whereNumber('post');
+        Route::post('jobs/{post}/applicants/{apply}/approve', [JobController::class, 'approveApplicant'])->whereNumber('post')->whereNumber('apply');
+        Route::post('jobs/{post}/close', [JobController::class, 'close'])->whereNumber('post');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

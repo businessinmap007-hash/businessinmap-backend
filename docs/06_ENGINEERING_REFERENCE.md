@@ -619,4 +619,22 @@ modal, show→edit) has silently 500'd since the AdminV2 controller was written.
 Fixed with `->parameter('jobs', 'post')`. Caught by rendering the screens in
 `AdminV2JobsScreensTest`, not by reading the routes.
 
-Guarded by `JobsApiTest` (the v2 API) and `AdminV2JobsScreensTest`.
+**Second slice (2026-07-18): hiring loop + follow-and-notify.**
+- `POST /jobs/{post}/applicants/{apply}/approve` — the posting business accepts
+  one applicant (`applies.approved_at`), idempotent, notifies the applicant
+  (`job_application_approved`). Does **not** close the job — a business may
+  hire several. `POST /jobs/{post}/close` deactivates it separately.
+- `GET /jobs/mine/stats` — the business counters: `jobs_posted`, `jobs_open`,
+  `applicants_total`, `approved_total`.
+- **Follow a job field → live push.** `job_follows` (own small table — jobs have
+  no price/audience axis, so it does *not* reuse `offer_follows`): a user
+  follows a whole root `category_id` or one `category_child_id`. On
+  `JobController::store`, `JobFollowMatchingService` finds matching active
+  follows (child match, or root match with child null), skips the poster, and
+  fires the `job_posted` event through the standard
+  `NotificationDispatcherService` (in-app always, Firebase when configured).
+  Two new keys added to `NotificationChannelRule::defaultEventKeys()`:
+  `job_posted`, `job_application_approved`. `GET/POST/DELETE /jobs/follows`.
+
+Guarded by `JobsApiTest` + `JobFollowsAndApprovalApiTest` (the v2 API) and
+`AdminV2JobsScreensTest`.

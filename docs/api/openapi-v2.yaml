@@ -1924,9 +1924,34 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
   /jobs/categories:
     get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
+  /jobs/mine/stats:
+    get: { tags: [Jobs], summary: The signed-in business's counters — jobs_posted, jobs_open, applicants_total, approved_total, responses: { '200': { description: OK }, '403': { description: Not a business account } } }
+  /jobs/follows:
+    get: { tags: [Jobs], summary: My followed job fields, responses: { '200': { description: OK } } }
+    post:
+      tags: [Jobs]
+      summary: Follow a job field (a whole category or one specialty) for live push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category_id: { type: integer, description: Follow a whole root category. }
+                category_child_id: { type: integer, description: Follow one specialty. At least one of the two is required. }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /jobs/follows/{follow}:
+    delete: { tags: [Jobs], summary: Unfollow a job field, parameters: [{ name: follow, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /jobs/{post}:
     get: { tags: [Jobs], summary: Job detail — includes applicants_count, never applicant identities (public), security: [], parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /jobs/{post}/apply:
     post: { tags: [Jobs], summary: A client applies (once — a repeat is 422), parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /jobs/{post}/close:
+    post: { tags: [Jobs], summary: The posting business stops accepting applications, parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business } } }
   /jobs/{post}/applicants:
     get: { tags: [Jobs], summary: Full applicant list — the posting business only, parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business } } }
+  /jobs/{post}/applicants/{apply}/approve:
+    post: { tags: [Jobs], summary: The posting business accepts an applicant (idempotent, notifies them), parameters: [{ name: post, in: path, required: true, schema: { type: integer } }, { name: apply, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business }, '404': { $ref: '#/components/responses/NotFound' } } }

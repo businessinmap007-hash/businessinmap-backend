@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Payments\PaymentGatewayFactory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,15 +33,38 @@ class PaymentController extends Controller
         if (!$user)
             return response()->json(['status' => 401, 'message' => 'Unauthenticated'], 401);
 
+        // SECURITY (2026-07-18): nothing here was validated. `price` is the
+        // CLIENT'S OWN NUMBER and is what both the balance check and the
+        // withdrawal use, so a subscriber could name any price — including 0 —
+        // and be charged exactly that for a full subscription. The real cost
+        // is already derivable from the category (per_month / per_year, used
+        // below for the referral commission) but is never compared against
+        // what the caller offered to pay.
+        //
+        // Validated here, and mass assignment from $request->all() is gone.
+        // Dead today (the `transactions` table is missing, so this 500s and
+        // rolls back), but the wallet top-up plan revives this controller —
+        // WHEN IT IS REVIVED, DERIVE THE PRICE SERVER-SIDE FROM THE CATEGORY
+        // AND STOP TRUSTING $request->price ENTIRELY.
+        $data = $request->validate([
+            'price' => ['required', 'numeric', 'min:0'],
+            'duration' => ['required', 'integer', 'min:1', 'max:60'],
+            'code' => ['nullable', 'string', 'max:191'],
+            'codeType' => ['nullable', 'in:couponCode,profileCode'],
+            'profileCode' => ['nullable', 'string', 'max:191'],
+            'categoryId' => ['nullable', 'integer'],
+        ]);
+
         // التحقق من الرصيد
-        if ($this->config->calculateUserBalance($user) < $request->price) {
+        if ($this->config->calculateUserBalance($user) < $data['price']) {
             return response()->json(['status' => 400, 'message' => 'الرصيد غير كافٍ']);
         }
 
         DB::beginTransaction();
 
         try {
-            $inputs = $request->all();
+            // Only the validated keys — never the raw request.
+            $inputs = $data;
 
             // كود الكوبون أو كود الملف الشخصي
             if ($request->filled('code')) {
@@ -148,14 +172,31 @@ class PaymentController extends Controller
      */
     public function transferToAnother(Request $request)
     {
+        // SECURITY (2026-07-18): `price` was unvalidated. A NEGATIVE amount
+        // sailed through the balance check — `0 < -100` is false — and then
+        // deposited -100 to the target and withdrew -100 from the sender,
+        // i.e. it moved money the wrong way and stole from the recipient.
+        // Latent rather than exploitable today only because the `transactions`
+        // table does not exist, so this path 500s; the wallet top-up plan
+        // intends to revive this controller, which would arm it.
+        $data = $request->validate([
+            'profileCode' => ['required', 'string', 'max:191'],
+            'price' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
         $user = $request->user();
-        $target = User::where('code', $request->profileCode)->first();
+        $target = User::where('code', $data['profileCode'])->first();
 
         if (!$target)
             return response()->json(['status' => 404, 'message' => 'المستخدم غير موجود']);
 
-        if ($this->config->calculateUserBalance($user) < $request->price)
+        if ((int) $target->id === (int) $user->id)
+            return response()->json(['status' => 400, 'message' => 'لا يمكنك التحويل إلى نفسك']);
+
+        if ($this->config->calculateUserBalance($user) < $data['price'])
             return response()->json(['status' => 400, 'message' => 'الرصيد غير كافٍ']);
+
+        $request->merge(['price' => $data['price']]);
 
         DB::transaction(function () use ($user, $target, $request) {
             $target->transactions()->create([
@@ -184,6 +225,24 @@ class PaymentController extends Controller
     public function fawrySuccessPayment(Request $request)
     {
         Log::notice('Fawry Callback Received', $request->all());
+
+        // SECURITY (2026-07-18): this route is public (middleware ['api'] only)
+        // and verified NOTHING — any anonymous caller could POST a
+        // merchantRefNumber and have the platform mark that payment settled.
+        // The recharge branch happens to die on the missing `transactions`
+        // table, but the subscription branch touches only `subscriptions` and
+        // `payments`, so ~730 unpaid subscription rows were activatable for
+        // free by anyone on the internet.
+        //
+        // Uses the same verifier as the v2 callback (FawryGateway), which
+        // fails closed when the signature or the security key is absent.
+        $gateway = app(PaymentGatewayFactory::class)->make('fawry');
+
+        if (! $gateway->verifyCallbackSignature($request->all())) {
+            Log::warning('Fawry v1 callback: bad signature', ['payload' => $request->all()]);
+
+            return response()->json(['status' => 400, 'message' => 'invalid signature'], 400);
+        }
 
         if (!$request->merchantRefNumber)
             return response()->json(['status' => 400, 'message' => 'لا يوجد رقم مرجعي']);

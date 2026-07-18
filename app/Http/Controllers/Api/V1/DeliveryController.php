@@ -323,9 +323,37 @@ class DeliveryController extends Controller
     | 5) Show order + courier profile
     |--------------------------------------------------------------------------
     */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $order = DeliveryOrder::with(['user', 'business', 'courier'])->findOrFail($id);
+
+        // SECURITY (2026-07-18): this took no Request at all and checked
+        // nothing, so any authenticated user could read any delivery order —
+        // the customer's identity and phone through the eager-loaded `user`,
+        // the pickup and dropoff addresses with coordinates, and the assigned
+        // courier's live position. No data has leaked yet only because
+        // `delivery_orders` is still empty.
+        //
+        // Visible to: the two parties, the assigned courier, staff — and any
+        // courier while the order is still unclaimed, which is exactly what
+        // /delivery/orders/available already shows them.
+        $user = $request->user();
+        $userId = (int) ($user->id ?? 0);
+
+        $isParty = $userId === (int) $order->user_id
+            || $userId === (int) $order->business_id
+            || ($order->courier_id !== null && $userId === (int) $order->courier_id);
+
+        $isUnclaimedForCouriers = $order->status === 'pending'
+            && $order->courier_id === null
+            && $user
+            && $user->type === 'business'
+            && (int) $user->category_id === 5;
+
+        if (! $isParty && ! $isUnclaimedForCouriers && ! ($user && $user->isAdmin())) {
+            // 404, not 403: a stranger must not learn the order exists.
+            abort(404);
+        }
 
         $courierProfile = null;
         if ($order->courier_id) {

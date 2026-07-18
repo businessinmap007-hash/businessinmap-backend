@@ -129,6 +129,20 @@ class NotificationController extends Controller
      */
     public function store(Request $request)
     {
+        // SECURITY (2026-07-18): this accepted an arbitrary `user_id`, so any
+        // signed-in user could plant a notification with any title and body in
+        // anyone else's notification centre — a phishing message wearing the
+        // platform's own voice ("your account is suspended, tap here").
+        //
+        // Currently unreachable in practice: this whole controller queries
+        // columns (`user_id`, `title`, `body`) that the `notifications` table
+        // does not have, so every route 500s. Guarded anyway so that repairing
+        // the table does not silently arm the hole. Real notifications go
+        // through NotificationDispatcherService, not this endpoint.
+        if (! $request->user() || ! $request->user()->isAdmin()) {
+            abort(403, 'Notifications are dispatched by the platform, not by users.');
+        }
+
         $request->validate([
             'user_id'  => 'required|exists:users,id',
             'title'    => 'required|string',

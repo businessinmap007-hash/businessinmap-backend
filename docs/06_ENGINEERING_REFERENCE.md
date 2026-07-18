@@ -840,3 +840,79 @@ path, the verifier's user id and the full policy snapshot.
 Guarded by `DepositsAuthorizationTest` (13), which creates its own deposits and
 never calls a money-moving endpoint with a payload that could succeed — the ten
 real rows are asserted untouched.
+
+---
+
+## 20. Security review of the routed v1 surface (2026-07-18)
+
+Prompted by §19: the escrow hole was found by accident, so the rest of the
+**27 routed v1 controllers** were reviewed deliberately rather than waiting to
+trip over the next one.
+
+**An automated scan does not find this class of bug.** A heuristic (does the
+file act on an id, does it ever mention the caller) flagged five controllers,
+all of them public read surfaces where that is correct — and it *cleared*
+`DepositController`, which mentioned `$request->user()` three times while being
+wide open. Each sensitive endpoint had to be read.
+
+### Live and exploitable — fixed
+
+**`POST /api/v1/fawry-success-payment`** — public (`['api']` middleware only)
+and verified **nothing**: no auth, no signature. Any anonymous caller could
+POST a `merchantRefNumber` and have the platform settle that payment. The
+recharge branch happened to die on the missing `transactions` table, but the
+subscription branch touches only `subscriptions` and `payments`, so **~730
+unpaid subscriptions were activatable for free by anyone on the internet**.
+Now verified with the same `FawryGateway::verifyCallbackSignature` the v2
+callback uses, which fails closed when the signature or security key is absent.
+
+Safe to harden: the payments table shows **zero paid rows in the last 12
+months** (last activity 2024-12), so nothing live depended on it.
+
+### Latent — dead by accident, fixed anyway
+
+These could not run because `transactions` does not exist, so they 500 and roll
+back. "Safe because a migration is missing" is an accident, and the wallet
+top-up plan explicitly intends to revive this controller:
+
+- **`PaymentController::transferToAnother`** — `price` unvalidated, so a
+  **negative** amount passed the balance check (`0 < -100` is false) and then
+  deposited -100 to the target and withdrew -100 from the sender: money moving
+  backwards, draining the recipient. Now `min:0.01`, plus a self-transfer
+  refusal.
+- **`PaymentController::store`** — no validation at all, `$request->all()` mass
+  assigned, and **`price` is the client's own number** for both the balance
+  check and the withdrawal, so any subscription could be bought for 0. Now
+  validated with mass assignment removed. **When this is revived, derive the
+  price server-side from the category** (`per_month`/`per_year`, already
+  computed there for the referral commission) instead of trusting the caller.
+- **`NotificationController::store`** — accepted an arbitrary `user_id`, title
+  and body, so any user could plant a phishing message in anyone's notification
+  centre wearing the platform's voice. Admin-only now. (The whole controller
+  is broken regardless: it queries `user_id`/`title`/`body`, none of which are
+  columns on `notifications`.)
+
+### Real, no data yet — fixed
+
+**`DeliveryController::show`** took **no `Request` at all** and checked nothing,
+returning the eager-loaded customer (identity, phone), both addresses with
+coordinates, and the assigned courier's live position. Nothing has leaked only
+because `delivery_orders` is empty. Now party-only (customer, business, assigned
+courier, staff) with **404 rather than 403**, plus a deliberate carve-out: a
+shipping business may still inspect an order while it is `pending` and
+unclaimed, which is exactly the set `/delivery/orders/available` already shows.
+
+### Audited and correct — leave them alone
+
+`TransactionController` (every query scoped to the caller), `CartController`
+(scoped through the caller's cart), `OrderController` (explicit party checks on
+show and updateStatus), `ChatController` (`hasUser()` participant check on all
+four), `DeliveryController::accept` (`lockForUpdate` + role + balance),
+`NotificationController` reads, `RideController::acceptRide` (fails closed on
+the non-existent `account_type`). `ProfileController::getProfileInformation`
+returns any user by id but **is not routed**.
+
+**Convention noted, not changed:** v1 reports errors as `status` inside a
+**200** body. Tidying that would break whatever still reads it.
+
+Guarded by `LegacyApiSecurityAuditTest` (10).

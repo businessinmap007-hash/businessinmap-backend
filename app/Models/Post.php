@@ -17,8 +17,7 @@ class Post extends Model
 
     'title_ar',
     'title_en',
-    'body_ar',
-    'body_en',
+    'body', // the real column (unified from body_ar/body_en, see 2026_02_16_180855) — body_ar/body_en no longer exist; listing them here silently dropped every body/description ever mass-assigned (AdminV2\JobPostController::store/update included)
 
     // Job fields (type='job' only — see 2026_08_08_000000_add_job_fields_to_posts).
     'category_id',

@@ -80,6 +80,25 @@ class JobsApiTest extends TestCase
         ]);
     }
 
+    public function test_the_job_body_actually_persists(): void
+    {
+        // Caught by hitting the real running server, not by this test suite:
+        // Post::$fillable listed body_ar/body_en, columns that no longer
+        // exist (unified into `body` by 2026_02_16_180855) — every job
+        // description ever posted through store() was silently discarded.
+        $business = $this->business();
+
+        $response = $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
+            'category_id' => self::ROOT_CATEGORY_ID,
+            'title_ar' => 'وظيفة',
+            'body' => 'وصف الوظيفة الحقيقي',
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.body', 'وصف الوظيفة الحقيقي');
+        $this->assertDatabaseHas('posts', ['body' => 'وصف الوظيفة الحقيقي']);
+    }
+
     public function test_a_client_account_cannot_post_a_job(): void
     {
         $client = $this->client();

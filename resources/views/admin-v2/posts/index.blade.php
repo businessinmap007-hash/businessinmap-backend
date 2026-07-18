@@ -106,6 +106,8 @@
                         <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                     </th>
 
+                    <th style="width:76px;">صورة</th>
+
                     <th>العنوان (AR)</th>
                     <th>العنوان (EN)</th>
 
@@ -141,6 +143,16 @@
 
                         <td>{{ $p->id }}</td>
 
+                        {{-- Main image, falling back to the first gallery one
+                             (many legacy posts only ever got gallery rows). --}}
+                        <td>
+                            <a href="{{ $viewUrl }}">
+                                <x-admin-v2.image
+                                    :path="$p->image ?: ($p->images->first()->image ?? null)"
+                                    size="52" radius="10px" placeholder="—" />
+                            </a>
+                        </td>
+
                         <td class="a2-clip a2-clip--name">
                             <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title_ar ?: '—' }}</a>
                         </td>
@@ -173,7 +185,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="a2-empty-cell">لا يوجد بيانات</td>
+                        <td colspan="8" class="a2-empty-cell">لا يوجد بيانات</td>
                     </tr>
                 @endforelse
                 </tbody>

@@ -56,7 +56,20 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        URL::forceRootUrl($appUrl);
+        // Pin the root URL only where there is no request to derive it from
+        // (console commands, queued jobs, scheduled mail) or where APP_URL is
+        // the authoritative public origin anyway (production — which also
+        // keeps generated links immune to a poisoned Host header).
+        //
+        // Forcing it on every HTTP request is what broke the panel: with
+        // APP_URL=http://127.0.0.1:8000, browsing AdminV2 at
+        // http://localhost/testing/public/ still emitted
+        // http://127.0.0.1:8000/... for asset() — so the stylesheet and every
+        // post image loaded from a second server that is usually not running,
+        // and the backend rendered unstyled with blank images.
+        if ($this->app->runningInConsole() || $this->app->environment('production')) {
+            URL::forceRootUrl($appUrl);
+        }
 
         if (
             $this->app->environment('production') &&

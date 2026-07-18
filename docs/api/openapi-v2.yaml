@@ -87,6 +87,13 @@ tags:
       than to Booking/Menu). Public sees the job and an applicant COUNT only;
       full applicant identity is visible only to the posting business via
       GET /jobs/{post}/applicants.
+  - name: Posts
+    description: |
+      The social feed. Browsing is public, but sending a bearer token
+      personalises it: a signed-in reader sees only authors they are entitled
+      to — businesses targeting their category, accounts they follow,
+      categories they follow, accounts targeting them — and never their own
+      posts. Job postings are excluded here; they live under Jobs.
 
 components:
   securitySchemes:
@@ -1924,6 +1931,121 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
   /jobs/categories:
     get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
+  /posts:
+    get:
+      tags: [Posts]
+      summary: 'The feed — public, and audience-scoped when a bearer token is sent'
+      security: []
+      parameters:
+        - { in: query, name: latitude, schema: { type: number }, description: 'With longitude, orders nearest-first (computed in SQL).' }
+        - { in: query, name: longitude, schema: { type: number } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: per_page, schema: { type: integer, maximum: 50 } }
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Posts]
+      summary: Publish a post
+      description: 'multipart/form-data when images are attached.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                title_ar: { type: string }
+                title_en: { type: string, description: At least one of title_ar/title_en is required. }
+                body: { type: string }
+                expire_at: { type: string, format: date-time }
+                image: { type: string, format: binary, description: Main image. }
+                images:
+                  type: array
+                  maxItems: 10
+                  items: { type: string, format: binary }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /posts/mine:
+    get:
+      tags: [Posts]
+      summary: My own posts, active or not
+      responses:
+        '200': { description: OK }
+  /posts/{post}:
+    get:
+      tags: [Posts]
+      summary: One post
+      security: []
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or it is a job posting' }
+    post:
+      tags: [Posts]
+      summary: Edit own post
+      description: >
+        POST rather than PUT because PHP does not parse multipart bodies on
+        PUT. Uploading images APPENDS to the gallery; pass replace_images=true
+        to wipe it first (v1 wiped it on every update that carried an image).
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title_ar: { type: string }
+                title_en: { type: string }
+                body: { type: string }
+                expire_at: { type: string, format: date-time }
+                is_active: { type: boolean }
+                replace_images: { type: boolean }
+                image: { type: string, format: binary }
+                images:
+                  type: array
+                  maxItems: 10
+                  items: { type: string, format: binary }
+      responses:
+        '200': { description: OK }
+        '403': { description: Not your post }
+    delete:
+      tags: [Posts]
+      summary: Delete own post and its stored files
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Not your post }
+  /posts/{post}/share:
+    post:
+      tags: [Posts]
+      summary: Count a share
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+  /posts/{post}/react:
+    post:
+      tags: [Posts]
+      summary: 'Like (1), dislike (-1) or clear (0)'
+      parameters:
+        - { in: path, name: post, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reaction]
+              properties:
+                reaction: { type: integer, enum: [-1, 0, 1] }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /jobs/stats:
     get:
       tags: [Jobs]

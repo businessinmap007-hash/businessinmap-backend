@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
+use App\Http\Controllers\Api\V2\PostController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
@@ -133,6 +134,14 @@ Route::prefix('v2')->group(function () {
         Route::get('{post}', [JobController::class, 'show'])->whereNumber('post');
     });
 
+    // Posts: the social feed. Public to browse; personalised when a bearer
+    // token is sent (PostController::viewer resolves the sanctum guard by
+    // hand, since these routes are outside the auth group).
+    Route::prefix('posts')->group(function () {
+        Route::get('/', [PostController::class, 'index']);
+        Route::get('{post}', [PostController::class, 'show'])->whereNumber('post');
+    });
+
     // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the
     // gateway calls it, not the app) — security is the signed-payload check.
     // Optional ?gateway= selects the provider (defaults to config).
@@ -171,6 +180,17 @@ Route::prefix('v2')->group(function () {
         Route::get('jobs/{post}/applicants', [JobController::class, 'applicants'])->whereNumber('post');
         Route::post('jobs/{post}/applicants/{apply}/approve', [JobController::class, 'approveApplicant'])->whereNumber('post')->whereNumber('apply');
         Route::post('jobs/{post}/close', [JobController::class, 'close'])->whereNumber('post');
+
+        // Posts: publish, edit and react. `mine` is declared before {post} and
+        // {post} is numeric-constrained, so the two never collide.
+        // update is POST, not PUT: PHP does not parse multipart bodies on PUT,
+        // so an image edit would arrive empty.
+        Route::get('posts/mine', [PostController::class, 'mine']);
+        Route::post('posts', [PostController::class, 'store']);
+        Route::post('posts/{post}', [PostController::class, 'update'])->whereNumber('post');
+        Route::delete('posts/{post}', [PostController::class, 'destroy'])->whereNumber('post');
+        Route::post('posts/{post}/share', [PostController::class, 'share'])->whereNumber('post');
+        Route::post('posts/{post}/react', [PostController::class, 'react'])->whereNumber('post');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

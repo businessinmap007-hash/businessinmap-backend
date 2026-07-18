@@ -37,7 +37,9 @@ final class PostController extends Controller
         if (!in_array($sort, $allowedSort, true)) $sort = 'id';
 
         $posts = Post::query()
-            ->with(['user:id,name,email,phone'])
+            // images: the list thumbnail falls back to the first gallery row
+            // when posts.image is empty, which is the case for most legacy rows.
+            ->with(['user:id,name,email,phone', 'images:id,image,imageable_id,imageable_type'])
             ->when($q !== '', function ($qq) use ($q) {
 
                 // ✅ ابحث في الأعمدة الموجودة فعلاً فقط

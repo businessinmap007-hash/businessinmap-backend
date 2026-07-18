@@ -1924,6 +1924,17 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
   /jobs/categories:
     get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
+  /jobs/stats:
+    get:
+      tags: [Jobs]
+      summary: 'Platform-wide job counters (public) — the aggregate companion to /jobs/mine/stats'
+      description: >
+        Aggregates only: jobs_posted, jobs_open, applicants_total,
+        approved_total, businesses_hiring. Names nobody, so the rule that only
+        the posting business sees applicant identities still holds.
+      security: []
+      responses:
+        '200': { description: OK }
   /jobs/mine/stats:
     get: { tags: [Jobs], summary: The signed-in business's counters — jobs_posted, jobs_open, applicants_total, approved_total, responses: { '200': { description: OK }, '403': { description: Not a business account } } }
   /jobs/follows:

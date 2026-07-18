@@ -636,5 +636,25 @@ Fixed with `->parameter('jobs', 'post')`. Caught by rendering the screens in
   Two new keys added to `NotificationChannelRule::defaultEventKeys()`:
   `job_posted`, `job_application_approved`. `GET/POST/DELETE /jobs/follows`.
 
-Guarded by `JobsApiTest` + `JobFollowsAndApprovalApiTest` (the v2 API) and
-`AdminV2JobsScreensTest`.
+**Third slice (2026-07-18): platform counters + follows oversight.**
+- `GET /jobs/stats` — the same four counters aggregated over the whole
+  platform, plus `businesses_hiring`. **Public**, and safe to be: these are
+  aggregates that name nobody, so the visibility rule above is untouched.
+  `/jobs/mine/stats` stays the authenticated per-business view.
+- `AdminV2\JobFollowController` (`admin/job-follows`, CONTENT ability) — the
+  counter cards, the follows list, and **most-followed fields next to that
+  field's open-job count**. That pairing is the point: many followers + zero
+  open jobs is demand with no supply, i.e. a category worth selling into.
+  Read-only by design — a follow is the user's own subscription, managed from
+  the app; an admin observes it, it does not edit it for them. Registered on
+  its own `job-follows` path because the `jobs` resource above declares an
+  unconstrained `GET jobs/{post}` that would otherwise swallow `jobs/…`.
+
+A live check of `/jobs/stats` returns `jobs_posted=47, applicants_total=143,
+jobs_open=0` — **`jobs_open=0` is correct, not a bug**: all 47 historical posts
+are `is_active=1` but every one expired (latest `expire_at` is 2023-06-13), so
+the open-jobs scope rightly excludes them.
+
+Guarded by `JobsApiTest` + `JobFollowsAndApprovalApiTest` + `JobsPlatformStatsTest`
+(the v2 API, counters asserted as **deltas** — the dev DB already holds the 47
+posts and 143 applications) and `AdminV2JobsScreensTest`.

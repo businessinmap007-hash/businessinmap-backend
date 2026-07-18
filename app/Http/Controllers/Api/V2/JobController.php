@@ -306,6 +306,27 @@ final class JobController extends Controller
         ]]);
     }
 
+    /**
+     * GET /api/v2/jobs/stats — the same four counters, but for the whole
+     * platform instead of one business. Public: these are aggregates, they
+     * name nobody, so the visibility rule (only the poster sees applicant
+     * identities) is untouched.
+     */
+    public function platformStats()
+    {
+        // Scoped through the post on purpose: `applies` has no type column,
+        // and a row can outlive a deleted post.
+        $jobApplies = fn () => Apply::query()->whereHas('post', fn ($w) => $w->where('type', 'job'));
+
+        return response()->json(['success' => true, 'data' => [
+            'jobs_posted' => Post::query()->jobs()->count(),
+            'jobs_open' => Post::query()->openJobs()->count(),
+            'applicants_total' => $jobApplies()->count(),
+            'approved_total' => $jobApplies()->whereNotNull('approved_at')->count(),
+            'businesses_hiring' => Post::query()->openJobs()->distinct()->count('user_id'),
+        ]]);
+    }
+
     private function publicShape(Post $post, bool $withBody = false): array
     {
         $out = [

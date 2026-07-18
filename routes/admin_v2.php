@@ -32,6 +32,7 @@ use App\Http\Controllers\AdminV2\{
     DisputeController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
+    JobFollowController,
     JobPostController,
     TripScheduleAdminController,
     MenuItemController,
@@ -474,6 +475,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::resource('jobs', JobPostController::class)->parameter('jobs', 'post')->names('jobs');
             Route::post('jobs/{post}/toggle-active', [JobPostController::class, 'toggleActive'])->whereNumber('post')->name('jobs.toggleActive');
             Route::get('jobs/{post}/applicants', [JobPostController::class, 'applicants'])->whereNumber('post')->name('jobs.applicants');
+
+            // Its own path segment, not jobs/*, because Route::resource above
+            // registers an unconstrained GET jobs/{post} that would swallow it.
+            Route::get('job-follows', [JobFollowController::class, 'index'])->name('job-follows.index');
 
             Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
             Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');

@@ -117,9 +117,10 @@
             ['label' => 'طاولات المطاعم', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
             ['label' => 'شحن الأرصدة', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
         ]],
-        ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
+        ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.job-follows.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
             ['label' => 'المنشورات', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],
             ['label' => 'الوظائف', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],
+            ['label' => 'متابعات الوظائف', 'route' => 'admin.job-follows.index', 'active' => 'admin.job-follows.'],
             ['label' => 'الرعاة', 'route' => 'admin.sponsors.index', 'active' => 'admin.sponsors.'],
             ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
         ]],

@@ -127,6 +127,9 @@ Route::prefix('v2')->group(function () {
     Route::prefix('jobs')->group(function () {
         Route::get('/', [JobController::class, 'index']);
         Route::get('categories', [JobController::class, 'categories']);
+        // Platform-wide counters. Aggregates only — /jobs/mine/stats is the
+        // per-business one and needs auth.
+        Route::get('stats', [JobController::class, 'platformStats']);
         Route::get('{post}', [JobController::class, 'show'])->whereNumber('post');
     });
 

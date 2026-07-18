@@ -328,6 +328,49 @@ the seeder — it re-derives each group's option list at run time, so newly
 active options reach already-matched children with no further wiring. A
 brand-new group only needs one new pattern line in `RULES`.
 
+**The pre-cleanup options dump restored and closed (2026-07-18).** The owner
+supplied a phpMyAdmin dump of `options` from before this whole redistribution
+arc (381 rows, 2026-06-30). Comparing it name-by-name against the live
+`options` + `platform_service_item_types` tables: **367 of 381 already exist
+somewhere** (218 correctly became item types, 138 stayed options, 11 both) —
+none of the option-group pruning across this arc silently lost real data.
+Only **14 rows existed nowhere.**
+
+That 14-row list produced the sharpest correction of the whole arc. The first
+read called بترول/غزل ونسيج "wholesale materials" (item types). The owner
+caught it: **«هندسية» (Engineering, category child 123) is a professional
+office exactly like «محاماة» (Law) — it has FIELDS (كهرباء/بترول/غزل
+ونسيج), and a field is not something a merchant prices alone any more than
+«جملة» is. The field is an OPTION on the office; what gets a price is the
+office's «استشارة» (consultation) — one item type, not one per field.**
+`platform_service_item_types` already had `استشارة قانونية` / `استشارة
+محاسبية وضرائب` / `استشارة تسويقية` / `استشارة تقنية` / `استشارة أعمال` in
+Booking's «استشارات وأعمال» branch — engineering was the missing peer.
+
+`database/seeders/LegacyOptionGapsSeeder.php` (idempotent, additive) closed it:
+- **كهرباء / بترول / غزل ونسيج** → new option group «تخصصات استشارية»,
+  linked to child 123 only. (`كهرباء` the OPTION and item type 152 `كهرباء`
+  the home-electrician repair visit are different things that share a word —
+  both correctly coexist.)
+- **استشارة هندسية** → new Booking item type, group 30 «استشارات وأعمال».
+- **حجز طيران / حجز فنادق / سياحة داخلية** → new Booking item types in group
+  22 «سياحة ورحلات», peers of the already-existing سياحة علاجية/حج و
+  عمرة/سياحة دولية (child 279 «سياحة» was already booking-enabled).
+- **مساعدة فى البيت** → one new item type in group 12 «خدمات ومهمات».
+  شغالة/دادة أطفال turned out NOT to be missing at all — `عاملة نظافة`/`ناني
+  اطفال` already covered them under different wording, just unreachable.
+- **إقامة ولائم** → already covered by the existing `إقامة حفلات` (id 298).
+  **أخشاب** → already its own `category_children_master` specialty (id 301).
+  Neither needed anything new.
+- **خدمة مدارس, الكريتال** → genuinely ambiguous, left for the owner.
+  **خدمات, spear 1** → junk, discarded.
+- Booking was enabled for child 123 (هندسية) and child 144 (خدمات منزلية) —
+  both were wired only to delivery/business_offers, so none of the above was
+  reachable even where the item type already existed.
+
+Guarded by `tests/Feature/LegacyOptionGapsTest.php`. Full suite 583 passed / 3
+skipped / 0 failed.
+
 ### Phase 3 — Unify Menu / Catalog into one offerings layer  *(largest)*
 
 **Findings that shape the design (measured 2026-07-08):**

@@ -11,6 +11,7 @@ class MenuSectionResource extends JsonResource
     {
         return [
             'id' => (int) $this->id,
+            'name' => $this->loc('name'),
             'name_ar' => $this->name_ar,
             'name_en' => $this->name_en,
             'sort_order' => (int) $this->sort_order,

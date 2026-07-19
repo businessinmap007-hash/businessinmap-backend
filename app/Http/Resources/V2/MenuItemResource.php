@@ -11,6 +11,9 @@ class MenuItemResource extends JsonResource
     {
         return [
             'id' => (int) $this->id,
+            // Localized for display; the raw pair stays for edit screens.
+            'name' => $this->loc('name'),
+            'description' => $this->loc('description'),
             'name_ar' => $this->name_ar,
             'name_en' => $this->name_en,
             'menu_section_id' => $this->menu_section_id !== null ? (int) $this->menu_section_id : null,
@@ -23,6 +26,7 @@ class MenuItemResource extends JsonResource
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'type' => $v->type,
+                'name' => $v->loc('name'),
                 'name_ar' => $v->name_ar,
                 'name_en' => $v->name_en,
                 'price' => $v->price !== null ? (float) $v->price : null,
@@ -34,6 +38,7 @@ class MenuItemResource extends JsonResource
             'extras' => $this->whenLoaded('extras', fn () => $this->extras->map(fn ($e) => [
                 'id' => (int) $e->id,
                 'group_key' => $e->group_key,
+                'name' => $e->loc('name'),
                 'name_ar' => $e->name_ar,
                 'name_en' => $e->name_en,
                 'price' => (float) $e->price,

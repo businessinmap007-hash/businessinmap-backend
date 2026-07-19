@@ -36,11 +36,11 @@ class OrderItemResource extends JsonResource
     {
         $item = $this->menuItem;
         if ($item) {
-            return (string) ($item->name_ar ?: $item->name_en ?: ('#' . $this->menu_id));
+            return (string) ($item->loc('name') ?: ('#' . $this->menu_id));
         }
 
         return (string) $this->offering_type === BusinessCatalogListing::class
-            ? 'منتج #' . $this->offering_id
+            ? __('منتج #') . $this->offering_id
             : '#' . ($this->menu_id ?: $this->offering_id);
     }
 }

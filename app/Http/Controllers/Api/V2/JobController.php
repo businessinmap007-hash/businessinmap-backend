@@ -356,6 +356,9 @@ final class JobController extends Controller
         $ar = trim((string) ($model->name_ar ?? ''));
         $en = trim((string) ($model->name_en ?? ''));
 
-        return $ar !== '' ? $ar : ($en !== '' ? $en : null);
+        $primary   = app()->getLocale() === 'en' ? $en : $ar;
+        $secondary = app()->getLocale() === 'en' ? $ar : $en;
+
+        return $primary !== '' ? $primary : ($secondary !== '' ? $secondary : null);
     }
 }

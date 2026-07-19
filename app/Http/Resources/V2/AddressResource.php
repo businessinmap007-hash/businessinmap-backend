@@ -37,6 +37,7 @@ class AddressResource extends JsonResource
 
         return [
             'id' => (int) $relation->id,
+            'name' => method_exists($relation, 'loc') ? $relation->loc('name') : ($relation->name_ar ?: $relation->name_en),
             'name_ar' => $relation->name_ar,
             'name_en' => $relation->name_en,
         ];

@@ -120,6 +120,11 @@ final class MenuDiscoveryController extends Controller
         $ar = trim((string) $ar);
         $en = trim((string) $en);
 
-        return $ar !== '' ? $ar : ($en !== '' ? $en : (string) $fallback);
+        // Locale-first, then the other language, then the fallback — so an
+        // English customer sees English names and Arabic fills any gaps.
+        $primary   = app()->getLocale() === 'en' ? $en : $ar;
+        $secondary = app()->getLocale() === 'en' ? $ar : $en;
+
+        return $primary !== '' ? $primary : ($secondary !== '' ? $secondary : (string) $fallback);
     }
 }

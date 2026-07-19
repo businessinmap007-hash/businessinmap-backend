@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\Concerns\HasLocalizedFields;
+
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class MenuSection extends Model
 {
+    use HasLocalizedFields;
+
     protected $table = 'menu_sections';
 
     protected $fillable = [

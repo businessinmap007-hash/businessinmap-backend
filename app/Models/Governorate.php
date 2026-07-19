@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Support\Concerns\HasLocalizedFields;
+
 use Illuminate\Database\Eloquent\Model;
 
 class Governorate extends Model
 {
+    use HasLocalizedFields;
+
     protected $fillable = ['country_id', 'name_en', 'name_ar'];
 
     public function country()

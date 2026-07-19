@@ -87,6 +87,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Supported Locales
+    |--------------------------------------------------------------------------
+    |
+    | The languages the app actually ships content and messages in. The API
+    | locale middleware (SetApiLocale) and the web URL-segment locale switch
+    | both validate incoming locale preferences against this list. The FIRST
+    | entry is the default when nothing usable is supplied — keep 'ar' first.
+    |
+    */
+
+    'supported_locales' => ['ar', 'en'],
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Fallback Locale
     |--------------------------------------------------------------------------
     |

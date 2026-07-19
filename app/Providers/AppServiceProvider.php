@@ -39,12 +39,13 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
+        $supported = config('app.supported_locales', ['ar', 'en']);
         $segment = request()->segment(1);
 
         app()->setLocale(
-            in_array($segment, ['ar', 'en'], true)
+            in_array($segment, $supported, true)
                 ? $segment
-                : 'ar'
+                : ($supported[0] ?? 'ar')
         );
     }
 

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Apply;
 use App\Models\Category;
 use App\Models\CategoryChild;
-use App\Models\Post;
+use App\Models\JobPost;
 use Illuminate\Http\Request;
 
 class JobPostController extends Controller
@@ -40,9 +40,8 @@ class JobPostController extends Controller
 
     private function baseQuery()
     {
-        return Post::query()
-            ->where('type', 'job')
-            ->with(['user']); // اختياري
+        // No ->where('type','job') — JobPost's global scope carries it.
+        return JobPost::query()->with(['user']);
     }
 
     public function index(Request $request)
@@ -59,10 +58,12 @@ class JobPostController extends Controller
         // Search
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
+                // `body`, not body_ar/body_en — those were unified away by
+                // 2026_02_16_180855 and no longer exist, so any search here
+                // was a guaranteed "Unknown column 'body_ar'" 500.
                 $w->where('title_ar', 'like', "%{$q}%")
                   ->orWhere('title_en', 'like', "%{$q}%")
-                  ->orWhere('body_ar', 'like', "%{$q}%")
-                  ->orWhere('body_en', 'like', "%{$q}%");
+                  ->orWhere('body', 'like', "%{$q}%");
             });
         }
 
@@ -109,10 +110,11 @@ class JobPostController extends Controller
         ]);
     }
 
-    public function show(Request $request, Post $post)
+    // Every {post} below binds as JobPost, whose global scope makes route-model
+    // binding 404 on a non-job id by itself — that is what the repeated
+    // `abort_if($post->type !== 'job', 404)` used to do in each method.
+    public function show(Request $request, JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $post->loadMissing(['user','images']);
 
         $qsKeep = $request->only(['q','expire','per_page','sort','dir']);
@@ -128,23 +130,21 @@ class JobPostController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
-        $data['type'] = 'job';
 
         if (!array_key_exists('share_count', $data) || $data['share_count'] === null) {
             $data['share_count'] = 0;
         }
 
-        $post = Post::create($data);
+        // type is stamped by JobPost's creating hook.
+        $post = JobPost::create($data);
 
         return redirect()
             ->route('admin.jobs.edit', ['post' => $post->id])
             ->with('success', 'تم إنشاء Job بنجاح');
     }
 
-    public function edit(Post $post)
+    public function edit(JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $item = $post;
         $categories = Category::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
         $categoryChildren = CategoryChild::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
@@ -153,10 +153,8 @@ class JobPostController extends Controller
     }
 
     /** Oversight only — who applied. Never edits an application. */
-    public function applicants(Post $post)
+    public function applicants(JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $applicants = Apply::query()
             ->where('post_id', $post->id)
             ->with('user:id,name,phone,email')
@@ -166,12 +164,9 @@ class JobPostController extends Controller
         return view('admin-v2.jobs.applicants', ['item' => $post, 'applicants' => $applicants]);
     }
 
-    public function update(Request $request, Post $post)
+    public function update(Request $request, JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $data = $this->validateData($request);
-        $data['type'] = 'job';
 
         $post->update($data);
 
@@ -180,10 +175,8 @@ class JobPostController extends Controller
             ->with('success', 'تم تحديث Job بنجاح');
     }
 
-    public function destroy(Post $post)
+    public function destroy(JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $post->delete();
 
         return redirect()
@@ -191,10 +184,8 @@ class JobPostController extends Controller
             ->with('success', 'تم حذف Job');
     }
 
-    public function toggleActive(Post $post)
+    public function toggleActive(JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $post->is_active = !$post->is_active;
         $post->save();
 

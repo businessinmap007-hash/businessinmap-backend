@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Apply;
 use App\Models\Category;
 use App\Models\CategoryChild;
+use App\Models\JobPost;
 use App\Models\Post;
 use App\Services\Jobs\JobFollowMatchingService;
 use App\Services\Notifications\NotificationDispatcherService;
@@ -56,10 +57,8 @@ final class JobController extends Controller
     }
 
     /** GET /api/v2/jobs/{post} — public job detail + applicant count only. */
-    public function show(Post $post)
+    public function show(JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $post->loadMissing(['user:id,name,logo', 'category:id,name_ar,name_en', 'categoryChild:id,name_ar,name_en']);
         $post->loadCount('applies');
 
@@ -152,12 +151,11 @@ final class JobController extends Controller
             }
         }
 
-        $data['type'] = 'job';
         $data['user_id'] = $user->id;
         $data['is_active'] = true;
         $data['share_count'] = 0;
 
-        $post = Post::create($data);
+        $post = JobPost::create($data);
 
         // Live-notify everyone following this job's field.
         app(JobFollowMatchingService::class)->notifyForJob($post);
@@ -166,10 +164,8 @@ final class JobController extends Controller
     }
 
     /** POST /api/v2/jobs/{post}/apply — a client applies. */
-    public function apply(Request $request, Post $post)
+    public function apply(Request $request, JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $user = $request->user();
 
         if ((int) $post->user_id === (int) $user->id) {
@@ -192,10 +188,8 @@ final class JobController extends Controller
     }
 
     /** GET /api/v2/jobs/{post}/applicants — the posting business only. */
-    public function applicants(Request $request, Post $post)
+    public function applicants(Request $request, JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $user = $request->user();
 
         if ((int) $post->user_id !== (int) $user->id) {
@@ -229,9 +223,8 @@ final class JobController extends Controller
      * business accepts one applicant. Idempotent; notifies the applicant.
      * Does NOT close the job (a business may hire several) — that is /close.
      */
-    public function approveApplicant(Request $request, Post $post, Apply $apply)
+    public function approveApplicant(Request $request, JobPost $post, Apply $apply)
     {
-        abort_if($post->type !== 'job', 404);
         abort_if((int) $apply->post_id !== (int) $post->id, 404);
 
         $user = $request->user();
@@ -265,10 +258,8 @@ final class JobController extends Controller
     }
 
     /** POST /api/v2/jobs/{post}/close — the posting business stops accepting. */
-    public function close(Request $request, Post $post)
+    public function close(Request $request, JobPost $post)
     {
-        abort_if($post->type !== 'job', 404);
-
         $user = $request->user();
 
         if ((int) $post->user_id !== (int) $user->id) {

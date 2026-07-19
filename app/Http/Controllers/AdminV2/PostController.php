@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeedPost;
 use App\Models\Post;
 use App\Models\Image;
 use Illuminate\Http\Request;
@@ -36,7 +37,11 @@ final class PostController extends Controller
         $allowedSort = ['id', 'share_count', 'expire_at', 'created_at'];
         if (!in_array($sort, $allowedSort, true)) $sort = 'id';
 
-        $posts = Post::query()
+        // FeedPost, not Post: this list ran unscoped, so all 47 jobs showed up
+        // here as well as on the dedicated jobs screen. The old "حذفنا type
+        // filter بالكامل" comments referred to the removed UI dropdown; the
+        // model now supplies the filter that the dropdown used to.
+        $posts = FeedPost::query()
             // images: the list thumbnail falls back to the first gallery row
             // when posts.image is empty, which is the case for most legacy rows.
             ->with(['user:id,name,email,phone', 'images:id,image,imageable_id,imageable_type'])
@@ -98,7 +103,7 @@ final class PostController extends Controller
         ]);
     }
 
-    public function edit(Request $request, Post $post)
+    public function edit(Request $request, FeedPost $post)
     {
         $post->load('images');
 
@@ -108,7 +113,7 @@ final class PostController extends Controller
         ]);
     }
 
-    public function show(Request $request, Post $post)
+    public function show(Request $request, FeedPost $post)
     {
         $post->load([
             'images:id,image,imageable_id,imageable_type',
@@ -121,7 +126,7 @@ final class PostController extends Controller
         ]);
     }
 
-    public function update(Request $request, Post $post)
+    public function update(Request $request, FeedPost $post)
     {
         // ✅ validate عام، ثم هنفلتر الأعمدة حسب الموجود فعلاً
         $data = $request->validate([
@@ -181,7 +186,7 @@ final class PostController extends Controller
             ->with('success', 'تم الحفظ بنجاح');
     }
 
-    public function toggleActive(Request $request, Post $post)
+    public function toggleActive(Request $request, FeedPost $post)
     {
         $post->is_active = ! (bool) $post->is_active;
         $post->save();
@@ -197,13 +202,13 @@ final class PostController extends Controller
         return back()->with('success', 'تم تغيير الحالة');
     }
 
-    public function destroy(Request $request, Post $post)
+    public function destroy(Request $request, FeedPost $post)
     {
         $post->delete();
         return back()->with('success', 'Deleted');
     }
 
-    public function destroyMainImage(Request $request, Post $post)
+    public function destroyMainImage(Request $request, FeedPost $post)
     {
         $path = $post->image;
         if (!empty($path)) {
@@ -217,10 +222,12 @@ final class PostController extends Controller
         return back()->with('success', 'تم حذف الصورة الرئيسية');
     }
 
-    public function destroyImage(Request $request, Post $post, Image $image)
+    public function destroyImage(Request $request, FeedPost $post, Image $image)
     {
         if (
             (int)$image->imageable_id !== (int)$post->id ||
+            // Stays Post::class even though $post is a FeedPost: that is the
+            // morph name on disk for both subclasses (see JobPost::getMorphClass).
             $image->imageable_type !== Post::class
         ) {
             abort(404);

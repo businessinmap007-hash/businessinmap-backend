@@ -52,7 +52,13 @@ Route::group(['prefix' => 'administrator', 'middleware' => 'localeControlPanel']
 
 
     //Route::get('/', 'App\Http\Controllers\Admin\LoginController@login')->name('admin');
-    Route::get('/login', 'App\Http\Controllers\Admin\LoginController@login')->name('admin.login');
+    // Named administrator.* (matching the administrator.password.* siblings below),
+    // NOT admin.login — that name belongs to AdminV2\Auth\LoginController. Both are
+    // registered, so the duplicate name made route:cache throw and left caching off
+    // entirely. Nothing referenced this route by name: every route('admin.login') in
+    // the app resolved to the v2 route anyway, since admin_v2.php loads last and wins
+    // the name lookup. Renaming therefore changes no behaviour, only unblocks caching.
+    Route::get('/login', 'App\Http\Controllers\Admin\LoginController@login')->name('administrator.login');
     Route::post('/login', 'App\Http\Controllers\Admin\LoginController@postLogin')->name('admin.postLogin');
 
     // Password Reset Routes...
@@ -141,8 +147,12 @@ Route::group(['prefix' => 'administrator', 'middleware' => ['admin']], function 
 
     Route::get('/home/settings', 'App\Http\Controllers\Admin\SettingsController@homeSettings')->name('home.settings');
     Route::get('/discount/gifts', 'App\Http\Controllers\Admin\SettingsController@discountAndGifts')->name('discounts.and.gifts');
-    // Hotels
-    Route::resource('jobs', 'App\Http\Controllers\Admin\JobController');
+    // Admin\JobController is NOT routed: it type-hints App\Models\Job, a model
+    // that does not exist, so all 7 of its resource routes were fatal 500s. Its
+    // index was also dead weight — the GET /jobs below shares the same URI and,
+    // being registered later, silently replaced it in the route collection.
+    // The controller and its blades stay on disk for porting; only the routes go.
+    // Legacy jobs now = the single GET /jobs -> PostController@jobs below.
     Route::resource('categories', 'App\Http\Controllers\Admin\CategoriesController');
     Route::post('bank/suspend', 'App\Http\Controllers\Admin\BanksController@suspend')->name('bank.suspend');
 

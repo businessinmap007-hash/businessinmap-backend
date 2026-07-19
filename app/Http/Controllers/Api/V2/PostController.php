@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\PostResource;
 use App\Models\Image;
 use App\Models\Like;
+use App\Models\FeedPost;
 use App\Models\Post;
 use App\Services\Media\ImageUploadService;
 use App\Services\Posts\PostAudienceService;
@@ -75,7 +76,7 @@ final class PostController extends Controller
         $user = $this->viewer($request);
         $perPage = (int) ($data['per_page'] ?? 15);
 
-        $query = $this->baseQuery()->where('type', '!=', 'job');
+        $query = $this->baseQuery();
 
         if ($user) {
             $authorIds = $this->audience->authorIdsFor($user);
@@ -111,7 +112,6 @@ final class PostController extends Controller
     {
         $posts = $this->baseQuery()
             ->where('user_id', $request->user()->id)
-            ->where('type', '!=', 'job')
             ->orderByDesc('id')
             ->paginate((int) $request->get('per_page', 15))
             ->appends($request->query());
@@ -120,10 +120,8 @@ final class PostController extends Controller
     }
 
     /** GET /api/v2/posts/{post} — one post. */
-    public function show(Request $request, Post $post)
+    public function show(Request $request, FeedPost $post)
     {
-        abort_if($post->type === 'job', 404, 'Use /jobs for job postings.');
-
         $post->loadMissing(['user:id,name,logo,image', 'images'])
             ->loadCount(self::counts());
 
@@ -148,8 +146,7 @@ final class PostController extends Controller
         $user = $request->user();
 
         $post = DB::transaction(function () use ($request, $data, $user) {
-            $post = Post::create([
-                'type' => 'post',
+            $post = FeedPost::create([
                 'user_id' => $user->id,
                 'is_active' => true,
                 'share_count' => 0,
@@ -174,7 +171,7 @@ final class PostController extends Controller
     }
 
     /** POST /api/v2/posts/{post} — edit own post (multipart, so not PUT). */
-    public function update(Request $request, Post $post)
+    public function update(Request $request, FeedPost $post)
     {
         $this->authorizeOwner($request, $post);
 
@@ -228,7 +225,7 @@ final class PostController extends Controller
     }
 
     /** DELETE /api/v2/posts/{post} — delete own post and its files. */
-    public function destroy(Request $request, Post $post)
+    public function destroy(Request $request, FeedPost $post)
     {
         $this->authorizeOwner($request, $post);
 
@@ -247,10 +244,8 @@ final class PostController extends Controller
     }
 
     /** POST /api/v2/posts/{post}/share — count a share. */
-    public function share(Post $post)
+    public function share(FeedPost $post)
     {
-        abort_if($post->type === 'job', 404);
-
         $post->increment('share_count');
 
         return response()->json(['success' => true, 'data' => [
@@ -265,10 +260,8 @@ final class PostController extends Controller
      * The `likes` table has existed all along with no endpoint able to write
      * it; the feed showed counts nobody could change.
      */
-    public function react(Request $request, Post $post)
+    public function react(Request $request, FeedPost $post)
     {
-        abort_if($post->type === 'job', 404);
-
         $data = $request->validate([
             'reaction' => ['required', 'integer', 'in:-1,0,1'],
         ]);
@@ -317,7 +310,7 @@ final class PostController extends Controller
 
     private function baseQuery(): Builder
     {
-        return Post::query()
+        return FeedPost::query()
             ->with(['user:id,name,logo,image,latitude,longitude', 'images'])
             ->withCount(self::counts());
     }
@@ -402,8 +395,6 @@ final class PostController extends Controller
 
     private function authorizeOwner(Request $request, Post $post): void
     {
-        abort_if($post->type === 'job', 404, 'Use /jobs for job postings.');
-
         if ((int) $post->user_id !== (int) $request->user()->id) {
             abort(403, 'You can only manage your own posts.');
         }

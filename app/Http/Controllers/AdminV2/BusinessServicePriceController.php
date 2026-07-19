@@ -103,7 +103,7 @@ class BusinessServicePriceController extends Controller
             $row = BusinessServicePrice::create(array_merge($lookup, $data));
         }
 
-        return redirect()->route('admin.business_service_prices.edit', $row)->with('success', 'تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.');
+        return redirect()->route('admin.business_service_prices.edit', $row)->with('success', __('تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.'));
     }
 
     public function edit(BusinessServicePrice $row)
@@ -194,16 +194,16 @@ class BusinessServicePriceController extends Controller
     {
         $data = $this->validateData($request, $row->id);
         $duplicate = BusinessServicePrice::query()->where('business_id', $data['business_id'])->where('child_id', $data['child_id'])->where('service_id', $data['service_id'])->where('bookable_item_type', $data['bookable_item_type'])->where('id', '!=', $row->id)->exists();
-        if ($duplicate) throw ValidationException::withMessages(['bookable_item_type' => 'يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر.']);
+        if ($duplicate) throw ValidationException::withMessages(['bookable_item_type' => __('يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر.')]);
         $row->update($data);
 
-        return back()->with('success', 'تم تحديث السجل بنجاح.');
+        return back()->with('success', __('تم تحديث السجل بنجاح.'));
     }
 
     public function destroy(BusinessServicePrice $row)
     {
         $row->delete();
-        return redirect()->route('admin.business_service_prices.index')->with('success', 'تم حذف السجل بنجاح.');
+        return redirect()->route('admin.business_service_prices.index')->with('success', __('تم حذف السجل بنجاح.'));
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array
@@ -218,7 +218,7 @@ class BusinessServicePriceController extends Controller
             'is_active' => ['nullable'],
             'discount_enabled' => ['nullable'],
             'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
-        ], [], ['business_id' => 'البزنس', 'child_id' => 'القسم الفرعي', 'service_id' => 'الخدمة', 'bookable_item_type' => 'نوع العنصر', 'price' => 'السعر']);
+        ], [], ['business_id' => __('البزنس'), 'child_id' => __('القسم الفرعي'), 'service_id' => __('الخدمة'), 'bookable_item_type' => __('نوع العنصر'), 'price' => __('السعر')]);
 
         $data['bookable_item_type'] = trim((string) ($data['bookable_item_type'] ?? ''));
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP';
@@ -228,7 +228,7 @@ class BusinessServicePriceController extends Controller
         $data['discount_percent'] = (int) ($data['discount_percent'] ?? 0);
 
         $business = User::query()->select(['id', 'type', 'category_id', 'category_child_id', 'name'])->where('id', $data['business_id'])->where('type', 'business')->first();
-        if (! $business) throw ValidationException::withMessages(['business_id' => 'البزنس غير موجود أو ليس من نوع business.']);
+        if (! $business) throw ValidationException::withMessages(['business_id' => __('البزنس غير موجود أو ليس من نوع business.')]);
 
         $businessChildId = (int) ($business->category_child_id ?? 0);
         $submittedChildId = (int) ($data['child_id'] ?? 0);
@@ -236,19 +236,19 @@ class BusinessServicePriceController extends Controller
             $data['child_id'] = $businessChildId;
             $submittedChildId = $businessChildId;
         }
-        if (! $submittedChildId) throw ValidationException::withMessages(['child_id' => 'هذا البزنس غير مرتبط بأي category child حتى الآن.']);
-        if ($businessChildId > 0 && $submittedChildId !== $businessChildId) throw ValidationException::withMessages(['child_id' => 'القسم الفرعي لا يطابق القسم الفرعي المرتبط بهذا البزنس.']);
+        if (! $submittedChildId) throw ValidationException::withMessages(['child_id' => __('هذا البزنس غير مرتبط بأي category child حتى الآن.')]);
+        if ($businessChildId > 0 && $submittedChildId !== $businessChildId) throw ValidationException::withMessages(['child_id' => __('القسم الفرعي لا يطابق القسم الفرعي المرتبط بهذا البزنس.')]);
 
         $service = PlatformService::query()->select(['id', 'is_active', 'supports_deposit'])->where('id', $data['service_id'])->first();
-        if (! $service) throw ValidationException::withMessages(['service_id' => 'الخدمة غير موجودة.']);
-        if (! (bool) $service->is_active) throw ValidationException::withMessages(['service_id' => 'الخدمة غير مفعلة.']);
+        if (! $service) throw ValidationException::withMessages(['service_id' => __('الخدمة غير موجودة.')]);
+        if (! (bool) $service->is_active) throw ValidationException::withMessages(['service_id' => __('الخدمة غير مفعلة.')]);
 
         $serviceAllowedForChild = CategoryPlatformService::query()->where('child_id', $submittedChildId)->where('platform_service_id', (int) $data['service_id'])->where('is_active', 1)->exists();
-        if (! $serviceAllowedForChild) throw ValidationException::withMessages(['service_id' => 'هذه الخدمة غير متاحة لهذا القسم الفرعي. يجب ربط الخدمة بالقسم الفرعي أولًا.']);
+        if (! $serviceAllowedForChild) throw ValidationException::withMessages(['service_id' => __('هذه الخدمة غير متاحة لهذا القسم الفرعي. يجب ربط الخدمة بالقسم الفرعي أولًا.')]);
 
         $allowedTypes = $this->allowedItemTypesForChildService($submittedChildId, (int) $data['service_id']);
         if (! in_array((string) $data['bookable_item_type'], $allowedTypes, true)) {
-            throw ValidationException::withMessages(['bookable_item_type' => 'نوع العنصر غير متاح لهذا القسم الفرعي داخل هذه الخدمة. اضبطه من Service Catalog Matrix أولًا.']);
+            throw ValidationException::withMessages(['bookable_item_type' => __('نوع العنصر غير متاح لهذا القسم الفرعي داخل هذه الخدمة. اضبطه من Service Catalog Matrix أولًا.')]);
         }
 
         if (! $data['discount_enabled']) $data['discount_percent'] = 0;

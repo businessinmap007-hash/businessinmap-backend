@@ -123,7 +123,7 @@ final class AddressController extends Controller
     {
         $model = $request->user()->addresses()->find($addressId);
         if (! $model) {
-            abort(404, 'العنوان غير موجود.');
+            abort(404, __('العنوان غير موجود.'));
         }
 
         return $model;
@@ -182,7 +182,7 @@ final class AddressController extends Controller
 
         if ($city && (int) $city->governorate_id !== (int) $governorateId) {
             throw ValidationException::withMessages([
-                'city_id' => 'المدينة المختارة لا تتبع المحافظة المختارة.',
+                'city_id' => __('المدينة المختارة لا تتبع المحافظة المختارة.'),
             ]);
         }
 
@@ -193,7 +193,7 @@ final class AddressController extends Controller
 
             if ($countryId !== null && (int) $governorate->country_id !== (int) $countryId) {
                 throw ValidationException::withMessages([
-                    'governorate_id' => 'المحافظة المختارة لا تتبع الدولة المختارة.',
+                    'governorate_id' => __('المحافظة المختارة لا تتبع الدولة المختارة.'),
                 ]);
             }
 

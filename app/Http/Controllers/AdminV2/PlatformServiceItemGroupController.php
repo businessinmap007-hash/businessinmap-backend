@@ -75,7 +75,7 @@ class PlatformServiceItemGroupController extends Controller
 
         return redirect()
             ->route('admin.platform-service-item-groups.edit', $row)
-            ->with('success', 'تم إنشاء الفرع بنجاح.');
+            ->with('success', __('تم إنشاء الفرع بنجاح.'));
     }
 
     public function edit(PlatformServiceItemGroup $platformServiceItemGroup)
@@ -146,11 +146,11 @@ class PlatformServiceItemGroupController extends Controller
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
         ], [
-            'key.regex' => 'المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
+            'key.regex' => __('المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.'),
         ], [
-            'platform_service_id' => 'الخدمة',
-            'key' => 'المفتاح',
-            'name_ar' => 'الاسم العربي',
+            'platform_service_id' => __('الخدمة'),
+            'key' => __('المفتاح'),
+            'name_ar' => __('الاسم العربي'),
         ]);
 
         $serviceId = (int) $data['platform_service_id'];
@@ -163,7 +163,7 @@ class PlatformServiceItemGroupController extends Controller
 
         if ($exists) {
             throw ValidationException::withMessages([
-                'key' => 'يوجد نوع عنصر بنفس المفتاح داخل هذه الخدمة.',
+                'key' => __('يوجد نوع عنصر بنفس المفتاح داخل هذه الخدمة.'),
             ]);
         }
 
@@ -206,7 +206,7 @@ class PlatformServiceItemGroupController extends Controller
 
         $platformServiceItemGroup->update($data);
 
-        return back()->with('success', 'تم تحديث الفرع بنجاح.');
+        return back()->with('success', __('تم تحديث الفرع بنجاح.'));
     }
 
     public function destroy(PlatformServiceItemGroup $platformServiceItemGroup)
@@ -217,7 +217,7 @@ class PlatformServiceItemGroupController extends Controller
 
         return redirect()
             ->route('admin.platform-service-item-groups.index')
-            ->with('success', 'تم حذف الفرع، وأصبحت أنواعه بدون فرع.');
+            ->with('success', __('تم حذف الفرع، وأصبحت أنواعه بدون فرع.'));
     }
 
     public function toggleActive(PlatformServiceItemGroup $platformServiceItemGroup)
@@ -226,7 +226,7 @@ class PlatformServiceItemGroupController extends Controller
             'is_active' => ! (bool) $platformServiceItemGroup->is_active,
         ]);
 
-        return back()->with('success', 'تم تحديث حالة الفرع بنجاح.');
+        return back()->with('success', __('تم تحديث حالة الفرع بنجاح.'));
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array
@@ -253,14 +253,14 @@ class PlatformServiceItemGroupController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable'],
         ], [
-            'key.regex' => 'مفتاح الفرع يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
+            'key.regex' => __('مفتاح الفرع يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.'),
         ], [
-            'platform_service_id' => 'الخدمة',
-            'key' => 'المفتاح',
-            'name_ar' => 'الاسم العربي',
-            'name_en' => 'الاسم الإنجليزي',
-            'sort_order' => 'الترتيب',
-            'is_active' => 'التفعيل',
+            'platform_service_id' => __('الخدمة'),
+            'key' => __('المفتاح'),
+            'name_ar' => __('الاسم العربي'),
+            'name_en' => __('الاسم الإنجليزي'),
+            'sort_order' => __('الترتيب'),
+            'is_active' => __('التفعيل'),
         ]);
 
         $data['key'] = $this->normalizeKey($data['key'] ?? '');

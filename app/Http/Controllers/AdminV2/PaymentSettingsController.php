@@ -43,6 +43,6 @@ class PaymentSettingsController extends Controller
 
         return redirect()
             ->route('admin.payment-settings.edit')
-            ->with('success', 'تم حفظ إعدادات Fawry بنجاح.');
+            ->with('success', __('تم حفظ إعدادات Fawry بنجاح.'));
     }
 }

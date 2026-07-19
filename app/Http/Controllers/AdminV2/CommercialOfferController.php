@@ -137,7 +137,7 @@ class CommercialOfferController extends Controller
 
         return redirect()
             ->route('admin.commercial-offers.edit', $offer->id)
-            ->with('success', 'تم إنشاء العرض التجاري بنجاح.');
+            ->with('success', __('تم إنشاء العرض التجاري بنجاح.'));
     }
 
     public function edit(CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
@@ -171,7 +171,7 @@ class CommercialOfferController extends Controller
 
         return redirect()
             ->route('admin.commercial-offers.edit', $commercialOffer->id)
-            ->with('success', 'تم تحديث العرض التجاري بنجاح.');
+            ->with('success', __('تم تحديث العرض التجاري بنجاح.'));
     }
 
     public function destroy(CommercialOffer $commercialOffer)
@@ -180,7 +180,7 @@ class CommercialOfferController extends Controller
 
         return redirect()
             ->route('admin.commercial-offers.index')
-            ->with('success', 'تم حذف العرض التجاري.');
+            ->with('success', __('تم حذف العرض التجاري.'));
     }
 
     public function toggle(CommercialOffer $commercialOffer, BusinessOffersSubscriptionService $subscriptionService)
@@ -198,7 +198,7 @@ class CommercialOfferController extends Controller
             'status' => $newStatus,
         ]);
 
-        return back()->with('success', 'تم تغيير حالة العرض.');
+        return back()->with('success', __('تم تغيير حالة العرض.'));
     }
 
     /**
@@ -237,8 +237,8 @@ class CommercialOfferController extends Controller
             'target_children' => ['nullable', 'array'],
             'target_children.*' => ['integer', 'exists:category_children_master,id'],
         ], [], [
-            'target_categories.*' => 'التصنيف',
-            'target_children.*' => 'القسم الفرعي',
+            'target_categories.*' => __('التصنيف'),
+            'target_children.*' => __('القسم الفرعي'),
         ]);
 
         $clean = fn ($ids) => array_values(array_unique(array_filter(array_map('intval', (array) ($ids ?? [])))));
@@ -298,7 +298,7 @@ class CommercialOfferController extends Controller
         $seller = User::query()->where('id', (int) $data['seller_business_id'])->where('type', User::TYPE_BUSINESS)->exists();
 
         if (! $owner || ! $seller) {
-            abort(422, 'Owner و Seller يجب أن يكونا من نوع business.');
+            abort(422, __('Owner و Seller يجب أن يكونا من نوع business.'));
         }
 
         $data['offerable_id'] = (int) ($data['offerable_id'] ?? 0);
@@ -323,7 +323,7 @@ class CommercialOfferController extends Controller
         $decoded = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            abort(422, 'Meta JSON غير صالح.');
+            abort(422, __('Meta JSON غير صالح.'));
         }
 
         return $decoded;

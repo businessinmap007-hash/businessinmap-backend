@@ -33,8 +33,8 @@ class LoginController extends Controller
             'email'    => ['required', 'email'],
             'password' => ['required', 'string'],
         ], [], [
-            'email' => 'البريد الإلكتروني',
-            'password' => 'كلمة المرور',
+            'email' => __('البريد الإلكتروني'),
+            'password' => __('كلمة المرور'),
         ]);
 
         $remember = $request->boolean('remember');
@@ -45,7 +45,7 @@ class LoginController extends Controller
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors([
-                    'email' => 'بيانات الدخول غير صحيحة.',
+                    'email' => __('بيانات الدخول غير صحيحة.'),
                 ]);
         }
 
@@ -62,7 +62,7 @@ class LoginController extends Controller
             return redirect()
                 ->route('admin.login')
                 ->withErrors([
-                    'email' => 'تعذر تحميل بيانات المستخدم.',
+                    'email' => __('تعذر تحميل بيانات المستخدم.'),
                 ]);
         }
 
@@ -75,7 +75,7 @@ class LoginController extends Controller
                 ->route('admin.login')
                 ->withInput($request->only('email'))
                 ->withErrors([
-                    'email' => 'الحساب موقوف.',
+                    'email' => __('الحساب موقوف.'),
                 ]);
         }
 
@@ -87,7 +87,7 @@ class LoginController extends Controller
             return redirect()
                 ->route('admin.login')
                 ->withErrors([
-                    'email' => 'هذا الحساب لا يملك صلاحية دخول لوحة الإدارة.',
+                    'email' => __('هذا الحساب لا يملك صلاحية دخول لوحة الإدارة.'),
                 ]);
         }
 
@@ -103,7 +103,7 @@ class LoginController extends Controller
 
         return redirect()
             ->route('admin.login')
-            ->with('success', 'تم تسجيل الخروج بنجاح.');
+            ->with('success', __('تم تسجيل الخروج بنجاح.'));
     }
 
     private function ensureIsNotRateLimited(Request $request): void
@@ -116,7 +116,7 @@ class LoginController extends Controller
 
         $seconds = RateLimiter::availableIn($key);
 
-        abort(Response::HTTP_TOO_MANY_REQUESTS, 'محاولات كثيرة. حاول مرة أخرى بعد ' . $seconds . ' ثانية.');
+        abort(Response::HTTP_TOO_MANY_REQUESTS, __('محاولات كثيرة. حاول مرة أخرى بعد ') . $seconds . __(' ثانية.'));
     }
 
     private function throttleKey(Request $request): string

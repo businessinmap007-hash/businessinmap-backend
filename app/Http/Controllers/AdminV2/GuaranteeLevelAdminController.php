@@ -94,7 +94,7 @@ final class GuaranteeLevelAdminController extends Controller
 
         return redirect()
             ->route('admin.guarantee-levels.index')
-            ->with('success', 'تم إنشاء مستوى الضمان بنجاح.');
+            ->with('success', __('تم إنشاء مستوى الضمان بنجاح.'));
     }
 
     public function edit(GuaranteeLevel $guaranteeLevel)
@@ -112,20 +112,20 @@ final class GuaranteeLevelAdminController extends Controller
 
         return redirect()
             ->route('admin.guarantee-levels.edit', $guaranteeLevel->id)
-            ->with('success', 'تم تحديث مستوى الضمان بنجاح.');
+            ->with('success', __('تم تحديث مستوى الضمان بنجاح.'));
     }
 
     public function destroy(GuaranteeLevel $guaranteeLevel)
     {
         if ($guaranteeLevel->userGuarantees()->exists() || $guaranteeLevel->effectiveUserGuarantees()->exists()) {
-            return back()->withErrors('لا يمكن حذف مستوى مرتبط بضمانات مستخدمين. يمكنك تعطيله بدلًا من الحذف.');
+            return back()->withErrors(__('لا يمكن حذف مستوى مرتبط بضمانات مستخدمين. يمكنك تعطيله بدلًا من الحذف.'));
         }
 
         $guaranteeLevel->delete();
 
         return redirect()
             ->route('admin.guarantee-levels.index')
-            ->with('success', 'تم حذف مستوى الضمان.');
+            ->with('success', __('تم حذف مستوى الضمان.'));
     }
 
     public function toggle(GuaranteeLevel $guaranteeLevel)
@@ -134,7 +134,7 @@ final class GuaranteeLevelAdminController extends Controller
             'is_active' => ! (bool) $guaranteeLevel->is_active,
         ]);
 
-        return back()->with('success', 'تم تغيير حالة مستوى الضمان.');
+        return back()->with('success', __('تم تغيير حالة مستوى الضمان.'));
     }
 
     private function validatedData(Request $request, ?GuaranteeLevel $level = null): array
@@ -193,7 +193,7 @@ final class GuaranteeLevelAdminController extends Controller
         $decoded = json_decode($metaJson, true);
 
         if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            abort(422, 'Meta JSON غير صالح.');
+            abort(422, __('Meta JSON غير صالح.'));
         }
 
         return $decoded;

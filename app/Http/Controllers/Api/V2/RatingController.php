@@ -100,7 +100,7 @@ final class RatingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حفظ التقييم.',
+            'message' => __('تم حفظ التقييم.'),
             'data' => ['review' => $result['review']],
         ], 201);
     }

@@ -41,11 +41,11 @@ final class PaymentController extends Controller
         $payment = Payment::query()->findOrFail($paymentId);
 
         if ((int) $payment->user_id <= 0) {
-            return back()->withErrors('لا يمكن تأكيد الدفع لأن payment لا يحتوي على user_id.');
+            return back()->withErrors(__('لا يمكن تأكيد الدفع لأن payment لا يحتوي على user_id.'));
         }
 
         if ((float) $payment->price <= 0) {
-            return back()->withErrors('لا يمكن تأكيد الدفع لأن قيمة payment غير صحيحة.');
+            return back()->withErrors(__('لا يمكن تأكيد الدفع لأن قيمة payment غير صحيحة.'));
         }
 
         if (! $payment->paid_at) {
@@ -62,7 +62,7 @@ final class PaymentController extends Controller
             'admin_id' => auth()->id(),
         ]);
 
-        return back()->with('success', 'تم تأكيد الدفع وتنفيذ العملية.');
+        return back()->with('success', __('تم تأكيد الدفع وتنفيذ العملية.'));
     }
 
     public function callbackSuccess(Request $request, WalletLedgerService $ledger)
@@ -71,25 +71,25 @@ final class PaymentController extends Controller
 
         $paymentId = (int)($request->merchantRefNumber ?? 0);
         if ($paymentId <= 0) {
-            return response()->json(['status' => 400, 'message' => 'لا يوجد رقم مرجعي'], 400);
+            return response()->json(['status' => 400, 'message' => __('لا يوجد رقم مرجعي')], 400);
         }
 
         $payment = Payment::query()->find($paymentId);
         if (! $payment) {
-            return response()->json(['status' => 404, 'message' => 'الطلب غير موجود'], 404);
+            return response()->json(['status' => 404, 'message' => __('الطلب غير موجود')], 404);
         }
 
         if ((int) $payment->user_id <= 0) {
-            return response()->json(['status' => 422, 'message' => 'payment user_id مفقود'], 422);
+            return response()->json(['status' => 422, 'message' => __('payment user_id مفقود')], 422);
         }
 
         $referenceNumber = (string)($request->referenceNumber ?? '');
         if ($referenceNumber !== '' && Payment::where('payment_no', $referenceNumber)->where('id', '<>', $payment->id)->exists()) {
-            return response()->json(['status' => 400, 'message' => 'رقم العملية مكرر'], 400);
+            return response()->json(['status' => 400, 'message' => __('رقم العملية مكرر')], 400);
         }
 
         if ($payment->paid_at) {
-            return response()->json(['status' => 200, 'message' => 'تم الدفع مسبقًا'], 200);
+            return response()->json(['status' => 200, 'message' => __('تم الدفع مسبقًا')], 200);
         }
 
         $method = strtoupper((string)($request->paymentMethod ?? ''));
@@ -109,7 +109,7 @@ final class PaymentController extends Controller
             'source' => 'gateway_callback',
         ]);
 
-        return response()->json(['status' => 200, 'message' => 'تمت العملية بنجاح']);
+        return response()->json(['status' => 200, 'message' => __('تمت العملية بنجاح')]);
     }
 
     private function applyBusinessEffect(Payment $payment, WalletLedgerService $ledger, int $noteId = 0, array $extraMeta = []): void

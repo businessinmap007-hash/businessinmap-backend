@@ -95,7 +95,7 @@ final class PostController extends Controller
 
             // ✅ حذفنا typeOptions
             'activeOptions' => [
-                ''  => 'الكل',
+                ''  => __('الكل'),
                 '1' => 'Active',
                 '0' => 'Inactive',
             ],
@@ -183,7 +183,7 @@ final class PostController extends Controller
 
         return redirect()
             ->route('admin.posts.show', ['post' => $post->id] + $this->keepQs($request))
-            ->with('success', 'تم الحفظ بنجاح');
+            ->with('success', __('تم الحفظ بنجاح'));
     }
 
     public function toggleActive(Request $request, FeedPost $post)
@@ -199,7 +199,7 @@ final class PostController extends Controller
             ]);
         }
 
-        return back()->with('success', 'تم تغيير الحالة');
+        return back()->with('success', __('تم تغيير الحالة'));
     }
 
     public function destroy(Request $request, FeedPost $post)
@@ -219,7 +219,7 @@ final class PostController extends Controller
         $post->image = null;
         $post->save();
 
-        return back()->with('success', 'تم حذف الصورة الرئيسية');
+        return back()->with('success', __('تم حذف الصورة الرئيسية'));
     }
 
     public function destroyImage(Request $request, FeedPost $post, Image $image)
@@ -241,6 +241,6 @@ final class PostController extends Controller
 
         $image->delete();
 
-        return back()->with('success', 'تم حذف صورة المعرض');
+        return back()->with('success', __('تم حذف صورة المعرض'));
     }
 }

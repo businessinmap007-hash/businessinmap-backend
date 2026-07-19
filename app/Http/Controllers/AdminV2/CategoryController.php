@@ -178,7 +178,7 @@ class CategoryController extends Controller
             ->orderBy('id')
             ->get();
 
-        $activeOptions  = ['' => 'الكل', '1' => 'نشط', '0' => 'غير نشط'];
+        $activeOptions  = ['' => __('الكل'), '1' => __('نشط'), '0' => __('غير نشط')];
         $perPageOptions = self::PER_PAGE_ALLOWED;
 
         return view('admin-v2.categories.index', compact(
@@ -234,7 +234,7 @@ class CategoryController extends Controller
 
         return redirect()
             ->route('admin.categories.index')
-            ->with('success', 'تم إضافة القسم الرئيسي بنجاح.');
+            ->with('success', __('تم إضافة القسم الرئيسي بنجاح.'));
     }
 
     public function edit(Category $category): View
@@ -284,7 +284,7 @@ class CategoryController extends Controller
         }
 
         return $this->redirectToIndex($category->id)
-            ->with('success', 'تم تحديث القسم الرئيسي بنجاح.');
+            ->with('success', __('تم تحديث القسم الرئيسي بنجاح.'));
     }
 
     public function destroy(Category $category): RedirectResponse
@@ -318,7 +318,7 @@ class CategoryController extends Controller
         $this->deleteImageIfExists($oldImage);
 
         return $this->redirectToIndex($rootId)
-            ->with('success', 'تم حذف القسم الرئيسي بنجاح.');
+            ->with('success', __('تم حذف القسم الرئيسي بنجاح.'));
     }
 
     public function toggleActive(Category $category): RedirectResponse
@@ -330,7 +330,7 @@ class CategoryController extends Controller
         ]);
 
         return $this->redirectToIndex($category->id)
-            ->with('success', 'تم تحديث حالة التفعيل بنجاح.');
+            ->with('success', __('تم تحديث حالة التفعيل بنجاح.'));
     }
 
     public function updateReorder(Request $request, Category $category): RedirectResponse
@@ -346,6 +346,6 @@ class CategoryController extends Controller
         ]);
 
         return $this->redirectToIndex($category->id)
-            ->with('success', 'تم تحديث الترتيب بنجاح.');
+            ->with('success', __('تم تحديث الترتيب بنجاح.'));
     }
 }

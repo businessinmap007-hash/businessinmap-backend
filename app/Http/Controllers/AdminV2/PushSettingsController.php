@@ -46,7 +46,7 @@ class PushSettingsController extends Controller
 
         return redirect()
             ->route('admin.push-settings.edit')
-            ->with('success', 'تم حفظ بيانات اعتماد Firebase بنجاح.');
+            ->with('success', __('تم حفظ بيانات اعتماد Firebase بنجاح.'));
     }
 
     /** POST admin/push-settings/test — verify the stored credentials against Google. */
@@ -57,13 +57,13 @@ class PushSettingsController extends Controller
         if ($result['ok']) {
             return redirect()
                 ->route('admin.push-settings.edit')
-                ->with('success', 'نجح الاتصال بـ Firebase — المشروع: ' . ($result['project_id'] ?? '—'));
+                ->with('success', __('نجح الاتصال بـ Firebase — المشروع: ') . ($result['project_id'] ?? '—'));
         }
 
         $reason = match ($result['reason']) {
-            'no_project_id' => 'لا توجد بيانات اعتماد مضبوطة (project_id مفقود).',
-            'token_exchange_failed' => 'فشل تبادل الرمز مع Google — تحقّق من صحّة ملف الحساب الخدمي.',
-            default => 'تعذّر التحقّق من بيانات الاعتماد.',
+            'no_project_id' => __('لا توجد بيانات اعتماد مضبوطة (project_id مفقود).'),
+            'token_exchange_failed' => __('فشل تبادل الرمز مع Google — تحقّق من صحّة ملف الحساب الخدمي.'),
+            default => __('تعذّر التحقّق من بيانات الاعتماد.'),
         };
 
         return redirect()

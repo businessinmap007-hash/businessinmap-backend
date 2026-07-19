@@ -21,7 +21,7 @@ class MenuItemVariantController extends Controller
 
         MenuItemVariant::create($data);
 
-        return back()->with('success', 'تمت إضافة variant بنجاح.');
+        return back()->with('success', __('تمت إضافة variant بنجاح.'));
     }
 
     public function update(Request $request, MenuItem $menuItem, MenuItemVariant $variant)
@@ -36,7 +36,7 @@ class MenuItemVariantController extends Controller
 
         $variant->update($data);
 
-        return back()->with('success', 'تم تحديث الـ variant بنجاح.');
+        return back()->with('success', __('تم تحديث الـ variant بنجاح.'));
     }
 
     public function destroy(MenuItem $menuItem, MenuItemVariant $variant)
@@ -45,7 +45,7 @@ class MenuItemVariantController extends Controller
 
         $variant->delete();
 
-        return back()->with('success', 'تم حذف الـ variant بنجاح.');
+        return back()->with('success', __('تم حذف الـ variant بنجاح.'));
     }
 
     protected function validateData(Request $request): array
@@ -59,8 +59,8 @@ class MenuItemVariantController extends Controller
             'is_default' => ['nullable'],
             'is_active' => ['nullable'],
         ], [], [
-            'type' => 'النوع',
-            'name_ar' => 'الاسم بالعربي',
+            'type' => __('النوع'),
+            'name_ar' => __('الاسم بالعربي'),
         ]);
 
         if (($data['price'] ?? null) === '' || ($data['price'] ?? null) === null) {
@@ -73,7 +73,7 @@ class MenuItemVariantController extends Controller
 
         if ($data['price'] === null && $data['price_delta'] === null) {
             throw ValidationException::withMessages([
-                'price' => 'أدخل سعرًا مباشرًا أو فرق سعر عن السعر الأساسي.',
+                'price' => __('أدخل سعرًا مباشرًا أو فرق سعر عن السعر الأساسي.'),
             ]);
         }
 

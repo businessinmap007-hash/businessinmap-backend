@@ -87,7 +87,7 @@ class CategoryChildServiceFeeBulkController extends Controller
                 return redirect()
                     ->route('admin.categories.index')
                     ->withErrors([
-                        'parent_id' => 'لا يوجد أي قسم رئيسي متاح.',
+                        'parent_id' => __('لا يوجد أي قسم رئيسي متاح.'),
                     ]);
             }
 
@@ -113,7 +113,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
                 ->withErrors([
-                    'child_ids' => 'لا توجد أقسام فرعية مرتبطة بهذا القسم الرئيسي.',
+                    'child_ids' => __('لا توجد أقسام فرعية مرتبطة بهذا القسم الرئيسي.'),
                 ]);
         }
 
@@ -123,7 +123,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
                 ->withErrors([
-                    'child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.',
+                    'child_ids' => __('الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.'),
                 ]);
         }
 
@@ -186,7 +186,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
                 ->withErrors([
-                    'child_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل.',
+                    'child_ids' => __('اختر قسمًا فرعيًا واحدًا على الأقل.'),
                 ]);
         }
 
@@ -196,7 +196,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             return redirect()
                 ->route('admin.categories.index', ['root_id' => $parentId])
                 ->withErrors([
-                    'child_ids' => 'الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.',
+                    'child_ids' => __('الأقسام الفرعية المحددة غير مرتبطة بهذا القسم الرئيسي.'),
                 ]);
         }
 
@@ -220,13 +220,13 @@ class CategoryChildServiceFeeBulkController extends Controller
             'rows.*.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'rows.*.*.notes' => ['nullable', 'string', 'max:500'],
         ], [], [
-            'parent_id' => 'القسم الرئيسي',
-            'child_ids' => 'الأقسام الفرعية',
-            'rows.*.*.business_fee_amount' => 'قيمة رسوم البزنس',
-            'rows.*.*.client_fee_amount' => 'قيمة رسوم المستخدم',
-            'rows.*.*.currency' => 'العملة',
-            'rows.*.*.sort_order' => 'الترتيب',
-            'rows.*.*.notes' => 'الملاحظات',
+            'parent_id' => __('القسم الرئيسي'),
+            'child_ids' => __('الأقسام الفرعية'),
+            'rows.*.*.business_fee_amount' => __('قيمة رسوم البزنس'),
+            'rows.*.*.client_fee_amount' => __('قيمة رسوم المستخدم'),
+            'rows.*.*.currency' => __('العملة'),
+            'rows.*.*.sort_order' => __('الترتيب'),
+            'rows.*.*.notes' => __('الملاحظات'),
         ]);
 
         $rowsInput = is_array($request->input('rows'))
@@ -313,7 +313,7 @@ class CategoryChildServiceFeeBulkController extends Controller
 
         return redirect()
             ->route('admin.categories.index', ['root_id' => $parent->id])
-            ->with('success', 'تم تحديث الخدمات ورسومها للأقسام الفرعية المحددة بنجاح.');
+            ->with('success', __('تم تحديث الخدمات ورسومها للأقسام الفرعية المحددة بنجاح.'));
     }
 
     private function activeChildServiceMap(int $parentId, array $childIds): Collection

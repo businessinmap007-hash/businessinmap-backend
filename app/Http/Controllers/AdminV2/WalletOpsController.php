@@ -82,11 +82,11 @@ final class WalletOpsController extends Controller
         $rows = $this->searchUsers($q, 12)
             ->map(fn (User $user) => [
                 'id' => (int) $user->id,
-                'name' => (string) ($user->name ?: 'بدون اسم'),
+                'name' => (string) ($user->name ?: __('بدون اسم')),
                 'email' => (string) ($user->email ?: ''),
                 'phone' => (string) ($user->phone ?: ''),
                 'type' => (string) ($user->type ?: ''),
-                'label' => '#' . $user->id . ' — ' . ($user->name ?: 'بدون اسم') . ' — ' . ($user->type ?: 'user') . ' — ' . ($user->phone ?: $user->email),
+                'label' => '#' . $user->id . ' — ' . ($user->name ?: __('بدون اسم')) . ' — ' . ($user->type ?: 'user') . ' — ' . ($user->phone ?: $user->email),
                 'url' => route('admin.wallet-ops.recharge.form', ['user_id' => (int) $user->id, 'q' => $q]),
             ])
             ->values();
@@ -117,7 +117,7 @@ final class WalletOpsController extends Controller
         if ($guaranteeAction === 'manual' && empty($data['guarantee_level_id'])) {
             return back()
                 ->withInput()
-                ->withErrors('اختر مستوى الضمان عند اختيار Manual Guarantee Level.');
+                ->withErrors(__('اختر مستوى الضمان عند اختيار Manual Guarantee Level.'));
         }
 
         $user = User::query()
@@ -187,16 +187,16 @@ final class WalletOpsController extends Controller
             );
         }
 
-        $message = 'تم شحن المحفظة بنجاح.';
+        $message = __('تم شحن المحفظة بنجاح.');
 
         if ($guaranteeAction === 'none') {
-            $message .= ' لم يتم تنفيذ أي إجراء ضمان.';
+            $message .= __(' لم يتم تنفيذ أي إجراء ضمان.');
         }
 
         if (($upgradeResult['changed'] ?? false) && ! empty($upgradeResult['level'])) {
-            $message .= ' وتم تحديث مستوى الضمان إلى: ' . $upgradeResult['level']->display_name . '.';
+            $message .= __(' وتم تحديث مستوى الضمان إلى: ') . $upgradeResult['level']->display_name . '.';
         } elseif ($upgradeResult && ! ($upgradeResult['changed'] ?? false)) {
-            $message .= ' نتيجة الضمان: ' . ($upgradeResult['reason'] ?? 'no_change') . '.';
+            $message .= __(' نتيجة الضمان: ') . ($upgradeResult['reason'] ?? 'no_change') . '.';
         }
 
         return redirect()
@@ -229,12 +229,12 @@ final class WalletOpsController extends Controller
             ]
         );
 
-        $message = 'تم تنفيذ تفعيل الضمان من الرصيد الحالي.';
+        $message = __('تم تنفيذ تفعيل الضمان من الرصيد الحالي.');
 
         if (($result['changed'] ?? false) && ! empty($result['level'])) {
-            $message .= ' المستوى: ' . $result['level']->display_name . '.';
+            $message .= __(' المستوى: ') . $result['level']->display_name . '.';
         } elseif (! ($result['changed'] ?? false)) {
-            $message .= ' النتيجة: ' . ($result['reason'] ?? 'no_change') . '.';
+            $message .= __(' النتيجة: ') . ($result['reason'] ?? 'no_change') . '.';
         }
 
         return redirect()
@@ -271,7 +271,7 @@ final class WalletOpsController extends Controller
             ->first();
 
         if (! $level) {
-            abort(422, 'مستوى الضمان المختار غير مناسب لنوع المستخدم أو غير مفعل.');
+            abort(422, __('مستوى الضمان المختار غير مناسب لنوع المستخدم أو غير مفعل.'));
         }
 
         return $level;

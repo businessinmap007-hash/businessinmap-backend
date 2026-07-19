@@ -272,7 +272,7 @@ class CategoryChildController extends Controller
 
         return redirect()
             ->route('admin.category-children.index', $redirectParentId > 0 ? ['parent_id' => $redirectParentId] : [])
-            ->with('success', 'تم إضافة القسم الفرعي بنجاح.');
+            ->with('success', __('تم إضافة القسم الفرعي بنجاح.'));
     }
 
     public function syncChildren(Request $request, Category $parent): RedirectResponse
@@ -294,7 +294,7 @@ class CategoryChildController extends Controller
         $parent->children()->sync($childIds);
 
         return $this->redirectToCategories($parent->id)
-            ->with('success', 'تم تحديث ربط الأقسام الفرعية بنجاح.');
+            ->with('success', __('تم تحديث ربط الأقسام الفرعية بنجاح.'));
     }
 
     public function edit(Request $request, CategoryChild $categoryChild): View
@@ -397,7 +397,7 @@ class CategoryChildController extends Controller
         $firstParentId = (int) ($parentIds[0] ?? 0);
 
         return $this->redirectToCategories($firstParentId)
-            ->with('success', 'تم تحديث القسم الفرعي بنجاح.');
+            ->with('success', __('تم تحديث القسم الفرعي بنجاح.'));
     }
 
     public function destroy(Request $request, CategoryChild $categoryChild): RedirectResponse
@@ -421,7 +421,7 @@ class CategoryChildController extends Controller
         });
 
         return $this->redirectToCategories($parentId)
-            ->with('success', 'تم حذف القسم الفرعي بنجاح.');
+            ->with('success', __('تم حذف القسم الفرعي بنجاح.'));
     }
 
     public function detachParent(Request $request, CategoryChild $categoryChild, Category $parent): RedirectResponse
@@ -449,10 +449,10 @@ class CategoryChildController extends Controller
             $categoryChild->delete();
 
             return $this->redirectToCategories($rootId)
-                ->with('success', 'تم فصل القسم الفرعي، ولأنه لم يعد مرتبطًا بأي قسم رئيسي تم حذفه نهائيًا.');
+                ->with('success', __('تم فصل القسم الفرعي، ولأنه لم يعد مرتبطًا بأي قسم رئيسي تم حذفه نهائيًا.'));
         }
 
         return $this->redirectToCategories($rootId > 0 ? $rootId : $parent->id)
-            ->with('success', 'تم فصل القسم الفرعي عن القسم الرئيسي بنجاح.');
+            ->with('success', __('تم فصل القسم الفرعي عن القسم الرئيسي بنجاح.'));
     }
 }

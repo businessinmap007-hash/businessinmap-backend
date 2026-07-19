@@ -70,7 +70,7 @@ final class SharedCartController extends Controller
             'size_id' => ['nullable', 'integer', 'min:1'],
             'extras' => ['nullable', 'array'],
             'extras.*' => ['integer', 'min:1'],
-        ], [], ['kind' => 'نوع العرض', 'offering_id' => 'العرض', 'qty' => 'الكمية']);
+        ], [], ['kind' => __('نوع العرض'), 'offering_id' => __('العرض'), 'qty' => __('الكمية')]);
 
         $userId = (int) $request->user()->id;
         $cart = $this->cart->addToShared(
@@ -88,7 +88,7 @@ final class SharedCartController extends Controller
     /** Change a shared-cart line's quantity (adder or host). 0 removes. */
     public function updateItem(Request $request, int $order, int $item)
     {
-        $data = $request->validate(['qty' => ['required', 'integer', 'min:0', 'max:999']], [], ['qty' => 'الكمية']);
+        $data = $request->validate(['qty' => ['required', 'integer', 'min:0', 'max:999']], [], ['qty' => __('الكمية')]);
 
         $userId = (int) $request->user()->id;
         $cart = $this->cart->updateSharedLine($userId, $order, $item, (int) $data['qty']);

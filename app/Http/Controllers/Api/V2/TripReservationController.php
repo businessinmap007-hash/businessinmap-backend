@@ -35,7 +35,7 @@ final class TripReservationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إنشاء الحجز، بانتظار تأكيد الناقل.',
+            'message' => __('تم إنشاء الحجز، بانتظار تأكيد الناقل.'),
             'data' => ['reservation' => $this->serialize($reservation)],
         ], 201);
     }
@@ -62,7 +62,7 @@ final class TripReservationController extends Controller
 
         $service->cancel($row, (int) $request->user()->id);
 
-        return response()->json(['success' => true, 'message' => 'تم إلغاء الحجز.']);
+        return response()->json(['success' => true, 'message' => __('تم إلغاء الحجز.')]);
     }
 
     // ---- Carrier (business) side ---------------------------------------
@@ -87,7 +87,7 @@ final class TripReservationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حجز المقاعد يدويًا (تعامل خارج التطبيق).',
+            'message' => __('تم حجز المقاعد يدويًا (تعامل خارج التطبيق).'),
             'data' => ['reservation' => $this->serialize($hold)],
         ], 201);
     }
@@ -118,7 +118,7 @@ final class TripReservationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تأكيد الحجز.',
+            'message' => __('تم تأكيد الحجز.'),
             'data' => ['reservation' => $this->serialize($row->refresh())],
         ]);
     }
@@ -130,7 +130,7 @@ final class TripReservationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إكمال الرحلة وتسجيل التقييم للطرفين.',
+            'message' => __('تم إكمال الرحلة وتسجيل التقييم للطرفين.'),
             'data' => ['reservation' => $this->serialize($row->refresh())],
         ]);
     }
@@ -140,7 +140,7 @@ final class TripReservationController extends Controller
         $row = $this->carrierReservationOrFail($request, $reservation);
         $service->cancel($row, (int) $request->user()->id);
 
-        return response()->json(['success' => true, 'message' => 'تم رفض/إلغاء الحجز.']);
+        return response()->json(['success' => true, 'message' => __('تم رفض/إلغاء الحجز.')]);
     }
 
     private function carrierReservationOrFail(Request $request, int $reservationId): TripReservation

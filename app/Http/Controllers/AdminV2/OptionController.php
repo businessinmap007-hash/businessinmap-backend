@@ -81,8 +81,8 @@ class OptionController extends Controller
             ->with(
                 'success',
                 $targetGroupId
-                    ? 'تم نقل الخيارات المحددة إلى المجموعة بنجاح.'
-                    : 'تم فك ربط الخيارات المحددة من أي مجموعة.'
+                    ? __('تم نقل الخيارات المحددة إلى المجموعة بنجاح.')
+                    : __('تم فك ربط الخيارات المحددة من أي مجموعة.')
             );
     }
 
@@ -140,7 +140,7 @@ class OptionController extends Controller
 
         return redirect()
             ->route('admin.options.index')
-            ->with('success', 'تم إضافة الخيار بنجاح.');
+            ->with('success', __('تم إضافة الخيار بنجاح.'));
     }
 
     public function edit(Option $option): View
@@ -197,7 +197,7 @@ class OptionController extends Controller
 
         return redirect()
             ->route('admin.options.index')
-            ->with('success', 'تم تحديث الخيار بنجاح.');
+            ->with('success', __('تم تحديث الخيار بنجاح.'));
     }
 
     public function destroy(Option $option): RedirectResponse
@@ -206,7 +206,7 @@ class OptionController extends Controller
 
         return redirect()
             ->route('admin.options.index')
-            ->with('success', 'تم حذف الخيار بنجاح.');
+            ->with('success', __('تم حذف الخيار بنجاح.'));
     }
 
     public function bulkDelete(Request $request): RedirectResponse
@@ -229,7 +229,7 @@ class OptionController extends Controller
 
         return redirect()
             ->route('admin.options.index')
-            ->with('success', 'تم حذف الخيارات المحددة بنجاح.');
+            ->with('success', __('تم حذف الخيارات المحددة بنجاح.'));
     }
 
     protected function hasIsActiveColumn(): bool

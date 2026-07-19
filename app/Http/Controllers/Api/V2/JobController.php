@@ -239,7 +239,7 @@ final class JobController extends Controller
 
             app(NotificationDispatcherService::class)->dispatch('job_application_approved', (int) $apply->user_id, [
                 'actor_id' => (int) $post->user_id,
-                'body_ar' => $post->title_ar ?: $post->title_en ?: 'وظيفة',
+                'body_ar' => $post->title_ar ?: $post->title_en ?: __('وظيفة'),
                 'body_en' => $post->title_en ?: $post->title_ar ?: 'Job',
                 'action_type' => 'open_job',
                 'action_url' => '/jobs/' . $post->id,

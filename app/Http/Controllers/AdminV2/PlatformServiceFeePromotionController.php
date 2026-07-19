@@ -104,7 +104,7 @@ class PlatformServiceFeePromotionController extends Controller
 
         return redirect()
             ->route('admin.platform-service-fee-promotions.index')
-            ->with('success', 'تم إنشاء عرض رسوم المنصة بنجاح.');
+            ->with('success', __('تم إنشاء عرض رسوم المنصة بنجاح.'));
     }
 
     public function edit(PlatformServiceFeePromotion $platformServiceFeePromotion)
@@ -127,7 +127,7 @@ class PlatformServiceFeePromotionController extends Controller
 
         return redirect()
             ->route('admin.platform-service-fee-promotions.index')
-            ->with('success', 'تم تحديث عرض رسوم المنصة بنجاح.');
+            ->with('success', __('تم تحديث عرض رسوم المنصة بنجاح.'));
     }
 
     public function destroy(PlatformServiceFeePromotion $platformServiceFeePromotion)
@@ -136,7 +136,7 @@ class PlatformServiceFeePromotionController extends Controller
 
         return redirect()
             ->route('admin.platform-service-fee-promotions.index')
-            ->with('success', 'تم حذف عرض رسوم المنصة بنجاح.');
+            ->with('success', __('تم حذف عرض رسوم المنصة بنجاح.'));
     }
 
     public function toggle(PlatformServiceFeePromotion $platformServiceFeePromotion)
@@ -147,7 +147,7 @@ class PlatformServiceFeePromotionController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'تم تغيير حالة العرض بنجاح.');
+            ->with('success', __('تم تغيير حالة العرض بنجاح.'));
     }
 
     private function validatedData(Request $request): array
@@ -236,28 +236,28 @@ class PlatformServiceFeePromotionController extends Controller
     private function scopeTypes(): array
     {
         return [
-            PlatformServiceFeePromotion::SCOPE_ALL_SERVICES => 'كل الخدمات',
-            PlatformServiceFeePromotion::SCOPE_SERVICE => 'خدمة محددة',
-            PlatformServiceFeePromotion::SCOPE_SERVICE_CHILD => 'خدمة + قسم فرعي',
+            PlatformServiceFeePromotion::SCOPE_ALL_SERVICES => __('كل الخدمات'),
+            PlatformServiceFeePromotion::SCOPE_SERVICE => __('خدمة محددة'),
+            PlatformServiceFeePromotion::SCOPE_SERVICE_CHILD => __('خدمة + قسم فرعي'),
         ];
     }
 
     private function targetParties(): array
     {
         return [
-            PlatformServiceFeePromotion::TARGET_CLIENT => 'العميل',
-            PlatformServiceFeePromotion::TARGET_BUSINESS => 'البزنس',
-            PlatformServiceFeePromotion::TARGET_BOTH => 'العميل والبزنس',
+            PlatformServiceFeePromotion::TARGET_CLIENT => __('العميل'),
+            PlatformServiceFeePromotion::TARGET_BUSINESS => __('البزنس'),
+            PlatformServiceFeePromotion::TARGET_BOTH => __('العميل والبزنس'),
         ];
     }
 
     private function discountTypes(): array
     {
         return [
-            PlatformServiceFeePromotion::DISCOUNT_WAIVE => 'إيقاف الرسوم مؤقتًا',
-            PlatformServiceFeePromotion::DISCOUNT_OVERRIDE_TO_FIXED => 'جعل الرسوم قيمة ثابتة',
-            PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT => 'خصم مبلغ ثابت',
-            PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT => 'خصم نسبة مئوية',
+            PlatformServiceFeePromotion::DISCOUNT_WAIVE => __('إيقاف الرسوم مؤقتًا'),
+            PlatformServiceFeePromotion::DISCOUNT_OVERRIDE_TO_FIXED => __('جعل الرسوم قيمة ثابتة'),
+            PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT => __('خصم مبلغ ثابت'),
+            PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT => __('خصم نسبة مئوية'),
         ];
     }
 }

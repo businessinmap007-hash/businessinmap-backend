@@ -43,7 +43,7 @@ class DeliveryAdminController extends Controller
         $model = DeliveryDriver::query()->findOrFail($driver);
         $model->update(['is_active' => ! $model->is_active]);
 
-        return back()->with('success', 'تم تحديث حالة الموصّل.');
+        return back()->with('success', __('تم تحديث حالة الموصّل.'));
     }
 
     /** GET admin/delivery/completions */

@@ -76,6 +76,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('login', [LoginController::class, 'login'])->name('login.post');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 
+    // Language toggle. Outside the admin.v2 group on purpose — see LocaleController.
+    Route::get('locale/{locale}', [\App\Http\Controllers\AdminV2\LocaleController::class, 'switch'])
+        ->name('locale.switch');
+
     Route::post('payments/callback/success', [PaymentController::class, 'callbackSuccess'])->name('payments.callback.success');
 
     // BIM-14.1 — every route below carries `admin.v2` (are you an admin?) AND a

@@ -60,7 +60,7 @@ final class CartController extends Controller
             'size_id' => ['nullable', 'integer', 'min:1'],
             'extras' => ['nullable', 'array'],
             'extras.*' => ['integer', 'min:1'],
-        ], [], ['kind' => 'نوع العرض', 'offering_id' => 'العرض', 'qty' => 'الكمية']);
+        ], [], ['kind' => __('نوع العرض'), 'offering_id' => __('العرض'), 'qty' => __('الكمية')]);
 
         $order = $this->cart->addItem(
             (int) $request->user()->id,
@@ -81,7 +81,7 @@ final class CartController extends Controller
     {
         $data = $request->validate([
             'qty' => ['required', 'integer', 'min:0', 'max:999'],
-        ], [], ['qty' => 'الكمية']);
+        ], [], ['qty' => __('الكمية')]);
 
         $order = $this->cart->updateItemQty((int) $request->user()->id, $item, (int) $data['qty']);
 

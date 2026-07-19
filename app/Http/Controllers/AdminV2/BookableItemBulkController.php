@@ -63,7 +63,7 @@ class BookableItemBulkController extends Controller
             actorId: auth()->id(),
         );
 
-        return back()->with('success', 'تم تطبيق الإغلاق بنجاح.');
+        return back()->with('success', __('تم تطبيق الإغلاق بنجاح.'));
     }
 
     public function applyPrice(Request $request, BookableItemBulkOpsService $service)
@@ -92,6 +92,6 @@ class BookableItemBulkController extends Controller
             actorId: auth()->id(),
         );
 
-        return back()->with('success', 'تم تطبيق قاعدة التسعير بنجاح.');
+        return back()->with('success', __('تم تطبيق قاعدة التسعير بنجاح.'));
     }
 }

@@ -154,7 +154,7 @@ final class AlbumController extends Controller
 
         return redirect()
             ->route('admin.albums.show', $album->id)
-            ->with('success', 'تم إنشاء الألبوم بنجاح');
+            ->with('success', __('تم إنشاء الألبوم بنجاح'));
     }
 
     public function edit(Album $album)
@@ -198,7 +198,7 @@ final class AlbumController extends Controller
 
         return redirect()
             ->route('admin.albums.show', $album->id)
-            ->with('success', 'تم تحديث الألبوم بنجاح');
+            ->with('success', __('تم تحديث الألبوم بنجاح'));
     }
 
     public function destroy(Album $album)
@@ -215,7 +215,7 @@ final class AlbumController extends Controller
 
         return redirect()
             ->route('admin.albums.index')
-            ->with('success', 'تم حذف الألبوم');
+            ->with('success', __('تم حذف الألبوم'));
     }
 
    
@@ -260,7 +260,7 @@ public function setCover(Request $request, Album $album, int $imageId)
     $path = $this->imagePathFrom($img);
 
     if ($path === '') {
-        return response()->json(['ok'=>false,'message'=>'مسار الصورة غير موجود'], 422);
+        return response()->json(['ok'=>false,'message'=>__('مسار الصورة غير موجود')], 422);
     }
 
     $album->image = $path;
@@ -275,7 +275,7 @@ public function deleteImage(Request $request, Album $album, int $imageId)
     $path = $this->imagePathFrom($img);
 
     if ($path !== '' && (string)$album->image === $path) {
-        return response()->json(['ok'=>false,'message'=>'هذه صورة الغلاف. عيّن غلافًا آخر أولاً ثم احذفها.'], 422);
+        return response()->json(['ok'=>false,'message'=>__('هذه صورة الغلاف. عيّن غلافًا آخر أولاً ثم احذفها.')], 422);
     }
 
     // حذف الملف لو محلي (اختياري)

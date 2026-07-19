@@ -561,16 +561,16 @@ class CategoryServiceBulkController extends Controller
             'allowed_item_types.*' => ['nullable', 'array'],
             'allowed_item_types.*.*' => ['string', 'max:191'],
         ], [], [
-            'root_id' => 'القسم الرئيسي',
-            'category_ids' => 'الأقسام الفرعية',
-            'platform_service_ids' => 'الخدمات',
-            'mode' => 'طريقة التطبيق',
-            'service_fees.*.business_fee_type' => 'نوع رسوم البزنس',
-            'service_fees.*.business_fee_amount' => 'قيمة رسوم البزنس',
-            'service_fees.*.client_fee_type' => 'نوع رسوم العميل',
-            'service_fees.*.client_fee_amount' => 'قيمة رسوم العميل',
-            'service_fees.*.currency' => 'العملة',
-            'service_fees.*.fee_notes' => 'ملاحظات الرسوم',
+            'root_id' => __('القسم الرئيسي'),
+            'category_ids' => __('الأقسام الفرعية'),
+            'platform_service_ids' => __('الخدمات'),
+            'mode' => __('طريقة التطبيق'),
+            'service_fees.*.business_fee_type' => __('نوع رسوم البزنس'),
+            'service_fees.*.business_fee_amount' => __('قيمة رسوم البزنس'),
+            'service_fees.*.client_fee_type' => __('نوع رسوم العميل'),
+            'service_fees.*.client_fee_amount' => __('قيمة رسوم العميل'),
+            'service_fees.*.currency' => __('العملة'),
+            'service_fees.*.fee_notes' => __('ملاحظات الرسوم'),
         ]);
 
         $root = Category::query()
@@ -580,7 +580,7 @@ class CategoryServiceBulkController extends Controller
 
         if (! $root) {
             return back()
-                ->withErrors(['root_id' => 'القسم الرئيسي غير صحيح.'])
+                ->withErrors(['root_id' => __('القسم الرئيسي غير صحيح.')])
                 ->withInput();
         }
 
@@ -601,7 +601,7 @@ class CategoryServiceBulkController extends Controller
 
         if (empty($validChildIds)) {
             return back()
-                ->withErrors(['category_ids' => 'اختر قسمًا فرعيًا واحدًا على الأقل مرتبطًا بنفس القسم الرئيسي.'])
+                ->withErrors(['category_ids' => __('اختر قسمًا فرعيًا واحدًا على الأقل مرتبطًا بنفس القسم الرئيسي.')])
                 ->withInput();
         }
 
@@ -620,7 +620,7 @@ class CategoryServiceBulkController extends Controller
 
         if ($services->isEmpty()) {
             return back()
-                ->withErrors(['platform_service_ids' => 'اختر خدمة مفعلة واحدة على الأقل.'])
+                ->withErrors(['platform_service_ids' => __('اختر خدمة مفعلة واحدة على الأقل.')])
                 ->withInput();
         }
 
@@ -634,7 +634,7 @@ class CategoryServiceBulkController extends Controller
 
         if (! empty($inactiveSelectedIds)) {
             return back()
-                ->withErrors(['platform_service_ids' => 'يوجد خدمات مختارة غير مفعلة. اختر خدمات مفعلة فقط.'])
+                ->withErrors(['platform_service_ids' => __('يوجد خدمات مختارة غير مفعلة. اختر خدمات مفعلة فقط.')])
                 ->withInput();
         }
 
@@ -680,7 +680,7 @@ class CategoryServiceBulkController extends Controller
 
         return redirect()
             ->route('admin.categories.services-bulk.index', ['root_id' => (int) $root->id])
-            ->with('success', 'تم تطبيق الخدمات وإعداداتها ورسومها على الأقسام الفرعية المختارة بنجاح.');
+            ->with('success', __('تم تطبيق الخدمات وإعداداتها ورسومها على الأقسام الفرعية المختارة بنجاح.'));
     }
 
     private function replaceChildServices(

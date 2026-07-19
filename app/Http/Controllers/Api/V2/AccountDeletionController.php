@@ -59,7 +59,7 @@ final class AccountDeletionController extends Controller
 
         if (! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'password' => 'كلمة المرور غير صحيحة.',
+                'password' => __('كلمة المرور غير صحيحة.'),
             ]);
         }
 
@@ -77,8 +77,8 @@ final class AccountDeletionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم استلام طلب حذف الحساب. يمكنك استعادته خلال '
-                . (int) config('bim.account_deletion.grace_days', 30) . ' يومًا.',
+            'message' => __('تم استلام طلب حذف الحساب. يمكنك استعادته خلال ')
+                . (int) config('bim.account_deletion.grace_days', 30) . __(' يومًا.'),
             'data' => [
                 'deletion_requested_at' => $user->deletion_requested_at?->toIso8601String(),
                 'restorable_until' => $user->deletion_scheduled_at?->toIso8601String(),
@@ -105,7 +105,7 @@ final class AccountDeletionController extends Controller
         // anonymized": distinguishing them would turn this into an oracle for
         // which addresses exist.
         $invalid = ValidationException::withMessages([
-            'email' => 'لا يوجد حساب محذوف بهذه البيانات، أو انتهت مهلة الاسترجاع.',
+            'email' => __('لا يوجد حساب محذوف بهذه البيانات، أو انتهت مهلة الاسترجاع.'),
         ]);
 
         if (! $user || $user->anonymized_at !== null || ! Hash::check($data['password'], $user->password)) {
@@ -123,7 +123,7 @@ final class AccountDeletionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم استعادة الحساب.',
+            'message' => __('تم استعادة الحساب.'),
             'token' => $token,
         ]);
     }

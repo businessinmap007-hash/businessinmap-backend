@@ -103,7 +103,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('sync_coverage')
         );
 
-        return $this->backWithActionResult($result, 'تمت مزامنة تغطية الضمان.');
+        return $this->backWithActionResult($result, __('تمت مزامنة تغطية الضمان.'));
     }
 
     public function processGraceNow(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
@@ -131,7 +131,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('process_grace_now')
         );
 
-        return $this->backWithActionResult($result, 'تمت معالجة Grace Period.');
+        return $this->backWithActionResult($result, __('تمت معالجة Grace Period.'));
     }
 
     public function autoUpgrade(UserGuarantee $guarantee, GuaranteeAutoUpgradeService $service)
@@ -140,7 +140,7 @@ final class GuaranteeAdminController extends Controller
 
         if (! $guarantee->user) {
             throw ValidationException::withMessages([
-                'user' => 'لا يوجد مستخدم مرتبط بهذا الضمان.',
+                'user' => __('لا يوجد مستخدم مرتبط بهذا الضمان.'),
             ]);
         }
 
@@ -152,7 +152,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('auto_upgrade')
         );
 
-        return $this->backWithActionResult($result, 'تم تشغيل Auto Upgrade.');
+        return $this->backWithActionResult($result, __('تم تشغيل Auto Upgrade.'));
     }
 
     public function autoDowngrade(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
@@ -164,7 +164,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('auto_downgrade')
         );
 
-        return $this->backWithActionResult($result, 'تم تشغيل Auto Downgrade / Coverage Sync.');
+        return $this->backWithActionResult($result, __('تم تشغيل Auto Downgrade / Coverage Sync.'));
     }
 
     public function expireNow(UserGuarantee $guarantee)
@@ -180,7 +180,7 @@ final class GuaranteeAdminController extends Controller
             extraMeta: ['expired_at' => now()->toDateTimeString()]
         );
 
-        return back()->with('success', 'تم إنهاء الضمان يدويًا وتعليق التغطية.');
+        return back()->with('success', __('تم إنهاء الضمان يدويًا وتعليق التغطية.'));
     }
 
     public function suspend(UserGuarantee $guarantee)
@@ -195,7 +195,7 @@ final class GuaranteeAdminController extends Controller
             clearCoverage: true
         );
 
-        return back()->with('success', 'تم تعليق الضمان يدويًا.');
+        return back()->with('success', __('تم تعليق الضمان يدويًا.'));
     }
 
     public function reactivate(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
@@ -252,7 +252,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('reactivate_sync')
         );
 
-        return $this->backWithActionResult($result, 'تمت إعادة تفعيل الضمان ومحاولة مزامنة التغطية.');
+        return $this->backWithActionResult($result, __('تمت إعادة تفعيل الضمان ومحاولة مزامنة التغطية.'));
     }
 
     public function expireIfDue(UserGuarantee $guarantee, GuaranteeExpirationService $service)
@@ -264,7 +264,7 @@ final class GuaranteeAdminController extends Controller
             meta: $this->adminActionMeta('expire_if_due')
         );
 
-        return $this->backWithActionResult($result, 'تم فحص انتهاء الضمان.');
+        return $this->backWithActionResult($result, __('تم فحص انتهاء الضمان.'));
     }
 
     public function unlockToBalance(UserGuarantee $guarantee, GuaranteeUnlockService $service)
@@ -345,7 +345,7 @@ final class GuaranteeAdminController extends Controller
 
         return back()->with(
             $changed ? 'success' : 'info',
-            $successMessage . ' النتيجة: ' . $reason
+            $successMessage . __(' النتيجة: ') . $reason
         );
     }
 

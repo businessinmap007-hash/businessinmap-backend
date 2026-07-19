@@ -41,7 +41,7 @@ final class AuthController extends Controller
         // nothing. The list is hashed, so this is a membership test only.
         if (BlockedIdentity::isBlocked($data['email'], $data['phone'])) {
             throw ValidationException::withMessages([
-                'email' => ['لا يمكن إنشاء حساب بهذه البيانات.'],
+                'email' => [__('لا يمكن إنشاء حساب بهذه البيانات.')],
             ]);
         }
 
@@ -81,7 +81,7 @@ final class AuthController extends Controller
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user || ! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['البريد الإلكتروني أو كلمة المرور غير صحيحة.'],
+                'email' => [__('البريد الإلكتروني أو كلمة المرور غير صحيحة.')],
             ]);
         }
 
@@ -89,7 +89,7 @@ final class AuthController extends Controller
         // secret from its owner, but it must not leak to someone guessing.
         if ($user->isBanned()) {
             throw ValidationException::withMessages([
-                'email' => ['تم إيقاف هذا الحساب نهائيًا.'],
+                'email' => [__('تم إيقاف هذا الحساب نهائيًا.')],
             ]);
         }
 

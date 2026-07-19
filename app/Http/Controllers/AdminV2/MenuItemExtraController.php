@@ -16,7 +16,7 @@ class MenuItemExtraController extends Controller
 
         MenuItemExtra::create($data);
 
-        return back()->with('success', 'تمت إضافة الإضافة بنجاح.');
+        return back()->with('success', __('تمت إضافة الإضافة بنجاح.'));
     }
 
     public function update(Request $request, MenuItem $menuItem, MenuItemExtra $extra)
@@ -25,7 +25,7 @@ class MenuItemExtraController extends Controller
 
         $extra->update($this->validateData($request));
 
-        return back()->with('success', 'تم تحديث الإضافة بنجاح.');
+        return back()->with('success', __('تم تحديث الإضافة بنجاح.'));
     }
 
     public function destroy(MenuItem $menuItem, MenuItemExtra $extra)
@@ -34,7 +34,7 @@ class MenuItemExtraController extends Controller
 
         $extra->delete();
 
-        return back()->with('success', 'تم حذف الإضافة بنجاح.');
+        return back()->with('success', __('تم حذف الإضافة بنجاح.'));
     }
 
     protected function validateData(Request $request): array
@@ -47,8 +47,8 @@ class MenuItemExtraController extends Controller
             'max_qty' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable'],
         ], [], [
-            'name_ar' => 'الاسم بالعربي',
-            'price' => 'السعر',
+            'name_ar' => __('الاسم بالعربي'),
+            'price' => __('السعر'),
         ]);
 
         $data['is_active'] = (bool) $request->boolean('is_active', true);

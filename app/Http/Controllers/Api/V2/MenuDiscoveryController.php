@@ -24,7 +24,7 @@ final class MenuDiscoveryController extends Controller
         $biz = User::query()->where('type', 'business')->find($business, ['id', 'name', 'logo']);
 
         if (! $biz) {
-            return response()->json(['success' => false, 'message' => 'النشاط غير موجود.'], 404);
+            return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
         }
 
         $items = MenuItem::query()
@@ -54,7 +54,7 @@ final class MenuDiscoveryController extends Controller
             if ($group && $group->isNotEmpty()) {
                 $out[] = [
                     'id' => (int) $section->id,
-                    'name' => $this->label($section->name_ar, $section->name_en, 'قسم #' . $section->id),
+                    'name' => $this->label($section->name_ar, $section->name_en, __('قسم #') . $section->id),
                     'items' => $group->map(fn ($i) => $this->itemPayload($i))->values(),
                 ];
             }
@@ -70,7 +70,7 @@ final class MenuDiscoveryController extends Controller
         if ($ungrouped->isNotEmpty()) {
             $out[] = [
                 'id' => null,
-                'name' => 'أخرى',
+                'name' => __('أخرى'),
                 'items' => $ungrouped->map(fn ($i) => $this->itemPayload($i))->values(),
             ];
         }
@@ -94,20 +94,20 @@ final class MenuDiscoveryController extends Controller
 
         return [
             'id' => (int) $item->id,
-            'name' => $this->label($item->name_ar, $item->name_en, 'صنف #' . $item->id),
+            'name' => $this->label($item->name_ar, $item->name_en, __('صنف #') . $item->id),
             'description' => $this->label($item->description_ar, $item->description_en, ''),
             'image' => $item->image,
             'base_price' => $base,
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
-                'name' => $this->label($v->name_ar, $v->name_en, 'حجم #' . $v->id),
+                'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),
                 'type' => (string) $v->type,
                 'price' => $v->resolvePrice($base),
                 'is_default' => (bool) $v->is_default,
             ])->values(),
             'extras' => $item->activeExtras->map(fn ($e) => [
                 'id' => (int) $e->id,
-                'name' => $this->label($e->name_ar, $e->name_en, 'إضافة #' . $e->id),
+                'name' => $this->label($e->name_ar, $e->name_en, __('إضافة #') . $e->id),
                 'group_key' => $e->group_key,
                 'price' => (float) $e->price,
                 'max_qty' => (int) ($e->max_qty ?: 1),

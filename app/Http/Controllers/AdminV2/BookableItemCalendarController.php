@@ -208,7 +208,7 @@ class BookableItemCalendarController extends Controller
             'is_active'           => true,
         ]);
 
-        return back()->with('success', 'تمت إضافة فترة الغلق');
+        return back()->with('success', __('تمت إضافة فترة الغلق'));
     }
 
     public function storePriceRule(Request $request, BookableItem $bookableItem)
@@ -262,6 +262,6 @@ class BookableItemCalendarController extends Controller
             'is_active'           => true,
         ]);
 
-        return back()->with('success', 'تمت إضافة قاعدة التسعير');
+        return back()->with('success', __('تمت إضافة قاعدة التسعير'));
     }
 }

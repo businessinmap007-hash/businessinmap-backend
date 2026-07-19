@@ -70,7 +70,7 @@ class PlatformServiceController extends Controller
 
         return redirect()
             ->route('admin.platform-services.edit', $row)
-            ->with('success', 'تم إنشاء خدمة النظام بنجاح.');
+            ->with('success', __('تم إنشاء خدمة النظام بنجاح.'));
     }
 
     public function edit(PlatformService $platformService)
@@ -88,7 +88,7 @@ class PlatformServiceController extends Controller
 
         $this->clearLegacyFeeColumns($platformService);
 
-        return back()->with('success', 'تم تحديث خدمة النظام بنجاح.');
+        return back()->with('success', __('تم تحديث خدمة النظام بنجاح.'));
     }
 
     public function destroy(PlatformService $platformService)
@@ -98,14 +98,14 @@ class PlatformServiceController extends Controller
         if ($usage['total'] > 0) {
             return redirect()
                 ->route('admin.platform-services.index')
-                ->with('error', 'لا يمكن حذف هذه الخدمة لأنها مستخدمة بالفعل. يمكنك تعطيلها بدلًا من حذفها.');
+                ->with('error', __('لا يمكن حذف هذه الخدمة لأنها مستخدمة بالفعل. يمكنك تعطيلها بدلًا من حذفها.'));
         }
 
         $platformService->delete();
 
         return redirect()
             ->route('admin.platform-services.index')
-            ->with('success', 'تم حذف خدمة النظام بنجاح.');
+            ->with('success', __('تم حذف خدمة النظام بنجاح.'));
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array
@@ -129,7 +129,7 @@ class PlatformServiceController extends Controller
             'notification_enabled' => ['nullable'],
             'rules_json' => ['nullable', 'string'],
         ], [
-            'key.regex' => 'مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
+            'key.regex' => __('مفتاح الخدمة يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.'),
         ]);
 
         $data['is_active'] = (int) $request->boolean('is_active');
@@ -146,7 +146,7 @@ class PlatformServiceController extends Controller
 
             if (! is_array($decoded) || json_last_error() !== JSON_ERROR_NONE) {
                 throw ValidationException::withMessages([
-                    'rules_json' => 'قواعد الخدمة يجب أن تكون JSON صحيح.',
+                    'rules_json' => __('قواعد الخدمة يجب أن تكون JSON صحيح.'),
                 ]);
             }
 

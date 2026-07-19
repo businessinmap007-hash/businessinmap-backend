@@ -76,7 +76,7 @@ final class BookingController extends Controller
 
         if (! $business) {
             throw ValidationException::withMessages([
-                'business_id' => 'البزنس غير موجود أو غير صحيح.',
+                'business_id' => __('البزنس غير موجود أو غير صحيح.'),
             ]);
         }
 
@@ -307,7 +307,7 @@ final class BookingController extends Controller
     {
         if ($booking->isFinalStatus()) {
             throw ValidationException::withMessages([
-                'status' => 'لا يمكن تعديل حجز في حالة نهائية.',
+                'status' => __('لا يمكن تعديل حجز في حالة نهائية.'),
             ]);
         }
 

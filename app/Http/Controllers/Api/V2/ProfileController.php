@@ -87,7 +87,7 @@ final class ProfileController extends Controller
 
         if ($invalid) {
             throw ValidationException::withMessages([
-                'option_ids' => ['هذه الخصائص لا تنتمي لتخصص نشاطك المُختار: ' . implode(', ', $invalid)],
+                'option_ids' => [__('هذه الخصائص لا تنتمي لتخصص نشاطك المُختار: ') . implode(', ', $invalid)],
             ]);
         }
 
@@ -139,7 +139,7 @@ final class ProfileController extends Controller
         ]);
 
         if (! Hash::check($data['current_password'], $user->password)) {
-            throw ValidationException::withMessages(['current_password' => ['كلمة المرور الحالية غير صحيحة.']]);
+            throw ValidationException::withMessages(['current_password' => [__('كلمة المرور الحالية غير صحيحة.')]]);
         }
 
         $user->password = Hash::make($data['password']);

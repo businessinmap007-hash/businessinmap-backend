@@ -116,7 +116,7 @@ class CategoryChildServiceFeeController extends Controller
             return back()
                 ->withInput()
                 ->withErrors([
-                    'services' => 'لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.',
+                    'services' => __('لا توجد خدمات مفعلة مرتبطة بهذا القسم الفرعي داخل هذا القسم الرئيسي.'),
                 ]);
         }
 
@@ -134,11 +134,11 @@ class CategoryChildServiceFeeController extends Controller
             'rows.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'rows.*.notes' => ['nullable', 'string', 'max:500'],
         ], [], [
-            'rows.*.business_fee_amount' => 'قيمة رسوم البزنس',
-            'rows.*.client_fee_amount' => 'قيمة رسوم المستخدم',
-            'rows.*.currency' => 'العملة',
-            'rows.*.sort_order' => 'الترتيب',
-            'rows.*.notes' => 'الملاحظات',
+            'rows.*.business_fee_amount' => __('قيمة رسوم البزنس'),
+            'rows.*.client_fee_amount' => __('قيمة رسوم المستخدم'),
+            'rows.*.currency' => __('العملة'),
+            'rows.*.sort_order' => __('الترتيب'),
+            'rows.*.notes' => __('الملاحظات'),
         ]);
 
         $rowsInput = is_array($request->input('rows'))
@@ -207,6 +207,6 @@ class CategoryChildServiceFeeController extends Controller
                 'categoryChild' => $categoryChild->id,
                 'parent_id' => $parent->id,
             ])
-            ->with('success', 'تم حفظ رسوم الخدمات لهذا القسم الفرعي بنجاح.');
+            ->with('success', __('تم حفظ رسوم الخدمات لهذا القسم الفرعي بنجاح.'));
     }
 }

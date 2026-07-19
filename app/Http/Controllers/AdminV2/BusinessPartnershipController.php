@@ -98,7 +98,7 @@ class BusinessPartnershipController extends Controller
 
         return redirect()
             ->route('admin.business-partnerships.edit', $partnership->id)
-            ->with('success', 'تم إنشاء الشراكة بنجاح.');
+            ->with('success', __('تم إنشاء الشراكة بنجاح.'));
     }
 
     public function edit(BusinessPartnership $businessPartnership)
@@ -123,20 +123,20 @@ class BusinessPartnershipController extends Controller
 
         return redirect()
             ->route('admin.business-partnerships.edit', $businessPartnership->id)
-            ->with('success', 'تم تحديث الشراكة بنجاح.');
+            ->with('success', __('تم تحديث الشراكة بنجاح.'));
     }
 
     public function destroy(BusinessPartnership $businessPartnership)
     {
         if ($businessPartnership->allocations()->exists()) {
-            return back()->withErrors('لا يمكن حذف شراكة لديها حصص Allocation. يمكن إيقافها بدلًا من الحذف.');
+            return back()->withErrors(__('لا يمكن حذف شراكة لديها حصص Allocation. يمكن إيقافها بدلًا من الحذف.'));
         }
 
         $businessPartnership->delete();
 
         return redirect()
             ->route('admin.business-partnerships.index')
-            ->with('success', 'تم حذف الشراكة.');
+            ->with('success', __('تم حذف الشراكة.'));
     }
 
     public function activate(BusinessPartnership $businessPartnership)
@@ -147,7 +147,7 @@ class BusinessPartnershipController extends Controller
             'approved_at' => $businessPartnership->approved_at ?: now(),
         ]);
 
-        return back()->with('success', 'تم تفعيل الشراكة.');
+        return back()->with('success', __('تم تفعيل الشراكة.'));
     }
 
     public function pause(BusinessPartnership $businessPartnership)
@@ -156,7 +156,7 @@ class BusinessPartnershipController extends Controller
             'status' => BusinessPartnership::STATUS_PAUSED,
         ]);
 
-        return back()->with('success', 'تم إيقاف الشراكة مؤقتًا.');
+        return back()->with('success', __('تم إيقاف الشراكة مؤقتًا.'));
     }
 
     private function validatedData(Request $request, ?BusinessPartnership $partnership = null): array
@@ -177,7 +177,7 @@ class BusinessPartnershipController extends Controller
         $partner = User::query()->where('id', (int) $data['partner_business_id'])->where('type', User::TYPE_BUSINESS)->exists();
 
         if (! $owner || ! $partner) {
-            abort(422, 'المالك والشريك يجب أن يكونا من نوع business.');
+            abort(422, __('المالك والشريك يجب أن يكونا من نوع business.'));
         }
 
         $data['approval_required'] = $request->boolean('approval_required');
@@ -199,7 +199,7 @@ class BusinessPartnershipController extends Controller
         $decoded = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            abort(422, 'JSON غير صالح.');
+            abort(422, __('JSON غير صالح.'));
         }
 
         return $decoded;

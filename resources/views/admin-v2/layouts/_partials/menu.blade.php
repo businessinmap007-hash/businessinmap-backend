@@ -227,21 +227,21 @@
 
         <li class="a2-nav-item">
             @if(! $hasChildren)
-                <a class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ ! $exists ? 'is-disabled' : '' }}" href="{{ $href }}" data-tip="{{ $label }}" aria-current="{{ $active ? 'page' : 'false' }}" aria-disabled="{{ $exists ? 'false' : 'true' }}">
+                <a class="a2-nav-link {{ $active ? 'is-active' : '' }} {{ ! $exists ? 'is-disabled' : '' }}" href="{{ $href }}" data-tip="{{ __($label) }}" aria-current="{{ $active ? 'page' : 'false' }}" aria-disabled="{{ $exists ? 'false' : 'true' }}">
                     {!! $ico($item['icon'] ?? 'dot') !!}
-                    <span class="a2-nav-text">{{ $label }}</span>
+                    <span class="a2-nav-text">{{ __($label) }}</span>
                 </a>
             @else
                 <details class="a2-nav-group" {{ $open ? 'open' : '' }}>
-                    <summary class="a2-nav-parent {{ ($active || $open) ? 'is-active' : '' }}" data-tip="{{ $label }}">
+                    <summary class="a2-nav-parent {{ ($active || $open) ? 'is-active' : '' }}" data-tip="{{ __($label) }}">
                         {!! $ico($item['icon'] ?? 'dot') !!}
-                        <span class="a2-nav-text">{{ $label }}</span>
+                        <span class="a2-nav-text">{{ __($label) }}</span>
                         <span class="a2-nav-caret">▾</span>
                     </summary>
                     <ul class="a2-nav-children">
                         @foreach($children as $child)
                             @if(($child['type'] ?? null) === 'section')
-                                <li class="a2-nav-section">{{ $child['label'] ?? '—' }}</li>
+                                <li class="a2-nav-section">{{ __($child['label'] ?? '—') }}</li>
                                 @foreach(($child['children'] ?? []) as $sectionChild)
                                     @php
                                         $sectionChildRoute = $sectionChild['route'] ?? null;
@@ -252,7 +252,7 @@
                                     <li>
                                         <a class="a2-nav-child-link {{ $sectionChildActive ? 'is-active' : '' }} {{ ! $sectionChildExists ? 'is-disabled' : '' }}" href="{{ $sectionChildHref }}" aria-current="{{ $sectionChildActive ? 'page' : 'false' }}" aria-disabled="{{ $sectionChildExists ? 'false' : 'true' }}">
                                             <span class="a2-nav-bullet"></span>
-                                            <span class="a2-nav-text">{{ $sectionChild['label'] ?? '—' }}</span>
+                                            <span class="a2-nav-text">{{ __($sectionChild['label'] ?? '—') }}</span>
                                         </a>
                                     </li>
                                 @endforeach
@@ -266,7 +266,7 @@
                                 <li>
                                     <a class="a2-nav-child-link {{ $childActive ? 'is-active' : '' }} {{ ! $childExists ? 'is-disabled' : '' }}" href="{{ $childHref }}" aria-current="{{ $childActive ? 'page' : 'false' }}" aria-disabled="{{ $childExists ? 'false' : 'true' }}">
                                         <span class="a2-nav-bullet"></span>
-                                        <span class="a2-nav-text">{{ $child['label'] ?? '—' }}</span>
+                                        <span class="a2-nav-text">{{ __($child['label'] ?? '—') }}</span>
                                     </a>
                                 </li>
                             @endif

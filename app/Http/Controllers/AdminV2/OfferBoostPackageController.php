@@ -71,7 +71,7 @@ final class OfferBoostPackageController extends Controller
         $data = $this->validatedData($request);
         OfferBoostPackage::query()->create($data);
 
-        return redirect()->route('admin.offer-boost-packages.index')->with('success', 'تم إنشاء باقة التمييز.');
+        return redirect()->route('admin.offer-boost-packages.index')->with('success', __('تم إنشاء باقة التمييز.'));
     }
 
     public function edit(OfferBoostPackage $offerBoostPackage)
@@ -84,14 +84,14 @@ final class OfferBoostPackageController extends Controller
         $data = $this->validatedData($request, $offerBoostPackage->id);
         $offerBoostPackage->update($data);
 
-        return redirect()->route('admin.offer-boost-packages.edit', $offerBoostPackage->id)->with('success', 'تم تحديث باقة التمييز.');
+        return redirect()->route('admin.offer-boost-packages.edit', $offerBoostPackage->id)->with('success', __('تم تحديث باقة التمييز.'));
     }
 
     public function toggle(OfferBoostPackage $offerBoostPackage)
     {
         $offerBoostPackage->update(['is_active' => ! (bool) $offerBoostPackage->is_active]);
 
-        return back()->with('success', 'تم تغيير حالة الباقة.');
+        return back()->with('success', __('تم تغيير حالة الباقة.'));
     }
 
     public function boostForm(Request $request)
@@ -122,7 +122,7 @@ final class OfferBoostPackageController extends Controller
 
         return redirect()
             ->route('admin.offer-boost-packages.boost-form', ['offer_id' => $purchase->offer_id])
-            ->with('success', 'تم تفعيل Boost للعرض وخصم قيمة الباقة من المحفظة.');
+            ->with('success', __('تم تفعيل Boost للعرض وخصم قيمة الباقة من المحفظة.'));
     }
 
     private function validatedData(Request $request, ?int $ignoreId = null): array
@@ -144,8 +144,8 @@ final class OfferBoostPackageController extends Controller
         $data['key'] = $data['key'] ?: Str::slug($data['name_en'] ?: $data['name_ar'], '_');
         $data['is_featured'] = $request->boolean('is_featured');
         $data['is_active'] = $request->boolean('is_active');
-        $data['rules'] = $this->jsonOrNull($data['rules_json'] ?? null, 'Rules JSON غير صالح.');
-        $data['meta'] = $this->jsonOrNull($data['meta_json'] ?? null, 'Meta JSON غير صالح.');
+        $data['rules'] = $this->jsonOrNull($data['rules_json'] ?? null, __('Rules JSON غير صالح.'));
+        $data['meta'] = $this->jsonOrNull($data['meta_json'] ?? null, __('Meta JSON غير صالح.'));
         unset($data['rules_json'], $data['meta_json']);
 
         return $data;

@@ -100,7 +100,7 @@ class ServiceBranchBoardController extends Controller
 
         if (! $type) {
             throw ValidationException::withMessages([
-                'item_type_id' => 'نوع العنصر لا يتبع هذه الخدمة.',
+                'item_type_id' => __('نوع العنصر لا يتبع هذه الخدمة.'),
             ]);
         }
 
@@ -131,7 +131,7 @@ class ServiceBranchBoardController extends Controller
             'types.*.group_ids' => ['nullable', 'array'],
             'types.*.group_ids.*' => ['integer', 'exists:platform_service_item_groups,id'],
         ], [], [
-            'service_id' => 'الخدمة',
+            'service_id' => __('الخدمة'),
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -172,8 +172,8 @@ class ServiceBranchBoardController extends Controller
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
         ], [], [
-            'name_ar' => 'اسم الفرع',
-            'name_en' => 'الاسم الإنجليزي',
+            'name_ar' => __('اسم الفرع'),
+            'name_en' => __('الاسم الإنجليزي'),
         ]);
 
         $branch = PlatformServiceItemGroup::create([
@@ -198,8 +198,8 @@ class ServiceBranchBoardController extends Controller
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
         ], [], [
-            'name_ar' => 'اسم الفرع',
-            'name_en' => 'الاسم الإنجليزي',
+            'name_ar' => __('اسم الفرع'),
+            'name_en' => __('الاسم الإنجليزي'),
         ]);
 
         $platformServiceItemGroup->update([

@@ -129,7 +129,7 @@ final class TripScheduleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم نشر خط التشغيل بنجاح.',
+            'message' => __('تم نشر خط التشغيل بنجاح.'),
             'data' => ['schedule' => $this->serialize($schedule->fresh([
                 'originGovernorate:id,name_ar,name_en',
                 'destinationGovernorate:id,name_ar,name_en',
@@ -147,7 +147,7 @@ final class TripScheduleController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديث خط التشغيل.',
+            'message' => __('تم تحديث خط التشغيل.'),
             'data' => ['schedule' => $this->serialize($row->fresh([
                 'originGovernorate:id,name_ar,name_en',
                 'destinationGovernorate:id,name_ar,name_en',
@@ -162,7 +162,7 @@ final class TripScheduleController extends Controller
 
         $row->delete();
 
-        return response()->json(['success' => true, 'message' => 'تم حذف خط التشغيل.']);
+        return response()->json(['success' => true, 'message' => __('تم حذف خط التشغيل.')]);
     }
 
     private function businessOrFail(Request $request)
@@ -172,7 +172,7 @@ final class TripScheduleController extends Controller
         if (! $user || (string) $user->type !== 'business') {
             abort(response()->json([
                 'success' => false,
-                'message' => 'هذه الخدمة متاحة لحسابات الأعمال فقط.',
+                'message' => __('هذه الخدمة متاحة لحسابات الأعمال فقط.'),
             ], 403));
         }
 

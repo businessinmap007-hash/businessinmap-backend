@@ -130,7 +130,7 @@ class BookableAllocationController extends Controller
 
         return redirect()
             ->route('admin.bookable-allocations.edit', $allocation->id)
-            ->with('success', 'تم إنشاء الحصة وتوليد العرض التجاري.');
+            ->with('success', __('تم إنشاء الحصة وتوليد العرض التجاري.'));
     }
 
     public function edit(BookableAllocation $bookableAllocation)
@@ -149,7 +149,7 @@ class BookableAllocationController extends Controller
 
         return redirect()
             ->route('admin.bookable-allocations.edit', $bookableAllocation->id)
-            ->with('success', 'تم تحديث الحصة وتحديث العرض التجاري.');
+            ->with('success', __('تم تحديث الحصة وتحديث العرض التجاري.'));
     }
 
     public function destroy(BookableAllocation $bookableAllocation)
@@ -165,7 +165,7 @@ class BookableAllocationController extends Controller
 
         return redirect()
             ->route('admin.bookable-allocations.index')
-            ->with('success', 'تم حذف الحصة والعرض المرتبط بها.');
+            ->with('success', __('تم حذف الحصة والعرض المرتبط بها.'));
     }
 
     public function stop(BookableAllocation $bookableAllocation)
@@ -173,7 +173,7 @@ class BookableAllocationController extends Controller
         $bookableAllocation->update(['status' => BookableAllocation::STATUS_STOPPED]);
         $this->syncOffer($bookableAllocation->refresh());
 
-        return back()->with('success', 'تم إيقاف الحصة.');
+        return back()->with('success', __('تم إيقاف الحصة.'));
     }
 
     public function activate(BookableAllocation $bookableAllocation)
@@ -181,7 +181,7 @@ class BookableAllocationController extends Controller
         $bookableAllocation->update(['status' => BookableAllocation::STATUS_ACTIVE]);
         $this->syncOffer($bookableAllocation->refresh());
 
-        return back()->with('success', 'تم تفعيل الحصة.');
+        return back()->with('success', __('تم تفعيل الحصة.'));
     }
 
     private function validatedData(Request $request, ?BookableAllocation $allocation = null): array
@@ -212,7 +212,7 @@ class BookableAllocationController extends Controller
         $bookable = BookableItem::query()->findOrFail((int) $data['bookable_item_id']);
 
         if ((int) $bookable->business_id !== (int) $partnership->owner_business_id) {
-            abort(422, 'الوحدة المختارة يجب أن تكون مملوكة لصاحب الأصل في الشراكة.');
+            abort(422, __('الوحدة المختارة يجب أن تكون مملوكة لصاحب الأصل في الشراكة.'));
         }
 
         $data['owner_business_id'] = (int) $partnership->owner_business_id;
@@ -290,7 +290,7 @@ class BookableAllocationController extends Controller
         $decoded = json_decode($json, true);
 
         if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
-            abort(422, 'Meta JSON غير صالح.');
+            abort(422, __('Meta JSON غير صالح.'));
         }
 
         return $decoded;

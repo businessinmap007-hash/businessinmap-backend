@@ -73,7 +73,7 @@ final class NotificationCenterAdminController extends Controller
     {
         $created = $service->syncOfferFollowNotifications(1000);
 
-        return back()->with('success', 'تم مزامنة إشعارات العروض. New created: ' . $created);
+        return back()->with('success', __('تم مزامنة إشعارات العروض. New created: ') . $created);
     }
 
     private function applyFilters(Builder $query, array $data): void

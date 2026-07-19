@@ -261,7 +261,7 @@ final class BusinessOfferController extends Controller
         if ($data['owner_business_id'] !== $businessId
             && ! $this->ownerAuthorizesSeller($data['owner_business_id'], $businessId)) {
             throw ValidationException::withMessages([
-                'owner_business_id' => 'لا تملك إذنًا لإعادة بيع منتجات هذا البزنس. يلزم اتفاق شراكة نشط مع المالك.',
+                'owner_business_id' => __('لا تملك إذنًا لإعادة بيع منتجات هذا البزنس. يلزم اتفاق شراكة نشط مع المالك.'),
             ]);
         }
         $data['source_type'] = (string) ($data['source_type'] ?? CommercialOffer::SOURCE_PROMOTION);

@@ -87,7 +87,7 @@ final class OrderController extends Controller
 
         // Tell the restaurant the customer cancelled.
         $this->notifyCancellation($model, (int) $model->business_id, $userId, $reason, [
-            'body_ar' => 'ألغى العميل الطلب رقم #' . $model->id . '.',
+            'body_ar' => __('ألغى العميل الطلب رقم #') . $model->id . '.',
             'body_en' => 'The customer cancelled order #' . $model->id . '.',
         ]);
 
@@ -146,7 +146,7 @@ final class OrderController extends Controller
 
         // Tell the customer the restaurant rejected their order.
         $this->notifyCancellation($model, (int) $model->user_id, $businessId, $reason, [
-            'body_ar' => 'اعتذر المطعم عن تنفيذ طلبك رقم #' . $model->id . '.',
+            'body_ar' => __('اعتذر المطعم عن تنفيذ طلبك رقم #') . $model->id . '.',
             'body_en' => 'The restaurant could not fulfil your order #' . $model->id . '.',
         ]);
 
@@ -172,10 +172,10 @@ final class OrderController extends Controller
                 ->find($order);
 
             if (! $m) {
-                abort(404, 'الطلب غير موجود.');
+                abort(404, __('الطلب غير موجود.'));
             }
             if ((string) $m->status !== 'pending' || $m->prep_status !== null) {
-                abort(409, 'لا يمكن قبول هذا الطلب في حالته الحالية.');
+                abort(409, __('لا يمكن قبول هذا الطلب في حالته الحالية.'));
             }
 
             // Collect BIM's fee from the business wallet (may block on balance).
@@ -188,7 +188,7 @@ final class OrderController extends Controller
         });
 
         $this->notifyCustomer($model, 'menu_order_accepted', $businessId, [
-            'body_ar' => 'قبِل المطعم طلبك رقم #' . $model->id . ' وسيبدأ التحضير.',
+            'body_ar' => __('قبِل المطعم طلبك رقم #') . $model->id . __(' وسيبدأ التحضير.'),
             'body_en' => 'The restaurant accepted your order #' . $model->id . '.',
         ]);
 
@@ -201,7 +201,7 @@ final class OrderController extends Controller
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
 
         $this->notifyCustomer($model, 'menu_order_preparing', (int) $request->user()->id, [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن.',
+            'body_ar' => __('طلبك رقم #') . $model->id . __(' قيد التحضير الآن.'),
             'body_en' => 'Your order #' . $model->id . ' is now being prepared.',
         ]);
 
@@ -214,7 +214,7 @@ final class OrderController extends Controller
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
         $this->notifyCustomer($model, 'menu_order_ready', (int) $request->user()->id, [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز.',
+            'body_ar' => __('طلبك رقم #') . $model->id . __(' جاهز.'),
             'body_en' => 'Your order #' . $model->id . ' is ready.',
         ]);
 
@@ -235,10 +235,10 @@ final class OrderController extends Controller
                 ->find($order);
 
             if (! $m) {
-                abort(404, 'الطلب غير موجود.');
+                abort(404, __('الطلب غير موجود.'));
             }
             if ((string) $m->status !== 'pending' || (string) $m->prep_status !== $from) {
-                abort(409, 'لا يمكن نقل الطلب إلى هذه الحالة الآن.');
+                abort(409, __('لا يمكن نقل الطلب إلى هذه الحالة الآن.'));
             }
 
             $m->prep_status = $to;
@@ -261,16 +261,16 @@ final class OrderController extends Controller
             /** @var Order|null $model */
             $model = $finder();
             if (! $model) {
-                abort(404, 'الطلب غير موجود.');
+                abort(404, __('الطلب غير موجود.'));
             }
             if ((string) $model->status !== 'pending') {
-                abort(409, 'لا يمكن إلغاء هذا الطلب في حالته الحالية.');
+                abort(409, __('لا يمكن إلغاء هذا الطلب في حالته الحالية.'));
             }
             if ($model->prep_status !== null) {
-                abort(409, 'لا يمكن الإلغاء بعد قبول الطلب وبدء التحضير.');
+                abort(409, __('لا يمكن الإلغاء بعد قبول الطلب وبدء التحضير.'));
             }
             if ($model->delivery_driver_id) {
-                abort(409, 'لا يمكن الإلغاء بعد إسناد موصّل للطلب.');
+                abort(409, __('لا يمكن الإلغاء بعد إسناد موصّل للطلب.'));
             }
 
             $model->status = 'cancelled';

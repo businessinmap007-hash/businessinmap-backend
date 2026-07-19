@@ -91,7 +91,7 @@ class JobPostController extends Controller
 
         // options for view (بدل activeOptions)
         $expireOptions = [
-            '' => 'الكل',
+            '' => __('الكل'),
             'not_expired' => 'Not Expired',
             'expired' => 'Expired',
         ];
@@ -140,7 +140,7 @@ class JobPostController extends Controller
 
         return redirect()
             ->route('admin.jobs.edit', ['post' => $post->id])
-            ->with('success', 'تم إنشاء Job بنجاح');
+            ->with('success', __('تم إنشاء Job بنجاح'));
     }
 
     public function edit(JobPost $post)
@@ -172,7 +172,7 @@ class JobPostController extends Controller
 
         return redirect()
             ->route('admin.jobs.edit', ['post' => $post->id] + $request->query())
-            ->with('success', 'تم تحديث Job بنجاح');
+            ->with('success', __('تم تحديث Job بنجاح'));
     }
 
     public function destroy(JobPost $post)
@@ -181,7 +181,7 @@ class JobPostController extends Controller
 
         return redirect()
             ->route('admin.jobs.index')
-            ->with('success', 'تم حذف Job');
+            ->with('success', __('تم حذف Job'));
     }
 
     public function toggleActive(JobPost $post)
@@ -229,7 +229,7 @@ class JobPostController extends Controller
     ) {
         abort(
             redirect()->back()
-                ->withErrors(['title_ar' => 'أدخل عنوان عربي أو إنجليزي على الأقل'])
+                ->withErrors(['title_ar' => __('أدخل عنوان عربي أو إنجليزي على الأقل')])
                 ->withInput()
         );
     }

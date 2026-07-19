@@ -84,6 +84,6 @@ class AdminRoleController extends Controller
 
         return redirect()
             ->route('admin.admin-roles.index')
-            ->with('success', 'تم تحديث صلاحيات «' . $user->name . '».');
+            ->with('success', __('تم تحديث صلاحيات «') . $user->name . '».');
     }
 }

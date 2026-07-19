@@ -41,10 +41,10 @@ class UserServiceFeeConsentController extends Controller
             'stats_enabled' => ['nullable'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ], [], [
-            'fee_auto_charge_enabled' => 'تفعيل خصم رسوم التنفيذ تلقائيًا',
-            'rating_enabled' => 'تفعيل التقييم',
-            'stats_enabled' => 'تفعيل الإحصائيات',
-            'notes' => 'الملاحظات',
+            'fee_auto_charge_enabled' => __('تفعيل خصم رسوم التنفيذ تلقائيًا'),
+            'rating_enabled' => __('تفعيل التقييم'),
+            'stats_enabled' => __('تفعيل الإحصائيات'),
+            'notes' => __('الملاحظات'),
         ]);
 
         $feeEnabled = $request->boolean('fee_auto_charge_enabled');
@@ -89,7 +89,7 @@ class UserServiceFeeConsentController extends Controller
 
         return redirect()
             ->route('admin.user-service-fee-consents.edit', $user)
-            ->with('success', 'تم تحديث موافقات رسوم الخدمة بنجاح.');
+            ->with('success', __('تم تحديث موافقات رسوم الخدمة بنجاح.'));
     }
 
     public function enableCharging(User $user): RedirectResponse
@@ -103,9 +103,9 @@ class UserServiceFeeConsentController extends Controller
             ]
         );
 
-        $consent->enableCharging('تم التفعيل من لوحة الإدارة.');
+        $consent->enableCharging(__('تم التفعيل من لوحة الإدارة.'));
 
-        return back()->with('success', 'تم تفعيل الخصم التلقائي لرسوم الخدمة.');
+        return back()->with('success', __('تم تفعيل الخصم التلقائي لرسوم الخدمة.'));
     }
 
     public function disableCharging(User $user): RedirectResponse
@@ -119,8 +119,8 @@ class UserServiceFeeConsentController extends Controller
             ]
         );
 
-        $consent->disableCharging('تم التعطيل من لوحة الإدارة.');
+        $consent->disableCharging(__('تم التعطيل من لوحة الإدارة.'));
 
-        return back()->with('success', 'تم تعطيل الخصم التلقائي لرسوم الخدمة.');
+        return back()->with('success', __('تم تعطيل الخصم التلقائي لرسوم الخدمة.'));
     }
 }

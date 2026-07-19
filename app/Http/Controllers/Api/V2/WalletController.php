@@ -123,7 +123,7 @@ final class WalletController extends Controller
 
         $fromId = (int) $request->user()->id;
         if ((int) $data['to_user_id'] === $fromId) {
-            throw ValidationException::withMessages(['to_user_id' => ['لا يمكنك التحويل إلى نفسك.']]);
+            throw ValidationException::withMessages(['to_user_id' => [__('لا يمكنك التحويل إلى نفسك.')]]);
         }
 
         $this->assertPin($fromId, $data['pin']);
@@ -178,7 +178,7 @@ final class WalletController extends Controller
 
         if (WalletPin::query()->where('user_id', $userId)->exists()) {
             if (empty($data['current_pin']) || ! $this->wallet->verifyPin($userId, $data['current_pin'])) {
-                throw ValidationException::withMessages(['current_pin' => ['الرمز الحالي غير صحيح.']]);
+                throw ValidationException::withMessages(['current_pin' => [__('الرمز الحالي غير صحيح.')]]);
             }
         }
 
@@ -200,7 +200,7 @@ final class WalletController extends Controller
     private function assertPin(int $userId, string $pin): void
     {
         if (! $this->wallet->verifyPin($userId, $pin)) {
-            throw ValidationException::withMessages(['pin' => ['رمز المحفظة غير صحيح.']]);
+            throw ValidationException::withMessages(['pin' => [__('رمز المحفظة غير صحيح.')]]);
         }
     }
 }

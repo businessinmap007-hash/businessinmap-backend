@@ -104,28 +104,28 @@ class UserController extends Controller
             ->withQueryString();
 
         $types = [
-            '' => 'كل الأنواع',
+            '' => __('كل الأنواع'),
             'client' => 'Client',
             'business' => 'Business',
             'admin' => 'Admin',
         ];
 
         $activeOptions = [
-            ''  => 'كل حالات التفعيل',
-            '1' => 'مفعل',
-            '0' => 'غير مفعل',
+            ''  => __('كل حالات التفعيل'),
+            '1' => __('مفعل'),
+            '0' => __('غير مفعل'),
         ];
 
         $subscriptionOptions = [
-            ''  => 'كل الاشتراكات',
-            '1' => 'لديه اشتراك نشط',
-            '0' => 'بدون اشتراك نشط',
+            ''  => __('كل الاشتراكات'),
+            '1' => __('لديه اشتراك نشط'),
+            '0' => __('بدون اشتراك نشط'),
         ];
 
         $trashedOptions = [
-            ''     => 'غير محذوفين فقط',
-            'with' => 'مع المحذوفين',
-            'only' => 'المحذوفين فقط',
+            ''     => __('غير محذوفين فقط'),
+            'with' => __('مع المحذوفين'),
+            'only' => __('المحذوفين فقط'),
         ];
 
         $categories = Category::query()
@@ -645,7 +645,7 @@ class UserController extends Controller
 
             if ($invalid) {
                 throw ValidationException::withMessages([
-                    'options' => 'بعض الخيارات لا تنتمي للقسم الفرعي المختار.',
+                    'options' => __('بعض الخيارات لا تنتمي للقسم الفرعي المختار.'),
                 ]);
             }
         }
@@ -674,51 +674,51 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.show', $user->id)
-            ->with('success', 'تم تحديث المستخدم بنجاح.');
+            ->with('success', __('تم تحديث المستخدم بنجاح.'));
     }
 
     public function destroy(User $user)
     {
         $this->purger->softDelete($user);
-        return back()->with('success', 'تم حذف المستخدم.');
+        return back()->with('success', __('تم حذف المستخدم.'));
     }
 
     public function restore(int $id)
     {
         $user = User::withTrashed()->findOrFail($id);
         $this->purger->restore($user);
-        return back()->with('success', 'تم استرجاع المستخدم.');
+        return back()->with('success', __('تم استرجاع المستخدم.'));
     }
 
     public function forceDelete(int $id)
     {
         $user = User::withTrashed()->findOrFail($id);
         $this->purger->forceDelete($user);
-        return back()->with('success', 'تم حذف المستخدم نهائيًا.');
+        return back()->with('success', __('تم حذف المستخدم نهائيًا.'));
     }
 
     public function bulkDestroy(Request $request)
     {
         $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
         if ($ids->isEmpty()) {
-            return back()->withErrors('اختر مستخدمين أولًا.');
+            return back()->withErrors(__('اختر مستخدمين أولًا.'));
         }
         User::whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->softDelete($user));
-        return back()->with('success', 'تم حذف المستخدمين المحددين.');
+        return back()->with('success', __('تم حذف المستخدمين المحددين.'));
     }
 
     public function bulkRestore(Request $request)
     {
         $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
         User::withTrashed()->whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->restore($user));
-        return back()->with('success', 'تم استرجاع المستخدمين المحددين.');
+        return back()->with('success', __('تم استرجاع المستخدمين المحددين.'));
     }
 
     public function bulkForceDelete(Request $request)
     {
         $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter()->values();
         User::withTrashed()->whereIn('id', $ids)->get()->each(fn ($user) => $this->purger->forceDelete($user));
-        return back()->with('success', 'تم حذف المستخدمين المحددين نهائيًا.');
+        return back()->with('success', __('تم حذف المستخدمين المحددين نهائيًا.'));
     }
 
     public function toggleSuspend(User $user)
@@ -726,7 +726,7 @@ class UserController extends Controller
         $user->activated_at = $user->activated_at ? null : now();
         $user->save();
 
-        return back()->with('success', 'تم تحديث حالة التفعيل.');
+        return back()->with('success', __('تم تحديث حالة التفعيل.'));
     }
 
     private function hasOptionIsActiveColumn(): bool

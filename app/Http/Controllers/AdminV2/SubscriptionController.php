@@ -190,7 +190,7 @@ final class SubscriptionController extends Controller
             if ($hasAnother) {
                 return back()
                     ->withInput()
-                    ->withErrors(['user_id' => 'هذا المستخدم (Business) لا يمكنه الاشتراك في أكثر من قسم.']);
+                    ->withErrors(['user_id' => __('هذا المستخدم (Business) لا يمكنه الاشتراك في أكثر من قسم.')]);
             }
         }
 
@@ -205,7 +205,7 @@ final class SubscriptionController extends Controller
             if ($dup) {
                 return back()
                     ->withInput()
-                    ->withErrors(['category_id' => 'هذا القسم مُسجل بالفعل لنفس المستخدم.']);
+                    ->withErrors(['category_id' => __('هذا القسم مُسجل بالفعل لنفس المستخدم.')]);
             }
         }
 
@@ -213,7 +213,7 @@ final class SubscriptionController extends Controller
 
         return redirect()
             ->route('admin.subscriptions.show', $subscription->id)
-            ->with('success', 'تم تحديث السجل');
+            ->with('success', __('تم تحديث السجل'));
     }
 
     public function toggleActive(Subscription $subscription)
@@ -221,6 +221,6 @@ final class SubscriptionController extends Controller
         $subscription->is_active = (int)!((int)$subscription->is_active);
         $subscription->save();
 
-        return back()->with('success', 'تم تحديث الحالة');
+        return back()->with('success', __('تم تحديث الحالة'));
     }
 }

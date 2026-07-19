@@ -43,7 +43,7 @@ final class PasswordResetController extends Controller
         // Same answer either way — do not reveal whether the account exists.
         return response()->json([
             'success' => true,
-            'message' => 'إن كان هناك حساب مرتبط بهذا البريد فقد أُرسل إليه رمز الاستعادة.',
+            'message' => __('إن كان هناك حساب مرتبط بهذا البريد فقد أُرسل إليه رمز الاستعادة.'),
         ]);
     }
 
@@ -80,7 +80,7 @@ final class PasswordResetController extends Controller
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user) {
             // Code matched but user vanished — treat as invalid.
-            throw ValidationException::withMessages(['code' => ['رمز الاستعادة غير صالح.']]);
+            throw ValidationException::withMessages(['code' => [__('رمز الاستعادة غير صالح.')]]);
         }
 
         $user->password = Hash::make($data['password']);
@@ -90,7 +90,7 @@ final class PasswordResetController extends Controller
         DB::table('password_reset_codes')->where('email', $data['email'])->delete();
         $user->tokens()->delete();
 
-        return response()->json(['success' => true, 'message' => 'تم تغيير كلمة المرور بنجاح.']);
+        return response()->json(['success' => true, 'message' => __('تم تغيير كلمة المرور بنجاح.')]);
     }
 
     // ─────────────────────────── internals ───────────────────────────
@@ -123,21 +123,21 @@ final class PasswordResetController extends Controller
         $row = DB::table('password_reset_codes')->where('email', $email)->first();
 
         if (! $row) {
-            throw ValidationException::withMessages(['code' => ['رمز الاستعادة غير صالح أو منتهي.']]);
+            throw ValidationException::withMessages(['code' => [__('رمز الاستعادة غير صالح أو منتهي.')]]);
         }
 
         if (Carbon::parse($row->expires_at)->isPast()) {
             DB::table('password_reset_codes')->where('email', $email)->delete();
-            throw ValidationException::withMessages(['code' => ['انتهت صلاحية الرمز. اطلب رمزاً جديداً.']]);
+            throw ValidationException::withMessages(['code' => [__('انتهت صلاحية الرمز. اطلب رمزاً جديداً.')]]);
         }
 
         if ((int) $row->attempts >= self::MAX_ATTEMPTS) {
-            throw ValidationException::withMessages(['code' => ['تم تجاوز عدد المحاولات. اطلب رمزاً جديداً.']]);
+            throw ValidationException::withMessages(['code' => [__('تم تجاوز عدد المحاولات. اطلب رمزاً جديداً.')]]);
         }
 
         if (! Hash::check($code, $row->code_hash)) {
             DB::table('password_reset_codes')->where('email', $email)->increment('attempts');
-            throw ValidationException::withMessages(['code' => ['رمز الاستعادة غير صحيح.']]);
+            throw ValidationException::withMessages(['code' => [__('رمز الاستعادة غير صحيح.')]]);
         }
     }
 

@@ -52,11 +52,17 @@
         @endif
     </div>
 
+    @php $otherLocale = app()->getLocale() === 'ar' ? 'en' : 'ar'; @endphp
+    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.locale.switch', $otherLocale) }}"
+       title="{{ __('تغيير اللغة') }}">
+        {{ $otherLocale === 'en' ? 'English' : 'العربية' }}
+    </a>
+
     <form method="POST" action="{{ route('admin.logout') }}">
         @csrf
 
         <button class="a2-btn a2-btn-ghost" type="submit">
-            تسجيل الخروج
+            {{ __('تسجيل الخروج') }}
         </button>
     </form>
 </div>

@@ -88,7 +88,7 @@ class SponsorController extends Controller
         Sponsor::create($data);
 
         return redirect()->route('admin.sponsors.index')
-            ->with('success', 'تم إنشاء Sponsor بنجاح');
+            ->with('success', __('تم إنشاء Sponsor بنجاح'));
     }
 
     public function edit(Sponsor $sponsor)
@@ -118,7 +118,7 @@ class SponsorController extends Controller
         $sponsor->update($data);
 
         return redirect()->route('admin.sponsors.index')
-            ->with('success', 'تم تحديث Sponsor بنجاح');
+            ->with('success', __('تم تحديث Sponsor بنجاح'));
     }
 
     public function toggleActive(Sponsor $sponsor)
@@ -126,7 +126,7 @@ class SponsorController extends Controller
         $sponsor->activated_at = $sponsor->activated_at ? null : now();
         $sponsor->save();
 
-        return back()->with('success', 'تم تغيير الحالة بنجاح');
+        return back()->with('success', __('تم تغيير الحالة بنجاح'));
     }
 
     public function destroy(Sponsor $sponsor)
@@ -140,7 +140,7 @@ class SponsorController extends Controller
 
         $sponsor->delete();
 
-        return back()->with('success', 'تم حذف Sponsor');
+        return back()->with('success', __('تم حذف Sponsor'));
     }
 
 
@@ -165,12 +165,12 @@ class SponsorController extends Controller
             'expire_at'    => 'nullable|date',
             'activated_at' => 'nullable|date', // إدخال يدوي (Datetime)
         ], [], [
-            'user_id' => 'المستخدم',
-            'image' => 'الصورة',
-            'price' => 'السعر',
-            'type' => 'النوع',
-            'expire_at' => 'تاريخ الانتهاء',
-            'activated_at' => 'تاريخ التفعيل',
+            'user_id' => __('المستخدم'),
+            'image' => __('الصورة'),
+            'price' => __('السعر'),
+            'type' => __('النوع'),
+            'expire_at' => __('تاريخ الانتهاء'),
+            'activated_at' => __('تاريخ التفعيل'),
         ]);
     }
 

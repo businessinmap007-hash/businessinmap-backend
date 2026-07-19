@@ -85,7 +85,7 @@ final class WalletNoteTemplateController extends Controller
 
         return redirect()
             ->route('admin.wallet-notes.index')
-            ->with('success', 'تم إنشاء الملاحظة بنجاح');
+            ->with('success', __('تم إنشاء الملاحظة بنجاح'));
     }
 
     public function edit(WalletNoteTemplate $walletNote)
@@ -109,7 +109,7 @@ final class WalletNoteTemplateController extends Controller
 
         return redirect()
             ->route('admin.wallet-notes.index')
-            ->with('success', 'تم حفظ التعديلات');
+            ->with('success', __('تم حفظ التعديلات'));
     }
 
     public function destroy(WalletNoteTemplate $walletNote)
@@ -118,6 +118,6 @@ final class WalletNoteTemplateController extends Controller
 
         return redirect()
             ->route('admin.wallet-notes.index')
-            ->with('success', 'تم حذف الملاحظة');
+            ->with('success', __('تم حذف الملاحظة'));
     }
 }

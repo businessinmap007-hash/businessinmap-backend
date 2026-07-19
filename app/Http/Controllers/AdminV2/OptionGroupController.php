@@ -49,9 +49,9 @@ class OptionGroupController extends Controller
             'perPage' => $perPage,
             'perPageOptions' => self::PER_PAGE_ALLOWED,
             'activeOptions' => [
-                ''  => 'الكل',
-                '1' => 'نشط',
-                '0' => 'غير نشط',
+                ''  => __('الكل'),
+                '1' => __('نشط'),
+                '0' => __('غير نشط'),
             ],
         ]);
     }
@@ -114,7 +114,7 @@ class OptionGroupController extends Controller
 
         return redirect()
             ->route('admin.option-groups.index')
-            ->with('success', 'تمت إضافة مجموعة الخيارات بنجاح.');
+            ->with('success', __('تمت إضافة مجموعة الخيارات بنجاح.'));
     }
 
     public function edit(OptionGroup $optionGroup): View
@@ -184,7 +184,7 @@ class OptionGroupController extends Controller
 
         return redirect()
             ->route('admin.option-groups.edit', $optionGroup->id)
-            ->with('success', 'تم تحديث مجموعة الخيارات بنجاح.');
+            ->with('success', __('تم تحديث مجموعة الخيارات بنجاح.'));
     }
 
     public function destroy(OptionGroup $optionGroup): RedirectResponse
@@ -197,7 +197,7 @@ class OptionGroupController extends Controller
 
         return redirect()
             ->route('admin.option-groups.index')
-            ->with('success', 'تم حذف مجموعة الخيارات وفك ربط الخيارات التابعة لها.');
+            ->with('success', __('تم حذف مجموعة الخيارات وفك ربط الخيارات التابعة لها.'));
     }
 
     protected function hasIsActiveColumn(): bool

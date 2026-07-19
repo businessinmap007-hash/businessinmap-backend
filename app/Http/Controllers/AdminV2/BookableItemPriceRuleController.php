@@ -54,20 +54,20 @@ class BookableItemPriceRuleController extends Controller
 
         return redirect()
             ->route('admin.bookable-items.price-rules.index', $bookableItem)
-            ->with('success', 'تم إضافة قاعدة التسعير بنجاح.');
+            ->with('success', __('تم إضافة قاعدة التسعير بنجاح.'));
     }
 
     public function destroy(BookableItem $bookableItem, BookableItemPriceRule $rule)
     {
         if ((int) $rule->bookable_item_id !== (int) $bookableItem->id) {
             throw ValidationException::withMessages([
-                'rule' => 'قاعدة التسعير لا تتبع هذا العنصر.',
+                'rule' => __('قاعدة التسعير لا تتبع هذا العنصر.'),
             ]);
         }
 
         $rule->delete();
 
-        return back()->with('success', 'تم حذف قاعدة التسعير بنجاح.');
+        return back()->with('success', __('تم حذف قاعدة التسعير بنجاح.'));
     }
 
     protected function validateData(Request $request, BookableItem $bookableItem): array
@@ -107,17 +107,17 @@ class BookableItemPriceRuleController extends Controller
             'notes' => ['nullable', 'string'],
             'is_active' => ['nullable'],
         ], [], [
-            'title' => 'العنوان',
-            'rule_type' => 'نوع القاعدة',
-            'start_date' => 'تاريخ البداية',
-            'end_date' => 'تاريخ النهاية',
-            'weekday' => 'اليوم الأسبوعي',
-            'price_type' => 'نوع السعر',
-            'price_value' => 'قيمة السعر',
-            'currency' => 'العملة',
-            'priority' => 'الأولوية',
-            'notes' => 'الملاحظات',
-            'is_active' => 'الحالة',
+            'title' => __('العنوان'),
+            'rule_type' => __('نوع القاعدة'),
+            'start_date' => __('تاريخ البداية'),
+            'end_date' => __('تاريخ النهاية'),
+            'weekday' => __('اليوم الأسبوعي'),
+            'price_type' => __('نوع السعر'),
+            'price_value' => __('قيمة السعر'),
+            'currency' => __('العملة'),
+            'priority' => __('الأولوية'),
+            'notes' => __('الملاحظات'),
+            'is_active' => __('الحالة'),
         ]);
 
         $data['currency'] = strtoupper(trim((string) ($data['currency'] ?? 'EGP')));
@@ -126,7 +126,7 @@ class BookableItemPriceRuleController extends Controller
 
         if ($data['rule_type'] === BookableItemPriceRule::RULE_WEEKDAY && ! $request->filled('weekday')) {
             throw ValidationException::withMessages([
-                'weekday' => 'حقل Weekday مطلوب عند اختيار rule_type = weekday.',
+                'weekday' => __('حقل Weekday مطلوب عند اختيار rule_type = weekday.'),
             ]);
         }
 
@@ -139,8 +139,8 @@ class BookableItemPriceRuleController extends Controller
             && (! $request->filled('start_date') || ! $request->filled('end_date'))
         ) {
             throw ValidationException::withMessages([
-                'start_date' => 'حقلا Start Date و End Date مطلوبان لهذا النوع من القواعد.',
-                'end_date' => 'حقلا Start Date و End Date مطلوبان لهذا النوع من القواعد.',
+                'start_date' => __('حقلا Start Date و End Date مطلوبان لهذا النوع من القواعد.'),
+                'end_date' => __('حقلا Start Date و End Date مطلوبان لهذا النوع من القواعد.'),
             ]);
         }
 
@@ -167,7 +167,7 @@ class BookableItemPriceRuleController extends Controller
 
         if ($data['price_type'] === BookableItemPriceRule::PRICE_PERCENT && (float) $data['price_value'] < -100) {
             throw ValidationException::withMessages([
-                'price_value' => 'في حالة percent لا يمكن أن تقل القيمة عن -100.',
+                'price_value' => __('في حالة percent لا يمكن أن تقل القيمة عن -100.'),
             ]);
         }
 
@@ -197,7 +197,7 @@ class BookableItemPriceRuleController extends Controller
 
             if ($overlapExists) {
                 throw ValidationException::withMessages([
-                    'start_date' => 'يوجد بالفعل Rule نشطة متداخلة مع نفس النطاق الزمني.',
+                    'start_date' => __('يوجد بالفعل Rule نشطة متداخلة مع نفس النطاق الزمني.'),
                 ]);
             }
         }
@@ -266,6 +266,6 @@ class BookableItemPriceRuleController extends Controller
 
         return redirect()
             ->route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id])
-            ->with('success', 'تم تحديث قاعدة السعر بنجاح');
+            ->with('success', __('تم تحديث قاعدة السعر بنجاح'));
     }
 }

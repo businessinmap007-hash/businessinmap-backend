@@ -60,7 +60,7 @@ class CatalogProductController extends Controller
         if ($action === '' || $action === 'inline_update') {
             return redirect()
                 ->route('admin.catalog-products.index', $redirectParams)
-                ->with('error', 'اختر إجراء صالح.');
+                ->with('error', __('اختر إجراء صالح.'));
         }
 
         $ids = collect((array) $request->input('ids', []))
@@ -73,14 +73,14 @@ class CatalogProductController extends Controller
         if ($ids->isEmpty()) {
             return redirect()
                 ->route('admin.catalog-products.index', $redirectParams)
-                ->with('error', 'اختر صنف واحد على الأقل.');
+                ->with('error', __('اختر صنف واحد على الأقل.'));
         }
 
         $this->applyBulkAction($action, $ids);
 
         return redirect()
             ->route('admin.catalog-products.index', $redirectParams)
-            ->with('success', 'تم تنفيذ العملية بنجاح.');
+            ->with('success', __('تم تنفيذ العملية بنجاح.'));
     }
 
     /** Base builder that excludes soft-deleted rows (e.g. merged duplicates). */

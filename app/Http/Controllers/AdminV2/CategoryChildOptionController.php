@@ -152,7 +152,7 @@ class CategoryChildOptionController extends Controller
 
         return redirect()
             ->route('admin.category-child-options.edit', $routeParams)
-            ->with('success', 'تم تحديث خيارات القسم الفرعي بنجاح.');
+            ->with('success', __('تم تحديث خيارات القسم الفرعي بنجاح.'));
     }
 
     public function bulkEdit(Request $request): View
@@ -327,7 +327,7 @@ class CategoryChildOptionController extends Controller
 
         return redirect()
             ->route('admin.category-children.index', $routeParams)
-            ->with('success', 'تم تحديث خيارات الأقسام الفرعية المحددة بنجاح.');
+            ->with('success', __('تم تحديث خيارات الأقسام الفرعية المحددة بنجاح.'));
     }
 
     protected function hasIsActiveColumn(): bool

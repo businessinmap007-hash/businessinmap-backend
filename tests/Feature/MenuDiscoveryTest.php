@@ -60,7 +60,11 @@ class MenuDiscoveryTest extends TestCase
         $biz = $this->business();
         $item = $this->seedMenuItem($biz->id, null, 25.0, 'صنف بلا قسم');
 
-        $res = $this->getJson("/api/v2/discovery/menu/{$biz->id}")->assertOk();
+        // The ungrouped-bucket name is now localized (slice C). The test client
+        // sends no explicit language, so Symfony's default Accept-Language (en)
+        // would return 'Other'; pin Arabic so we assert the original label.
+        $res = $this->withHeaders(['Accept-Language' => 'ar'])
+            ->getJson("/api/v2/discovery/menu/{$biz->id}")->assertOk();
 
         $other = collect($res->json('data.sections'))->firstWhere('name', 'أخرى');
         $this->assertNotNull($other, 'ungrouped bucket must exist');

@@ -34,7 +34,7 @@ final class RetailDiscoveryController extends Controller
             ->get()
             ->map(fn ($c) => [
                 'id' => (int) $c->id,
-                'name' => $this->label($c->name_ar, $c->name_en, 'فرع #' . $c->id),
+                'name' => $this->label($c->name_ar, $c->name_en, __('فرع #') . $c->id),
                 'products' => (int) $c->products,
             ])->values();
 
@@ -49,7 +49,7 @@ final class RetailDiscoveryController extends Controller
             ->get()
             ->map(fn ($c) => [
                 'id' => (int) $c->id,
-                'name' => $this->label($c->name_ar, $c->name_en, 'قسم #' . $c->id),
+                'name' => $this->label($c->name_ar, $c->name_en, __('قسم #') . $c->id),
                 'products' => (int) $c->products,
             ])->values();
 
@@ -64,7 +64,7 @@ final class RetailDiscoveryController extends Controller
             ->get()
             ->map(fn ($b) => [
                 'id' => (int) $b->id,
-                'name' => $this->label($b->name_ar, $b->name_en, 'علامة #' . $b->id),
+                'name' => $this->label($b->name_ar, $b->name_en, __('علامة #') . $b->id),
                 'products' => (int) $b->products,
             ])->values();
 
@@ -133,7 +133,7 @@ final class RetailDiscoveryController extends Controller
 
         $rows->getCollection()->transform(fn ($p) => [
             'id' => (int) $p->id,
-            'name' => $this->label($p->name_ar, $p->name_en, 'منتج #' . $p->id),
+            'name' => $this->label($p->name_ar, $p->name_en, __('منتج #') . $p->id),
             'image' => $p->main_image,
             'barcode' => $p->default_barcode,
             'package' => $this->package($p),
@@ -178,7 +178,7 @@ final class RetailDiscoveryController extends Controller
             ->first();
 
         if (! $p) {
-            return response()->json(['success' => false, 'message' => 'المنتج غير موجود.'], 404);
+            return response()->json(['success' => false, 'message' => __('المنتج غير موجود.')], 404);
         }
 
         $offers = DB::table('business_catalog_listings as l')
@@ -209,7 +209,7 @@ final class RetailDiscoveryController extends Controller
             'data' => [
                 'product' => [
                     'id' => (int) $p->id,
-                    'name' => $this->label($p->name_ar, $p->name_en, 'منتج #' . $p->id),
+                    'name' => $this->label($p->name_ar, $p->name_en, __('منتج #') . $p->id),
                     'image' => $p->main_image,
                     'barcode' => $p->default_barcode,
                     'package' => $this->package($p),

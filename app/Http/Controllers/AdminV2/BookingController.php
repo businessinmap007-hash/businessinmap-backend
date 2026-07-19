@@ -153,7 +153,7 @@ class BookingController extends Controller
 
         return redirect()
             ->route('admin.bookings.show', $booking)
-            ->with('success', 'تم إنشاء الحجز بنجاح.');
+            ->with('success', __('تم إنشاء الحجز بنجاح.'));
     }
 
     public function show(Booking $booking, OperationPresenter $operationPresenter)
@@ -221,7 +221,7 @@ class BookingController extends Controller
          */
         if ($oldStatus !== Booking::STATUS_IN_PROGRESS && $newStatus === Booking::STATUS_IN_PROGRESS) {
             throw ValidationException::withMessages([
-                'status' => 'لا يمكن تحويل الحجز إلى قيد التنفيذ من شاشة التعديل. استخدم زر بدء التنفيذ من صفحة عرض الحجز.',
+                'status' => __('لا يمكن تحويل الحجز إلى قيد التنفيذ من شاشة التعديل. استخدم زر بدء التنفيذ من صفحة عرض الحجز.'),
             ]);
         }
 
@@ -333,7 +333,7 @@ class BookingController extends Controller
 
         return redirect()
             ->route('admin.bookings.show', $booking)
-            ->with('success', 'تم تحديث الحجز بنجاح.');
+            ->with('success', __('تم تحديث الحجز بنجاح.'));
     }
 
     public function destroy(Booking $booking)
@@ -342,7 +342,7 @@ class BookingController extends Controller
 
         return redirect()
             ->route('admin.bookings.index')
-            ->with('success', 'تم حذف الحجز.');
+            ->with('success', __('تم حذف الحجز.'));
     }
 
     public function serviceLookup(Request $request)
@@ -489,7 +489,7 @@ class BookingController extends Controller
         if ($businessId <= 0 || $serviceId <= 0) {
             return response()->json([
                 'ok' => false,
-                'message' => 'business_id و service_id مطلوبان',
+                'message' => __('business_id و service_id مطلوبان'),
             ], 422);
         }
 
@@ -502,7 +502,7 @@ class BookingController extends Controller
         if ($requiresBookableItem && $bookableId <= 0) {
             return response()->json([
                 'ok' => false,
-                'message' => 'هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.',
+                'message' => __('هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.'),
                 'code' => 'bookable_required',
                 'service_config' => $this->serviceConfigPayload($serviceConfig),
             ], 422);
@@ -518,7 +518,7 @@ class BookingController extends Controller
             if (! $bookableType || ! in_array((string) $bookableType, $allowedItemTypes, true)) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'نوع العنصر المختار غير مسموح لهذه الخدمة.',
+                    'message' => __('نوع العنصر المختار غير مسموح لهذه الخدمة.'),
                     'code' => 'bookable_type_not_allowed',
                     'allowed_item_types' => $allowedItemTypes,
                 ], 422);
@@ -546,7 +546,7 @@ class BookingController extends Controller
 
             return response()->json([
                 'ok' => false,
-                'message' => 'تعذر حساب التسعير أو التوفر.',
+                'message' => __('تعذر حساب التسعير أو التوفر.'),
             ], 500);
         }
 
@@ -555,7 +555,7 @@ class BookingController extends Controller
         if ($availability && ! ($availability['available'] ?? false)) {
             return response()->json([
                 'ok' => false,
-                'message' => $availability['reason'] ?? 'العنصر غير متاح في الفترة المحددة',
+                'message' => $availability['reason'] ?? __('العنصر غير متاح في الفترة المحددة'),
                 'code' => $availability['code'] ?? 'unavailable',
                 'availability' => [
                     'available' => false,
@@ -658,7 +658,7 @@ class BookingController extends Controller
             ]
         );
 
-        return back()->with('success', 'تم تأكيد العميل.');
+        return back()->with('success', __('تم تأكيد العميل.'));
     }
 
     public function startConfirmBusiness(Booking $booking)
@@ -690,7 +690,7 @@ class BookingController extends Controller
             ]
         );
 
-        return back()->with('success', 'تم تأكيد البزنس.');
+        return back()->with('success', __('تم تأكيد البزنس.'));
     }
 
     public function depositConfirmClient(Booking $booking)
@@ -708,7 +708,7 @@ class BookingController extends Controller
         $depositPolicy = $this->depositPolicy($booking);
 
         if (! ($depositPolicy['required'] ?? false)) {
-            return back()->with('error', 'Deposit غير مفعل لهذا الحجز.');
+            return back()->with('error', __('Deposit غير مفعل لهذا الحجز.'));
         }
 
         try {
@@ -718,11 +718,11 @@ class BookingController extends Controller
                 $depositPolicy
             );
 
-            return back()->with('success', 'تم إنشاء Deposit وتجميد المبالغ بنجاح.');
+            return back()->with('success', __('تم إنشاء Deposit وتجميد المبالغ بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر إنشاء الـ Deposit: ' . $e->getMessage());
+            return back()->with('error', __('تعذر إنشاء الـ Deposit: ') . $e->getMessage());
         }
     }
 
@@ -731,11 +731,11 @@ class BookingController extends Controller
         try {
             $this->bookingDepositService->releaseForBooking($booking);
 
-            return back()->with('success', 'تم Release للـ Deposit بنجاح.');
+            return back()->with('success', __('تم Release للـ Deposit بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر Release للـ Deposit: ' . $e->getMessage());
+            return back()->with('error', __('تعذر Release للـ Deposit: ') . $e->getMessage());
         }
     }
 
@@ -744,11 +744,11 @@ class BookingController extends Controller
         try {
             $this->bookingDepositService->refundForBooking($booking);
 
-            return back()->with('success', 'تم Refund للـ Deposit بنجاح.');
+            return back()->with('success', __('تم Refund للـ Deposit بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر Refund للـ Deposit: ' . $e->getMessage());
+            return back()->with('error', __('تعذر Refund للـ Deposit: ') . $e->getMessage());
         }
     }
 
@@ -772,11 +772,11 @@ class BookingController extends Controller
 
             return redirect()
                 ->route('admin.disputes.show', $dispute)
-                ->with('success', 'تم فتح النزاع بنجاح.');
+                ->with('success', __('تم فتح النزاع بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر فتح النزاع: ' . $e->getMessage());
+            return back()->with('error', __('تعذر فتح النزاع: ') . $e->getMessage());
         }
     }
 
@@ -785,11 +785,11 @@ class BookingController extends Controller
         try {
             $this->bookingDepositService->releaseForBooking($booking);
 
-            return back()->with('success', 'تمت الموافقة وتنفيذ Release.');
+            return back()->with('success', __('تمت الموافقة وتنفيذ Release.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر تنفيذ Release: ' . $e->getMessage());
+            return back()->with('error', __('تعذر تنفيذ Release: ') . $e->getMessage());
         }
     }
 
@@ -798,11 +798,11 @@ class BookingController extends Controller
         try {
             $this->bookingDepositService->refundForBooking($booking);
 
-            return back()->with('success', 'تمت الموافقة وتنفيذ Refund.');
+            return back()->with('success', __('تمت الموافقة وتنفيذ Refund.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر تنفيذ Refund: ' . $e->getMessage());
+            return back()->with('error', __('تعذر تنفيذ Refund: ') . $e->getMessage());
         }
     }
 
@@ -823,18 +823,18 @@ class BookingController extends Controller
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم بدء تنفيذ الحجز وخصم رسوم التنفيذ بنجاح.');
+                ->with('success', __('تم بدء تنفيذ الحجز وخصم رسوم التنفيذ بنجاح.'));
         } catch (ValidationException $e) {
             return redirect()
                 ->route('admin.bookings.show', $booking)
                 ->withErrors($e->errors())
-                ->with('error', 'لا يمكن بدء التنفيذ قبل استكمال المتطلبات.');
+                ->with('error', __('لا يمكن بدء التنفيذ قبل استكمال المتطلبات.'));
         } catch (\Throwable $e) {
             report($e);
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر بدء التنفيذ: ' . $e->getMessage());
+                ->with('error', __('تعذر بدء التنفيذ: ') . $e->getMessage());
         }
     }
 
@@ -844,7 +844,7 @@ class BookingController extends Controller
             if ((string) $booking->status !== Booking::STATUS_IN_PROGRESS) {
                 return redirect()
                     ->route('admin.bookings.show', $booking)
-                    ->with('error', 'لا يمكن إنهاء الحجز إلا إذا كان قيد التنفيذ.');
+                    ->with('error', __('لا يمكن إنهاء الحجز إلا إذا كان قيد التنفيذ.'));
             }
 
             $booking->status = Booking::STATUS_COMPLETED;
@@ -870,13 +870,13 @@ class BookingController extends Controller
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم إنهاء الحجز بنجاح.');
+                ->with('success', __('تم إنهاء الحجز بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر إنهاء الحجز: ' . $e->getMessage());
+                ->with('error', __('تعذر إنهاء الحجز: ') . $e->getMessage());
         }
     }
 
@@ -890,7 +890,7 @@ class BookingController extends Controller
             ], true)) {
                 return redirect()
                     ->route('admin.bookings.show', $booking)
-                    ->with('error', 'لا يمكن إلغاء حجز في حالة نهائية.');
+                    ->with('error', __('لا يمكن إلغاء حجز في حالة نهائية.'));
             }
 
             $booking->status = Booking::STATUS_CANCELLED;
@@ -912,13 +912,13 @@ class BookingController extends Controller
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('success', 'تم إلغاء الحجز بنجاح.');
+                ->with('success', __('تم إلغاء الحجز بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
             return redirect()
                 ->route('admin.bookings.show', $booking)
-                ->with('error', 'تعذر إلغاء الحجز: ' . $e->getMessage());
+                ->with('error', __('تعذر إلغاء الحجز: ') . $e->getMessage());
         }
     }
 
@@ -1108,7 +1108,7 @@ class BookingController extends Controller
 
         if (! $business) {
             throw ValidationException::withMessages([
-                'business_id' => 'البزنس غير موجود أو غير صحيح.',
+                'business_id' => __('البزنس غير موجود أو غير صحيح.'),
             ]);
         }
 
@@ -1120,7 +1120,7 @@ class BookingController extends Controller
 
         if (! $businessService) {
             throw ValidationException::withMessages([
-                'service_id' => 'الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.',
+                'service_id' => __('الخدمة غير متاحة لهذا البزنس داخل هذا القسم الفرعي.'),
             ]);
         }
 
@@ -1132,7 +1132,7 @@ class BookingController extends Controller
 
         if ($requiresBookableItem && empty($data['bookable_id'])) {
             throw ValidationException::withMessages([
-                'bookable_id' => 'هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.',
+                'bookable_id' => __('هذه الخدمة تتطلب اختيار عنصر قابل للحجز مثل غرفة أو وحدة.'),
             ]);
         }
 
@@ -1146,13 +1146,13 @@ class BookingController extends Controller
 
             if (! $bookable) {
                 throw ValidationException::withMessages([
-                    'bookable_id' => 'العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.',
+                    'bookable_id' => __('العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.'),
                 ]);
             }
 
             if (! empty($allowedItemTypes) && ! in_array((string) $bookable->item_type, $allowedItemTypes, true)) {
                 throw ValidationException::withMessages([
-                    'bookable_id' => 'نوع العنصر القابل للحجز غير مسموح لهذه الخدمة.',
+                    'bookable_id' => __('نوع العنصر القابل للحجز غير مسموح لهذه الخدمة.'),
                 ]);
             }
 

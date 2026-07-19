@@ -31,7 +31,7 @@ final class OperationGuarantorController extends Controller
         $row = Booking::query()->findOrFail($booking);
 
         if ((int) $row->user_id !== (int) $request->user()->id) {
-            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+            return response()->json(['success' => false, 'message' => __('غير مصرح.')], 403);
         }
 
         $items = OperationGuarantor::query()
@@ -59,13 +59,13 @@ final class OperationGuarantorController extends Controller
     {
         $data = $request->validate([
             'guarantor_user_id' => ['required', 'integer', 'exists:users,id'],
-        ], [], ['guarantor_user_id' => 'الصديق']);
+        ], [], ['guarantor_user_id' => __('الصديق')]);
 
         $row = Booking::query()->findOrFail($booking);
         $user = $request->user();
 
         if ((int) $row->user_id !== (int) $user->id) {
-            return response()->json(['success' => false, 'message' => 'فقط صاحب الحجز يمكنه دعوة ضامن.'], 403);
+            return response()->json(['success' => false, 'message' => __('فقط صاحب الحجز يمكنه دعوة ضامن.')], 403);
         }
 
         $friend = User::query()->findOrFail((int) $data['guarantor_user_id']);
@@ -79,9 +79,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_invited', (int) $friend->id, $guarantor, [
                 'actor_id' => (int) $user->id,
-                'title_ar' => 'دعوة لمشاركتك في ضمان عملية',
+                'title_ar' => __('دعوة لمشاركتك في ضمان عملية'),
                 'title_en' => 'Co-guarantor request',
-                'body_ar' => trim(($requesterName !== '' ? $requesterName . ' ' : '') . 'يطلب مشاركتك في ضمان عملية حجز.'),
+                'body_ar' => trim(($requesterName !== '' ? $requesterName . ' ' : '') . __('يطلب مشاركتك في ضمان عملية حجز.')),
                 'body_en' => trim(($requesterName !== '' ? $requesterName . ': ' : '') . 'requested your guarantee for a booking.'),
                 'action_type' => 'open_coguarantor_request',
                 'action_url' => '/guarantors/' . $guarantor->id,
@@ -97,7 +97,7 @@ final class OperationGuarantorController extends Controller
     {
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
-        ], [], ['amount' => 'قيمة التغطية']);
+        ], [], ['amount' => __('قيمة التغطية')]);
 
         $row = $this->scopedForGuarantor($request, $guarantor);
         if ($row instanceof \Illuminate\Http\JsonResponse) {
@@ -115,9 +115,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_accepted', (int) $row->requester_user_id, $row, [
                 'actor_id' => (int) $row->guarantor_user_id,
-                'title_ar' => 'تم قبول طلب الضمان',
+                'title_ar' => __('تم قبول طلب الضمان'),
                 'title_en' => 'Co-guarantor accepted',
-                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'قبل ضمان عمليتك بمبلغ ' . number_format((float) $row->covered_amount, 2) . '.'),
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . __('قبل ضمان عمليتك بمبلغ ') . number_format((float) $row->covered_amount, 2) . '.'),
                 'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'accepted to guarantee your operation (' . number_format((float) $row->covered_amount, 2) . ').'),
                 'action_type' => 'open_operation',
                 'meta' => ['covered_amount' => (float) $row->covered_amount],
@@ -146,9 +146,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_declined', (int) $row->requester_user_id, $row, [
                 'actor_id' => (int) $row->guarantor_user_id,
-                'title_ar' => 'تم رفض طلب الضمان',
+                'title_ar' => __('تم رفض طلب الضمان'),
                 'title_en' => 'Co-guarantor declined',
-                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'اعتذر عن ضمان عمليتك.'),
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . __('اعتذر عن ضمان عمليتك.')),
                 'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'declined to guarantee your operation.'),
                 'action_type' => 'open_operation',
                 'meta' => [],
@@ -164,7 +164,7 @@ final class OperationGuarantorController extends Controller
         $row = OperationGuarantor::query()->findOrFail($guarantor);
 
         if ((int) $row->guarantor_user_id !== (int) $request->user()->id) {
-            return response()->json(['success' => false, 'message' => 'هذه الدعوة ليست موجهة إليك.'], 403);
+            return response()->json(['success' => false, 'message' => __('هذه الدعوة ليست موجهة إليك.')], 403);
         }
 
         return $row;

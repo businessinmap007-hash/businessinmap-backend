@@ -79,7 +79,7 @@ class ServiceFeeRuleController extends Controller
 
         return redirect()
             ->route('admin.service-fee-rules.index')
-            ->with('success', 'تم إنشاء قاعدة الرسوم بنجاح.');
+            ->with('success', __('تم إنشاء قاعدة الرسوم بنجاح.'));
     }
 
     public function edit(ServiceFeeRule $serviceFeeRule)
@@ -93,7 +93,7 @@ class ServiceFeeRuleController extends Controller
 
         return redirect()
             ->route('admin.service-fee-rules.index')
-            ->with('success', 'تم تحديث قاعدة الرسوم بنجاح.');
+            ->with('success', __('تم تحديث قاعدة الرسوم بنجاح.'));
     }
 
     public function destroy(ServiceFeeRule $serviceFeeRule)
@@ -102,14 +102,14 @@ class ServiceFeeRuleController extends Controller
 
         return redirect()
             ->route('admin.service-fee-rules.index')
-            ->with('success', 'تم حذف قاعدة الرسوم بنجاح.');
+            ->with('success', __('تم حذف قاعدة الرسوم بنجاح.'));
     }
 
     public function toggle(ServiceFeeRule $serviceFeeRule)
     {
         $serviceFeeRule->update(['is_active' => ! (bool) $serviceFeeRule->is_active]);
 
-        return back()->with('success', 'تم تغيير حالة القاعدة بنجاح.');
+        return back()->with('success', __('تم تغيير حالة القاعدة بنجاح.'));
     }
 
     private function formData(ServiceFeeRule $rule): array
@@ -122,7 +122,7 @@ class ServiceFeeRuleController extends Controller
             'governorates' => Governorate::query()->orderBy('name_ar')->get(['id', 'name_ar']),
             'payers' => $this->payers(),
             'effects' => $this->effects(),
-            'days' => [0 => 'الأحد', 1 => 'الإثنين', 2 => 'الثلاثاء', 3 => 'الأربعاء', 4 => 'الخميس', 5 => 'الجمعة', 6 => 'السبت'],
+            'days' => [0 => __('الأحد'), 1 => __('الإثنين'), 2 => __('الثلاثاء'), 3 => __('الأربعاء'), 4 => __('الخميس'), 5 => __('الجمعة'), 6 => __('السبت')],
         ];
     }
 
@@ -161,9 +161,9 @@ class ServiceFeeRuleController extends Controller
             'c_service_keys' => ['nullable', 'array'],
             'c_service_keys.*' => ['string'],
         ], [], [
-            'name' => 'الاسم',
-            'effect' => 'التأثير',
-            'effect_value' => 'قيمة التأثير',
+            'name' => __('الاسم'),
+            'effect' => __('التأثير'),
+            'effect_value' => __('قيمة التأثير'),
         ]);
 
         $data['conditions'] = $this->conditionsFrom($request);
@@ -243,21 +243,21 @@ class ServiceFeeRuleController extends Controller
     private function payers(): array
     {
         return [
-            ServiceFeeRule::PAYER_ANY => 'الطرفان',
-            ServiceFeeRule::PAYER_BUSINESS => 'البزنس',
-            ServiceFeeRule::PAYER_CLIENT => 'العميل',
+            ServiceFeeRule::PAYER_ANY => __('الطرفان'),
+            ServiceFeeRule::PAYER_BUSINESS => __('البزنس'),
+            ServiceFeeRule::PAYER_CLIENT => __('العميل'),
         ];
     }
 
     private function effects(): array
     {
         return [
-            ServiceFeeRule::EFFECT_PERCENT_ADJUST => 'تعديل بنسبة % (+/-)',
-            ServiceFeeRule::EFFECT_FIXED_ADJUST => 'تعديل بمبلغ ثابت (+/-)',
-            ServiceFeeRule::EFFECT_MULTIPLY => 'ضرب في معامل',
-            ServiceFeeRule::EFFECT_OVERRIDE_FIXED => 'جعل الرسوم مبلغًا ثابتًا',
-            ServiceFeeRule::EFFECT_OVERRIDE_PERCENT => 'جعل الرسوم % من قيمة العملية',
-            ServiceFeeRule::EFFECT_WAIVE => 'إعفاء (صفر)',
+            ServiceFeeRule::EFFECT_PERCENT_ADJUST => __('تعديل بنسبة % (+/-)'),
+            ServiceFeeRule::EFFECT_FIXED_ADJUST => __('تعديل بمبلغ ثابت (+/-)'),
+            ServiceFeeRule::EFFECT_MULTIPLY => __('ضرب في معامل'),
+            ServiceFeeRule::EFFECT_OVERRIDE_FIXED => __('جعل الرسوم مبلغًا ثابتًا'),
+            ServiceFeeRule::EFFECT_OVERRIDE_PERCENT => __('جعل الرسوم % من قيمة العملية'),
+            ServiceFeeRule::EFFECT_WAIVE => __('إعفاء (صفر)'),
         ];
     }
 }

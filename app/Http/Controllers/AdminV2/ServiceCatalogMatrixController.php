@@ -63,11 +63,11 @@ class ServiceCatalogMatrixController extends Controller
             'supports_extras' => ['nullable'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ], [], [
-            'root_id' => 'القسم الرئيسي',
-            'services' => 'الخدمات',
-            'child_ids' => 'الأقسام الفرعية',
-            'item_types' => 'اختيارات الخدمة',
-            'mode' => 'طريقة التطبيق',
+            'root_id' => __('القسم الرئيسي'),
+            'services' => __('الخدمات'),
+            'child_ids' => __('الأقسام الفرعية'),
+            'item_types' => __('اختيارات الخدمة'),
+            'mode' => __('طريقة التطبيق'),
         ]);
 
         $root = Category::query()->where('id', (int) $data['root_id'])->where('parent_id', 0)->firstOrFail();
@@ -87,7 +87,7 @@ class ServiceCatalogMatrixController extends Controller
             ->all();
 
         if (empty($validChildIds)) {
-            return back()->withErrors(['child_ids' => 'اختر قسمًا فرعيًا مرتبطًا بهذا القسم الرئيسي.'])->withInput();
+            return back()->withErrors(['child_ids' => __('اختر قسمًا فرعيًا مرتبطًا بهذا القسم الرئيسي.')])->withInput();
         }
 
         $serviceIds = collect($data['services'])
@@ -104,7 +104,7 @@ class ServiceCatalogMatrixController extends Controller
             ->keyBy('id');
 
         if ($services->isEmpty()) {
-            return back()->withErrors(['services' => 'اختر خدمة واحدة على الأقل.'])->withInput();
+            return back()->withErrors(['services' => __('اختر خدمة واحدة على الأقل.')])->withInput();
         }
 
         $itemTypesByService = is_array($data['item_types'] ?? null) ? $data['item_types'] : [];
@@ -147,7 +147,7 @@ class ServiceCatalogMatrixController extends Controller
 
         return redirect()
             ->route('admin.service-catalog-matrix.index', ['root_id' => (int) $root->id])
-            ->with('success', 'تم تحديث كتالوج الخدمات للأقسام الفرعية المختارة بنجاح.');
+            ->with('success', __('تم تحديث كتالوج الخدمات للأقسام الفرعية المختارة بنجاح.'));
     }
 
     /** Write one (root, child, service) pair: link + config, honoring the mode. */

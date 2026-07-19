@@ -28,7 +28,7 @@ final class TableController extends Controller
             ->first();
 
         if (! $table) {
-            return response()->json(['success' => false, 'message' => 'الطاولة غير موجودة أو غير مفعّلة.'], 404);
+            return response()->json(['success' => false, 'message' => __('الطاولة غير موجودة أو غير مفعّلة.')], 404);
         }
 
         $order = $this->cart->joinOrCreateForTable((int) $request->user()->id, $table);

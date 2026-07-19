@@ -97,7 +97,7 @@ class PlatformServiceItemTypeController extends Controller
 
         return redirect()
             ->route('admin.platform-service-item-types.edit', $row)
-            ->with('success', 'تم إنشاء نوع العنصر بنجاح.');
+            ->with('success', __('تم إنشاء نوع العنصر بنجاح.'));
     }
 
     public function edit(PlatformServiceItemType $platformServiceItemType)
@@ -134,7 +134,7 @@ class PlatformServiceItemTypeController extends Controller
             }
         });
 
-        return back()->with('success', 'تم تحديث نوع العنصر بنجاح.');
+        return back()->with('success', __('تم تحديث نوع العنصر بنجاح.'));
     }
 
     public function destroy(PlatformServiceItemType $platformServiceItemType)
@@ -146,7 +146,7 @@ class PlatformServiceItemTypeController extends Controller
 
         if ($used) {
             throw ValidationException::withMessages([
-                'item_type' => 'لا يمكن حذف هذا النوع لأنه مستخدم داخل أسعار خدمات البزنس. يمكن إيقاف تفعيله بدلًا من الحذف.',
+                'item_type' => __('لا يمكن حذف هذا النوع لأنه مستخدم داخل أسعار خدمات البزنس. يمكن إيقاف تفعيله بدلًا من الحذف.'),
             ]);
         }
 
@@ -154,7 +154,7 @@ class PlatformServiceItemTypeController extends Controller
 
         return redirect()
             ->route('admin.platform-service-item-types.index')
-            ->with('success', 'تم حذف نوع العنصر بنجاح.');
+            ->with('success', __('تم حذف نوع العنصر بنجاح.'));
     }
 
     protected function validateData(Request $request, ?int $ignoreId = null): array
@@ -185,15 +185,15 @@ class PlatformServiceItemTypeController extends Controller
 
             'meta' => ['nullable', 'string'],
         ], [
-            'key.regex' => 'المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.',
+            'key.regex' => __('المفتاح يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.'),
         ], [
-            'platform_service_id' => 'الخدمة',
-            'key' => 'المفتاح',
-            'name_ar' => 'الاسم العربي',
-            'name_en' => 'الاسم الإنجليزي',
-            'is_default' => 'افتراضي',
-            'is_active' => 'التفعيل',
-            'sort_order' => 'الترتيب',
+            'platform_service_id' => __('الخدمة'),
+            'key' => __('المفتاح'),
+            'name_ar' => __('الاسم العربي'),
+            'name_en' => __('الاسم الإنجليزي'),
+            'is_default' => __('افتراضي'),
+            'is_active' => __('التفعيل'),
+            'sort_order' => __('الترتيب'),
             'meta' => 'Meta',
         ]);
 
@@ -248,13 +248,13 @@ class PlatformServiceItemTypeController extends Controller
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw ValidationException::withMessages([
-                'meta' => 'حقل Meta يجب أن يكون JSON صحيحًا.',
+                'meta' => __('حقل Meta يجب أن يكون JSON صحيحًا.'),
             ]);
         }
 
         if (! is_array($decoded)) {
             throw ValidationException::withMessages([
-                'meta' => 'حقل Meta يجب أن يكون JSON object أو array.',
+                'meta' => __('حقل Meta يجب أن يكون JSON object أو array.'),
             ]);
         }
 
@@ -289,7 +289,7 @@ class PlatformServiceItemTypeController extends Controller
 
         if ($used) {
             throw ValidationException::withMessages([
-                'key' => 'لا يمكن تغيير مفتاح هذا النوع أو الخدمة لأنه مستخدم داخل أسعار خدمات البزنس.',
+                'key' => __('لا يمكن تغيير مفتاح هذا النوع أو الخدمة لأنه مستخدم داخل أسعار خدمات البزنس.'),
             ]);
         }
     }

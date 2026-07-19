@@ -66,7 +66,7 @@ final class BusinessOffersSubscriptionController extends Controller
 
         if (! $service) {
             throw ValidationException::withMessages([
-                'business_id' => 'خدمة business_offers غير موجودة أو غير مفعلة في platform_services.',
+                'business_id' => __('خدمة business_offers غير موجودة أو غير مفعلة في platform_services.'),
             ]);
         }
 
@@ -118,10 +118,10 @@ final class BusinessOffersSubscriptionController extends Controller
             return $walletTx;
         });
 
-        $message = 'تم تفعيل اشتراك العروض التجارية للبزنس.';
+        $message = __('تم تفعيل اشتراك العروض التجارية للبزنس.');
 
         if ($walletTx) {
-            $message .= ' وتم خصم الرسوم من المحفظة.';
+            $message .= __(' وتم خصم الرسوم من المحفظة.');
         }
 
         return redirect()
@@ -138,11 +138,11 @@ final class BusinessOffersSubscriptionController extends Controller
         $service = $this->platformService();
 
         if (! $service) {
-            return back()->withErrors('خدمة business_offers غير موجودة.');
+            return back()->withErrors(__('خدمة business_offers غير موجودة.'));
         }
 
         if (! Schema::hasTable('user_platform_service')) {
-            return back()->withErrors('جدول user_platform_service غير موجود.');
+            return back()->withErrors(__('جدول user_platform_service غير موجود.'));
         }
 
         $updates = [];
@@ -171,7 +171,7 @@ final class BusinessOffersSubscriptionController extends Controller
                 ->update($updates);
         }
 
-        return back()->with('success', 'تم إيقاف اشتراك العروض التجارية.');
+        return back()->with('success', __('تم إيقاف اشتراك العروض التجارية.'));
     }
 
     private function platformService(): ?object
@@ -204,7 +204,7 @@ final class BusinessOffersSubscriptionController extends Controller
     ): void {
         if (! Schema::hasTable('user_platform_service')) {
             throw ValidationException::withMessages([
-                'business_id' => 'جدول user_platform_service غير موجود.',
+                'business_id' => __('جدول user_platform_service غير موجود.'),
             ]);
         }
 

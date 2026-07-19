@@ -157,11 +157,11 @@ class DisputeController extends Controller
 
             return redirect()
                 ->route('admin.disputes.show', $dispute)
-                ->with('success', 'تم فتح النزاع بنجاح.');
+                ->with('success', __('تم فتح النزاع بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->withInput()->with('error', 'تعذر فتح النزاع: ' . $e->getMessage());
+            return back()->withInput()->with('error', __('تعذر فتح النزاع: ') . $e->getMessage());
         }
     }
 
@@ -191,11 +191,11 @@ class DisputeController extends Controller
 
             return redirect()
                 ->route('admin.disputes.show', $dispute)
-                ->with('success', 'تم فتح نزاع على الحجز بنجاح.');
+                ->with('success', __('تم فتح نزاع على الحجز بنجاح.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر فتح نزاع على الحجز: ' . $e->getMessage());
+            return back()->with('error', __('تعذر فتح نزاع على الحجز: ') . $e->getMessage());
         }
     }
 
@@ -209,7 +209,7 @@ class DisputeController extends Controller
         }
         $dispute->save();
 
-        return back()->with('success', 'تم تحويل النزاع إلى قيد المراجعة.');
+        return back()->with('success', __('تم تحويل النزاع إلى قيد المراجعة.'));
     }
 
     public function cancel(Dispute $dispute)
@@ -222,7 +222,7 @@ class DisputeController extends Controller
         }
         $dispute->save();
 
-        return back()->with('success', 'تم إلغاء النزاع.');
+        return back()->with('success', __('تم إلغاء النزاع.'));
     }
 
     public function close(Dispute $dispute)
@@ -235,7 +235,7 @@ class DisputeController extends Controller
         }
         $dispute->save();
 
-        return back()->with('success', 'تم إغلاق النزاع.');
+        return back()->with('success', __('تم إغلاق النزاع.'));
     }
 
     public function resolveReleaseBusiness(Request $request, Dispute $dispute)
@@ -267,11 +267,11 @@ class DisputeController extends Controller
                 );
             });
 
-            return back()->with('success', 'تم حل النزاع لصالح مقدم الخدمة.');
+            return back()->with('success', __('تم حل النزاع لصالح مقدم الخدمة.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر حل النزاع: ' . $e->getMessage());
+            return back()->with('error', __('تعذر حل النزاع: ') . $e->getMessage());
         }
     }
 
@@ -304,11 +304,11 @@ class DisputeController extends Controller
                 );
             });
 
-            return back()->with('success', 'تم حل النزاع لصالح العميل.');
+            return back()->with('success', __('تم حل النزاع لصالح العميل.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر حل النزاع: ' . $e->getMessage());
+            return back()->with('error', __('تعذر حل النزاع: ') . $e->getMessage());
         }
     }
 
@@ -329,7 +329,7 @@ class DisputeController extends Controller
 
         if (round($clientPercent + $businessPercent, 2) !== 100.00) {
             throw ValidationException::withMessages([
-                'client_percent' => 'مجموع النسب يجب أن يساوي 100%.',
+                'client_percent' => __('مجموع النسب يجب أن يساوي 100%.'),
             ]);
         }
 
@@ -365,11 +365,11 @@ class DisputeController extends Controller
                 );
             });
 
-            return back()->with('success', 'تم حل النزاع بنسبة توزيع بين الطرفين.');
+            return back()->with('success', __('تم حل النزاع بنسبة توزيع بين الطرفين.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر تنفيذ split: ' . $e->getMessage());
+            return back()->with('error', __('تعذر تنفيذ split: ') . $e->getMessage());
         }
     }
 
@@ -389,11 +389,11 @@ class DisputeController extends Controller
                 $this->recordBookingDisputeResult($resolved, 'no_action');
             });
 
-            return back()->with('success', 'تم حل النزاع بدون إجراء مالي.');
+            return back()->with('success', __('تم حل النزاع بدون إجراء مالي.'));
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'تعذر إنهاء النزاع: ' . $e->getMessage());
+            return back()->with('error', __('تعذر إنهاء النزاع: ') . $e->getMessage());
         }
     }
 
@@ -430,7 +430,7 @@ class DisputeController extends Controller
     {
         if (! in_array($dispute->status, $allowed, true)) {
             throw ValidationException::withMessages([
-                'status' => 'الحالة الحالية للنزاع لا تسمح بهذه العملية.',
+                'status' => __('الحالة الحالية للنزاع لا تسمح بهذه العملية.'),
             ]);
         }
     }

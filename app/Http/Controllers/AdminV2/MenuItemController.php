@@ -58,7 +58,7 @@ class MenuItemController extends Controller
 
         return redirect()
             ->route('admin.menu-items.edit', $row)
-            ->with('success', 'تم إنشاء عنصر المنيو بنجاح.');
+            ->with('success', __('تم إنشاء عنصر المنيو بنجاح.'));
     }
 
     public function edit(MenuItem $menuItem)
@@ -76,7 +76,7 @@ class MenuItemController extends Controller
         $data = $this->validateData($request);
         $menuItem->update($data);
 
-        return back()->with('success', 'تم تحديث عنصر المنيو بنجاح.');
+        return back()->with('success', __('تم تحديث عنصر المنيو بنجاح.'));
     }
 
     public function destroy(MenuItem $menuItem)
@@ -85,7 +85,7 @@ class MenuItemController extends Controller
 
         return redirect()
             ->route('admin.menu-items.index')
-            ->with('success', 'تم حذف عنصر المنيو بنجاح.');
+            ->with('success', __('تم حذف عنصر المنيو بنجاح.'));
     }
 
     protected function validateData(Request $request): array
@@ -102,9 +102,9 @@ class MenuItemController extends Controller
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable'],
         ], [], [
-            'business_id' => 'البزنس',
-            'name_ar' => 'الاسم بالعربي',
-            'base_price' => 'السعر الأساسي',
+            'business_id' => __('البزنس'),
+            'name_ar' => __('الاسم بالعربي'),
+            'base_price' => __('السعر الأساسي'),
         ]);
 
         $data['is_active'] = (int) $request->boolean('is_active');

@@ -66,7 +66,7 @@ final class CategoryController extends Controller
         $exists = DB::table('categories')->where('id', $category)->where('is_active', 1)->exists();
 
         if (! $exists) {
-            return response()->json(['success' => false, 'message' => 'التصنيف غير موجود.'], 404);
+            return response()->json(['success' => false, 'message' => __('التصنيف غير موجود.')], 404);
         }
 
         // The count mirrors what DiscoveryController actually searches:

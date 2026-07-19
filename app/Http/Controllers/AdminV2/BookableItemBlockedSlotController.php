@@ -56,12 +56,12 @@ class BookableItemBlockedSlotController extends Controller
             'notes' => ['nullable', 'string'],
             'is_active' => ['nullable'],
         ], [], [
-            'starts_at' => 'بداية الغلق',
-            'ends_at' => 'نهاية الغلق',
-            'reason' => 'السبب',
-            'block_type' => 'نوع الغلق',
-            'notes' => 'الملاحظات',
-            'is_active' => 'الحالة',
+            'starts_at' => __('بداية الغلق'),
+            'ends_at' => __('نهاية الغلق'),
+            'reason' => __('السبب'),
+            'block_type' => __('نوع الغلق'),
+            'notes' => __('الملاحظات'),
+            'is_active' => __('الحالة'),
         ]);
 
         $overlapExists = BookableItemBlockedSlot::query()
@@ -80,7 +80,7 @@ class BookableItemBlockedSlotController extends Controller
 
         if ($overlapExists) {
             throw ValidationException::withMessages([
-                'starts_at' => 'يوجد بالفعل غلق نشط متداخل مع هذه الفترة.',
+                'starts_at' => __('يوجد بالفعل غلق نشط متداخل مع هذه الفترة.'),
             ]);
         }
 
@@ -92,20 +92,20 @@ class BookableItemBlockedSlotController extends Controller
 
         return redirect()
             ->route('admin.bookable-items.blocked-slots.index', $bookableItem)
-            ->with('success', 'تم إضافة فترة الغلق بنجاح.');
+            ->with('success', __('تم إضافة فترة الغلق بنجاح.'));
     }
 
     public function destroy(BookableItem $bookableItem, BookableItemBlockedSlot $slot)
     {
         if ((int) $slot->bookable_item_id !== (int) $bookableItem->id) {
             throw ValidationException::withMessages([
-                'slot' => 'فترة الغلق لا تتبع هذا العنصر.',
+                'slot' => __('فترة الغلق لا تتبع هذا العنصر.'),
             ]);
         }
 
         $slot->delete();
 
-        return back()->with('success', 'تم حذف فترة الغلق بنجاح.');
+        return back()->with('success', __('تم حذف فترة الغلق بنجاح.'));
     }
  public function edit(BookableItem $bookableItem, BookableItemBlockedSlot $slot)
     {
@@ -138,6 +138,6 @@ class BookableItemBlockedSlotController extends Controller
 
         return redirect()
             ->route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id])
-            ->with('success', 'تم تحديث فترة الغلق بنجاح');
+            ->with('success', __('تم تحديث فترة الغلق بنجاح'));
     }
 }

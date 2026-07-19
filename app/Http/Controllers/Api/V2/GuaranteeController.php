@@ -107,7 +107,7 @@ final class GuaranteeController extends Controller
 
             if (! $level) {
                 throw ValidationException::withMessages([
-                    'level_id' => 'مستوى الضمان غير متاح لهذا النوع من المستخدم.',
+                    'level_id' => __('مستوى الضمان غير متاح لهذا النوع من المستخدم.'),
                 ]);
             }
 
@@ -160,7 +160,7 @@ final class GuaranteeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم فكّ الضمان وتحويل قيمته إلى الرصيد.',
+            'message' => __('تم فكّ الضمان وتحويل قيمته إلى الرصيد.'),
             'data' => [
                 'unlocked_amount' => (float) $result['amount'],
                 'guarantee' => $this->guaranteePayload($result['guarantee']),

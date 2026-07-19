@@ -45,10 +45,10 @@ Route::post('/profile/update', 'App\Http\Controllers\ProfileController@profileUp
 
 Auth::routes();
 
-Route::prefix('administrator')->middleware(['auth:admin'])->group(function () {
-    Route::get('/', [App\Http\Controllers\Admin\HomeController::class, 'index'])->name('admin.dashboard');
-    Route::resource('businesses', App\Http\Controllers\Admin\BusinessController::class);
-});
+// The legacy `administrator` group (Admin\HomeController + Admin\BusinessController)
+// was removed with the v1 panel: both controllers are deleted, its `admin.dashboard`
+// name is now served by AdminV2's DashboardController (URI `admin`), and its
+// `businesses` resource had no callers.
 
 Route::prefix('admin')->middleware(['web'])->group(function () {
     Route::post('category-services-bulk/apply', [CategoryServiceBulkController::class, 'apply'])->name('admin.category-services-bulk.apply');

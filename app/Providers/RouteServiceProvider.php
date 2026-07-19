@@ -19,9 +19,11 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         $this->routes(function () {
-            Route::middleware('api')->prefix('api')->group(base_path('routes/api.php'));
+            // api_v2.php was loaded via a `require` at the tail of the now-deleted
+            // routes/api.php (which held the v1 surface); it is loaded directly here.
+            Route::middleware('api')->prefix('api')->group(base_path('routes/api_v2.php'));
             Route::middleware('web')->group(base_path('routes/web.php'));
-            Route::middleware('web')->group(base_path('routes/admin.php'));
+            // routes/admin.php (legacy admin panel) deleted — AdminV2 replaces it.
             Route::middleware('web')->group(base_path('routes/admin_v2.php'));
             Route::middleware('web')->group(base_path('routes/business.php'));
         });

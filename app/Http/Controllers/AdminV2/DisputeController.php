@@ -145,17 +145,12 @@ class DisputeController extends Controller
      */
     public function acceptSession(Request $request, Dispute $dispute)
     {
-        $data = $request->validate([
-            'fee_type' => ['required', 'in:fixed,percent'],
-            'fee_value' => ['required', 'numeric', 'min:0', 'max:99999999'],
-        ]);
-
         try {
+            // No price to submit: it is platform policy per service, read from
+            // the dispute-fees screen. See ArbitrationService::acceptSession().
             app(\App\Services\ArbitrationService::class)->acceptSession(
                 dispute: $dispute,
-                arbitratorId: (int) auth()->id(),
-                feeType: $data['fee_type'],
-                feeValue: (float) $data['fee_value']
+                arbitratorId: (int) auth()->id()
             );
 
             $this->disputeService->joinAsArbitrator($dispute, (int) auth()->id());

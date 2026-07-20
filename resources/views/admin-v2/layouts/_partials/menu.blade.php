@@ -126,12 +126,13 @@
             ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
         ]],
         // App-level integration credentials (paste-and-go, no redeploy).
-        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.'], 'children' => [
+        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.', 'admin.dispute-fees.'], 'children' => [
             ['label' => 'بوابة الدفع (فوري)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
             ['label' => 'الإشعارات (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
             ['label' => 'صلاحيات المشرفين', 'route' => 'admin.admin-roles.index', 'active' => 'admin.admin-roles.'],
             ['label' => 'الحُكّام', 'route' => 'admin.arbitrators.index', 'active' => 'admin.arbitrators.'],
             ['label' => 'قواعد النزاع', 'route' => 'admin.dispute-rules.index', 'active' => 'admin.dispute-rules.'],
+            ['label' => 'رسوم جلسات التحكيم', 'route' => 'admin.dispute-fees.index', 'active' => 'admin.dispute-fees.'],
         ]],
     ];
 

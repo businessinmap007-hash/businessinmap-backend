@@ -31,6 +31,7 @@ use App\Http\Controllers\AdminV2\{
     DeliveryAdminController,
     ArbitratorController,
     DisputeController,
+    DisputeFeeController,
     DisputeRuleController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
@@ -443,6 +444,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [DisputeRuleController::class, 'index'])->name('index');
             Route::post('/', [DisputeRuleController::class, 'store'])->name('store');
             Route::get('{ruleVersion}', [DisputeRuleController::class, 'show'])->whereNumber('ruleVersion')->name('show');
+        });
+
+        // What a session costs, per service. Platform policy — deliberately not
+        // on the arbitrator's screen.
+        Route::prefix('dispute-fees')->name('dispute-fees.')->middleware('can:' . AdminAbility::FEES)->group(function () {
+            Route::get('/', [DisputeFeeController::class, 'index'])->name('index');
+            Route::put('/', [DisputeFeeController::class, 'update'])->name('update');
         });
 
         Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {

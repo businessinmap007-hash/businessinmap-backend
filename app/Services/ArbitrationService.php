@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\ConductViolation;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\DisputeFee;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\Notifications\InAppNotificationService;
@@ -117,32 +118,8 @@ class ArbitrationService
      * Idempotent on the terms: once a session is accepted the fee cannot be
      * rewritten, for the same reason.
      */
-    public function acceptSession(
-        Dispute $dispute,
-        int $arbitratorId,
-        string $feeType,
-        float $feeValue
-    ): ArbitrationSession {
-        if (! in_array($feeType, [ArbitrationSession::FEE_FIXED, ArbitrationSession::FEE_PERCENT], true)) {
-            throw ValidationException::withMessages([
-                'fee_type' => __('نوع الرسم غير مدعوم.'),
-            ]);
-        }
-
-        $feeValue = round($feeValue, 2);
-
-        if ($feeValue < 0) {
-            throw ValidationException::withMessages([
-                'fee_value' => __('قيمة الرسم غير صالحة.'),
-            ]);
-        }
-
-        if ($feeType === ArbitrationSession::FEE_PERCENT && $feeValue > 100) {
-            throw ValidationException::withMessages([
-                'fee_value' => __('نسبة الرسم لا يمكن أن تتجاوز 100%.'),
-            ]);
-        }
-
+    public function acceptSession(Dispute $dispute, int $arbitratorId): ArbitrationSession
+    {
         $existing = ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
 
         if ($existing && $existing->fee_terms_set_at !== null) {
@@ -151,16 +128,16 @@ class ArbitrationService
             ]);
         }
 
-        $disputedTotal = $this->disputedTotal($dispute);
-
-        $feeAmount = $feeType === ArbitrationSession::FEE_PERCENT
-            ? round(($disputedTotal * $feeValue) / 100, 2)
-            : $feeValue;
+        // Read, not chosen. The price is platform policy per service, so it is
+        // the same for whoever ends up paying it and the same across every case
+        // on that service — an arbitrator cannot price the session they are
+        // about to hear, and a party can look the number up beforehand.
+        $feeAmount = $this->sessionFeeFor($dispute);
 
         $attributes = [
             'arbitrator_id' => $arbitratorId,
-            'fee_type' => $feeType,
-            'fee_value' => $feeValue,
+            'fee_type' => ArbitrationSession::FEE_FIXED,
+            'fee_value' => $feeAmount,
             'fee_amount' => $feeAmount,
             'fee_terms_set_at' => now(),
             'accepted_at' => now(),
@@ -170,7 +147,7 @@ class ArbitrationService
             ? tap($existing)->update($attributes)
             : ArbitrationSession::create($attributes + ['dispute_id' => (int) $dispute->id]);
 
-        $this->announceTerms($dispute, $session, $disputedTotal);
+        $this->announceTerms($dispute, $session);
 
         return $session->fresh();
     }
@@ -231,16 +208,19 @@ class ArbitrationService
             : 0.0;
     }
 
-    protected function announceTerms(Dispute $dispute, ArbitrationSession $session, float $disputedTotal): void
+    /** The platform's price for a session on this dispute's service. */
+    public function sessionFeeFor(Dispute $dispute): int
     {
-        $terms = $session->fee_type === ArbitrationSession::FEE_PERCENT
-            ? sprintf('%s%% من قيمة النزاع (%s)', (float) $session->fee_value, number_format($disputedTotal, 2))
-            : sprintf('مبلغ ثابت %s', number_format((float) $session->fee_value, 2));
+        return DisputeFee::amountFor(
+            $dispute->platform_service_id ? (int) $dispute->platform_service_id : null
+        );
+    }
 
+    protected function announceTerms(Dispute $dispute, ArbitrationSession $session): void
+    {
         $body = sprintf(
-            'قبل المحكّم النظر في النزاع. رسم التحكيم: %s = %s.',
-            $terms,
-            number_format((float) $session->fee_amount, 2)
+            'قبل المحكّم النظر في النزاع. رسم الجلسة %s، يتحمله الطرف الخاسر وحده.',
+            number_format((float) $session->fee_amount, 0)
         );
 
         try {

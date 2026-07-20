@@ -42,6 +42,12 @@ class ArbitrationTest extends TestCase
         parent::setUp();
 
         $this->arbitration = app(ArbitrationService::class);
+
+        // The session price is platform config now, not an argument.
+        \App\Models\DisputeFee::query()->updateOrCreate(
+            ['platform_service_id' => null],
+            ['amount' => 40, 'is_active' => true]
+        );
         $this->disputes = app(DisputeService::class);
 
         $booking = Booking::withTrashed()
@@ -375,7 +381,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $this->assertEqualsWithDelta(40.0, (float) $session->fee_amount, 0.01);
         $this->assertNotNull($session->fee_terms_set_at);
@@ -384,17 +390,52 @@ class ArbitrationTest extends TestCase
         $this->assertTrue($session->isOpen());
     }
 
-    /** A percentage is taken from what the case is actually worth. */
-    public function test_a_percentage_fee_is_computed_from_the_disputed_amount(): void
+    /** The price is read from config, per service, not handed in by anyone. */
+    public function test_a_service_with_its_own_price_overrides_the_default(): void
     {
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        // The escrow is 100.
-        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'percent', 10.0);
+        \App\Models\DisputeFee::query()->updateOrCreate(
+            ['platform_service_id' => (int) $dispute->platform_service_id],
+            ['amount' => 75, 'is_active' => true]
+        );
 
-        $this->assertEqualsWithDelta(10.0, (float) $session->fee_amount, 0.01);
-        $this->assertEqualsWithDelta(10.0, (float) $session->fee_value, 0.01, 'the terms are kept, not just the total');
+        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id);
+
+        $this->assertEqualsWithDelta(75.0, (float) $session->fee_amount, 0.01);
+    }
+
+    /**
+     * ONE price per session — not a client price and a business price. The
+     * session is a single piece of work whoever asked for it, and the number is
+     * the same before anyone knows who will lose.
+     */
+    public function test_the_price_is_the_same_whichever_side_ends_up_paying(): void
+    {
+        $priceFor = function (string $outcome) {
+            Dispute::query()->where('disputeable_id', $this->booking->id)->delete();
+            Deposit::query()->where('target_id', $this->booking->id)->delete();
+            app(BookingDepositService::class)->freezeForBooking($this->booking, 100.0, [
+                'wallet_hold_amount' => 100.0, 'business_counter_hold_amount' => 0.0, 'amount' => 100.0,
+            ]);
+
+            $admin = $this->makeAdmin();
+            $dispute = $this->open();
+            $this->arbitration->acceptSession($dispute, (int) $admin->id);
+            $this->disputes->resolve($dispute->fresh(), $outcome, [], (int) $admin->id);
+
+            $session = $this->arbitration->chargeArbitrationFee($dispute->fresh());
+
+            return [(float) $session->fee_amount, $session->fee_on];
+        };
+
+        [$feeWhenBusinessLoses, $sideA] = $priceFor('refund_client');
+        [$feeWhenClientLoses, $sideB] = $priceFor('release_business');
+
+        $this->assertSame('business', $sideA);
+        $this->assertSame('client', $sideB);
+        $this->assertEqualsWithDelta($feeWhenBusinessLoses, $feeWhenClientLoses, 0.01, 'one price, either way');
     }
 
     /**
@@ -406,18 +447,28 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $this->expectException(ValidationException::class);
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 400.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
     }
 
-    public function test_an_impossible_percentage_is_refused(): void
+    /**
+     * A service added later must never be silently free: a session that costs
+     * nothing is one nobody hesitates to demand.
+     */
+    public function test_a_service_with_no_price_of_its_own_falls_back_to_the_default(): void
     {
         $admin = $this->makeAdmin();
+        $dispute = $this->open();
 
-        $this->expectException(ValidationException::class);
-        $this->arbitration->acceptSession($this->open(), (int) $admin->id, 'percent', 150.0);
+        \App\Models\DisputeFee::query()
+            ->where('platform_service_id', (int) $dispute->platform_service_id)
+            ->delete();
+
+        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id);
+
+        $this->assertEqualsWithDelta(40.0, (float) $session->fee_amount, 0.01, 'the fallback price applies');
     }
 
     /** The session accepted earlier is filled in, not duplicated. */
@@ -426,7 +477,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $accepted = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $accepted = $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
 
@@ -443,7 +494,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
         // The client won, so the business lost.
         $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
 
@@ -473,7 +524,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
         $this->disputes->resolve($dispute->fresh(), 'release_business', [], (int) $admin->id);
 
         $before = (float) $this->wallet((int) $this->booking->user_id)->balance;
@@ -492,7 +543,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
         $this->disputes->resolve($dispute->fresh(), 'split', [
             'client_percent' => 70, 'business_percent' => 30,
         ], (int) $admin->id);
@@ -509,7 +560,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
         $this->disputes->resolve($dispute->fresh(), 'split', [
             'client_percent' => 50, 'business_percent' => 50,
         ], (int) $admin->id);
@@ -524,7 +575,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
         $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
 
         $this->arbitration->chargeArbitrationFee($dispute->fresh());
@@ -545,7 +596,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'percent', 10.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $notified = \App\Models\AppNotification::query()
             ->where('notifiable_type', Dispute::class)
@@ -668,7 +719,7 @@ class ArbitrationTest extends TestCase
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 10.0);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $this->expectException(ValidationException::class);
         $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);

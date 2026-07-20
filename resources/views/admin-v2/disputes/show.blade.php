@@ -150,21 +150,16 @@
                   onsubmit="return confirm('{{ __('تأكيد قبول الجلسة بهذا الرسم؟ لا يمكن تعديله بعد ذلك.') }}');">
                 @csrf
                 <div class="a2-hint" style="margin-bottom:8px;">
-                    {{ __('يُحدَّد الرسم قبل النظر في النزاع ويُعلَن للطرفين، ولا يمكن تعديله بعد القبول.') }}
+                    {{ __('يُثبَّت الرسم عند قبول الجلسة ويُعلَن للطرفين، ولا يمكن تعديله بعد ذلك.') }}
+                </div>
+
+                <div class="a2-hint" style="margin-bottom:8px;">
+                    {{ __('رسم الجلسة لهذه الخدمة:') }}
+                    <strong>{{ \App\Models\DisputeFee::amountFor((int) $dispute->platform_service_id) }}</strong>
+                    — {{ __('يُضبط من شاشة رسوم جلسات التحكيم، ويتحمله الطرف الخاسر وحده.') }}
                 </div>
 
                 <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-                    <div>
-                        <label class="a2-label">{{ __('نوع الرسم') }}</label>
-                        <select class="a2-select" name="fee_type" required>
-                            <option value="fixed">{{ __('مبلغ ثابت') }}</option>
-                            <option value="percent">{{ __('نسبة من قيمة النزاع') }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="a2-label">{{ __('القيمة') }}</label>
-                        <input class="a2-input" type="number" step="0.01" min="0" name="fee_value" value="0" required>
-                    </div>
                     <button class="a2-btn a2-btn-primary" type="submit">{{ __('قبول الجلسة') }}</button>
                 </div>
             </form>

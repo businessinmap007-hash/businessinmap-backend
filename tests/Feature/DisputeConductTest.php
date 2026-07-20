@@ -442,6 +442,161 @@ class DisputeConductTest extends TestCase
         $this->postJson("/api/v2/disputes/{$id}/room/conduct")->assertNotFound();
     }
 
+    // ─────────────────── the rules screen (editable, versioned) ───────────────────
+
+    private function settingsAdmin(): User
+    {
+        $admin = new User();
+        $admin->name = 'Rules Editor';
+        $admin->email = 'rules-' . uniqid() . '@example.test';
+        $admin->phone = '0155' . random_int(1000000, 9999999);
+        $admin->password = 'secret-password';
+        $admin->type = User::TYPE_ADMIN;
+        $admin->api_token = \Illuminate\Support\Str::random(80);
+        $admin->save();
+
+        Bouncer::allow($admin)->to(AdminAbility::ACCESS);
+        Bouncer::allow($admin)->to(AdminAbility::SETTINGS);
+        Bouncer::refresh();
+
+        return $admin;
+    }
+
+    /** Publishing the rules is platform policy, not the handling of one case. */
+    public function test_the_rules_screen_is_gated_on_settings_not_disputes(): void
+    {
+        $arbitrator = $this->makeArbitrator(); // has DISPUTES + MONEY, not SETTINGS
+
+        $this->actingAs($arbitrator)->get('/admin/dispute-rules')->assertForbidden();
+        $this->actingAs($this->settingsAdmin())->get('/admin/dispute-rules')->assertOk();
+    }
+
+    /** Publishing adds the NEXT version — it never edits what people agreed to. */
+    public function test_publishing_creates_a_new_version_and_becomes_the_live_charter(): void
+    {
+        $before = $this->threads->conductVersion();
+
+        $this->actingAs($this->settingsAdmin())
+            ->post('/admin/dispute-rules', [
+                'title' => 'شروط محدّثة',
+                'sections' => [
+                    ['title' => 'قواعد السلوك', 'clauses' => "بند أول\nبند ثانٍ"],
+                ],
+            ])
+            ->assertRedirect();
+
+        $charter = $this->threads->conductCharter();
+
+        $this->assertGreaterThan($before, $charter['version'], 'the version must move forward');
+        $this->assertSame('شروط محدّثة', $charter['title']);
+        $this->assertSame(['بند أول', 'بند ثانٍ'], $charter['sections'][0]['clauses']);
+    }
+
+    /**
+     * THE consequence, and it is correct: someone who agreed to the old wording
+     * has not agreed to the new one, so their acceptance stops counting and the
+     * room closes to them until they accept again.
+     */
+    public function test_publishing_invalidates_every_earlier_acceptance(): void
+    {
+        $thread = $this->disputes->room($this->open());
+
+        $this->threads->acceptConduct($thread, (int) $this->booking->user_id);
+        $this->assertTrue($this->threads->hasAcceptedConduct($thread->fresh('participants'), (int) $this->booking->user_id));
+
+        $this->actingAs($this->settingsAdmin())
+            ->post('/admin/dispute-rules', [
+                'title' => 'شروط محدّثة',
+                'sections' => [['title' => 'قواعد', 'clauses' => "بند جديد"]],
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse(
+            $this->threads->hasAcceptedConduct($thread->fresh('participants'), (int) $this->booking->user_id),
+            'an acceptance of the old text must stop counting'
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'still here?');
+    }
+
+    /** Past versions are kept verbatim — that is how "what did they agree to" is answerable. */
+    public function test_past_versions_are_kept_and_readable(): void
+    {
+        $admin = $this->settingsAdmin();
+
+        $this->actingAs($admin)->post('/admin/dispute-rules', [
+            'title' => 'النسخة الأولى',
+            'sections' => [['title' => 'قواعد', 'clauses' => "بند قديم"]],
+        ]);
+
+        $first = \App\Models\DisputeRuleVersion::query()->orderByDesc('version')->firstOrFail();
+
+        $this->actingAs($admin)->post('/admin/dispute-rules', [
+            'title' => 'النسخة الثانية',
+            'sections' => [['title' => 'قواعد', 'clauses' => "بند جديد"]],
+        ]);
+
+        $this->assertSame('بند قديم', $first->fresh()->sections[0]['clauses'][0], 'the old text is untouched');
+
+        $this->actingAs($admin)->get("/admin/dispute-rules/{$first->id}")
+            ->assertOk()
+            ->assertSee('بند قديم');
+    }
+
+    public function test_rules_with_no_clauses_at_all_are_refused(): void
+    {
+        $before = $this->threads->conductVersion();
+
+        $this->actingAs($this->settingsAdmin())
+            ->post('/admin/dispute-rules', [
+                'title' => 'فارغة',
+                'sections' => [['title' => 'قواعد', 'clauses' => '']],
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame($before, $this->threads->conductVersion(), 'nothing may be published');
+    }
+
+    /**
+     * The form ships a spare empty section so a third can be added without a
+     * developer. Requiring it to be filled would have blocked every ordinary
+     * publish — the blank box is normal, not an error.
+     */
+    public function test_a_blank_spare_section_does_not_block_publishing(): void
+    {
+        $this->actingAs($this->settingsAdmin())
+            ->post('/admin/dispute-rules', [
+                'title' => 'شروط',
+                'sections' => [
+                    ['title' => 'قواعد السلوك', 'clauses' => 'بند'],
+                    ['title' => '', 'clauses' => ''],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertCount(1, $this->threads->conductCharter()['sections'], 'the blank one is dropped');
+    }
+
+    /** Parties read the published text, not the one compiled into the code. */
+    public function test_the_api_serves_the_published_rules(): void
+    {
+        $this->actingAs($this->settingsAdmin())->post('/admin/dispute-rules', [
+            'title' => 'شروط منشورة',
+            'sections' => [['title' => 'قواعد', 'clauses' => "بند منشور"]],
+        ]);
+
+        Sanctum::actingAs($this->client);
+        $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'quality'])
+            ->json('data.id');
+
+        $data = $this->getJson("/api/v2/disputes/{$id}/room/conduct")->assertOk()->json('data');
+
+        $this->assertSame('شروط منشورة', $data['title']);
+        $this->assertSame(['بند منشور'], $data['sections'][0]['clauses']);
+    }
+
     // ─────────────────────────── the admin screen ───────────────────────────
 
     public function test_the_arbitrator_can_record_a_violation_from_the_panel(): void

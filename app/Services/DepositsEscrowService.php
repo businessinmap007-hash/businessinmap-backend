@@ -423,6 +423,34 @@ class DepositsEscrowService
      * to pay out of their own pocket, since the payer is only ever moving money
      * that was just returned to them.
      */
+    /**
+     * Hand the WHOLE escrow to one side — the winner of a dispute.
+     *
+     * Deliberately NOT release()/refund(). Those unwind the escrow, returning
+     * each hold to whoever posted it, and that is exactly right for the normal
+     * booking lifecycle: the operation completed, the guarantee did its job,
+     * nobody owes anybody. A ruling is the opposite situation — the loser's
+     * hold is supposed to end up with the winner — and quietly changing
+     * release() to do that would have moved money on every successful booking
+     * in the platform.
+     *
+     * Same mechanic as split(), because this IS a split of 100/0.
+     */
+    public function awardTo(Deposit $deposit, string $winnerSide): Deposit
+    {
+        if (! in_array($winnerSide, ['client', 'business'], true)) {
+            throw ValidationException::withMessages([
+                'winner' => 'The winning side must be client or business.',
+            ]);
+        }
+
+        return $this->settle(
+            $deposit,
+            $winnerSide === 'client' ? 100.0 : 0.0,
+            $winnerSide === 'client' ? DepositStatus::REFUNDED : DepositStatus::RELEASED
+        );
+    }
+
     public function split(Deposit $deposit, float $clientPercent, float $businessPercent): Deposit
     {
         if ($clientPercent < 0 || $businessPercent < 0) {
@@ -437,7 +465,21 @@ class DepositsEscrowService
             ]);
         }
 
-        return DB::transaction(function () use ($deposit, $clientPercent) {
+        return $this->settle($deposit, $clientPercent, DepositStatus::SPLIT);
+    }
+
+    /**
+     * The one place escrow is divided between the parties.
+     *
+     * Money can only leave a wallet it is locked in, so this is two moves:
+     * unlock every hold back to whoever posted it, then transfer the DIFFERENCE
+     * between what a party posted and what they were awarded. The payer is only
+     * ever moving money just returned to them, which is why no funding check is
+     * needed.
+     */
+    private function settle(Deposit $deposit, float $clientPercent, DepositStatus $finalStatus): Deposit
+    {
+        return DB::transaction(function () use ($deposit, $clientPercent, $finalStatus) {
 
             // Row lock (see release()): serialize concurrent settlements on the
             // same deposit and make the status guards authoritative.
@@ -445,26 +487,14 @@ class DepositsEscrowService
 
             $statusValue = $this->depositStatusValue($deposit);
 
-            // ✅ already split
-            if ($statusValue === DepositStatus::SPLIT->value) {
+            // Already settled this way — idempotent, not an error.
+            if ($statusValue === $finalStatus->value) {
                 return $deposit;
-            }
-
-            if ($deposit->released_at !== null || $statusValue === DepositStatus::RELEASED->value) {
-                throw ValidationException::withMessages([
-                    'deposit' => 'Cannot split a released deposit.',
-                ]);
-            }
-
-            if ($deposit->refunded_at !== null || $statusValue === DepositStatus::REFUNDED->value) {
-                throw ValidationException::withMessages([
-                    'deposit' => 'Cannot split a refunded deposit.',
-                ]);
             }
 
             if ($statusValue !== DepositStatus::FROZEN->value) {
                 throw ValidationException::withMessages([
-                    'deposit' => 'Cannot split a non-frozen deposit.',
+                    'deposit' => 'Cannot settle a deposit that is no longer frozen.',
                 ]);
             }
 
@@ -485,7 +515,7 @@ class DepositsEscrowService
                     $deposit->client_amount,
                     $deposit,
                     WalletTransactionType::REFUND,
-                    'Unlock client deposit for split ruling'
+                    'Unlock client deposit for ruling'
                 );
             }
 
@@ -495,7 +525,7 @@ class DepositsEscrowService
                     $deposit->business_amount,
                     $deposit,
                     WalletTransactionType::REFUND,
-                    'Unlock business deposit for split ruling'
+                    'Unlock business deposit for ruling'
                 );
             }
 
@@ -512,7 +542,7 @@ class DepositsEscrowService
                     amount: abs($delta),
                     referenceType: 'deposit',
                     referenceId: (string) $deposit->id,
-                    note: 'Split ruling settlement',
+                    note: 'Dispute ruling settlement',
                     idempotencyKey: 'deposit_split_' . $deposit->id,
                     meta: [
                         'deposit_id' => $deposit->id,
@@ -526,11 +556,12 @@ class DepositsEscrowService
             }
 
             // released_at doubles as "escrow settled at" — the status says which
-            // way it settled, and leaving it null would show a split deposit as
-            // never having been settled at all.
+            // way it settled, and leaving it null would show a settled deposit
+            // as never having been settled at all.
             $deposit->update([
-                'status' => DepositStatus::SPLIT,
+                'status' => $finalStatus,
                 'released_at' => now(),
+                'refunded_at' => $finalStatus === DepositStatus::REFUNDED ? now() : null,
             ]);
 
             return $deposit;

@@ -383,7 +383,7 @@ final class DisputeController extends Controller
                     // The composer stays shut until this is true — posting is
                     // refused server-side either way.
                     'conduct_accepted' => $threads->hasAcceptedConduct($thread, (int) $request->user()->id),
-                    'conduct_version' => ThreadService::CONDUCT_VERSION,
+                    'conduct_version' => $threads->conductVersion(),
                     'participants' => $thread->participants->map(fn ($p) => [
                         'user_id' => (int) $p->user_id,
                         'role' => $p->role,

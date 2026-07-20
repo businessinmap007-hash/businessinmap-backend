@@ -733,12 +733,16 @@ class DisputeService
         }
 
         switch ($resolutionType) {
+            // A ruling AWARDS the escrow — the loser's hold ends up with the
+            // winner. release()/refund() only unwind it, each hold back to
+            // whoever posted it, which is right for a booking that completed
+            // normally and wrong for a case somebody lost.
             case 'release_business':
-                $this->depositsEscrowService->release($deposit);
+                $this->depositsEscrowService->awardTo($deposit, 'business');
                 break;
 
             case 'refund_client':
-                $this->depositsEscrowService->refund($deposit, true, true);
+                $this->depositsEscrowService->awardTo($deposit, 'client');
                 break;
 
             case self::RESOLUTION_MUTUAL:

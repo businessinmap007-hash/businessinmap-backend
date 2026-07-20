@@ -31,6 +31,7 @@ use App\Http\Controllers\AdminV2\{
     DeliveryAdminController,
     ArbitratorController,
     DisputeController,
+    DisputeRuleController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     HeldDeletionController,
@@ -434,6 +435,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{user}', [ArbitratorController::class, 'show'])->whereNumber('user')->name('show');
             Route::post('promote', [ArbitratorController::class, 'promote'])->name('promote');
             Route::delete('{user}', [ArbitratorController::class, 'demote'])->whereNumber('user')->name('demote');
+        });
+
+        // The rules parties must accept. Behind SETTINGS, not DISPUTES: this is
+        // platform policy every case is judged by, not the handling of one case.
+        Route::prefix('dispute-rules')->name('dispute-rules.')->middleware('can:' . AdminAbility::SETTINGS)->group(function () {
+            Route::get('/', [DisputeRuleController::class, 'index'])->name('index');
+            Route::post('/', [DisputeRuleController::class, 'store'])->name('store');
+            Route::get('{ruleVersion}', [DisputeRuleController::class, 'show'])->whereNumber('ruleVersion')->name('show');
         });
 
         Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {

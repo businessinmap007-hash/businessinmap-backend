@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AppNotification;
 use App\Models\ConductViolation;
+use App\Models\DisputeRuleVersion;
 use App\Models\Thread;
 use App\Models\ThreadMessage;
 use App\Models\ThreadParticipant;
@@ -86,13 +87,21 @@ class ThreadService
     }
 
     /**
-     * The conduct rules, and their version.
-     *
      * Bumping the version invalidates every existing acceptance, on purpose: a
      * rewritten charter is a different promise, and someone who agreed to the
      * old wording has not agreed to the new one.
+     *
+     * This constant is the version shipped with the code, and the floor a published one must
+     * clear. Editing the rules is a panel action now, so this is only the
+     * starting point — see conductVersion().
      */
     public const CONDUCT_VERSION = 2;
+
+    /** The version actually in force: whatever the panel last published. */
+    public function conductVersion(): int
+    {
+        return DisputeRuleVersion::active()?->version ?? self::CONDUCT_VERSION;
+    }
 
     /**
      * ONE document in two sections, accepted once.
@@ -102,8 +111,28 @@ class ThreadService
      * updated and the other is not, nobody can say what a given party actually
      * agreed to. One version number over one text is the only thing that stays
      * answerable.
+     *
+     * The published version wins when there is one; the text below is the
+     * fallback so a fresh install still has enforceable rules rather than an
+     * empty page people are asked to agree to.
      */
     public function conductCharter(): array
+    {
+        $published = DisputeRuleVersion::active();
+
+        if ($published) {
+            return [
+                'version' => (int) $published->version,
+                'title' => $published->title,
+                'sections' => $published->sections,
+            ];
+        }
+
+        return $this->defaultCharter();
+    }
+
+    /** The rules that ship with the code, used until the panel publishes its own. */
+    public function defaultCharter(): array
     {
         return [
             'version' => self::CONDUCT_VERSION,
@@ -140,7 +169,7 @@ class ThreadService
 
         return $seat !== null
             && $seat->conduct_accepted_at !== null
-            && (int) $seat->conduct_version >= self::CONDUCT_VERSION;
+            && (int) $seat->conduct_version >= $this->conductVersion();
     }
 
     public function acceptConduct(Thread $thread, int $userId): ThreadParticipant
@@ -157,7 +186,7 @@ class ThreadService
 
         $seat->update([
             'conduct_accepted_at' => now(),
-            'conduct_version' => self::CONDUCT_VERSION,
+            'conduct_version' => $this->conductVersion(),
             // Accepting after a refusal is allowed: someone who reads it again
             // and changes their mind should get their voice back.
             'conduct_declined_at' => null,

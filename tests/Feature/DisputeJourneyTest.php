@@ -177,6 +177,117 @@ class DisputeJourneyTest extends TestCase
         $this->assertNotNull($deposit->fresh()->released_at, 'released, not refunded');
     }
 
+    /** Both sides posting a hold — the only shape in which a transfer is visible. */
+    private function freezeBoth(float $each = 200.0): Deposit
+    {
+        $this->deposits->freezeForBooking($this->booking, $each * 2, [
+            'wallet_hold_amount' => $each,
+            'business_counter_hold_amount' => $each,
+            'amount' => $each * 2,
+        ]);
+
+        return Deposit::query()
+            ->where('target_type', Booking::class)
+            ->where('target_id', $this->booking->id)
+            ->latest('id')->firstOrFail();
+    }
+
+    /**
+     * A ruling AWARDS the escrow: the loser's hold ends up with the winner.
+     *
+     * This is the test that was missing. The old ones asserted "nothing stays
+     * locked" and "released_at is set" — both true while release() merely
+     * unwound the escrow and handed every hold back to whoever posted it, so
+     * release_business and refund_client moved identical money: none.
+     */
+    public function test_a_ruling_for_the_business_moves_the_clients_hold_across(): void
+    {
+        $this->freezeBoth(200);
+
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        // Each posted 200, so each is down 200 from the 1000 they started with.
+        $this->assertEqualsWithDelta(800.0, (float) $clientWallet->balance, 0.01, 'setup');
+        $this->assertEqualsWithDelta(800.0, (float) $businessWallet->balance, 0.01, 'setup');
+
+        $this->disputes->resolve($this->open(), 'release_business');
+
+        $this->assertEqualsWithDelta(
+            800.0,
+            (float) $clientWallet->fresh()->balance,
+            0.01,
+            'the loser does not get their hold back'
+        );
+        $this->assertEqualsWithDelta(
+            1200.0,
+            (float) $businessWallet->fresh()->balance,
+            0.01,
+            'the winner takes the whole escrow'
+        );
+        $this->assertEqualsWithDelta(0.0, (float) $clientWallet->fresh()->locked_balance, 0.01);
+    }
+
+    /** The same, the other way, so the rule is not hard-coded to one side. */
+    public function test_a_ruling_for_the_client_moves_the_businesss_hold_across(): void
+    {
+        $this->freezeBoth(200);
+
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->disputes->resolve($this->open(), 'refund_client');
+
+        $this->assertEqualsWithDelta(1200.0, (float) $clientWallet->fresh()->balance, 0.01);
+        $this->assertEqualsWithDelta(800.0, (float) $businessWallet->fresh()->balance, 0.01);
+    }
+
+    /** Whatever the ruling, the escrow is conserved between the two wallets. */
+    public function test_a_ruling_neither_mints_nor_burns_escrow(): void
+    {
+        $this->freezeBoth(200);
+
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->disputes->resolve($this->open(), 'release_business');
+
+        $this->assertEqualsWithDelta(
+            2000.0,
+            (float) $clientWallet->fresh()->balance + (float) $businessWallet->fresh()->balance,
+            0.001
+        );
+    }
+
+    /**
+     * THE regression guard. A booking that simply completed must still UNWIND —
+     * every hold back to whoever posted it. Making release() award the escrow
+     * instead would have moved money on every successful booking on the
+     * platform, which is exactly why the ruling got its own method.
+     */
+    public function test_a_normal_booking_release_still_unwinds_and_moves_nothing(): void
+    {
+        $this->freezeBoth(200);
+
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->deposits->releaseForBooking($this->booking);
+
+        $this->assertEqualsWithDelta(
+            1000.0,
+            (float) $clientWallet->fresh()->balance,
+            0.01,
+            'a completed booking returns the client their own hold'
+        );
+        $this->assertEqualsWithDelta(
+            1000.0,
+            (float) $businessWallet->fresh()->balance,
+            0.01,
+            'and the business theirs — nobody pays anybody'
+        );
+    }
+
     /** no_action: the ruling is recorded, the escrow is deliberately untouched. */
     public function test_no_action_records_the_ruling_and_leaves_the_escrow_alone(): void
     {

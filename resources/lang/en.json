@@ -2195,5 +2195,16 @@
     "لا يمكن تحصيل رسم الجلسة: لا يوجد طرف خاسر في هذا القرار.": "The session fee cannot be charged: this ruling names no losing party.",
     "تعذر تحديد الطرف الخاسر.": "Could not identify the losing party.",
     "الغرامة لا تُفرض إلا على التعدي أو عدم الخضوع للحكم.": "A fine may only be imposed for misconduct or for refusing to comply with the ruling.",
-    "لا توجد مخالفة سلوك مسجّلة على هذا الطرف.": "No conduct violation has been recorded against this party."
+    "لا توجد مخالفة سلوك مسجّلة على هذا الطرف.": "No conduct violation has been recorded against this party.",
+    "يجب تحديد الطرف المستحق للتعويض.": "You must say which party the compensation is owed to.",
+    "قيمة التعويض غير صالحة.": "The compensation amount is not valid.",
+    "لا يمكن الحكم بتعويض قبل صدور القرار.": "Compensation cannot be awarded before a ruling is issued.",
+    "شروط غرفة النزاع والتحكيم": "Dispute room and arbitration terms",
+    "قواعد السلوك": "Conduct rules",
+    "شروط التحكيم": "Arbitration terms",
+    "قرار المحكّم نهائي ومُلزم للطرفين، ويُنفَّذ على مبلغ الضمان مباشرة.": "The arbitrator ruling is final and binding on both parties, and is executed against the escrow directly.",
+    "للمحكّم أن يحكم بتعويض يُدفع من محفظة الطرف الخاسر إلى الطرف الآخر.": "The arbitrator may award compensation paid from the losing party wallet to the other party.",
+    "رسم الجلسة يتحمله الطرف الخاسر وحده، ويُعلَن مقداره قبل بدء النظر.": "The session fee is borne by the losing party alone, and its amount is announced before the case is heard.",
+    "عدم الخضوع للحكم أو الامتناع عن سداد ما حُكم به يُعرِّضك لغرامة منصة.": "Refusing the ruling, or failing to pay what it awarded, exposes you to a platform fine.",
+    "من لا يقبل هذه الشروط يسقط حقه في المرافعة، ويحكم المحكّم بما حضر أمامه من أدلة.": "Whoever does not accept these terms forfeits the right to argue, and the arbitrator rules on the evidence before them."
 }

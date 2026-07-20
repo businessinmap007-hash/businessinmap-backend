@@ -504,6 +504,153 @@ class ArbitrationService
         };
     }
 
+    /* ======================== compensation ======================== */
+
+    /**
+     * Order one party to compensate the other — shipping already paid, a cost
+     * incurred, a difference in value. Distinct from the escrow, which is only
+     * ever the money the platform was already holding: a real loss is often
+     * larger than the deposit, or has nothing to do with it.
+     *
+     * ORDERING and PAYING are separate. The escrow moves the instant a ruling
+     * lands because the platform holds it; compensation comes out of a wallet
+     * that may be empty. So the order is always recorded, payment is attempted,
+     * and a shortfall leaves it unpaid rather than silently not happening —
+     * which is also precisely the `non_compliance` a fine may then rest on.
+     */
+    public function awardCompensation(
+        Dispute $dispute,
+        string $toSide,
+        float $amount,
+        ?string $note = null
+    ): ArbitrationSession {
+        if (! in_array($toSide, ['client', 'business'], true)) {
+            throw ValidationException::withMessages([
+                'compensation_to' => __('يجب تحديد الطرف المستحق للتعويض.'),
+            ]);
+        }
+
+        $amount = round($amount, 2);
+
+        if ($amount <= 0) {
+            throw ValidationException::withMessages([
+                'compensation_amount' => __('قيمة التعويض غير صالحة.'),
+            ]);
+        }
+
+        $session = ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
+
+        if (! $session || $session->isOpen()) {
+            throw ValidationException::withMessages([
+                'compensation_amount' => __('لا يمكن الحكم بتعويض قبل صدور القرار.'),
+            ]);
+        }
+
+        if ((float) $session->compensation_amount > 0) {
+            return $session; // one compensation order per ruling
+        }
+
+        $session->update([
+            'compensation_amount' => $amount,
+            'compensation_to' => $toSide,
+            'compensation_note' => $note,
+        ]);
+
+        $this->announceCompensation($dispute, $toSide, $amount, $note);
+
+        return $this->settleCompensation($dispute);
+    }
+
+    /**
+     * Try to actually move the ordered compensation.
+     *
+     * Safe to call again: an order that could not be paid when it was made can
+     * be paid the moment the payer tops up, which is the whole reason the order
+     * survives the failure.
+     */
+    public function settleCompensation(Dispute $dispute): ArbitrationSession
+    {
+        $session = ArbitrationSession::query()->where('dispute_id', $dispute->id)->firstOrFail();
+
+        $amount = round((float) $session->compensation_amount, 2);
+
+        if ($amount <= 0 || $session->compensation_paid_at !== null) {
+            return $session;
+        }
+
+        $payerSide = $session->compensation_to === 'client' ? 'business' : 'client';
+        $payerId = $this->partyId($dispute, $payerSide);
+        $payeeId = $this->partyId($dispute, (string) $session->compensation_to);
+
+        if (! $payerId || ! $payeeId) {
+            return $session;
+        }
+
+        try {
+            $this->wallets->transfer(
+                fromUserId: $payerId,
+                toUserId: $payeeId,
+                amount: $amount,
+                referenceType: 'dispute_compensation',
+                referenceId: (string) $dispute->id,
+                note: 'تعويض بحكم تحكيم في نزاع #' . $dispute->id,
+                idempotencyKey: 'dispute_compensation_' . $dispute->id,
+                meta: ['dispute_id' => (int) $dispute->id, 'to' => $session->compensation_to]
+            );
+        } catch (ValidationException $e) {
+            // Almost always an empty wallet. The order stands and stays unpaid;
+            // that unpaid state is what an arbitrator later fines for.
+            return $session->fresh();
+        }
+
+        $session->update(['compensation_paid_at' => now()]);
+
+        $this->notifyCompensation($payeeId, $payerId, $dispute, $amount);
+
+        return $session->fresh();
+    }
+
+    protected function announceCompensation(Dispute $dispute, string $toSide, float $amount, ?string $note): void
+    {
+        $body = sprintf(
+            'حكم المحكّم بتعويض قدره %s لصالح %s%s',
+            number_format($amount, 2),
+            $toSide === 'client' ? 'العميل' : 'النشاط',
+            $note ? ' — ' . $note : '.'
+        );
+
+        try {
+            app(ThreadService::class)->system(app(DisputeService::class)->room($dispute), $body);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    protected function notifyCompensation(int $payeeId, int $payerId, Dispute $dispute, float $amount): void
+    {
+        $notices = [
+            $payeeId => 'أُضيف إلى محفظتك مبلغ ' . number_format($amount, 2) . ' كتعويض بحكم التحكيم.',
+            $payerId => 'خُصم من محفظتك مبلغ ' . number_format($amount, 2) . ' تعويضًا للطرف الآخر بحكم التحكيم.',
+        ];
+
+        foreach ($notices as $userId => $body) {
+            try {
+                $this->notifications->create([
+                    'user_id' => $userId,
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'priority' => AppNotification::PRIORITY_HIGH,
+                    'title_ar' => 'تعويض بحكم التحكيم',
+                    'title_en' => 'Compensation awarded by the ruling',
+                    'body_ar' => $body,
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
     /** Was a conduct violation actually recorded against this side, in the room? */
     private function hasRecordedMisconduct(Dispute $dispute, string $side): bool
     {

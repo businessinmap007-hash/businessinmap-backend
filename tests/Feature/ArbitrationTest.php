@@ -559,6 +559,140 @@ class ArbitrationTest extends TestCase
         );
     }
 
+    // ─────────────────────── compensation ───────────────────────
+
+    /**
+     * The case the escrow cannot answer: shipping already paid on an order the
+     * client refused. The loss is a real cost, not the deposit.
+     */
+    public function test_a_ruling_can_order_one_party_to_compensate_the_other(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $clientBefore = (float) $this->wallet((int) $this->booking->user_id)->balance;
+        $businessBefore = (float) $this->wallet((int) $this->booking->business_id)->balance;
+
+        $session = $this->arbitration->awardCompensation(
+            $dispute->fresh(),
+            'business',
+            150.0,
+            'رسوم شحن مدفوعة'
+        );
+
+        $this->assertEqualsWithDelta(150.0, (float) $session->compensation_amount, 0.01);
+        $this->assertSame('business', $session->compensation_to);
+        $this->assertNotNull($session->compensation_paid_at, 'the client could afford it');
+
+        $this->assertEqualsWithDelta(
+            $clientBefore - 150.0,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01,
+            'the other party pays it'
+        );
+        $this->assertEqualsWithDelta(
+            $businessBefore + 150.0,
+            (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
+            0.01
+        );
+    }
+
+    /** It is a transfer between the parties — the platform takes nothing. */
+    public function test_compensation_moves_between_the_parties_only(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $totalBefore = (float) $this->wallet((int) $this->booking->user_id)->balance
+            + (float) $this->wallet((int) $this->booking->business_id)->balance;
+
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+
+        $totalAfter = (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance
+            + (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
+
+        $this->assertEqualsWithDelta($totalBefore, $totalAfter, 0.001, 'nothing may leak to the platform');
+    }
+
+    /**
+     * An empty wallet must not make the ruling vanish. The order stands unpaid —
+     * and that unpaid state is exactly the non_compliance a fine rests on.
+     */
+    public function test_an_unaffordable_compensation_is_ordered_but_left_unpaid(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
+
+        $session = $this->arbitration->awardCompensation($dispute->fresh(), 'business', 500.0);
+
+        $this->assertEqualsWithDelta(500.0, (float) $session->compensation_amount, 0.01, 'the order stands');
+        $this->assertNull($session->compensation_paid_at, 'but it is not paid');
+        $this->assertEqualsWithDelta(
+            10.0,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01,
+            'no partial raid on the wallet'
+        );
+    }
+
+    /** Paid the moment the payer tops up — which is why the order survives. */
+    public function test_an_unpaid_compensation_settles_once_the_payer_can_afford_it(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 500.0);
+
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => 900]);
+
+        $session = $this->arbitration->settleCompensation($dispute->fresh());
+
+        $this->assertNotNull($session->compensation_paid_at);
+        $this->assertEqualsWithDelta(
+            400.0,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01
+        );
+    }
+
+    public function test_compensation_cannot_be_ordered_before_a_ruling(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 10.0);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+    }
+
+    /** One order per ruling — a retry must not charge the payer twice. */
+    public function test_compensation_is_ordered_only_once(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+        $after = (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance;
+
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+
+        $this->assertEqualsWithDelta(
+            $after,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01
+        );
+    }
+
     // ─────────────────────────── the stats ───────────────────────────
 
     public function test_the_record_adds_up_across_cases(): void

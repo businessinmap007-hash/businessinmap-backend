@@ -207,6 +207,52 @@ class DisputeController extends Controller
         return back()->with('success', __('تم تسجيل مخالفة السلوك.'));
     }
 
+    /**
+     * Order one party to compensate the other — a real cost the escrow does not
+     * cover, like shipping already paid on an order that was refused.
+     */
+    public function awardCompensation(Request $request, Dispute $dispute)
+    {
+        $data = $request->validate([
+            'compensation_to' => ['required', 'in:client,business'],
+            'compensation_amount' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
+            'compensation_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $session = app(\App\Services\ArbitrationService::class)->awardCompensation(
+                dispute: $dispute,
+                toSide: $data['compensation_to'],
+                amount: (float) $data['compensation_amount'],
+                note: $data['compensation_note'] ?? null
+            );
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', __('تعذر الحكم بالتعويض: ') . $e->getMessage());
+        }
+
+        return back()->with(
+            'success',
+            $session->compensation_paid_at
+                ? __('تم الحكم بالتعويض وتحويله.')
+                : __('تم الحكم بالتعويض، ولم يُسدَّد بعد لعدم كفاية رصيد الطرف الملزم.')
+        );
+    }
+
+    /** Retry an ordered compensation the payer could not afford at the time. */
+    public function settleCompensation(Dispute $dispute)
+    {
+        $session = app(\App\Services\ArbitrationService::class)->settleCompensation($dispute);
+
+        return back()->with(
+            $session->compensation_paid_at ? 'success' : 'error',
+            $session->compensation_paid_at ? __('تم تحويل التعويض.') : __('ما زال رصيد الطرف الملزم غير كافٍ.')
+        );
+    }
+
     /** Take the arbitrator's seat in the dispute's room, and speak in it. */
     public function roomPost(Request $request, Dispute $dispute)
     {

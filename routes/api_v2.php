@@ -267,6 +267,8 @@ Route::prefix('v2')->group(function () {
         // separately from who is right about the booking.
         Route::get('disputes/{dispute}/room/conduct', [DisputeController::class, 'conduct'])->whereNumber('dispute');
         Route::post('disputes/{dispute}/room/conduct', [DisputeController::class, 'acceptConduct'])->whereNumber('dispute');
+        // Refusing costs the right to argue, not the case itself.
+        Route::delete('disputes/{dispute}/room/conduct', [DisputeController::class, 'declineConduct'])->whereNumber('dispute');
         Route::post('disputes/{dispute}/room/messages', [DisputeController::class, 'postMessage'])
             ->whereNumber('dispute');
 

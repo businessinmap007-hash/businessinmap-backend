@@ -24,6 +24,10 @@ class ArbitrationSession extends Model
         'platform_fine_amount',
         'platform_fine_on',
         'platform_fine_reason',
+        'compensation_amount',
+        'compensation_to',
+        'compensation_note',
+        'compensation_paid_at',
         'notes',
     ];
 
@@ -33,6 +37,8 @@ class ArbitrationSession extends Model
         'amount_to_client' => 'decimal:2',
         'amount_to_business' => 'decimal:2',
         'platform_fine_amount' => 'decimal:2',
+        'compensation_amount' => 'decimal:2',
+        'compensation_paid_at' => 'datetime',
         'fee_value' => 'decimal:2',
         'fee_amount' => 'decimal:2',
         'fee_terms_set_at' => 'datetime',

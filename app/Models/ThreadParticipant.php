@@ -19,6 +19,7 @@ class ThreadParticipant extends Model
         'joined_at',
         'conduct_accepted_at',
         'conduct_version',
+        'conduct_declined_at',
         'last_read_at',
     ];
 
@@ -26,6 +27,7 @@ class ThreadParticipant extends Model
         'joined_at' => 'datetime',
         'conduct_accepted_at' => 'datetime',
         'conduct_version' => 'integer',
+        'conduct_declined_at' => 'datetime',
         'last_read_at' => 'datetime',
     ];
 

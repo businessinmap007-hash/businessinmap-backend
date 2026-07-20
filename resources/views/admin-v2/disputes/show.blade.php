@@ -173,6 +173,77 @@
         @endif
     </div>
 
+    @if($session && ! $session->isOpen())
+        <div class="a2-card" style="padding:14px;margin-top:14px;">
+            <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('التعويض') }}</div>
+
+            @if((float) $session->compensation_amount > 0)
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                    <div>
+                        <div class="a2-hint">{{ __('المبلغ') }}</div>
+                        <div style="font-weight:800;">{{ number_format((float) $session->compensation_amount, 2) }}</div>
+                    </div>
+                    <div>
+                        <div class="a2-hint">{{ __('لصالح') }}</div>
+                        <div style="font-weight:800;">{{ $session->compensation_to === 'client' ? __('العميل') : __('النشاط') }}</div>
+                    </div>
+                    <div>
+                        <div class="a2-hint">{{ __('السداد') }}</div>
+                        <div style="font-weight:800;">
+                            @if($session->compensation_paid_at)
+                                {{ $session->compensation_paid_at->format('Y-m-d H:i') }}
+                            @else
+                                <span style="color:#b42318;">{{ __('لم يُسدَّد — رصيد غير كافٍ') }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                @if($session->compensation_note)
+                    <div style="margin-top:8px;">{{ $session->compensation_note }}</div>
+                @endif
+
+                @unless($session->compensation_paid_at)
+                    <form method="POST" action="{{ route('admin.disputes.compensation.settle', $dispute) }}" style="margin-top:10px;">
+                        @csrf
+                        <button class="a2-btn a2-btn-primary" type="submit">{{ __('إعادة محاولة التحويل') }}</button>
+                        <div class="a2-hint" style="margin-top:6px;">
+                            {{ __('عدم السداد سبب صالح لغرامة «عدم الخضوع للحكم».') }}
+                        </div>
+                    </form>
+                @endunless
+            @else
+                <form method="POST" action="{{ route('admin.disputes.compensation', $dispute) }}"
+                      onsubmit="return confirm('{{ __('تأكيد الحكم بالتعويض؟ لا يمكن تعديله بعد ذلك.') }}');">
+                    @csrf
+                    <div class="a2-hint" style="margin-bottom:8px;">
+                        {{ __('تكلفة حقيقية لا يغطيها الضمان — رسوم شحن مدفوعة، ضرر، فرق قيمة. تُخصم من محفظة الطرف الآخر.') }}
+                    </div>
+
+                    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                        <div>
+                            <label class="a2-label">{{ __('لصالح') }}</label>
+                            <select class="a2-select" name="compensation_to" required>
+                                <option value="client">{{ __('العميل') }}</option>
+                                <option value="business">{{ __('النشاط') }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="a2-label">{{ __('المبلغ') }}</label>
+                            <input class="a2-input" type="number" step="0.01" min="0.01" name="compensation_amount" required>
+                        </div>
+                        <div style="flex:1;min-width:220px;">
+                            <label class="a2-label">{{ __('السبب') }}</label>
+                            <input class="a2-input" type="text" name="compensation_note" maxlength="500"
+                                   placeholder="{{ __('مثال: رسوم شحن مدفوعة') }}">
+                        </div>
+                        <button class="a2-btn a2-btn-primary" type="submit">{{ __('الحكم بالتعويض') }}</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+    @endif
+
     <div class="a2-card" style="padding:14px;margin-top:14px;">
         <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('غرفة النزاع') }}</div>
 
@@ -200,6 +271,21 @@
             @empty
                 <div class="a2-hint" style="text-align:center;">{{ __('لا توجد رسائل بعد.') }}</div>
             @endforelse
+        </div>
+
+        <div class="a2-hint" style="margin-top:12px;">
+            {{ __('قبول الشروط:') }}
+            @foreach($thread->participants->where('role', '!=', 'arbitrator') as $participant)
+                <strong>{{ $participant->user?->name ?? '#'.$participant->user_id }}</strong>:
+                @if($participant->conduct_declined_at)
+                    <span style="color:#b42318;">{{ __('رفض — سقط حقه في المرافعة') }}</span>
+                @elseif($participant->conduct_accepted_at && (int) $participant->conduct_version >= \App\Services\ThreadService::CONDUCT_VERSION)
+                    {{ __('قبل') }}
+                @else
+                    <span style="color:#b54708;">{{ __('لم يقبل بعد') }}</span>
+                @endif
+                @if(! $loop->last) · @endif
+            @endforeach
         </div>
 
         <div style="margin-top:14px;">

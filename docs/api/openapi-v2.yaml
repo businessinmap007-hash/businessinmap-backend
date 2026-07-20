@@ -2224,6 +2224,21 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+    delete:
+      tags: [Disputes]
+      summary: Refuse the terms
+      description: >-
+        Recorded rather than inferred from silence — refusing and not having
+        opened the app are different facts. The consequence is forfeiting the
+        right to argue: the room closes to you and the arbitrator rules on the
+        evidence before them. It is NOT an automatic loss. Accepting later
+        reverses it.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/room/messages:
     post:
       tags: [Disputes]

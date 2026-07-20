@@ -104,12 +104,57 @@ class DisputeConductTest extends TestCase
 
     // ─────────────────────────── the charter ───────────────────────────
 
-    /** The warning must actually say what it costs, or consent means nothing. */
-    public function test_the_charter_states_the_two_consequences(): void
+    /** One document, two sections, one acceptance — not two charters to drift apart. */
+    public function test_the_charter_is_one_document_with_both_sections(): void
     {
         $charter = $this->threads->conductCharter();
 
-        $text = implode(' ', $charter['clauses']);
+        $this->assertCount(2, $charter['sections']);
+        $this->assertSame(ThreadService::CONDUCT_VERSION, $charter['version']);
+    }
+
+    /** The arbitration terms must state what a ruling can actually do. */
+    public function test_the_terms_state_the_binding_ruling_and_the_compensation_power(): void
+    {
+        $text = $this->charterText();
+
+        $this->assertStringContainsString(
+            __('قرار المحكّم نهائي ومُلزم للطرفين، ويُنفَّذ على مبلغ الضمان مباشرة.'),
+            $text
+        );
+        $this->assertStringContainsString(
+            __('للمحكّم أن يحكم بتعويض يُدفع من محفظة الطرف الخاسر إلى الطرف الآخر.'),
+            $text
+        );
+        $this->assertStringContainsString(
+            __('رسم الجلسة يتحمله الطرف الخاسر وحده، ويُعلَن مقداره قبل بدء النظر.'),
+            $text
+        );
+    }
+
+    /**
+     * Refusal costs the right to argue, and the terms say so — a consequence
+     * the party is not told about is one they never agreed to.
+     */
+    public function test_the_terms_state_that_refusing_forfeits_the_right_to_argue(): void
+    {
+        $this->assertStringContainsString(
+            __('من لا يقبل هذه الشروط يسقط حقه في المرافعة، ويحكم المحكّم بما حضر أمامه من أدلة.'),
+            $this->charterText()
+        );
+    }
+
+    private function charterText(): string
+    {
+        return collect($this->threads->conductCharter()['sections'])
+            ->flatMap(fn ($section) => $section['clauses'])
+            ->implode(' ');
+    }
+
+    /** The warning must actually say what it costs, or consent means nothing. */
+    public function test_the_charter_states_the_two_consequences(): void
+    {
+        $text = $this->charterText();
 
         // Compared through __(), not against the Arabic source: the charter is
         // translatable, so a literal here would pass only in Arabic.
@@ -123,7 +168,67 @@ class DisputeConductTest extends TestCase
             $text,
             'the fine must be stated'
         );
-        $this->assertSame(ThreadService::CONDUCT_VERSION, $charter['version']);
+    }
+
+    // ─────────────────────────── refusing ───────────────────────────
+
+    /** Refusing is recorded, not inferred from silence — they are different facts. */
+    public function test_refusing_the_terms_is_recorded_and_closes_the_room_to_you(): void
+    {
+        $thread = $this->disputes->room($this->open());
+
+        $seat = $this->threads->declineConduct($thread, (int) $this->booking->user_id);
+
+        $this->assertNotNull($seat->conduct_declined_at);
+        $this->assertNull($seat->conduct_accepted_at);
+
+        $this->expectException(ValidationException::class);
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'let me in');
+    }
+
+    /**
+     * Refusing must NOT decide the case. Nobody wins because the other side
+     * went quiet, and a default that harsh would fall on whoever simply was not
+     * reading their phone.
+     */
+    public function test_refusing_does_not_lose_the_dispute(): void
+    {
+        $dispute = $this->open();
+        $thread = $this->disputes->room($dispute);
+
+        $this->threads->declineConduct($thread, (int) $this->booking->user_id);
+
+        $fresh = $dispute->fresh();
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, $fresh->status);
+        $this->assertNull($fresh->resolution_type, 'the arbitrator still decides');
+    }
+
+    /** Someone who reads it again and changes their mind gets their voice back. */
+    public function test_a_refusal_can_be_reversed_by_accepting(): void
+    {
+        $thread = $this->disputes->room($this->open());
+
+        $this->threads->declineConduct($thread, (int) $this->booking->user_id);
+        $seat = $this->threads->acceptConduct($thread->fresh('participants'), (int) $this->booking->user_id);
+
+        $this->assertNull($seat->conduct_declined_at);
+        $this->assertNotNull($seat->conduct_accepted_at);
+
+        $message = $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'back');
+        $this->assertSame((int) $this->booking->user_id, (int) $message->sender_id);
+    }
+
+    public function test_refusing_is_exposed_over_the_api(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'quality'])
+            ->json('data.id');
+
+        $this->deleteJson("/api/v2/disputes/{$id}/room/conduct")
+            ->assertOk()
+            ->assertJsonPath('data.accepted', false);
+
+        $this->postJson("/api/v2/disputes/{$id}/room/messages", ['body' => 'hi'])->assertStatus(422);
     }
 
     /** Nobody writes in the room before agreeing. */

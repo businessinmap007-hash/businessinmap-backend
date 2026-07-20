@@ -92,19 +92,43 @@ class ThreadService
      * rewritten charter is a different promise, and someone who agreed to the
      * old wording has not agreed to the new one.
      */
-    public const CONDUCT_VERSION = 1;
+    public const CONDUCT_VERSION = 2;
 
+    /**
+     * ONE document in two sections, accepted once.
+     *
+     * Conduct and arbitration terms could have been two charters with two
+     * acceptances, two versions and two screens — and then the day one is
+     * updated and the other is not, nobody can say what a given party actually
+     * agreed to. One version number over one text is the only thing that stays
+     * answerable.
+     */
     public function conductCharter(): array
     {
         return [
             'version' => self::CONDUCT_VERSION,
-            'title' => __('قواعد السلوك داخل غرفة النزاع'),
-            'clauses' => [
-                __('التزم بالموضوع: اذكر ما حدث والأدلة، لا أوصاف الطرف الآخر.'),
-                __('التعدي بالألفاظ أو الإهانة أو التهديد مخالفة يقدّرها المحكّم.'),
-                __('قد تخسر الجلسة بسبب المخالفة حتى لو كان الحق معك في أصل النزاع.'),
-                __('قد تُفرض عليك غرامة منصة بسبب المخالفة، مستقلة عن نتيجة النزاع.'),
-                __('محتوى الغرفة محفوظ بالكامل ولا يُحذف، ويُستخدم كدليل عند الفصل.'),
+            'title' => __('شروط غرفة النزاع والتحكيم'),
+            'sections' => [
+                [
+                    'title' => __('قواعد السلوك'),
+                    'clauses' => [
+                        __('التزم بالموضوع: اذكر ما حدث والأدلة، لا أوصاف الطرف الآخر.'),
+                        __('التعدي بالألفاظ أو الإهانة أو التهديد مخالفة يقدّرها المحكّم.'),
+                        __('قد تخسر الجلسة بسبب المخالفة حتى لو كان الحق معك في أصل النزاع.'),
+                        __('قد تُفرض عليك غرامة منصة بسبب المخالفة، مستقلة عن نتيجة النزاع.'),
+                        __('محتوى الغرفة محفوظ بالكامل ولا يُحذف، ويُستخدم كدليل عند الفصل.'),
+                    ],
+                ],
+                [
+                    'title' => __('شروط التحكيم'),
+                    'clauses' => [
+                        __('قرار المحكّم نهائي ومُلزم للطرفين، ويُنفَّذ على مبلغ الضمان مباشرة.'),
+                        __('للمحكّم أن يحكم بتعويض يُدفع من محفظة الطرف الخاسر إلى الطرف الآخر.'),
+                        __('رسم الجلسة يتحمله الطرف الخاسر وحده، ويُعلَن مقداره قبل بدء النظر.'),
+                        __('عدم الخضوع للحكم أو الامتناع عن سداد ما حُكم به يُعرِّضك لغرامة منصة.'),
+                        __('من لا يقبل هذه الشروط يسقط حقه في المرافعة، ويحكم المحكّم بما حضر أمامه من أدلة.'),
+                    ],
+                ],
             ],
         ];
     }
@@ -134,7 +158,44 @@ class ThreadService
         $seat->update([
             'conduct_accepted_at' => now(),
             'conduct_version' => self::CONDUCT_VERSION,
+            // Accepting after a refusal is allowed: someone who reads it again
+            // and changes their mind should get their voice back.
+            'conduct_declined_at' => null,
         ]);
+
+        return $seat->fresh();
+    }
+
+    /**
+     * Refusing the terms.
+     *
+     * Recorded rather than inferred from silence, because refusing and not
+     * having opened the app are different facts and an arbitrator weighs them
+     * differently. The consequence is losing the right to argue — the room
+     * closes to you and the arbitrator rules on what is in front of them. It is
+     * NOT an automatic loss: nobody wins a case because the other side went
+     * quiet, and a default that harsh would fall on whoever simply was not
+     * reading their phone.
+     */
+    public function declineConduct(Thread $thread, int $userId): ThreadParticipant
+    {
+        $thread->loadMissing('participants');
+
+        $seat = $thread->participantFor($userId);
+
+        if (! $seat) {
+            throw ValidationException::withMessages([
+                'thread' => __('لست طرفًا في هذه المحادثة.'),
+            ]);
+        }
+
+        $seat->update([
+            'conduct_declined_at' => now(),
+            'conduct_accepted_at' => null,
+            'conduct_version' => null,
+        ]);
+
+        $this->system($thread, 'رفض أحد الأطراف شروط التحكيم، وسقط حقه في المرافعة.');
 
         return $seat->fresh();
     }

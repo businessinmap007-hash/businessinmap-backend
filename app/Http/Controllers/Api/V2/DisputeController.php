@@ -416,6 +416,30 @@ final class DisputeController extends Controller
         ]);
     }
 
+    /**
+     * DELETE /api/v2/disputes/{dispute}/room/conduct — refuse them.
+     *
+     * The consequence is losing the right to argue, not losing the case: the
+     * room closes to you and the arbitrator rules on what is in front of them.
+     * Accepting later is allowed — someone who reads it again and changes their
+     * mind gets their voice back.
+     */
+    public function declineConduct(Request $request, Dispute $dispute, ThreadService $threads)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $thread = app(DisputeService::class)->room($dispute);
+        $seat = $threads->declineConduct($thread, (int) $request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'accepted' => false,
+                'declined_at' => optional($seat->conduct_declined_at)->toIso8601String(),
+            ],
+        ]);
+    }
+
     /** POST /api/v2/disputes/{dispute}/room/conduct — agree to them. */
     public function acceptConduct(Request $request, Dispute $dispute, ThreadService $threads)
     {

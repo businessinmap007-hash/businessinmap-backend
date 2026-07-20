@@ -309,7 +309,7 @@ Route::prefix('v2')->group(function () {
             Route::post('items', [CartController::class, 'addItem']);
             Route::patch('items/{item}', [CartController::class, 'updateItem'])->whereNumber('item');
             Route::delete('items/{item}', [CartController::class, 'removeItem'])->whereNumber('item');
-            Route::post('{business}/checkout', [CartController::class, 'checkout'])->whereNumber('business');
+            Route::post('{business}/checkout', [CartController::class, 'checkout'])->whereNumber('business')->middleware('dispute.settled');
 
             // Shared (group) cart: host shares, friends join by token, each adds
             // their own attributed lines; the host checks out one invoice.
@@ -319,7 +319,7 @@ Route::prefix('v2')->group(function () {
             Route::post('shared/{order}/items', [SharedCartController::class, 'addItem'])->whereNumber('order');
             Route::patch('shared/{order}/items/{item}', [SharedCartController::class, 'updateItem'])->whereNumber(['order', 'item']);
             Route::delete('shared/{order}/items/{item}', [SharedCartController::class, 'removeItem'])->whereNumber(['order', 'item']);
-            Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order');
+            Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order')->middleware('dispute.settled');
             Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
             Route::delete('shared/{order}', [SharedCartController::class, 'cancel'])->whereNumber('order');
         });
@@ -427,7 +427,8 @@ Route::prefix('v2')->group(function () {
 
         Route::prefix('bookings')->group(function () {
             Route::get('/', [BookingController::class, 'index']);
-            Route::post('/', [BookingController::class, 'store']);
+            // Owe a ruling, start no new business until it is met.
+            Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');
             Route::get('{booking}/financial-preview', [BookingController::class, 'financialPreview'])->whereNumber('booking');
             Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking');

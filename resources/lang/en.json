@@ -2208,5 +2208,6 @@
     "عدم الخضوع للحكم أو الامتناع عن سداد ما حُكم به يُعرِّضك لغرامة منصة.": "Refusing the ruling, or failing to pay what it awarded, exposes you to a platform fine.",
     "من لا يقبل هذه الشروط يسقط حقه في المرافعة، ويحكم المحكّم بما حضر أمامه من أدلة.": "Whoever does not accept these terms forfeits the right to argue, and the arbitrator rules on the evidence before them.",
     "حُفظت رسوم الجلسات.": "Session fees saved.",
-    "رصيدك لا يغطي رسم الجلسة (:fee). اشحن محفظتك ثم اطلب التحكيم.": "Your balance does not cover the session fee (:fee). Top up your wallet, then request arbitration."
+    "رصيدك لا يغطي رسم الجلسة (:fee). اشحن محفظتك ثم اطلب التحكيم.": "Your balance does not cover the session fee (:fee). Top up your wallet, then request arbitration.",
+    "حسابك موقوف عن العمليات الجديدة حتى سداد مستحقات نزاع بقيمة :amount.": "Your account is blocked from new operations until you settle dispute obligations of :amount."
 }

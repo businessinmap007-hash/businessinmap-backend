@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\DisputeCollectionService;
 use App\Services\DisputeService;
 use App\Services\DisputeWarningService;
 use Illuminate\Console\Command;
@@ -21,7 +22,11 @@ final class ProcessDisputes extends Command
 
     protected $description = 'Send due dispute warnings and escalate expired mutual-resolution windows.';
 
-    public function handle(DisputeWarningService $warnings, DisputeService $disputes): int
+    public function handle(
+        DisputeWarningService $warnings,
+        DisputeService $disputes,
+        DisputeCollectionService $collections
+    ): int
     {
         $limit = max((int) $this->option('limit'), 1);
         $failed = 0;
@@ -44,7 +49,23 @@ final class ProcessDisputes extends Command
             report($e);
         }
 
-        $this->info('Disputes processed warned=' . $sent . ', escalated=' . count($escalated) . ', failed=' . $failed);
+        // The 24-hour window closing is what makes opening someone's guarantee
+        // legitimate, so something has to notice that it closed.
+        $collected = ['settled' => 0, 'still_pending' => 0];
+        try {
+            $collected = $collections->settleDue($limit);
+        } catch (\Throwable $e) {
+            $failed++;
+            report($e);
+        }
+
+        $this->info(
+            'Disputes processed warned=' . $sent
+            . ', escalated=' . count($escalated)
+            . ', obligations settled=' . $collected['settled']
+            . ', still pending=' . $collected['still_pending']
+            . ', failed=' . $failed
+        );
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }

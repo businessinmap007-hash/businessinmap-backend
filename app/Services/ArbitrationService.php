@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\ConductViolation;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\DisputeObligation;
 use App\Models\DisputeFee;
 use App\Models\Thread;
 use App\Models\User;
@@ -351,43 +352,24 @@ class ArbitrationService
             ]);
         }
 
-        return DB::transaction(function () use ($session, $dispute, $side, $amount, $payerId, $reason) {
-            $key = 'dispute_fine_' . $dispute->id;
+        $obligation = app(DisputeCollectionService::class)->charge(
+            dispute: $dispute,
+            userId: $payerId,
+            type: DisputeObligation::TYPE_PLATFORM_FINE,
+            amount: $amount
+        );
 
-            // The debit is the authoritative half: the treasury credit is
-            // best-effort by design (see PlatformTreasuryService), so it must
-            // never be the thing that decides whether the fine happened.
-            $this->wallets->withdraw(
-                userId: $payerId,
-                amount: $amount,
-                note: 'غرامة منصة على نزاع #' . $dispute->id,
-                referenceType: 'dispute_fine',
-                referenceId: (string) $dispute->id,
-                idempotencyKey: $key,
-                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side]
-            );
+        $session->update([
+            'platform_fine_amount' => $amount,
+            'platform_fine_on' => $side,
+            'platform_fine_reason' => $reason,
+        ]);
 
-            $this->treasury->credit(
-                amount: $amount,
-                purpose: PlatformTreasuryService::PURPOSE_FINE,
-                referenceId: (string) $dispute->id,
-                idempotencyKey: $key . '_treasury',
-                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side]
-            );
+        if ($obligation->isPending()) {
+            app(DisputeCollectionService::class)->notifyUnpaid($obligation);
+        }
 
-            $session->update([
-                'platform_fine_amount' => $amount,
-                'platform_fine_on' => $side,
-                'platform_fine_reason' => $reason,
-            ]);
-
-            // A separate movement from the ruling, applied after it, so it
-            // needs its own notice — the ruling notification was already sent
-            // and knew nothing about this.
-            $this->notifyFine($payerId, $dispute, $amount, $reason);
-
-            return $session->fresh();
-        });
+        return $session->fresh();
     }
 
     /**
@@ -430,33 +412,22 @@ class ArbitrationService
             ]);
         }
 
-        return DB::transaction(function () use ($session, $dispute, $side, $amount, $payerId) {
-            $key = 'dispute_arbitration_fee_' . $dispute->id . '_' . $side;
+        // Recorded as a debt and then paid, never "paid or thrown": a wallet
+        // that cannot cover it today does not make the ruling go away.
+        $obligation = app(DisputeCollectionService::class)->charge(
+            dispute: $dispute,
+            userId: $payerId,
+            type: DisputeObligation::TYPE_SESSION_FEE,
+            amount: $amount
+        );
 
-            $this->wallets->withdraw(
-                userId: $payerId,
-                amount: $amount,
-                note: 'رسم تحكيم على نزاع #' . $dispute->id,
-                referenceType: 'dispute_arbitration_fee',
-                referenceId: (string) $dispute->id,
-                idempotencyKey: $key,
-                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side]
-            );
+        $session->update(['fee_on' => $side]);
 
-            $this->treasury->credit(
-                amount: $amount,
-                purpose: PlatformTreasuryService::PURPOSE_FEE,
-                referenceId: (string) $dispute->id,
-                idempotencyKey: $key . '_treasury',
-                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side, 'kind' => 'arbitration_fee']
-            );
+        if ($obligation->isPending()) {
+            app(DisputeCollectionService::class)->notifyUnpaid($obligation);
+        }
 
-            $this->notifyArbitrationFee($payerId, $dispute, $amount);
-
-            $session->update(['fee_on' => $side]);
-
-            return $session->fresh();
-        });
+        return $session->fresh();
     }
 
     /**

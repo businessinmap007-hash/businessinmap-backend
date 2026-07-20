@@ -250,15 +250,17 @@ class ArbitrationTest extends TestCase
 
         $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
 
+        // The fine is collected through the obligations ledger now, so the
+        // notice is the ledger's — what matters is that the payer, and only the
+        // payer, is told the amount.
         $notice = \App\Models\AppNotification::query()
             ->where('notifiable_type', Dispute::class)
             ->where('notifiable_id', $dispute->id)
-            ->where('title_ar', 'غرامة منصة على نزاع')
+            ->where('body_ar', 'like', '%25.00%')
             ->get();
 
         $this->assertCount(1, $notice, 'only the party who paid is told');
         $this->assertSame((int) $this->booking->business_id, (int) $notice->first()->user_id);
-        $this->assertStringContainsString('25.00', $notice->first()->body_ar);
     }
 
     /**

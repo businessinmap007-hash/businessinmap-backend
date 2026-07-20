@@ -466,7 +466,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         });
 
         Route::middleware('can:' . AdminAbility::CONTENT)->group(function () {
-            Route::resource('posts', PostController::class)->names('posts');
+            // No create/store: a feed post is written by a user in the app, and
+            // PostController implements neither method — the generated routes
+            // resolved to nothing and 500'd. Admins moderate posts, not author them.
+            Route::resource('posts', PostController::class)->except(['create', 'store'])->names('posts');
             Route::post('posts/{post}/toggle-active', [PostController::class, 'toggleActive'])->whereNumber('post')->name('posts.toggleActive');
             Route::delete('posts/{post}/main-image', [PostController::class, 'destroyMainImage'])->whereNumber('post')->name('posts.main_image.destroy');
             Route::delete('posts/{post}/images/{image}', [PostController::class, 'destroyImage'])->whereNumber('post')->whereNumber('image')->name('posts.images.destroy');

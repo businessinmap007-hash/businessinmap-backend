@@ -31,21 +31,6 @@ class AdminV2ScreensSmokeTest extends TestCase
         return $admin ?: $this->markTestSkipped('Needs an admin user.');
     }
 
-    /**
-     * Screens that were ALREADY broken when this sweep was written — routed,
-     * but 500 on their own, with nothing to do with localization:
-     *   - posts/create, jobs/create, sponsors/create: no such view exists.
-     *   - categories/create: the controller passes `category`, the view reads `$row`.
-     * Listed explicitly so they cannot silently hide a NEW regression; delete an
-     * entry the moment its screen is fixed.
-     */
-    private const KNOWN_BROKEN = [
-        'admin/categories/create',
-        'admin/posts/create',
-        'admin/jobs/create',
-        'admin/sponsors/create',
-    ];
-
     public function test_every_parameter_free_admin_screen_renders(): void
     {
         $admin = $this->superAdmin();
@@ -69,10 +54,6 @@ class AdminV2ScreensSmokeTest extends TestCase
 
             // Logout would end the session for every screen after it.
             if (str_contains($uri, 'logout')) {
-                continue;
-            }
-
-            if (in_array($uri, self::KNOWN_BROKEN, true)) {
                 continue;
             }
 

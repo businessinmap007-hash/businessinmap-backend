@@ -126,6 +126,15 @@ class JobPostController extends Controller
 
     
 
+    public function create()
+    {
+        $item = new JobPost();
+        $categories = Category::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
+        $categoryChildren = CategoryChild::query()->orderBy('name_ar')->get(['id', 'name_ar', 'name_en']);
+
+        return view('admin-v2.jobs.create', compact('item', 'categories', 'categoryChildren'));
+    }
+
     public function store(Request $request)
     {
         $data = $this->validateData($request);

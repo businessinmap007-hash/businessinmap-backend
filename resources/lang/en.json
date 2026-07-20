@@ -2119,5 +2119,15 @@
     "— بدون —": "— none —",
     "— تحت": "— under",
     "— تعديل قاعدة السعر": "— edit the price rule",
-    "— خيارات:": "— options:"
+    "— خيارات:": "— options:",
+    "إضافة وظيفة": "Add a job",
+    "إضافة إعلان": "Add a sponsor",
+    "صاحب الإعلان (User ID)": "Advertiser (user ID)",
+    "رقم حساب البزنس الذي ستُنشر الوظيفة باسمه.": "The ID of the business account the job is published under.",
+    "الوظيفة تُنشر باسم البزنس المحدد في «صاحب الإعلان».": "The job is published under the business set in \"Advertiser\".",
+    "مجاني": "Free",
+    "مدفوع": "Paid",
+    "(مطلوبة)": "(required)",
+    "الصورة مطلوبة. يبدأ الإعلان متوقفًا حتى يتم تفعيله من شاشة التعديل.": "The image is required. The sponsor starts inactive until it is activated from the edit screen.",
+    "ستظهر المعاينة بعد الحفظ.": "The preview appears after saving."
 }

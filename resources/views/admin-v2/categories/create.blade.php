@@ -27,7 +27,10 @@
             @csrf
 
             @include('admin-v2.categories._form', [
-                'row' => $row,
+                // `$category` — the name CategoryController@create actually
+                // passes, and what edit.blade.php uses. `$row` was undefined,
+                // which 500'd the screen.
+                'row' => $category,
                 'rootId' => $rootId ?? 0,
                 'backUrl' => $backUrl ?? route('admin.categories.index'),
                 'platformServices' => $platformServices ?? collect(),

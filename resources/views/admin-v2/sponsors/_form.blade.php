@@ -15,6 +15,20 @@
 
 
 
+{{-- `type` is required by SponsorController::validateData, but this field was
+     missing: $typeVal above was computed and never rendered, so every save
+     failed validation on a value the form never sent. --}}
+<div class="spon-row">
+  <div class="spon-label">{{ __('النوع') }}</div>
+  <div>
+    <select name="type" class="a2-select" required>
+      @foreach(['free' => __('مجاني'), 'paid' => __('مدفوع')] as $value => $label)
+        <option value="{{ $value }}" @selected($typeVal === $value)>{{ $label }}</option>
+      @endforeach
+    </select>
+  </div>
+</div>
+
 <div class="spon-row">
   <div class="spon-label">{{ __('السعر') }} <span class="spon-help">{{ __('(اختياري)') }}</span></div>
   <div>
@@ -38,8 +52,13 @@
 </div>
 
 <div class="spon-row">
-  <div class="spon-label">{{ __('الصورة') }} <span class="spon-help">{{ __('(اختياري في التعديل)') }}</span></div>
+  {{-- Required on create (the column is NOT NULL), optional on edit where
+       leaving it empty keeps the existing image. --}}
+  <div class="spon-label">
+    {{ __('الصورة') }}
+    <span class="spon-help">{{ $sponsor->exists ? __('(اختياري في التعديل)') : __('(مطلوبة)') }}</span>
+  </div>
   <div>
-    <input type="file" name="image" accept="image/*" class="a2-input">
+    <input type="file" name="image" accept="image/*" class="a2-input" @unless($sponsor->exists) required @endunless>
   </div>
 </div>

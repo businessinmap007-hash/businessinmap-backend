@@ -67,21 +67,26 @@
         @if($candidates->isEmpty())
             <div class="a2-hint">{{ __('لا يوجد مشرفون متاحون للتعيين.') }}</div>
         @else
-            <form method="POST" action="{{ route('admin.arbitrators.promote') }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <form method="POST" action="{{ route('admin.arbitrators.promote') }}">
                 @csrf
-                <div>
-                    <label class="a2-label">{{ __('اختر مشرفًا') }}</label>
-                    <select class="a2-input" name="user_id" required>
-                        @foreach($candidates as $candidate)
-                            <option value="{{ $candidate->id }}">{{ $candidate->name }} — {{ $candidate->email }}</option>
-                        @endforeach
-                    </select>
+                <div class="a2-form-grid">
+                    <div class="a2-form-group">
+                        <label class="a2-label" for="arbitrator-user">{{ __('اختر مشرفًا') }}</label>
+                        <select class="a2-select" id="arbitrator-user" name="user_id" required>
+                            @foreach($candidates as $candidate)
+                                <option value="{{ $candidate->id }}">{{ $candidate->name }} — {{ $candidate->email }}</option>
+                            @endforeach
+                        </select>
+                        <div class="a2-hint" style="margin-top:8px;">
+                            {{ __('التعيين يمنح صلاحيات: دخول اللوحة، النزاعات، وتحريك الأموال.') }}
+                        </div>
+                    </div>
+
+                    <div class="a2-form-group" style="align-self:end;">
+                        <button class="a2-btn a2-btn-primary" type="submit">{{ __('تعيين') }}</button>
+                    </div>
                 </div>
-                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تعيين') }}</button>
             </form>
-            <div class="a2-hint" style="margin-top:8px;">
-                {{ __('التعيين يمنح صلاحيات: دخول اللوحة، النزاعات، وتحريك الأموال.') }}
-            </div>
         @endif
     </div>
 </div>

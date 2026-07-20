@@ -156,7 +156,7 @@
                 <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
                     <div>
                         <label class="a2-label">{{ __('نوع الرسم') }}</label>
-                        <select class="a2-input" name="fee_type" required>
+                        <select class="a2-select" name="fee_type" required>
                             <option value="fixed">{{ __('مبلغ ثابت') }}</option>
                             <option value="percent">{{ __('نسبة من قيمة النزاع') }}</option>
                         </select>
@@ -226,7 +226,7 @@
                     <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
                         <div>
                             <label class="a2-label">{{ __('على من') }}</label>
-                            <select class="a2-input" name="against_user_id" required>
+                            <select class="a2-select" name="against_user_id" required>
                                 @foreach($thread->participants->where('role', '!=', 'arbitrator') as $participant)
                                     <option value="{{ $participant->user_id }}">
                                         {{ $participant->user?->name ?? '#'.$participant->user_id }} ({{ $participant->role }})
@@ -279,14 +279,14 @@
                     
                     <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
-                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                    <select class="a2-select" name="platform_fine_on" style="margin-top:6px;">
                         <option value="">{{ __('على من؟') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
 
                     <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-input" name="arbitration_fee_on">
+                    <select class="a2-select" name="arbitration_fee_on">
                         <option value="">{{ __('لا تُحصّل الآن') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
@@ -306,14 +306,14 @@
                     
                     <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
-                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                    <select class="a2-select" name="platform_fine_on" style="margin-top:6px;">
                         <option value="">{{ __('على من؟') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
 
                     <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-input" name="arbitration_fee_on">
+                    <select class="a2-select" name="arbitration_fee_on">
                         <option value="">{{ __('لا تُحصّل الآن') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
@@ -344,14 +344,14 @@
                     
                     <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
-                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                    <select class="a2-select" name="platform_fine_on" style="margin-top:6px;">
                         <option value="">{{ __('على من؟') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
 
                     <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-input" name="arbitration_fee_on">
+                    <select class="a2-select" name="arbitration_fee_on">
                         <option value="">{{ __('لا تُحصّل الآن') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>

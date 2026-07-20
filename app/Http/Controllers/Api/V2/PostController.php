@@ -95,8 +95,7 @@ final class PostController extends Controller
 
         if ($q !== '') {
             $query->where(fn ($w) => $w
-                ->where('title_ar', 'like', "%{$q}%")
-                ->orWhere('title_en', 'like', "%{$q}%")
+                ->where('title', 'like', "%{$q}%")
                 ->orWhere('body', 'like', "%{$q}%"));
         }
 
@@ -134,8 +133,7 @@ final class PostController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'title_ar' => ['required_without:title_en', 'nullable', 'string', 'max:191'],
-            'title_en' => ['required_without:title_ar', 'nullable', 'string', 'max:191'],
+            'title' => ['required', 'string', 'max:191'],
             'body' => ['required', 'string'],
             'expire_at' => ['nullable', 'date'],
             'image' => ['nullable', ...ImageUploadService::validationRules()],
@@ -150,8 +148,7 @@ final class PostController extends Controller
                 'user_id' => $user->id,
                 'is_active' => true,
                 'share_count' => 0,
-                'title_ar' => $data['title_ar'] ?? null,
-                'title_en' => $data['title_en'] ?? null,
+                'title' => $data['title'],
                 'body' => $data['body'],
                 'expire_at' => $data['expire_at'] ?? null,
                 'image' => $request->hasFile('image')
@@ -176,8 +173,7 @@ final class PostController extends Controller
         $this->authorizeOwner($request, $post);
 
         $data = $request->validate([
-            'title_ar' => ['nullable', 'string', 'max:191'],
-            'title_en' => ['nullable', 'string', 'max:191'],
+            'title' => ['nullable', 'string', 'max:191'],
             'body' => ['nullable', 'string'],
             'expire_at' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
@@ -195,7 +191,7 @@ final class PostController extends Controller
                 $this->uploads->delete($previous);
             }
 
-            foreach (['title_ar', 'title_en', 'body', 'expire_at', 'is_active'] as $field) {
+            foreach (['title', 'body', 'expire_at', 'is_active'] as $field) {
                 if (array_key_exists($field, $data)) {
                     $post->{$field} = $data[$field];
                 }

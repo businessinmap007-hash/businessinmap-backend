@@ -108,8 +108,7 @@
 
                     <th style="width:76px;">صورة</th>
 
-                    <th>العنوان (AR)</th>
-                    <th>العنوان (EN)</th>
+                    <th>{{ __('العنوان') }}</th>
 
                     {{-- ✅ حذفنا عمود Type --}}
 
@@ -154,11 +153,7 @@
                         </td>
 
                         <td class="a2-clip a2-clip--name">
-                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title_ar ?: '—' }}</a>
-                        </td>
-
-                        <td class="a2-text-left" dir="ltr">
-                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title_en ?: '—' }}</a>
+                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title ?: '—' }}</a>
                         </td>
 
                         {{-- ✅ حذفنا عرض type هنا --}}

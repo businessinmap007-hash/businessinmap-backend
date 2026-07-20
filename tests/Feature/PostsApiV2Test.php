@@ -76,7 +76,7 @@ class PostsApiV2Test extends TestCase
             'user_id' => $author->id,
             'is_active' => true,
             'share_count' => 0,
-            'title_ar' => 'منشور اختبار',
+            'title' => 'منشور اختبار',
             'body' => 'نص المنشور',
         ], $attributes));
     }
@@ -146,7 +146,7 @@ class PostsApiV2Test extends TestCase
         $author = $this->user('business');
 
         $response = $this->actingAs($author, 'sanctum')->postJson('/api/v2/posts', [
-            'title_ar' => 'عنوان',
+            'title' => 'عنوان',
             'body' => 'نص حقيقي للمنشور',
             'image' => UploadedFile::fake()->create('main.jpg', 64, 'image/jpeg'),
             'images' => [
@@ -184,7 +184,7 @@ class PostsApiV2Test extends TestCase
             ->assertStatus(422);
 
         $this->actingAs($author, 'sanctum')
-            ->postJson('/api/v2/posts', ['title_ar' => 'بدون نص'])
+            ->postJson('/api/v2/posts', ['title' => 'بدون نص'])
             ->assertStatus(422);
     }
 
@@ -193,7 +193,7 @@ class PostsApiV2Test extends TestCase
         $author = $this->user('business');
 
         $response = $this->actingAs($author, 'sanctum')->postJson('/api/v2/posts', [
-            'title_ar' => 'عنوان',
+            'title' => 'عنوان',
             'body' => 'نص',
             'image' => UploadedFile::fake()->create('shell.php', 16, 'application/x-httpd-php'),
         ]);
@@ -254,7 +254,7 @@ class PostsApiV2Test extends TestCase
         $author = $this->user('business');
 
         $created = $this->actingAs($author, 'sanctum')->postJson('/api/v2/posts', [
-            'title_ar' => 'للحذف',
+            'title' => 'للحذف',
             'body' => 'نص',
             'image' => UploadedFile::fake()->create('gone.jpg', 64, 'image/jpeg'),
         ]);

@@ -80,7 +80,7 @@ class JobsPlatformStatsTest extends TestCase
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
             'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A,
-            'title_ar' => 'وظيفة عدّاد', 'body' => 'وصف',
+            'title' => 'وظيفة عدّاد', 'body' => 'وصف',
         ]);
 
         $afterPost = $this->stats();
@@ -109,7 +109,7 @@ class JobsPlatformStatsTest extends TestCase
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
             'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A,
-            'title_ar' => 'وظيفة تُغلق', 'body' => 'وصف',
+            'title' => 'وظيفة تُغلق', 'body' => 'وصف',
         ]);
 
         $open = $this->stats();

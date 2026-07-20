@@ -106,14 +106,8 @@
           <div style="display:grid;gap:12px;">
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">العنوان (AR)</label>
-              <input class="a2-input" name="title_ar" value="{{ old('title_ar', $post->title_ar) }}">
-            </div>
-
-            <div>
-              <label class="a2-hint" style="font-weight:900;">العنوان (EN)</label>
-              <input class="a2-input a2-text-left" dir="ltr" name="title_en"
-                     value="{{ old('title_en', $post->title_en) }}">
+              <label class="a2-hint" style="font-weight:900;">{{ __('العنوان') }}</label>
+              <input class="a2-input" name="title" value="{{ old('title', $post->title) }}">
             </div>
 
             {{-- ✅ عمود واحد فقط: body --}}

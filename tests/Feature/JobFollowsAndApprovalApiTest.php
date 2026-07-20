@@ -55,7 +55,7 @@ class JobFollowsAndApprovalApiTest extends TestCase
         return Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
             'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => $childId,
-            'title_ar' => 'وظيفة', 'body' => 'وصف',
+            'title' => 'وظيفة', 'body' => 'وصف',
         ]);
     }
 
@@ -197,7 +197,7 @@ class JobFollowsAndApprovalApiTest extends TestCase
         $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
             'category_child_id' => self::CHILD_A,
-            'title_ar' => 'مدير حسابات',
+            'title' => 'مدير حسابات',
             'body' => 'وصف',
         ])->assertCreated();
 
@@ -221,7 +221,7 @@ class JobFollowsAndApprovalApiTest extends TestCase
         $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
             'category_child_id' => self::CHILD_A,
-            'title_ar' => 'وظيفة',
+            'title' => 'وظيفة',
             'body' => 'وصف',
         ])->assertCreated();
 
@@ -238,7 +238,7 @@ class JobFollowsAndApprovalApiTest extends TestCase
         $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
             'category_child_id' => self::CHILD_A,
-            'title_ar' => 'وظيفة',
+            'title' => 'وظيفة',
             'body' => 'وصف',
         ])->assertCreated();
 

@@ -1922,12 +1922,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [category_id, body]
+              required: [category_id, title, body]
               properties:
                 category_id: { type: integer }
                 category_child_id: { type: integer, description: Must belong to category_id. }
-                title_ar: { type: string }
-                title_en: { type: string, description: At least one of title_ar/title_en is required. }
+                title: { type: string, maxLength: 191, description: 'The job title, in whichever language the business writes it.' }
                 body: { type: string, description: The job description. }
                 requirements: { type: string }
                 salary: { type: string, description: 'Free text on purpose — often "يحدد بعد المقابلة", not a number.' }
@@ -1982,10 +1981,9 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [body]
+              required: [title, body]
               properties:
-                title_ar: { type: string }
-                title_en: { type: string, description: At least one of title_ar/title_en is required. }
+                title: { type: string, maxLength: 191, description: 'The post title, in whichever language the author writes it.' }
                 body: { type: string }
                 expire_at: { type: string, format: date-time }
                 image: { type: string, format: binary, description: Main image. }
@@ -2134,8 +2132,7 @@ paths:
             schema:
               type: object
               properties:
-                title_ar: { type: string }
-                title_en: { type: string }
+                title: { type: string, maxLength: 191 }
                 body: { type: string }
                 expire_at: { type: string, format: date-time }
                 is_active: { type: boolean }

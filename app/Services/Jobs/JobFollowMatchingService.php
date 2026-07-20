@@ -46,7 +46,7 @@ final class JobFollowMatchingService
             })
             ->get();
 
-        $title = $job->title_ar ?: $job->title_en ?: 'وظيفة جديدة';
+        $title = $job->title ?: 'وظيفة جديدة';
         $notified = [];
 
         foreach ($follows as $follow) {
@@ -61,8 +61,9 @@ final class JobFollowMatchingService
                 'actor_id' => (int) $job->user_id,
                 'title_ar' => 'وظيفة جديدة في مجال تتابعه',
                 'title_en' => 'New job in a field you follow',
+                // One authored title, so it stands in for both languages.
                 'body_ar' => $title,
-                'body_en' => $job->title_en ?: $title,
+                'body_en' => $job->title ?: 'New job',
                 'action_type' => 'open_job',
                 'action_url' => '/jobs/' . $job->id,
                 'notifiable_type' => Post::class,

@@ -106,8 +106,9 @@
                         <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                     </th>
 
-                    <th>العنوان (AR)</th>
-                    <th>العنوان (EN)</th>
+                    <th>
+                        <a class="a2-link" href="{{ $sortUrl('title') }}">{{ __('العنوان') }}{!! $arrow('title') !!}</a>
+                    </th>
 
                     <th style="width:120px;">
                         <a class="a2-link" href="{{ $sortUrl('share_count') }}">Shares{!! $arrow('share_count') !!}</a>
@@ -130,11 +131,7 @@
                         <td>{{ $p->id }}</td>
 
                         <td class="a2-clip a2-clip--name">
-                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title_ar ?: '—' }}</a>
-                        </td>
-
-                        <td class="a2-text-left" dir="ltr">
-                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title_en ?: '—' }}</a>
+                            <a class="a2-link" href="{{ $viewUrl }}">{{ $p->title ?: '—' }}</a>
                         </td>
 
                         <td>{{ (int)($p->share_count ?? 0) }}</td>

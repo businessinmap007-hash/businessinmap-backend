@@ -203,10 +203,11 @@ class ServiceEventNotificationService
             'type' => $this->appNotificationType($event),
             'channel' => AppNotification::CHANNEL_IN_APP,
             'priority' => $priority,
+            // Only the Arabic source is built here; create() fills the English
+            // side from the translations, so an English reader is no longer
+            // handed a notification with an empty title and body.
             'title_ar' => $title,
-            'title_en' => null,
             'body_ar' => $body,
-            'body_en' => null,
             'action_type' => (string) $event->event_key,
             'action_url' => $this->mobileActionUrl($event),
             'notifiable_type' => $event->subject_type,

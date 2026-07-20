@@ -149,13 +149,8 @@
           <div style="display:grid;gap:12px;">
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">العنوان (AR)</label>
-              <input class="a2-input" name="title_ar" value="{{ old('title_ar', $post->title_ar) }}" style="width:100%;">
-            </div>
-
-            <div>
-              <label class="a2-hint" style="font-weight:900;">العنوان (EN)</label>
-              <input class="a2-input" name="title_en" value="{{ old('title_en', $post->title_en) }}" style="width:100%;" dir="ltr">
+              <label class="a2-hint" style="font-weight:900;">{{ __('العنوان') }}</label>
+              <input class="a2-input" name="title" value="{{ old('title', $post->title) }}" style="width:100%;">
             </div>
 
             <div>

@@ -62,7 +62,7 @@ class JobsApiTest extends TestCase
         $response = $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
             'category_child_id' => self::CHILD_A,
-            'title_ar' => 'مدير حسابات',
+            'title' => 'مدير حسابات',
             'body' => 'مطلوب مدير حسابات لمصنع اكسسوارات',
             'requirements' => 'خبرة 5 سنوات على الأقل',
             'salary' => 'يحدد بعد المقابلة',
@@ -90,7 +90,7 @@ class JobsApiTest extends TestCase
 
         $response = $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
-            'title_ar' => 'وظيفة',
+            'title' => 'وظيفة',
             'body' => 'وصف الوظيفة الحقيقي',
         ]);
 
@@ -105,7 +105,7 @@ class JobsApiTest extends TestCase
 
         $this->actingAs($client, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => self::ROOT_CATEGORY_ID,
-            'title_ar' => 'وظيفة',
+            'title' => 'وظيفة',
             'body' => 'وصف',
         ])->assertStatus(403);
     }
@@ -120,7 +120,7 @@ class JobsApiTest extends TestCase
         $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', [
             'category_id' => $wrongRoot,
             'category_child_id' => self::CHILD_A,
-            'title_ar' => 'وظيفة',
+            'title' => 'وظيفة',
             'body' => 'وصف',
         ])->assertStatus(422);
     }
@@ -133,7 +133,7 @@ class JobsApiTest extends TestCase
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
             'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_B,
-            'title_ar' => 'محاسب', 'body' => 'وصف الوظيفة',
+            'title' => 'محاسب', 'body' => 'وصف الوظيفة',
         ]);
         Apply::create(['post_id' => $post->id, 'user_id' => $applicant->id]);
 
@@ -153,7 +153,7 @@ class JobsApiTest extends TestCase
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
             'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A,
-            'title_ar' => 'محاسب', 'body' => 'وصف الوظيفة',
+            'title' => 'محاسب', 'body' => 'وصف الوظيفة',
         ]);
 
         $first = $this->actingAs($client, 'sanctum')->postJson("/api/v2/jobs/{$post->id}/apply");
@@ -171,7 +171,7 @@ class JobsApiTest extends TestCase
 
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'category_id' => self::ROOT_CATEGORY_ID, 'title_ar' => 'محاسب', 'body' => 'وصف',
+            'category_id' => self::ROOT_CATEGORY_ID, 'title' => 'محاسب', 'body' => 'وصف',
         ]);
 
         $this->actingAs($business, 'sanctum')->postJson("/api/v2/jobs/{$post->id}/apply")->assertStatus(422);
@@ -185,7 +185,7 @@ class JobsApiTest extends TestCase
 
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'category_id' => self::ROOT_CATEGORY_ID, 'title_ar' => 'محاسب', 'body' => 'وصف',
+            'category_id' => self::ROOT_CATEGORY_ID, 'title' => 'محاسب', 'body' => 'وصف',
         ]);
         Apply::create(['post_id' => $post->id, 'user_id' => $applicant->id]);
 
@@ -202,9 +202,9 @@ class JobsApiTest extends TestCase
     {
         $business = $this->business();
 
-        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A, 'title_ar' => 'أ', 'body' => 'ب']);
-        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A, 'title_ar' => 'أ2', 'body' => 'ب']);
-        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_B, 'title_ar' => 'ج', 'body' => 'د']);
+        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A, 'title' => 'أ', 'body' => 'ب']);
+        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_A, 'title' => 'أ2', 'body' => 'ب']);
+        Post::create(['type' => 'job', 'user_id' => $business->id, 'is_active' => true, 'category_id' => self::ROOT_CATEGORY_ID, 'category_child_id' => self::CHILD_B, 'title' => 'ج', 'body' => 'د']);
 
         $response = $this->getJson('/api/v2/jobs/categories');
         $response->assertOk();
@@ -224,12 +224,12 @@ class JobsApiTest extends TestCase
 
         $expired = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'category_id' => self::ROOT_CATEGORY_ID, 'title_ar' => 'منتهية', 'body' => 'ب',
+            'category_id' => self::ROOT_CATEGORY_ID, 'title' => 'منتهية', 'body' => 'ب',
             'expire_at' => now()->subDay(),
         ]);
         $inactive = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => false,
-            'category_id' => self::ROOT_CATEGORY_ID, 'title_ar' => 'موقوفة', 'body' => 'ب',
+            'category_id' => self::ROOT_CATEGORY_ID, 'title' => 'موقوفة', 'body' => 'ب',
         ]);
 
         $this->getJson('/api/v2/jobs/'.$expired->id.'')->assertOk(); // show() bypasses the open scope by design (owner needs to see it too)

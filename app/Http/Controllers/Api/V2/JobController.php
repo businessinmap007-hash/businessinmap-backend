@@ -44,8 +44,7 @@ final class JobController extends Controller
             ->when(! empty($data['category_id']), fn ($w) => $w->where('category_id', $data['category_id']))
             ->when(! empty($data['category_child_id']), fn ($w) => $w->where('category_child_id', $data['category_child_id']))
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x
-                ->where('title_ar', 'like', "%{$q}%")
-                ->orWhere('title_en', 'like', "%{$q}%")))
+                ->where('title', 'like', "%{$q}%")))
             ->withCount('applies')
             ->orderByDesc('id')
             ->paginate((int) ($data['per_page'] ?? 20))
@@ -131,8 +130,7 @@ final class JobController extends Controller
         $data = $request->validate([
             'category_id' => ['required', 'integer', Rule::exists('categories', 'id')],
             'category_child_id' => ['nullable', 'integer', Rule::exists('category_children_master', 'id')],
-            'title_ar' => ['required_without:title_en', 'nullable', 'string', 'max:191'],
-            'title_en' => ['required_without:title_ar', 'nullable', 'string', 'max:191'],
+            'title' => ['required', 'string', 'max:191'],
             'body' => ['required', 'string'],
             'requirements' => ['nullable', 'string'],
             'salary' => ['nullable', 'string', 'max:191'],
@@ -239,8 +237,10 @@ final class JobController extends Controller
 
             app(NotificationDispatcherService::class)->dispatch('job_application_approved', (int) $apply->user_id, [
                 'actor_id' => (int) $post->user_id,
-                'body_ar' => $post->title_ar ?: $post->title_en ?: __('وظيفة'),
-                'body_en' => $post->title_en ?: $post->title_ar ?: 'Job',
+                // The title is the author's own words — the same string serves
+                // both languages; only the fallback has a translation.
+                'body_ar' => $post->title ?: 'وظيفة',
+                'body_en' => $post->title ?: 'Job',
                 'action_type' => 'open_job',
                 'action_url' => '/jobs/' . $post->id,
                 'notifiable_type' => Post::class,
@@ -323,8 +323,6 @@ final class JobController extends Controller
         $out = [
             'id' => $post->id,
             'title' => $post->title,
-            'title_ar' => $post->title_ar,
-            'title_en' => $post->title_en,
             'salary' => $post->salary,
             'interview_starts_at' => $post->interview_starts_at?->toIso8601String(),
             'expire_at' => $post->expire_at?->toIso8601String(),

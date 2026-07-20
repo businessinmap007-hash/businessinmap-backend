@@ -87,7 +87,7 @@ final class OrderController extends Controller
 
         // Tell the restaurant the customer cancelled.
         $this->notifyCancellation($model, (int) $model->business_id, $userId, $reason, [
-            'body_ar' => __('ألغى العميل الطلب رقم #') . $model->id . '.',
+            'body_ar' => 'ألغى العميل الطلب رقم #' . $model->id . '.',
             'body_en' => 'The customer cancelled order #' . $model->id . '.',
         ]);
 
@@ -146,7 +146,7 @@ final class OrderController extends Controller
 
         // Tell the customer the restaurant rejected their order.
         $this->notifyCancellation($model, (int) $model->user_id, $businessId, $reason, [
-            'body_ar' => __('اعتذر المطعم عن تنفيذ طلبك رقم #') . $model->id . '.',
+            'body_ar' => 'اعتذر المطعم عن تنفيذ طلبك رقم #' . $model->id . '.',
             'body_en' => 'The restaurant could not fulfil your order #' . $model->id . '.',
         ]);
 
@@ -188,7 +188,7 @@ final class OrderController extends Controller
         });
 
         $this->notifyCustomer($model, 'menu_order_accepted', $businessId, [
-            'body_ar' => __('قبِل المطعم طلبك رقم #') . $model->id . __(' وسيبدأ التحضير.'),
+            'body_ar' => 'قبِل المطعم طلبك رقم #' . $model->id . ' وسيبدأ التحضير.',
             'body_en' => 'The restaurant accepted your order #' . $model->id . '.',
         ]);
 
@@ -201,7 +201,7 @@ final class OrderController extends Controller
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
 
         $this->notifyCustomer($model, 'menu_order_preparing', (int) $request->user()->id, [
-            'body_ar' => __('طلبك رقم #') . $model->id . __(' قيد التحضير الآن.'),
+            'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن.',
             'body_en' => 'Your order #' . $model->id . ' is now being prepared.',
         ]);
 
@@ -214,7 +214,7 @@ final class OrderController extends Controller
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
         $this->notifyCustomer($model, 'menu_order_ready', (int) $request->user()->id, [
-            'body_ar' => __('طلبك رقم #') . $model->id . __(' جاهز.'),
+            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز.',
             'body_en' => 'Your order #' . $model->id . ' is ready.',
         ]);
 

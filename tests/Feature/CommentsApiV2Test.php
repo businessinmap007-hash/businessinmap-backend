@@ -43,7 +43,7 @@ class CommentsApiV2Test extends TestCase
             'user_id' => $author->id,
             'is_active' => true,
             'share_count' => 0,
-            'title_ar' => 'منشور',
+            'title' => 'منشور',
             'body' => 'نص',
         ]);
     }
@@ -294,7 +294,7 @@ class CommentsApiV2Test extends TestCase
         $business = $this->user('business');
         $job = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'title_ar' => 'وظيفة', 'body' => 'وصف',
+            'title' => 'وظيفة', 'body' => 'وصف',
         ]);
 
         $this->getJson('/api/v2/posts/'.$job->id.'/comments')->assertNotFound();

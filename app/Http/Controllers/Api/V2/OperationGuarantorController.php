@@ -79,9 +79,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_invited', (int) $friend->id, $guarantor, [
                 'actor_id' => (int) $user->id,
-                'title_ar' => __('دعوة لمشاركتك في ضمان عملية'),
+                'title_ar' => 'دعوة لمشاركتك في ضمان عملية',
                 'title_en' => 'Co-guarantor request',
-                'body_ar' => trim(($requesterName !== '' ? $requesterName . ' ' : '') . __('يطلب مشاركتك في ضمان عملية حجز.')),
+                'body_ar' => trim(($requesterName !== '' ? $requesterName . ' ' : '') . 'يطلب مشاركتك في ضمان عملية حجز.'),
                 'body_en' => trim(($requesterName !== '' ? $requesterName . ': ' : '') . 'requested your guarantee for a booking.'),
                 'action_type' => 'open_coguarantor_request',
                 'action_url' => '/guarantors/' . $guarantor->id,
@@ -115,9 +115,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_accepted', (int) $row->requester_user_id, $row, [
                 'actor_id' => (int) $row->guarantor_user_id,
-                'title_ar' => __('تم قبول طلب الضمان'),
+                'title_ar' => 'تم قبول طلب الضمان',
                 'title_en' => 'Co-guarantor accepted',
-                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . __('قبل ضمان عمليتك بمبلغ ') . number_format((float) $row->covered_amount, 2) . '.'),
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'قبل ضمان عمليتك بمبلغ ' . number_format((float) $row->covered_amount, 2) . '.'),
                 'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'accepted to guarantee your operation (' . number_format((float) $row->covered_amount, 2) . ').'),
                 'action_type' => 'open_operation',
                 'meta' => ['covered_amount' => (float) $row->covered_amount],
@@ -146,9 +146,9 @@ final class OperationGuarantorController extends Controller
 
             $this->notify('coguarantor_declined', (int) $row->requester_user_id, $row, [
                 'actor_id' => (int) $row->guarantor_user_id,
-                'title_ar' => __('تم رفض طلب الضمان'),
+                'title_ar' => 'تم رفض طلب الضمان',
                 'title_en' => 'Co-guarantor declined',
-                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . __('اعتذر عن ضمان عمليتك.')),
+                'body_ar' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'اعتذر عن ضمان عمليتك.'),
                 'body_en' => trim(($friendName !== '' ? $friendName . ' ' : '') . 'declined to guarantee your operation.'),
                 'action_type' => 'open_operation',
                 'meta' => [],

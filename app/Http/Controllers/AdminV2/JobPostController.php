@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 class JobPostController extends Controller
 {
     private const PER_PAGE_ALLOWED = [10, 20, 50, 100];
-    private const SORT_ALLOWED = ['id','title_ar','title_en','user_id','is_active','expire_at','share_count','created_at'];
+    private const SORT_ALLOWED = ['id','title','user_id','is_active','expire_at','share_count','created_at'];
 
     private function normalizePerPage($perPage): int
     {
@@ -61,8 +61,7 @@ class JobPostController extends Controller
                 // `body`, not body_ar/body_en — those were unified away by
                 // 2026_02_16_180855 and no longer exist, so any search here
                 // was a guaranteed "Unknown column 'body_ar'" 500.
-                $w->where('title_ar', 'like', "%{$q}%")
-                  ->orWhere('title_en', 'like', "%{$q}%")
+                $w->where('title', 'like', "%{$q}%")
                   ->orWhere('body', 'like', "%{$q}%");
             });
         }
@@ -197,8 +196,7 @@ class JobPostController extends Controller
         $data = $request->validate([
             'user_id' => ['nullable','integer'],
 
-            'title_ar' => ['nullable','string','max:191'],
-            'title_en' => ['nullable','string','max:191'],
+            'title' => ['required','string','max:191'],
 
             'body' => ['nullable','string'],
 
@@ -220,20 +218,8 @@ class JobPostController extends Controller
 
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
 
-        // لازم عنوان واحد على الأقل
-        $titleAr = trim((string)($data['title_ar'] ?? ''));
-        $titleEn = trim((string)($data['title_en'] ?? ''));
-         if (
-        empty(trim($data['title_ar'] ?? '')) &&
-        empty(trim($data['title_en'] ?? ''))
-    ) {
-        abort(
-            redirect()->back()
-                ->withErrors(['title_ar' => __('أدخل عنوان عربي أو إنجليزي على الأقل')])
-                ->withInput()
-        );
-    }
-
-    return $data;
+        // A single `title` column now, so `required` above is the whole check —
+        // the old "at least one of the two languages" dance is gone.
+        return $data;
     }
 }

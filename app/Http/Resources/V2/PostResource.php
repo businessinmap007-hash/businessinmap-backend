@@ -21,8 +21,6 @@ class PostResource extends JsonResource
             'id' => (int) $this->id,
             'type' => $this->type ?: 'post',
             'title' => $this->title,
-            'title_ar' => $this->title_ar,
-            'title_en' => $this->title_en,
             'body' => $this->body,
             'image' => $this->image ?: null,
             'images' => $this->whenLoaded('images', fn () => $this->images

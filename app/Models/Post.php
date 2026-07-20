@@ -15,8 +15,7 @@ class Post extends Model
     'image',        // ✅ مهم
     'share_count',  // ✅ لو موجود بالجدول
 
-    'title_ar',
-    'title_en',
+    'title', // one column, not a title_ar/title_en pair — a post is written once, in the author's own language (see 2026_07_20_120000)
     'body', // the real column (unified from body_ar/body_en, see 2026_02_16_180855) — body_ar/body_en no longer exist; listing them here silently dropped every body/description ever mass-assigned (AdminV2\JobPostController::store/update included)
 
     // Job fields (type='job' only — see 2026_08_08_000000_add_job_fields_to_posts).
@@ -27,21 +26,11 @@ class Post extends Model
     'interview_starts_at',
     ];
 
-    // ✅ نخلي appends للعنوان فقط (بدون body)
-    protected $appends = ['title'];
-
     protected $casts = [
         'is_active' => 'boolean',
         'expire_at' => 'datetime',
         'interview_starts_at' => 'datetime',
     ];
-
-    public function getTitleAttribute(): ?string
-    {
-        return app()->getLocale() === 'ar'
-            ? ($this->attributes['title_ar'] ?? null)
-            : ($this->attributes['title_en'] ?? null);
-    }
 
     // ✅ رجع الـ body الخام من العمود (بدون ترجمة)
     public function getBodyAttribute($value): ?string

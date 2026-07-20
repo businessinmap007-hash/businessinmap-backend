@@ -34,7 +34,7 @@ class AdminV2JobsScreensTest extends TestCase
         $business = User::query()->where('type', 'business')->first();
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'title_ar' => 'وظيفة اختبار', 'body' => 'وصف', 'salary' => 'يحدد بعد المقابلة',
+            'title' => 'وظيفة اختبار', 'body' => 'وصف', 'salary' => 'يحدد بعد المقابلة',
         ]);
 
         $response = $this->actingAs($this->admin())->get(route('admin.jobs.edit', ['post' => $post->id]));
@@ -53,7 +53,7 @@ class AdminV2JobsScreensTest extends TestCase
         $business = User::query()->where('type', 'business')->first();
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'title_ar' => 'وظيفة اختبار', 'body' => 'وصف', 'salary' => '10000 جنيه',
+            'title' => 'وظيفة اختبار', 'body' => 'وصف', 'salary' => '10000 جنيه',
         ]);
 
         $response = $this->actingAs($this->admin())->get(route('admin.jobs.show', ['post' => $post->id]));
@@ -72,7 +72,7 @@ class AdminV2JobsScreensTest extends TestCase
         $business = User::query()->where('type', 'business')->first();
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'title_ar' => 'وظيفة اختبار', 'body' => 'وصف',
+            'title' => 'وظيفة اختبار', 'body' => 'وصف',
         ]);
 
         $response = $this->actingAs($this->admin())->get(route('admin.jobs.index'));
@@ -87,7 +87,7 @@ class AdminV2JobsScreensTest extends TestCase
         $client = User::query()->where('type', 'client')->first();
         $post = Post::create([
             'type' => 'job', 'user_id' => $business->id, 'is_active' => true,
-            'title_ar' => 'وظيفة اختبار', 'body' => 'وصف',
+            'title' => 'وظيفة اختبار', 'body' => 'وصف',
         ]);
         Apply::create(['post_id' => $post->id, 'user_id' => $client->id]);
 

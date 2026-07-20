@@ -49,7 +49,7 @@ final class PostController extends Controller
 
                 // ✅ ابحث في الأعمدة الموجودة فعلاً فقط
                 $possibleCols = [
-                    'title_ar','title_en',
+                    'title',
                     'body','body_ar','body_en',
                     'content_ar','content_en',
                 ];
@@ -130,8 +130,7 @@ final class PostController extends Controller
     {
         // ✅ validate عام، ثم هنفلتر الأعمدة حسب الموجود فعلاً
         $data = $request->validate([
-            'title_ar'  => 'nullable|string|max:191',
-            'title_en'  => 'nullable|string|max:191',
+            'title'     => 'nullable|string|max:191',
 
             // أي محتوى ممكن يكون موجود حسب جدولك
             'body'      => 'nullable|string',
@@ -150,7 +149,7 @@ final class PostController extends Controller
         if (empty($data['expire_at'])) $data['expire_at'] = null;
 
         // ✅ فلترة البيانات حسب الأعمدة الموجودة فعلاً لتجنب Unknown column
-        $allowed = ['title_ar','title_en','expire_at','is_active'];
+        $allowed = ['title','expire_at','is_active'];
         foreach (['body','body_ar','body_en','content_ar','content_en'] as $col) {
             if (Schema::hasColumn('posts', $col)) {
                 $allowed[] = $col;

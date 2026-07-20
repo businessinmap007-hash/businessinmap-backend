@@ -12,7 +12,7 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">المتقدمون — {{ $post->title_ar ?: $post->title_en ?: ('#'.$post->id) }}</h2>
+      <h2 class="a2-title">المتقدمون — {{ $post->title ?: ('#'.$post->id) }}</h2>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id]) }}">رجوع للوظيفة</a>

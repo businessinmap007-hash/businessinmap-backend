@@ -313,33 +313,86 @@ class DisputeService
     }
 
     /**
+     * A party asking for a judge, instead of waiting out the window.
+     *
+     * One party is enough. Requiring both to agree to arbitrate would let a
+     * stonewaller block it forever — which is precisely the situation
+     * arbitration exists for. What IS required is that the asker declared
+     * cooperation first: you have to show up before you can demand a judge, and
+     * that single tap is also what stops a dispute being opened and escalated
+     * in the same breath.
+     */
+    public function requestArbitration(Dispute $dispute, int $userId): Dispute
+    {
+        $side = $this->sideOf($dispute, $userId);
+
+        if ($side === null) {
+            throw ValidationException::withMessages([
+                'dispute' => __('لست طرفًا في هذا النزاع.'),
+            ]);
+        }
+
+        if ($dispute->status === Dispute::STATUS_UNDER_REVIEW) {
+            return $dispute; // already with a judge
+        }
+
+        if ($dispute->status !== Dispute::STATUS_MUTUAL_RESOLUTION) {
+            throw ValidationException::withMessages([
+                'dispute' => __('لا يمكن طلب التحكيم في الحالة الحالية للنزاع.'),
+            ]);
+        }
+
+        if ($dispute->{$side . '_cooperated_at'} === null) {
+            throw ValidationException::withMessages([
+                'cooperation' => __('سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.'),
+            ]);
+        }
+
+        $this->escalate($dispute, 'party_request', $userId);
+
+        return $dispute->fresh();
+    }
+
+    /**
      * Hand a single dispute to review and tell both parties it happened.
      *
-     * Deliberately does NOT set the non-cooperation flags: nothing in the
-     * product lets a party record that they cooperated, so flagging on expiry
-     * would mark everyone as uncooperative for a button that was never built —
-     * and those flags feed a real non-cooperation fee.
+     * The non-cooperation flags are set ONLY when the window actually ran out.
+     * On a party's own request the window is still open, so marking the other
+     * side as uncooperative would punish them for a deadline that has not
+     * passed — and either way the flag is a mark an arbitrator reads, never a
+     * charge.
      */
-    public function escalate(Dispute $dispute): bool
+    public function escalate(Dispute $dispute, string $reason = 'deadline', ?int $requestedBy = null): bool
     {
         if ($dispute->status !== Dispute::STATUS_MUTUAL_RESOLUTION) {
             return false;
         }
 
+        $byDeadline = $reason === 'deadline';
+
         $meta = is_array($dispute->meta ?? null) ? $dispute->meta : [];
         $meta['escalated_at'] = now()->toIso8601String();
-        $meta['escalated_by'] = 'schedule:mutual_resolution_expired';
+        $meta['escalated_by'] = $byDeadline
+            ? 'schedule:mutual_resolution_expired'
+            : 'party_request';
+
+        if ($requestedBy !== null) {
+            $meta['escalation_requested_by'] = $requestedBy;
+        }
 
         $dispute->status = Dispute::STATUS_UNDER_REVIEW;
         $dispute->meta = $meta;
 
-        // Now that a party CAN declare cooperation, its absence means something
-        // and is worth recording. This is a mark for the arbitrator to read —
-        // it charges nothing. Nothing computes the non-cooperation fee from it,
-        // and it must stay that way: a fee levied automatically for missing a
-        // deadline would punish someone who was simply not reading their phone.
-        $dispute->client_non_cooperation_flag = $dispute->client_cooperated_at === null;
-        $dispute->business_non_cooperation_flag = $dispute->business_cooperated_at === null;
+        if ($byDeadline) {
+            // Now that a party CAN declare cooperation, its absence means
+            // something and is worth recording. This is a mark for the
+            // arbitrator to read — it charges nothing. Nothing computes the
+            // non-cooperation fee from it, and it must stay that way: a fee
+            // levied automatically for missing a deadline would punish someone
+            // who was simply not reading their phone.
+            $dispute->client_non_cooperation_flag = $dispute->client_cooperated_at === null;
+            $dispute->business_non_cooperation_flag = $dispute->business_cooperated_at === null;
+        }
 
         $dispute->save();
 
@@ -348,15 +401,17 @@ class DisputeService
         // the case moved.
         $this->threads->system(
             $this->room($dispute),
-            'انتهت مهلة الحل بالتراضي وتم تحويل النزاع إلى التحكيم.'
+            $byDeadline
+                ? 'انتهت مهلة الحل بالتراضي وتم تحويل النزاع إلى التحكيم.'
+                : 'طلب أحد الطرفين إحالة النزاع إلى التحكيم.'
         );
 
-        $this->notifyEscalation($dispute);
+        $this->notifyEscalation($dispute, $byDeadline);
 
         return true;
     }
 
-    protected function notifyEscalation(Dispute $dispute): void
+    protected function notifyEscalation(Dispute $dispute, bool $byDeadline = true): void
     {
         $recipients = array_values(array_unique(array_filter([
             (int) ($dispute->opened_by_user_id ?? 0),
@@ -369,10 +424,14 @@ class DisputeService
                     'user_id' => $userId,
                     'type' => AppNotification::TYPE_DISPUTE,
                     'priority' => AppNotification::PRIORITY_HIGH,
-                    'title_ar' => 'انتهت مهلة الحل بالتراضي',
-                    'title_en' => 'The settlement window has closed',
-                    'body_ar' => 'تم تحويل النزاع إلى المراجعة للفصل فيه.',
-                    'body_en' => 'The dispute has been moved to review for a ruling.',
+                    'title_ar' => $byDeadline ? 'انتهت مهلة الحل بالتراضي' : 'طُلب التحكيم في النزاع',
+                    'title_en' => $byDeadline ? 'The settlement window has closed' : 'Arbitration was requested',
+                    'body_ar' => $byDeadline
+                        ? 'تم تحويل النزاع إلى المراجعة للفصل فيه.'
+                        : 'طلب أحد الطرفين إحالة النزاع إلى التحكيم للفصل فيه.',
+                    'body_en' => $byDeadline
+                        ? 'The dispute has been moved to review for a ruling.'
+                        : 'A party asked for the dispute to be decided by an arbitrator.',
                     'notifiable_type' => Dispute::class,
                     'notifiable_id' => (int) $dispute->id,
                 ]);

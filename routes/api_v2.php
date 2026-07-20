@@ -232,6 +232,12 @@ Route::prefix('v2')->group(function () {
         Route::post('disputes/{dispute}/cooperate', [DisputeController::class, 'cooperate'])
             ->whereNumber('dispute');
 
+        // Asking for a judge without waiting out the window. One party is
+        // enough — needing both would let a stonewaller block arbitration
+        // forever, which is what it exists for.
+        Route::post('disputes/{dispute}/request-arbitration', [DisputeController::class, 'requestArbitration'])
+            ->whereNumber('dispute');
+
         // The arbitration room. Opens with the dispute so the settlement window
         // has somewhere to happen; an arbitrator takes a seat in the same
         // thread when the window expires.

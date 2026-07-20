@@ -2161,5 +2161,7 @@
     "يجب تحديد الطرف الذي تُفرض عليه الغرامة.": "You must say which party the fine is imposed on.",
     "لا يمكن فرض غرامة قبل صدور القرار.": "A fine cannot be imposed before a ruling.",
     "تعذر تحديد الطرف الذي تُفرض عليه الغرامة.": "Could not identify the party to fine.",
-    "لست طرفًا في هذا النزاع.": "You are not a party to this dispute."
+    "لست طرفًا في هذا النزاع.": "You are not a party to this dispute.",
+    "لا يمكن طلب التحكيم في الحالة الحالية للنزاع.": "Arbitration cannot be requested in the dispute's current state.",
+    "سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.": "Declare that you are engaging with the settlement before asking for arbitration."
 }

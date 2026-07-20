@@ -173,6 +173,24 @@ final class DisputeController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/v2/disputes/{dispute}/request-arbitration — ask for a judge
+     * instead of waiting out the settlement window.
+     *
+     * One party is enough: requiring both to agree would let a stonewaller
+     * block arbitration forever, which is the exact situation it exists for.
+     */
+    public function requestArbitration(Request $request, Dispute $dispute, DisputeService $disputes)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $dispute = $disputes->requestArbitration($dispute, (int) $request->user()->id);
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
+        return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
     // ─────────────────────────── the room ───────────────────────────
 
     /**

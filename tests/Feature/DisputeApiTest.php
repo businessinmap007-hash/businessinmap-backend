@@ -320,6 +320,106 @@ class DisputeApiTest extends TestCase
         $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertNotFound();
     }
 
+    // ────────────────────── asking for a judge ──────────────────────
+
+    private function openDispute(): int
+    {
+        return $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'quality'])
+            ->json('data.id');
+    }
+
+    /** One party is enough — needing both would let a stonewaller block it. */
+    public function test_a_party_can_ask_for_arbitration_without_waiting_for_the_deadline(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertOk()
+            ->assertJsonPath('data.status', Dispute::STATUS_UNDER_REVIEW);
+
+        $dispute = Dispute::findOrFail($id);
+        $this->assertSame('party_request', data_get($dispute->meta, 'escalated_by'));
+        $this->assertSame((int) $this->client->id, (int) data_get($dispute->meta, 'escalation_requested_by'));
+    }
+
+    /** You have to show up before you can demand a judge. */
+    public function test_asking_before_declaring_cooperation_is_refused(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('cooperation');
+
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, Dispute::findOrFail($id)->status);
+    }
+
+    /**
+     * The window is still open on a party's request, so the other side must not
+     * be marked uncooperative for a deadline that has not passed.
+     */
+    public function test_asking_does_not_flag_the_other_party(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")->assertOk();
+
+        $dispute = Dispute::findOrFail($id);
+        $this->assertFalse((bool) $dispute->client_non_cooperation_flag);
+        $this->assertFalse((bool) $dispute->business_non_cooperation_flag, 'the window had not expired');
+    }
+
+    public function test_asking_twice_is_harmless(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")->assertOk();
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertOk()
+            ->assertJsonPath('data.status', Dispute::STATUS_UNDER_REVIEW);
+    }
+
+    public function test_a_stranger_cannot_ask_for_arbitration(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+
+        Sanctum::actingAs($this->someoneElse());
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")->assertNotFound();
+    }
+
+    /** Both sides are told, and the room records why the case moved. */
+    public function test_asking_announces_itself_to_both_parties(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")->assertOk();
+
+        $notified = \App\Models\AppNotification::query()
+            ->where('notifiable_type', Dispute::class)
+            ->where('notifiable_id', $id)
+            ->where('title_ar', 'طُلب التحكيم في النزاع')
+            ->pluck('user_id')
+            ->map(fn ($v) => (int) $v)
+            ->sort()->values()->all();
+
+        $this->assertSame(
+            collect([(int) $this->booking->user_id, (int) $this->booking->business_id])->sort()->values()->all(),
+            $notified
+        );
+    }
+
     public function test_the_reason_code_picker_is_served(): void
     {
         Sanctum::actingAs($this->client);

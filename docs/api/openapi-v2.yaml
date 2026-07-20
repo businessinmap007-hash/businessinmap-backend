@@ -2041,6 +2041,24 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/request-arbitration:
+    post:
+      tags: [Disputes]
+      summary: Ask for an arbitrator without waiting out the settlement window
+      description: >-
+        ONE party is enough — requiring both to agree would let a stonewaller
+        block arbitration forever, which is the exact situation it exists for.
+        The asker must have declared cooperation first: you have to show up
+        before you can demand a judge, and that also stops a dispute being
+        opened and escalated in the same breath. Unlike expiry, this does NOT
+        flag the other party as uncooperative — the window is still open.
+        Idempotent once the dispute is already under review.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'Now under review' }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/room:
     get:
       tags: [Disputes]

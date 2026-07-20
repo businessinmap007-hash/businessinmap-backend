@@ -733,16 +733,19 @@ class DisputeService
         }
 
         switch ($resolutionType) {
-            // A ruling AWARDS the escrow — the loser's hold ends up with the
-            // winner. release()/refund() only unwind it, each hold back to
-            // whoever posted it, which is right for a booking that completed
-            // normally and wrong for a case somebody lost.
+            // The escrow UNWINDS — every hold back to whoever posted it. The
+            // deposit is a guarantee, not a pot the winner takes: it exists to
+            // prove each side could cover a loss, and once the case is decided
+            // it has done its job. Money only ever crosses between the parties
+            // through a compensation the arbitrator ORDERS, at an amount they
+            // set — see ArbitrationService::awardCompensation().
+            //
+            // What these two rulings decide is WHO LOST, which is not nothing:
+            // it drives the trust record, and it is what puts the session fee
+            // on the losing side.
             case 'release_business':
-                $this->depositsEscrowService->awardTo($deposit, 'business');
-                break;
-
             case 'refund_client':
-                $this->depositsEscrowService->awardTo($deposit, 'client');
+                $this->depositsEscrowService->refund($deposit, true, true);
                 break;
 
             case self::RESOLUTION_MUTUAL:

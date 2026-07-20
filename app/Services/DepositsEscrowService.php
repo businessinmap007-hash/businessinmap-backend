@@ -423,34 +423,6 @@ class DepositsEscrowService
      * to pay out of their own pocket, since the payer is only ever moving money
      * that was just returned to them.
      */
-    /**
-     * Hand the WHOLE escrow to one side — the winner of a dispute.
-     *
-     * Deliberately NOT release()/refund(). Those unwind the escrow, returning
-     * each hold to whoever posted it, and that is exactly right for the normal
-     * booking lifecycle: the operation completed, the guarantee did its job,
-     * nobody owes anybody. A ruling is the opposite situation — the loser's
-     * hold is supposed to end up with the winner — and quietly changing
-     * release() to do that would have moved money on every successful booking
-     * in the platform.
-     *
-     * Same mechanic as split(), because this IS a split of 100/0.
-     */
-    public function awardTo(Deposit $deposit, string $winnerSide): Deposit
-    {
-        if (! in_array($winnerSide, ['client', 'business'], true)) {
-            throw ValidationException::withMessages([
-                'winner' => 'The winning side must be client or business.',
-            ]);
-        }
-
-        return $this->settle(
-            $deposit,
-            $winnerSide === 'client' ? 100.0 : 0.0,
-            $winnerSide === 'client' ? DepositStatus::REFUNDED : DepositStatus::RELEASED
-        );
-    }
-
     public function split(Deposit $deposit, float $clientPercent, float $businessPercent): Deposit
     {
         if ($clientPercent < 0 || $businessPercent < 0) {

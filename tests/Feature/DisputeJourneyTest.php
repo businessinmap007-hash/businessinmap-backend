@@ -162,8 +162,12 @@ class DisputeJourneyTest extends TestCase
         $this->assertTrue($deposit->fresh()->isFinal());
     }
 
-    /** release_business: the held money is settled out to the business. */
-    public function test_ruling_for_the_business_settles_the_deposit(): void
+    /**
+     * release_business unwinds the escrow too. The deposit record says only
+     * that the guarantee was returned; WHO WON lives on the dispute and the
+     * arbitration session, which is where a verdict belongs.
+     */
+    public function test_ruling_for_the_business_also_unwinds_the_escrow(): void
     {
         $deposit = $this->freeze(100);
         $clientWallet = $this->wallet((int) $this->booking->user_id);
@@ -173,8 +177,8 @@ class DisputeJourneyTest extends TestCase
         $after = $clientWallet->fresh();
 
         $this->assertEqualsWithDelta(0.0, (float) $after->locked_balance, 0.01, 'the hold must be lifted either way');
+        $this->assertEqualsWithDelta(1000.0, (float) $after->balance, 0.01, 'the client keeps their own guarantee');
         $this->assertTrue($deposit->fresh()->isFinal());
-        $this->assertNotNull($deposit->fresh()->released_at, 'released, not refunded');
     }
 
     /** Both sides posting a hold — the only shape in which a transfer is visible. */
@@ -193,43 +197,46 @@ class DisputeJourneyTest extends TestCase
     }
 
     /**
-     * A ruling AWARDS the escrow: the loser's hold ends up with the winner.
+     * The escrow UNWINDS on a ruling — every hold back to whoever posted it.
      *
-     * This is the test that was missing. The old ones asserted "nothing stays
-     * locked" and "released_at is set" — both true while release() merely
-     * unwound the escrow and handed every hold back to whoever posted it, so
-     * release_business and refund_client moved identical money: none.
+     * The deposit is a GUARANTEE, not a pot the winner takes: it exists to
+     * prove each side could cover a loss, and once the case is decided it has
+     * done its job. I previously read this as a bug and "fixed" it so the
+     * winner took the whole escrow; that was wrong, and this test exists so
+     * nobody makes the same mistake twice.
+     *
+     * Money crosses between the parties only through a compensation the
+     * arbitrator ORDERS, at an amount they set.
      */
-    public function test_a_ruling_for_the_business_moves_the_clients_hold_across(): void
+    public function test_a_ruling_returns_each_hold_to_whoever_posted_it(): void
     {
         $this->freezeBoth(200);
 
         $clientWallet = $this->wallet((int) $this->booking->user_id);
         $businessWallet = $this->wallet((int) $this->booking->business_id);
 
-        // Each posted 200, so each is down 200 from the 1000 they started with.
         $this->assertEqualsWithDelta(800.0, (float) $clientWallet->balance, 0.01, 'setup');
         $this->assertEqualsWithDelta(800.0, (float) $businessWallet->balance, 0.01, 'setup');
 
         $this->disputes->resolve($this->open(), 'release_business');
 
         $this->assertEqualsWithDelta(
-            800.0,
+            1000.0,
             (float) $clientWallet->fresh()->balance,
             0.01,
-            'the loser does not get their hold back'
+            'the loser still gets their own guarantee back'
         );
         $this->assertEqualsWithDelta(
-            1200.0,
+            1000.0,
             (float) $businessWallet->fresh()->balance,
             0.01,
-            'the winner takes the whole escrow'
+            'and the winner gains nothing from the escrow itself'
         );
         $this->assertEqualsWithDelta(0.0, (float) $clientWallet->fresh()->locked_balance, 0.01);
     }
 
-    /** The same, the other way, so the rule is not hard-coded to one side. */
-    public function test_a_ruling_for_the_client_moves_the_businesss_hold_across(): void
+    /** Ruling the other way is the same to the escrow — it only names the loser. */
+    public function test_the_two_rulings_treat_the_escrow_identically(): void
     {
         $this->freezeBoth(200);
 
@@ -238,32 +245,31 @@ class DisputeJourneyTest extends TestCase
 
         $this->disputes->resolve($this->open(), 'refund_client');
 
-        $this->assertEqualsWithDelta(1200.0, (float) $clientWallet->fresh()->balance, 0.01);
-        $this->assertEqualsWithDelta(800.0, (float) $businessWallet->fresh()->balance, 0.01);
+        $this->assertEqualsWithDelta(1000.0, (float) $clientWallet->fresh()->balance, 0.01);
+        $this->assertEqualsWithDelta(1000.0, (float) $businessWallet->fresh()->balance, 0.01);
     }
 
-    /** Whatever the ruling, the escrow is conserved between the two wallets. */
-    public function test_a_ruling_neither_mints_nor_burns_escrow(): void
+    /**
+     * What a ruling DOES decide: who lost. That is what the session fee reads,
+     * so the two rulings are far from interchangeable even though the escrow
+     * treats them the same.
+     */
+    public function test_a_ruling_still_names_the_losing_side(): void
     {
         $this->freezeBoth(200);
 
-        $clientWallet = $this->wallet((int) $this->booking->user_id);
-        $businessWallet = $this->wallet((int) $this->booking->business_id);
+        $dispute = $this->disputes->resolve($this->open(), 'release_business');
+        $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->firstOrFail();
 
-        $this->disputes->resolve($this->open(), 'release_business');
-
-        $this->assertEqualsWithDelta(
-            2000.0,
-            (float) $clientWallet->fresh()->balance + (float) $businessWallet->fresh()->balance,
-            0.001
+        $this->assertSame(
+            'client',
+            app(\App\Services\ArbitrationService::class)->losingSide($session)
         );
     }
 
     /**
-     * THE regression guard. A booking that simply completed must still UNWIND —
-     * every hold back to whoever posted it. Making release() award the escrow
-     * instead would have moved money on every successful booking on the
-     * platform, which is exactly why the ruling got its own method.
+     * The normal booking lifecycle unwinds too — and must keep doing so
+     * whatever happens to the dispute paths.
      */
     public function test_a_normal_booking_release_still_unwinds_and_moves_nothing(): void
     {

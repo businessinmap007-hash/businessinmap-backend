@@ -284,14 +284,16 @@
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
-
-                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-select" name="arbitration_fee_on">
-                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
-                        <option value="client">{{ __('العميل') }}</option>
-                        <option value="business">{{ __('النشاط') }}</option>
-                        <option value="split">{{ __('مناصفة') }}</option>
+                    <select class="a2-select" name="platform_fine_reason" style="margin-top:6px;">
+                        <option value="">{{ __('سبب الغرامة') }}</option>
+                        <option value="conduct">{{ __('مخالفة سلوك مسجّلة') }}</option>
+                        <option value="non_compliance">{{ __('عدم الخضوع للحكم') }}</option>
                     </select>
+
+                    <label class="a2-check" style="margin-top:8px;">
+                        <input type="checkbox" name="charge_arbitration_fee" value="1">
+                        <span>{{ __('تحصيل رسم الجلسة من الطرف الخاسر') }}</span>
+                    </label>
 
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">
                         Release Business
@@ -311,14 +313,16 @@
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
-
-                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-select" name="arbitration_fee_on">
-                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
-                        <option value="client">{{ __('العميل') }}</option>
-                        <option value="business">{{ __('النشاط') }}</option>
-                        <option value="split">{{ __('مناصفة') }}</option>
+                    <select class="a2-select" name="platform_fine_reason" style="margin-top:6px;">
+                        <option value="">{{ __('سبب الغرامة') }}</option>
+                        <option value="conduct">{{ __('مخالفة سلوك مسجّلة') }}</option>
+                        <option value="non_compliance">{{ __('عدم الخضوع للحكم') }}</option>
                     </select>
+
+                    <label class="a2-check" style="margin-top:8px;">
+                        <input type="checkbox" name="charge_arbitration_fee" value="1">
+                        <span>{{ __('تحصيل رسم الجلسة من الطرف الخاسر') }}</span>
+                    </label>
 
                     <button class="a2-btn a2-btn-danger" style="margin-top:10px;" type="submit">
                         Refund Client
@@ -349,14 +353,16 @@
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
-
-                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
-                    <select class="a2-select" name="arbitration_fee_on">
-                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
-                        <option value="client">{{ __('العميل') }}</option>
-                        <option value="business">{{ __('النشاط') }}</option>
-                        <option value="split">{{ __('مناصفة') }}</option>
+                    <select class="a2-select" name="platform_fine_reason" style="margin-top:6px;">
+                        <option value="">{{ __('سبب الغرامة') }}</option>
+                        <option value="conduct">{{ __('مخالفة سلوك مسجّلة') }}</option>
+                        <option value="non_compliance">{{ __('عدم الخضوع للحكم') }}</option>
                     </select>
+
+                    <label class="a2-check" style="margin-top:8px;">
+                        <input type="checkbox" name="charge_arbitration_fee" value="1">
+                        <span>{{ __('تحصيل رسم الجلسة من الطرف الخاسر') }}</span>
+                    </label>
 
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">
                         Resolve Split

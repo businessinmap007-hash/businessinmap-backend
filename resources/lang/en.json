@@ -2191,5 +2191,9 @@
     "محتوى الغرفة محفوظ بالكامل ولا يُحذف، ويُستخدم كدليل عند الفصل.": "Everything in this room is kept, never deleted, and is used as evidence when ruling.",
     "هذا المستخدم ليس طرفًا في هذه المحادثة.": "That user is not a participant in this conversation.",
     "الرسالة المحددة ليست في هذه المحادثة.": "That message is not in this conversation.",
-    "لا بد من الموافقة على قواعد السلوك قبل الكتابة في الغرفة.": "You must accept the conduct rules before writing in the room."
+    "لا بد من الموافقة على قواعد السلوك قبل الكتابة في الغرفة.": "You must accept the conduct rules before writing in the room.",
+    "لا يمكن تحصيل رسم الجلسة: لا يوجد طرف خاسر في هذا القرار.": "The session fee cannot be charged: this ruling names no losing party.",
+    "تعذر تحديد الطرف الخاسر.": "Could not identify the losing party.",
+    "الغرامة لا تُفرض إلا على التعدي أو عدم الخضوع للحكم.": "A fine may only be imposed for misconduct or for refusing to comply with the ruling.",
+    "لا توجد مخالفة سلوك مسجّلة على هذا الطرف.": "No conduct violation has been recorded against this party."
 }

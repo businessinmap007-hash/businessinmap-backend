@@ -23,6 +23,7 @@ class ArbitrationSession extends Model
         'amount_to_business',
         'platform_fine_amount',
         'platform_fine_on',
+        'platform_fine_reason',
         'notes',
     ];
 
@@ -37,6 +38,12 @@ class ArbitrationSession extends Model
         'fee_terms_set_at' => 'datetime',
         'accepted_at' => 'datetime',
     ];
+
+    public const FINE_CONDUCT = 'conduct';
+    public const FINE_NON_COMPLIANCE = 'non_compliance';
+
+    /** The only two grounds a fine may rest on. */
+    public const FINE_REASONS = [self::FINE_CONDUCT, self::FINE_NON_COMPLIANCE];
 
     public const FEE_FIXED = 'fixed';
     public const FEE_PERCENT = 'percent';

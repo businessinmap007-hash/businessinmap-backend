@@ -352,7 +352,8 @@ class DisputeController extends Controller
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
-            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
+            'platform_fine_reason' => ['nullable', 'in:conduct,non_compliance'],
+            'charge_arbitration_fee' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -396,7 +397,8 @@ class DisputeController extends Controller
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
-            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
+            'platform_fine_reason' => ['nullable', 'in:conduct,non_compliance'],
+            'charge_arbitration_fee' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -444,7 +446,8 @@ class DisputeController extends Controller
             'business_penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
-            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
+            'platform_fine_reason' => ['nullable', 'in:conduct,non_compliance'],
+            'charge_arbitration_fee' => ['nullable', 'boolean'],
         ]);
 
         $clientPercent = (float) $data['client_percent'];
@@ -591,18 +594,20 @@ class DisputeController extends Controller
      * has to be able to reach for either.
      */
     /**
-     * The fee agreed BEFORE the case was heard. Only who bears it is decided
-     * here — the amount was fixed at acceptance and cannot be revisited.
+     * The fee agreed BEFORE the case was heard, charged to the LOSING party.
+     *
+     * Neither the amount nor the payer is chosen here: the amount was fixed at
+     * acceptance, and who lost was decided by the ruling itself. Letting an
+     * arbitrator name the payer would turn the fee into a second penalty handed
+     * out at will.
      */
     protected function chargeArbitrationFeeIfSet(Dispute $dispute, array $data): void
     {
-        $on = (string) ($data['arbitration_fee_on'] ?? '');
-
-        if ($on === '') {
+        if (! filter_var($data['charge_arbitration_fee'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
 
-        app(\App\Services\ArbitrationService::class)->chargeArbitrationFee($dispute, $on);
+        app(\App\Services\ArbitrationService::class)->chargeArbitrationFee($dispute);
     }
 
     protected function applyPlatformFineIfNeeded(Dispute $dispute, array $data): void
@@ -616,7 +621,8 @@ class DisputeController extends Controller
         app(\App\Services\ArbitrationService::class)->applyPlatformFine(
             dispute: $dispute,
             side: (string) ($data['platform_fine_on'] ?? ''),
-            amount: $amount
+            amount: $amount,
+            reason: (string) ($data['platform_fine_reason'] ?? '')
         );
     }
 

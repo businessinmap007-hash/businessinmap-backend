@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\AppNotification;
 use App\Models\ArbitrationSession;
 use App\Models\Booking;
+use App\Models\ConductViolation;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\Thread;
 use App\Models\User;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Wallet\PlatformTreasuryService;
@@ -313,8 +315,12 @@ class ArbitrationService
      * interchangeable — a party can have coverage to burn and no balance, or
      * the reverse.
      */
-    public function applyPlatformFine(Dispute $dispute, string $side, float $amount): ?ArbitrationSession
-    {
+    public function applyPlatformFine(
+        Dispute $dispute,
+        string $side,
+        float $amount,
+        string $reason
+    ): ?ArbitrationSession {
         $amount = round(max($amount, 0), 2);
 
         if ($amount <= 0) {
@@ -324,6 +330,24 @@ class ArbitrationService
         if (! in_array($side, ['client', 'business'], true)) {
             throw ValidationException::withMessages([
                 'platform_fine_on' => __('يجب تحديد الطرف الذي تُفرض عليه الغرامة.'),
+            ]);
+        }
+
+        // Losing a dispute is not a punishable act. A fine rests on exactly two
+        // grounds — behaving badly in the room, or refusing the ruling — and
+        // without one of them it would just be a second penalty for being
+        // wrong, on top of losing the escrow.
+        if (! in_array($reason, ArbitrationSession::FINE_REASONS, true)) {
+            throw ValidationException::withMessages([
+                'platform_fine_reason' => __('الغرامة لا تُفرض إلا على التعدي أو عدم الخضوع للحكم.'),
+            ]);
+        }
+
+        // A misconduct fine has to point at misconduct that was actually
+        // recorded, in the room, where the party could see it.
+        if ($reason === ArbitrationSession::FINE_CONDUCT && ! $this->hasRecordedMisconduct($dispute, $side)) {
+            throw ValidationException::withMessages([
+                'platform_fine_reason' => __('لا توجد مخالفة سلوك مسجّلة على هذا الطرف.'),
             ]);
         }
 
@@ -347,7 +371,7 @@ class ArbitrationService
             ]);
         }
 
-        return DB::transaction(function () use ($session, $dispute, $side, $amount, $payerId) {
+        return DB::transaction(function () use ($session, $dispute, $side, $amount, $payerId, $reason) {
             $key = 'dispute_fine_' . $dispute->id;
 
             // The debit is the authoritative half: the treasury credit is
@@ -374,12 +398,13 @@ class ArbitrationService
             $session->update([
                 'platform_fine_amount' => $amount,
                 'platform_fine_on' => $side,
+                'platform_fine_reason' => $reason,
             ]);
 
             // A separate movement from the ruling, applied after it, so it
             // needs its own notice — the ruling notification was already sent
             // and knew nothing about this.
-            $this->notifyFine($payerId, $dispute, $amount);
+            $this->notifyFine($payerId, $dispute, $amount, $reason);
 
             return $session->fresh();
         });
@@ -396,14 +421,8 @@ class ArbitrationService
      * Treasury purpose is FEE, not FINE: this is the price of the service, not
      * a punishment, and counting it as penalty revenue would misstate both.
      */
-    public function chargeArbitrationFee(Dispute $dispute, string $on): ?ArbitrationSession
+    public function chargeArbitrationFee(Dispute $dispute): ?ArbitrationSession
     {
-        if (! in_array($on, ['client', 'business', 'split'], true)) {
-            throw ValidationException::withMessages([
-                'arbitration_fee_on' => __('يجب تحديد من يتحمل رسم التحكيم.'),
-            ]);
-        }
-
         $session = ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
 
         if (! $session || (float) $session->fee_amount <= 0) {
@@ -414,53 +433,99 @@ class ArbitrationService
             return $session; // already collected
         }
 
-        $total = round((float) $session->fee_amount, 2);
+        $side = $this->losingSide($session);
 
-        $shares = match ($on) {
-            'client' => ['client' => $total, 'business' => 0.0],
-            'business' => ['client' => 0.0, 'business' => $total],
-            'split' => ['client' => $half = round($total / 2, 2), 'business' => round($total - $half, 2)],
-        };
+        if ($side === null) {
+            throw ValidationException::withMessages([
+                'arbitration_fee' => __('لا يمكن تحصيل رسم الجلسة: لا يوجد طرف خاسر في هذا القرار.'),
+            ]);
+        }
 
-        return DB::transaction(function () use ($session, $dispute, $on, $shares) {
-            foreach ($shares as $side => $amount) {
-                if ($amount <= 0) {
-                    continue;
-                }
+        $amount = round((float) $session->fee_amount, 2);
+        $payerId = $this->partyId($dispute, $side);
 
-                $payerId = $this->partyId($dispute, $side);
+        if (! $payerId) {
+            throw ValidationException::withMessages([
+                'arbitration_fee' => __('تعذر تحديد الطرف الخاسر.'),
+            ]);
+        }
 
-                if (! $payerId) {
-                    continue;
-                }
+        return DB::transaction(function () use ($session, $dispute, $side, $amount, $payerId) {
+            $key = 'dispute_arbitration_fee_' . $dispute->id . '_' . $side;
 
-                $key = 'dispute_arbitration_fee_' . $dispute->id . '_' . $side;
+            $this->wallets->withdraw(
+                userId: $payerId,
+                amount: $amount,
+                note: 'رسم تحكيم على نزاع #' . $dispute->id,
+                referenceType: 'dispute_arbitration_fee',
+                referenceId: (string) $dispute->id,
+                idempotencyKey: $key,
+                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side]
+            );
 
-                $this->wallets->withdraw(
-                    userId: $payerId,
-                    amount: $amount,
-                    note: 'رسم تحكيم على نزاع #' . $dispute->id,
-                    referenceType: 'dispute_arbitration_fee',
-                    referenceId: (string) $dispute->id,
-                    idempotencyKey: $key,
-                    meta: ['dispute_id' => (int) $dispute->id, 'side' => $side]
-                );
+            $this->treasury->credit(
+                amount: $amount,
+                purpose: PlatformTreasuryService::PURPOSE_FEE,
+                referenceId: (string) $dispute->id,
+                idempotencyKey: $key . '_treasury',
+                meta: ['dispute_id' => (int) $dispute->id, 'side' => $side, 'kind' => 'arbitration_fee']
+            );
 
-                $this->treasury->credit(
-                    amount: $amount,
-                    purpose: PlatformTreasuryService::PURPOSE_FEE,
-                    referenceId: (string) $dispute->id,
-                    idempotencyKey: $key . '_treasury',
-                    meta: ['dispute_id' => (int) $dispute->id, 'side' => $side, 'kind' => 'arbitration_fee']
-                );
+            $this->notifyArbitrationFee($payerId, $dispute, $amount);
 
-                $this->notifyArbitrationFee($payerId, $dispute, $amount);
-            }
-
-            $session->update(['fee_on' => $on]);
+            $session->update(['fee_on' => $side]);
 
             return $session->fresh();
         });
+    }
+
+    /**
+     * Who lost, read off the ruling itself.
+     *
+     * Derived, never chosen: letting an arbitrator name the payer would make
+     * the fee a second penalty they hand out at will, and the point of putting
+     * it on the loser is that the ruling already decided who that is.
+     *
+     * Returns null when the ruling names no loser — an even split, no_action,
+     * or a settlement the parties reached themselves. There is genuinely nobody
+     * to charge in those cases, and inventing one would be arbitrary.
+     */
+    public function losingSide(ArbitrationSession $session): ?string
+    {
+        return match ($session->outcome) {
+            'refund_client' => 'business',
+            'release_business' => 'client',
+            'split' => match (true) {
+                (float) $session->client_percent > (float) $session->business_percent => 'business',
+                (float) $session->business_percent > (float) $session->client_percent => 'client',
+                default => null, // an even split declares no loser
+            },
+            default => null,
+        };
+    }
+
+    /** Was a conduct violation actually recorded against this side, in the room? */
+    private function hasRecordedMisconduct(Dispute $dispute, string $side): bool
+    {
+        $userId = $this->partyId($dispute, $side);
+
+        if (! $userId) {
+            return false;
+        }
+
+        $thread = Thread::query()
+            ->where('subject_type', $dispute->getMorphClass())
+            ->where('subject_id', $dispute->getKey())
+            ->first();
+
+        if (! $thread) {
+            return false;
+        }
+
+        return ConductViolation::query()
+            ->where('thread_id', $thread->id)
+            ->where('against_user_id', $userId)
+            ->exists();
     }
 
     private function notifyArbitrationFee(int $userId, Dispute $dispute, float $amount): void
@@ -482,7 +547,7 @@ class ArbitrationService
         }
     }
 
-    private function notifyFine(int $userId, Dispute $dispute, float $amount): void
+    private function notifyFine(int $userId, Dispute $dispute, float $amount, string $reason): void
     {
         try {
             $this->notifications->create([
@@ -491,7 +556,10 @@ class ArbitrationService
                 'priority' => AppNotification::PRIORITY_HIGH,
                 'title_ar' => 'غرامة منصة على نزاع',
                 'title_en' => 'A platform fine was imposed',
-                'body_ar' => 'خُصم من محفظتك مبلغ ' . number_format($amount, 2) . ' كغرامة منصة على النزاع.',
+                // The ground is named in the notice: a fine whose reason the
+                // party has to guess is one they cannot contest.
+                'body_ar' => 'خُصم من محفظتك مبلغ ' . number_format($amount, 2) . ' كغرامة منصة بسبب '
+                    . ($reason === ArbitrationSession::FINE_CONDUCT ? 'مخالفة سلوك' : 'عدم الخضوع للحكم') . '.',
                 'body_en' => number_format($amount, 2) . ' was deducted from your wallet as a platform fine.',
                 'notifiable_type' => Dispute::class,
                 'notifiable_id' => (int) $dispute->id,

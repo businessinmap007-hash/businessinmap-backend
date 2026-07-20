@@ -219,7 +219,7 @@ class ArbitrationTest extends TestCase
 
         $before = (float) $this->wallet((int) $this->booking->business_id)->balance;
 
-        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
 
         $this->assertEqualsWithDelta(
             $before - 25.0,
@@ -242,7 +242,7 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
         $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
 
-        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
 
         $notice = \App\Models\AppNotification::query()
             ->where('notifiable_type', Dispute::class)
@@ -255,6 +255,80 @@ class ArbitrationTest extends TestCase
         $this->assertStringContainsString('25.00', $notice->first()->body_ar);
     }
 
+    /**
+     * Losing is not a punishable act. A fine rests on misconduct or on refusing
+     * the ruling — without one of those it is just a second penalty for being
+     * wrong, on top of losing the escrow.
+     */
+    public function test_a_fine_needs_one_of_the_two_grounds(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, 'lost_the_case');
+    }
+
+    /** A misconduct fine has to point at misconduct that was actually recorded. */
+    public function test_a_conduct_fine_without_a_recorded_violation_is_refused(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->applyPlatformFine(
+            $dispute->fresh(),
+            'business',
+            25.0,
+            ArbitrationSession::FINE_CONDUCT
+        );
+    }
+
+    public function test_a_conduct_fine_is_allowed_once_a_violation_is_on_the_record(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $thread = $this->disputes->room($dispute);
+        app(\App\Services\ThreadService::class)->recordViolation(
+            thread: $thread->fresh('participants'),
+            againstUserId: (int) $this->booking->business_id,
+            recordedByUserId: (int) $admin->id,
+            reason: 'إساءة لفظية'
+        );
+
+        $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
+
+        $session = $this->arbitration->applyPlatformFine(
+            $dispute->fresh(),
+            'business',
+            25.0,
+            ArbitrationSession::FINE_CONDUCT
+        );
+
+        $this->assertSame(ArbitrationSession::FINE_CONDUCT, $session->platform_fine_reason);
+        $this->assertEqualsWithDelta(25.0, (float) $session->platform_fine_amount, 0.01);
+    }
+
+    /** The ground is on the record, so the fine can be contested. */
+    public function test_the_fine_records_its_ground(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
+
+        $session = $this->arbitration->applyPlatformFine(
+            $dispute->fresh(),
+            'business',
+            25.0,
+            ArbitrationSession::FINE_NON_COMPLIANCE
+        );
+
+        $this->assertSame(ArbitrationSession::FINE_NON_COMPLIANCE, $session->platform_fine_reason);
+    }
+
     /** One fine per ruling — a retry must not charge twice. */
     public function test_a_fine_cannot_be_applied_twice(): void
     {
@@ -262,10 +336,10 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
         $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
 
-        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
         $before = (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
 
-        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
 
         $this->assertEqualsWithDelta(
             $before,
@@ -280,7 +354,7 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
 
         $this->expectException(ValidationException::class);
-        $this->arbitration->applyPlatformFine($dispute, 'business', 25.0);
+        $this->arbitration->applyPlatformFine($dispute, 'business', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
     }
 
     public function test_a_fine_needs_a_named_party(): void
@@ -290,7 +364,7 @@ class ArbitrationTest extends TestCase
         $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
 
         $this->expectException(ValidationException::class);
-        $this->arbitration->applyPlatformFine($dispute->fresh(), '', 25.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), '', 25.0, ArbitrationSession::FINE_NON_COMPLIANCE);
     }
 
     // ─────────────────────── the arbitration fee ───────────────────────
@@ -363,43 +437,85 @@ class ArbitrationTest extends TestCase
         $this->assertEqualsWithDelta(40.0, (float) $session->fee_amount, 0.01, 'the agreed fee survives the ruling');
     }
 
-    public function test_the_fee_is_charged_to_the_party_the_arbitrator_names(): void
+    /** The loser pays, and the loser is read off the ruling — not chosen. */
+    public function test_the_fee_falls_on_the_losing_party(): void
     {
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
         $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        // The client won, so the business lost.
         $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
-
-        $before = (float) $this->wallet((int) $this->booking->business_id)->balance;
-
-        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'business');
-
-        $this->assertEqualsWithDelta(
-            $before - 40.0,
-            (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
-            0.01
-        );
-    }
-
-    /** Split by subtraction, so an odd fee cannot mint or burn a piastre. */
-    public function test_a_split_fee_divides_without_losing_a_piastre(): void
-    {
-        $admin = $this->makeAdmin();
-        $dispute = $this->open();
-
-        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 33.33);
-        $this->disputes->resolve($dispute->fresh(), 'no_action', [], (int) $admin->id);
 
         $clientBefore = (float) $this->wallet((int) $this->booking->user_id)->balance;
         $businessBefore = (float) $this->wallet((int) $this->booking->business_id)->balance;
 
-        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'split');
+        $session = $this->arbitration->chargeArbitrationFee($dispute->fresh());
 
-        $clientPaid = $clientBefore - (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance;
-        $businessPaid = $businessBefore - (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
+        $this->assertSame('business', $session->fee_on);
+        $this->assertEqualsWithDelta(
+            $businessBefore - 40.0,
+            (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
+            0.01,
+            'the loser pays the whole fee'
+        );
+        $this->assertEqualsWithDelta(
+            $clientBefore,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01,
+            'the winner pays nothing'
+        );
+    }
 
-        $this->assertEqualsWithDelta(33.33, $clientPaid + $businessPaid, 0.001, 'the halves must total the fee exactly');
+    /** The other direction, so the rule is not accidentally hard-coded. */
+    public function test_the_client_pays_when_the_client_loses(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->disputes->resolve($dispute->fresh(), 'release_business', [], (int) $admin->id);
+
+        $before = (float) $this->wallet((int) $this->booking->user_id)->balance;
+
+        $this->assertSame('client', $this->arbitration->chargeArbitrationFee($dispute->fresh())->fee_on);
+        $this->assertEqualsWithDelta(
+            $before - 40.0,
+            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
+            0.01
+        );
+    }
+
+    /** On a split, the smaller share is the losing side. */
+    public function test_a_split_puts_the_fee_on_the_smaller_share(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->disputes->resolve($dispute->fresh(), 'split', [
+            'client_percent' => 70, 'business_percent' => 30,
+        ], (int) $admin->id);
+
+        $this->assertSame('business', $this->arbitration->chargeArbitrationFee($dispute->fresh())->fee_on);
+    }
+
+    /**
+     * A ruling that names no loser cannot produce one. Refusing is the honest
+     * answer — charging someone anyway would be arbitrary.
+     */
+    public function test_a_ruling_with_no_loser_cannot_be_charged(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->disputes->resolve($dispute->fresh(), 'split', [
+            'client_percent' => 50, 'business_percent' => 50,
+        ], (int) $admin->id);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->chargeArbitrationFee($dispute->fresh());
     }
 
     /** Charging twice would double the price of one ruling. */
@@ -409,12 +525,12 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
 
         $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
-        $this->disputes->resolve($dispute->fresh(), 'no_action', [], (int) $admin->id);
+        $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
 
-        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'business');
+        $this->arbitration->chargeArbitrationFee($dispute->fresh());
         $after = (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
 
-        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'client');
+        $this->arbitration->chargeArbitrationFee($dispute->fresh());
 
         $this->assertEqualsWithDelta(
             $after,
@@ -451,7 +567,7 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
 
         $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
-        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 30.0);
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 30.0, ArbitrationSession::FINE_NON_COMPLIANCE);
 
         $stats = $this->arbitration->statsFor((int) $admin->id);
 

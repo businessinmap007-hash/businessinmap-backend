@@ -351,6 +351,10 @@ class DisputeService
         $dispute->resolved_at = now();
         $dispute->save();
 
+        // Written by the ruling, not by the ruler: nobody decides whether their
+        // own case gets into the record.
+        app(ArbitrationService::class)->recordSession($dispute, $resolutionType, $resolutionPayload, $actorId);
+
         $this->closeRoom($dispute, $resolutionType, $resolutionPayload);
 
         return $dispute;

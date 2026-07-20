@@ -276,6 +276,8 @@ class DisputeController extends Controller
 
         $data = $request->validate([
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_on' => ['nullable', 'in:client,business'],
         ]);
 
         try {
@@ -290,6 +292,8 @@ class DisputeController extends Controller
                 );
 
                 $this->recordBookingDisputeResult($resolved, 'release_business');
+
+                $this->applyPlatformFineIfNeeded($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -313,6 +317,8 @@ class DisputeController extends Controller
 
         $data = $request->validate([
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_on' => ['nullable', 'in:client,business'],
         ]);
 
         try {
@@ -327,6 +333,8 @@ class DisputeController extends Controller
                 );
 
                 $this->recordBookingDisputeResult($resolved, 'refund_client');
+
+                $this->applyPlatformFineIfNeeded($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -354,6 +362,8 @@ class DisputeController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'client_penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'business_penalty_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
+            'platform_fine_on' => ['nullable', 'in:client,business'],
         ]);
 
         $clientPercent = (float) $data['client_percent'];
@@ -381,6 +391,8 @@ class DisputeController extends Controller
                 );
 
                 $this->recordBookingDisputeResult($resolved, 'split');
+
+                $this->applyPlatformFineIfNeeded($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -489,6 +501,27 @@ class DisputeController extends Controller
         };
     }
     
+    /**
+     * A cash fine paid to the platform, distinct from the guarantee penalty
+     * above: that one burns COVERAGE (a trust consequence), this one takes
+     * BALANCE. A party can easily have one and not the other, so an arbitrator
+     * has to be able to reach for either.
+     */
+    protected function applyPlatformFineIfNeeded(Dispute $dispute, array $data): void
+    {
+        $amount = round((float) ($data['platform_fine_amount'] ?? 0), 2);
+
+        if ($amount <= 0) {
+            return;
+        }
+
+        app(\App\Services\ArbitrationService::class)->applyPlatformFine(
+            dispute: $dispute,
+            side: (string) ($data['platform_fine_on'] ?? ''),
+            amount: $amount
+        );
+    }
+
     protected function applyGuaranteePenaltyIfNeeded(
         Dispute $dispute,
         string $loserSide,

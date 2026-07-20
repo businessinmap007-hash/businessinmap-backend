@@ -29,6 +29,7 @@ use App\Http\Controllers\AdminV2\{
     CommercialOfferController,
     DashboardController,
     DeliveryAdminController,
+    ArbitratorController,
     DisputeController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
@@ -423,6 +424,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [AdminRoleController::class, 'index'])->name('index');
             Route::get('{user}/edit', [AdminRoleController::class, 'edit'])->whereNumber('user')->name('edit');
             Route::put('{user}', [AdminRoleController::class, 'update'])->whereNumber('user')->name('update');
+        });
+
+        // Appointing the people who rule on other people's money is a staffing
+        // decision, so it sits behind ROLES, not DISPUTES: an arbitrator runs
+        // their own queue and can still never appoint another arbitrator.
+        Route::prefix('arbitrators')->name('arbitrators.')->middleware('can:' . AdminAbility::ROLES)->group(function () {
+            Route::get('/', [ArbitratorController::class, 'index'])->name('index');
+            Route::get('{user}', [ArbitratorController::class, 'show'])->whereNumber('user')->name('show');
+            Route::post('promote', [ArbitratorController::class, 'promote'])->name('promote');
+            Route::delete('{user}', [ArbitratorController::class, 'demote'])->whereNumber('user')->name('demote');
         });
 
         Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {

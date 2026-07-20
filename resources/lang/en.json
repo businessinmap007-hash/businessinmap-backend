@@ -2156,5 +2156,9 @@
     "لا يمكن لطرف في النزاع أن يكون محكِّمًا فيه.": "A party to a dispute cannot arbitrate it.",
     "لست طرفًا في هذه المحادثة.": "You are not a party to this conversation.",
     "أُغلقت هذه المحادثة ولا يمكن إضافة رسائل إليها.": "This conversation is closed and cannot be added to.",
-    "لا يمكن إرسال رسالة فارغة.": "A message cannot be empty."
+    "لا يمكن إرسال رسالة فارغة.": "A message cannot be empty.",
+    "الحكم يجب أن يكون حسابًا إداريًا.": "An arbitrator must be an admin account.",
+    "يجب تحديد الطرف الذي تُفرض عليه الغرامة.": "You must say which party the fine is imposed on.",
+    "لا يمكن فرض غرامة قبل صدور القرار.": "A fine cannot be imposed before a ruling.",
+    "تعذر تحديد الطرف الذي تُفرض عليه الغرامة.": "Could not identify the party to fine."
 }

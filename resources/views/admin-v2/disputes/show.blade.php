@@ -143,6 +143,15 @@
                     <div style="font-weight:800;margin-bottom:8px;">{{ __('حل لصالح مقدم الخدمة') }}</div>
                     <label class="a2-label">{{ __('مبلغ عقوبة على العميل') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="penalty_amount" value="0">
+                    
+                    <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
+                    <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
+                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                        <option value="">{{ __('على من؟') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                    </select>
+
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">
                         Release Business
                     </button>
@@ -153,6 +162,15 @@
                     <div style="font-weight:800;margin-bottom:8px;">{{ __('حل لصالح العميل') }}</div>
                     <label class="a2-label">{{ __('مبلغ عقوبة على البزنس') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="penalty_amount" value="0">
+                    
+                    <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
+                    <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
+                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                        <option value="">{{ __('على من؟') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                    </select>
+
                     <button class="a2-btn a2-btn-danger" style="margin-top:10px;" type="submit">
                         Refund Client
                     </button>
@@ -173,6 +191,15 @@
 
                     <label class="a2-label" style="margin-top:8px;">{{ __('عقوبة على البزنس') }}</label>
                     <input class="a2-input" type="number" step="0.01" min="0" name="business_penalty_amount" value="0">
+
+                    
+                    <label class="a2-label" style="margin-top:8px;">{{ __('غرامة منصة (نقدًا)') }}</label>
+                    <input class="a2-input" type="number" step="0.01" min="0" name="platform_fine_amount" value="0">
+                    <select class="a2-input" name="platform_fine_on" style="margin-top:6px;">
+                        <option value="">{{ __('على من؟') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                    </select>
 
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">
                         Resolve Split

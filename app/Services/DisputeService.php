@@ -159,6 +159,74 @@ class DisputeService
     }
 
     /**
+     * A party declaring that they are engaging with the settlement.
+     *
+     * Explicit, not inferred: the flag this feeds is evidence an arbitrator
+     * reads, and inferring cooperation from "sent a message" would let a single
+     * hostile line count as good faith. It stays a claim the party made, on the
+     * record, at a time — and the room is where it is made, so the other side
+     * sees it happen.
+     */
+    public function recordCooperation(Dispute $dispute, int $userId): Dispute
+    {
+        $side = $this->sideOf($dispute, $userId);
+
+        if ($side === null) {
+            throw ValidationException::withMessages([
+                'dispute' => __('لست طرفًا في هذا النزاع.'),
+            ]);
+        }
+
+        $column = $side . '_cooperated_at';
+
+        if ($dispute->{$column} !== null) {
+            return $dispute; // already declared; declaring again changes nothing
+        }
+
+        $dispute->{$column} = now();
+        $dispute->save();
+
+        $this->threads->system(
+            $this->room($dispute),
+            $side === 'client'
+                ? 'سجّل العميل استعداده للحل بالتراضي.'
+                : 'سجّل النشاط استعداده للحل بالتراضي.'
+        );
+
+        return $dispute;
+    }
+
+    /** Which side of the case this user is on, or null if neither. */
+    public function sideOf(Dispute $dispute, int $userId): ?string
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+
+        if ($disputeable instanceof Booking) {
+            if ((int) $disputeable->user_id === $userId) {
+                return 'client';
+            }
+
+            if ((int) $disputeable->business_id === $userId) {
+                return 'business';
+            }
+
+            return null;
+        }
+
+        // Outside bookings there are no named sides, so fall back to the two
+        // people on the dispute itself.
+        if ((int) $dispute->opened_by_user_id === $userId) {
+            return 'client';
+        }
+
+        if ((int) $dispute->against_user_id === $userId) {
+            return 'business';
+        }
+
+        return null;
+    }
+
+    /**
      * Seat an arbitrator. This is the whole reason the conversation has a
      * participant list instead of two user columns.
      */
@@ -264,6 +332,15 @@ class DisputeService
 
         $dispute->status = Dispute::STATUS_UNDER_REVIEW;
         $dispute->meta = $meta;
+
+        // Now that a party CAN declare cooperation, its absence means something
+        // and is worth recording. This is a mark for the arbitrator to read —
+        // it charges nothing. Nothing computes the non-cooperation fee from it,
+        // and it must stay that way: a fee levied automatically for missing a
+        // deadline would punish someone who was simply not reading their phone.
+        $dispute->client_non_cooperation_flag = $dispute->client_cooperated_at === null;
+        $dispute->business_non_cooperation_flag = $dispute->business_cooperated_at === null;
+
         $dispute->save();
 
         // Said in the room as well as pushed: the parties read the case here,

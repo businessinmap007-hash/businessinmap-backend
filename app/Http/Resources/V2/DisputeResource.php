@@ -47,6 +47,19 @@ class DisputeResource extends JsonResource
                 : null,
             'deposit_id' => $this->deposit_id !== null ? (int) $this->deposit_id : null,
 
+            // Whether each side declared it is engaging with the settlement.
+            // Both are visible to both: knowing the other party has not shown
+            // up is exactly what should prompt you to.
+            // Deliberately NOT a "mine" field: the opener is not always the
+            // client (a business opens disputes too), so mapping viewer→side
+            // here would need the booking loaded and would be wrong the moment
+            // it was not. The app pairs these with `my_side` from the show
+            // response, and the cooperate endpoint is idempotent anyway.
+            'cooperation' => [
+                'client_at' => optional($this->client_cooperated_at)->toIso8601String(),
+                'business_at' => optional($this->business_cooperated_at)->toIso8601String(),
+            ],
+
             'opened_at' => optional($this->opened_at)->toIso8601String(),
             'mutual_resolution_deadline_at' => optional($this->mutual_resolution_deadline_at)->toIso8601String(),
             'warning_count' => (int) $this->warning_count,

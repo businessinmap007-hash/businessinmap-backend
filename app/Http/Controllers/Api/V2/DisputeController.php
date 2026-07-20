@@ -99,7 +99,14 @@ final class DisputeController extends Controller
 
         $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
 
-        return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeResource($dispute),
+            // Which side the caller is on, so the app can pair it with the
+            // `cooperation` timestamps. Resolved here rather than in the
+            // resource because it costs a query and the list must not pay it.
+            'my_side' => app(DisputeService::class)->sideOf($dispute, (int) $request->user()->id),
+        ]);
     }
 
     /** POST /api/v2/bookings/{booking}/disputes — open one on a booking. */
@@ -137,6 +144,33 @@ final class DisputeController extends Controller
         // 200, not 201: an existing live dispute is returned rather than a
         // second one created, so the caller has not always created anything.
         return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
+    /**
+     * POST /api/v2/disputes/{dispute}/cooperate — declare that you are engaging
+     * with the settlement.
+     *
+     * Worth doing because its ABSENCE is what gets recorded: when the window
+     * expires, whoever never declared is marked as non-cooperating for the
+     * arbitrator to weigh. The mark costs nothing on its own — no fee is levied
+     * from it — so the incentive is to be seen participating, not to avoid a
+     * penalty for being slow to read a phone.
+     */
+    public function cooperate(Request $request, Dispute $dispute, DisputeService $disputes)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $side = $disputes->sideOf($dispute, (int) $request->user()->id);
+
+        $dispute = $disputes->recordCooperation($dispute, (int) $request->user()->id);
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeResource($dispute),
+            'my_side' => $side,
+        ]);
     }
 
     // ─────────────────────────── the room ───────────────────────────

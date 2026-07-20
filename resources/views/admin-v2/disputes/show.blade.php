@@ -50,6 +50,34 @@
             </div>
         </div>
 
+        <div style="margin-top:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+            <div>
+                <div class="a2-hint">{{ __('تعاون العميل') }}</div>
+                <div style="font-weight:800;">
+                    @if($dispute->client_cooperated_at)
+                        {{ $dispute->client_cooperated_at->format('Y-m-d H:i') }}
+                    @elseif($dispute->client_non_cooperation_flag)
+                        <span style="color:#b42318;">{{ __('لم يتعاون') }}</span>
+                    @else
+                        <span class="a2-hint">{{ __('لم يسجّل بعد') }}</span>
+                    @endif
+                </div>
+            </div>
+
+            <div>
+                <div class="a2-hint">{{ __('تعاون النشاط') }}</div>
+                <div style="font-weight:800;">
+                    @if($dispute->business_cooperated_at)
+                        {{ $dispute->business_cooperated_at->format('Y-m-d H:i') }}
+                    @elseif($dispute->business_non_cooperation_flag)
+                        <span style="color:#b42318;">{{ __('لم يتعاون') }}</span>
+                    @else
+                        <span class="a2-hint">{{ __('لم يسجّل بعد') }}</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+
         <div style="margin-top:14px;">
             <div class="a2-hint">Reason</div>
             <div style="font-weight:700;">

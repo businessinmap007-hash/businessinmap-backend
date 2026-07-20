@@ -275,6 +275,51 @@ class DisputeApiTest extends TestCase
         $this->assertStringNotContainsString('internal admin note', json_encode($data));
     }
 
+    // ─────────────────────────── cooperation ───────────────────────────
+
+    public function test_a_party_can_declare_cooperation_through_the_api(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'late'])
+            ->json('data.id');
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")
+            ->assertOk()
+            ->assertJsonPath('my_side', 'client');
+
+        $this->assertNotNull(
+            $this->getJson("/api/v2/disputes/{$id}")->json('data.cooperation.client_at')
+        );
+        $this->assertNull(
+            $this->getJson("/api/v2/disputes/{$id}")->json('data.cooperation.business_at')
+        );
+    }
+
+    /** The business is the business even when it opened the case. */
+    public function test_the_side_is_read_from_the_booking_not_from_who_opened_it(): void
+    {
+        Sanctum::actingAs($this->business);
+        $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'no_show'])
+            ->json('data.id');
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")
+            ->assertOk()
+            ->assertJsonPath('my_side', 'business');
+
+        $this->assertNotNull($this->getJson("/api/v2/disputes/{$id}")->json('data.cooperation.business_at'));
+    }
+
+    public function test_a_stranger_cannot_declare_cooperation(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'late'])
+            ->json('data.id');
+
+        Sanctum::actingAs($this->someoneElse());
+
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertNotFound();
+    }
+
     public function test_the_reason_code_picker_is_served(): void
     {
         Sanctum::actingAs($this->client);

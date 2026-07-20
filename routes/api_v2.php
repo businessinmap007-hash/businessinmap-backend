@@ -226,6 +226,12 @@ Route::prefix('v2')->group(function () {
         Route::post('bookings/{booking}/disputes', [DisputeController::class, 'storeForBooking'])
             ->whereNumber('booking');
 
+        // Declaring you are engaging with the settlement. Its ABSENCE is what
+        // gets recorded when the window expires — a mark the arbitrator reads,
+        // never an automatic charge.
+        Route::post('disputes/{dispute}/cooperate', [DisputeController::class, 'cooperate'])
+            ->whereNumber('dispute');
+
         // The arbitration room. Opens with the dispute so the settlement window
         // has somewhere to happen; an arbitrator takes a seat in the same
         // thread when the window expires.

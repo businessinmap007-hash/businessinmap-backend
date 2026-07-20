@@ -2160,5 +2160,6 @@
     "الحكم يجب أن يكون حسابًا إداريًا.": "An arbitrator must be an admin account.",
     "يجب تحديد الطرف الذي تُفرض عليه الغرامة.": "You must say which party the fine is imposed on.",
     "لا يمكن فرض غرامة قبل صدور القرار.": "A fine cannot be imposed before a ruling.",
-    "تعذر تحديد الطرف الذي تُفرض عليه الغرامة.": "Could not identify the party to fine."
+    "تعذر تحديد الطرف الذي تُفرض عليه الغرامة.": "Could not identify the party to fine.",
+    "لست طرفًا في هذا النزاع.": "You are not a party to this dispute."
 }

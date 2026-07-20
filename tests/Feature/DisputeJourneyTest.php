@@ -415,23 +415,86 @@ class DisputeJourneyTest extends TestCase
         $this->assertSame([], $this->disputes->escalateExpired(), 'an already-escalated dispute is no longer due');
     }
 
-    /**
-     * The non-cooperation flags stay untouched on expiry. Nothing in the product
-     * lets a party record that they cooperated, so flagging here would mark
-     * everyone uncooperative for a button that was never built — and the flag
-     * feeds a real fee (BusinessDepositPolicy::non_cooperation_fee_enabled).
-     */
-    public function test_escalation_does_not_flag_non_cooperation(): void
+    // ─────────────────────────── cooperation ───────────────────────────
+
+    /** A party declares it; nothing infers it on their behalf. */
+    public function test_a_party_can_record_that_they_are_cooperating(): void
     {
         $this->freeze();
         $dispute = $this->open();
-        $dispute->update(['mutual_resolution_deadline_at' => now()->subDays(30)]);
+
+        $this->disputes->recordCooperation($dispute, (int) $this->booking->user_id);
+
+        $fresh = $dispute->fresh();
+        $this->assertNotNull($fresh->client_cooperated_at);
+        $this->assertNull($fresh->business_cooperated_at, 'one party declaring says nothing about the other');
+    }
+
+    /** Declaring twice must not move the timestamp — it is when you first showed up. */
+    public function test_recording_cooperation_twice_keeps_the_first_time(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+
+        $this->disputes->recordCooperation($dispute, (int) $this->booking->user_id);
+        $first = $dispute->fresh()->client_cooperated_at;
+
+        $this->disputes->recordCooperation($dispute->fresh(), (int) $this->booking->user_id);
+
+        $this->assertEquals($first, $dispute->fresh()->client_cooperated_at);
+    }
+
+    public function test_a_stranger_cannot_record_cooperation(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+
+        $stranger = User::query()
+            ->whereNotIn('id', [(int) $this->booking->user_id, (int) $this->booking->business_id])
+            ->orderBy('id')->firstOrFail();
+
+        $this->expectException(ValidationException::class);
+        $this->disputes->recordCooperation($dispute, (int) $stranger->id);
+    }
+
+    /**
+     * Now that a party CAN declare cooperation, its absence means something and
+     * is recorded on expiry — for whoever stayed silent, and only them.
+     */
+    public function test_escalation_flags_only_the_party_who_never_showed_up(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+
+        $this->disputes->recordCooperation($dispute, (int) $this->booking->user_id);
+        $dispute->fresh()->update(['mutual_resolution_deadline_at' => now()->subDays(30)]);
 
         $this->disputes->escalateExpired();
 
         $fresh = $dispute->fresh();
-        $this->assertFalse((bool) $fresh->client_non_cooperation_flag);
-        $this->assertFalse((bool) $fresh->business_non_cooperation_flag);
+        $this->assertFalse((bool) $fresh->client_non_cooperation_flag, 'the client did show up');
+        $this->assertTrue((bool) $fresh->business_non_cooperation_flag, 'the business never did');
+    }
+
+    /**
+     * The flag is a mark an arbitrator reads, NOT a charge. A fee levied
+     * automatically for missing a deadline would punish someone who was simply
+     * not reading their phone, so nothing may compute money from this.
+     */
+    public function test_being_flagged_costs_nothing_by_itself(): void
+    {
+        $this->freeze(100);
+        $dispute = $this->open();
+        $dispute->update(['mutual_resolution_deadline_at' => now()->subDays(30)]);
+
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+        $before = (float) $businessWallet->balance;
+
+        $this->disputes->escalateExpired();
+
+        $this->assertTrue((bool) $dispute->fresh()->business_non_cooperation_flag);
+        $this->assertEqualsWithDelta($before, (float) $businessWallet->fresh()->balance, 0.01);
+        $this->assertEqualsWithDelta(0.0, (float) $dispute->fresh()->non_cooperation_fee_amount, 0.01);
     }
 
     // ───────────────── telling people what happened ─────────────────

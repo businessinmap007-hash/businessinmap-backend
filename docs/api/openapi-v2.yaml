@@ -2024,6 +2024,23 @@ paths:
         '200': { description: 'Opened, or the existing live dispute' }
         '404': { description: 'Not found, or you are not a party to the booking' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/cooperate:
+    post:
+      tags: [Disputes]
+      summary: Declare that you are engaging with the settlement
+      description: >-
+        Idempotent — the timestamp records when you FIRST showed up and is not
+        moved by declaring again. Its absence is what matters: when the
+        settlement window expires, whoever never declared is flagged for the
+        arbitrator to weigh. The flag is a mark, never an automatic charge.
+        Responds with `my_side` (client|business), read from the booking rather
+        than from who opened the case.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/room:
     get:
       tags: [Disputes]

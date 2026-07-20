@@ -9,21 +9,21 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الفترات المحجوبة</h1>
+            <h1 class="a2-page-title">{{ __('الفترات المحجوبة') }}</h1>
             <div class="a2-page-subtitle">
-                {{ $item->title }} — إدارة فترات الغلق والحجب
+                {{ $item->title }} {{ __('— إدارة فترات الغلق والحجب') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">رجوع</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">{{ __('رجوع') }}</a>
 
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.calendar', $item) }}">
-                التقويم
+                {{ __('التقويم') }}
             </a>
 
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.bookable-items.blocked-slots.create', $item) }}">
-                + إضافة غلق
+                {{ __('+ إضافة غلق') }}
             </a>
         </div>
     </div>
@@ -43,8 +43,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">ملخص العنصر</div>
-                <div class="a2-card-sub">معلومات سريعة عن العنصر الذي يتم إدارة غلقه</div>
+                <div class="a2-card-title">{{ __('ملخص العنصر') }}</div>
+                <div class="a2-card-sub">{{ __('معلومات سريعة عن العنصر الذي يتم إدارة غلقه') }}</div>
             </div>
         </div>
 
@@ -59,12 +59,12 @@
     <div class="a2-card" style="margin-top:16px;">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">قائمة الفترات المحجوبة</div>
+                <div class="a2-card-title">{{ __('قائمة الفترات المحجوبة') }}</div>
                 <div class="a2-card-sub">
                     @if(method_exists($slots, 'total'))
-                        إجمالي السجلات: {{ $slots->total() }}
+                        {{ __('إجمالي السجلات:') }} {{ $slots->total() }}
                     @else
-                        عرض فترات الغلق المسجلة لهذا العنصر
+                        {{ __('عرض فترات الغلق المسجلة لهذا العنصر') }}
                     @endif
                 </div>
             </div>
@@ -134,7 +134,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="a2-empty-cell">لا توجد فترات غلق</td>
+                            <td colspan="7" class="a2-empty-cell">{{ __('لا توجد فترات غلق') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

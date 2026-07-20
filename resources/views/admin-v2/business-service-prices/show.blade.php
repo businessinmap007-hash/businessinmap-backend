@@ -49,19 +49,19 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تفاصيل الحجز #{{ $booking->id }}</h1>
+            <h1 class="a2-page-title">{{ __('تفاصيل الحجز #') }}{{ $booking->id }}</h1>
             <div class="a2-page-subtitle">
-                عرض بيانات الحجز والسعر والديبوزت ورسوم التنفيذ Wallet Fees.
+                {{ __('عرض بيانات الحجز والسعر والديبوزت ورسوم التنفيذ Wallet Fees.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookings.edit', $booking) }}" class="a2-btn a2-btn-primary">
-                تعديل
+                {{ __('تعديل') }}
             </a>
 
             <a href="{{ route('admin.bookings.index') }}" class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -80,7 +80,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء:') }}</div>
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -90,25 +90,25 @@
     @endif
 
     <div class="a2-card bk-actions-card">
-        <div class="a2-section-title">إجراءات الحجز</div>
+        <div class="a2-section-title">{{ __('إجراءات الحجز') }}</div>
         <div class="a2-section-subtitle">
-            قبل بدء التنفيذ يجب تأكيد العميل والبزنس. وعند انتقال الحجز إلى
+            {{ __('قبل بدء التنفيذ يجب تأكيد العميل والبزنس. وعند انتقال الحجز إلى') }}
             <span dir="ltr">in_progress</span>
-            يتم خصم رسوم التنفيذ مرة واحدة فقط.
+            {{ __('يتم خصم رسوم التنفيذ مرة واحدة فقط.') }}
         </div>
 
         <div class="bk-action-grid">
             <form method="POST" action="{{ route('admin.bookings.start_confirm.client', $booking) }}">
                 @csrf
                 <button type="submit" class="a2-btn a2-btn-primary bk-action-btn">
-                    تأكيد العميل
+                    {{ __('تأكيد العميل') }}
                 </button>
             </form>
 
             <form method="POST" action="{{ route('admin.bookings.start_confirm.business', $booking) }}">
                 @csrf
                 <button type="submit" class="a2-btn a2-btn-primary bk-action-btn">
-                    تأكيد البزنس
+                    {{ __('تأكيد البزنس') }}
                 </button>
             </form>
 
@@ -158,84 +158,84 @@
 
     <div class="bk-show-grid">
         <div class="a2-card bk-show-card">
-            <div class="a2-section-title">البيانات الأساسية</div>
+            <div class="a2-section-title">{{ __('البيانات الأساسية') }}</div>
 
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>العميل</span><strong>{{ $booking->user->name ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>البزنس</span><strong>{{ $booking->business->name ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('العميل') }}</span><strong>{{ $booking->user->name ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('البزنس') }}</span><strong>{{ $booking->business->name ?? '-' }}</strong></div>
 
                 <div class="bk-kv">
-                    <span>الخدمة</span>
+                    <span>{{ __('الخدمة') }}</span>
                     <strong>{{ $booking->service->name_ar ?? $booking->service->name_en ?? $booking->service->key ?? '-' }}</strong>
                 </div>
 
                 <div class="bk-kv">
-                    <span>حالة الحجز</span>
+                    <span>{{ __('حالة الحجز') }}</span>
                     <strong>{{ \App\Models\Booking::statusOptions()[$booking->status] ?? $booking->status }}</strong>
                 </div>
 
                 <div class="bk-kv"><span>Category ID</span><strong>{{ $businessContext['category_id'] ?? ($booking->business->category_id ?? '-') }}</strong></div>
                 <div class="bk-kv"><span>Category Child ID</span><strong>{{ $businessContext['category_child_id'] ?? ($booking->business->category_child_id ?? '-') }}</strong></div>
 
-                <div class="bk-kv"><span>التاريخ</span><strong>{{ optional($booking->date)->format('Y-m-d') ?: '-' }}</strong></div>
-                <div class="bk-kv"><span>الوقت</span><strong>{{ $booking->time ?: '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('التاريخ') }}</span><strong>{{ optional($booking->date)->format('Y-m-d') ?: '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الوقت') }}</span><strong>{{ $booking->time ?: '-' }}</strong></div>
 
                 <div class="bk-kv"><span>starts_at</span><strong>{{ optional($booking->starts_at)->format('Y-m-d H:i') ?: '-' }}</strong></div>
                 <div class="bk-kv"><span>ends_at</span><strong>{{ optional($booking->ends_at)->format('Y-m-d H:i') ?: '-' }}</strong></div>
 
-                <div class="bk-kv"><span>الكمية</span><strong>{{ $booking->quantity ?? 1 }}</strong></div>
-                <div class="bk-kv"><span>عدد الأفراد</span><strong>{{ $booking->party_size ?: '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الكمية') }}</span><strong>{{ $booking->quantity ?? 1 }}</strong></div>
+                <div class="bk-kv"><span>{{ __('عدد الأفراد') }}</span><strong>{{ $booking->party_size ?: '-' }}</strong></div>
 
                 <div class="bk-kv"><span>Timezone</span><strong>{{ $booking->timezone ?: '-' }}</strong></div>
-                <div class="bk-kv"><span>ملاحظات</span><strong>{{ $booking->notes ?: '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('ملاحظات') }}</span><strong>{{ $booking->notes ?: '-' }}</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-show-card">
-            <div class="a2-section-title">التسعير</div>
+            <div class="a2-section-title">{{ __('التسعير') }}</div>
             <div class="a2-section-subtitle">
-                هذا هو سعر الخدمة الذي يحدده البزنس، وليس رسوم المنصة الجديدة.
+                {{ __('هذا هو سعر الخدمة الذي يحدده البزنس، وليس رسوم المنصة الجديدة.') }}
             </div>
 
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>السعر الأصلي</span><strong>{{ number_format($originalPrice, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>الخصم مفعل</span><strong>{{ $discountEnabled ? 'نعم' : 'لا' }}</strong></div>
-                <div class="bk-kv"><span>نسبة الخصم</span><strong>{{ $discountPercent }}%</strong></div>
-                <div class="bk-kv"><span>قيمة الخصم</span><strong>{{ number_format($discountAmount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>السعر بعد الخصم</span><strong>{{ number_format($finalPrice, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>مصدر السعر</span><strong>{{ $pricing['source'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('السعر الأصلي') }}</span><strong>{{ number_format($originalPrice, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الخصم مفعل') }}</span><strong>{{ $discountEnabled ? 'نعم' : 'لا' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('نسبة الخصم') }}</span><strong>{{ $discountPercent }}%</strong></div>
+                <div class="bk-kv"><span>{{ __('قيمة الخصم') }}</span><strong>{{ number_format($discountAmount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('السعر بعد الخصم') }}</span><strong>{{ number_format($finalPrice, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('مصدر السعر') }}</span><strong>{{ $pricing['source'] ?? '-' }}</strong></div>
                 <div class="bk-kv"><span>Business Price ID</span><strong>{{ $pricing['business_service_price_id'] ?? '-' }}</strong></div>
                 <div class="bk-kv"><span>Legacy Platform Fee</span><strong>{{ number_format($legacyPlatformFee, 2) }} {{ $currency }}</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-show-card">
-            <div class="a2-section-title">الديبوزت</div>
+            <div class="a2-section-title">{{ __('الديبوزت') }}</div>
 
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>Deposit مطلوب؟</span><strong>{{ !empty($depositPolicy['required']) ? 'نعم' : 'لا' }}</strong></div>
-                <div class="bk-kv"><span>النسبة المطبقة</span><strong>{{ (int)($depositPolicy['configured_percent'] ?? 0) }}%</strong></div>
-                <div class="bk-kv"><span>قيمة الديبوزت</span><strong>{{ number_format($depositAmount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>المتبقي بعد الديبوزت</span><strong>{{ number_format($remaining, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>المصدر</span><strong>{{ $depositPolicy['source'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('Deposit مطلوب؟') }}</span><strong>{{ !empty($depositPolicy['required']) ? 'نعم' : 'لا' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('النسبة المطبقة') }}</span><strong>{{ (int)($depositPolicy['configured_percent'] ?? 0) }}%</strong></div>
+                <div class="bk-kv"><span>{{ __('قيمة الديبوزت') }}</span><strong>{{ number_format($depositAmount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('المتبقي بعد الديبوزت') }}</span><strong>{{ number_format($remaining, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('المصدر') }}</span><strong>{{ $depositPolicy['source'] ?? '-' }}</strong></div>
                 <div class="bk-kv"><span>Service Max %</span><strong>{{ (int)($depositPolicy['service_max_percent'] ?? 0) }}%</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-show-card">
-            <div class="a2-section-title">التأكيدات ورسوم التنفيذ</div>
+            <div class="a2-section-title">{{ __('التأكيدات ورسوم التنفيذ') }}</div>
             <div class="a2-section-subtitle">
-                رسوم التنفيذ تُخصم من المحافظ عند بداية التنفيذ فقط إذا كانت مفعلة وكان الطرف وافق على الخصم التلقائي.
+                {{ __('رسوم التنفيذ تُخصم من المحافظ عند بداية التنفيذ فقط إذا كانت مفعلة وكان الطرف وافق على الخصم التلقائي.') }}
             </div>
 
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>تأكيد العميل</span><strong>{{ $clientConfirmed ? 'تم' : 'لم يتم' }}</strong></div>
-                <div class="bk-kv"><span>تأكيد البزنس</span><strong>{{ $businessConfirmed ? 'تم' : 'لم يتم' }}</strong></div>
-                <div class="bk-kv"><span>رسوم التنفيذ - العميل</span><strong>{{ number_format($clientExecutionAmount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>رسوم التنفيذ - البزنس</span><strong>{{ number_format($businessExecutionAmount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('تأكيد العميل') }}</span><strong>{{ $clientConfirmed ? 'تم' : 'لم يتم' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('تأكيد البزنس') }}</span><strong>{{ $businessConfirmed ? 'تم' : 'لم يتم' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('رسوم التنفيذ - العميل') }}</span><strong>{{ number_format($clientExecutionAmount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('رسوم التنفيذ - البزنس') }}</span><strong>{{ number_format($businessExecutionAmount, 2) }} {{ $currency }}</strong></div>
                 <div class="bk-kv"><span>Fee Code</span><strong>{{ $executionFee['code'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>تاريخ الخصم</span><strong>{{ $executionFee['charged_at'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>عدد الحركات</span><strong>{{ count($executionTransactions) }}</strong></div>
+                <div class="bk-kv"><span>{{ __('تاريخ الخصم') }}</span><strong>{{ $executionFee['charged_at'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('عدد الحركات') }}</span><strong>{{ count($executionTransactions) }}</strong></div>
                 <div class="bk-kv"><span>Child ID</span><strong>{{ $executionFee['child_id'] ?? '-' }}</strong></div>
             </div>
         </div>
@@ -244,9 +244,9 @@
     <div class="a2-card bk-wide-card">
         <div class="a2-section-title">Service Fees Snapshot</div>
         <div class="a2-section-subtitle">
-            هذا snapshot من
+            {{ __('هذا snapshot من') }}
             <span dir="ltr">category_child_service_fees</span>
-            وقت إنشاء أو تحديث الحجز.
+            {{ __('وقت إنشاء أو تحديث الحجز.') }}
         </div>
 
         <div class="bk-kv-grid bk-kv-grid-4">
@@ -345,27 +345,27 @@
 
     @if(!empty($platformService))
         <div class="a2-card bk-wide-card">
-            <div class="a2-section-title">الخدمة على المنصة</div>
+            <div class="a2-section-title">{{ __('الخدمة على المنصة') }}</div>
 
             <div class="bk-kv-grid bk-kv-grid-4">
-                <div class="bk-kv"><span>رقم الخدمة</span><strong>{{ $platformService['id'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('رقم الخدمة') }}</span><strong>{{ $platformService['id'] ?? '-' }}</strong></div>
                 <div class="bk-kv"><span>Key</span><strong>{{ $platformService['key'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>الاسم العربي</span><strong>{{ $platformService['name_ar'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>الاسم الإنجليزي</span><strong>{{ $platformService['name_en'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الاسم العربي') }}</span><strong>{{ $platformService['name_ar'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الاسم الإنجليزي') }}</span><strong>{{ $platformService['name_en'] ?? '-' }}</strong></div>
             </div>
         </div>
     @endif
 
     @if(!empty($bookableMeta))
         <div class="a2-card bk-wide-card">
-            <div class="a2-section-title">العنصر القابل للحجز</div>
+            <div class="a2-section-title">{{ __('العنصر القابل للحجز') }}</div>
 
             <div class="bk-kv-grid bk-kv-grid-4">
                 <div class="bk-kv"><span>ID</span><strong>{{ $bookableMeta['id'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>العنوان</span><strong>{{ $bookableMeta['title'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>الكود</span><strong>{{ $bookableMeta['code'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>النوع</span><strong>{{ $bookableMeta['item_type'] ?? '-' }}</strong></div>
-                <div class="bk-kv"><span>السعر</span><strong>{{ number_format((float)($bookableMeta['price'] ?? 0), 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('العنوان') }}</span><strong>{{ $bookableMeta['title'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الكود') }}</span><strong>{{ $bookableMeta['code'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('النوع') }}</span><strong>{{ $bookableMeta['item_type'] ?? '-' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('السعر') }}</span><strong>{{ number_format((float)($bookableMeta['price'] ?? 0), 2) }} {{ $currency }}</strong></div>
                 <div class="bk-kv"><span>Deposit Enabled</span><strong>{{ !empty($bookableMeta['deposit_enabled']) ? 'نعم' : 'لا' }}</strong></div>
                 <div class="bk-kv"><span>Deposit %</span><strong>{{ (int)($bookableMeta['deposit_percent'] ?? 0) }}%</strong></div>
             </div>
@@ -374,15 +374,15 @@
 
     @if($deposit)
         <div class="a2-card bk-wide-card">
-            <div class="a2-section-title">سجل Deposit</div>
+            <div class="a2-section-title">{{ __('سجل Deposit') }}</div>
 
             <div class="bk-kv-grid bk-kv-grid-4">
-                <div class="bk-kv"><span>الحالة</span><strong>{{ $deposit->status }}</strong></div>
-                <div class="bk-kv"><span>إجمالي القيمة</span><strong>{{ number_format((float)$deposit->total_amount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>قيمة العميل</span><strong>{{ number_format((float)$deposit->client_amount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>قيمة البزنس</span><strong>{{ number_format((float)$deposit->business_amount, 2) }} {{ $currency }}</strong></div>
-                <div class="bk-kv"><span>تأكيد العميل</span><strong>{{ (int)$deposit->client_confirmed === 1 ? 'نعم' : 'لا' }}</strong></div>
-                <div class="bk-kv"><span>تأكيد البزنس</span><strong>{{ (int)$deposit->business_confirmed === 1 ? 'نعم' : 'لا' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('الحالة') }}</span><strong>{{ $deposit->status }}</strong></div>
+                <div class="bk-kv"><span>{{ __('إجمالي القيمة') }}</span><strong>{{ number_format((float)$deposit->total_amount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('قيمة العميل') }}</span><strong>{{ number_format((float)$deposit->client_amount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('قيمة البزنس') }}</span><strong>{{ number_format((float)$deposit->business_amount, 2) }} {{ $currency }}</strong></div>
+                <div class="bk-kv"><span>{{ __('تأكيد العميل') }}</span><strong>{{ (int)$deposit->client_confirmed === 1 ? 'نعم' : 'لا' }}</strong></div>
+                <div class="bk-kv"><span>{{ __('تأكيد البزنس') }}</span><strong>{{ (int)$deposit->business_confirmed === 1 ? 'نعم' : 'لا' }}</strong></div>
                 <div class="bk-kv"><span>Agree Release Client</span><strong>{{ (int)($deposit->release_agreed_client ?? 0) === 1 ? 'نعم' : 'لا' }}</strong></div>
                 <div class="bk-kv"><span>Agree Release Business</span><strong>{{ (int)($deposit->release_agreed_business ?? 0) === 1 ? 'نعم' : 'لا' }}</strong></div>
                 <div class="bk-kv"><span>Agree Refund Client</span><strong>{{ (int)($deposit->refund_agreed_client ?? 0) === 1 ? 'نعم' : 'لا' }}</strong></div>

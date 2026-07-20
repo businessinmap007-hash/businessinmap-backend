@@ -17,26 +17,25 @@
 @endif
 
 <div class="a2-card a2-card--soft a2-mb-16">
-    <div class="a2-section-title">ملاحظة</div>
+    <div class="a2-section-title">{{ __('ملاحظة') }}</div>
     <div class="a2-section-subtitle">
-        الفرع يقسّم أنواع العناصر داخل خدمة واحدة (مثال: فنادق / عيادات / ملاعب داخل الحجز).
-        أنواع العناصر نفسها تُدار من شاشة أنواع عناصر خدمات المنصة.
+        {{ __('الفرع يقسّم أنواع العناصر داخل خدمة واحدة (مثال: فنادق / عيادات / ملاعب داخل الحجز). أنواع العناصر نفسها تُدار من شاشة أنواع عناصر خدمات المنصة.') }}
     </div>
 </div>
 
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">بيانات الفرع</div>
-            <div class="a2-card-sub">الخدمة، المفتاح، والاسم</div>
+            <div class="a2-card-title">{{ __('بيانات الفرع') }}</div>
+            <div class="a2-card-sub">{{ __('الخدمة، المفتاح، والاسم') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="platform_service_id">الخدمة الأساسية</label>
+            <label class="a2-label" for="platform_service_id">{{ __('الخدمة الأساسية') }}</label>
             <select class="a2-select" id="platform_service_id" name="platform_service_id">
-                <option value="">بدون خدمة (فرع مشترك)</option>
+                <option value="">{{ __('بدون خدمة (فرع مشترك)') }}</option>
                 @foreach(($services ?? []) as $service)
                     <option
                         value="{{ $service->id }}"
@@ -64,7 +63,7 @@
             >
 
             <div class="a2-hint a2-mt-8">
-                حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.
+                {{ __('حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.') }}
             </div>
 
             @error('key')
@@ -73,13 +72,13 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="name_ar">الاسم العربي <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="name_ar">{{ __('الاسم العربي') }} <span class="a2-danger">*</span></label>
             <input
                 class="a2-input"
                 id="name_ar"
                 name="name_ar"
                 value="{{ old('name_ar', $row->name_ar ?? '') }}"
-                placeholder="فنادق ووحدات سكنية"
+                placeholder="{{ __('فنادق ووحدات سكنية') }}"
             >
 
             @error('name_ar')
@@ -88,7 +87,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="name_en">الاسم الإنجليزي</label>
+            <label class="a2-label" for="name_en">{{ __('الاسم الإنجليزي') }}</label>
             <input
                 class="a2-input"
                 id="name_en"
@@ -108,14 +107,14 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الحالة والترتيب</div>
-            <div class="a2-card-sub">التفعيل وترتيب الظهور</div>
+            <div class="a2-card-title">{{ __('الحالة والترتيب') }}</div>
+            <div class="a2-card-sub">{{ __('التفعيل وترتيب الظهور') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label" for="sort_order">الترتيب</label>
+            <label class="a2-label" for="sort_order">{{ __('الترتيب') }}</label>
             <input
                 class="a2-input"
                 id="sort_order"
@@ -131,7 +130,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
 
             <label class="a2-check" style="margin-top:10px;">
                 <input
@@ -140,7 +139,7 @@
                     value="1"
                     @checked((bool) old('is_active', (int) ($row->is_active ?? 1)))
                 >
-                <span>مفعل</span>
+                <span>{{ __('مفعل') }}</span>
             </label>
 
             @error('is_active')
@@ -150,12 +149,12 @@
 
         @if($isEdit)
             <div class="a2-form-group">
-                <label class="a2-label">أنواع العناصر داخله</label>
+                <label class="a2-label">{{ __('أنواع العناصر داخله') }}</label>
                 <div style="margin-top:10px;">
-                    <span class="a2-pill a2-pill-sub">{{ (int) ($row->item_types_count ?? 0) }} نوع</span>
+                    <span class="a2-pill a2-pill-sub">{{ (int) ($row->item_types_count ?? 0) }} {{ __('نوع') }}</span>
                 </div>
                 <div class="a2-hint a2-mt-8">
-                    عند حذف الفرع تصبح أنواعه "بدون فرع" ولا تُحذف.
+                    {{ __('عند حذف الفرع تصبح أنواعه "بدون فرع" ولا تُحذف.') }}
                 </div>
             </div>
         @endif
@@ -164,7 +163,7 @@
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
     <a href="{{ route('admin.platform-service-item-groups.index', ['service_id' => old('platform_service_id', $row->platform_service_id ?? 0)]) }}" class="a2-btn a2-btn-ghost">
-        رجوع
+        {{ __('رجوع') }}
     </a>
 
     <button type="submit" class="a2-btn a2-btn-primary">

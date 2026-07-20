@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','ملاحظات المعاملات')
+@section('title',__('ملاحظات المعاملات'))
 @section('body_class','admin-v2-wallet-notes')
 
 @section('content')
@@ -36,12 +36,12 @@
 
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">ملاحظات المعاملات</h2>
-        <div class="a2-hint">قائمة ثابتة لاختيار note_id بدل النص الحر</div>
+        <h2 class="a2-title">{{ __('ملاحظات المعاملات') }}</h2>
+        <div class="a2-hint">{{ __('قائمة ثابتة لاختيار note_id بدل النص الحر') }}</div>
       </div>
 
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-notes.create') }}">إضافة ملاحظة</a>
+        <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-notes.create') }}">{{ __('إضافة ملاحظة') }}</a>
       </div>
     </div>
 
@@ -51,22 +51,22 @@
 
     <form method="GET" class="a2-toolbar" action="{{ route('admin.wallet-notes.index') }}">
       <div class="a2-filters">
-        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="بحث بالعنوان/النص/ID">
+        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالعنوان/النص/ID') }}">
 
         <select class="a2-select" name="active">
-          <option value=""  @selected($activeVal==='')>الكل</option>
-          <option value="1" @selected($activeVal==='1')>نشط</option>
-          <option value="0" @selected($activeVal==='0')>غير نشط</option>
+          <option value=""  @selected($activeVal==='')>{{ __('الكل') }}</option>
+          <option value="1" @selected($activeVal==='1')>{{ __('نشط') }}</option>
+          <option value="0" @selected($activeVal==='0')>{{ __('غير نشط') }}</option>
         </select>
 
         <select class="a2-select" name="per_page">
           @foreach([10,20,50,100] as $n)
-            <option value="{{ $n }}" @selected($perPageVal===$n)>{{ $n }}/صفحة</option>
+            <option value="{{ $n }}" @selected($perPageVal===$n)>{{ $n }}{{ __('/صفحة') }}</option>
           @endforeach
         </select>
 
-        <button class="a2-btn a2-btn-ghost" type="submit">تطبيق</button>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-notes.index') }}">مسح</a>
+        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('تطبيق') }}</button>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-notes.index') }}">{{ __('مسح') }}</a>
       </div>
     </form>
 
@@ -75,11 +75,11 @@
         <thead>
           <tr>
             <th><a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a></th>
-            <th><a class="a2-link" href="{{ $sortUrl('title') }}">العنوان{!! $arrow('title') !!}</a></th>
-            <th>النص</th>
-            <th><a class="a2-link" href="{{ $sortUrl('sort') }}">ترتيب{!! $arrow('sort') !!}</a></th>
-            <th><a class="a2-link" href="{{ $sortUrl('is_active') }}">الحالة{!! $arrow('is_active') !!}</a></th>
-            <th>إجراءات</th>
+            <th><a class="a2-link" href="{{ $sortUrl('title') }}">{{ __('العنوان') }}{!! $arrow('title') !!}</a></th>
+            <th>{{ __('النص') }}</th>
+            <th><a class="a2-link" href="{{ $sortUrl('sort') }}">{{ __('ترتيب') }}{!! $arrow('sort') !!}</a></th>
+            <th><a class="a2-link" href="{{ $sortUrl('is_active') }}">{{ __('الحالة') }}{!! $arrow('is_active') !!}</a></th>
+            <th>{{ __('إجراءات') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -91,26 +91,26 @@
               <td>{{ (int)$it->sort }}</td>
               <td>
                 @if($it->is_active)
-                  <span class="a2-pill a2-pill-active">نشط</span>
+                  <span class="a2-pill a2-pill-active">{{ __('نشط') }}</span>
                 @else
-                  <span class="a2-pill a2-pill-inactive">غير نشط</span>
+                  <span class="a2-pill a2-pill-inactive">{{ __('غير نشط') }}</span>
                 @endif
               </td>
               <td>
                 <div class="a2-actions">
-                  <a class="a2-link" href="{{ route('admin.wallet-notes.edit', $it) }}">تعديل</a>
+                  <a class="a2-link" href="{{ route('admin.wallet-notes.edit', $it) }}">{{ __('تعديل') }}</a>
 
                   <form method="POST" action="{{ route('admin.wallet-notes.destroy', $it) }}"
                         onsubmit="return confirm('حذف هذه الملاحظة؟');">
                     @csrf
                     @method('DELETE')
-                    <button class="a2-link a2-link-danger" type="submit">حذف</button>
+                    <button class="a2-link a2-link-danger" type="submit">{{ __('حذف') }}</button>
                   </form>
                 </div>
               </td>
             </tr>
           @empty
-            <tr><td colspan="6" class="a2-empty-cell">لا توجد بيانات</td></tr>
+            <tr><td colspan="6" class="a2-empty-cell">{{ __('لا توجد بيانات') }}</td></tr>
           @endforelse
         </tbody>
       </table>

@@ -7,8 +7,8 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة Option</h1>
-            <div class="a2-page-subtitle">إضافة خيار جديد</div>
+            <h1 class="a2-page-title">{{ __('إضافة Option') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إضافة خيار جديد') }}</div>
         </div>
     </div>
 

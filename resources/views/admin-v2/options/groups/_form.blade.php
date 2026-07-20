@@ -33,14 +33,14 @@
 <div class="a2-card a2-card--section a2-mb-16">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">بيانات المجموعة</div>
-            <div class="a2-card-sub">الاسم والترتيب والحالة</div>
+            <div class="a2-card-title">{{ __('بيانات المجموعة') }}</div>
+            <div class="a2-card-sub">{{ __('الاسم والترتيب والحالة') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">الاسم عربي</label>
+            <label class="a2-label">{{ __('الاسم عربي') }}</label>
             <input class="a2-input" name="name_ar" value="{{ old('name_ar', $groupSafe->name_ar ?? '') }}">
             @error('name_ar')
                 <div class="a2-error">{{ $message }}</div>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الاسم إنجليزي</label>
+            <label class="a2-label">{{ __('الاسم إنجليزي') }}</label>
             <input class="a2-input" name="name_en" value="{{ old('name_en', $groupSafe->name_en ?? '') }}" dir="ltr">
             @error('name_en')
                 <div class="a2-error">{{ $message }}</div>
@@ -56,7 +56,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الترتيب</label>
+            <label class="a2-label">{{ __('الترتيب') }}</label>
             <input class="a2-input" type="number" name="reorder" value="{{ old('reorder', $groupSafe->reorder ?? 0) }}">
             @error('reorder')
                 <div class="a2-error">{{ $message }}</div>
@@ -64,7 +64,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
             <select class="a2-select" name="is_active">
                 <option value="1" @selected((string) old('is_active', $groupSafe->is_active ?? 1) === '1')>Active</option>
                 <option value="0" @selected((string) old('is_active', $groupSafe->is_active ?? 1) === '0')>Inactive</option>
@@ -81,11 +81,11 @@
         <input type="text"
                id="optionSearchInput"
                class="a2-input a2-filter-search"
-               placeholder="بحث داخل الخيارات">
+               placeholder="{{ __('بحث داخل الخيارات') }}">
 
         <div class="a2-filter-actions">
-            <button type="button" class="a2-btn a2-btn-ghost" id="selectVisibleBtn">تحديد الظاهر</button>
-            <button type="button" class="a2-btn a2-btn-ghost" id="clearVisibleBtn">إلغاء الظاهر</button>
+            <button type="button" class="a2-btn a2-btn-ghost" id="selectVisibleBtn">{{ __('تحديد الظاهر') }}</button>
+            <button type="button" class="a2-btn a2-btn-ghost" id="clearVisibleBtn">{{ __('إلغاء الظاهر') }}</button>
         </div>
     </div>
 </div>
@@ -94,8 +94,8 @@
     <div class="a2-card a2-card--section a2-mb-16">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">الخيارات داخل هذه المجموعة</div>
-                <div class="a2-card-sub">إلغاء التحديد = إزالة الخيار من هذه المجموعة</div>
+                <div class="a2-card-title">{{ __('الخيارات داخل هذه المجموعة') }}</div>
+                <div class="a2-card-sub">{{ __('إلغاء التحديد = إزالة الخيار من هذه المجموعة') }}</div>
             </div>
         </div>
 
@@ -122,7 +122,7 @@
             </div>
         @else
             <div class="a2-alert a2-alert-warning" style="margin:16px;">
-                لا توجد خيارات مرتبطة بهذه المجموعة حاليًا.
+                {{ __('لا توجد خيارات مرتبطة بهذه المجموعة حاليًا.') }}
             </div>
         @endif
     </div>
@@ -138,7 +138,7 @@
                 <div>
                     <div class="a2-card-title">{{ $otherGroupName }}</div>
                     <div class="a2-card-sub">
-                        تحديد خيار هنا سينقله من هذه المجموعة إلى المجموعة الحالية
+                        {{ __('تحديد خيار هنا سينقله من هذه المجموعة إلى المجموعة الحالية') }}
                     </div>
                 </div>
             </div>
@@ -168,8 +168,8 @@
     <div class="a2-card a2-card--section a2-mb-16">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">خيارات بدون Group</div>
-                <div class="a2-card-sub">يمكن إضافتها مباشرة إلى هذه المجموعة</div>
+                <div class="a2-card-title">{{ __('خيارات بدون Group') }}</div>
+                <div class="a2-card-sub">{{ __('يمكن إضافتها مباشرة إلى هذه المجموعة') }}</div>
             </div>
         </div>
 
@@ -195,7 +195,7 @@
             </div>
         @else
             <div class="a2-alert a2-alert-warning" style="margin:16px;">
-                لا توجد خيارات غير منضمة لأي مجموعة.
+                {{ __('لا توجد خيارات غير منضمة لأي مجموعة.') }}
             </div>
         @endif
     </div>
@@ -203,8 +203,8 @@
     <div class="a2-card">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">اختيار الخيارات</div>
-                <div class="a2-card-sub">يمكنك ربط الخيارات مباشرة أثناء إنشاء المجموعة</div>
+                <div class="a2-card-title">{{ __('اختيار الخيارات') }}</div>
+                <div class="a2-card-sub">{{ __('يمكنك ربط الخيارات مباشرة أثناء إنشاء المجموعة') }}</div>
             </div>
         </div>
 
@@ -231,14 +231,14 @@
             </div>
         @else
             <div class="a2-alert a2-alert-warning" style="margin:16px;">
-                لا توجد خيارات متاحة.
+                {{ __('لا توجد خيارات متاحة.') }}
             </div>
         @endif
     </div>
 @endif
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
-    <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+    <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     <button type="submit" class="a2-btn a2-btn-primary">
         {{ $isEdit ? 'تحديث' : 'حفظ' }}
     </button>

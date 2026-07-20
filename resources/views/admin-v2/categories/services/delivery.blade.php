@@ -1,8 +1,8 @@
 <div class="a2-card a2-card--section js-service-panel" data-service-panel="delivery" style="display:none;">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">إعدادات Delivery</div>
-            <div class="a2-card-sub">إعدادات خاصة بخدمة التوصيل لهذا التصنيف</div>
+            <div class="a2-card-title">{{ __('إعدادات Delivery') }}</div>
+            <div class="a2-card-sub">{{ __('إعدادات خاصة بخدمة التوصيل لهذا التصنيف') }}</div>
         </div>
     </div>
 

@@ -1,11 +1,10 @@
 <div class="a2-card">
-    <div class="a2-section-title">بيانات خدمة النظام</div>
+    <div class="a2-section-title">{{ __('بيانات خدمة النظام') }}</div>
     <div class="a2-section-subtitle">
-        خدمة النظام هي تعريف عام فقط مثل
-        <span dir="ltr">booking</span> أو
-        <span dir="ltr">delivery</span> أو
-        <span dir="ltr">menu</span>.
-        لا يتم حساب أي رسوم من هذه الصفحة.
+        {{ __('خدمة النظام هي تعريف عام فقط مثل') }}
+        <span dir="ltr">booking</span> {{ __('أو') }}
+        <span dir="ltr">delivery</span> {{ __('أو') }}
+        <span dir="ltr">menu</span>{{ __('. لا يتم حساب أي رسوم من هذه الصفحة.') }}
     </div>
 
     @php
@@ -51,16 +50,16 @@
                 dir="ltr"
             >
             <div class="a2-hint a2-mt-8">
-                يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو
+                {{ __('يجب أن يحتوي على حروف إنجليزية صغيرة أو أرقام أو') }}
                 <span dir="ltr">_</span>
-                أو
+                {{ __('أو') }}
                 <span dir="ltr">-</span>
-                فقط.
+                {{ __('فقط.') }}
             </div>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
 
             <label class="a2-check a2-mt-8">
                 <input
@@ -69,16 +68,16 @@
                     value="1"
                     @checked((bool) old('is_active', (int) $row->is_active))
                 >
-                <span>الخدمة مفعلة</span>
+                <span>{{ __('الخدمة مفعلة') }}</span>
             </label>
 
             <div class="a2-hint a2-mt-8">
-                تعطيل الخدمة يمنع استخدامها في الإعدادات الجديدة، لكنه لا يحذف السجلات القديمة.
+                {{ __('تعطيل الخدمة يمنع استخدامها في الإعدادات الجديدة، لكنه لا يحذف السجلات القديمة.') }}
             </div>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الاسم عربي</label>
+            <label class="a2-label">{{ __('الاسم عربي') }}</label>
             <input
                 class="a2-input"
                 type="text"
@@ -108,12 +107,11 @@
                     value="1"
                     @checked((bool) old('supports_deposit', (int) $row->supports_deposit))
                 >
-                <span>هذه الخدمة تدعم نظام الديبوزت</span>
+                <span>{{ __('هذه الخدمة تدعم نظام الديبوزت') }}</span>
             </label>
 
             <div class="a2-hint a2-mt-8">
-                هذا مجرد flag عام يوضح أن الخدمة يمكن أن تعمل مع الديبوزت.
-                قيمة الديبوزت وقواعده لا تُحسب من PlatformService.
+                {{ __('هذا مجرد flag عام يوضح أن الخدمة يمكن أن تعمل مع الديبوزت. قيمة الديبوزت وقواعده لا تُحسب من PlatformService.') }}
             </div>
         </div>
 
@@ -127,13 +125,13 @@
                     value="1"
                     @checked((bool) $notificationEnabled)
                 >
-                <span>إظهار هذه الخدمة كنوع إشعار وإرسال إشعاراتها ضمن Notification Center</span>
+                <span>{{ __('إظهار هذه الخدمة كنوع إشعار وإرسال إشعاراتها ضمن Notification Center') }}</span>
             </label>
 
             <div class="a2-hint a2-mt-8">
-                عند التفعيل يتم حفظ
+                {{ __('عند التفعيل يتم حفظ') }}
                 <span dir="ltr">notification_enabled: true</span>
-                تلقائيًا داخل
+                {{ __('تلقائيًا داخل') }}
                 <span dir="ltr">Service Rules JSON</span>.
             </div>
         </div>
@@ -148,9 +146,9 @@
                 placeholder='{"notification_enabled": true, "notification_template": "default"}'
             >{{ $rulesValue }}</textarea>
             <div class="a2-hint a2-mt-8">
-                حقل متقدم لقواعد الخدمة. يمكن تركه فارغًا، والسويتش أعلاه سيضيف
+                {{ __('حقل متقدم لقواعد الخدمة. يمكن تركه فارغًا، والسويتش أعلاه سيضيف') }}
                 <span dir="ltr">notification_enabled</span>
-                تلقائيًا عند الحفظ.
+                {{ __('تلقائيًا عند الحفظ.') }}
             </div>
             @error('rules_json')
                 <div class="a2-error">{{ $message }}</div>
@@ -160,13 +158,12 @@
 </div>
 
 <div class="a2-card a2-card--soft a2-mt-16">
-    <div class="a2-section-title">مصادر الرسوم المعتمدة</div>
+    <div class="a2-section-title">{{ __('مصادر الرسوم المعتمدة') }}</div>
     <div class="a2-section-subtitle">
-        رسوم العميل والبزنس والديبوزت يتم إدارتها من
-        <span dir="ltr">category_child_service_fees</span>.
-        وإذا وُجد عرض فعال داخل
+        {{ __('رسوم العميل والبزنس والديبوزت يتم إدارتها من') }}
+        <span dir="ltr">category_child_service_fees</span>{{ __('. وإذا وُجد عرض فعال داخل') }}
         <span dir="ltr">platform_service_fee_promotions</span>
-        تكون له الأولوية فوق رسوم القسم الفرعي.
+        {{ __('تكون له الأولوية فوق رسوم القسم الفرعي.') }}
     </div>
 </div>
 

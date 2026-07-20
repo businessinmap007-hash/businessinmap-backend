@@ -15,7 +15,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Catalog Attributes</h1>
-            <div class="a2-page-subtitle">إدارة خصائص المنتجات مثل اللون، الحجم، السعة، الخامة، النوع.</div>
+            <div class="a2-page-subtitle">{{ __('إدارة خصائص المنتجات مثل اللون، الحجم، السعة، الخامة، النوع.') }}</div>
         </div>
     </div>
 
@@ -50,13 +50,13 @@
 
             <select class="a2-select a2-filter-sm" name="per_page">
                 @foreach($perPageOptions as $n)
-                    <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>{{ $n }} / صفحة</option>
+                    <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>{{ $n }} {{ __('/ صفحة') }}</option>
                 @endforeach
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.catalog-attributes.index') }}">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.catalog-attributes.index') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
 
@@ -103,7 +103,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="a2-empty-cell">لا يوجد بيانات</td>
+                            <td colspan="9" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

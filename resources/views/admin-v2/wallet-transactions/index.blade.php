@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','المعاملات المالية')
+@section('title',__('المعاملات المالية'))
 @section('body_class','admin-v2 admin-v2-wallet-transactions-index')
 
 @section('content')
@@ -59,9 +59,9 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">المعاملات المالية</h1>
+            <h1 class="a2-page-title">{{ __('المعاملات المالية') }}</h1>
             <div class="a2-page-subtitle">
-                متابعة كل حركات المحافظ، وخصوصًا رسوم تنفيذ الحجوزات المسجلة كـ
+                {{ __('متابعة كل حركات المحافظ، وخصوصًا رسوم تنفيذ الحجوزات المسجلة كـ') }}
                 <span dir="ltr">platform_fee</span>.
             </div>
         </div>
@@ -77,22 +77,22 @@
 
     <div class="a2-stat-grid">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">عدد النتائج</div>
+            <div class="a2-stat-label">{{ __('عدد النتائج') }}</div>
             <div class="a2-stat-value">{{ number_format((int)($totals['count'] ?? 0)) }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الداخل</div>
+            <div class="a2-stat-label">{{ __('إجمالي الداخل') }}</div>
             <div class="a2-stat-value">{{ number_format((float)($totals['sum_in'] ?? 0), 2) }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الخارج</div>
+            <div class="a2-stat-label">{{ __('إجمالي الخارج') }}</div>
             <div class="a2-stat-value">{{ number_format((float)($totals['sum_out'] ?? 0), 2) }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">صافي الحركة</div>
+            <div class="a2-stat-label">{{ __('صافي الحركة') }}</div>
             <div class="a2-stat-value">{{ number_format((float)($totals['net'] ?? 0), 2) }}</div>
         </div>
 
@@ -105,7 +105,7 @@
     <div class="a2-card a2-mt-16">
         <form method="GET" action="{{ route('admin.wallet-transactions.index') }}" class="a2-filterbar">
             <div class="a2-filter-search">
-                <label class="a2-label">بحث</label>
+                <label class="a2-label">{{ __('بحث') }}</label>
                 <input
                     class="a2-input"
                     name="q"
@@ -115,7 +115,7 @@
             </div>
 
             <div class="a2-filter-md">
-                <label class="a2-label">فلتر</label>
+                <label class="a2-label">{{ __('فلتر') }}</label>
                 <select class="a2-select" name="filter">
                     @foreach($filterOptions as $k => $label)
                         <option value="{{ $k }}" @selected($filterVal === $k)>{{ $label }}</option>
@@ -126,7 +126,7 @@
             <div class="a2-filter-md">
                 <label class="a2-label">Note Template</label>
                 <select class="a2-select" name="note_id">
-                    <option value="0">الكل</option>
+                    <option value="0">{{ __('الكل') }}</option>
                     @foreach($notesOptions as $opt)
                         <option value="{{ $opt->id }}" @selected($noteIdVal === (int)$opt->id)>
                             {{ $opt->title }}
@@ -138,7 +138,7 @@
             <div class="a2-filter-sm">
                 <label class="a2-label">Payer</label>
                 <select class="a2-select" name="payer">
-                    <option value="">الكل</option>
+                    <option value="">{{ __('الكل') }}</option>
                     <option value="client" @selected($payerVal === 'client')>Client</option>
                     <option value="business" @selected($payerVal === 'business')>Business</option>
                 </select>
@@ -215,8 +215,8 @@
             </div>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -351,13 +351,13 @@
 
                         <td>
                             <a href="{{ route('admin.wallet-transactions.show', $tx) }}" class="a2-btn a2-btn-sm a2-btn-ghost">
-                                عرض
+                                {{ __('عرض') }}
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="a2-empty-cell">لا يوجد بيانات</td>
+                        <td colspan="11" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                     </tr>
                 @endforelse
                 </tbody>

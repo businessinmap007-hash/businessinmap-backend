@@ -8,12 +8,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">العروض التجارية</h1>
-            <div class="a2-page-subtitle">عروض عامة للبزنس تدخل في محرك مقارنة الأسعار والحملات التسويقية.</div>
+            <h1 class="a2-page-title">{{ __('العروض التجارية') }}</h1>
+            <div class="a2-page-subtitle">{{ __('عروض عامة للبزنس تدخل في محرك مقارنة الأسعار والحملات التسويقية.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.commercial-offers.create') }}" class="a2-btn a2-btn-primary">إنشاء عرض</a>
-            <a href="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-btn a2-btn-ghost">اشتراك العروض</a>
+            <a href="{{ route('admin.commercial-offers.create') }}" class="a2-btn a2-btn-primary">{{ __('إنشاء عرض') }}</a>
+            <a href="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-btn a2-btn-ghost">{{ __('اشتراك العروض') }}</a>
         </div>
     </div>
 
@@ -26,17 +26,17 @@
     @endif
 
     <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card"><div class="a2-stat-label">الكل</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">كل العروض</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div><div class="a2-stat-note">عروض فعالة</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Paused</div><div class="a2-stat-value">{{ number_format($totals['paused'] ?? 0) }}</div><div class="a2-stat-note">موقوفة</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Promotions</div><div class="a2-stat-value">{{ number_format($totals['promotions'] ?? 0) }}</div><div class="a2-stat-note">عروض تسويقية</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">{{ __('الكل') }}</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">{{ __('كل العروض') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div><div class="a2-stat-note">{{ __('عروض فعالة') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Paused</div><div class="a2-stat-value">{{ number_format($totals['paused'] ?? 0) }}</div><div class="a2-stat-note">{{ __('موقوفة') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Promotions</div><div class="a2-stat-value">{{ number_format($totals['promotions'] ?? 0) }}</div><div class="a2-stat-note">{{ __('عروض تسويقية') }}</div></div>
     </div>
 
     @if(!empty($subscriptionUsage))
         <div class="a2-card a2-mb-16">
             <div class="a2-page-head">
                 <div>
-                    <h2 class="a2-section-title">حالة اشتراك العروض للبزنس المحدد</h2>
+                    <h2 class="a2-section-title">{{ __('حالة اشتراك العروض للبزنس المحدد') }}</h2>
                     <div class="a2-page-subtitle">
                         active offers: {{ $subscriptionUsage['active_offers'] ?? 0 }} / {{ $subscriptionUsage['max_active_offers'] ?? 0 }} — remaining: {{ $subscriptionUsage['remaining_offers'] ?? 0 }}
                     </div>
@@ -45,7 +45,7 @@
                     <span class="a2-pill {{ ($subscriptionUsage['remaining_offers'] ?? 0) > 0 ? 'a2-pill-success' : 'a2-pill-warning' }}">
                         {{ ($subscriptionUsage['remaining_offers'] ?? 0) > 0 ? 'Can Create Offers' : 'Limit Reached' }}
                     </span>
-                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $sellerId]) }}">إدارة الاشتراك</a>
+                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $sellerId]) }}">{{ __('إدارة الاشتراك') }}</a>
                 </div>
             </div>
         </div>
@@ -53,32 +53,32 @@
 
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.commercial-offers.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="بحث بالعرض / البزنس / ID">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالعرض / البزنس / ID') }}">
 
             <select class="a2-select a2-filter-sm" name="offerable_type">
-                <option value="">كل الأنواع</option>
+                <option value="">{{ __('كل الأنواع') }}</option>
                 @foreach($offerableTypes as $type)
                     <option value="{{ $type }}" {{ $offerableType === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="source_type">
-                <option value="">كل المصادر</option>
+                <option value="">{{ __('كل المصادر') }}</option>
                 @foreach($sourceTypes as $type)
                     <option value="{{ $type }}" {{ $sourceType === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 @foreach($statuses as $st)
                     <option value="{{ $st }}" {{ $status === $st ? 'selected' : '' }}>{{ $st }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="seller_business_id"
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="كل البزنس — ابحث">
-                <option value="0">كل البزنس</option>
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
+                <option value="0">{{ __('كل البزنس') }}</option>
                 @php $selSeller = $sellerId ? $businesses->firstWhere('id', (int) $sellerId) : null; @endphp
                 @if($sellerId)
                     <option value="{{ $sellerId }}" selected>#{{ $sellerId }}@if($selSeller) — {{ $selSeller->name }}@endif</option>
@@ -92,8 +92,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.commercial-offers.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.commercial-offers.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -104,14 +104,14 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>العرض</th>
+                        <th>{{ __('العرض') }}</th>
                         <th>Seller</th>
                         <th>Type</th>
                         <th>Source</th>
                         <th>Price</th>
                         <th>Status</th>
                         <th>Period</th>
-                        <th>إجراءات</th>
+                        <th>{{ __('إجراءات') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -125,7 +125,7 @@
                             <td>
                                 <div class="a2-fw-900">{{ optional($row->sellerBusiness)->name ?: '—' }}</div>
                                 <div class="a2-muted">#{{ $row->seller_business_id }}</div>
-                                <a class="a2-link" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $row->seller_business_id]) }}">اشتراك العروض</a>
+                                <a class="a2-link" href="{{ route('admin.business-offers-subscriptions.form', ['business_id' => $row->seller_business_id]) }}">{{ __('اشتراك العروض') }}</a>
                             </td>
                             <td><span class="a2-pill a2-pill-gray">{{ $row->offerable_type }}</span></td>
                             <td><span class="a2-pill a2-pill-gray">{{ $row->source_type }}</span></td>
@@ -137,7 +137,7 @@
                             </td>
                             <td>
                                 <div class="a2-actions">
-                                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.commercial-offers.edit', $row->id) }}">تعديل</a>
+                                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.commercial-offers.edit', $row->id) }}">{{ __('تعديل') }}</a>
                                     <form method="POST" action="{{ route('admin.commercial-offers.toggle', $row->id) }}">
                                         @csrf
                                         <button class="a2-btn a2-btn-sm a2-btn-warning" type="submit">Toggle</button>
@@ -145,13 +145,13 @@
                                     <form method="POST" action="{{ route('admin.commercial-offers.destroy', $row->id) }}" onsubmit="return confirm('حذف العرض؟')">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                        <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty-cell">لا توجد عروض.</td></tr>
+                        <tr><td colspan="9" class="a2-empty-cell">{{ __('لا توجد عروض.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

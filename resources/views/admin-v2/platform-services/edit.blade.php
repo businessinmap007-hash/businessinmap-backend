@@ -10,7 +10,7 @@
         <div>
             <h1 class="a2-page-title">Edit Platform Service</h1>
             <div class="a2-page-subtitle">
-                تعديل تعريف الخدمة فقط بدون أي رسوم أو تسعير.
+                {{ __('تعديل تعريف الخدمة فقط بدون أي رسوم أو تسعير.') }}
             </div>
         </div>
 
@@ -35,7 +35,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء في البيانات:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء في البيانات:') }}</div>
 
             <ul class="a2-errors-list">
                 @foreach($errors->all() as $error)

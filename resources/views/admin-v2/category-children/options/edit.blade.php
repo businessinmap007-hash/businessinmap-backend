@@ -30,7 +30,7 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">خيارات القسم الفرعي</h1>
+            <h1 class="a2-page-title">{{ __('خيارات القسم الفرعي') }}</h1>
             <div class="a2-page-subtitle">
                 {{ $childName }}
                 @if(!empty($childSafe?->id))
@@ -38,28 +38,28 @@
                 @endif
 
                 @if($parentName)
-                    — تحت {{ $parentName }}
+                    {{ __('— تحت') }} {{ $parentName }}
                 @endif
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">
-                إدارة المجموعات
+                {{ __('إدارة المجموعات') }}
             </a>
 
             <a href="{{ route('admin.options.index') }}" class="a2-btn a2-btn-ghost">
-                إدارة الخيارات
+                {{ __('إدارة الخيارات') }}
             </a>
 
             <a href="{{ route('admin.category-children.edit', ['categoryChild' => $childSafe->id, 'parent_id' => $parentIdInt]) }}"
                class="a2-btn a2-btn-ghost">
-                تعديل القسم
+                {{ __('تعديل القسم') }}
             </a>
 
             <a href="{{ route('admin.category-children.index', $parentIdInt > 0 ? ['parent_id' => $parentIdInt] : []) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -74,16 +74,16 @@
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">المحدد لهذا القسم</div>
+            <div class="a2-stat-label">{{ __('المحدد لهذا القسم') }}</div>
             <div class="a2-stat-value" id="selectedCountText">{{ $totalSelected }}</div>
-            <div class="a2-stat-note">سيتم حفظه فعليًا على القسم الفرعي</div>
+            <div class="a2-stat-note">{{ __('سيتم حفظه فعليًا على القسم الفرعي') }}</div>
         </div>
         <div class="a2-card a2-card--soft a2-mt-16">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">الخيارات المختارة لهذا القسم الفرعي</div>
+            <div class="a2-section-title a2-mb-0">{{ __('الخيارات المختارة لهذا القسم الفرعي') }}</div>
             <div class="a2-section-subtitle">
-                العدد الحالي:
+                {{ __('العدد الحالي:') }}
                 <strong>{{ (int) ($categoryChild->options_count ?? $categoryChild->options->count()) }}</strong>
             </div>
         </div>
@@ -93,14 +93,14 @@
                 href="{{ route('admin.category-child-options.edit', ['categoryChild' => $categoryChild->id]) }}"
                 class="a2-btn a2-btn-ghost"
             >
-                إدارة الخيارات
+                {{ __('إدارة الخيارات') }}
             </a>
         </div>
     </div>
 
     @if(($categoryChild->options ?? collect())->isEmpty())
         <div class="a2-empty-cell">
-            لا توجد خيارات مختارة لهذا القسم الفرعي حتى الآن.
+            {{ __('لا توجد خيارات مختارة لهذا القسم الفرعي حتى الآن.') }}
         </div>
     @else
         <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
@@ -119,30 +119,30 @@
 </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">عدد المجموعات</div>
+            <div class="a2-stat-label">{{ __('عدد المجموعات') }}</div>
             <div class="a2-stat-value">{{ $totalGroups }}</div>
-            <div class="a2-stat-note">مصدر الاختيار</div>
+            <div class="a2-stat-note">{{ __('مصدر الاختيار') }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">خيارات داخل المجموعات</div>
+            <div class="a2-stat-label">{{ __('خيارات داخل المجموعات') }}</div>
             <div class="a2-stat-value">{{ $totalGroupedOptions }}</div>
-            <div class="a2-stat-note">مجمعة داخل Option Groups</div>
+            <div class="a2-stat-note">{{ __('مجمعة داخل Option Groups') }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">خيارات بدون Group</div>
+            <div class="a2-stat-label">{{ __('خيارات بدون Group') }}</div>
             <div class="a2-stat-value">{{ $totalUngroupedOptions }}</div>
-            <div class="a2-stat-note">اختياري عرضها واختيارها</div>
+            <div class="a2-stat-note">{{ __('اختياري عرضها واختيارها') }}</div>
         </div>
     </div>
 
     <div class="a2-card a2-card--section a2-mb-16">
         <div class="a2-card-head">
             <div>
-                <div class="a2-section-title a2-mb-0">آلية العمل</div>
+                <div class="a2-section-title a2-mb-0">{{ __('آلية العمل') }}</div>
                 <div class="a2-section-subtitle">
-                    يمكنك اختيار كل خيارات Group كاملة، أو بعض الخيارات فقط من أي Group، أو الدمج بين أكثر من Group لنفس القسم الفرعي.
+                    {{ __('يمكنك اختيار كل خيارات Group كاملة، أو بعض الخيارات فقط من أي Group، أو الدمج بين أكثر من Group لنفس القسم الفرعي.') }}
                 </div>
             </div>
         </div>
@@ -151,23 +151,23 @@
             <input type="text"
                    id="optionSearchInput"
                    class="a2-input a2-filter-search"
-                   placeholder="بحث داخل الخيارات والمجموعات">
+                   placeholder="{{ __('بحث داخل الخيارات والمجموعات') }}">
 
             <div class="a2-filter-actions">
                 <button type="button" class="a2-btn a2-btn-ghost" id="expandAllGroupsBtn">
-                    فتح الكل
+                    {{ __('فتح الكل') }}
                 </button>
 
                 <button type="button" class="a2-btn a2-btn-ghost" id="collapseAllGroupsBtn">
-                    طي الكل
+                    {{ __('طي الكل') }}
                 </button>
 
                 <button type="button" class="a2-btn a2-btn-ghost" id="selectVisibleBtn">
-                    تحديد الظاهر
+                    {{ __('تحديد الظاهر') }}
                 </button>
 
                 <button type="button" class="a2-btn a2-btn-ghost" id="clearAllBtn">
-                    إلغاء الكل
+                    {{ __('إلغاء الكل') }}
                 </button>
             </div>
         </div>
@@ -199,8 +199,7 @@
                         <div class="a2-section-title a2-mb-0">{{ $groupName }}</div>
                         <div class="a2-section-subtitle a2-mb-0">
                             Group #{{ $group->id }} —
-                            <span class="js-group-total">{{ $groupOptions->count() }}</span> خيار —
-                            المحدد حاليًا:
+                            <span class="js-group-total">{{ $groupOptions->count() }}</span> {{ __('خيار — المحدد حاليًا:') }}
                             <span class="js-group-selected-count">{{ $groupSelectedCount }}</span>
                         </div>
                     </div>
@@ -208,17 +207,17 @@
                     <div class="a2-page-actions" onclick="event.preventDefault(); event.stopPropagation();">
                         <button type="button"
                                 class="a2-btn a2-btn-sm a2-btn-ghost js-select-group-btn">
-                            تحديد الكل
+                            {{ __('تحديد الكل') }}
                         </button>
 
                         <button type="button"
                                 class="a2-btn a2-btn-sm a2-btn-ghost js-clear-group-btn">
-                            إلغاء المجموعة
+                            {{ __('إلغاء المجموعة') }}
                         </button>
 
                         <a href="{{ route('admin.option-groups.edit', $group->id) }}"
                            class="a2-btn a2-btn-sm a2-btn-ghost">
-                            تعديل Group
+                            {{ __('تعديل Group') }}
                         </a>
                     </div>
                 </summary>
@@ -249,13 +248,13 @@
                     </div>
                 @else
                     <div class="a2-alert a2-alert-warning a2-mt-12">
-                        لا توجد خيارات داخل هذه المجموعة.
+                        {{ __('لا توجد خيارات داخل هذه المجموعة.') }}
                     </div>
                 @endif
             </details>
         @empty
             <div class="a2-alert a2-alert-warning a2-mb-16">
-                لا توجد مجموعات خيارات متاحة حاليًا.
+                {{ __('لا توجد مجموعات خيارات متاحة حاليًا.') }}
             </div>
         @endforelse
 
@@ -265,21 +264,21 @@
                      data-group-name="ungrouped بدون group">
                 <summary class="a2-card-head" style="cursor:pointer;list-style:none;">
                     <div>
-                        <div class="a2-section-title a2-mb-0">خيارات بدون Group</div>
+                        <div class="a2-section-title a2-mb-0">{{ __('خيارات بدون Group') }}</div>
                         <div class="a2-section-subtitle a2-mb-0">
-                            {{ $ungroupedOptionsSafe->count() }} خيار
+                            {{ $ungroupedOptionsSafe->count() }} {{ __('خيار') }}
                         </div>
                     </div>
 
                     <div class="a2-page-actions" onclick="event.preventDefault(); event.stopPropagation();">
                         <button type="button"
                                 class="a2-btn a2-btn-sm a2-btn-ghost js-select-group-btn">
-                            تحديد الكل
+                            {{ __('تحديد الكل') }}
                         </button>
 
                         <button type="button"
                                 class="a2-btn a2-btn-sm a2-btn-ghost js-clear-group-btn">
-                            إلغاء المجموعة
+                            {{ __('إلغاء المجموعة') }}
                         </button>
                     </div>
                 </summary>
@@ -311,30 +310,30 @@
         @endif
 
         <div class="a2-card a2-card--soft a2-mb-16">
-            <div class="a2-section-title">الخيارات المحددة الآن</div>
+            <div class="a2-section-title">{{ __('الخيارات المحددة الآن') }}</div>
             <div class="a2-section-subtitle">
-                هذه القائمة للمعاينة فقط قبل الحفظ
+                {{ __('هذه القائمة للمعاينة فقط قبل الحفظ') }}
             </div>
 
             <div id="selectedPreview" class="a2-option-chip-grid a2-mt-12"></div>
 
             <div id="selectedPreviewEmpty" class="a2-alert a2-alert-warning a2-mt-12" style="display:none;">
-                لا توجد خيارات محددة حاليًا.
+                {{ __('لا توجد خيارات محددة حاليًا.') }}
             </div>
         </div>
 
         <div class="a2-page-actions" style="justify-content:flex-end;">
             <a href="{{ route('admin.category-children.edit', ['categoryChild' => $childSafe->id, 'parent_id' => $parentIdInt]) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
 
             <button type="button" class="a2-btn a2-btn-ghost" id="reviewSelectionBtn">
-                مراجعة التحديد
+                {{ __('مراجعة التحديد') }}
             </button>
 
             <button type="submit" class="a2-btn a2-btn-primary">
-                حفظ الخيارات
+                {{ __('حفظ الخيارات') }}
             </button>
         </div>
     </form>

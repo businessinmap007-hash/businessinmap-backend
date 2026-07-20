@@ -8,11 +8,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل شراكة #{{ $partnership->id }}</h1>
+            <h1 class="a2-page-title">{{ __('تعديل شراكة #') }}{{ $partnership->id }}</h1>
             <div class="a2-page-subtitle">{{ $partnership->displayName() }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

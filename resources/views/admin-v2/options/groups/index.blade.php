@@ -13,19 +13,19 @@
     {{-- ================= HEADER ================= --}}
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">مجموعات الخيارات</h1>
+            <h1 class="a2-page-title">{{ __('مجموعات الخيارات') }}</h1>
             <div class="a2-page-subtitle">
-                إدارة مجموعات تنظيم الخيارات
+                {{ __('إدارة مجموعات تنظيم الخيارات') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.options.index') }}" class="a2-btn a2-btn-ghost">
-                إدارة الخيارات
+                {{ __('إدارة الخيارات') }}
             </a>
 
             <a href="{{ route('admin.option-groups.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة Group
+                {{ __('+ إضافة Group') }}
             </a>
         </div>
     </div>
@@ -44,19 +44,19 @@
         <form method="GET" action="{{ route('admin.option-groups.index') }}" class="a2-form-grid">
 
             <div class="a2-form-group">
-                <label class="a2-label">بحث</label>
+                <label class="a2-label">{{ __('بحث') }}</label>
                 <input class="a2-input"
                        type="text"
                        name="q"
                        value="{{ $qVal }}"
-                       placeholder="اسم المجموعة">
+                       placeholder="{{ __('اسم المجموعة') }}">
             </div>
 
             <div class="a2-page-actions" style="align-items:flex-end;">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
                 <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">
-                    تفريغ
+                    {{ __('تفريغ') }}
                 </a>
             </div>
 
@@ -70,12 +70,12 @@
                 <thead>
                 <tr>
                     <th style="width:80px;">ID</th>
-                    <th>الاسم (AR)</th>
-                    <th>الاسم (EN)</th>
-                    <th style="width:120px;">الترتيب</th>
-                    <th style="width:120px;">الحالة</th>
-                    <th style="width:140px;">عدد الخيارات</th>
-                    <th style="width:260px;">الإجراءات</th>
+                    <th>{{ __('الاسم (AR)') }}</th>
+                    <th>{{ __('الاسم (EN)') }}</th>
+                    <th style="width:120px;">{{ __('الترتيب') }}</th>
+                    <th style="width:120px;">{{ __('الحالة') }}</th>
+                    <th style="width:140px;">{{ __('عدد الخيارات') }}</th>
+                    <th style="width:260px;">{{ __('الإجراءات') }}</th>
                 </tr>
                 </thead>
 
@@ -117,12 +117,12 @@
 
                                 <a href="{{ route('admin.option-groups.edit', $row->id) }}"
                                    class="a2-btn a2-btn-primary a2-btn-sm">
-                                    إدارة الخيارات
+                                    {{ __('إدارة الخيارات') }}
                                 </a>
 
                                 <a href="{{ route('admin.option-groups.edit', $row->id) }}"
                                    class="a2-btn a2-btn-ghost a2-btn-sm">
-                                    تعديل
+                                    {{ __('تعديل') }}
                                 </a>
 
                                 <form method="POST"
@@ -133,7 +133,7 @@
 
                                     <button type="submit"
                                             class="a2-btn a2-btn-danger a2-btn-sm">
-                                        حذف
+                                        {{ __('حذف') }}
                                     </button>
                                 </form>
 
@@ -143,7 +143,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="a2-empty-cell">
-                            لا توجد مجموعات
+                            {{ __('لا توجد مجموعات') }}
                         </td>
                     </tr>
                 @endforelse

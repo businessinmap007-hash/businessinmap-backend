@@ -12,8 +12,8 @@
   <div class="a2-card">
 
     <div class="a2-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <h2 class="a2-title" style="margin:0;">عرض المعاملة</h2>
-      <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">رجوع</a>
+      <h2 class="a2-title" style="margin:0;">{{ __('عرض المعاملة') }}</h2>
+      <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">{{ __('رجوع') }}</a>
     </div>
 
     <div class="a2-card" style="padding:14px;">

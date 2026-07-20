@@ -25,13 +25,13 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">ضمان #{{ $guarantee->id }}</h1>
-            <div class="a2-page-subtitle">تفاصيل مستوى الضمان، التغطية، العمليات، المهلة، وسجل معاملات الضمان.</div>
+            <h1 class="a2-page-title">{{ __('ضمان #') }}{{ $guarantee->id }}</h1>
+            <div class="a2-page-subtitle">{{ __('تفاصيل مستوى الضمان، التغطية، العمليات، المهلة، وسجل معاملات الضمان.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.guarantees.index') }}" class="a2-btn a2-btn-ghost">رجوع للضمانات</a>
+            <a href="{{ route('admin.guarantees.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع للضمانات') }}</a>
             @if($user)
-                <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-primary">ملف المستخدم</a>
+                <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-primary">{{ __('ملف المستخدم') }}</a>
             @endif
         </div>
     </div>
@@ -50,17 +50,17 @@
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">الحالة</div>
+            <div class="a2-stat-label">{{ __('الحالة') }}</div>
             <div class="a2-stat-value"><span class="a2-pill {{ $statusClasses[$gStatus] ?? 'a2-pill-gray' }}">{{ $gStatus ?: '—' }}</span></div>
             <div class="a2-stat-note">Target: {{ $guarantee->target_type }}</div>
         </div>
         <div class="a2-stat-card">
-            <div class="a2-stat-label">الرصيد المجمد</div>
+            <div class="a2-stat-label">{{ __('الرصيد المجمد') }}</div>
             <div class="a2-stat-value">{{ number_format((float) $guarantee->locked_amount, 2) }}</div>
             <div class="a2-stat-note">Wallet locked: {{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
         </div>
         <div class="a2-stat-card">
-            <div class="a2-stat-label">التغطية الحالية</div>
+            <div class="a2-stat-label">{{ __('التغطية الحالية') }}</div>
             <div class="a2-stat-value">{{ number_format((float) $guarantee->current_coverage_amount, 2) }}</div>
             <div class="a2-stat-note">Used: {{ number_format((float) $guarantee->used_coverage_amount, 2) }}</div>
         </div>
@@ -74,8 +74,8 @@
     <div class="a2-card a2-card--tight a2-mb-16">
         <div class="a2-header">
             <div>
-                <h2 class="a2-section-title a2-mb-0">إجراءات إدارة الضمان</h2>
-                <div class="a2-section-subtitle">تشغيل محركات الضمان يدويًا أو تعليق/إعادة تفعيل الضمان عند الحاجة.</div>
+                <h2 class="a2-section-title a2-mb-0">{{ __('إجراءات إدارة الضمان') }}</h2>
+                <div class="a2-section-subtitle">{{ __('تشغيل محركات الضمان يدويًا أو تعليق/إعادة تفعيل الضمان عند الحاجة.') }}</div>
             </div>
         </div>
 
@@ -112,7 +112,7 @@
 
             <form method="POST" action="{{ route('admin.guarantees.unlock-to-balance', $guarantee->id) }}">
                 @csrf
-                <button type="submit" class="a2-btn a2-btn-sm a2-btn-primary" onclick="return confirm('فكّ الضمان وتحويل قيمته إلى رصيد المحفظة؟ (يُرفض إن كان جزء منه محجوزًا لعملية)')">فكّ وتحويل لرصيد</button>
+                <button type="submit" class="a2-btn a2-btn-sm a2-btn-primary" onclick="return confirm('فكّ الضمان وتحويل قيمته إلى رصيد المحفظة؟ (يُرفض إن كان جزء منه محجوزًا لعملية)')">{{ __('فكّ وتحويل لرصيد') }}</button>
             </form>
 
             <form method="POST" action="{{ route('admin.guarantees.suspend', $guarantee->id) }}">
@@ -129,18 +129,18 @@
 
     <div class="a2-form-grid a2-mb-16">
         <div class="a2-card">
-            <h2 class="a2-section-title">بيانات المستخدم</h2>
+            <h2 class="a2-section-title">{{ __('بيانات المستخدم') }}</h2>
             <div class="a2-kv">
-                <div class="a2-kv-row"><div class="a2-kv-key">الاسم</div><div class="a2-kv-val">{{ optional($user)->name ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">النوع</div><div class="a2-kv-val">{{ optional($user)->type ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">الهاتف</div><div class="a2-kv-val">{{ optional($user)->phone ?: '—' }}</div></div>
-                <div class="a2-kv-row"><div class="a2-kv-key">البريد</div><div class="a2-kv-val">{{ optional($user)->email ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">{{ __('الاسم') }}</div><div class="a2-kv-val">{{ optional($user)->name ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">{{ __('النوع') }}</div><div class="a2-kv-val">{{ optional($user)->type ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">{{ __('الهاتف') }}</div><div class="a2-kv-val">{{ optional($user)->phone ?: '—' }}</div></div>
+                <div class="a2-kv-row"><div class="a2-kv-key">{{ __('البريد') }}</div><div class="a2-kv-val">{{ optional($user)->email ?: '—' }}</div></div>
                 <div class="a2-kv-row"><div class="a2-kv-key">Wallet Balance</div><div class="a2-kv-val">{{ number_format((float) optional($wallet)->balance, 2) }}</div></div>
             </div>
         </div>
 
         <div class="a2-card">
-            <h2 class="a2-section-title">بيانات الضمان</h2>
+            <h2 class="a2-section-title">{{ __('بيانات الضمان') }}</h2>
             <div class="a2-kv">
                 <div class="a2-kv-row"><div class="a2-kv-key">Purchased Level</div><div class="a2-kv-val">{{ optional($guarantee->purchasedLevel)->display_name ?: '—' }}</div></div>
                 <div class="a2-kv-row"><div class="a2-kv-key">Effective Level</div><div class="a2-kv-val">{{ optional($guarantee->effectiveLevel)->display_name ?: '—' }}</div></div>
@@ -153,12 +153,12 @@
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
-        <h2 class="a2-section-title">مؤشرات التأهيل</h2>
+        <h2 class="a2-section-title">{{ __('مؤشرات التأهيل') }}</h2>
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
                     <tr>
-                        <th>المستوى</th>
+                        <th>{{ __('المستوى') }}</th>
                         <th>Target</th>
                         <th>Priority</th>
                         <th>Required Locked</th>
@@ -181,7 +181,7 @@
                             <td>{{ $level->max_late_cancellations === null ? '—' : (int) $level->max_late_cancellations }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="a2-empty-cell">لا توجد مستويات لهذا النوع.</td></tr>
+                        <tr><td colspan="8" class="a2-empty-cell">{{ __('لا توجد مستويات لهذا النوع.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -189,7 +189,7 @@
     </div>
 
     <div class="a2-card a2-card--tight">
-        <h2 class="a2-section-title">سجل معاملات الضمان</h2>
+        <h2 class="a2-section-title">{{ __('سجل معاملات الضمان') }}</h2>
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
@@ -219,7 +219,7 @@
                             <td>{{ $tx->created_at ? $tx->created_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty-cell">لا توجد معاملات ضمان.</td></tr>
+                        <tr><td colspan="9" class="a2-empty-cell">{{ __('لا توجد معاملات ضمان.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

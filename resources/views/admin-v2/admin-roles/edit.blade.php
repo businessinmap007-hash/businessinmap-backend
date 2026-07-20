@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','تعديل صلاحيات مشرف')
+@section('title',__('تعديل صلاحيات مشرف'))
 @section('body_class','admin-v2-admin-roles')
 
 @section('content')
@@ -8,10 +8,10 @@
   <div class="a2-card" style="max-width:820px">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">صلاحيات: {{ $target->name }}</h2>
+        <h2 class="a2-title">{{ __('صلاحيات:') }} {{ $target->name }}</h2>
         <div class="a2-hint">{{ $target->email }}</div>
       </div>
-      <a class="a2-btn a2-btn-sm" href="{{ route('admin.admin-roles.index') }}">رجوع</a>
+      <a class="a2-btn a2-btn-sm" href="{{ route('admin.admin-roles.index') }}">{{ __('رجوع') }}</a>
     </div>
 
     @if($errors->any())
@@ -40,7 +40,7 @@
               <div class="a2-hint">{{ $hints[$ability] ?? '' }}</div>
               @unless($canGrant)
                 <div class="a2-hint" style="color:var(--a2-danger, #b42318)">
-                  لا تملك هذه الصلاحية بنفسك، فلا يمكنك منحها.
+                  {{ __('لا تملك هذه الصلاحية بنفسك، فلا يمكنك منحها.') }}
                 </div>
               @endunless
             </span>
@@ -54,8 +54,8 @@
       @endforeach
 
       <div style="margin-top:20px; display:flex; gap:8px">
-        <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-        <a class="a2-btn" href="{{ route('admin.admin-roles.index') }}">إلغاء</a>
+        <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+        <a class="a2-btn" href="{{ route('admin.admin-roles.index') }}">{{ __('إلغاء') }}</a>
       </div>
     </form>
   </div>

@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','تفاصيل المعاملة')
+@section('title',__('تفاصيل المعاملة'))
 @section('body_class','admin-v2 admin-v2-wallet-transactions-show')
 
 @section('content')
@@ -57,43 +57,43 @@ $feeRowId = method_exists($tx, 'feeRowId')
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تفاصيل المعاملة #{{ $tx->id }}</h1>
+            <h1 class="a2-page-title">{{ __('تفاصيل المعاملة #') }}{{ $tx->id }}</h1>
             <div class="a2-page-subtitle">
-                عرض الحركة المالية وربطها بالحجز ورسوم التنفيذ إن وجدت.
+                {{ __('عرض الحركة المالية وربطها بالحجز ورسوم التنفيذ إن وجدت.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">رجوع</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">{{ __('رجوع') }}</a>
 
             @if($userLedgerUrl)
-                <a class="a2-btn a2-btn-primary" href="{{ $userLedgerUrl }}">كشف حساب المستخدم</a>
+                <a class="a2-btn a2-btn-primary" href="{{ $userLedgerUrl }}">{{ __('كشف حساب المستخدم') }}</a>
             @endif
 
             @if($userProfileUrl)
-                <a class="a2-btn a2-btn-ghost" href="{{ $userProfileUrl }}">بيانات المستخدم</a>
+                <a class="a2-btn a2-btn-ghost" href="{{ $userProfileUrl }}">{{ __('بيانات المستخدم') }}</a>
             @endif
 
             @if($bookingUrl)
-                <a class="a2-btn a2-btn-ghost" href="{{ $bookingUrl }}">عرض الحجز</a>
+                <a class="a2-btn a2-btn-ghost" href="{{ $bookingUrl }}">{{ __('عرض الحجز') }}</a>
             @endif
         </div>
     </div>
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">ملخص الحركة</div>
+        <div class="a2-section-title">{{ __('ملخص الحركة') }}</div>
         <div class="a2-section-subtitle">
-            إذا كانت هذه الحركة من نوع
+            {{ __('إذا كانت هذه الحركة من نوع') }}
             <span dir="ltr">platform_fee</span>
-            ومرتبطة بـ
+            {{ __('ومرتبطة بـ') }}
             <span dir="ltr">booking</span>
-            فهي تمثل خصم رسوم تنفيذ من محفظة العميل أو البزنس.
+            {{ __('فهي تمثل خصم رسوم تنفيذ من محفظة العميل أو البزنس.') }}
         </div>
     </div>
 
     <div class="tx-grid">
         <div class="a2-card tx-card">
-            <div class="a2-section-title">القيم المالية</div>
+            <div class="a2-section-title">{{ __('القيم المالية') }}</div>
 
             <div class="a2-table-wrap a2-mt-12">
                 <table class="a2-table">
@@ -118,7 +118,7 @@ $feeRowId = method_exists($tx, 'feeRowId')
                     <tr>
                         <th class="a2-text-center">Before</th>
                         <th class="a2-text-center">After</th>
-                        <th class="a2-text-right">البند</th>
+                        <th class="a2-text-right">{{ __('البند') }}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -138,7 +138,7 @@ $feeRowId = method_exists($tx, 'feeRowId')
         </div>
 
         <aside class="a2-card tx-card">
-            <div class="a2-section-title">بيانات أساسية</div>
+            <div class="a2-section-title">{{ __('بيانات أساسية') }}</div>
 
             <div class="tx-kv">
                 <div><span>ID</span><strong>{{ $tx->id }}</strong></div>
@@ -156,7 +156,7 @@ $feeRowId = method_exists($tx, 'feeRowId')
     <div class="a2-card a2-mt-16">
         <div class="a2-section-title">Booking Fee Details</div>
         <div class="a2-section-subtitle">
-            هذه البيانات تُقرأ من
+            {{ __('هذه البيانات تُقرأ من') }}
             <span dir="ltr">wallet_transactions.meta</span>.
         </div>
 
@@ -234,7 +234,7 @@ $feeRowId = method_exists($tx, 'feeRowId')
     <div class="a2-card a2-mt-16">
         <div class="a2-section-title">Notes</div>
         <div class="a2-section-subtitle">
-            ملاحظة الحركة كما سُجلت وقت التنفيذ.
+            {{ __('ملاحظة الحركة كما سُجلت وقت التنفيذ.') }}
         </div>
 
         <div class="tx-note">
@@ -246,11 +246,11 @@ $feeRowId = method_exists($tx, 'feeRowId')
         <div class="a2-page-actions" style="justify-content:space-between;">
             <div>
                 <div class="a2-section-title">Meta JSON</div>
-                <div class="a2-section-subtitle">نسخة كاملة من بيانات meta للتشخيص.</div>
+                <div class="a2-section-subtitle">{{ __('نسخة كاملة من بيانات meta للتشخيص.') }}</div>
             </div>
 
             <button type="button" class="a2-btn a2-btn-ghost" data-a2-copy="#tx_meta_json">
-                نسخ JSON
+                {{ __('نسخ JSON') }}
             </button>
         </div>
 

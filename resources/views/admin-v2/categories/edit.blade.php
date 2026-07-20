@@ -1,13 +1,13 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'تعديل القسم الرئيسي')
+@section('title', __('تعديل القسم الرئيسي'))
 @section('body_class', 'admin-v2 admin-v2-categories-edit')
 
 @section('content')
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل القسم الرئيسي</h1>
+            <h1 class="a2-page-title">{{ __('تعديل القسم الرئيسي') }}</h1>
         </div>
         
     </div>

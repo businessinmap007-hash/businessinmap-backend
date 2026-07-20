@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','سجلات الاشتراك')
+@section('title',__('سجلات الاشتراك'))
 @section('body_class','admin-v2-subscriptions')
 
 @section('content')
@@ -35,8 +35,8 @@ $sortOptions = [
 
 <div class="a2-page-head">
 <div>
-<h1 class="a2-page-title">سجلات الاشتراك</h1>
-<div class="a2-page-subtitle">إدارة اشتراكات المستخدمين</div>
+<h1 class="a2-page-title">{{ __('سجلات الاشتراك') }}</h1>
+<div class="a2-page-subtitle">{{ __('إدارة اشتراكات المستخدمين') }}</div>
 </div>
 </div>
 
@@ -48,11 +48,11 @@ $sortOptions = [
 class="a2-input a2-filter-search"
 name="q"
 value="{{ $qVal }}"
-placeholder="بحث: الاسم / email / phone / ID / القسم"
+placeholder="{{ __('بحث: الاسم / email / phone / ID / القسم') }}"
 />
 
 <select class="a2-select a2-filter-md" name="category_id">
-<option value="">كل الأقسام</option>
+<option value="">{{ __('كل الأقسام') }}</option>
 
 @foreach(($categoriesForFilter ?? []) as $c)
 @php
@@ -93,17 +93,17 @@ $label = $catName !== '' ? $catName : ('#'.$c->id);
 <select class="a2-select a2-filter-sm" name="per_page">
 @foreach($perPageOptions as $n)
 <option value="{{ $n }}" @selected((int)$perPageVal===(int)$n)>
-{{ $n }} / صفحة
+{{ $n }} {{ __('/ صفحة') }}
 </option>
 @endforeach
 </select>
 
 <div class="a2-filter-actions">
-<button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+<button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
 <a class="a2-btn a2-btn-ghost"
 href="{{ route('admin.subscriptions.index') }}">
-تفريغ
+{{ __('تفريغ') }}
 </a>
 </div>
 
@@ -201,7 +201,7 @@ title="{{ $userLabel }}">
 
 <a class="a2-btn a2-btn-ghost a2-btn-sm"
 href="{{ route('admin.subscriptions.edit',$row->id) }}">
-تعديل
+{{ __('تعديل') }}
 </a>
 
 <form method="POST"
@@ -220,7 +220,7 @@ action="{{ route('admin.subscriptions.toggle-active',$row->id) }}">
 
 @empty
 <tr>
-<td colspan="6" class="a2-empty-cell">لا يوجد بيانات</td>
+<td colspan="6" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
 </tr>
 @endforelse
 

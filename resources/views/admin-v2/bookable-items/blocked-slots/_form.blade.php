@@ -12,7 +12,7 @@
 
 <div class="a2-form-grid">
     <div class="a2-form-group">
-        <label class="a2-label">بداية الغلق</label>
+        <label class="a2-label">{{ __('بداية الغلق') }}</label>
         <input type="datetime-local"
                name="starts_at"
                class="a2-input @error('starts_at') is-invalid @enderror"
@@ -24,7 +24,7 @@
     </div>
 
     <div class="a2-form-group">
-        <label class="a2-label">نهاية الغلق</label>
+        <label class="a2-label">{{ __('نهاية الغلق') }}</label>
         <input type="datetime-local"
                name="ends_at"
                class="a2-input @error('ends_at') is-invalid @enderror"
@@ -38,7 +38,7 @@
 
 <div class="a2-form-grid">
     <div class="a2-form-group">
-        <label class="a2-label">نوع الغلق</label>
+        <label class="a2-label">{{ __('نوع الغلق') }}</label>
         <select name="block_type" class="a2-select @error('block_type') is-invalid @enderror" required>
             <option value="manual" {{ $blockType === 'manual' ? 'selected' : '' }}>manual</option>
             <option value="maintenance" {{ $blockType === 'maintenance' ? 'selected' : '' }}>maintenance</option>
@@ -51,7 +51,7 @@
     </div>
 
     <div class="a2-form-group">
-        <label class="a2-label">الحالة</label>
+        <label class="a2-label">{{ __('الحالة') }}</label>
         <select name="is_active" class="a2-select">
             <option value="1" {{ $isActive === 1 ? 'selected' : '' }}>Active</option>
             <option value="0" {{ $isActive === 0 ? 'selected' : '' }}>Inactive</option>
@@ -60,23 +60,23 @@
 </div>
 
 <div class="a2-form-group">
-    <label class="a2-label">السبب</label>
+    <label class="a2-label">{{ __('السبب') }}</label>
     <input type="text"
            name="reason"
            class="a2-input @error('reason') is-invalid @enderror"
            value="{{ $reason }}"
-           placeholder="سبب الغلق">
+           placeholder="{{ __('سبب الغلق') }}">
     @error('reason')
         <div class="a2-input-error">{{ $message }}</div>
     @enderror
 </div>
 
 <div class="a2-form-group">
-    <label class="a2-label">ملاحظات</label>
+    <label class="a2-label">{{ __('ملاحظات') }}</label>
     <textarea name="notes"
               rows="5"
               class="a2-textarea @error('notes') is-invalid @enderror"
-              placeholder="ملاحظات إضافية">{{ $notes }}</textarea>
+              placeholder="{{ __('ملاحظات إضافية') }}">{{ $notes }}</textarea>
     @error('notes')
         <div class="a2-input-error">{{ $message }}</div>
     @enderror
@@ -91,6 +91,6 @@
 
     <a href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id]) }}"
        class="a2-btn a2-btn-ghost">
-        إلغاء
+        {{ __('إلغاء') }}
     </a>
 </div>

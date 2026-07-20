@@ -20,16 +20,16 @@
 
 <div class="a2-form-grid">
     <div class="a2-card">
-        <h2 class="a2-section-title">بيانات الباقة</h2>
+        <h2 class="a2-section-title">{{ __('بيانات الباقة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Key</label>
             <input class="a2-input" type="text" name="key" value="{{ old('key', $package->key) }}" placeholder="boost_7_days">
-            <div class="a2-help">اتركه فارغًا لتوليده تلقائيًا من الاسم.</div>
+            <div class="a2-help">{{ __('اتركه فارغًا لتوليده تلقائيًا من الاسم.') }}</div>
         </div>
 
         <div class="a2-field">
-            <label class="a2-label">الاسم عربي</label>
+            <label class="a2-label">{{ __('الاسم عربي') }}</label>
             <input class="a2-input" type="text" name="name_ar" value="{{ old('name_ar', $package->name_ar) }}" required>
         </div>
 
@@ -40,7 +40,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">السعر والمدة</h2>
+        <h2 class="a2-section-title">{{ __('السعر والمدة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Price</label>
@@ -64,7 +64,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">الحالة</h2>
+        <h2 class="a2-section-title">{{ __('الحالة') }}</h2>
 
         <label class="a2-checkline">
             <input type="checkbox" name="is_featured" value="1" {{ old('is_featured', $package->is_featured ?? true) ? 'checked' : '' }}>
@@ -89,6 +89,6 @@
 </div>
 
 <div class="a2-form-actions">
-    <button class="a2-btn a2-btn-primary" type="submit">حفظ الباقة</button>
-    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-boost-packages.index') }}">رجوع</a>
+    <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ الباقة') }}</button>
+    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-boost-packages.index') }}">{{ __('رجوع') }}</a>
 </div>

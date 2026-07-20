@@ -12,12 +12,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة قسم فرعي عام</h1>
+            <h1 class="a2-page-title">{{ __('إضافة قسم فرعي عام') }}</h1>
             <div class="a2-page-subtitle">
                 @if($parentIdInt > 0 && $rootName)
-                    سيتم ربطه مبدئيًا بالقسم الرئيسي: {{ $rootName }}
+                    {{ __('سيتم ربطه مبدئيًا بالقسم الرئيسي:') }} {{ $rootName }}
                 @else
-                    إنشاء قسم فرعي عام جديد داخل النظام
+                    {{ __('إنشاء قسم فرعي عام جديد داخل النظام') }}
                 @endif
             </div>
         </div>
@@ -25,7 +25,7 @@
         <div class="a2-page-actions">
             <a href="{{ route('admin.category-children.index', $parentIdInt > 0 ? ['parent_id' => $parentIdInt] : []) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>

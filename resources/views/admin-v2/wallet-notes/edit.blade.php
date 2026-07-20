@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','تعديل ملاحظة')
+@section('title',__('تعديل ملاحظة'))
 @section('body_class','admin-v2-wallet-notes')
 
 @section('content')
@@ -9,11 +9,11 @@
 
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">تعديل ملاحظة</h2>
+        <h2 class="a2-title">{{ __('تعديل ملاحظة') }}</h2>
         <div class="a2-hint">ID #{{ $walletNote->id }}</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-notes.index') }}">رجوع</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-notes.index') }}">{{ __('رجوع') }}</a>
       </div>
     </div>
 
@@ -26,7 +26,7 @@
       @method('PUT')
 
       <div>
-        <div class="a2-hint" style="margin-bottom:6px;">العنوان</div>
+        <div class="a2-hint" style="margin-bottom:6px;">{{ __('العنوان') }}</div>
         <input
           class="a2-input"
           name="title"
@@ -37,7 +37,7 @@
       </div>
 
       <div>
-        <div class="a2-hint" style="margin-bottom:6px;">النص</div>
+        <div class="a2-hint" style="margin-bottom:6px;">{{ __('النص') }}</div>
 
         {{-- ✅ textarea بدل input علشان يظهر النص كله --}}
         <textarea
@@ -49,12 +49,12 @@
           style="width:100%;height:auto;min-height:110px;line-height:1.8;resize:vertical;padding-top:10px;padding-bottom:10px;"
         >{{ old('text', $walletNote->text) }}</textarea>
 
-        <div class="a2-hint" style="margin-top:6px;">حد أقصى 255 حرف</div>
+        <div class="a2-hint" style="margin-top:6px;">{{ __('حد أقصى 255 حرف') }}</div>
       </div>
 
       <div style="display:grid;grid-template-columns: 1fr 1fr; gap:12px;">
         <div>
-          <div class="a2-hint" style="margin-bottom:6px;">الترتيب</div>
+          <div class="a2-hint" style="margin-bottom:6px;">{{ __('الترتيب') }}</div>
           <input
             class="a2-input"
             name="sort"
@@ -74,13 +74,13 @@
               value="1"
               @checked(old('is_active', $walletNote->is_active))
             >
-            نشط
+            {{ __('نشط') }}
           </label>
         </div>
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button class="a2-btn a2-btn-primary" type="submit">حفظ</button>
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
       </div>
     </form>
 

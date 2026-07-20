@@ -9,18 +9,18 @@
   <div class="a2-card">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">شحنات المحفظة (Money-in)</h2>
-        <div class="a2-hint">نيّات الشحن عبر بوابة الدفع — للمطابقة والمتابعة</div>
+        <h2 class="a2-title">{{ __('شحنات المحفظة (Money-in)') }}</h2>
+        <div class="a2-hint">{{ __('نيّات الشحن عبر بوابة الدفع — للمطابقة والمتابعة') }}</div>
       </div>
       <form class="a2-actionsbar" method="get">
-        <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="بحث بالمرجع / مرجع البوابة">
+        <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالمرجع / مرجع البوابة') }}">
         <select class="a2-input" name="status" onchange="this.form.submit()">
-          <option value="">كل الحالات</option>
+          <option value="">{{ __('كل الحالات') }}</option>
           @foreach(['pending' => 'قيد الانتظار','paid' => 'مدفوع','failed' => 'فشل','expired' => 'منتهٍ'] as $val => $label)
             <option value="{{ $val }}" @selected($status === $val)>{{ $label }}</option>
           @endforeach
         </select>
-        <button class="a2-btn a2-btn-ghost" type="submit">تصفية</button>
+        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('تصفية') }}</button>
       </form>
     </div>
 
@@ -39,14 +39,14 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>المستخدم</th>
-            <th>المبلغ</th>
-            <th>البوابة</th>
-            <th>الطريقة</th>
-            <th>مرجعنا</th>
-            <th>مرجع البوابة</th>
-            <th>الحالة</th>
-            <th>الدفع</th>
+            <th>{{ __('المستخدم') }}</th>
+            <th>{{ __('المبلغ') }}</th>
+            <th>{{ __('البوابة') }}</th>
+            <th>{{ __('الطريقة') }}</th>
+            <th>{{ __('مرجعنا') }}</th>
+            <th>{{ __('مرجع البوابة') }}</th>
+            <th>{{ __('الحالة') }}</th>
+            <th>{{ __('الدفع') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -63,7 +63,7 @@
               <td dir="ltr">{{ optional($r->paid_at)->format('Y-m-d H:i') ?? '—' }}</td>
             </tr>
           @empty
-            <tr><td colspan="9" class="a2-empty">لا توجد شحنات.</td></tr>
+            <tr><td colspan="9" class="a2-empty">{{ __('لا توجد شحنات.') }}</td></tr>
           @endforelse
         </tbody>
       </table>

@@ -53,14 +53,14 @@
         <div>
             <h1 class="a2-page-title">Bulk Services + Fees</h1>
             <div class="a2-page-subtitle">
-                صفحة موحدة لربط خدمات الأقسام الفرعية، ضبط إعدادات الخدمة، وتطبيق رسوم البزنس والعميل دفعة واحدة.
+                {{ __('صفحة موحدة لربط خدمات الأقسام الفرعية، ضبط إعدادات الخدمة، وتطبيق رسوم البزنس والعميل دفعة واحدة.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.categories.index', $activeRootId > 0 ? ['root_id' => $activeRootId] : []) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع إلى الأقسام
+                {{ __('رجوع إلى الأقسام') }}
             </a>
         </div>
     </div>
@@ -89,15 +89,15 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">1) التصنيف الرئيسي</h2>
+                    <h2 class="a2-section-title">{{ __('1) التصنيف الرئيسي') }}</h2>
                     <div class="a2-section-subtitle">
-                        اختر الروت الذي سيتم عرض فروعه. عند تغيير الروت سيتم إعادة تحميل الصفحة بنفس السياق.
+                        {{ __('اختر الروت الذي سيتم عرض فروعه. عند تغيير الروت سيتم إعادة تحميل الصفحة بنفس السياق.') }}
                     </div>
                 </div>
             </div>
 
             @if($rootsSafe->isEmpty())
-                <div class="a2-muted">لا توجد تصنيفات رئيسية بها فروع.</div>
+                <div class="a2-muted">{{ __('لا توجد تصنيفات رئيسية بها فروع.') }}</div>
             @else
                 <div class="a2-actionsbar">
                     @foreach($rootsSafe as $root)
@@ -122,21 +122,21 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">2) الأقسام الفرعية</h2>
+                    <h2 class="a2-section-title">{{ __('2) الأقسام الفرعية') }}</h2>
                     <div class="a2-section-subtitle">
-                        اختر الفروع التي سيتم تطبيق الربط والرسوم عليها داخل:
+                        {{ __('اختر الفروع التي سيتم تطبيق الربط والرسوم عليها داخل:') }}
                         <strong>{{ $activeRoot ? $nameOf($activeRoot) : '—' }}</strong>
                     </div>
                 </div>
 
                 <div class="a2-page-actions">
-                    <button type="button" class="a2-btn a2-btn-ghost" id="checkVisibleChildren">تحديد الكل</button>
-                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckVisibleChildren">إلغاء الكل</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="checkVisibleChildren">{{ __('تحديد الكل') }}</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckVisibleChildren">{{ __('إلغاء الكل') }}</button>
                 </div>
             </div>
 
             @if($activeChildren->isEmpty())
-                <div class="a2-muted">لا توجد فروع داخل هذا التصنيف.</div>
+                <div class="a2-muted">{{ __('لا توجد فروع داخل هذا التصنيف.') }}</div>
             @else
                 <div class="a2-check-grid a2-mt-16">
                     @foreach($activeChildren as $child)
@@ -162,20 +162,20 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">3) الخدمات</h2>
+                    <h2 class="a2-section-title">{{ __('3) الخدمات') }}</h2>
                     <div class="a2-section-subtitle">
-                        اختر الخدمات المطلوب ربطها أو تعطيلها للفروع المختارة.
+                        {{ __('اختر الخدمات المطلوب ربطها أو تعطيلها للفروع المختارة.') }}
                     </div>
                 </div>
 
                 <div class="a2-page-actions">
-                    <button type="button" class="a2-btn a2-btn-ghost" id="checkServices">تحديد كل الخدمات</button>
-                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckServices">إلغاء كل الخدمات</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="checkServices">{{ __('تحديد كل الخدمات') }}</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckServices">{{ __('إلغاء كل الخدمات') }}</button>
                 </div>
             </div>
 
             @if($servicesSafe->isEmpty())
-                <div class="a2-muted">لا توجد خدمات مفعلة.</div>
+                <div class="a2-muted">{{ __('لا توجد خدمات مفعلة.') }}</div>
             @else
                 <div class="a2-service-check-grid a2-mt-16">
                     @foreach($servicesSafe as $service)
@@ -208,7 +208,7 @@
                                 @endif
 
                                 @if($isPartialActive)
-                                    <span class="a2-pill a2-pill-warning">مفعلة جزئيًا</span>
+                                    <span class="a2-pill a2-pill-warning">{{ __('مفعلة جزئيًا') }}</span>
                                 @endif
                             </span>
                         </label>
@@ -218,16 +218,16 @@
         </div>
 
         <div class="a2-card a2-mb-16">
-            <h2 class="a2-section-title">4) طريقة التطبيق</h2>
+            <h2 class="a2-section-title">{{ __('4) طريقة التطبيق') }}</h2>
             <div class="a2-section-subtitle">
-                اختر هل تريد إضافة/تحديث الخدمات، استبدالها، أو تعطيل الخدمات المختارة.
+                {{ __('اختر هل تريد إضافة/تحديث الخدمات، استبدالها، أو تعطيل الخدمات المختارة.') }}
             </div>
 
             <div class="a2-check-grid a2-mt-16">
                 <label class="a2-check-card">
                     <span>
-                        <strong>إضافة / تحديث</strong>
-                        <small>يضيف الخدمات المختارة للفروع، ويحدث إعداداتها ورسومها بدون تعطيل الخدمات الأخرى.</small>
+                        <strong>{{ __('إضافة / تحديث') }}</strong>
+                        <small>{{ __('يضيف الخدمات المختارة للفروع، ويحدث إعداداتها ورسومها بدون تعطيل الخدمات الأخرى.') }}</small>
                     </span>
 
                     <input type="radio" name="mode" value="append" checked>
@@ -235,8 +235,8 @@
 
                 <label class="a2-check-card">
                     <span>
-                        <strong>استبدال خدمات الفروع المختارة</strong>
-                        <small>يجعل الخدمات المختارة هي الخدمات النشطة للفروع المحددة، ويعطل غير المختار.</small>
+                        <strong>{{ __('استبدال خدمات الفروع المختارة') }}</strong>
+                        <small>{{ __('يجعل الخدمات المختارة هي الخدمات النشطة للفروع المحددة، ويعطل غير المختار.') }}</small>
                     </span>
 
                     <input type="radio" name="mode" value="replace">
@@ -244,8 +244,8 @@
 
                 <label class="a2-check-card">
                     <span>
-                        <strong>تعطيل الخدمات المختارة</strong>
-                        <small>يعطل الخدمات المختارة ورسومها للفروع المحددة فقط.</small>
+                        <strong>{{ __('تعطيل الخدمات المختارة') }}</strong>
+                        <small>{{ __('يعطل الخدمات المختارة ورسومها للفروع المحددة فقط.') }}</small>
                     </span>
 
                     <input type="radio" name="mode" value="remove">
@@ -256,22 +256,22 @@
         <div class="a2-card a2-mb-16" id="feesSection">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">5) رسوم الخدمات المختارة</h2>
+                    <h2 class="a2-section-title">{{ __('5) رسوم الخدمات المختارة') }}</h2>
                     <div class="a2-section-subtitle">
-                        تظهر هنا فقط الخدمات التي تم اختيارها. عند الحفظ سيتم تطبيق القيم على كل الفروع المحددة.
+                        {{ __('تظهر هنا فقط الخدمات التي تم اختيارها. عند الحفظ سيتم تطبيق القيم على كل الفروع المحددة.') }}
                     </div>
                 </div>
             </div>
 
             @if($servicesSafe->isEmpty())
-                <div class="a2-muted">لا توجد خدمات مفعلة.</div>
+                <div class="a2-muted">{{ __('لا توجد خدمات مفعلة.') }}</div>
             @else
                 <div class="a2-alert a2-alert-info" id="feesHelpBox">
-                    اختر خدمة واحدة أو أكثر من قسم الخدمات بالأعلى، وستظهر إعدادات رسوم كل خدمة هنا.
+                    {{ __('اختر خدمة واحدة أو أكثر من قسم الخدمات بالأعلى، وستظهر إعدادات رسوم كل خدمة هنا.') }}
                 </div>
 
                 <div class="a2-alert a2-alert-warning" id="removeModeFeesNote" hidden>
-                    وضع التعطيل لا يحتاج ضبط رسوم. سيتم تعطيل الربط والرسوم للخدمات المختارة.
+                    {{ __('وضع التعطيل لا يحتاج ضبط رسوم. سيتم تعطيل الربط والرسوم للخدمات المختارة.') }}
                 </div>
 
                 <div id="feesLayout" hidden>
@@ -312,12 +312,11 @@
                                             <span class="a2-pill a2-pill-gray" dir="ltr">{{ $service->key }}</span>
                                         </h3>
                                         <div class="a2-section-subtitle">
-                                            Override خاص بهذه الخدمة فقط. القيم هنا تطبق على الفروع المحددة.
+                                            {{ __('Override خاص بهذه الخدمة فقط. القيم هنا تطبق على الفروع المحددة.') }}
                                         </div>
 
                                         <div class="a2-alert a2-alert-warning js-fee-mixed-warning" hidden>
-                                            الفروع المختارة تحتوي قيم رسوم مختلفة لهذه الخدمة. سيتم عرض أول قيمة موجودة،
-                                            وأي حفظ جديد سيطبق القيمة الجديدة على كل الفروع المختارة.
+                                            {{ __('الفروع المختارة تحتوي قيم رسوم مختلفة لهذه الخدمة. سيتم عرض أول قيمة موجودة، وأي حفظ جديد سيطبق القيمة الجديدة على كل الفروع المختارة.') }}
                                         </div>
                                     </div>
                                 </div>
@@ -330,15 +329,13 @@
 
                                 @if(! empty($branchData['branches']) || ! empty($branchData['ungrouped']))
                                     <div class="a2-branch-block a2-mt-16" data-service-id="{{ $serviceId }}">
-                                        <h4 class="a2-section-title">الفروع والأنواع المسموحة</h4>
+                                        <h4 class="a2-section-title">{{ __('الفروع والأنواع المسموحة') }}</h4>
                                         <div class="a2-section-subtitle">
-                                            اختر الفروع المناسبة لهذا التصنيف — صاحب الحساب سيختار مما تحدده هنا فقط.
-                                            اترك الكل فارغًا للسماح بجميع الأنواع. تُطبّق على كل الفروع المحددة.
+                                            {{ __('اختر الفروع المناسبة لهذا التصنيف — صاحب الحساب سيختار مما تحدده هنا فقط. اترك الكل فارغًا للسماح بجميع الأنواع. تُطبّق على كل الفروع المحددة.') }}
                                         </div>
 
                                         <div class="a2-alert a2-alert-warning js-branch-mixed-warning" hidden>
-                                            الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار،
-                                            وأي حفظ جديد سيطبّق الاختيار الحالي على كل المحدد.
+                                            {{ __('الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار، وأي حفظ جديد سيطبّق الاختيار الحالي على كل المحدد.') }}
                                         </div>
 
                                         <div class="a2-branch-list a2-mt-12">
@@ -362,7 +359,7 @@
                                                         </label>
 
                                                         <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm js-branch-toggle">
-                                                            الأنواع
+                                                            {{ __('الأنواع') }}
                                                         </button>
                                                     </div>
 
@@ -388,9 +385,9 @@
                                             @if(! empty($branchData['ungrouped']))
                                                 <div class="a2-branch">
                                                     <div class="a2-branch-head">
-                                                        <span class="a2-branch-ungrouped-label"><strong>بدون فرع</strong></span>
+                                                        <span class="a2-branch-ungrouped-label"><strong>{{ __('بدون فرع') }}</strong></span>
                                                         <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm js-branch-toggle">
-                                                            الأنواع
+                                                            {{ __('الأنواع') }}
                                                         </button>
                                                     </div>
 
@@ -418,7 +415,7 @@
 
                                 <div class="a2-form-grid a2-mt-16">
                                     <div class="a2-form-group">
-                                        <label class="a2-label">العملة</label>
+                                        <label class="a2-label">{{ __('العملة') }}</label>
                                         <input
                                             class="a2-input"
                                             name="service_fees[{{ $serviceId }}][currency]"
@@ -429,19 +426,19 @@
                                     </div>
 
                                     <div class="a2-form-group">
-                                        <label class="a2-label">ملاحظات</label>
+                                        <label class="a2-label">{{ __('ملاحظات') }}</label>
                                         <input
                                             class="a2-input"
                                             name="service_fees[{{ $serviceId }}][fee_notes]"
                                             value="{{ old("service_fees.$serviceId.fee_notes") }}"
-                                            placeholder="اختياري"
+                                            placeholder="{{ __('اختياري') }}"
                                         >
                                     </div>
                                 </div>
 
                                 <div class="a2-card-grid-2 a2-mt-16">
                                     <div class="a2-card-muted">
-                                        <h4 class="a2-section-title">رسوم البزنس</h4>
+                                        <h4 class="a2-section-title">{{ __('رسوم البزنس') }}</h4>
 
                                         <label class="a2-check">
                                             <input
@@ -450,27 +447,27 @@
                                                 value="1"
                                                 @checked(old("service_fees.$serviceId.business_fee_enabled"))
                                             >
-                                            <span>تفعيل رسوم البزنس</span>
+                                            <span>{{ __('تفعيل رسوم البزنس') }}</span>
                                         </label>
 
                                         <div class="a2-form-grid a2-mt-12">
                                             <div class="a2-form-group">
-                                                <label class="a2-label">نوع الرسوم</label>
+                                                <label class="a2-label">{{ __('نوع الرسوم') }}</label>
                                                 <select
                                                     class="a2-select"
                                                     name="service_fees[{{ $serviceId }}][business_fee_type]"
                                                 >
                                                     <option value="fixed" @selected(old("service_fees.$serviceId.business_fee_type", 'fixed') === 'fixed')>
-                                                        مبلغ ثابت
+                                                        {{ __('مبلغ ثابت') }}
                                                     </option>
                                                     <option value="percent" @selected(old("service_fees.$serviceId.business_fee_type") === 'percent')>
-                                                        نسبة %
+                                                        {{ __('نسبة %') }}
                                                     </option>
                                                 </select>
                                             </div>
 
                                             <div class="a2-form-group">
-                                                <label class="a2-label">القيمة</label>
+                                                <label class="a2-label">{{ __('القيمة') }}</label>
                                                 <input
                                                     class="a2-input"
                                                     type="number"
@@ -478,14 +475,14 @@
                                                     min="0"
                                                     name="service_fees[{{ $serviceId }}][business_fee_amount]"
                                                     value="{{ old("service_fees.$serviceId.business_fee_amount") }}"
-                                                    placeholder="مثال: 10"
+                                                    placeholder="{{ __('مثال: 10') }}"
                                                 >
                                             </div>
                                         </div>
                                     </div>
 
                                     <div class="a2-card-muted">
-                                        <h4 class="a2-section-title">رسوم العميل</h4>
+                                        <h4 class="a2-section-title">{{ __('رسوم العميل') }}</h4>
 
                                         <label class="a2-check">
                                             <input
@@ -494,27 +491,27 @@
                                                 value="1"
                                                 @checked(old("service_fees.$serviceId.client_fee_enabled"))
                                             >
-                                            <span>تفعيل رسوم العميل</span>
+                                            <span>{{ __('تفعيل رسوم العميل') }}</span>
                                         </label>
 
                                         <div class="a2-form-grid a2-mt-12">
                                             <div class="a2-form-group">
-                                                <label class="a2-label">نوع الرسوم</label>
+                                                <label class="a2-label">{{ __('نوع الرسوم') }}</label>
                                                 <select
                                                     class="a2-select"
                                                     name="service_fees[{{ $serviceId }}][client_fee_type]"
                                                 >
                                                     <option value="fixed" @selected(old("service_fees.$serviceId.client_fee_type", 'fixed') === 'fixed')>
-                                                        مبلغ ثابت
+                                                        {{ __('مبلغ ثابت') }}
                                                     </option>
                                                     <option value="percent" @selected(old("service_fees.$serviceId.client_fee_type") === 'percent')>
-                                                        نسبة %
+                                                        {{ __('نسبة %') }}
                                                     </option>
                                                 </select>
                                             </div>
 
                                             <div class="a2-form-group">
-                                                <label class="a2-label">القيمة</label>
+                                                <label class="a2-label">{{ __('القيمة') }}</label>
                                                 <input
                                                     class="a2-input"
                                                     type="number"
@@ -522,7 +519,7 @@
                                                     min="0"
                                                     name="service_fees[{{ $serviceId }}][client_fee_amount]"
                                                     value="{{ old("service_fees.$serviceId.client_fee_amount") }}"
-                                                    placeholder="مثال: 2"
+                                                    placeholder="{{ __('مثال: 2') }}"
                                                 >
                                             </div>
                                         </div>
@@ -542,18 +539,76 @@
                         Root: {{ $activeRoot ? $nameOf($activeRoot) : '—' }}
                     </span>
                     <span class="a2-pill a2-pill-gray">
-                        الفروع المختارة: <strong id="selectedChildrenCount">0</strong>
+                        {{ __('الفروع المختارة:') }}  435@php
+    $rootsSafe = collect($roots ?? []);
+    $servicesSafe = collect($services ?? []);
+    $rootIdInt = (int) ($rootId ?? 0);
+
+    $activeServiceCountsSafe = $activeServiceCounts ?? [];
+    $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
+    $feeMatrixSafe = $feeMatrix ?? [];
+    $serviceBranchesSafe = $serviceBranches ?? [];
+    $configMatrixSafe = $configMatrix ?? [];
+    $hasOldInput = count(old()) > 0;
+
+    $nameOf = function ($item) {
+        $ar = (string) ($item->name_ar ?? '');
+        $en = (string) ($item->name_en ?? '');
+
+        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
+    };
+
+    $activeRoot = $rootIdInt > 0
+        ? $rootsSafe->firstWhere('id', $rootIdInt)
+        : $rootsSafe->first();
+
+    if (! $activeRoot) {
+        $activeRoot = $rootsSafe->first();
+    }
+
+    $activeRootId = (int) optional($activeRoot)->id;
+    $activeChildren = collect($activeRoot->children ?? []);
+@endphp436 
                     </span>
                     <span class="a2-pill a2-pill-gray">
-                        الخدمات المختارة: <strong id="selectedServicesCount">0</strong>
+                        {{ __('الخدمات المختارة:') }}  439@php
+    $rootsSafe = collect($roots ?? []);
+    $servicesSafe = collect($services ?? []);
+    $rootIdInt = (int) ($rootId ?? 0);
+
+    $activeServiceCountsSafe = $activeServiceCounts ?? [];
+    $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
+    $feeMatrixSafe = $feeMatrix ?? [];
+    $serviceBranchesSafe = $serviceBranches ?? [];
+    $configMatrixSafe = $configMatrix ?? [];
+    $hasOldInput = count(old()) > 0;
+
+    $nameOf = function ($item) {
+        $ar = (string) ($item->name_ar ?? '');
+        $en = (string) ($item->name_en ?? '');
+
+        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
+    };
+
+    $activeRoot = $rootIdInt > 0
+        ? $rootsSafe->firstWhere('id', $rootIdInt)
+        : $rootsSafe->first();
+
+    if (! $activeRoot) {
+        $activeRoot = $rootsSafe->first();
+    }
+
+    $activeRootId = (int) optional($activeRoot)->id;
+    $activeChildren = collect($activeRoot->children ?? []);
+@endphp440 
                     </span>
                     <span class="a2-pill a2-pill-gray">
-                        الوضع: <strong id="selectedModeLabel">إضافة / تحديث</strong>
+                        {{ __('الوضع:') }} <strong id="selectedModeLabel">{{ __('إضافة / تحديث') }}</strong>
                     </span>
                 </div>
 
                 <button type="submit" class="a2-btn a2-btn-primary" id="submitBulkBtn">
-                    تطبيق الخدمات والرسوم
+                    {{ __('تطبيق الخدمات والرسوم') }}
                 </button>
             </div>
         </div>

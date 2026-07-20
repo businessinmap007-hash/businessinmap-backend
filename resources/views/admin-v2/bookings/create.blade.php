@@ -8,15 +8,15 @@
 
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة حجز جديد</h1>
+            <h1 class="a2-page-title">{{ __('إضافة حجز جديد') }}</h1>
             <div class="a2-page-subtitle">
-                أنشئ حجزًا جديدًا مع اختيار طالب الحجز، مقدم الخدمة، الخدمة، والغرفة أو العنصر القابل للحجز.
+                {{ __('أنشئ حجزًا جديدًا مع اختيار طالب الحجز، مقدم الخدمة، الخدمة، والغرفة أو العنصر القابل للحجز.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookings.index') }}" class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -35,7 +35,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء في بيانات الحجز:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء في بيانات الحجز:') }}</div>
 
             <ul class="bk-error-list">
                 @foreach($errors->all() as $error)

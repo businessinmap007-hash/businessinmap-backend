@@ -8,11 +8,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إنشاء حصة وحدة</h1>
-            <div class="a2-page-subtitle">تحديد حصة لشريك من غرفة أو وحدة قابلة للحجز مع توليد عرض قابل للمقارنة.</div>
+            <h1 class="a2-page-title">{{ __('إنشاء حصة وحدة') }}</h1>
+            <div class="a2-page-subtitle">{{ __('تحديد حصة لشريك من غرفة أو وحدة قابلة للحجز مع توليد عرض قابل للمقارنة.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.bookable-allocations.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.bookable-allocations.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

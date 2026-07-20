@@ -7,8 +7,8 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إنشاء باقة تمييز</h1>
-            <div class="a2-page-subtitle">إضافة باقة Boost جديدة للعروض.</div>
+            <h1 class="a2-page-title">{{ __('إنشاء باقة تمييز') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إضافة باقة Boost جديدة للعروض.') }}</div>
         </div>
     </div>
 

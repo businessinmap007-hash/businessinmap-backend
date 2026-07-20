@@ -13,12 +13,12 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">الوظائف</h2>
+      <h2 class="a2-title">{{ __('الوظائف') }}</h2>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index', $qsKeep) }}">رجوع</a>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.applicants', ['post'=>$post->id]) }}">المتقدمون ({{ $post->applies()->count() }})</a>
-        <a class="a2-btn a2-btn-primary" href="{{ route('admin.jobs.edit', ['post'=>$post->id] + $qsKeep) }}">تعديل</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index', $qsKeep) }}">{{ __('رجوع') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.applicants', ['post'=>$post->id]) }}">{{ __('المتقدمون (') }}{{ $post->applies()->count() }})</a>
+        <a class="a2-btn a2-btn-primary" href="{{ route('admin.jobs.edit', ['post'=>$post->id] + $qsKeep) }}">{{ __('تعديل') }}</a>
       </div>
     </div>
 
@@ -54,24 +54,24 @@
           </div>
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">بداية المقابلات</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('بداية المقابلات') }}</div>
             <div class="a2-fw-900" dir="ltr">
               {{ $post->interview_starts_at ? \Carbon\Carbon::parse($post->interview_starts_at)->format('Y-m-d') : '—' }}
             </div>
           </div>
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">المرتب</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('المرتب') }}</div>
             <div class="a2-fw-900">{{ $post->salary ?: '—' }}</div>
           </div>
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">التصنيف</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('التصنيف') }}</div>
             <div class="a2-fw-900">{{ optional($post->category)->name_ar ?: '—' }}</div>
           </div>
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">التخصص</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('التخصص') }}</div>
             <div class="a2-fw-900">{{ optional($post->categoryChild)->name_ar ?: '—' }}</div>
           </div>
 
@@ -88,7 +88,7 @@
           </div>
 
           <div>
-            <label class="a2-hint" style="font-weight:900;">الوصف</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('الوصف') }}</label>
             <div
               class="a2-input"
               style="min-height:140px;white-space:pre-wrap;">{{ $post->body ?: '—' }}
@@ -96,7 +96,7 @@
           </div>
 
           <div>
-            <label class="a2-hint" style="font-weight:900;">الشروط المطلوبة</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('الشروط المطلوبة') }}</label>
             <div class="a2-input" style="min-height:100px;white-space:pre-wrap;">{{ $post->requirements ?: '—' }}</div>
           </div>
 

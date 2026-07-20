@@ -9,11 +9,11 @@
   <div class="a2-card">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">سجل التوصيلات المكتملة</h2>
-        <div class="a2-hint">صف واحد لكل طلب سُلّم — النجاح المسجّل للمطعم والموصّل</div>
+        <h2 class="a2-title">{{ __('سجل التوصيلات المكتملة') }}</h2>
+        <div class="a2-hint">{{ __('صف واحد لكل طلب سُلّم — النجاح المسجّل للمطعم والموصّل') }}</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.delivery.drivers.index') }}">الموصّلون</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.delivery.drivers.index') }}">{{ __('الموصّلون') }}</a>
       </div>
     </div>
 
@@ -22,11 +22,11 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>الطلب</th>
-            <th>المطعم</th>
-            <th>الموصّل</th>
-            <th>الإجمالي</th>
-            <th>وقت التسليم</th>
+            <th>{{ __('الطلب') }}</th>
+            <th>{{ __('المطعم') }}</th>
+            <th>{{ __('الموصّل') }}</th>
+            <th>{{ __('الإجمالي') }}</th>
+            <th>{{ __('وقت التسليم') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -40,7 +40,7 @@
               <td dir="ltr">{{ optional($c->completed_at)->format('Y-m-d H:i') }}</td>
             </tr>
           @empty
-            <tr><td colspan="6" class="a2-empty">لا توجد توصيلات مكتملة بعد.</td></tr>
+            <tr><td colspan="6" class="a2-empty">{{ __('لا توجد توصيلات مكتملة بعد.') }}</td></tr>
           @endforelse
         </tbody>
       </table>

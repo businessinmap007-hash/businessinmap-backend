@@ -24,28 +24,28 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">البيانات الأساسية</div>
+            <div class="a2-section-title a2-mb-0">{{ __('البيانات الأساسية') }}</div>
         </div>
     </div>
 
     <div class="a2-alert a2-alert-warning">
-        لا يمكن من هذه الشاشة إنشاء أو تعديل قسم فرعي. الأقسام الفرعية أصبحت موحّدة في جداول مستقلة ويتم إدارتها من شاشة منفصلة.
+        {{ __('لا يمكن من هذه الشاشة إنشاء أو تعديل قسم فرعي. الأقسام الفرعية أصبحت موحّدة في جداول مستقلة ويتم إدارتها من شاشة منفصلة.') }}
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">الاسم عربي <span style="color:var(--a2-danger)">*</span></label>
+            <label class="a2-label">{{ __('الاسم عربي') }} <span style="color:var(--a2-danger)">*</span></label>
             <input class="a2-input"
                    name="name_ar"
                    value="{{ old('name_ar', $category->name_ar ?? '') }}"
-                   placeholder="اسم القسم الرئيسي">
+                   placeholder="{{ __('اسم القسم الرئيسي') }}">
             @error('name_ar')
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الاسم إنجليزي</label>
+            <label class="a2-label">{{ __('الاسم إنجليزي') }}</label>
             <input class="a2-input"
                    name="name_en"
                    value="{{ old('name_en', $category->name_en ?? '') }}"
@@ -64,7 +64,7 @@
                    dir="ltr"
                    placeholder="example-category">
             <div class="a2-section-subtitle a2-mb-0 a2-mt-8">
-                اتركه فارغًا ليتم توليده تلقائيًا.
+                {{ __('اتركه فارغًا ليتم توليده تلقائيًا.') }}
             </div>
             @error('slug')
                 <div class="a2-error">{{ $message }}</div>
@@ -72,15 +72,15 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">نوع السجل</label>
-            <input class="a2-input" value="قسم رئيسي / Root Category" disabled>
+            <label class="a2-label">{{ __('نوع السجل') }}</label>
+            <input class="a2-input" value="{{ __('قسم رئيسي / Root Category') }}" disabled>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
             <select class="a2-select" name="is_active">
-                <option value="1" @selected((string) old('is_active', $category->is_active ?? 1) === '1')>نشط</option>
-                <option value="0" @selected((string) old('is_active', $category->is_active ?? 1) === '0')>غير نشط</option>
+                <option value="1" @selected((string) old('is_active', $category->is_active ?? 1) === '1')>{{ __('نشط') }}</option>
+                <option value="0" @selected((string) old('is_active', $category->is_active ?? 1) === '0')>{{ __('غير نشط') }}</option>
             </select>
             @error('is_active')
                 <div class="a2-error">{{ $message }}</div>
@@ -92,13 +92,13 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">الأسعار والترتيب</div>
+            <div class="a2-section-title a2-mb-0">{{ __('الأسعار والترتيب') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">السعر الشهري</label>
+            <label class="a2-label">{{ __('السعر الشهري') }}</label>
             <input class="a2-input"
                    name="per_month"
                    value="{{ old('per_month', $category->per_month ?? '') }}"
@@ -110,7 +110,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">السعر السنوي</label>
+            <label class="a2-label">{{ __('السعر السنوي') }}</label>
             <input class="a2-input"
                    name="per_year"
                    value="{{ old('per_year', $category->per_year ?? '') }}"
@@ -122,7 +122,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الترتيب</label>
+            <label class="a2-label">{{ __('الترتيب') }}</label>
             <input class="a2-input"
                    name="reorder"
                    value="{{ old('reorder', $category->reorder ?? '') }}"
@@ -138,16 +138,16 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">صورة القسم</div>
+            <div class="a2-section-title a2-mb-0">{{ __('صورة القسم') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">صورة القسم</label>
+            <label class="a2-label">{{ __('صورة القسم') }}</label>
             <input class="a2-input" type="file" name="image" accept="image/*" id="category-image-input">
             <div class="a2-section-subtitle a2-mb-0 a2-mt-8">
-                JPG / PNG / WEBP بحد أقصى 2MB
+                {{ __('JPG / PNG / WEBP بحد أقصى 2MB') }}
             </div>
             @error('image')
                 <div class="a2-error">{{ $message }}</div>
@@ -155,12 +155,12 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">المعاينة</label>
+            <label class="a2-label">{{ __('المعاينة') }}</label>
             <div class="a2-card a2-card--soft" id="imgPreviewBox" style="min-height:180px;display:flex;align-items:center;justify-content:center;">
                 @if($imgPath)
                     <x-admin-v2.image :path="$imgPath" size="140" radius="16px" />
                 @else
-                    <span class="a2-section-subtitle a2-mb-0">اختر صورة</span>
+                    <span class="a2-section-subtitle a2-mb-0">{{ __('اختر صورة') }}</span>
                 @endif
             </div>
         </div>
@@ -170,7 +170,7 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">خدمات التصنيف</div>
+            <div class="a2-section-title a2-mb-0">{{ __('خدمات التصنيف') }}</div>
         </div>
     </div>
 
@@ -190,7 +190,7 @@
             </label>
         @empty
             <div class="a2-alert a2-alert-warning">
-                لا توجد خدمات مضافة في Platform Services حتى الآن.
+                {{ __('لا توجد خدمات مضافة في Platform Services حتى الآن.') }}
             </div>
         @endforelse
     </div>
@@ -228,13 +228,13 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-section-title a2-mb-0">الأقسام الفرعية المرتبطة</div>
+                <div class="a2-section-title a2-mb-0">{{ __('الأقسام الفرعية المرتبطة') }}</div>
             </div>
 
             <div class="a2-page-actions">
                 <a href="{{ route('admin.category-children.index', ['parent_id' => $category->id]) }}"
                    class="a2-btn a2-btn-ghost a2-btn-sm">
-                    إدارة الأقسام الفرعية
+                    {{ __('إدارة الأقسام الفرعية') }}
                 </a>
             </div>
         </div>
@@ -261,7 +261,7 @@
             </div>
         @else
             <div class="a2-alert a2-alert-warning a2-mt-12">
-                لا توجد أقسام فرعية مرتبطة بهذا القسم الرئيسي حتى الآن.
+                {{ __('لا توجد أقسام فرعية مرتبطة بهذا القسم الرئيسي حتى الآن.') }}
             </div>
         @endif
     </div>
@@ -269,7 +269,7 @@
 
 <div class="a2-page-actions" style="justify-content:flex-end;">
     @if(!empty($backUrl ?? null))
-        <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     @endif
 
     <button type="submit" class="a2-btn a2-btn-primary">

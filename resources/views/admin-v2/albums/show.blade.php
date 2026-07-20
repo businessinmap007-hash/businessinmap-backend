@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'عرض ألبوم')
+@section('title', __('عرض ألبوم'))
 @section('body_class', 'admin-v2-albums-show')
 
 @section('content')
@@ -39,15 +39,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">ألبوم #{{ $a->id }}</h1>
+            <h1 class="a2-page-title">{{ __('ألبوم #') }}{{ $a->id }}</h1>
             <div class="a2-page-subtitle a2-clip" title="{{ $title }}">
                 {{ $title }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">رجوع</a>
-            <a class="a2-btn a2-btn-primary" href="{{ route('admin.albums.edit', $a->id) }}">تعديل</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">{{ __('رجوع') }}</a>
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.albums.edit', $a->id) }}">{{ __('تعديل') }}</a>
         </div>
     </div>
 
@@ -58,7 +58,7 @@
             <div>
                 <div class="a2-card a2-card-flat">
                     <div class="a2-header">
-                        <h3 class="a2-section-title">الغلاف</h3>
+                        <h3 class="a2-section-title">{{ __('الغلاف') }}</h3>
                     </div>
 
                     <div class="a2-album-cover-body">
@@ -72,7 +72,7 @@
                             </div>
                         @else
                             <div class="a2-album-cover-placeholder a2-muted">
-                                لا يوجد غلاف
+                                {{ __('لا يوجد غلاف') }}
                             </div>
                         @endif
                     </div>
@@ -80,8 +80,8 @@
 
                 <div class="a2-card a2-card-flat a2-mt-12">
                     <div class="a2-header">
-                        <h3 class="a2-section-title">صور الألبوم</h3>
-                        <div class="a2-hint">{{ $imgs->count() }} صورة</div>
+                        <h3 class="a2-section-title">{{ __('صور الألبوم') }}</h3>
+                        <div class="a2-hint">{{ $imgs->count() }} {{ __('صورة') }}</div>
                     </div>
 
                     <div class="a2-album-gallery-body">
@@ -111,7 +111,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <div class="a2-muted">لا توجد صور إضافية داخل الألبوم.</div>
+                            <div class="a2-muted">{{ __('لا توجد صور إضافية داخل الألبوم.') }}</div>
                         @endif
                     </div>
                 </div>
@@ -120,7 +120,7 @@
             {{-- RIGHT: Details --}}
             <div class="a2-card a2-card-flat">
                 <div class="a2-header">
-                    <h3 class="a2-section-title">البيانات</h3>
+                    <h3 class="a2-section-title">{{ __('البيانات') }}</h3>
                 </div>
 
                 <div class="a2-album-details-body">

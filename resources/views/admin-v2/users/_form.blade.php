@@ -27,7 +27,7 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">البيانات الأساسية</div>
+            <div class="a2-section-title a2-mb-0">{{ __('البيانات الأساسية') }}</div>
         </div>
     </div>
 
@@ -114,7 +114,7 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-section-title a2-mb-0">تصنيف الحساب التجاري</div>
+                <div class="a2-section-title a2-mb-0">{{ __('تصنيف الحساب التجاري') }}</div>
             </div>
         </div>
 
@@ -122,7 +122,7 @@
             <div class="a2-form-group">
                 <label class="a2-label">Category</label>
                 <select class="a2-select" name="category_id" id="business_category_id">
-                    <option value="">-- اختر التصنيف الرئيسي --</option>
+                    <option value="">{{ __('-- اختر التصنيف الرئيسي --') }}</option>
                     @foreach(($categories ?? []) as $category)
                         <option value="{{ $category->id }}" @selected($currentCategoryId === (int) $category->id)>
                             {{ $category->name_ar ?: ($category->name_en ?: ('#' . $category->id)) }}
@@ -137,7 +137,7 @@
             <div class="a2-form-group">
                 <label class="a2-label">Category Child</label>
                 <select class="a2-select" name="category_child_id" id="business_category_child_id" data-no-ts="1">
-                    <option value="">-- اختر القسم الفرعي --</option>
+                    <option value="">{{ __('-- اختر القسم الفرعي --') }}</option>
                     @foreach(($children ?? []) as $child)
                         <option value="{{ $child->id }}" @selected($currentChildId === (int) $child->id)>
                             {{ $child->name_ar ?: ($child->name_en ?: ('#' . $child->id)) }}
@@ -179,7 +179,7 @@
 
                         @if(collect($ungroupedOptions ?? [])->count())
                             <div class="a2-card a2-card--soft a2-card--tight">
-                                <div style="font-weight:900;margin-bottom:10px;">خيارات بدون مجموعة</div>
+                                <div style="font-weight:900;margin-bottom:10px;">{{ __('خيارات بدون مجموعة') }}</div>
 
                                 <div class="a2-form-grid-3">
                                     @foreach(($ungroupedOptions ?? []) as $opt)
@@ -198,7 +198,7 @@
                         @endif
                     </div>
                 @else
-                    <div class="a2-muted">اختر القسم الفرعي لعرض الخيارات المتاحة.</div>
+                    <div class="a2-muted">{{ __('اختر القسم الفرعي لعرض الخيارات المتاحة.') }}</div>
                 @endif
             </div>
             @error('options')
@@ -229,7 +229,7 @@
                         </div>
                     </div>
                 @else
-                    <div class="a2-muted">اختر القسم الفرعي لعرض الخدمات المتاحة.</div>
+                    <div class="a2-muted">{{ __('اختر القسم الفرعي لعرض الخدمات المتاحة.') }}</div>
                 @endif
             </div>
             @error('service_ids')
@@ -245,7 +245,7 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">صور الحساب</div>
+            <div class="a2-section-title a2-mb-0">{{ __('صور الحساب') }}</div>
         </div>
     </div>
 
@@ -259,12 +259,12 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">المعاينة</label>
+            <label class="a2-label">{{ __('المعاينة') }}</label>
             <div class="a2-card a2-card--soft" id="logoPreviewBox" style="min-height:180px;display:flex;align-items:center;justify-content:center;">
                 @if($logoPath)
                     <x-admin-v2.image :path="$logoPath" size="140" radius="16px" />
                 @else
-                    <span class="a2-section-subtitle a2-mb-0">اختر صورة</span>
+                    <span class="a2-section-subtitle a2-mb-0">{{ __('اختر صورة') }}</span>
                 @endif
             </div>
         </div>
@@ -299,7 +299,7 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">معلومات النظام</div>
+            <div class="a2-section-title a2-mb-0">{{ __('معلومات النظام') }}</div>
         </div>
     </div>
 
@@ -339,7 +339,7 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">تغيير كلمة المرور</div>
+            <div class="a2-section-title a2-mb-0">{{ __('تغيير كلمة المرور') }}</div>
         </div>
     </div>
 
@@ -361,7 +361,7 @@
 
 <div class="a2-page-actions" style="justify-content:flex-end;">
     <button class="a2-btn a2-btn-primary" type="submit">{{ $submitLabel ?? 'حفظ' }}</button>
-    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.show', $id) }}">إلغاء</a>
+    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.show', $id) }}">{{ __('إلغاء') }}</a>
 </div>
 
 <script>

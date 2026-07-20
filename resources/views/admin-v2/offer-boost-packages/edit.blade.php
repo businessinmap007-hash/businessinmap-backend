@@ -7,11 +7,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل باقة تمييز</h1>
+            <h1 class="a2-page-title">{{ __('تعديل باقة تمييز') }}</h1>
             <div class="a2-page-subtitle">#{{ $package->id }} — {{ $package->displayName() }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.offer-boost-packages.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.offer-boost-packages.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

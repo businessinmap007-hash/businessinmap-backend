@@ -13,12 +13,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">عناصر المنيو</h1>
-            <div class="a2-page-subtitle">إدارة قوائم الطعام الخاصة بكل بزنس</div>
+            <h1 class="a2-page-title">{{ __('عناصر المنيو') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إدارة قوائم الطعام الخاصة بكل بزنس') }}</div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ route('admin.menu-items.create') }}" class="a2-btn a2-btn-primary">+ إضافة عنصر</a>
+            <a href="{{ route('admin.menu-items.create') }}" class="a2-btn a2-btn-primary">{{ __('+ إضافة عنصر') }}</a>
         </div>
     </div>
 
@@ -32,10 +32,10 @@
 
     <div class="a2-card">
         <form method="GET" action="{{ route('admin.menu-items.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="text" name="q" value="{{ $qVal }}" placeholder="بحث بالاسم">
+            <input class="a2-input a2-filter-search" type="text" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
 
             <select class="a2-select a2-filter-md" name="business_id">
-                <option value="0">كل البزنسات</option>
+                <option value="0">{{ __('كل البزنسات') }}</option>
                 @foreach(($businesses ?? []) as $b)
                     <option value="{{ $b->id }}" @selected($businessIdVal === (int) $b->id)>
                         {{ $b->name ?: ('#' . $b->id) }}
@@ -44,14 +44,14 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="is_active">
-                <option value="" @selected($isActiveVal === '')>الكل</option>
+                <option value="" @selected($isActiveVal === '')>{{ __('الكل') }}</option>
                 <option value="1" @selected($isActiveVal === '1')>Active</option>
                 <option value="0" @selected($isActiveVal === '0')>Inactive</option>
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a href="{{ route('admin.menu-items.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a href="{{ route('admin.menu-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -97,7 +97,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="a2-empty-cell">لا توجد عناصر منيو</td>
+                        <td colspan="7" class="a2-empty-cell">{{ __('لا توجد عناصر منيو') }}</td>
                     </tr>
                 @endforelse
                 </tbody>

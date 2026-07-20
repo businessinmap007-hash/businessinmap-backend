@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'المستخدمون')
+@section('title', __('المستخدمون'))
 @section('body_class', 'admin-v2-users')
 
 @section('content')
@@ -48,12 +48,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">المستخدمون</h1>
-            <div class="a2-page-subtitle">إدارة حسابات admin / client / business</div>
+            <h1 class="a2-page-title">{{ __('المستخدمون') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إدارة حسابات admin / client / business') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form') }}">شحن المحفظة</a>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index') }}">الضمانات</a>
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form') }}">{{ __('شحن المحفظة') }}</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index') }}">{{ __('الضمانات') }}</a>
         </div>
     </div>
 
@@ -71,7 +71,7 @@
                 class="a2-input a2-filter-search"
                 name="q"
                 value="{{ $qVal }}"
-                placeholder="بحث بالاسم / الهاتف / البريد"
+                placeholder="{{ __('بحث بالاسم / الهاتف / البريد') }}"
             >
 
             <select class="a2-select a2-filter-sm" name="type">
@@ -81,7 +81,7 @@
             </select>
 
             <select class="a2-select a2-filter-md" name="category_id" id="filterCategory">
-                <option value="">كل التصنيفات</option>
+                <option value="">{{ __('كل التصنيفات') }}</option>
                 @foreach(($categories ?? []) as $cat)
                     <option value="{{ $cat->id }}" @selected($categoryIdVal === (int) $cat->id)>
                         {{ $cat->name_ar ?: $cat->name_en ?: ('#' . $cat->id) }}
@@ -90,7 +90,7 @@
             </select>
 
             <select class="a2-select a2-filter-md" name="category_child_id" id="filterChild">
-                <option value="">كل الأقسام الفرعية</option>
+                <option value="">{{ __('كل الأقسام الفرعية') }}</option>
                 @foreach(($children ?? []) as $child)
                     <option value="{{ $child->id }}" @selected($categoryChildIdVal === (int) $child->id)>
                         {{ $child->name_ar ?: $child->name_en ?: ('#' . $child->id) }}
@@ -144,14 +144,14 @@
             <select class="a2-select a2-filter-sm" name="per_page">
                 @foreach($perPageOptions as $n)
                     <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>
-                        {{ $n }} / صفحة
+                        {{ $n }} {{ __('/ صفحة') }}
                     </option>
                 @endforeach
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
 
@@ -160,15 +160,15 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>الصورة</th>
-                        <th>الاسم</th>
-                        <th>النوع</th>
-                        <th>التصنيف</th>
-                        <th>القسم الفرعي</th>
-                        <th>الهاتف</th>
-                        <th>الاشتراك</th>
-                        <th>التفعيل</th>
-                        <th>الإجراءات</th>
+                        <th>{{ __('الصورة') }}</th>
+                        <th>{{ __('الاسم') }}</th>
+                        <th>{{ __('النوع') }}</th>
+                        <th>{{ __('التصنيف') }}</th>
+                        <th>{{ __('القسم الفرعي') }}</th>
+                        <th>{{ __('الهاتف') }}</th>
+                        <th>{{ __('الاشتراك') }}</th>
+                        <th>{{ __('التفعيل') }}</th>
+                        <th>{{ __('الإجراءات') }}</th>
                     </tr>
                 </thead>
 
@@ -220,7 +220,7 @@
 
                             <td>
                                 @if($sub && (int) ($sub->is_active ?? 0) === 1)
-                                    <span class="a2-pill a2-pill-sub-active">نشط</span>
+                                    <span class="a2-pill a2-pill-sub-active">{{ __('نشط') }}</span>
                                 @else
                                     <span class="a2-pill a2-pill-sub-none">—</span>
                                 @endif
@@ -228,43 +228,43 @@
 
                             <td>
                                 @if($row->activated_at)
-                                    <span class="a2-pill a2-pill-success">مفعل</span>
+                                    <span class="a2-pill a2-pill-success">{{ __('مفعل') }}</span>
                                 @else
-                                    <span class="a2-pill a2-pill-danger">غير مفعل</span>
+                                    <span class="a2-pill a2-pill-danger">{{ __('غير مفعل') }}</span>
                                 @endif
                             </td>
 
                             <td>
                                 <div class="a2-row-actions">
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.users.edit', $row->id) }}">
-                                        تعديل
+                                        {{ __('تعديل') }}
                                     </a>
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $row->id]) }}">
-                                        شحن
+                                        {{ __('شحن') }}
                                     </a>
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-transactions.user', $row->id) }}">
-                                        محفظة
+                                        {{ __('محفظة') }}
                                     </a>
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.guarantees.index', ['q' => $row->id]) }}">
-                                        ضمان
+                                        {{ __('ضمان') }}
                                     </a>
                                     @if(Route::has('admin.user-service-fee-consents.edit'))
                                         <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.user-service-fee-consents.edit', $row) }}">
-                                            الرسوم
+                                            {{ __('الرسوم') }}
                                         </a>
                                     @endif
 
                                     <form method="POST" action="{{ route('admin.users.destroy', $row->id) }}" onsubmit="return confirm('حذف المستخدم؟');">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="a2-btn a2-btn-ghost a2-btn-sm" type="submit">حذف</button>
+                                        <button class="a2-btn a2-btn-ghost a2-btn-sm" type="submit">{{ __('حذف') }}</button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="a2-empty-cell">لا يوجد بيانات</td>
+                            <td colspan="10" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

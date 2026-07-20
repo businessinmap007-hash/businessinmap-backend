@@ -8,14 +8,14 @@
   <div class="a2-card">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">طاولات المطاعم</h2>
-        <div class="a2-hint">رموز QR للطاولات (BIM-13.3) — عرض على مستوى المنصّة</div>
+        <h2 class="a2-title">{{ __('طاولات المطاعم') }}</h2>
+        <div class="a2-hint">{{ __('رموز QR للطاولات (BIM-13.3) — عرض على مستوى المنصّة') }}</div>
       </div>
     </div>
 
     <form method="GET" class="a2-actionsbar" style="margin-bottom:12px;">
-      <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="بحث بالاسم أو المطعم">
-      <button class="a2-btn a2-btn-primary" type="submit">بحث</button>
+      <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم أو المطعم') }}">
+      <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
     </form>
 
     <div class="a2-tablewrap">
@@ -23,10 +23,10 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>المطعم</th>
-            <th>الطاولة</th>
-            <th>الطلبات</th>
-            <th>الحالة</th>
+            <th>{{ __('المطعم') }}</th>
+            <th>{{ __('الطاولة') }}</th>
+            <th>{{ __('الطلبات') }}</th>
+            <th>{{ __('الحالة') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -38,14 +38,14 @@
               <td>{{ $t->orders_count }}</td>
               <td>
                 @if($t->is_active)
-                  <span class="a2-badge a2-badge-ok">مفعّلة</span>
+                  <span class="a2-badge a2-badge-ok">{{ __('مفعّلة') }}</span>
                 @else
-                  <span class="a2-badge a2-badge-muted">موقوفة</span>
+                  <span class="a2-badge a2-badge-muted">{{ __('موقوفة') }}</span>
                 @endif
               </td>
             </tr>
           @empty
-            <tr><td colspan="5" class="a2-empty">لا توجد طاولات.</td></tr>
+            <tr><td colspan="5" class="a2-empty">{{ __('لا توجد طاولات.') }}</td></tr>
           @endforelse
         </tbody>
       </table>

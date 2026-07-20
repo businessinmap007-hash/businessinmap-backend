@@ -37,11 +37,11 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">عرض المنشور</h2>
+      <h2 class="a2-title">{{ __('عرض المنشور') }}</h2>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="a2-btn a2-btn-primary" href="{{ route('admin.posts.edit', ['post'=>$post->id] + $qsKeep) }}">تعديل</a>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index', $qsKeep) }}">رجوع</a>
+        <a class="a2-btn a2-btn-primary" href="{{ route('admin.posts.edit', ['post'=>$post->id] + $qsKeep) }}">{{ __('تعديل') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index', $qsKeep) }}">{{ __('رجوع') }}</a>
       </div>
     </div>
 
@@ -73,7 +73,7 @@
 
               <a href="{{ asset(ltrim($path,'/')) }}"
                  target="_blank"
-                 title="فتح الصورة"
+                 title="{{ __('فتح الصورة') }}"
                  style="display:block;border-radius:14px;overflow:hidden;border:1px solid var(--a2-border);">
                 <x-admin-v2.image :path="$path" size="90" radius="14px" />
               </a>
@@ -87,14 +87,14 @@
         <div style="display:grid;gap:10px;">
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">الحالة</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('الحالة') }}</div>
             <span class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }}">
               {{ $isActive ? 'Active' : 'Inactive' }}
             </span>
           </div>
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">تاريخ الانتهاء</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('تاريخ الانتهاء') }}</div>
             <div class="a2-fw-900" dir="ltr">
               {{ $post->expire_at ? \Carbon\Carbon::parse($post->expire_at)->format('Y-m-d') : '—' }}
             </div>
@@ -112,7 +112,7 @@
           <hr style="border:0;border-top:1px solid var(--a2-border);margin:10px 0;">
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-            <div class="a2-hint" style="font-weight:900;">الحساب</div>
+            <div class="a2-hint" style="font-weight:900;">{{ __('الحساب') }}</div>
             <div class="a2-fw-900">{{ $user?->name ?: '—' }}</div>
           </div>
 
@@ -141,7 +141,7 @@
           </div>
 
           <div>
-            <label class="a2-hint" style="font-weight:900;">المحتوى</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('المحتوى') }}</label>
             <div class="a2-input" style="width:100%;height:auto;padding:10px;line-height:1.9;white-space:pre-wrap;">
               {{ $post->body ?: '—' }}
             </div>

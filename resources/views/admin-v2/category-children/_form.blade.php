@@ -29,14 +29,14 @@
 <div class="a2-card a2-card--section a2-mb-16">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">بيانات القسم الفرعي</div>
-            <div class="a2-section-subtitle">الاسم والترتيب</div>
+            <div class="a2-section-title a2-mb-0">{{ __('بيانات القسم الفرعي') }}</div>
+            <div class="a2-section-subtitle">{{ __('الاسم والترتيب') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid a2-mt-12">
         <div>
-            <label class="a2-label">الاسم عربي</label>
+            <label class="a2-label">{{ __('الاسم عربي') }}</label>
             <input type="text"
                    name="name_ar"
                    class="a2-input"
@@ -48,7 +48,7 @@
         </div>
 
         <div>
-            <label class="a2-label">الاسم إنجليزي</label>
+            <label class="a2-label">{{ __('الاسم إنجليزي') }}</label>
             <input type="text"
                    name="name_en"
                    class="a2-input"
@@ -59,7 +59,7 @@
         </div>
 
         <div>
-            <label class="a2-label">الترتيب</label>
+            <label class="a2-label">{{ __('الترتيب') }}</label>
             <input type="number"
                    name="reorder"
                    class="a2-input"
@@ -76,10 +76,10 @@
    SELECTED PREVIEW
 ========================= --}}
 <div class="a2-card a2-card--soft a2-mb-16">
-    <div class="a2-section-title">المحدد حاليًا</div>
-    <div class="a2-section-subtitle">سيتم حفظ هذه العناصر بعد الضغط على حفظ</div>
+    <div class="a2-section-title">{{ __('المحدد حاليًا') }}</div>
+    <div class="a2-section-subtitle">{{ __('سيتم حفظ هذه العناصر بعد الضغط على حفظ') }}</div>
 
-    <div class="a2-section-title a2-mt-12">الأقسام الرئيسية</div>
+    <div class="a2-section-title a2-mt-12">{{ __('الأقسام الرئيسية') }}</div>
     <div id="selectedParentsPreview" class="a2-option-chip-grid a2-mt-12">
         @forelse($selectedParents as $p)
             <div class="a2-option-chip-card js-parent-chip" data-parent-id="{{ $p->id }}">
@@ -92,7 +92,7 @@
             </div>
         @empty
             <div class="a2-alert a2-alert-warning" id="selectedParentsEmptyInitial">
-                لا يوجد تحديد حالي
+                {{ __('لا يوجد تحديد حالي') }}
             </div>
         @endforelse
     </div>
@@ -100,12 +100,12 @@
     <div id="selectedParentsEmptyDynamic"
          class="a2-alert a2-alert-warning a2-mt-12"
          style="display:none;">
-        لا يوجد عناصر محددة
+        {{ __('لا يوجد عناصر محددة') }}
     </div>
 
     <div class="a2-divider"></div>
 
-    <div class="a2-section-title a2-mt-12">الخدمات</div>
+    <div class="a2-section-title a2-mt-12">{{ __('الخدمات') }}</div>
     <div id="selectedServicesPreview" class="a2-option-chip-grid a2-mt-12">
         @forelse($selectedServices as $s)
             <div class="a2-option-chip-card js-service-chip" data-service-id="{{ $s->id }}">
@@ -118,7 +118,7 @@
             </div>
         @empty
             <div class="a2-alert a2-alert-warning" id="selectedServicesEmptyInitial">
-                لا يوجد خدمات محددة
+                {{ __('لا يوجد خدمات محددة') }}
             </div>
         @endforelse
     </div>
@@ -126,7 +126,7 @@
     <div id="selectedServicesEmptyDynamic"
          class="a2-alert a2-alert-warning a2-mt-12"
          style="display:none;">
-        لا يوجد خدمات محددة
+        {{ __('لا يوجد خدمات محددة') }}
     </div>
 </div>
 
@@ -136,9 +136,9 @@
 <div class="a2-card a2-mb-16">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">ربط بالأقسام الرئيسية</div>
+            <div class="a2-section-title a2-mb-0">{{ __('ربط بالأقسام الرئيسية') }}</div>
             <div class="a2-section-subtitle">
-                اختر أو ألغِ التحديد ثم احفظ
+                {{ __('اختر أو ألغِ التحديد ثم احفظ') }}
             </div>
         </div>
     </div>
@@ -147,15 +147,15 @@
         <input type="text"
                id="parentSearchInput"
                class="a2-input a2-filter-search"
-               placeholder="بحث في الأقسام الرئيسية...">
+               placeholder="{{ __('بحث في الأقسام الرئيسية...') }}">
 
         <div class="a2-filter-actions">
             <button type="button" class="a2-btn a2-btn-ghost" id="selectVisibleParentsBtn">
-                تحديد الظاهر
+                {{ __('تحديد الظاهر') }}
             </button>
 
             <button type="button" class="a2-btn a2-btn-ghost" id="clearVisibleParentsBtn">
-                إلغاء الظاهر
+                {{ __('إلغاء الظاهر') }}
             </button>
         </div>
     </div>
@@ -189,9 +189,9 @@
 <div class="a2-card">
     <div class="a2-card-head">
         <div>
-            <div class="a2-section-title a2-mb-0">الخدمات المتاحة لهذا القسم الفرعي</div>
+            <div class="a2-section-title a2-mb-0">{{ __('الخدمات المتاحة لهذا القسم الفرعي') }}</div>
             <div class="a2-section-subtitle">
-                اختر خدمة واحدة أو أكثر ثم احفظ
+                {{ __('اختر خدمة واحدة أو أكثر ثم احفظ') }}
             </div>
         </div>
     </div>
@@ -200,15 +200,15 @@
         <input type="text"
                id="serviceSearchInput"
                class="a2-input a2-filter-search"
-               placeholder="بحث في الخدمات...">
+               placeholder="{{ __('بحث في الخدمات...') }}">
 
         <div class="a2-filter-actions">
             <button type="button" class="a2-btn a2-btn-ghost" id="selectVisibleServicesBtn">
-                تحديد الظاهر
+                {{ __('تحديد الظاهر') }}
             </button>
 
             <button type="button" class="a2-btn a2-btn-ghost" id="clearVisibleServicesBtn">
-                إلغاء الظاهر
+                {{ __('إلغاء الظاهر') }}
             </button>
         </div>
     </div>
@@ -234,7 +234,7 @@
             </label>
         @empty
             <div class="a2-alert a2-alert-warning">
-                لا توجد خدمات متاحة حاليًا.
+                {{ __('لا توجد خدمات متاحة حاليًا.') }}
             </div>
         @endforelse
     </div>
@@ -245,7 +245,7 @@
 ========================= --}}
 <div class="a2-page-actions a2-mt-16" style="justify-content:flex-end;">
     <button type="submit" class="a2-btn a2-btn-primary">
-        حفظ
+        {{ __('حفظ') }}
     </button>
 </div>
 

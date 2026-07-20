@@ -111,7 +111,7 @@
             </div>
 
             <div class="a2-help-block">
-                الوقت بنظام 24 ساعة. مثال: 00:00 تعني بداية اليوم.
+                {{ __('الوقت بنظام 24 ساعة. مثال: 00:00 تعني بداية اليوم.') }}
             </div>
 
             @error($startName)
@@ -150,7 +150,7 @@
             </div>
 
             <div class="a2-help-block">
-                اختر النهاية بنفس نظام 24 ساعة.
+                {{ __('اختر النهاية بنفس نظام 24 ساعة.') }}
             </div>
 
             @error($endName)
@@ -158,7 +158,7 @@
             @enderror
         </div>
         <div class="a2-alert a2-alert-info a2-mt-12" id="{{ $uid }}_duration_box">
-    المدة: —
+    {{ __('المدة: —') }}
 </div>
     </div>
 </div>

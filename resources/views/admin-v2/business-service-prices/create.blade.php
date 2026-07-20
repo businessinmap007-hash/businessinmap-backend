@@ -11,12 +11,12 @@
 <div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة سعر خدمة</h1>
-            <div class="a2-page-subtitle">إضافة سعر/خصم/ديبوزت عام للخدمة حسب نوع العنصر عند البزنس.</div>
+            <h1 class="a2-page-title">{{ __('إضافة سعر خدمة') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إضافة سعر/خصم/ديبوزت عام للخدمة حسب نوع العنصر عند البزنس.') }}</div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

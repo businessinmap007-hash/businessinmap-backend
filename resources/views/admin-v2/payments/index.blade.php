@@ -14,11 +14,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">المدفوعات</h1>
-            <div class="a2-page-subtitle">متابعة عمليات الدفع والشحن والاشتراكات وتأكيد العمليات المدفوعة.</div>
+            <h1 class="a2-page-title">{{ __('المدفوعات') }}</h1>
+            <div class="a2-page-subtitle">{{ __('متابعة عمليات الدفع والشحن والاشتراكات وتأكيد العمليات المدفوعة.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-primary">شحن محفظة</a>
+            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-primary">{{ __('شحن محفظة') }}</a>
             <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">Wallet Transactions</a>
         </div>
     </div>
@@ -30,12 +30,12 @@
                 type="search"
                 name="q"
                 value="{{ $q ?? '' }}"
-                placeholder="بحث برقم الدفع / المستخدم / رقم العملية / نوع الدفع / نوع العملية"
+                placeholder="{{ __('بحث برقم الدفع / المستخدم / رقم العملية / نوع الدفع / نوع العملية') }}"
             >
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">بحث</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.payments.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.payments.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -46,16 +46,16 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>المستخدم</th>
-                        <th>السعر</th>
-                        <th>نوع الدفع</th>
-                        <th>رقم العملية</th>
-                        <th>نوع العملية</th>
+                        <th>{{ __('المستخدم') }}</th>
+                        <th>{{ __('السعر') }}</th>
+                        <th>{{ __('نوع الدفع') }}</th>
+                        <th>{{ __('رقم العملية') }}</th>
+                        <th>{{ __('نوع العملية') }}</th>
                         <th>Operation ID</th>
-                        <th>الحالة</th>
+                        <th>{{ __('الحالة') }}</th>
                         <th>Paid At</th>
                         <th>Created</th>
-                        <th>إجراءات</th>
+                        <th>{{ __('إجراءات') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,23 +85,23 @@
                             <td>
                                 <div class="a2-actions">
                                     @if($user)
-                                        <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">المستخدم</a>
+                                        <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('المستخدم') }}</a>
                                     @endif
 
                                     @if($isPaid)
                                         <form method="POST" action="{{ route('admin.payments.confirm', $payment->id) }}">
                                             @csrf
-                                            <button class="a2-btn a2-btn-sm a2-btn-success" type="submit" onclick="return confirm('تأكيد الدفع وتنفيذ أثر العملية؟')">تأكيد</button>
+                                            <button class="a2-btn a2-btn-sm a2-btn-success" type="submit" onclick="return confirm('تأكيد الدفع وتنفيذ أثر العملية؟')">{{ __('تأكيد') }}</button>
                                         </form>
                                     @else
-                                        <span class="a2-pill a2-pill-gray">بانتظار الدفع</span>
+                                        <span class="a2-pill a2-pill-gray">{{ __('بانتظار الدفع') }}</span>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="a2-empty-cell">لا توجد مدفوعات مطابقة.</td>
+                            <td colspan="11" class="a2-empty-cell">{{ __('لا توجد مدفوعات مطابقة.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

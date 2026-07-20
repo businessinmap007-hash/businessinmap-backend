@@ -7,8 +7,8 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل Option</h1>
-            <div class="a2-page-subtitle">تعديل بيانات الخيار</div>
+            <h1 class="a2-page-title">{{ __('تعديل Option') }}</h1>
+            <div class="a2-page-subtitle">{{ __('تعديل بيانات الخيار') }}</div>
         </div>
     </div>
 

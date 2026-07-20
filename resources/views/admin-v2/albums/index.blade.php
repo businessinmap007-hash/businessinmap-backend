@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'الألبومات')
+@section('title', __('الألبومات'))
 @section('body_class', 'admin-v2-albums')
 
 @section('content')
@@ -27,13 +27,13 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الألبومات</h1>
-            <div class="a2-page-subtitle">إدارة الألبومات (عنوان + وصف + غلاف)</div>
+            <h1 class="a2-page-title">{{ __('الألبومات') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إدارة الألبومات (عنوان + وصف + غلاف)') }}</div>
         </div>
 
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.albums.create') }}">
-                إضافة ألبوم
+                {{ __('إضافة ألبوم') }}
             </a>
         </div>
     </div>
@@ -44,11 +44,11 @@
                 class="a2-input a2-filter-search"
                 name="q"
                 value="{{ $qVal }}"
-                placeholder="بحث: ID / عنوان / وصف / اسم المستخدم / email / phone"
+                placeholder="{{ __('بحث: ID / عنوان / وصف / اسم المستخدم / email / phone') }}"
             >
 
             <select class="a2-select a2-filter-md" name="category_id">
-                <option value="">كل الأقسام الرئيسية</option>
+                <option value="">{{ __('كل الأقسام الرئيسية') }}</option>
                 @foreach(($categoriesForFilter ?? []) as $c)
                     @php
                         $nm = (string) ($c->name_ar ?? '');
@@ -73,14 +73,14 @@
             <select class="a2-select a2-filter-sm" name="per_page">
                 @foreach($perPageOptions as $n)
                     <option value="{{ $n }}" @selected((int) $perPageVal === (int) $n)>
-                        {{ $n }} / صفحة
+                        {{ $n }} {{ __('/ صفحة') }}
                     </option>
                 @endforeach
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
 
@@ -161,14 +161,14 @@
                             <td>
                                 <div class="a2-actions">
                                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.albums.edit', $row->id) }}">
-                                        تعديل
+                                        {{ __('تعديل') }}
                                     </a>
 
                                     <form method="POST" action="{{ route('admin.albums.destroy', $row->id) }}" onsubmit="return confirm('حذف الألبوم؟');">
                                         @csrf
                                         @method('DELETE')
                                         <button class="a2-btn a2-btn-ghost a2-btn-sm" type="submit">
-                                            حذف
+                                            {{ __('حذف') }}
                                         </button>
                                     </form>
                                 </div>
@@ -176,7 +176,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="a2-empty-cell">لا يوجد بيانات</td>
+                            <td colspan="6" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

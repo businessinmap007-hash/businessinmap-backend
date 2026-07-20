@@ -6,38 +6,36 @@
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
-    <div class="a2-section-title">ملاحظة مهمة</div>
+    <div class="a2-section-title">{{ __('ملاحظة مهمة') }}</div>
     <div class="a2-section-subtitle">
-        هذه الصفحة تحدد سعر الخدمة الذي يضعه البزنس.
-        رسوم المنصة على العميل أو البزنس لا تُدار هنا، بل من شاشة
-        <span dir="ltr">Service Fees</span>.
-        أنواع العناصر تأتي من
+        {{ __('هذه الصفحة تحدد سعر الخدمة الذي يضعه البزنس. رسوم المنصة على العميل أو البزنس لا تُدار هنا، بل من شاشة') }}
+        <span dir="ltr">Service Fees</span>{{ __('. أنواع العناصر تأتي من') }}
         <span dir="ltr">Platform Service Item Types</span>
-        ثم يتم تضييقها حسب
+        {{ __('ثم يتم تضييقها حسب') }}
         <span dir="ltr">Service Catalog Matrix</span>
-        للقسم الفرعي.
+        {{ __('للقسم الفرعي.') }}
     </div>
 </div>
 
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">البيانات الأساسية</div>
-            <div class="a2-card-sub">البزنس والقسم الفرعي والخدمة ونوع العنصر</div>
+            <div class="a2-card-title">{{ __('البيانات الأساسية') }}</div>
+            <div class="a2-card-sub">{{ __('البزنس والقسم الفرعي والخدمة ونوع العنصر') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="business_id">البزنس <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="business_id">{{ __('البزنس') }} <span class="a2-danger">*</span></label>
             <select
                 class="a2-select js-business-select"
                 id="business_id"
                 name="business_id"
                 data-remote-url="{{ route('admin.business_service_prices.business-lookup', [], false) }}"
-                data-placeholder="اكتب اسم البزنس"
+                data-placeholder="{{ __('اكتب اسم البزنس') }}"
             >
-                <option value="">اختر البزنس</option>
+                <option value="">{{ __('اختر البزنس') }}</option>
                 @if($selectedBusiness ?? null)
                     <option
                         value="{{ $selectedBusiness->id }}"
@@ -50,7 +48,7 @@
             </select>
 
             <div class="a2-hint a2-mt-8">
-                يجب أن يكون البزنس مرتبطًا بقسم فرعي.
+                {{ __('يجب أن يكون البزنس مرتبطًا بقسم فرعي.') }}
             </div>
 
             @error('business_id')
@@ -59,9 +57,9 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="child_id">القسم الفرعي <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="child_id">{{ __('القسم الفرعي') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-child-select" id="child_id" name="child_id">
-                <option value="">اختر القسم الفرعي</option>
+                <option value="">{{ __('اختر القسم الفرعي') }}</option>
                 @foreach(($children ?? []) as $child)
                     <option
                         value="{{ $child->id }}"
@@ -73,7 +71,7 @@
             </select>
 
             <div class="a2-hint a2-mt-8">
-                سيتم رفض الحفظ إذا كان القسم الفرعي لا يطابق القسم المرتبط بالبزنس.
+                {{ __('سيتم رفض الحفظ إذا كان القسم الفرعي لا يطابق القسم المرتبط بالبزنس.') }}
             </div>
 
             @error('child_id')
@@ -82,9 +80,9 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="service_id">الخدمة <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="service_id">{{ __('الخدمة') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-service-select" id="service_id" name="service_id">
-                <option value="">اختر الخدمة</option>
+                <option value="">{{ __('اختر الخدمة') }}</option>
                 @foreach(($services ?? []) as $service)
                     <option
                         value="{{ $service->id }}"
@@ -98,7 +96,7 @@
             </select>
 
             <div class="a2-hint a2-mt-8">
-                يجب أن تكون الخدمة مربوطة بهذا القسم الفرعي من Service Catalog Matrix.
+                {{ __('يجب أن تكون الخدمة مربوطة بهذا القسم الفرعي من Service Catalog Matrix.') }}
             </div>
 
             @error('service_id')
@@ -107,18 +105,18 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="bookable_item_type">نوع العنصر <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="bookable_item_type">{{ __('نوع العنصر') }} <span class="a2-danger">*</span></label>
             <select
                 class="a2-select js-bookable-type-select"
                 id="bookable_item_type"
                 name="bookable_item_type"
                 data-current-value="{{ $currentItemType }}"
             >
-                <option value="">اختر نوع العنصر</option>
+                <option value="">{{ __('اختر نوع العنصر') }}</option>
             </select>
 
             <div class="a2-hint a2-mt-8 js-bookable-type-hint">
-                اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا القسم الفرعي.
+                {{ __('اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا القسم الفرعي.') }}
             </div>
 
             @error('bookable_item_type')
@@ -131,14 +129,14 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">السعر والحالة</div>
-            <div class="a2-card-sub">السعر الأساسي والتفعيل</div>
+            <div class="a2-card-title">{{ __('السعر والحالة') }}</div>
+            <div class="a2-card-sub">{{ __('السعر الأساسي والتفعيل') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">السعر <span class="a2-danger">*</span></label>
+            <label class="a2-label">{{ __('السعر') }} <span class="a2-danger">*</span></label>
             <input
                 class="a2-input"
                 name="price"
@@ -153,7 +151,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">العملة</label>
+            <label class="a2-label">{{ __('العملة') }}</label>
             <input
                 class="a2-input"
                 name="currency"
@@ -170,7 +168,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
 
             <label class="a2-check" style="margin-top:10px;">
                 <input
@@ -179,7 +177,7 @@
                     value="1"
                     @checked((bool) old('is_active', (int) ($row->is_active ?? 1)))
                 >
-                <span>السعر مفعل</span>
+                <span>{{ __('السعر مفعل') }}</span>
             </label>
 
             @error('is_active')
@@ -192,8 +190,8 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الخصم والديبوزت</div>
-            <div class="a2-card-sub">الديبوزت ضمان/حجز فقط. إلغاءه لا يلغي رسوم استخدام الخدمة لصالح التطبيق.</div>
+            <div class="a2-card-title">{{ __('الخصم والديبوزت') }}</div>
+            <div class="a2-card-sub">{{ __('الديبوزت ضمان/حجز فقط. إلغاءه لا يلغي رسوم استخدام الخدمة لصالح التطبيق.') }}</div>
         </div>
     </div>
 
@@ -206,13 +204,13 @@
                 id="discount_enabled"
                 @checked((bool) old('discount_enabled', (int) ($row->discount_enabled ?? 0)))
             >
-            <span>تفعيل الخصم</span>
+            <span>{{ __('تفعيل الخصم') }}</span>
         </label>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">نسبة الخصم %</label>
+            <label class="a2-label">{{ __('نسبة الخصم %') }}</label>
             <input
                 class="a2-input"
                 name="discount_percent"
@@ -231,9 +229,9 @@
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
     @if(!empty($backUrl ?? null))
-        <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     @else
-        <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     @endif
 
     <button type="submit" class="a2-btn a2-btn-primary">

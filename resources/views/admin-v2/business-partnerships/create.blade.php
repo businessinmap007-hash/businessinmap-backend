@@ -8,11 +8,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إنشاء شراكة بزنس</h1>
-            <div class="a2-page-subtitle">ربط مالك أصل مثل فندق مع شريك مثل شركة سياحة أو وكيل.</div>
+            <h1 class="a2-page-title">{{ __('إنشاء شراكة بزنس') }}</h1>
+            <div class="a2-page-subtitle">{{ __('ربط مالك أصل مثل فندق مع شريك مثل شركة سياحة أو وكيل.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

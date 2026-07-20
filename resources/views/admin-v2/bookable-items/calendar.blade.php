@@ -9,7 +9,7 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">التقويم والتوافر</h1>
+            <h1 class="a2-page-title">{{ __('التقويم والتوافر') }}</h1>
             <div class="a2-page-subtitle">
                 {{ $bookableItem->title }} — {{ $monthStart->translatedFormat('F Y') }}
             </div>
@@ -18,35 +18,35 @@
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-ghost"
                href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id, 'month' => $prevMonth, 'year' => $prevYear]) }}">
-                الشهر السابق
+                {{ __('الشهر السابق') }}
             </a>
 
             <a class="a2-btn a2-btn-ghost"
                href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id, 'month' => now()->month, 'year' => now()->year]) }}">
-                هذا الشهر
+                {{ __('هذا الشهر') }}
             </a>
 
             <a class="a2-btn a2-btn-ghost"
                href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id, 'month' => $nextMonth, 'year' => $nextYear]) }}">
-                الشهر التالي
+                {{ __('الشهر التالي') }}
             </a>
         </div>
     </div>
 
     <div class="a2-alert a2-alert-warning a2-bookcal-alert">
-        يمكنك اختيار يوم واحد أو سحب نطاق من الأيام، ثم إضافة غلق أو قاعدة سعر على النطاق المحدد.
+        {{ __('يمكنك اختيار يوم واحد أو سحب نطاق من الأيام، ثم إضافة غلق أو قاعدة سعر على النطاق المحدد.') }}
     </div>
 
     <div class="a2-bookcal-layout">
         <div class="a2-card a2-bookcal-main-card">
             <div class="a2-bookcal-weekdays">
-                <div>السبت</div>
-                <div>الأحد</div>
-                <div>الاثنين</div>
-                <div>الثلاثاء</div>
-                <div>الأربعاء</div>
-                <div>الخميس</div>
-                <div>الجمعة</div>
+                <div>{{ __('السبت') }}</div>
+                <div>{{ __('الأحد') }}</div>
+                <div>{{ __('الاثنين') }}</div>
+                <div>{{ __('الثلاثاء') }}</div>
+                <div>{{ __('الأربعاء') }}</div>
+                <div>{{ __('الخميس') }}</div>
+                <div>{{ __('الجمعة') }}</div>
             </div>
 
             <div class="a2-bookcal-grid">
@@ -106,13 +106,13 @@
         <div class="a2-card a2-bookcal-side" id="a2BookcalSide">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-card-title">تفاصيل التحديد</div>
-                    <div class="a2-card-sub">اليوم أو النطاق المحدد حاليًا</div>
+                    <div class="a2-card-title">{{ __('تفاصيل التحديد') }}</div>
+                    <div class="a2-card-sub">{{ __('اليوم أو النطاق المحدد حاليًا') }}</div>
                 </div>
             </div>
 
             <div id="a2BookcalEmpty" class="a2-hint">
-                اختر يومًا أو اسحب على أكثر من يوم لعرض التفاصيل أو إضافة غلق/تسعير.
+                {{ __('اختر يومًا أو اسحب على أكثر من يوم لعرض التفاصيل أو إضافة غلق/تسعير.') }}
             </div>
 
             <div id="a2BookcalPanel" class="a2-hidden">
@@ -135,7 +135,7 @@
                       class="a2-bookcal-form">
                     @csrf
 
-                    <div class="a2-section-title">إضافة غلق</div>
+                    <div class="a2-section-title">{{ __('إضافة غلق') }}</div>
 
                     <input type="hidden" name="starts_at" id="a2BlockStartsAt">
                     <input type="hidden" name="ends_at" id="a2BlockEndsAt">
@@ -152,7 +152,7 @@
 
                     <div class="a2-form-group">
                         <label class="a2-label">Reason</label>
-                        <input class="a2-input" name="reason" placeholder="سبب الغلق">
+                        <input class="a2-input" name="reason" placeholder="{{ __('سبب الغلق') }}">
                     </div>
 
                     <div class="a2-form-group">
@@ -161,7 +161,7 @@
                     </div>
 
                     <button class="a2-btn a2-btn-primary a2-btn-block" type="submit">
-                        إضافة غلق للنطاق المحدد
+                        {{ __('إضافة غلق للنطاق المحدد') }}
                     </button>
                 </form>
 
@@ -172,14 +172,14 @@
                       class="a2-bookcal-form">
                     @csrf
 
-                    <div class="a2-section-title">إضافة سعر</div>
+                    <div class="a2-section-title">{{ __('إضافة سعر') }}</div>
 
                     <input type="hidden" name="start_date" id="a2PriceStartDate">
                     <input type="hidden" name="end_date" id="a2PriceEndDate">
 
                     <div class="a2-form-group">
                         <label class="a2-label">Title</label>
-                        <input class="a2-input" name="title" placeholder="اسم القاعدة">
+                        <input class="a2-input" name="title" placeholder="{{ __('اسم القاعدة') }}">
                     </div>
 
                     <div class="a2-form-group">
@@ -225,7 +225,7 @@
                     </div>
 
                     <button class="a2-btn a2-btn-dark a2-btn-block" type="submit">
-                        إضافة سعر للنطاق المحدد
+                        {{ __('إضافة سعر للنطاق المحدد') }}
                     </button>
                 </form>
             </div>

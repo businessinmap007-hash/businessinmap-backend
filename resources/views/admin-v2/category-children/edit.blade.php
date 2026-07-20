@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'تعديل القسم الفرعي')
+@section('title', __('تعديل القسم الفرعي'))
 @section('body_class', 'admin-v2-category-children-edit')
 
 @section('content')
@@ -24,12 +24,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل القسم الفرعي</h1>
+            <h1 class="a2-page-title">{{ __('تعديل القسم الفرعي') }}</h1>
             <div class="a2-page-subtitle">
-                <div><strong>القسم الفرعي:</strong> {{ $childName }}</div>
+                <div><strong>{{ __('القسم الفرعي:') }}</strong> {{ $childName }}</div>
 
                 @if($rootName)
-                    <div class="a2-mt-8"><strong>القسم الرئيسي:</strong> {{ $rootName }}</div>
+                    <div class="a2-mt-8"><strong>{{ __('القسم الرئيسي:') }}</strong> {{ $rootName }}</div>
                 @endif
             </div>
         </div>
@@ -40,7 +40,7 @@
                     href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
                     class="a2-btn a2-btn-ghost"
                 >
-                    رجوع إلى الأقسام
+                    {{ __('رجوع إلى الأقسام') }}
                 </a>
             @endif
 
@@ -48,7 +48,7 @@
                 href="{{ route('admin.category-child-options.edit', ['categoryChild' => $categoryChild->id]) }}"
                 class="a2-btn a2-btn-ghost"
             >
-                إدارة الخيارات
+                {{ __('إدارة الخيارات') }}
             </a>
         </div>
     </div>
@@ -81,7 +81,7 @@
 
         <div class="a2-form-grid">
             <div class="a2-form-group">
-                <label class="a2-label">الاسم العربي</label>
+                <label class="a2-label">{{ __('الاسم العربي') }}</label>
                 <input
                     type="text"
                     name="name_ar"
@@ -92,7 +92,7 @@
             </div>
 
             <div class="a2-form-group">
-                <label class="a2-label">الاسم الإنجليزي</label>
+                <label class="a2-label">{{ __('الاسم الإنجليزي') }}</label>
                 <input
                     type="text"
                     name="name_en"
@@ -102,7 +102,7 @@
             </div>
 
             <div class="a2-form-group">
-                <label class="a2-label">الترتيب</label>
+                <label class="a2-label">{{ __('الترتيب') }}</label>
                 <input
                     type="number"
                     min="0"
@@ -115,9 +115,9 @@
 
         <hr class="a2-divider">
 
-        <div class="a2-section-title">الأقسام الرئيسية المرتبط بها</div>
+        <div class="a2-section-title">{{ __('الأقسام الرئيسية المرتبط بها') }}</div>
         <div class="a2-section-subtitle">
-            يمكن ربط القسم الفرعي بأكثر من قسم رئيسي
+            {{ __('يمكن ربط القسم الفرعي بأكثر من قسم رئيسي') }}
         </div>
 
         <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
@@ -141,9 +141,9 @@
 
         <hr class="a2-divider">
 
-        <div class="a2-section-title">الخدمات المتاحة لهذا القسم الفرعي</div>
+        <div class="a2-section-title">{{ __('الخدمات المتاحة لهذا القسم الفرعي') }}</div>
         <div class="a2-section-subtitle">
-            اختر خدمة واحدة أو أكثر
+            {{ __('اختر خدمة واحدة أو أكثر') }}
         </div>
 
         <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
@@ -175,9 +175,9 @@
         <div class="a2-card a2-card--soft">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-section-title a2-mb-0">الخيارات المختارة لهذا القسم الفرعي</div>
+                    <div class="a2-section-title a2-mb-0">{{ __('الخيارات المختارة لهذا القسم الفرعي') }}</div>
                     <div class="a2-section-subtitle">
-                        العدد الحالي:
+                        {{ __('العدد الحالي:') }}
                         <strong>{{ $optionCount }}</strong>
                     </div>
                 </div>
@@ -187,14 +187,14 @@
                         href="{{ route('admin.category-child-options.edit', ['categoryChild' => $categoryChild->id]) }}"
                         class="a2-btn a2-btn-ghost"
                     >
-                        إدارة الخيارات
+                        {{ __('إدارة الخيارات') }}
                     </a>
                 </div>
             </div>
 
             @if(($categoryChild->options ?? collect())->isEmpty())
                 <div class="a2-empty-cell">
-                    لا توجد خيارات مختارة لهذا القسم الفرعي حتى الآن.
+                    {{ __('لا توجد خيارات مختارة لهذا القسم الفرعي حتى الآن.') }}
                 </div>
             @else
                 <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
@@ -214,7 +214,7 @@
 
         <div class="a2-page-actions a2-mt-16">
             <button type="submit" class="a2-btn a2-btn-primary">
-                حفظ التعديلات
+                {{ __('حفظ التعديلات') }}
             </button>
 
             @if($parentIdInt > 0)
@@ -222,14 +222,14 @@
                     href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
                     class="a2-btn a2-btn-ghost"
                 >
-                    رجوع
+                    {{ __('رجوع') }}
                 </a>
             @else
                 <a
                     href="{{ route('admin.category-children.index') }}"
                     class="a2-btn a2-btn-ghost"
                 >
-                    رجوع
+                    {{ __('رجوع') }}
                 </a>
             @endif
         </div>

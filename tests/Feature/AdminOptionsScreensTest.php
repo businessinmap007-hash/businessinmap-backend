@@ -44,7 +44,9 @@ class AdminOptionsScreensTest extends TestCase
         $response = $this->actingAs($this->admin())->get('/admin/category-child-options/bulk/edit');
 
         $response->assertOk();
-        $response->assertSee('تعديل خيارات الأقسام الفرعية دفعة واحدة', false);
+        // Through __(): panel labels are translated now, so a hardcoded Arabic
+        // literal only matches when the suite happens to run under 'ar'.
+        $response->assertSee(__('تعديل خيارات الأقسام الفرعية دفعة واحدة'), false);
         $response->assertDontSee('Bulk Services + Fees', false);
     }
 

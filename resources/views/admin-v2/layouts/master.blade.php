@@ -20,7 +20,7 @@
 
 <body class="admin-v2 @yield('body_class')">
 
-    <a href="#a2MainContent" class="a2-skip-link">تخطي إلى المحتوى الرئيسي</a>
+    <a href="#a2MainContent" class="a2-skip-link">{{ __('تخطي إلى المحتوى الرئيسي') }}</a>
 
     <div class="a2-shell">
 

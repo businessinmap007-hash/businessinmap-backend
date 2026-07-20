@@ -29,9 +29,9 @@
         </div>
 
         <div class="a2-auth-head a2-auth-head--luxe">
-            <h1 class="a2-auth-title a2-auth-title--luxe">تسجيل دخول الإدارة</h1>
+            <h1 class="a2-auth-title a2-auth-title--luxe">{{ __('تسجيل دخول الإدارة') }}</h1>
             <p class="a2-auth-subtitle a2-auth-subtitle--luxe">
-                الدخول إلى لوحة التحكم وإدارة النظام
+                {{ __('الدخول إلى لوحة التحكم وإدارة النظام') }}
             </p>
         </div>
 
@@ -61,7 +61,7 @@
             @csrf
 
             <div class="a2-form-group">
-                <label for="admin_login_email" class="a2-label a2-auth-label">البريد الإلكتروني</label>
+                <label for="admin_login_email" class="a2-label a2-auth-label">{{ __('البريد الإلكتروني') }}</label>
                 <input
                     id="admin_login_email"
                     type="email"
@@ -77,7 +77,7 @@
             </div>
 
             <div class="a2-form-group">
-                <label for="admin_login_password" class="a2-label a2-auth-label">كلمة المرور</label>
+                <label for="admin_login_password" class="a2-label a2-auth-label">{{ __('كلمة المرور') }}</label>
                 <input
                     id="admin_login_password"
                     type="password"
@@ -92,12 +92,12 @@
             <div class="a2-auth-row a2-auth-row--luxe">
                 <label class="a2-auth-checkbox a2-auth-checkbox--luxe">
                     <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
-                    <span>تذكرني</span>
+                    <span>{{ __('تذكرني') }}</span>
                 </label>
             </div>
 
             <button type="submit" class="a2-btn a2-btn-primary a2-btn-block a2-auth-submit a2-auth-submit--luxe">
-                دخول
+                {{ __('دخول') }}
             </button>
         </form>
 

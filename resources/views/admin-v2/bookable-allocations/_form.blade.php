@@ -13,25 +13,25 @@
 
 <div class="a2-form-grid">
     <div class="a2-card">
-        <h2 class="a2-section-title">الشراكة والوحدة</h2>
+        <h2 class="a2-section-title">{{ __('الشراكة والوحدة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Partnership</label>
             <select class="a2-select" name="partnership_id" required>
-                <option value="">اختر الشراكة</option>
+                <option value="">{{ __('اختر الشراكة') }}</option>
                 @foreach($partnerships as $partnership)
                     <option value="{{ $partnership->id }}" {{ (int) old('partnership_id', $allocation->partnership_id) === (int) $partnership->id ? 'selected' : '' }}>
                         #{{ $partnership->id }} — {{ optional($partnership->ownerBusiness)->name ?: 'Owner' }} ↔ {{ optional($partnership->partnerBusiness)->name ?: 'Partner' }}
                     </option>
                 @endforeach
             </select>
-            <div class="a2-help">الوحدة المختارة يجب أن تكون مملوكة لصاحب الأصل في الشراكة.</div>
+            <div class="a2-help">{{ __('الوحدة المختارة يجب أن تكون مملوكة لصاحب الأصل في الشراكة.') }}</div>
         </div>
 
         <div class="a2-field">
             <label class="a2-label">Bookable Item</label>
             <select class="a2-select" name="bookable_item_id" required>
-                <option value="">اختر الوحدة / الغرفة / العنصر</option>
+                <option value="">{{ __('اختر الوحدة / الغرفة / العنصر') }}</option>
                 @foreach($bookables as $bookable)
                     <option value="{{ $bookable->id }}" {{ (int) old('bookable_item_id', $allocation->bookable_item_id) === (int) $bookable->id ? 'selected' : '' }}>
                         #{{ $bookable->id }} — {{ $bookable->display_name }} — {{ optional($bookable->business)->name ?: '—' }}
@@ -43,7 +43,7 @@
         <div class="a2-field">
             <label class="a2-label">Platform Service</label>
             <select class="a2-select" name="platform_service_id">
-                <option value="">تلقائي من الوحدة</option>
+                <option value="">{{ __('تلقائي من الوحدة') }}</option>
                 @foreach($services as $service)
                     <option value="{{ $service->id }}" {{ (int) old('platform_service_id', $allocation->platform_service_id) === (int) $service->id ? 'selected' : '' }}>
                         #{{ $service->id }} — {{ $service->name_ar ?: $service->name_en ?: $service->key }}
@@ -54,7 +54,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">نوع الحصة والحالة</h2>
+        <h2 class="a2-section-title">{{ __('نوع الحصة والحالة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Allocation Type</label>
@@ -76,7 +76,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">المدة والـ Release</h2>
+        <h2 class="a2-section-title">{{ __('المدة والـ Release') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Starts At</label>
@@ -91,12 +91,12 @@
         <div class="a2-field">
             <label class="a2-label">Release Days Before</label>
             <input class="a2-input" type="number" min="0" name="release_days_before" value="{{ old('release_days_before', $allocation->release_days_before) }}">
-            <div class="a2-help">مثال: 3 يعني أن الحصة تعود قبل الوصول بثلاثة أيام.</div>
+            <div class="a2-help">{{ __('مثال: 3 يعني أن الحصة تعود قبل الوصول بثلاثة أيام.') }}</div>
         </div>
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">الكميات</h2>
+        <h2 class="a2-section-title">{{ __('الكميات') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Quantity Total</label>
@@ -120,7 +120,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">السعر والعرض التجاري</h2>
+        <h2 class="a2-section-title">{{ __('السعر والعرض التجاري') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Contract Price</label>
@@ -168,6 +168,6 @@
 </div>
 
 <div class="a2-form-actions">
-    <button type="submit" class="a2-btn a2-btn-primary">حفظ وتحديث العرض</button>
-    <a href="{{ route('admin.bookable-allocations.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ وتحديث العرض') }}</button>
+    <a href="{{ route('admin.bookable-allocations.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
 </div>

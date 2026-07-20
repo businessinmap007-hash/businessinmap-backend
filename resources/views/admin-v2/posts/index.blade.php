@@ -41,7 +41,7 @@
     <div class="a2-card">
 
         <div class="a2-header">
-            <h2 class="a2-title">المنشورات</h2>
+            <h2 class="a2-title">{{ __('المنشورات') }}</h2>
         </div>
 
         @if(session('success'))
@@ -56,7 +56,7 @@
         <form method="GET" action="{{ route('admin.posts.index') }}" class="a2-toolbar">
             <div class="a2-filters">
 
-                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="بحث بالاسم">
+                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
 
                 {{-- ✅ حذفنا type filter بالكامل --}}
 
@@ -68,25 +68,25 @@
 
                 <select class="a2-select" name="per_page">
                     @foreach(($perPageOptions ?? []) as $n)
-                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} / صفحة</option>
+                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
                     @endforeach
                 </select>
 
                 <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index') }}">تفريغ</a>
+                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index') }}">{{ __('تفريغ') }}</a>
 
                     {{-- ✅ حذفنا زر الإضافة create --}}
 
                     {{-- Bulk Toggle --}}
                     <button type="button" id="btnBulkToggle" class="a2-btn a2-btn-ghost" disabled>
-                        تفعيل / تعطيل
+                        {{ __('تفعيل / تعطيل') }}
                     </button>
 
                     {{-- Select all --}}
                     <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">
-                        تحديد الكل
+                        {{ __('تحديد الكل') }}
                     </button>
                 </div>
 
@@ -99,14 +99,14 @@
                 <tr>
                     {{-- Checkbox --}}
                     <th style="width:56px;">
-                        <input type="checkbox" id="chkAll" class="a2-checkbox" title="تحديد الكل">
+                        <input type="checkbox" id="chkAll" class="a2-checkbox" title="{{ __('تحديد الكل') }}">
                     </th>
 
                     <th style="width:90px;">
                         <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                     </th>
 
-                    <th style="width:76px;">صورة</th>
+                    <th style="width:76px;">{{ __('صورة') }}</th>
 
                     <th>{{ __('العنوان') }}</th>
 
@@ -171,7 +171,7 @@
                                 data-url="{{ route('admin.posts.toggleActive', $p, false) }}"
                                 data-state="{{ $isActive ? 1 : 0 }}"
                                 aria-pressed="{{ $isActive ? 'true' : 'false' }}"
-                                title="تغيير الحالة"
+                                title="{{ __('تغيير الحالة') }}"
                                 style="border:none;cursor:pointer"
                             >
                                 {{ $isActive ? 'Active' : 'Inactive' }}
@@ -180,7 +180,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="a2-empty-cell">لا يوجد بيانات</td>
+                        <td colspan="8" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                     </tr>
                 @endforelse
                 </tbody>

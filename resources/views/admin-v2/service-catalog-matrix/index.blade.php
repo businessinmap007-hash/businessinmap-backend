@@ -27,7 +27,7 @@
         <div>
             <h1 class="a2-page-title">Service Catalog Matrix</h1>
             <div class="a2-page-subtitle">
-                شاشة تنظيمية للأدمن لتحديد الخدمات واختياراتها المسموحة لكل Category Child. البزنس سيختار لاحقًا فقط مما تم ضبطه هنا.
+                {{ __('شاشة تنظيمية للأدمن لتحديد الخدمات واختياراتها المسموحة لكل Category Child. البزنس سيختار لاحقًا فقط مما تم ضبطه هنا.') }}
             </div>
         </div>
         <div class="a2-page-actions">
@@ -49,19 +49,17 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">الفكرة العملية</div>
+        <div class="a2-section-title">{{ __('الفكرة العملية') }}</div>
         <div class="a2-section-subtitle">
-            اختر Root، ثم فعّل خدمة أو أكثر. كل خدمة تظهر ككارت — اضغطه ليفتح اختياراته الفرعية وتحدد منها ما تريد.
-            بعدها اختر الـ children التي ستستقبل هذه الخدمات، وطبّق دفعة واحدة.
-            مثال: خدمة الحجز مع Child فندق = غرفة فردية، مزدوجة، جناح. نفس خدمة الحجز مع Child ملعب = ملعب خماسي، سباعي.
+            {{ __('اختر Root، ثم فعّل خدمة أو أكثر. كل خدمة تظهر ككارت — اضغطه ليفتح اختياراته الفرعية وتحدد منها ما تريد. بعدها اختر الـ children التي ستستقبل هذه الخدمات، وطبّق دفعة واحدة. مثال: خدمة الحجز مع Child فندق = غرفة فردية، مزدوجة، جناح. نفس خدمة الحجز مع Child ملعب = ملعب خماسي، سباعي.') }}
         </div>
     </div>
 
     <div class="a2-card a2-mb-16">
         <div class="a2-flex-between">
             <div>
-                <h2 class="a2-section-title">1) التصنيف الرئيسي</h2>
-                <div class="a2-section-subtitle">غيّر الـ Root لعرض الـ children الخاصة به.</div>
+                <h2 class="a2-section-title">{{ __('1) التصنيف الرئيسي') }}</h2>
+                <div class="a2-section-subtitle">{{ __('غيّر الـ Root لعرض الـ children الخاصة به.') }}</div>
             </div>
         </div>
         <div class="a2-actionsbar a2-mt-12">
@@ -82,15 +80,15 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">2) الخدمات واختياراتها الفرعية</h2>
+                    <h2 class="a2-section-title">{{ __('2) الخدمات واختياراتها الفرعية') }}</h2>
                     <div class="a2-section-subtitle">
-                        فعّل الخدمة من مربع الاختيار في رأس الكارت، ثم افتح الكارت لتحديد اختياراتها الفرعية. يمكن تفعيل أكثر من خدمة معًا.
+                        {{ __('فعّل الخدمة من مربع الاختيار في رأس الكارت، ثم افتح الكارت لتحديد اختياراتها الفرعية. يمكن تفعيل أكثر من خدمة معًا.') }}
                     </div>
                 </div>
             </div>
 
             @if($servicesSafe->isEmpty())
-                <div class="a2-alert a2-alert-warning a2-mt-12">لا توجد خدمات مفعلة حاليًا.</div>
+                <div class="a2-alert a2-alert-warning a2-mt-12">{{ __('لا توجد خدمات مفعلة حاليًا.') }}</div>
             @else
                 <div class="a2-mt-16">
                     @foreach($servicesSafe as $service)
@@ -106,22 +104,22 @@
                                     <span>
                                         <strong>{{ $nameOf($service) }}</strong>
                                         <small dir="ltr">{{ $service->key }}</small>
-                                        <span class="a2-pill a2-pill-gray">مفعّلة لـ {{ $usage }}/{{ $childCountSafe }}</span>
-                                        <span class="a2-pill a2-pill-gray">{{ $itemTypes->count() }} اختيار فرعي</span>
+                                        <span class="a2-pill a2-pill-gray">{{ __('مفعّلة لـ') }} {{ $usage }}/{{ $childCountSafe }}</span>
+                                        <span class="a2-pill a2-pill-gray">{{ $itemTypes->count() }} {{ __('اختيار فرعي') }}</span>
                                     </span>
                                 </label>
-                                <span class="a2-muted js-service-hint">اضغط لعرض الاختيارات ▾</span>
+                                <span class="a2-muted js-service-hint">{{ __('اضغط لعرض الاختيارات ▾') }}</span>
                             </summary>
 
                             <div class="js-service-body">
                                 @if($itemTypes->isEmpty())
                                     <div class="a2-alert a2-alert-warning a2-mt-12">
-                                        لا توجد اختيارات فرعية لهذه الخدمة. أضفها أولًا من صفحة Service Item Types.
+                                        {{ __('لا توجد اختيارات فرعية لهذه الخدمة. أضفها أولًا من صفحة Service Item Types.') }}
                                     </div>
                                 @else
                                     <div class="a2-page-actions a2-mt-12" style="justify-content:flex-start;">
-                                        <button type="button" class="a2-btn a2-btn-sm a2-btn-ghost js-check-types">تحديد كل الاختيارات</button>
-                                        <button type="button" class="a2-btn a2-btn-sm a2-btn-ghost js-uncheck-types">إلغاء الكل</button>
+                                        <button type="button" class="a2-btn a2-btn-sm a2-btn-ghost js-check-types">{{ __('تحديد كل الاختيارات') }}</button>
+                                        <button type="button" class="a2-btn a2-btn-sm a2-btn-ghost js-uncheck-types">{{ __('إلغاء الكل') }}</button>
                                     </div>
                                     <div class="a2-check-grid a2-mt-12">
                                         @foreach($itemTypes as $type)
@@ -145,17 +143,17 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-flex-between">
                 <div>
-                    <h2 class="a2-section-title">3) اختر الـ Children التي ستأخذ الخدمات</h2>
-                    <div class="a2-section-subtitle">يمكن اختيار أكثر من child وتطبيق نفس الخدمات واختياراتها عليهم دفعة واحدة.</div>
+                    <h2 class="a2-section-title">{{ __('3) اختر الـ Children التي ستأخذ الخدمات') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('يمكن اختيار أكثر من child وتطبيق نفس الخدمات واختياراتها عليهم دفعة واحدة.') }}</div>
                 </div>
                 <div class="a2-page-actions">
-                    <button type="button" class="a2-btn a2-btn-ghost" id="checkChildren">تحديد الكل</button>
-                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckChildren">إلغاء الكل</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="checkChildren">{{ __('تحديد الكل') }}</button>
+                    <button type="button" class="a2-btn a2-btn-ghost" id="uncheckChildren">{{ __('إلغاء الكل') }}</button>
                 </div>
             </div>
 
             @if($childrenSafe->isEmpty())
-                <div class="a2-alert a2-alert-warning a2-mt-12">لا توجد أقسام فرعية لهذا التصنيف.</div>
+                <div class="a2-alert a2-alert-warning a2-mt-12">{{ __('لا توجد أقسام فرعية لهذا التصنيف.') }}</div>
             @else
                 <div class="a2-check-grid a2-mt-16">
                     @foreach($childrenSafe as $child)
@@ -172,7 +170,7 @@
                                         <span class="a2-pill a2-pill-success">{{ $serviceNameById[(int) $asid] ?? ('#' . $asid) }}</span>
                                     @endforeach
                                 @else
-                                    <small>لا توجد خدمات مفعّلة بعد</small>
+                                    <small>{{ __('لا توجد خدمات مفعّلة بعد') }}</small>
                                 @endif
                             </span>
                             <input type="checkbox" name="child_ids[]" value="{{ $childId }}" class="js-catalog-child">
@@ -183,39 +181,39 @@
         </div>
 
         <div class="a2-card a2-mb-16">
-            <h2 class="a2-section-title">4) طريقة التطبيق</h2>
-            <div class="a2-section-subtitle">تُطبَّق على كل الخدمات المفعّلة أعلاه.</div>
+            <h2 class="a2-section-title">{{ __('4) طريقة التطبيق') }}</h2>
+            <div class="a2-section-subtitle">{{ __('تُطبَّق على كل الخدمات المفعّلة أعلاه.') }}</div>
             <div class="a2-check-grid a2-mt-16">
                 <label class="a2-check-card">
-                    <span><strong>استبدال الاختيارات</strong><small>يجعل المختار هو القائمة النهائية للـ children المختارة.</small></span>
+                    <span><strong>{{ __('استبدال الاختيارات') }}</strong><small>{{ __('يجعل المختار هو القائمة النهائية للـ children المختارة.') }}</small></span>
                     <input type="radio" name="mode" value="replace" checked>
                 </label>
                 <label class="a2-check-card">
-                    <span><strong>إضافة فقط</strong><small>يضيف الاختيارات الجديدة فوق الموجود بدون حذف القديم.</small></span>
+                    <span><strong>{{ __('إضافة فقط') }}</strong><small>{{ __('يضيف الاختيارات الجديدة فوق الموجود بدون حذف القديم.') }}</small></span>
                     <input type="radio" name="mode" value="append">
                 </label>
                 <label class="a2-check-card">
-                    <span><strong>حذف اختيارات</strong><small>يحذف الاختيارات المحددة فقط من children المختارة.</small></span>
+                    <span><strong>{{ __('حذف اختيارات') }}</strong><small>{{ __('يحذف الاختيارات المحددة فقط من children المختارة.') }}</small></span>
                     <input type="radio" name="mode" value="remove">
                 </label>
                 <label class="a2-check-card">
-                    <span><strong>تعطيل الخدمات للـ children</strong><small>يعطل الخدمات المفعّلة نفسها للـ children المختارة.</small></span>
+                    <span><strong>{{ __('تعطيل الخدمات للـ children') }}</strong><small>{{ __('يعطل الخدمات المفعّلة نفسها للـ children المختارة.') }}</small></span>
                     <input type="radio" name="mode" value="disable_service">
                 </label>
             </div>
         </div>
 
         <div class="a2-card a2-mb-16">
-            <h2 class="a2-section-title">5) إعدادات سريعة</h2>
-            <div class="a2-section-subtitle">تُطبَّق على كل الخدمات المفعّلة.</div>
+            <h2 class="a2-section-title">{{ __('5) إعدادات سريعة') }}</h2>
+            <div class="a2-section-subtitle">{{ __('تُطبَّق على كل الخدمات المفعّلة.') }}</div>
             <div class="a2-form-grid-3 a2-mt-12">
-                <label class="a2-check-card"><span>يتطلب عنصر قابل للحجز</span><input type="checkbox" name="requires_bookable_item" value="1" checked></label>
-                <label class="a2-check-card"><span>يدعم الكمية</span><input type="checkbox" name="supports_quantity" value="1" checked></label>
-                <label class="a2-check-card"><span>يدعم عدد الضيوف/الأفراد</span><input type="checkbox" name="supports_guest_count" value="1"></label>
+                <label class="a2-check-card"><span>{{ __('يتطلب عنصر قابل للحجز') }}</span><input type="checkbox" name="requires_bookable_item" value="1" checked></label>
+                <label class="a2-check-card"><span>{{ __('يدعم الكمية') }}</span><input type="checkbox" name="supports_quantity" value="1" checked></label>
+                <label class="a2-check-card"><span>{{ __('يدعم عدد الضيوف/الأفراد') }}</span><input type="checkbox" name="supports_guest_count" value="1"></label>
             </div>
             <div class="a2-form-group a2-mt-12">
-                <label class="a2-label">ملاحظات داخلية</label>
-                <input class="a2-input" name="notes" placeholder="مثال: فروع الفنادق ترى أنواع غرف فقط">
+                <label class="a2-label">{{ __('ملاحظات داخلية') }}</label>
+                <input class="a2-input" name="notes" placeholder="{{ __('مثال: فروع الفنادق ترى أنواع غرف فقط') }}">
             </div>
         </div>
 
@@ -223,10 +221,42 @@
             <div class="a2-flex-between">
                 <div class="a2-actionsbar">
                     <span class="a2-pill a2-pill-gray">Root: {{ $activeRoot ? $nameOf($activeRoot) : '—' }}</span>
-                    <span class="a2-pill a2-pill-gray">الخدمات المفعّلة: <span id="selectedServicesCount">0</span></span>
-                    <span class="a2-pill a2-pill-gray">الأقسام المختارة: <span id="selectedChildrenCount">0</span></span>
+                    <span class="a2-pill a2-pill-gray">{{ __('الخدمات المفعّلة:') }}  278@php
+    $nameOf = function ($item) {
+        $ar = trim((string) ($item->name_ar ?? ''));
+        $en = trim((string) ($item->name_en ?? ''));
+        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
+    };
+
+    $rootsSafe = collect($roots ?? []);
+    $servicesSafe = collect($services ?? []);
+    $childrenSafe = collect($children ?? []);
+    $childCountSafe = (int) ($childCount ?? $childrenSafe->count());
+    $serviceUsageCountsSafe = $serviceUsageCounts ?? [];
+    $childActiveServicesSafe = $childActiveServices ?? [];
+
+    // service id => display name, for the "already active" pills on each child.
+    $serviceNameById = $servicesSafe->mapWithKeys(fn ($s) => [(int) $s->id => $nameOf($s)])->all();
+@endphp279 </span>
+                    <span class="a2-pill a2-pill-gray">{{ __('الأقسام المختارة:') }}  282@php
+    $nameOf = function ($item) {
+        $ar = trim((string) ($item->name_ar ?? ''));
+        $en = trim((string) ($item->name_en ?? ''));
+        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
+    };
+
+    $rootsSafe = collect($roots ?? []);
+    $servicesSafe = collect($services ?? []);
+    $childrenSafe = collect($children ?? []);
+    $childCountSafe = (int) ($childCount ?? $childrenSafe->count());
+    $serviceUsageCountsSafe = $serviceUsageCounts ?? [];
+    $childActiveServicesSafe = $childActiveServices ?? [];
+
+    // service id => display name, for the "already active" pills on each child.
+    $serviceNameById = $servicesSafe->mapWithKeys(fn ($s) => [(int) $s->id => $nameOf($s)])->all();
+@endphp283 </span>
                 </div>
-                <button class="a2-btn a2-btn-primary">تطبيق Service Catalog Matrix</button>
+                <button class="a2-btn a2-btn-primary">{{ __('تطبيق Service Catalog Matrix') }}</button>
             </div>
         </div>
     </form>

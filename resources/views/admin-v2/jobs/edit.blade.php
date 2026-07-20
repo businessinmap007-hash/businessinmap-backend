@@ -15,15 +15,15 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">الوظائف</h2>
+      <h2 class="a2-title">{{ __('الوظائف') }}</h2>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index', $qsKeep) }}">رجوع</a>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id] + $qsKeep) }}">عرض</a>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.applicants', ['post'=>$post->id]) }}">المتقدمون</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index', $qsKeep) }}">{{ __('رجوع') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id] + $qsKeep) }}">{{ __('عرض') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.applicants', ['post'=>$post->id]) }}">{{ __('المتقدمون') }}</a>
 
         <button type="button" class="a2-btn a2-btn-danger" id="btnOpenDeleteModal">
-          حذف
+          {{ __('حذف') }}
         </button>
       </div>
     </div>
@@ -59,24 +59,24 @@
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">Expire At (نهاية الإعلان)</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('Expire At (نهاية الإعلان)') }}</label>
               <input class="a2-input" type="datetime-local" name="expire_at"
                      value="{{ old('expire_at', optional($post->expire_at)->format('Y-m-d\TH:i')) }}">
               <div class="a2-hint" style="margin-top:6px;">
-                اتركه فارغًا لو لا يوجد انتهاء.
+                {{ __('اتركه فارغًا لو لا يوجد انتهاء.') }}
               </div>
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">بداية التقديم/المقابلات</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('بداية التقديم/المقابلات') }}</label>
               <input class="a2-input" type="datetime-local" name="interview_starts_at"
                      value="{{ old('interview_starts_at', optional($post->interview_starts_at)->format('Y-m-d\TH:i')) }}">
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">التصنيف الأب</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('التصنيف الأب') }}</label>
               <select class="a2-input" name="category_id">
-                <option value="">— بدون —</option>
+                <option value="">{{ __('— بدون —') }}</option>
                 @foreach($categories as $c)
                   <option value="{{ $c->id }}" @selected(old('category_id', $post->category_id) == $c->id)>{{ $c->name_ar ?: $c->name_en }}</option>
                 @endforeach
@@ -84,9 +84,9 @@
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">التخصص الفرعي</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('التخصص الفرعي') }}</label>
               <select class="a2-input" name="category_child_id">
-                <option value="">— بدون —</option>
+                <option value="">{{ __('— بدون —') }}</option>
                 @foreach($categoryChildren as $c)
                   <option value="{{ $c->id }}" @selected(old('category_child_id', $post->category_child_id) == $c->id)>{{ $c->name_ar ?: $c->name_en }}</option>
                 @endforeach
@@ -94,8 +94,8 @@
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">المرتب</label>
-              <input class="a2-input" name="salary" value="{{ old('salary', $post->salary) }}" placeholder="مثال: يحدد بعد المقابلة">
+              <label class="a2-hint" style="font-weight:900;">{{ __('المرتب') }}</label>
+              <input class="a2-input" name="salary" value="{{ old('salary', $post->salary) }}" placeholder="{{ __('مثال: يحدد بعد المقابلة') }}">
             </div>
 
           </div>
@@ -112,20 +112,20 @@
 
             {{-- ✅ عمود واحد فقط: body --}}
             <div>
-              <label class="a2-hint" style="font-weight:900;">الوصف</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('الوصف') }}</label>
               <textarea class="a2-input" name="body" rows="10"
               style="min-height:140px;white-space:pre-wrap;">{{ old('body', $post->body) }}</textarea>
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">الشروط المطلوبة</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('الشروط المطلوبة') }}</label>
               <textarea class="a2-input" name="requirements" rows="6"
                 style="min-height:100px;white-space:pre-wrap;">{{ old('requirements', $post->requirements) }}</textarea>
             </div>
 
             <div class="a2-form-actions" style="margin-top:6px;">
-              <button class="a2-btn a2-btn-primary" type="submit">حفظ</button>
-              <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id] + $qsKeep) }}">إلغاء</a>
+              <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
+              <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.show', ['post'=>$post->id] + $qsKeep) }}">{{ __('إلغاء') }}</a>
             </div>
 
           </div>
@@ -143,22 +143,22 @@
 
   <div class="a2-modal-card" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
     <div class="a2-modal-head">
-      <div id="deleteTitle" class="a2-modal-title">تأكيد الحذف</div>
+      <div id="deleteTitle" class="a2-modal-title">{{ __('تأكيد الحذف') }}</div>
       <button type="button" class="a2-modal-x" data-close="1" aria-label="Close">×</button>
     </div>
 
     <div class="a2-modal-body">
-      <div style="margin-bottom:8px;">سيتم حذف الوظيفة رقم <b>#{{ $post->id }}</b>.</div>
-      <div class="a2-hint">لا يمكن التراجع بعد الحذف.</div>
+      <div style="margin-bottom:8px;">{{ __('سيتم حذف الوظيفة رقم') }} <b>#{{ $post->id }}</b>.</div>
+      <div class="a2-hint">{{ __('لا يمكن التراجع بعد الحذف.') }}</div>
     </div>
 
     <div class="a2-modal-actions">
-      <button type="button" class="a2-btn a2-btn-ghost" data-close="1">إلغاء</button>
+      <button type="button" class="a2-btn a2-btn-ghost" data-close="1">{{ __('إلغاء') }}</button>
 
       <form method="post" action="{{ $deleteUrl }}" style="margin:0;">
         @csrf
         @method('DELETE')
-        <button type="submit" class="a2-btn a2-btn-danger" id="btnConfirmDelete">حذف</button>
+        <button type="submit" class="a2-btn a2-btn-danger" id="btnConfirmDelete">{{ __('حذف') }}</button>
       </form>
     </div>
   </div>

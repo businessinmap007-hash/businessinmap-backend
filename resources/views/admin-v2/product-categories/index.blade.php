@@ -8,7 +8,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Product Categories</h1>
-            <div class="a2-page-subtitle">تصنيفات المنتجات منفصلة عن تصنيفات البزنس.</div>
+            <div class="a2-page-subtitle">{{ __('تصنيفات المنتجات منفصلة عن تصنيفات البزنس.') }}</div>
         </div>
     </div>
 
@@ -21,10 +21,10 @@
 
     <div class="a2-card">
         <form method="GET" action="{{ route('admin.product-categories.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" name="q" value="{{ $q ?? '' }}" placeholder="بحث باسم التصنيف أو slug">
+            <input class="a2-input a2-filter-search" name="q" value="{{ $q ?? '' }}" placeholder="{{ __('بحث باسم التصنيف أو slug') }}">
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">بحث</button>
-                <a href="{{ route('admin.product-categories.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('بحث') }}</button>
+                <a href="{{ route('admin.product-categories.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -55,7 +55,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="a2-empty">لا توجد تصنيفات منتجات.</td></tr>
+                    <tr><td colspan="7" class="a2-empty">{{ __('لا توجد تصنيفات منتجات.') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

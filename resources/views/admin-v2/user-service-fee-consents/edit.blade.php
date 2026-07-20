@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'موافقات رسوم الخدمة')
+@section('title', __('موافقات رسوم الخدمة'))
 @section('body_class', 'admin-v2 admin-v2-user-service-fee-consents-edit')
 
 @section('content')
@@ -29,7 +29,7 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">موافقات رسوم الخدمة</h1>
+            <h1 class="a2-page-title">{{ __('موافقات رسوم الخدمة') }}</h1>
             <div class="a2-page-subtitle">
                 {{ $userName }}
                 <span class="a2-muted">#{{ $user->id }}</span>
@@ -38,15 +38,15 @@
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.users.show', $user) }}" class="a2-btn a2-btn-ghost">
-                بيانات المستخدم
+                {{ __('بيانات المستخدم') }}
             </a>
 
             <a href="{{ route('admin.wallet-transactions.user', $user) }}" class="a2-btn a2-btn-ghost">
-                كشف المحفظة
+                {{ __('كشف المحفظة') }}
             </a>
 
             <a href="{{ route('admin.users.index') }}" class="a2-btn a2-btn-ghost">
-                رجوع للمستخدمين
+                {{ __('رجوع للمستخدمين') }}
             </a>
         </div>
     </div>
@@ -65,7 +65,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء:') }}</div>
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -75,36 +75,35 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">ماذا تعني هذه الموافقات؟</div>
+        <div class="a2-section-title">{{ __('ماذا تعني هذه الموافقات؟') }}</div>
         <div class="a2-section-subtitle">
-            خصم رسوم التنفيذ تلقائيًا يسمح للنظام بخصم رسوم الخدمة من محفظة العميل أو البزنس عند انتقال الحجز إلى
-            <span dir="ltr">in_progress</span>.
-            بدون هذه الموافقة لن يتم خصم الرسوم من هذا الطرف.
+            {{ __('خصم رسوم التنفيذ تلقائيًا يسمح للنظام بخصم رسوم الخدمة من محفظة العميل أو البزنس عند انتقال الحجز إلى') }}
+            <span dir="ltr">in_progress</span>{{ __('. بدون هذه الموافقة لن يتم خصم الرسوم من هذا الطرف.') }}
         </div>
     </div>
 
     <div class="consent-grid">
         <div class="a2-card consent-card">
-            <div class="a2-section-title">بيانات المستخدم</div>
+            <div class="a2-section-title">{{ __('بيانات المستخدم') }}</div>
 
             <div class="consent-kv">
                 <div>
-                    <span>الاسم</span>
+                    <span>{{ __('الاسم') }}</span>
                     <strong>{{ $userName }}</strong>
                 </div>
 
                 <div>
-                    <span>النوع</span>
+                    <span>{{ __('النوع') }}</span>
                     <strong>{{ $userType }}</strong>
                 </div>
 
                 <div>
-                    <span>القسم الرئيسي</span>
+                    <span>{{ __('القسم الرئيسي') }}</span>
                     <strong>{{ $categoryName }}</strong>
                 </div>
 
                 <div>
-                    <span>القسم الفرعي</span>
+                    <span>{{ __('القسم الفرعي') }}</span>
                     <strong>{{ $childName }}</strong>
                 </div>
 
@@ -138,9 +137,9 @@
             @csrf
             @method('PUT')
 
-            <div class="a2-section-title">إعدادات الموافقة</div>
+            <div class="a2-section-title">{{ __('إعدادات الموافقة') }}</div>
             <div class="a2-section-subtitle">
-                هذه الإعدادات تؤثر مباشرة على خصم رسوم التنفيذ، والتقييم، والإحصائيات.
+                {{ __('هذه الإعدادات تؤثر مباشرة على خصم رسوم التنفيذ، والتقييم، والإحصائيات.') }}
             </div>
 
             <div class="consent-checks">
@@ -152,11 +151,11 @@
                         @checked($feeEnabled)
                     >
                     <span>
-                        <strong>تفعيل خصم رسوم التنفيذ تلقائيًا</strong>
+                        <strong>{{ __('تفعيل خصم رسوم التنفيذ تلقائيًا') }}</strong>
                         <small>
-                            يسمح بخصم
+                            {{ __('يسمح بخصم') }}
                             <span dir="ltr">platform_fee</span>
-                            من المحفظة عند تنفيذ الحجز.
+                            {{ __('من المحفظة عند تنفيذ الحجز.') }}
                         </small>
                     </span>
                 </label>
@@ -169,9 +168,9 @@
                         @checked($ratingEnabled)
                     >
                     <span>
-                        <strong>تفعيل التقييم</strong>
+                        <strong>{{ __('تفعيل التقييم') }}</strong>
                         <small>
-                            يستخدم لاحقًا لفتح تقييم العميل أو البزنس حسب نجاح العملية.
+                            {{ __('يستخدم لاحقًا لفتح تقييم العميل أو البزنس حسب نجاح العملية.') }}
                         </small>
                     </span>
                 </label>
@@ -184,21 +183,21 @@
                         @checked($statsEnabled)
                     >
                     <span>
-                        <strong>تفعيل الإحصائيات</strong>
+                        <strong>{{ __('تفعيل الإحصائيات') }}</strong>
                         <small>
-                            يسمح بإدخال العمليات في إحصائيات الخدمة والنجاح.
+                            {{ __('يسمح بإدخال العمليات في إحصائيات الخدمة والنجاح.') }}
                         </small>
                     </span>
                 </label>
             </div>
 
             <div class="a2-mt-16">
-                <label class="a2-label">ملاحظات</label>
+                <label class="a2-label">{{ __('ملاحظات') }}</label>
                 <textarea
                     class="a2-textarea"
                     name="notes"
                     rows="5"
-                    placeholder="ملاحظات داخلية اختيارية"
+                    placeholder="{{ __('ملاحظات داخلية اختيارية') }}"
                 >{{ $notesVal }}</textarea>
             </div>
 
@@ -216,23 +215,23 @@
 
             <div class="a2-page-actions a2-mt-16" style="justify-content:flex-end;">
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    حفظ الموافقات
+                    {{ __('حفظ الموافقات') }}
                 </button>
             </div>
         </form>
     </div>
 
     <div class="a2-card a2-mt-16">
-        <div class="a2-section-title">إجراءات سريعة</div>
+        <div class="a2-section-title">{{ __('إجراءات سريعة') }}</div>
         <div class="a2-section-subtitle">
-            تستخدم لتفعيل أو تعطيل خصم رسوم التنفيذ فقط بدون تعديل باقي الإعدادات.
+            {{ __('تستخدم لتفعيل أو تعطيل خصم رسوم التنفيذ فقط بدون تعديل باقي الإعدادات.') }}
         </div>
 
         <div class="a2-page-actions a2-mt-12">
             <form method="POST" action="{{ route('admin.user-service-fee-consents.enable-charging', $user) }}">
                 @csrf
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    تفعيل الخصم التلقائي
+                    {{ __('تفعيل الخصم التلقائي') }}
                 </button>
             </form>
 
@@ -243,7 +242,7 @@
                     class="a2-btn a2-btn-danger"
                     onclick="return confirm('هل تريد تعطيل الخصم التلقائي لهذا المستخدم؟')"
                 >
-                    تعطيل الخصم التلقائي
+                    {{ __('تعطيل الخصم التلقائي') }}
                 </button>
             </form>
         </div>

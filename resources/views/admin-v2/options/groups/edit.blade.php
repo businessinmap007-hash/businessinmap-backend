@@ -7,7 +7,7 @@
 
     <div class="a2-page-head">
         <h1 class="a2-page-title">
-            تعديل Group #{{ $group->id }}
+            {{ __('تعديل Group #') }}{{ $group->id }}
         </h1>
     </div>
 
@@ -24,7 +24,7 @@
 
     <div class="a2-card a2-mt-16">
         <div class="a2-card-head">
-            <div class="a2-card-title">حذف المجموعة</div>
+            <div class="a2-card-title">{{ __('حذف المجموعة') }}</div>
         </div>
 
         <form method="POST"
@@ -33,7 +33,7 @@
             @csrf
             @method('DELETE')
 
-            <button class="a2-btn a2-btn-danger">حذف</button>
+            <button class="a2-btn a2-btn-danger">{{ __('حذف') }}</button>
         </form>
     </div>
 

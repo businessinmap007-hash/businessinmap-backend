@@ -68,7 +68,7 @@ class TripScheduleAdminTest extends TestCase
         $res = $this->actingAs($this->admin)->get('/admin/trip-schedules');
 
         $res->assertOk();
-        $res->assertSee('خطوط التشغيل (الجدولة)');
+        $res->assertSee(__('خطوط التشغيل (الجدولة)'));
         $res->assertSee($this->business->name, false);
         $res->assertSee('الأحد', false); // day_of_week 0 read as a name, not "يوم 0"
     }

@@ -55,12 +55,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الأقسام الفرعية العامة</h1>
+            <h1 class="a2-page-title">{{ __('الأقسام الفرعية العامة') }}</h1>
             <div class="a2-page-subtitle">
                 @if($parentIdInt > 0 && $parentName)
-                    إدارة ربط الأقسام الفرعية بالقسم الرئيسي: {{ $parentName }}
+                    {{ __('إدارة ربط الأقسام الفرعية بالقسم الرئيسي:') }} {{ $parentName }}
                 @else
-                    إدارة الأقسام الفرعية العامة في النظام
+                    {{ __('إدارة الأقسام الفرعية العامة في النظام') }}
                 @endif
             </div>
         </div>
@@ -68,7 +68,7 @@
         <div class="a2-page-actions">
             <a href="{{ route('admin.categories.index', $parentIdInt > 0 ? ['root_id' => $parentIdInt] : []) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع للأقسام
+                {{ __('رجوع للأقسام') }}
             </a>
         </div>
     </div>
@@ -83,25 +83,25 @@
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">القسم الرئيسي الحالي</div>
+            <div class="a2-stat-label">{{ __('القسم الرئيسي الحالي') }}</div>
             <div class="a2-stat-value">{{ $parentIdInt > 0 ? '#'.$parentIdInt : '—' }}</div>
             <div class="a2-stat-note">{{ $parentName ?: 'لم يتم اختيار قسم رئيسي' }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">المحدد لهذا القسم</div>
+            <div class="a2-stat-label">{{ __('المحدد لهذا القسم') }}</div>
             <div class="a2-stat-value" id="selectedCountText">{{ $selectedCount }}</div>
-            <div class="a2-stat-note">عدد الأقسام المرتبطة حاليًا</div>
+            <div class="a2-stat-note">{{ __('عدد الأقسام المرتبطة حاليًا') }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">المعروض الآن</div>
+            <div class="a2-stat-label">{{ __('المعروض الآن') }}</div>
             <div class="a2-stat-value">{{ $allCount }}</div>
-            <div class="a2-stat-note">بعد الفلترة والبحث</div>
+            <div class="a2-stat-note">{{ __('بعد الفلترة والبحث') }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">وضع الشاشة</div>
+            <div class="a2-stat-label">{{ __('وضع الشاشة') }}</div>
             <div class="a2-stat-value">{{ $parentIdInt > 0 ? 'Sync' : 'Browse' }}</div>
             <div class="a2-stat-note">
                 {{ $parentIdInt > 0 ? 'اختيار وحفظ الربط' : 'عرض عام فقط' }}
@@ -112,9 +112,9 @@
     <div class="a2-card a2-card--section a2-mb-16">
         <div class="a2-card-head">
             <div>
-                <div class="a2-section-title a2-mb-0">إضافة قسم فرعي عام جديد</div>
+                <div class="a2-section-title a2-mb-0">{{ __('إضافة قسم فرعي عام جديد') }}</div>
                 <div class="a2-section-subtitle">
-                    سيتم إضافته للنظام، وإذا كنت داخل قسم رئيسي سيتم ربطه به مباشرة
+                    {{ __('سيتم إضافته للنظام، وإذا كنت داخل قسم رئيسي سيتم ربطه به مباشرة') }}
                 </div>
             </div>
         </div>
@@ -129,23 +129,23 @@
             @endif
 
             <div>
-                <label class="a2-label">الاسم عربي</label>
+                <label class="a2-label">{{ __('الاسم عربي') }}</label>
                 <input type="text" name="name_ar" class="a2-input" required>
             </div>
 
             <div>
-                <label class="a2-label">الاسم إنجليزي</label>
+                <label class="a2-label">{{ __('الاسم إنجليزي') }}</label>
                 <input type="text" name="name_en" class="a2-input">
             </div>
 
             <div>
-                <label class="a2-label">الترتيب</label>
+                <label class="a2-label">{{ __('الترتيب') }}</label>
                 <input type="number" name="reorder" class="a2-input" min="0" value="0">
             </div>
 
             <div class="a2-page-actions" style="align-items:flex-end;">
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    + إضافة القسم الفرعي
+                    {{ __('+ إضافة القسم الفرعي') }}
                 </button>
             </div>
         </form>
@@ -157,10 +157,10 @@
                    name="q"
                    value="{{ $qVal }}"
                    class="a2-input a2-filter-search"
-                   placeholder="بحث داخل الأقسام الفرعية">
+                   placeholder="{{ __('بحث داخل الأقسام الفرعية') }}">
 
             <select name="parent_id" class="a2-select a2-filter-md">
-                <option value="0">بدون قسم رئيسي محدد</option>
+                <option value="0">{{ __('بدون قسم رئيسي محدد') }}</option>
                 @foreach(($parents ?? []) as $p)
                     <option value="{{ $p->id }}" @selected($parentIdInt === (int) $p->id)>
                         #{{ $p->id }} - {{ $p->name_ar ?: ($p->name_en ?: '—') }}
@@ -169,10 +169,10 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="sort">
-                <option value="reorder" @selected($sortNow === 'reorder')>الترتيب</option>
+                <option value="reorder" @selected($sortNow === 'reorder')>{{ __('الترتيب') }}</option>
                 <option value="id" @selected($sortNow === 'id')>ID</option>
-                <option value="name_ar" @selected($sortNow === 'name_ar')>الاسم العربي</option>
-                <option value="name_en" @selected($sortNow === 'name_en')>الاسم الإنجليزي</option>
+                <option value="name_ar" @selected($sortNow === 'name_ar')>{{ __('الاسم العربي') }}</option>
+                <option value="name_en" @selected($sortNow === 'name_en')>{{ __('الاسم الإنجليزي') }}</option>
             </select>
 
             <select class="a2-select a2-filter-sm" name="dir">
@@ -182,16 +182,16 @@
 
             <select class="a2-select a2-filter-sm" name="per_page">
                 @foreach(($perPageOptions ?? []) as $n)
-                    <option value="{{ $n }}" @selected($perPageVal === (int) $n)>{{ $n }} / صفحة</option>
+                    <option value="{{ $n }}" @selected($perPageVal === (int) $n)>{{ $n }} {{ __('/ صفحة') }}</option>
                 @endforeach
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
                 <a href="{{ route('admin.category-children.index', $parentIdInt > 0 ? ['parent_id' => $parentIdInt] : []) }}"
                    class="a2-btn a2-btn-ghost">
-                    تفريغ
+                    {{ __('تفريغ') }}
                 </a>
             </div>
         </form>
@@ -199,8 +199,8 @@
 
     @if($parentIdInt > 0)
         <div class="a2-card a2-card--soft a2-mb-16">
-            <div class="a2-section-title">المحدد حاليًا لهذا القسم الرئيسي</div>
-            <div class="a2-section-subtitle">يمكنك الإضافة أو الإلغاء من القائمة بالأسفل ثم الحفظ</div>
+            <div class="a2-section-title">{{ __('المحدد حاليًا لهذا القسم الرئيسي') }}</div>
+            <div class="a2-section-subtitle">{{ __('يمكنك الإضافة أو الإلغاء من القائمة بالأسفل ثم الحفظ') }}</div>
 
             <div class="a2-option-chip-grid a2-mt-12">
                 @forelse($selectedRowsOnPage as $row)
@@ -209,12 +209,12 @@
                             {{ $row->name_ar ?: ($row->name_en ?: ('#'.$row->id)) }}
                         </div>
                         <div class="a2-option-chip-sub">
-                            #{{ $row->id }} — خيارات: {{ (int) ($row->options_count ?? 0) }}
+                            #{{ $row->id }} {{ __('— خيارات:') }} {{ (int) ($row->options_count ?? 0) }}
                         </div>
                     </div>
                 @empty
                     <div class="a2-alert a2-alert-warning">
-                        لا توجد عناصر محددة ضمن الصفحة الحالية. قد يكون هناك عناصر محددة في صفحات أخرى إن كنت تستخدم pagination.
+                        {{ __('لا توجد عناصر محددة ضمن الصفحة الحالية. قد يكون هناك عناصر محددة في صفحات أخرى إن كنت تستخدم pagination.') }}
                     </div>
                 @endforelse
             </div>
@@ -233,12 +233,12 @@
 
         <div class="a2-card-head">
             <div>
-                <div class="a2-section-title a2-mb-0">كل الأقسام الفرعية العامة</div>
+                <div class="a2-section-title a2-mb-0">{{ __('كل الأقسام الفرعية العامة') }}</div>
                 <div class="a2-section-subtitle">
                     @if($parentIdInt > 0)
-                        اختر ما تريد ربطه أو إلغاء ربطه ثم اضغط حفظ
+                        {{ __('اختر ما تريد ربطه أو إلغاء ربطه ثم اضغط حفظ') }}
                     @else
-                        اختر قسمًا رئيسيًا أولًا لتفعيل الحفظ
+                        {{ __('اختر قسمًا رئيسيًا أولًا لتفعيل الحفظ') }}
                     @endif
                 </div>
             </div>
@@ -246,7 +246,7 @@
             <div class="a2-page-actions">
                 @if($parentIdInt > 0)
                     <button type="submit" class="a2-btn a2-btn-primary">
-                        حفظ الربط
+                        {{ __('حفظ الربط') }}
                     </button>
                 @endif
             </div>
@@ -254,13 +254,13 @@
 
         <div class="a2-resultsbar">
             <div class="a2-resultsbar-meta">
-                <strong>الإجمالي:</strong>
+                <strong>{{ __('الإجمالي:') }}</strong>
                 <span>{{ $allCount }}</span>
             </div>
 
             <div class="a2-resultsbar-links">
-                <button type="button" class="a2-resultsbar-btn" id="selectVisibleBtn">تحديد الظاهر</button>
-                <button type="button" class="a2-resultsbar-btn" id="clearVisibleBtn">إلغاء الظاهر</button>
+                <button type="button" class="a2-resultsbar-btn" id="selectVisibleBtn">{{ __('تحديد الظاهر') }}</button>
+                <button type="button" class="a2-resultsbar-btn" id="clearVisibleBtn">{{ __('إلغاء الظاهر') }}</button>
             </div>
         </div>
 
@@ -275,14 +275,14 @@
                         <a class="a2-link" href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                     </th>
                     <th>
-                        <a class="a2-link" href="{{ $sortUrl('name_ar') }}">الاسم (AR){!! $arrow('name_ar') !!}</a>
+                        <a class="a2-link" href="{{ $sortUrl('name_ar') }}">{{ __('الاسم (AR)') }}{!! $arrow('name_ar') !!}</a>
                     </th>
                     <th>
-                        <a class="a2-link" href="{{ $sortUrl('name_en') }}">الاسم (EN){!! $arrow('name_en') !!}</a>
+                        <a class="a2-link" href="{{ $sortUrl('name_en') }}">{{ __('الاسم (EN)') }}{!! $arrow('name_en') !!}</a>
                     </th>
-                    <th style="width:110px;">مرتبط مع</th>
-                    <th style="width:110px;">خياراته</th>
-                    <th style="width:220px;">الإجراءات</th>
+                    <th style="width:110px;">{{ __('مرتبط مع') }}</th>
+                    <th style="width:110px;">{{ __('خياراته') }}</th>
+                    <th style="width:220px;">{{ __('الإجراءات') }}</th>
                 </tr>
                 </thead>
 
@@ -323,19 +323,19 @@
                             <div class="a2-actions">
                                 <a href="{{ route('admin.category-children.edit', ['categoryChild' => $row->id, 'parent_id' => $parentIdInt]) }}"
                                    class="a2-btn a2-btn-ghost a2-btn-sm">
-                                    تعديل البيانات
+                                    {{ __('تعديل البيانات') }}
                                 </a>
 
                                 <a href="{{ route('admin.category-child-options.edit', ['categoryChild' => $row->id, 'parent_id' => $parentIdInt]) }}"
                                    class="a2-btn a2-btn-primary a2-btn-sm">
-                                    إدارة الخيارات
+                                    {{ __('إدارة الخيارات') }}
                                 </a>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="a2-empty-cell">لا توجد أقسام فرعية</td>
+                        <td colspan="7" class="a2-empty-cell">{{ __('لا توجد أقسام فرعية') }}</td>
                     </tr>
                 @endforelse
                 </tbody>
@@ -351,7 +351,7 @@
         @if($parentIdInt > 0)
             <div class="a2-page-actions a2-mt-16" style="justify-content:flex-end;">
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    حفظ الربط
+                    {{ __('حفظ الربط') }}
                 </button>
             </div>
         @endif

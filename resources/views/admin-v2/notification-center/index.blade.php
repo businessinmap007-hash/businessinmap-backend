@@ -8,13 +8,13 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">مركز الإشعارات</h1>
-            <div class="a2-page-subtitle">مركز عام لإشعارات التطبيق: عروض، حجوزات، محفظة، ضمان، نزاعات، نظام، وخدمات مفعلة من Platform Services.</div>
+            <h1 class="a2-page-title">{{ __('مركز الإشعارات') }}</h1>
+            <div class="a2-page-subtitle">{{ __('مركز عام لإشعارات التطبيق: عروض، حجوزات، محفظة، ضمان، نزاعات، نظام، وخدمات مفعلة من Platform Services.') }}</div>
         </div>
         <div class="a2-page-actions">
             <form method="POST" action="{{ route('admin.notification-center.sync-offers') }}">
                 @csrf
-                <button class="a2-btn a2-btn-primary" type="submit">مزامنة إشعارات العروض</button>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('مزامنة إشعارات العروض') }}</button>
             </form>
         </div>
     </div>
@@ -28,20 +28,20 @@
     @endif
 
     <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card"><div class="a2-stat-label">All</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">كل الإشعارات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Unread</div><div class="a2-stat-value">{{ number_format($totals['unread'] ?? 0) }}</div><div class="a2-stat-note">غير مقروء</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Read</div><div class="a2-stat-value">{{ number_format($totals['read'] ?? 0) }}</div><div class="a2-stat-note">مقروء</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Archived</div><div class="a2-stat-value">{{ number_format($totals['archived'] ?? 0) }}</div><div class="a2-stat-note">مؤرشف</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Offers</div><div class="a2-stat-value">{{ number_format($totals['offers'] ?? 0) }}</div><div class="a2-stat-note">إشعارات عروض</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Urgent</div><div class="a2-stat-value">{{ number_format($totals['urgent'] ?? 0) }}</div><div class="a2-stat-note">أولوية عاجلة</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">All</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">{{ __('كل الإشعارات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Unread</div><div class="a2-stat-value">{{ number_format($totals['unread'] ?? 0) }}</div><div class="a2-stat-note">{{ __('غير مقروء') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Read</div><div class="a2-stat-value">{{ number_format($totals['read'] ?? 0) }}</div><div class="a2-stat-note">{{ __('مقروء') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Archived</div><div class="a2-stat-value">{{ number_format($totals['archived'] ?? 0) }}</div><div class="a2-stat-note">{{ __('مؤرشف') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Offers</div><div class="a2-stat-value">{{ number_format($totals['offers'] ?? 0) }}</div><div class="a2-stat-note">{{ __('إشعارات عروض') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Urgent</div><div class="a2-stat-value">{{ number_format($totals['urgent'] ?? 0) }}</div><div class="a2-stat-note">{{ __('أولوية عاجلة') }}</div></div>
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
         <form method="GET" action="{{ route('admin.notification-center.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="بحث بالعنوان / النص / المستخدم / ID">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('بحث بالعنوان / النص / المستخدم / ID') }}">
 
             <select class="a2-select a2-filter-sm" name="user_id">
-                <option value="">كل المستخدمين</option>
+                <option value="">{{ __('كل المستخدمين') }}</option>
                 @foreach($users as $user)
                     <option value="{{ $user->id }}" {{ (int) ($filters['user_id'] ?? 0) === (int) $user->id ? 'selected' : '' }}>
                         #{{ $user->id }} — {{ $user->name }} — {{ $user->type }}
@@ -50,7 +50,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="type">
-                <option value="">كل الأنواع</option>
+                <option value="">{{ __('كل الأنواع') }}</option>
                 @foreach(($typeOptions ?? []) as $key => $option)
                     <option value="{{ $key }}" {{ ($filters['type'] ?? '') === $key ? 'selected' : '' }}>
                         {{ $option['label_ar'] ?? $key }} — {{ $key }}
@@ -62,14 +62,14 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 @foreach($statuses as $status)
                     <option value="{{ $status }}" {{ ($filters['status'] ?? '') === $status ? 'selected' : '' }}>{{ $status }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="priority">
-                <option value="">كل الأولويات</option>
+                <option value="">{{ __('كل الأولويات') }}</option>
                 @foreach($priorities as $priority)
                     <option value="{{ $priority }}" {{ ($filters['priority'] ?? '') === $priority ? 'selected' : '' }}>{{ $priority }}</option>
                 @endforeach
@@ -82,8 +82,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.notification-center.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.notification-center.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -133,7 +133,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty-cell">لا توجد إشعارات.</td></tr>
+                        <tr><td colspan="9" class="a2-empty-cell">{{ __('لا توجد إشعارات.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

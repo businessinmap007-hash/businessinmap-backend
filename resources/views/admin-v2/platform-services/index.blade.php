@@ -11,14 +11,13 @@
         <div>
             <h1 class="a2-page-title">Platform Services</h1>
             <div class="a2-page-subtitle">
-                تعريف خدمات المنصة فقط: key / name / active / supports_deposit.
-                الرسوم والديبوزت الفعلي تتم من category_child_service_fees، والعروض لها أولوية أعلى.
+                {{ __('تعريف خدمات المنصة فقط: key / name / active / supports_deposit. الرسوم والديبوزت الفعلي تتم من category_child_service_fees، والعروض لها أولوية أعلى.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.platform-services.create') }}">
-                + إضافة خدمة
+                {{ __('+ إضافة خدمة') }}
             </a>
         </div>
     </div>
@@ -46,12 +45,10 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">ملاحظات تشغيلية</div>
+        <div class="a2-section-title">{{ __('ملاحظات تشغيلية') }}</div>
         <div class="a2-section-subtitle">
-            هذه الصفحة لا تحدد أي رسوم للعميل أو البزنس.
-            مصدر الرسوم الأساسي:
-            <span dir="ltr">category_child_service_fees</span>.
-            مصدر الأولوية عند وجود عرض:
+            {{ __('هذه الصفحة لا تحدد أي رسوم للعميل أو البزنس. مصدر الرسوم الأساسي:') }}
+            <span dir="ltr">category_child_service_fees</span>{{ __('. مصدر الأولوية عند وجود عرض:') }}
             <span dir="ltr">platform_service_fee_promotions</span>.
         </div>
     </div>
@@ -59,7 +56,7 @@
     <div class="a2-card a2-mb-16">
         <form method="GET" class="a2-filterbar">
             <div class="a2-filter-search">
-                <label class="a2-label">بحث</label>
+                <label class="a2-label">{{ __('بحث') }}</label>
                 <input
                     class="a2-input"
                     type="text"
@@ -72,14 +69,14 @@
             <div class="a2-filter-sm">
                 <label class="a2-label">Active</label>
                 <select class="a2-select" name="is_active">
-                    <option value="">الكل</option>
+                    <option value="">{{ __('الكل') }}</option>
                     <option value="1" @selected((string)($isActive ?? '') === '1')>Yes</option>
                     <option value="0" @selected((string)($isActive ?? '') === '0')>No</option>
                 </select>
             </div>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">بحث</button>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.platform-services.index') }}">Reset</a>
             </div>
         </form>
@@ -92,7 +89,7 @@
                     <tr>
                         <th style="min-width:70px;">ID</th>
                         <th style="min-width:130px;">Key</th>
-                        <th style="min-width:220px;">الاسم</th>
+                        <th style="min-width:220px;">{{ __('الاسم') }}</th>
                         <th style="min-width:100px;">Active</th>
                         <th style="min-width:130px;">Supports Deposit</th>
                         <th style="min-width:160px;">Category Links</th>
@@ -184,7 +181,7 @@
                                         class="a2-btn a2-btn-danger a2-btn-sm"
                                         type="button"
                                         disabled
-                                        title="لا يمكن حذف خدمة مستخدمة. عطّلها بدلًا من حذفها."
+                                        title="{{ __('لا يمكن حذف خدمة مستخدمة. عطّلها بدلًا من حذفها.') }}"
                                     >
                                         Delete
                                     </button>
@@ -207,7 +204,7 @@
                 @empty
                     <tr>
                         <td colspan="8" class="a2-empty-cell">
-                            لا توجد بيانات
+                            {{ __('لا توجد بيانات') }}
                         </td>
                     </tr>
                 @endforelse

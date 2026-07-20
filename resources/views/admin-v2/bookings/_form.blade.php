@@ -123,19 +123,19 @@
         <div class="a2-card bk-card">
             <div class="bk-card-head">
                 <div>
-                    <div class="a2-title">بيانات الحجز الأساسية</div>
+                    <div class="a2-title">{{ __('بيانات الحجز الأساسية') }}</div>
                     <div class="a2-section-subtitle">
-                        اختر طالب الحجز، مقدم الخدمة، الخدمة، ثم العنصر القابل للحجز إن كانت الخدمة تتطلب ذلك.
+                        {{ __('اختر طالب الحجز، مقدم الخدمة، الخدمة، ثم العنصر القابل للحجز إن كانت الخدمة تتطلب ذلك.') }}
                     </div>
                 </div>
             </div>
 
             <div class="bk-form-grid">
                 <div class="bk-field-search" id="requester_search_box">
-                    <label class="a2-label">طالب الحجز</label>
+                    <label class="a2-label">{{ __('طالب الحجز') }}</label>
                     <input type="hidden" name="user_id" id="user_id" value="{{ $selectedRequesterId }}">
-                    <input type="text" id="requester_search" class="a2-input" placeholder="ابحث باسم طالب الحجز..." autocomplete="off" value="{{ $selectedRequester->name ?? '' }}" required>
-                    <div class="a2-hint">يمكن أن يكون طالب الحجز عميلًا أو بزنس.</div>
+                    <input type="text" id="requester_search" class="a2-input" placeholder="{{ __('ابحث باسم طالب الحجز...') }}" autocomplete="off" value="{{ $selectedRequester->name ?? '' }}" required>
+                    <div class="a2-hint">{{ __('يمكن أن يكون طالب الحجز عميلًا أو بزنس.') }}</div>
 
                     <div class="bk-dropdown" id="requester_dropdown">
                         @foreach($clients as $client)
@@ -157,10 +157,10 @@
                 </div>
 
                 <div class="bk-field-search" id="business_search_box">
-                    <label class="a2-label">مقدم الخدمة</label>
+                    <label class="a2-label">{{ __('مقدم الخدمة') }}</label>
                     <input type="hidden" name="business_id" id="business_id" value="{{ $selectedBusinessId }}">
-                    <input type="text" id="business_search" class="a2-input" placeholder="ابحث باسم الفندق / البزنس..." autocomplete="off" value="{{ $selectedBusiness->name ?? '' }}" required>
-                    <div class="a2-hint">مقدم الخدمة يجب أن يكون حساب Business.</div>
+                    <input type="text" id="business_search" class="a2-input" placeholder="{{ __('ابحث باسم الفندق / البزنس...') }}" autocomplete="off" value="{{ $selectedBusiness->name ?? '' }}" required>
+                    <div class="a2-hint">{{ __('مقدم الخدمة يجب أن يكون حساب Business.') }}</div>
 
                     <div class="bk-dropdown" id="business_dropdown">
                         @foreach($businesses as $business)
@@ -177,10 +177,10 @@
                 </div>
 
                 <div class="bk-field-search" id="service_search_box">
-                    <label class="a2-label">الخدمة</label>
+                    <label class="a2-label">{{ __('الخدمة') }}</label>
                     <input type="hidden" name="service_id" id="service_id" value="{{ $selectedServiceId }}">
-                    <input type="text" id="service_search" class="a2-input" placeholder="ابحث باسم الخدمة..." autocomplete="off" value="{{ $selectedService ? ($selectedService->name_ar ?: $selectedService->name_en) : '' }}" required>
-                    <div class="a2-hint">هذه الصفحة مخصصة لإنشاء حجوزات فقط، لذلك يتم اختيار خدمة الحجز تلقائيًا.</div>
+                    <input type="text" id="service_search" class="a2-input" placeholder="{{ __('ابحث باسم الخدمة...') }}" autocomplete="off" value="{{ $selectedService ? ($selectedService->name_ar ?: $selectedService->name_en) : '' }}" required>
+                    <div class="a2-hint">{{ __('هذه الصفحة مخصصة لإنشاء حجوزات فقط، لذلك يتم اختيار خدمة الحجز تلقائيًا.') }}</div>
 
                     <div class="bk-dropdown" id="service_dropdown">
                         @foreach($services->where('key', 'booking') as $service)
@@ -207,22 +207,22 @@
 
                 <div id="bookable_wrap">
                     <label class="a2-label">
-                        العنصر القابل للحجز
-                        <span id="bookable_required_badge" class="bk-mini-badge is-hidden">مطلوب</span>
+                        {{ __('العنصر القابل للحجز') }}
+                        <span id="bookable_required_badge" class="bk-mini-badge is-hidden">{{ __('مطلوب') }}</span>
                     </label>
                     <input type="hidden" name="bookable_item_id" id="bookable_item_id" value="{{ $selectedBookableId }}">
                     <select name="bookable_id" id="bookable_id" class="a2-select" data-no-ts="1">
-                        <option value="">بدون عنصر محدد</option>
+                        <option value="">{{ __('بدون عنصر محدد') }}</option>
                     </select>
-                    <div id="bookable_hint" class="a2-hint">اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.</div>
+                    <div id="bookable_hint" class="a2-hint">{{ __('اختر البزنس والخدمة أولًا لتحميل الغرف أو العناصر القابلة للحجز.') }}</div>
                 </div>
 
                     <div id="duration_unit_wrap">
-                        <label class="a2-label">نمط المدة</label>
+                        <label class="a2-label">{{ __('نمط المدة') }}</label>
                         <select name="duration_unit" id="duration_unit" class="a2-select">
-                            <option value="day" @selected($durationMode === 'day')>يوم</option>
-                            <option value="hour" @selected($durationMode === 'hour')>ساعة</option>
-                            <option value="minute" @selected($durationMode === 'minute')>دقيقة</option>
+                            <option value="day" @selected($durationMode === 'day')>{{ __('يوم') }}</option>
+                            <option value="hour" @selected($durationMode === 'hour')>{{ __('ساعة') }}</option>
+                            <option value="minute" @selected($durationMode === 'minute')>{{ __('دقيقة') }}</option>
                         </select>
                     </div>
 
@@ -244,28 +244,28 @@
                         <input type="hidden" id="duration_value" name="duration_value" value="{{ $durationValueOld }}">
 
                         <div class="a2-help-block">
-                            يتم إرسال التاريخ والوقت للكنترول بنفس الحقول القديمة:
+                            {{ __('يتم إرسال التاريخ والوقت للكنترول بنفس الحقول القديمة:') }}
                             <span dir="ltr">starts_at / ends_at / date / time / duration_value</span>
                         </div>
                     </div>
 
                     <div id="quantity_wrap">
-                        <label class="a2-label">الكمية / المدة</label>
+                        <label class="a2-label">{{ __('الكمية / المدة') }}</label>
                         <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
                     </div>
 
                     <div id="duration_preview_wrap">
-                        <label class="a2-label">المدة المحسوبة</label>
+                        <label class="a2-label">{{ __('المدة المحسوبة') }}</label>
                         <input type="text" id="duration_preview" class="a2-input" value="—" readonly>
                     </div>
 
                 <div id="party_size_wrap">
-                    <label class="a2-label">عدد الأفراد</label>
+                    <label class="a2-label">{{ __('عدد الأفراد') }}</label>
                     <input type="number" min="1" id="party_size" name="party_size" class="a2-input" value="{{ $partySizeValue }}">
                 </div>
 
                 <div>
-                    <label class="a2-label">الحالة</label>
+                    <label class="a2-label">{{ __('الحالة') }}</label>
                     <select name="status" class="a2-select" required>
                         @foreach($statusOptions as $key => $label)
                             <option value="{{ $key }}" @selected($bookingStatus === $key)>{{ $label }}</option>
@@ -280,74 +280,74 @@
                 <div id="all_day_wrap" class="bk-check-wrap">
                     <label class="bk-check">
                         <input type="checkbox" name="all_day" value="1" id="all_day_checkbox" @checked(old('all_day', $booking->all_day ?? false))>
-                        <span>طوال اليوم</span>
+                        <span>{{ __('طوال اليوم') }}</span>
                     </label>
                 </div>
 
                 <div class="bk-form-span-full">
-                    <label class="a2-label">ملاحظات</label>
+                    <label class="a2-label">{{ __('ملاحظات') }}</label>
                     <textarea name="notes" class="a2-textarea" rows="4">{{ old('notes', $booking->notes) }}</textarea>
                 </div>
             </div>
         </div>
 
         <div class="bk-form-actions">
-            <a href="{{ route('admin.bookings.index') }}" class="a2-btn">رجوع</a>
+            <a href="{{ route('admin.bookings.index') }}" class="a2-btn">{{ __('رجوع') }}</a>
             <button type="submit" class="a2-btn a2-btn-primary">{{ !empty($isEdit) ? 'حفظ التعديلات' : 'إنشاء الحجز' }}</button>
         </div>
     </div>
 
     <div class="bk-side">
         <div class="a2-card bk-card">
-            <div class="a2-title">إعداد الخدمة</div>
+            <div class="a2-title">{{ __('إعداد الخدمة') }}</div>
             <div class="bk-kv-grid">
                 <div class="bk-kv"><span>Service Config</span><strong id="summary_config_exists">—</strong></div>
-                <div class="bk-kv"><span>يتطلب عنصر؟</span><strong id="summary_requires_bookable">—</strong></div>
-                <div class="bk-kv"><span>أنواع العناصر</span><strong id="summary_allowed_types">—</strong></div>
-                <div class="bk-kv"><span>نمط الخدمة</span><strong id="summary_item_family">—</strong></div>
+                <div class="bk-kv"><span>{{ __('يتطلب عنصر؟') }}</span><strong id="summary_requires_bookable">—</strong></div>
+                <div class="bk-kv"><span>{{ __('أنواع العناصر') }}</span><strong id="summary_allowed_types">—</strong></div>
+                <div class="bk-kv"><span>{{ __('نمط الخدمة') }}</span><strong id="summary_item_family">—</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-card">
-            <div class="a2-title">ملخص التسعير</div>
+            <div class="a2-title">{{ __('ملخص التسعير') }}</div>
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>مصدر السعر</span><strong id="summary_price_source">—</strong></div>
-                <div class="bk-kv"><span>سعر الوحدة</span><strong id="summary_unit_price">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>السعر الأصلي</span><strong id="summary_original_price">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>الخصم</span><strong id="summary_discount">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>السعر النهائي</span><strong id="summary_final_price">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>الإجمالي</span><strong id="summary_total_cost">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('مصدر السعر') }}</span><strong id="summary_price_source">—</strong></div>
+                <div class="bk-kv"><span>{{ __('سعر الوحدة') }}</span><strong id="summary_unit_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('السعر الأصلي') }}</span><strong id="summary_original_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('الخصم') }}</span><strong id="summary_discount">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('السعر النهائي') }}</span><strong id="summary_final_price">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('الإجمالي') }}</span><strong id="summary_total_cost">0.00 EGP</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-card">
-            <div class="a2-title">العنصر المختار</div>
+            <div class="a2-title">{{ __('العنصر المختار') }}</div>
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>العنوان</span><strong id="summary_bookable_title">—</strong></div>
-                <div class="bk-kv"><span>الكود</span><strong id="summary_bookable_code">—</strong></div>
-                <div class="bk-kv"><span>النوع</span><strong id="summary_bookable_type">—</strong></div>
-                <div class="bk-kv"><span>السعة</span><strong id="summary_bookable_capacity">—</strong></div>
+                <div class="bk-kv"><span>{{ __('العنوان') }}</span><strong id="summary_bookable_title">—</strong></div>
+                <div class="bk-kv"><span>{{ __('الكود') }}</span><strong id="summary_bookable_code">—</strong></div>
+                <div class="bk-kv"><span>{{ __('النوع') }}</span><strong id="summary_bookable_type">—</strong></div>
+                <div class="bk-kv"><span>{{ __('السعة') }}</span><strong id="summary_bookable_capacity">—</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-card">
-            <div class="a2-title">ملخص الديبوزت</div>
+            <div class="a2-title">{{ __('ملخص الديبوزت') }}</div>
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>الخدمة تدعم ديبوزت؟</span><strong id="summary_supports_deposit">—</strong></div>
-                <div class="bk-kv"><span>مصدر سياسة الديبوزت</span><strong id="summary_deposit_policy_source">—</strong></div>
-                <div class="bk-kv"><span>النسبة المطبقة</span><strong id="summary_applied_deposit_percent">—</strong></div>
-                <div class="bk-kv"><span>قيمة الديبوزت</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>مصدر الديبوزت</span><strong id="summary_deposit_source">—</strong></div>
-                <div class="bk-kv"><span>مطلوب؟</span><strong id="summary_deposit_required">—</strong></div>
+                <div class="bk-kv"><span>{{ __('الخدمة تدعم ديبوزت؟') }}</span><strong id="summary_supports_deposit">—</strong></div>
+                <div class="bk-kv"><span>{{ __('مصدر سياسة الديبوزت') }}</span><strong id="summary_deposit_policy_source">—</strong></div>
+                <div class="bk-kv"><span>{{ __('النسبة المطبقة') }}</span><strong id="summary_applied_deposit_percent">—</strong></div>
+                <div class="bk-kv"><span>{{ __('قيمة الديبوزت') }}</span><strong id="summary_deposit_amount">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('مصدر الديبوزت') }}</span><strong id="summary_deposit_source">—</strong></div>
+                <div class="bk-kv"><span>{{ __('مطلوب؟') }}</span><strong id="summary_deposit_required">—</strong></div>
             </div>
         </div>
 
         <div class="a2-card bk-card">
-            <div class="a2-title">رسوم التنفيذ</div>
-            <div class="a2-section-subtitle">هذه الرسوم تُخصم عند انتقال الحجز إلى <span dir="ltr">in_progress</span>، ولا تسترد بعد بدء التنفيذ.</div>
+            <div class="a2-title">{{ __('رسوم التنفيذ') }}</div>
+            <div class="a2-section-subtitle">{{ __('هذه الرسوم تُخصم عند انتقال الحجز إلى') }} <span dir="ltr">in_progress</span>{{ __('، ولا تسترد بعد بدء التنفيذ.') }}</div>
             <div class="bk-kv-grid">
-                <div class="bk-kv"><span>رسوم العميل</span><strong id="summary_client_fee">0.00 EGP</strong></div>
-                <div class="bk-kv"><span>رسوم البزنس</span><strong id="summary_business_fee">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('رسوم العميل') }}</span><strong id="summary_client_fee">0.00 EGP</strong></div>
+                <div class="bk-kv"><span>{{ __('رسوم البزنس') }}</span><strong id="summary_business_fee">0.00 EGP</strong></div>
                 <div class="bk-kv"><span>Fee Code</span><strong id="summary_fee_code">—</strong></div>
                 <div class="bk-kv"><span>Fee Row ID</span><strong id="summary_fee_row_id">—</strong></div>
             </div>

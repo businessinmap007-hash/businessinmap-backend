@@ -7,14 +7,14 @@
 <div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة عنصر قابل للحجز</h1>
+            <h1 class="a2-page-title">{{ __('إضافة عنصر قابل للحجز') }}</h1>
             <div class="a2-page-subtitle">
-                إنشاء غرفة أو ملعب أو طاولة أو أي عنصر قابل للحجز حسب الخدمة والتصنيف
+                {{ __('إنشاء غرفة أو ملعب أو طاولة أو أي عنصر قابل للحجز حسب الخدمة والتصنيف') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

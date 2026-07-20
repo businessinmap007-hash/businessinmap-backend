@@ -17,25 +17,25 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">حجوزات الرحلات</h1>
-            <div class="a2-page-subtitle">حجوزات العملاء والحجوزات اليدوية للناقلين (خارج التطبيق).</div>
+            <h1 class="a2-page-title">{{ __('حجوزات الرحلات') }}</h1>
+            <div class="a2-page-subtitle">{{ __('حجوزات العملاء والحجوزات اليدوية للناقلين (خارج التطبيق).') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.trip-schedules.index') }}" class="a2-btn a2-btn-ghost">خطوط التشغيل</a>
+            <a href="{{ route('admin.trip-schedules.index') }}" class="a2-btn a2-btn-ghost">{{ __('خطوط التشغيل') }}</a>
         </div>
     </div>
 
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.trip-schedules.reservations') }}" class="a2-filterbar">
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 @foreach($statusLabels as $k => $label)
                     <option value="{{ $k }}" {{ $status === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="source">
-                <option value="">كل المصادر</option>
+                <option value="">{{ __('كل المصادر') }}</option>
                 @foreach($sourceLabels as $k => $label)
                     <option value="{{ $k }}" {{ $source === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
@@ -48,8 +48,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.trip-schedules.reservations') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.trip-schedules.reservations') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -60,14 +60,14 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>خط التشغيل</th>
-                        <th>الناقل</th>
-                        <th>العميل</th>
-                        <th>المصدر</th>
-                        <th>الوحدات</th>
-                        <th>الإجمالي</th>
-                        <th>العربون المحجوز</th>
-                        <th>الحالة</th>
+                        <th>{{ __('خط التشغيل') }}</th>
+                        <th>{{ __('الناقل') }}</th>
+                        <th>{{ __('العميل') }}</th>
+                        <th>{{ __('المصدر') }}</th>
+                        <th>{{ __('الوحدات') }}</th>
+                        <th>{{ __('الإجمالي') }}</th>
+                        <th>{{ __('العربون المحجوز') }}</th>
+                        <th>{{ __('الحالة') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -95,7 +95,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty-cell">لا توجد حجوزات.</td></tr>
+                        <tr><td colspan="9" class="a2-empty-cell">{{ __('لا توجد حجوزات.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -8,11 +8,11 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إنشاء عرض تجاري</h1>
-            <div class="a2-page-subtitle">عرض تسويقي أو سعر قابل للمقارنة لمنتج أو خدمة أو باكدج.</div>
+            <h1 class="a2-page-title">{{ __('إنشاء عرض تجاري') }}</h1>
+            <div class="a2-page-subtitle">{{ __('عرض تسويقي أو سعر قابل للمقارنة لمنتج أو خدمة أو باكدج.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 

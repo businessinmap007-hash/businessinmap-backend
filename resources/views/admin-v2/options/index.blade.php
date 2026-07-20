@@ -14,19 +14,19 @@
     {{-- ================= HEADER ================= --}}
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الخيارات</h1>
+            <h1 class="a2-page-title">{{ __('الخيارات') }}</h1>
             <div class="a2-page-subtitle">
-                إدارة بيانات الخيارات وربطها بالمجموعات
+                {{ __('إدارة بيانات الخيارات وربطها بالمجموعات') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.option-groups.index') }}" class="a2-btn a2-btn-ghost">
-                إدارة المجموعات
+                {{ __('إدارة المجموعات') }}
             </a>
 
             <a href="{{ route('admin.options.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة خيار
+                {{ __('+ إضافة خيار') }}
             </a>
         </div>
     </div>
@@ -45,19 +45,19 @@
         <form method="GET" action="{{ route('admin.options.index') }}" class="a2-form-grid">
 
             <div class="a2-form-group">
-                <label class="a2-label">بحث</label>
+                <label class="a2-label">{{ __('بحث') }}</label>
                 <input class="a2-input"
                        type="text"
                        name="q"
                        value="{{ $qVal }}"
-                       placeholder="اسم عربي أو إنجليزي">
+                       placeholder="{{ __('اسم عربي أو إنجليزي') }}">
             </div>
 
             <div class="a2-form-group">
-                <label class="a2-label">المجموعة</label>
+                <label class="a2-label">{{ __('المجموعة') }}</label>
                 <select class="a2-select" name="group_id">
-                    <option value="">كل المجموعات</option>
-                    <option value="ungrouped" @selected($groupIdVal === 'ungrouped')>بدون مجموعة</option>
+                    <option value="">{{ __('كل المجموعات') }}</option>
+                    <option value="ungrouped" @selected($groupIdVal === 'ungrouped')>{{ __('بدون مجموعة') }}</option>
 
                     @foreach($groups as $g)
                         <option value="{{ $g->id }}" @selected($groupIdVal == $g->id)>
@@ -68,10 +68,10 @@
             </div>
 
             <div class="a2-page-actions" style="align-items:flex-end;">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
                 <a href="{{ route('admin.options.index') }}" class="a2-btn a2-btn-ghost">
-                    تفريغ
+                    {{ __('تفريغ') }}
                 </a>
             </div>
 
@@ -84,13 +84,13 @@
 
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">تغيير المجموعة</div>
-                <div class="a2-card-sub">تحديد مجموعة أو إزالة الربط</div>
+                <div class="a2-card-title">{{ __('تغيير المجموعة') }}</div>
+                <div class="a2-card-sub">{{ __('تحديد مجموعة أو إزالة الربط') }}</div>
             </div>
 
             <div class="a2-page-actions">
                 <select name="target_group_id" class="a2-select">
-                    <option value="">بدون مجموعة</option>
+                    <option value="">{{ __('بدون مجموعة') }}</option>
 
                     @foreach($groups as $g)
                         <option value="{{ $g->id }}">
@@ -100,7 +100,7 @@
                 </select>
 
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    تطبيق على المحدد
+                    {{ __('تطبيق على المحدد') }}
                 </button>
             </div>
         </div>
@@ -114,10 +114,10 @@
                         <input type="checkbox" id="checkAll">
                     </th>
                     <th style="width:80px;">ID</th>
-                    <th>الاسم (AR)</th>
-                    <th>الاسم (EN)</th>
+                    <th>{{ __('الاسم (AR)') }}</th>
+                    <th>{{ __('الاسم (EN)') }}</th>
                     <th style="width:120px;">Group</th>
-                    <th style="width:220px;">الإجراءات</th>
+                    <th style="width:220px;">{{ __('الإجراءات') }}</th>
                 </tr>
                 </thead>
 
@@ -155,7 +155,7 @@
 
                                 <a href="{{ route('admin.options.edit', $row->id) }}"
                                    class="a2-btn a2-btn-ghost a2-btn-sm">
-                                    تعديل
+                                    {{ __('تعديل') }}
                                 </a>
 
                                 <form method="POST"
@@ -166,7 +166,7 @@
 
                                     <button type="submit"
                                             class="a2-btn a2-btn-danger a2-btn-sm">
-                                        حذف
+                                        {{ __('حذف') }}
                                     </button>
                                 </form>
 
@@ -176,7 +176,7 @@
                 @empty
                     <tr>
                         <td colspan="6" class="a2-empty-cell">
-                            لا توجد بيانات
+                            {{ __('لا توجد بيانات') }}
                         </td>
                     </tr>
                 @endforelse

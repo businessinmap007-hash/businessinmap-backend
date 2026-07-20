@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'الخدمات ورسومها للمحدد')
+@section('title', __('الخدمات ورسومها للمحدد'))
 @section('body_class', 'admin-v2 admin-v2-category-child-service-fees-bulk')
 
 @section('content')
@@ -21,17 +21,17 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الخدمات ورسومها للمحدد</h1>
+            <h1 class="a2-page-title">{{ __('الخدمات ورسومها للمحدد') }}</h1>
 
             <div class="a2-page-subtitle">
                 <div>
-                    <strong>القسم الرئيسي:</strong>
+                    <strong>{{ __('القسم الرئيسي:') }}</strong>
                     {{ $parentName }}
                     <span class="a2-muted">#{{ $parentIdInt }}</span>
                 </div>
 
                 <div class="a2-mt-8">
-                    <strong>عدد الأقسام الفرعية المحددة:</strong>
+                    <strong>{{ __('عدد الأقسام الفرعية المحددة:') }}</strong>
                     {{ $children->count() }}
                 </div>
             </div>
@@ -39,18 +39,18 @@
 
         <div class="a2-page-actions">
             <button type="button" class="a2-btn a2-btn-ghost js-bulk-check-all">
-                تحديد كل الخدمات
+                {{ __('تحديد كل الخدمات') }}
             </button>
 
             <button type="button" class="a2-btn a2-btn-ghost js-bulk-uncheck-all">
-                إلغاء الكل
+                {{ __('إلغاء الكل') }}
             </button>
 
             <a
                 href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
                 class="a2-btn a2-btn-ghost"
             >
-                رجوع إلى الأقسام
+                {{ __('رجوع إلى الأقسام') }}
             </a>
         </div>
     </div>
@@ -69,7 +69,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد بعض الأخطاء، راجع البيانات التالية:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد بعض الأخطاء، راجع البيانات التالية:') }}</div>
 
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)
@@ -80,9 +80,9 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">الأقسام الفرعية المحددة</div>
+        <div class="a2-section-title">{{ __('الأقسام الفرعية المحددة') }}</div>
         <div class="a2-section-subtitle">
-            سيتم تطبيق الربط والرسوم على الأقسام الفرعية التالية فقط.
+            {{ __('سيتم تطبيق الربط والرسوم على الأقسام الفرعية التالية فقط.') }}
         </div>
 
         <div class="a2-page-actions a2-mt-12">
@@ -96,30 +96,30 @@
     </div>
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">طريقة العمل</div>
+        <div class="a2-section-title">{{ __('طريقة العمل') }}</div>
 
         <div class="a2-kv-grid a2-kv-grid-3 a2-mt-12">
             <div class="a2-kv-box">
-                <span>ربط الخدمة</span>
+                <span>{{ __('ربط الخدمة') }}</span>
                 <strong>
-                    يعني تفعيل الخدمة داخل
+                    {{ __('يعني تفعيل الخدمة داخل') }}
                     <span dir="ltr">category_platform_services</span>.
                 </strong>
             </div>
 
             <div class="a2-kv-box">
-                <span>إلغاء الربط</span>
+                <span>{{ __('إلغاء الربط') }}</span>
                 <strong>
-                    يعني تعطيل الخدمة لهذا القسم الفرعي وتعطيل رسومها وتصفير رسوم البزنس والمستخدم.
+                    {{ __('يعني تعطيل الخدمة لهذا القسم الفرعي وتعطيل رسومها وتصفير رسوم البزنس والمستخدم.') }}
                 </strong>
             </div>
 
             <div class="a2-kv-box">
-                <span>رسوم الخدمة</span>
+                <span>{{ __('رسوم الخدمة') }}</span>
                 <strong>
-                    يتم حفظها داخل
+                    {{ __('يتم حفظها داخل') }}
                     <span dir="ltr">category_child_service_fees</span>
-                    وتستخدم عند
+                    {{ __('وتستخدم عند') }}
                     <span dir="ltr">in_progress</span>.
                 </strong>
             </div>
@@ -137,7 +137,7 @@
 
         @if($services->isEmpty())
             <div class="a2-empty-cell">
-                لا توجد خدمات مفعلة في النظام حاليًا.
+                {{ __('لا توجد خدمات مفعلة في النظام حاليًا.') }}
             </div>
 
             <div class="a2-page-actions a2-mt-16">
@@ -145,7 +145,7 @@
                     href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
                     class="a2-btn a2-btn-ghost"
                 >
-                    رجوع
+                    {{ __('رجوع') }}
                 </a>
             </div>
         @else
@@ -153,19 +153,19 @@
                 <table class="a2-table">
                     <thead>
                     <tr>
-                        <th style="min-width:270px;">القسم الفرعي / الخدمة</th>
-                        <th style="min-width:130px;">ربط الخدمة</th>
-                        <th style="min-width:120px;">تفعيل الرسوم</th>
+                        <th style="min-width:270px;">{{ __('القسم الفرعي / الخدمة') }}</th>
+                        <th style="min-width:130px;">{{ __('ربط الخدمة') }}</th>
+                        <th style="min-width:120px;">{{ __('تفعيل الرسوم') }}</th>
 
-                        <th style="min-width:120px;">رسوم البزنس</th>
-                        <th style="min-width:140px;">قيمة البزنس</th>
+                        <th style="min-width:120px;">{{ __('رسوم البزنس') }}</th>
+                        <th style="min-width:140px;">{{ __('قيمة البزنس') }}</th>
 
-                        <th style="min-width:120px;">رسوم المستخدم</th>
-                        <th style="min-width:140px;">قيمة المستخدم</th>
+                        <th style="min-width:120px;">{{ __('رسوم المستخدم') }}</th>
+                        <th style="min-width:140px;">{{ __('قيمة المستخدم') }}</th>
 
-                        <th style="min-width:90px;">العملة</th>
-                        <th style="min-width:90px;">الترتيب</th>
-                        <th style="min-width:280px;">ملاحظات</th>
+                        <th style="min-width:90px;">{{ __('العملة') }}</th>
+                        <th style="min-width:90px;">{{ __('الترتيب') }}</th>
+                        <th style="min-width:280px;">{{ __('ملاحظات') }}</th>
                     </tr>
                     </thead>
 
@@ -304,7 +304,7 @@
                                             value="1"
                                             @checked($rowIsEnabled)
                                         >
-                                        <span>مطلوبة</span>
+                                        <span>{{ __('مطلوبة') }}</span>
                                     </label>
                                 </td>
 
@@ -318,7 +318,7 @@
                                             @checked((int) $isActive === 1)
                                             @disabled(! $rowIsEnabled)
                                         >
-                                        <span>مفعل</span>
+                                        <span>{{ __('مفعل') }}</span>
                                     </label>
                                 </td>
 
@@ -332,7 +332,7 @@
                                             @checked((int) $businessFeeEnabled === 1)
                                             @disabled(! $rowIsEnabled)
                                         >
-                                        <span>تشغيل</span>
+                                        <span>{{ __('تشغيل') }}</span>
                                     </label>
                                 </td>
 
@@ -360,7 +360,7 @@
                                             @checked((int) $clientFeeEnabled === 1)
                                             @disabled(! $rowIsEnabled)
                                         >
-                                        <span>تشغيل</span>
+                                        <span>{{ __('تشغيل') }}</span>
                                     </label>
                                 </td>
 
@@ -410,7 +410,7 @@
                                         class="a2-textarea js-row-field"
                                         name="rows[{{ $childId }}][{{ $serviceId }}][notes]"
                                         rows="2"
-                                        placeholder="ملاحظات اختيارية"
+                                        placeholder="{{ __('ملاحظات اختيارية') }}"
                                         style="min-height:80px;"
                                         @disabled(! $rowIsEnabled)
                                     >{{ $notes }}</textarea>
@@ -423,38 +423,36 @@
             </div>
 
             <div class="a2-card a2-card--soft a2-card--tight a2-mt-16">
-                <div class="a2-section-title">ملاحظات تشغيلية</div>
+                <div class="a2-section-title">{{ __('ملاحظات تشغيلية') }}</div>
                 <div class="a2-section-subtitle">
-                    عند إلغاء ربط خدمة، سيتم تعطيل صف الخدمة داخل
+                    {{ __('عند إلغاء ربط خدمة، سيتم تعطيل صف الخدمة داخل') }}
                     <span dir="ltr">category_platform_services</span>
-                    وتعطيل الرسوم المرتبطة بها داخل
-                    <span dir="ltr">category_child_service_fees</span>.
-                    ولو كانت قيمة رسوم البزنس أو المستخدم صفرًا سيتم تعطيل رسوم هذا الطرف تلقائيًا.
+                    {{ __('وتعطيل الرسوم المرتبطة بها داخل') }}
+                    <span dir="ltr">category_child_service_fees</span>{{ __('. ولو كانت قيمة رسوم البزنس أو المستخدم صفرًا سيتم تعطيل رسوم هذا الطرف تلقائيًا.') }}
                 </div>
             </div>
 
             <div class="a2-page-actions a2-mt-16">
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    حفظ الخدمات والرسوم
+                    {{ __('حفظ الخدمات والرسوم') }}
                 </button>
 
                 <a
                     href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
                     class="a2-btn a2-btn-ghost"
                 >
-                    رجوع
+                    {{ __('رجوع') }}
                 </a>
             </div>
         @endif
     </form>
 
     <div class="a2-card a2-card--soft a2-mt-16">
-        <div class="a2-section-title">ملاحظة تشغيلية</div>
+        <div class="a2-section-title">{{ __('ملاحظة تشغيلية') }}</div>
         <div class="a2-section-subtitle">
-            إذا دخل الحجز حالة
+            {{ __('إذا دخل الحجز حالة') }}
             <span dir="ltr">in_progress</span>
-            وتم خصم رسوم الخدمة، فلا يتم رد هذه الرسوم تلقائيًا عند إلغاء الحجز لاحقًا.
-            أي رد لاحق يجب أن يتم عبر سياسة نزاع أو إجراء مالي مستقل.
+            {{ __('وتم خصم رسوم الخدمة، فلا يتم رد هذه الرسوم تلقائيًا عند إلغاء الحجز لاحقًا. أي رد لاحق يجب أن يتم عبر سياسة نزاع أو إجراء مالي مستقل.') }}
         </div>
     </div>
 </div>

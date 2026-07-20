@@ -7,26 +7,26 @@
 @endphp
 
 <div class="a2-card a2-card--soft a2-mb-16">
-    <div class="a2-section-title">تنظيم عناصر الحجز الفعلية</div>
+    <div class="a2-section-title">{{ __('تنظيم عناصر الحجز الفعلية') }}</div>
     <div class="a2-section-subtitle">
-        Bookable Item هو العنصر الحقيقي الذي يختاره العميل في الحجز. نوع العنصر هنا لا يأتي من كتابة حرة، بل من تقاطع:
-        <span dir="ltr">Platform Service Item Types</span> + <span dir="ltr">Service Catalog Matrix</span> + القسم الفرعي للبزنس.
+        {{ __('Bookable Item هو العنصر الحقيقي الذي يختاره العميل في الحجز. نوع العنصر هنا لا يأتي من كتابة حرة، بل من تقاطع:') }}
+        <span dir="ltr">Platform Service Item Types</span> + <span dir="ltr">Service Catalog Matrix</span> {{ __('+ القسم الفرعي للبزنس.') }}
     </div>
 </div>
 
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">البزنس والخدمة</div>
-            <div class="a2-card-sub">بعد اختيار البزنس والخدمة سيتم تضييق نوع العنصر حسب إعدادات الأدمن للقسم الفرعي.</div>
+            <div class="a2-card-title">{{ __('البزنس والخدمة') }}</div>
+            <div class="a2-card-sub">{{ __('بعد اختيار البزنس والخدمة سيتم تضييق نوع العنصر حسب إعدادات الأدمن للقسم الفرعي.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label" for="business_id">البزنس</label>
-            <select id="business_id" name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="اكتب اسم البزنس" data-remote-url="{{ route('admin.bookable-items.business-lookup', [], false) }}">
-                <option value="">اختر البزنس</option>
+            <label class="a2-label" for="business_id">{{ __('البزنس') }}</label>
+            <select id="business_id" name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="{{ __('اكتب اسم البزنس') }}" data-remote-url="{{ route('admin.bookable-items.business-lookup', [], false) }}">
+                <option value="">{{ __('اختر البزنس') }}</option>
                 @if($selectedBusiness ?? null)
                     <option value="{{ $selectedBusiness->id }}" selected>{{ $selectedBusiness->name }}</option>
                 @endif
@@ -34,9 +34,9 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="service_id">الخدمة</label>
-            <select id="service_id" name="service_id" class="a2-select js-bookable-service js-bookable-search-select" required data-placeholder="اكتب اسم الخدمة">
-                <option value="">اختر الخدمة</option>
+            <label class="a2-label" for="service_id">{{ __('الخدمة') }}</label>
+            <select id="service_id" name="service_id" class="a2-select js-bookable-service js-bookable-search-select" required data-placeholder="{{ __('اكتب اسم الخدمة') }}">
+                <option value="">{{ __('اختر الخدمة') }}</option>
                 @foreach($services as $s)
                     <option value="{{ $s->id }}" @selected((string) $defaultServiceId === (string) $s->id)>{{ $s->name_ar ?: ($s->name_en ?: $s->key) }}</option>
                 @endforeach
@@ -45,14 +45,14 @@
 
         @if($isEdit)
             <div class="a2-form-group">
-                <label class="a2-label" for="item_type">نوع العنصر</label>
-                <select id="item_type" name="item_type" class="a2-select js-bookable-type js-bookable-search-select" required data-current-value="{{ $defaultType }}" data-placeholder="اختر نوع العنصر">
-                    <option value="">اختر النوع</option>
+                <label class="a2-label" for="item_type">{{ __('نوع العنصر') }}</label>
+                <select id="item_type" name="item_type" class="a2-select js-bookable-type js-bookable-search-select" required data-current-value="{{ $defaultType }}" data-placeholder="{{ __('اختر نوع العنصر') }}">
+                    <option value="">{{ __('اختر النوع') }}</option>
                     @foreach($typeOptions as $type)
                         <option value="{{ $type }}" @selected((string) $defaultType === (string) $type)>{{ $itemTypeLabels[$type] ?? $type }}</option>
                     @endforeach
                 </select>
-                <div class="a2-hint a2-mt-8 js-bookable-type-hint">يتم تحديث القائمة حسب البزنس والخدمة.</div>
+                <div class="a2-hint a2-mt-8 js-bookable-type-hint">{{ __('يتم تحديث القائمة حسب البزنس والخدمة.') }}</div>
             </div>
         @endif
     </div>
@@ -61,27 +61,27 @@
 @if($isEdit)
     <div class="a2-form-grid">
         <div class="a2-card">
-            <div class="a2-card-head"><h3>بيانات العنصر</h3></div>
+            <div class="a2-card-head"><h3>{{ __('بيانات العنصر') }}</h3></div>
             <div class="a2-card-body">
                 <div class="a2-form-group">
-                    <label>الكود / رقم الغرفة</label>
-                    <input type="text" name="code" class="a2-input" value="{{ old('code', $row->code ?? '') }}" required placeholder="مثال: 101 / A1">
+                    <label>{{ __('الكود / رقم الغرفة') }}</label>
+                    <input type="text" name="code" class="a2-input" value="{{ old('code', $row->code ?? '') }}" required placeholder="{{ __('مثال: 101 / A1') }}">
                 </div>
                 <div class="a2-form-group">
-                    <label>السعة / عدد الغرف</label>
+                    <label>{{ __('السعة / عدد الغرف') }}</label>
                     <input type="number" name="capacity" class="a2-input" value="{{ old('capacity', $row->capacity ?? '') }}" min="1">
                 </div>
                 <div class="a2-form-group">
-                    <label>الكمية</label>
+                    <label>{{ __('الكمية') }}</label>
                     <input type="number" name="quantity" class="a2-input" value="{{ old('quantity', $row->quantity ?? 1) }}" min="1">
                 </div>
             </div>
         </div>
         <div class="a2-card">
-            <div class="a2-card-head"><h3>الحالة</h3></div>
+            <div class="a2-card-head"><h3>{{ __('الحالة') }}</h3></div>
             <div class="a2-card-body">
-                <label class="a2-check"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $row->is_active ?? 1))> <span>مفعل</span></label>
-                <div class="a2-hint a2-mt-8">السعر والديبوزت يُضبطان لكل نوع من شاشة أسعار خدمات البزنس، وليس على الوحدة.</div>
+                <label class="a2-check"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $row->is_active ?? 1))> <span>{{ __('مفعل') }}</span></label>
+                <div class="a2-hint a2-mt-8">{{ __('السعر والديبوزت يُضبطان لكل نوع من شاشة أسعار خدمات البزنس، وليس على الوحدة.') }}</div>
             </div>
         </div>
     </div>
@@ -89,8 +89,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">عناصر الحجز المتاحة للعميل</div>
-                <div class="a2-card-sub">أضف كل عنصر فعلي كسطر مستقل: غرفة 101، غرفة 102، شقة A1، طاولة 5.</div>
+                <div class="a2-card-title">{{ __('عناصر الحجز المتاحة للعميل') }}</div>
+                <div class="a2-card-sub">{{ __('أضف كل عنصر فعلي كسطر مستقل: غرفة 101، غرفة 102، شقة A1، طاولة 5.') }}</div>
             </div>
         </div>
 
@@ -98,11 +98,11 @@
             <table class="a2-table" id="bookableItemsTable">
                 <thead>
                     <tr>
-                        <th>نوع العنصر</th>
-                        <th>الكود / رقم الغرفة</th>
-                        <th>السعة / عدد الغرف</th>
-                        <th>الكمية</th>
-                        <th>مفعل</th>
+                        <th>{{ __('نوع العنصر') }}</th>
+                        <th>{{ __('الكود / رقم الغرفة') }}</th>
+                        <th>{{ __('السعة / عدد الغرف') }}</th>
+                        <th>{{ __('الكمية') }}</th>
+                        <th>{{ __('مفعل') }}</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -110,15 +110,15 @@
                     @for($i = 0; $i < 8; $i++)
                         <tr>
                             <td>
-                                <select id="item-type-{{ $i }}" name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="اختر النوع">
-                                    <option value="">اختر البزنس والخدمة أولًا</option>
+                                <select id="item-type-{{ $i }}" name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="{{ __('اختر النوع') }}">
+                                    <option value="">{{ __('اختر البزنس والخدمة أولًا') }}</option>
                                 </select>
                             </td>
                             <td><input name="items[{{ $i }}][code]" class="a2-input" placeholder="101 / A1 / Table-5"></td>
-                            <td><input name="items[{{ $i }}][capacity]" class="a2-input" type="number" min="1" placeholder="مثال: 2"></td>
+                            <td><input name="items[{{ $i }}][capacity]" class="a2-input" type="number" min="1" placeholder="{{ __('مثال: 2') }}"></td>
                             <td><input name="items[{{ $i }}][quantity]" class="a2-input" type="number" min="1" value="1"></td>
                             <td><input type="checkbox" name="items[{{ $i }}][is_active]" value="1" checked></td>
-                            <td><button type="button" class="a2-btn a2-btn-ghost js-clear-row">مسح</button></td>
+                            <td><button type="button" class="a2-btn a2-btn-ghost js-clear-row">{{ __('مسح') }}</button></td>
                         </tr>
                     @endfor
                 </tbody>
@@ -126,7 +126,7 @@
         </div>
 
         <div class="a2-alert a2-alert-info a2-mt-16 js-bookable-type-hint">
-            اختر البزنس والخدمة أولًا. ستظهر فقط أنواع العناصر المسموحة من Service Catalog Matrix لهذا category_child.
+            {{ __('اختر البزنس والخدمة أولًا. ستظهر فقط أنواع العناصر المسموحة من Service Catalog Matrix لهذا category_child.') }}
         </div>
     </div>
 @endif
@@ -134,12 +134,12 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">السعر والديبوزت والخصم</div>
-            <div class="a2-card-sub">لا تُضبط على الوحدة. السعر والديبوزت والخصم يُحدَّدون لكل نوع عنصر من شاشة أسعار خدمات البزنس.</div>
+            <div class="a2-card-title">{{ __('السعر والديبوزت والخصم') }}</div>
+            <div class="a2-card-sub">{{ __('لا تُضبط على الوحدة. السعر والديبوزت والخصم يُحدَّدون لكل نوع عنصر من شاشة أسعار خدمات البزنس.') }}</div>
         </div>
     </div>
 
-    <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">إدارة أسعار وخصومات الخدمة</a>
+    <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">{{ __('إدارة أسعار وخصومات الخدمة') }}</a>
 </div>
 
 <div class="a2-card a2-card--section">
@@ -149,7 +149,7 @@
 
 <div class="a2-actions">
     <button class="a2-btn a2-btn-primary">{{ $isEdit ? 'تحديث' : 'إنشاء العناصر' }}</button>
-    <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn">رجوع</a>
+    <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn">{{ __('رجوع') }}</a>
 </div>
 
 @push('scripts')

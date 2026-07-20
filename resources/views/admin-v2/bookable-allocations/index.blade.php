@@ -8,12 +8,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">حصص الوحدات القابلة للحجز</h1>
-            <div class="a2-page-subtitle">إدارة حصة شركة السياحة أو الشريك من غرف الفندق أو أي وحدة قابلة للحجز.</div>
+            <h1 class="a2-page-title">{{ __('حصص الوحدات القابلة للحجز') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إدارة حصة شركة السياحة أو الشريك من غرف الفندق أو أي وحدة قابلة للحجز.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.bookable-allocations.create') }}" class="a2-btn a2-btn-primary">إنشاء حصة</a>
-            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">الشراكات</a>
+            <a href="{{ route('admin.bookable-allocations.create') }}" class="a2-btn a2-btn-primary">{{ __('إنشاء حصة') }}</a>
+            <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">{{ __('الشراكات') }}</a>
         </div>
     </div>
 
@@ -27,19 +27,19 @@
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">الكل</div>
+            <div class="a2-stat-label">{{ __('الكل') }}</div>
             <div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div>
-            <div class="a2-stat-note">إجمالي الحصص</div>
+            <div class="a2-stat-note">{{ __('إجمالي الحصص') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Active</div>
             <div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div>
-            <div class="a2-stat-note">حصص مفعلة</div>
+            <div class="a2-stat-note">{{ __('حصص مفعلة') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Paused</div>
             <div class="a2-stat-value">{{ number_format($totals['paused'] ?? 0) }}</div>
-            <div class="a2-stat-note">موقوفة مؤقتًا</div>
+            <div class="a2-stat-note">{{ __('موقوفة مؤقتًا') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Stopped</div>
@@ -50,10 +50,10 @@
 
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.bookable-allocations.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="بحث بالفندق / الشريك / الوحدة / ID">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالفندق / الشريك / الوحدة / ID') }}">
 
             <select class="a2-select a2-filter-sm" name="partnership_id">
-                <option value="0">كل الشراكات</option>
+                <option value="0">{{ __('كل الشراكات') }}</option>
                 @foreach($partnerships as $partnership)
                     <option value="{{ $partnership->id }}" {{ (int) $partnershipId === (int) $partnership->id ? 'selected' : '' }}>
                         #{{ $partnership->id }} — {{ optional($partnership->ownerBusiness)->name ?: 'Owner' }} ↔ {{ optional($partnership->partnerBusiness)->name ?: 'Partner' }}
@@ -62,14 +62,14 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="allocation_type">
-                <option value="">كل الأنواع</option>
+                <option value="">{{ __('كل الأنواع') }}</option>
                 @foreach(\App\Models\BookableAllocation::allocationTypes() as $key => $label)
                     <option value="{{ $key }}" {{ $allocationType === $key ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 @foreach(\App\Models\BookableAllocation::statuses() as $key => $label)
                     <option value="{{ $key }}" {{ $status === $key ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
@@ -82,8 +82,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-allocations.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-allocations.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -103,7 +103,7 @@
                         <th>Available</th>
                         <th>Price</th>
                         <th>Period</th>
-                        <th>إجراءات</th>
+                        <th>{{ __('إجراءات') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -137,12 +137,12 @@
                             </td>
                             <td>
                                 <div class="a2-actions">
-                                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.bookable-allocations.edit', $row->id) }}">تعديل</a>
+                                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.bookable-allocations.edit', $row->id) }}">{{ __('تعديل') }}</a>
 
                                     @if($row->status !== 'active')
                                         <form method="POST" action="{{ route('admin.bookable-allocations.activate', $row->id) }}">
                                             @csrf
-                                            <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">تفعيل</button>
+                                            <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">{{ __('تفعيل') }}</button>
                                         </form>
                                     @endif
 
@@ -156,14 +156,14 @@
                                     <form method="POST" action="{{ route('admin.bookable-allocations.destroy', $row->id) }}" onsubmit="return confirm('حذف الحصة والعرض المرتبط؟')">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                        <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="a2-empty-cell">لا توجد حصص.</td>
+                            <td colspan="11" class="a2-empty-cell">{{ __('لا توجد حصص.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

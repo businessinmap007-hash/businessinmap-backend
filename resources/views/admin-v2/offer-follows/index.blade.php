@@ -8,31 +8,31 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">متابعات العروض والاستهداف</h1>
-            <div class="a2-page-subtitle">تحليل ما يتابعه المستخدمون والبزنسات، والكلمات والمنتجات الأكثر استهدافًا.</div>
+            <h1 class="a2-page-title">{{ __('متابعات العروض والاستهداف') }}</h1>
+            <div class="a2-page-subtitle">{{ __('تحليل ما يتابعه المستخدمون والبزنسات، والكلمات والمنتجات الأكثر استهدافًا.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">العروض</a>
-            <a href="{{ route('admin.offer-performance.index') }}" class="a2-btn a2-btn-ghost">أداء العروض</a>
+            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">{{ __('العروض') }}</a>
+            <a href="{{ route('admin.offer-performance.index') }}" class="a2-btn a2-btn-ghost">{{ __('أداء العروض') }}</a>
         </div>
     </div>
 
     <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card"><div class="a2-stat-label">Follows</div><div class="a2-stat-value">{{ number_format($totals['follows'] ?? 0) }}</div><div class="a2-stat-note">كل المتابعات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active_follows'] ?? 0) }}</div><div class="a2-stat-note">متابعات فعالة</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Keywords</div><div class="a2-stat-value">{{ number_format($totals['keywords'] ?? 0) }}</div><div class="a2-stat-note">متابعة كلمات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">B2B</div><div class="a2-stat-value">{{ number_format($totals['b2b'] ?? 0) }}</div><div class="a2-stat-note">استهداف بزنس</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">B2C</div><div class="a2-stat-value">{{ number_format($totals['b2c'] ?? 0) }}</div><div class="a2-stat-note">استهداف عملاء</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Notifications</div><div class="a2-stat-value">{{ number_format($totals['notifications'] ?? 0) }}</div><div class="a2-stat-note">إشعارات Matching</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Unread</div><div class="a2-stat-value">{{ number_format($totals['unread_notifications'] ?? 0) }}</div><div class="a2-stat-note">غير مقروء</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Follows</div><div class="a2-stat-value">{{ number_format($totals['follows'] ?? 0) }}</div><div class="a2-stat-note">{{ __('كل المتابعات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active_follows'] ?? 0) }}</div><div class="a2-stat-note">{{ __('متابعات فعالة') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Keywords</div><div class="a2-stat-value">{{ number_format($totals['keywords'] ?? 0) }}</div><div class="a2-stat-note">{{ __('متابعة كلمات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">B2B</div><div class="a2-stat-value">{{ number_format($totals['b2b'] ?? 0) }}</div><div class="a2-stat-note">{{ __('استهداف بزنس') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">B2C</div><div class="a2-stat-value">{{ number_format($totals['b2c'] ?? 0) }}</div><div class="a2-stat-note">{{ __('استهداف عملاء') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Notifications</div><div class="a2-stat-value">{{ number_format($totals['notifications'] ?? 0) }}</div><div class="a2-stat-note">{{ __('إشعارات Matching') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Unread</div><div class="a2-stat-value">{{ number_format($totals['unread_notifications'] ?? 0) }}</div><div class="a2-stat-note">{{ __('غير مقروء') }}</div></div>
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
         <form method="GET" action="{{ route('admin.offer-follows.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="بحث بالاسم / keyword / id">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('بحث بالاسم / keyword / id') }}">
 
             <select class="a2-select a2-filter-sm" name="user_id">
-                <option value="">كل المستخدمين</option>
+                <option value="">{{ __('كل المستخدمين') }}</option>
                 @foreach($users as $user)
                     <option value="{{ $user->id }}" {{ (int) ($filters['user_id'] ?? 0) === (int) $user->id ? 'selected' : '' }}>
                         #{{ $user->id }} — {{ $user->name }} — {{ $user->type }}
@@ -41,28 +41,28 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="user_type">
-                <option value="">كل الأنواع</option>
+                <option value="">{{ __('كل الأنواع') }}</option>
                 @foreach(['client', 'business', 'admin'] as $type)
                     <option value="{{ $type }}" {{ ($filters['user_type'] ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="followable_type">
-                <option value="">كل المتابعات</option>
+                <option value="">{{ __('كل المتابعات') }}</option>
                 @foreach($followableTypes as $type)
                     <option value="{{ $type }}" {{ ($filters['followable_type'] ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="audience_type">
-                <option value="">كل الجمهور</option>
+                <option value="">{{ __('كل الجمهور') }}</option>
                 @foreach($audienceTypes as $type)
                     <option value="{{ $type }}" {{ ($filters['audience_type'] ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="is_active">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 <option value="1" {{ ($filters['is_active'] ?? '') === '1' ? 'selected' : '' }}>Active</option>
                 <option value="0" {{ ($filters['is_active'] ?? '') === '0' ? 'selected' : '' }}>Inactive</option>
             </select>
@@ -74,15 +74,15 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-follows.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-follows.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
 
     <div class="a2-grid-3 a2-mb-16">
         <div class="a2-card a2-card--tight">
-            <h2 class="a2-section-title">أكثر Keywords متابعة</h2>
+            <h2 class="a2-section-title">{{ __('أكثر Keywords متابعة') }}</h2>
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead><tr><th>Keyword</th><th>Total</th></tr></thead>
@@ -90,7 +90,7 @@
                         @forelse($topKeywords as $row)
                             <tr><td>{{ $row->keyword }}</td><td>{{ number_format((int) $row->total) }}</td></tr>
                         @empty
-                            <tr><td colspan="2" class="a2-empty-cell">لا توجد keywords.</td></tr>
+                            <tr><td colspan="2" class="a2-empty-cell">{{ __('لا توجد keywords.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -98,7 +98,7 @@
         </div>
 
         <div class="a2-card a2-card--tight">
-            <h2 class="a2-section-title">أكثر عناصر متابعة</h2>
+            <h2 class="a2-section-title">{{ __('أكثر عناصر متابعة') }}</h2>
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead><tr><th>Type</th><th>ID</th><th>Total</th></tr></thead>
@@ -110,7 +110,7 @@
                                 <td>{{ number_format((int) $row->total) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="a2-empty-cell">لا توجد عناصر.</td></tr>
+                            <tr><td colspan="3" class="a2-empty-cell">{{ __('لا توجد عناصر.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -118,7 +118,7 @@
         </div>
 
         <div class="a2-card a2-card--tight">
-            <h2 class="a2-section-title">أكثر أقسام فرعية متابعة</h2>
+            <h2 class="a2-section-title">{{ __('أكثر أقسام فرعية متابعة') }}</h2>
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead><tr><th>Child ID</th><th>Total</th></tr></thead>
@@ -126,7 +126,7 @@
                         @forelse($topCategoryChildren as $row)
                             <tr><td>#{{ $row->category_child_id }}</td><td>{{ number_format((int) $row->total) }}</td></tr>
                         @empty
-                            <tr><td colspan="2" class="a2-empty-cell">لا توجد أقسام.</td></tr>
+                            <tr><td colspan="2" class="a2-empty-cell">{{ __('لا توجد أقسام.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -135,7 +135,7 @@
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
-        <h2 class="a2-section-title">قائمة المتابعات</h2>
+        <h2 class="a2-section-title">{{ __('قائمة المتابعات') }}</h2>
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
@@ -179,7 +179,7 @@
                             <td>{{ $follow->last_matched_at ? $follow->last_matched_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="a2-empty-cell">لا توجد متابعات.</td></tr>
+                        <tr><td colspan="10" class="a2-empty-cell">{{ __('لا توجد متابعات.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -188,7 +188,7 @@
     </div>
 
     <div class="a2-card a2-card--tight">
-        <h2 class="a2-section-title">آخر إشعارات المتابعة</h2>
+        <h2 class="a2-section-title">{{ __('آخر إشعارات المتابعة') }}</h2>
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
@@ -222,7 +222,7 @@
                             <td>{{ $notification->created_at ? $notification->created_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="a2-empty-cell">لا توجد إشعارات.</td></tr>
+                        <tr><td colspan="8" class="a2-empty-cell">{{ __('لا توجد إشعارات.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

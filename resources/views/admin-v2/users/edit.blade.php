@@ -13,20 +13,20 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">
-                تعديل المستخدم <span class="a2-muted">#{{ $id }}</span>
+                {{ __('تعديل المستخدم') }} <span class="a2-muted">#{{ $id }}</span>
             </h1>
             <div class="a2-page-subtitle">
                 @if($isTrashed)
-                    <span class="a2-pill a2-pill-danger">محذوف (Soft)</span>
+                    <span class="a2-pill a2-pill-danger">{{ __('محذوف (Soft)') }}</span>
                 @else
-                    <span class="a2-pill a2-pill-success">نشط</span>
+                    <span class="a2-pill a2-pill-success">{{ __('نشط') }}</span>
                 @endif
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ route('admin.users.show', $id) }}" class="a2-btn a2-btn-ghost">عرض المستخدم</a>
-            <a href="{{ route('admin.users.index') }}" class="a2-btn a2-btn-ghost">القائمة</a>
+            <a href="{{ route('admin.users.show', $id) }}" class="a2-btn a2-btn-ghost">{{ __('عرض المستخدم') }}</a>
+            <a href="{{ route('admin.users.index') }}" class="a2-btn a2-btn-ghost">{{ __('القائمة') }}</a>
         </div>
     </div>
 

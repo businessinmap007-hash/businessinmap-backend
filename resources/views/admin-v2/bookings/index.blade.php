@@ -71,15 +71,15 @@
 
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">الحجوزات</h1>
+            <h1 class="a2-page-title">{{ __('الحجوزات') }}</h1>
             <div class="a2-page-subtitle">
-                عرض مختصر للحجوزات. التفاصيل الكاملة داخل صفحة عرض الحجز.
+                {{ __('عرض مختصر للحجوزات. التفاصيل الكاملة داخل صفحة عرض الحجز.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookings.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة حجز
+                {{ __('+ إضافة حجز') }}
             </a>
         </div>
     </div>
@@ -108,17 +108,17 @@
 
     <div class="a2-stat-grid bk-compact-stats">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي</div>
+            <div class="a2-stat-label">{{ __('إجمالي') }}</div>
             <div class="a2-stat-value">{{ number_format($totalRows) }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">قيد التنفيذ</div>
+            <div class="a2-stat-label">{{ __('قيد التنفيذ') }}</div>
             <div class="a2-stat-value">{{ number_format($activeRows) }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">مكتملة</div>
+            <div class="a2-stat-label">{{ __('مكتملة') }}</div>
             <div class="a2-stat-value">{{ number_format($completedRows) }}</div>
         </div>
 
@@ -128,7 +128,7 @@
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">رسوم مخصومة</div>
+            <div class="a2-stat-label">{{ __('رسوم مخصومة') }}</div>
             <div class="a2-stat-value">{{ number_format($chargedRows) }}</div>
         </div>
     </div>
@@ -136,20 +136,20 @@
     <div class="a2-card a2-mt-16">
         <form method="GET" action="{{ route('admin.bookings.index') }}" class="a2-filterbar">
             <div class="a2-filter-search">
-                <label class="a2-label">بحث</label>
+                <label class="a2-label">{{ __('بحث') }}</label>
                 <input
                     type="text"
                     name="q"
                     class="a2-input"
                     value="{{ $qVal }}"
-                    placeholder="رقم الحجز / ملاحظات / user_id / business_id / service_id"
+                    placeholder="{{ __('رقم الحجز / ملاحظات / user_id / business_id / service_id') }}"
                 >
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">الحالة</label>
+                <label class="a2-label">{{ __('الحالة') }}</label>
                 <select name="status" class="a2-select">
-                    <option value="">الكل</option>
+                    <option value="">{{ __('الكل') }}</option>
                     @foreach($statusOptions as $key => $label)
                         <option value="{{ $key }}" @selected($statusVal === $key)>
                             {{ $label }}
@@ -159,12 +159,12 @@
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">التاريخ</label>
+                <label class="a2-label">{{ __('التاريخ') }}</label>
                 <input type="date" name="date" class="a2-input" value="{{ $dateVal }}">
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">عدد الصفوف</label>
+                <label class="a2-label">{{ __('عدد الصفوف') }}</label>
                 <select name="per_page" class="a2-select">
                     @foreach([10, 20, 50, 100] as $n)
                         <option value="{{ $n }}" @selected($perPageVal === $n)>
@@ -175,31 +175,31 @@
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">الترتيب</label>
+                <label class="a2-label">{{ __('الترتيب') }}</label>
                 <select name="sort" class="a2-select">
-                    <option value="starts_at" @selected($sortVal === 'starts_at')>البداية</option>
-                    <option value="ends_at" @selected($sortVal === 'ends_at')>النهاية</option>
-                    <option value="status" @selected($sortVal === 'status')>الحالة</option>
-                    <option value="price" @selected($sortVal === 'price')>السعر</option>
-                    <option value="id" @selected($sortVal === 'id')>رقم الحجز</option>
+                    <option value="starts_at" @selected($sortVal === 'starts_at')>{{ __('البداية') }}</option>
+                    <option value="ends_at" @selected($sortVal === 'ends_at')>{{ __('النهاية') }}</option>
+                    <option value="status" @selected($sortVal === 'status')>{{ __('الحالة') }}</option>
+                    <option value="price" @selected($sortVal === 'price')>{{ __('السعر') }}</option>
+                    <option value="id" @selected($sortVal === 'id')>{{ __('رقم الحجز') }}</option>
                 </select>
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">الاتجاه</label>
+                <label class="a2-label">{{ __('الاتجاه') }}</label>
                 <select name="dir" class="a2-select">
-                    <option value="desc" @selected($dirVal === 'desc')>الأحدث</option>
-                    <option value="asc" @selected($dirVal === 'asc')>الأقدم</option>
+                    <option value="desc" @selected($dirVal === 'desc')>{{ __('الأحدث') }}</option>
+                    <option value="asc" @selected($dirVal === 'asc')>{{ __('الأقدم') }}</option>
                 </select>
             </div>
 
             <div class="a2-filter-actions">
                 <a href="{{ route('admin.bookings.index') }}" class="a2-btn a2-btn-ghost">
-                    إعادة ضبط
+                    {{ __('إعادة ضبط') }}
                 </a>
 
                 <button type="submit" class="a2-btn a2-btn-primary">
-                    تصفية
+                    {{ __('تصفية') }}
                 </button>
             </div>
         </form>
@@ -208,9 +208,9 @@
     <div class="a2-card a2-mt-16">
         <div class="bk-list-head">
             <div>
-                <div class="a2-section-title">قائمة الحجوزات</div>
+                <div class="a2-section-title">{{ __('قائمة الحجوزات') }}</div>
                 <div class="a2-section-subtitle">
-                    القائمة مختصرة. اضغط عرض لمراجعة كل بيانات الحجز.
+                    {{ __('القائمة مختصرة. اضغط عرض لمراجعة كل بيانات الحجز.') }}
                 </div>
             </div>
 
@@ -218,7 +218,7 @@
                 {{ number_format($rows->firstItem() ?? 0) }}
                 -
                 {{ number_format($rows->lastItem() ?? 0) }}
-                من
+                {{ __('من') }}
                 {{ number_format($rows->total()) }}
             </div>
         </div>
@@ -228,12 +228,12 @@
                 <thead>
                     <tr>
                         <th class="bk-col-id">#</th>
-                        <th class="bk-col-operation">العملية</th>
-                        <th class="bk-col-parties">الأطراف</th>
-                        <th class="bk-col-date">الموعد</th>
-                        <th class="bk-col-finance">الماليات</th>
-                        <th class="bk-col-status">الحالة</th>
-                        <th class="bk-col-actions">الإجراءات</th>
+                        <th class="bk-col-operation">{{ __('العملية') }}</th>
+                        <th class="bk-col-parties">{{ __('الأطراف') }}</th>
+                        <th class="bk-col-date">{{ __('الموعد') }}</th>
+                        <th class="bk-col-finance">{{ __('الماليات') }}</th>
+                        <th class="bk-col-status">{{ __('الحالة') }}</th>
+                        <th class="bk-col-actions">{{ __('الإجراءات') }}</th>
                     </tr>
                 </thead>
 
@@ -319,12 +319,12 @@
 
                             <td>
                                 <div class="bk-row-pair">
-                                    <span>طالب</span>
+                                    <span>{{ __('طالب') }}</span>
                                     <strong>{{ $shortText($item->user?->name, 24) }}</strong>
                                 </div>
 
                                 <div class="bk-row-pair">
-                                    <span>مقدم</span>
+                                    <span>{{ __('مقدم') }}</span>
                                     <strong>{{ $shortText($item->business?->name, 24) }}</strong>
                                 </div>
 
@@ -340,7 +340,7 @@
 
                                 @if($item->ends_at)
                                     <div class="bk-row-sub" dir="ltr">
-                                        إلى {{ optional($item->ends_at)->format('Y-m-d H:i') }}
+                                        {{ __('إلى') }} {{ optional($item->ends_at)->format('Y-m-d H:i') }}
                                     </div>
                                 @endif
 
@@ -383,20 +383,20 @@
                                 </span>
 
                                 @if($item->status === \App\Models\Booking::STATUS_IN_PROGRESS)
-                                    <div class="bk-row-muted">قيد التنفيذ</div>
+                                    <div class="bk-row-muted">{{ __('قيد التنفيذ') }}</div>
                                 @elseif($item->status === \App\Models\Booking::STATUS_PENDING)
-                                    <div class="bk-row-muted">بانتظار الإجراء</div>
+                                    <div class="bk-row-muted">{{ __('بانتظار الإجراء') }}</div>
                                 @endif
                             </td>
 
                             <td>
                                 <div class="bk-table-actions bk-table-actions-compact">
                                     <a href="{{ route('admin.bookings.show', $item) }}" class="a2-btn a2-btn-sm a2-btn-primary">
-                                        عرض
+                                        {{ __('عرض') }}
                                     </a>
 
                                     <a href="{{ route('admin.bookings.edit', $item) }}" class="a2-btn a2-btn-sm a2-btn-ghost">
-                                        تعديل
+                                        {{ __('تعديل') }}
                                     </a>
 
                                     <form
@@ -408,7 +408,7 @@
                                         @method('DELETE')
 
                                         <button type="submit" class="a2-btn a2-btn-sm a2-btn-danger">
-                                            حذف
+                                            {{ __('حذف') }}
                                         </button>
                                     </form>
                                 </div>
@@ -417,7 +417,7 @@
                     @empty
                         <tr>
                             <td colspan="7" class="a2-empty-cell">
-                                لا توجد حجوزات مطابقة للفلاتر الحالية
+                                {{ __('لا توجد حجوزات مطابقة للفلاتر الحالية') }}
                             </td>
                         </tr>
                     @endforelse

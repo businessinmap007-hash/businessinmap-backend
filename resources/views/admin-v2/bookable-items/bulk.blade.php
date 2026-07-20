@@ -7,7 +7,7 @@
 <div class="a2-page-head">
     <h1 class="a2-page-title">Bulk Availability & Pricing</h1>
     <div class="a2-page-subtitle">
-        تعديل جماعي للوحدات القابلة للحجز
+        {{ __('تعديل جماعي للوحدات القابلة للحجز') }}
     </div>
 </div>
 

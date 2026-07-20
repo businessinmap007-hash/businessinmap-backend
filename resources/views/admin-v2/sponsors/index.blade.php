@@ -81,7 +81,7 @@
         <form method="GET" action="{{ route('admin.sponsors.index') }}" class="a2-toolbar">
             <div class="a2-filters">
 
-                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="بحث بـ ID أو user_id أو price">
+                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بـ ID أو user_id أو price') }}">
 
                 <select class="a2-select" name="type">
                     @foreach($typeOptions as $k => $label)
@@ -97,16 +97,16 @@
 
                 <select class="a2-select" name="per_page">
                     @foreach($perPageOptions as $n)
-                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} / صفحة</option>
+                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
                     @endforeach
                 </select>
 
                 <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.sponsors.index') }}">تفريغ</a>
+                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.sponsors.index') }}">{{ __('تفريغ') }}</a>
 
-                    <button type="button" id="btnBulkDelete" class="a2-btn a2-btn-danger" disabled>حذف المحدد</button>
-                    <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">تحديد الكل</button>
+                    <button type="button" id="btnBulkDelete" class="a2-btn a2-btn-danger" disabled>{{ __('حذف المحدد') }}</button>
+                    <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">{{ __('تحديد الكل') }}</button>
                 </div>
 
             </div>
@@ -121,7 +121,7 @@
                 <tr>
                     {{-- ✅ خلي checkbox أول عمود مثل jobs --}}
                     <th style="width:56px;">
-                        <input type="checkbox" id="chkAll" class="a2-checkbox" title="تحديد الكل">
+                        <input type="checkbox" id="chkAll" class="a2-checkbox" title="{{ __('تحديد الكل') }}">
                     </th>
 
                     <th style="width:90px;">
@@ -206,12 +206,12 @@
                                       style="margin:0;">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-danger" type="submit" style="min-width:78px;">حذف</button>
+                                    <button class="a2-btn a2-btn-danger" type="submit" style="min-width:78px;">{{ __('حذف') }}</button>
                                 </form>
 
                                 <a class="a2-btn a2-btn-ghost"
                                    style="min-width:78px;text-align:center;"
-                                   href="{{ $editUrl }}">تعديل</a>
+                                   href="{{ $editUrl }}">{{ __('تعديل') }}</a>
 
                                 <form method="post"
                                       action="{{ route('admin.sponsors.toggleActive', ['sponsor' => $s->id]) }}"
@@ -226,7 +226,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="a2-empty-cell">لا يوجد بيانات</td>
+                        <td colspan="9" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
                     </tr>
                 @endforelse
                 </tbody>
@@ -248,18 +248,18 @@
 
   <div class="a2-modal-card" role="dialog" aria-modal="true" aria-labelledby="bulkDeleteTitle">
     <div class="a2-modal-head">
-      <div id="bulkDeleteTitle" class="a2-modal-title">تأكيد الحذف</div>
+      <div id="bulkDeleteTitle" class="a2-modal-title">{{ __('تأكيد الحذف') }}</div>
       <button type="button" class="a2-modal-x" data-close="1" aria-label="Close">×</button>
     </div>
 
     <div class="a2-modal-body">
-      <div style="margin-bottom:8px;">سيتم حذف العناصر المحددة.</div>
+      <div style="margin-bottom:8px;">{{ __('سيتم حذف العناصر المحددة.') }}</div>
       <div class="a2-hint" id="bulkDeleteCount">—</div>
     </div>
 
     <div class="a2-modal-actions">
-      <button type="button" class="a2-btn a2-btn-ghost" data-close="1">إلغاء</button>
-      <button type="button" id="btnConfirmBulkDelete" class="a2-btn a2-btn-danger">حذف</button>
+      <button type="button" class="a2-btn a2-btn-ghost" data-close="1">{{ __('إلغاء') }}</button>
+      <button type="button" id="btnConfirmBulkDelete" class="a2-btn a2-btn-danger">{{ __('حذف') }}</button>
     </div>
   </div>
 </div>

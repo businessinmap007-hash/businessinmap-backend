@@ -8,8 +8,8 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">شحن المحفظة</h1>
-            <div class="a2-page-subtitle">اكتب جزءًا من الاسم أو الهاتف أو البريد، واختر المستخدم من الاقتراحات.</div>
+            <h1 class="a2-page-title">{{ __('شحن المحفظة') }}</h1>
+            <div class="a2-page-subtitle">{{ __('اكتب جزءًا من الاسم أو الهاتف أو البريد، واختر المستخدم من الاقتراحات.') }}</div>
         </div>
         <div class="a2-page-actions">
             <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">Wallet Transactions</a>
@@ -33,7 +33,7 @@
                 type="search"
                 name="q"
                 value="{{ $q ?? '' }}"
-                placeholder="اكتب اسم المستخدم / الهاتف / البريد / ID"
+                placeholder="{{ __('اكتب اسم المستخدم / الهاتف / البريد / ID') }}"
                 list="walletUsersList"
                 autocomplete="off"
                 required
@@ -48,14 +48,14 @@
             </datalist>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تحميل بيانات المستخدم</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form') }}">تفريغ</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تحميل بيانات المستخدم') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
 
         @if(($q ?? '') !== '' && ($users ?? collect())->count() > 1)
             <div class="a2-divider"></div>
-            <div class="a2-section-subtitle a2-mb-8">لو ظهر أكثر من مستخدم، اختر المطلوب من النتائج السريعة:</div>
+            <div class="a2-section-subtitle a2-mb-8">{{ __('لو ظهر أكثر من مستخدم، اختر المطلوب من النتائج السريعة:') }}</div>
             <div class="a2-row-actions">
                 @foreach(($users ?? collect())->take(12) as $row)
                     <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $row->id, 'q' => $q]) }}">
@@ -71,17 +71,17 @@
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Available Balance</div>
                 <div class="a2-stat-value">{{ number_format((float) optional($wallet)->balance, 2) }}</div>
-                <div class="a2-stat-note">الرصيد المتاح</div>
+                <div class="a2-stat-note">{{ __('الرصيد المتاح') }}</div>
             </div>
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Locked Balance</div>
                 <div class="a2-stat-value">{{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
-                <div class="a2-stat-note">الرصيد المقفل</div>
+                <div class="a2-stat-note">{{ __('الرصيد المقفل') }}</div>
             </div>
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Wallet Status</div>
                 <div class="a2-stat-value">{{ optional($wallet)->status ?: '—' }}</div>
-                <div class="a2-stat-note">حالة المحفظة</div>
+                <div class="a2-stat-note">{{ __('حالة المحفظة') }}</div>
             </div>
             <div class="a2-stat-card">
                 <div class="a2-stat-label">Guarantee</div>
@@ -93,8 +93,8 @@
         <div class="a2-card a2-mb-16">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">تفعيل ضمان من الرصيد الحالي</h2>
-                    <div class="a2-section-subtitle">لو المستخدم عنده رصيد مثل 5000، اختر مستوى الضمان وسيتم قفل قيمة الضمان من الرصيد بدون شحن جديد.</div>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('تفعيل ضمان من الرصيد الحالي') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('لو المستخدم عنده رصيد مثل 5000، اختر مستوى الضمان وسيتم قفل قيمة الضمان من الرصيد بدون شحن جديد.') }}</div>
                 </div>
             </div>
 
@@ -104,27 +104,27 @@
 
                 <div class="a2-form-grid">
                     <div class="a2-field">
-                        <label class="a2-label">المستخدم</label>
+                        <label class="a2-label">{{ __('المستخدم') }}</label>
                         <input class="a2-input" value="#{{ $user->id }} — {{ $user->name ?: '—' }} — {{ $user->type }}" disabled>
                     </div>
 
                     <div class="a2-field">
-                        <label class="a2-label">مستوى الضمان</label>
+                        <label class="a2-label">{{ __('مستوى الضمان') }}</label>
                         <select class="a2-select" name="guarantee_level_id" required>
-                            <option value="">اختر مستوى الضمان</option>
+                            <option value="">{{ __('اختر مستوى الضمان') }}</option>
                             @foreach($levels as $level)
                                 <option value="{{ $level->id }}">
                                     {{ $level->display_name }} — Locked: {{ number_format((float) $level->required_locked_amount, 2) }} — Coverage: {{ number_format((float) $level->active_coverage_amount, 2) }}
                                 </option>
                             @endforeach
                         </select>
-                        <div class="a2-help">سيتم نقل Locked المطلوب من الرصيد المتاح إلى الرصيد المقفل.</div>
+                        <div class="a2-help">{{ __('سيتم نقل Locked المطلوب من الرصيد المتاح إلى الرصيد المقفل.') }}</div>
                     </div>
                 </div>
 
                 <div class="a2-form-actions">
-                    <button class="a2-btn a2-btn-primary" type="submit">تفعيل الضمان من الرصيد الحالي</button>
-                    <a href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}" class="a2-btn a2-btn-ghost">ضمانات المستخدم</a>
+                    <button class="a2-btn a2-btn-primary" type="submit">{{ __('تفعيل الضمان من الرصيد الحالي') }}</button>
+                    <a href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}" class="a2-btn a2-btn-ghost">{{ __('ضمانات المستخدم') }}</a>
                 </div>
             </form>
         </div>
@@ -140,43 +140,43 @@
 
                 <div class="a2-form-grid">
                     <div class="a2-card a2-card--tight">
-                        <h2 class="a2-section-title">شحن جديد للمحفظة</h2>
+                        <h2 class="a2-section-title">{{ __('شحن جديد للمحفظة') }}</h2>
 
                         <div class="a2-field">
-                            <label class="a2-label">المستخدم المختار</label>
+                            <label class="a2-label">{{ __('المستخدم المختار') }}</label>
                             <input class="a2-input" value="#{{ $user->id }} — {{ $user->name ?: '—' }} — {{ $user->type }}" disabled>
                             <div class="a2-help" dir="ltr">{{ $user->phone ?: '—' }} / {{ $user->email ?: '—' }}</div>
                         </div>
 
                         <div class="a2-field">
-                            <label class="a2-label">المبلغ</label>
+                            <label class="a2-label">{{ __('المبلغ') }}</label>
                             <input class="a2-input" name="amount" type="number" min="1" step="0.01" value="{{ old('amount') }}" required>
-                            <div class="a2-help">استخدم هذا الجزء فقط لو تريد إضافة رصيد جديد.</div>
+                            <div class="a2-help">{{ __('استخدم هذا الجزء فقط لو تريد إضافة رصيد جديد.') }}</div>
                         </div>
 
                         <div class="a2-field">
-                            <label class="a2-label">ملاحظة</label>
+                            <label class="a2-label">{{ __('ملاحظة') }}</label>
                             <textarea class="a2-textarea" name="note" rows="5">{{ old('note') }}</textarea>
                         </div>
                     </div>
 
                     <div class="a2-card a2-card--tight">
-                        <h2 class="a2-section-title">إجراء الضمان بعد الشحن</h2>
+                        <h2 class="a2-section-title">{{ __('إجراء الضمان بعد الشحن') }}</h2>
 
                         <div class="a2-field">
                             <label class="a2-label">Guarantee Action</label>
                             <select class="a2-select" name="guarantee_action">
-                                <option value="auto" {{ old('guarantee_action', 'auto') === 'auto' ? 'selected' : '' }}>Auto Upgrade بعد الشحن</option>
+                                <option value="auto" {{ old('guarantee_action', 'auto') === 'auto' ? 'selected' : '' }}>{{ __('Auto Upgrade بعد الشحن') }}</option>
                                 <option value="manual" {{ old('guarantee_action') === 'manual' ? 'selected' : '' }}>Manual Guarantee Level</option>
                                 <option value="none" {{ old('guarantee_action') === 'none' ? 'selected' : '' }}>No Guarantee Action</option>
                             </select>
-                            <div class="a2-help">لو الرصيد موجود بالفعل، استخدم صندوق تفعيل الضمان بالأعلى.</div>
+                            <div class="a2-help">{{ __('لو الرصيد موجود بالفعل، استخدم صندوق تفعيل الضمان بالأعلى.') }}</div>
                         </div>
 
                         <div class="a2-field">
                             <label class="a2-label">Manual Guarantee Level</label>
                             <select class="a2-select" name="guarantee_level_id">
-                                <option value="">اختر مستوى عند استخدام Manual</option>
+                                <option value="">{{ __('اختر مستوى عند استخدام Manual') }}</option>
                                 @foreach($levels as $level)
                                     <option value="{{ $level->id }}" {{ (int) old('guarantee_level_id') === (int) $level->id ? 'selected' : '' }}>
                                         {{ $level->display_name }} — Locked: {{ number_format((float) $level->required_locked_amount, 2) }} — Coverage: {{ number_format((float) $level->active_coverage_amount, 2) }}
@@ -188,16 +188,16 @@
                 </div>
 
                 <div class="a2-form-actions">
-                    <button class="a2-btn a2-btn-primary" type="submit">شحن وتنفيذ الإجراء</button>
-                    <a href="{{ route('admin.wallet-transactions.user', $user->id) }}" class="a2-btn a2-btn-ghost">معاملات المحفظة</a>
-                    <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-ghost">ملف المستخدم</a>
+                    <button class="a2-btn a2-btn-primary" type="submit">{{ __('شحن وتنفيذ الإجراء') }}</button>
+                    <a href="{{ route('admin.wallet-transactions.user', $user->id) }}" class="a2-btn a2-btn-ghost">{{ __('معاملات المحفظة') }}</a>
+                    <a href="{{ route('admin.users.show', $user->id) }}" class="a2-btn a2-btn-ghost">{{ __('ملف المستخدم') }}</a>
                 </div>
             </form>
         </div>
     @else
         <div class="a2-card a2-card--soft">
-            <div class="a2-section-title">ابحث عن مستخدم أولًا</div>
-            <div class="a2-section-subtitle">بعد اختيار المستخدم ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.</div>
+            <div class="a2-section-title">{{ __('ابحث عن مستخدم أولًا') }}</div>
+            <div class="a2-section-subtitle">{{ __('بعد اختيار المستخدم ستظهر المحفظة، الرصيد المتاح، الرصيد المقفل، ومستويات الضمان المناسبة.') }}</div>
         </div>
     @endif
 </div>

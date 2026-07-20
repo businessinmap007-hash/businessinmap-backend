@@ -22,8 +22,8 @@
   <div class="a2-card" style="max-width:760px">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">إعدادات بوابة الدفع — Fawry</h2>
-        <div class="a2-hint">الصق أكواد Fawry هنا بعد التعاقد. تُحفَظ فورًا وتُستخدم في الشحن التالي دون الحاجة لتعديل الكود أو إعادة النشر.</div>
+        <h2 class="a2-title">{{ __('إعدادات بوابة الدفع — Fawry') }}</h2>
+        <div class="a2-hint">{{ __('الصق أكواد Fawry هنا بعد التعاقد. تُحفَظ فورًا وتُستخدم في الشحن التالي دون الحاجة لتعديل الكود أو إعادة النشر.') }}</div>
       </div>
     </div>
 
@@ -59,15 +59,15 @@
       @endforeach
 
       <div class="a2-actionsbar" style="margin-top:8px">
-        <button class="a2-btn a2-btn-primary" type="submit">حفظ الإعدادات</button>
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ الإعدادات') }}</button>
       </div>
     </form>
 
     <div class="a2-alert a2-alert-muted" style="margin-top:20px">
-      <strong>قبل التشغيل الحقيقي:</strong>
+      <strong>{{ __('قبل التشغيل الحقيقي:') }}</strong>
       <ul style="margin:8px 18px 0;line-height:1.9">
-        <li>أكّد مع Fawry ترتيب حقول توقيع الإشعار (callback signature) لمنتج التاجر الخاص بك.</li>
-        <li>اضبط رابط الإشعار server-to-server في لوحة Fawry على: <code dir="ltr">/api/v2/wallet/topup/callback</code></li>
+        <li>{{ __('أكّد مع Fawry ترتيب حقول توقيع الإشعار (callback signature) لمنتج التاجر الخاص بك.') }}</li>
+        <li>{{ __('اضبط رابط الإشعار server-to-server في لوحة Fawry على:') }} <code dir="ltr">/api/v2/wallet/topup/callback</code></li>
       </ul>
     </div>
   </div>

@@ -22,25 +22,25 @@
 @endif
 
 <div class="a2-card a2-card--soft a2-mb-16">
-    <div class="a2-section-title">ملاحظة</div>
+    <div class="a2-section-title">{{ __('ملاحظة') }}</div>
     <div class="a2-section-subtitle">
-        هذه الأنواع تُستخدم في شاشة أسعار خدمات البزنس بدل القائمة الثابتة داخل الكود.
+        {{ __('هذه الأنواع تُستخدم في شاشة أسعار خدمات البزنس بدل القائمة الثابتة داخل الكود.') }}
     </div>
 </div>
 
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">البيانات الأساسية</div>
-            <div class="a2-card-sub">الخدمة، المفتاح، الاسم العربي والإنجليزي</div>
+            <div class="a2-card-title">{{ __('البيانات الأساسية') }}</div>
+            <div class="a2-card-sub">{{ __('الخدمة، المفتاح، الاسم العربي والإنجليزي') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="platform_service_id">الخدمة <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="platform_service_id">{{ __('الخدمة') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-psit-service" id="platform_service_id" name="platform_service_id">
-                <option value="">اختر الخدمة</option>
+                <option value="">{{ __('اختر الخدمة') }}</option>
                 @foreach(($services ?? []) as $service)
                     <option
                         value="{{ $service->id }}"
@@ -57,11 +57,11 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الفروع</label>
+            <label class="a2-label">{{ __('الفروع') }}</label>
             <div class="a2-hint a2-mt-8">
-                عضوية الأنواع في الفروع تُدار من
-                <a href="{{ route('admin.service-branches.index', ['service_id' => old('platform_service_id', $row->platform_service_id ?? 0)]) }}">لوحة تنظيم فروع الخدمة</a>
-                — النوع ممكن يتبع أكتر من فرع.
+                {{ __('عضوية الأنواع في الفروع تُدار من') }}
+                <a href="{{ route('admin.service-branches.index', ['service_id' => old('platform_service_id', $row->platform_service_id ?? 0)]) }}">{{ __('لوحة تنظيم فروع الخدمة') }}</a>
+                {{ __('— النوع ممكن يتبع أكتر من فرع.') }}
             </div>
         </div>
 
@@ -76,7 +76,7 @@
             >
 
             <div class="a2-hint a2-mt-8">
-                حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.
+                {{ __('حروف إنجليزية صغيرة أو أرقام أو _ أو - فقط.') }}
             </div>
 
             @error('key')
@@ -85,12 +85,12 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الاسم العربي <span class="a2-danger">*</span></label>
+            <label class="a2-label">{{ __('الاسم العربي') }} <span class="a2-danger">*</span></label>
             <input
                 class="a2-input"
                 name="name_ar"
                 value="{{ old('name_ar', $row->name_ar ?? '') }}"
-                placeholder="غرفة فردية"
+                placeholder="{{ __('غرفة فردية') }}"
             >
 
             @error('name_ar')
@@ -99,7 +99,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الاسم الإنجليزي</label>
+            <label class="a2-label">{{ __('الاسم الإنجليزي') }}</label>
             <input
                 class="a2-input"
                 name="name_en"
@@ -118,14 +118,14 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الحالة والترتيب</div>
-            <div class="a2-card-sub">التفعيل، الافتراضي، وترتيب الظهور</div>
+            <div class="a2-card-title">{{ __('الحالة والترتيب') }}</div>
+            <div class="a2-card-sub">{{ __('التفعيل، الافتراضي، وترتيب الظهور') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">الترتيب</label>
+            <label class="a2-label">{{ __('الترتيب') }}</label>
             <input
                 class="a2-input"
                 name="sort_order"
@@ -140,7 +140,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
 
             <label class="a2-check" style="margin-top:10px;">
                 <input
@@ -149,7 +149,7 @@
                     value="1"
                     @checked((bool) old('is_active', (int) ($row->is_active ?? 1)))
                 >
-                <span>مفعل</span>
+                <span>{{ __('مفعل') }}</span>
             </label>
 
             @error('is_active')
@@ -158,7 +158,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">افتراضي</label>
+            <label class="a2-label">{{ __('افتراضي') }}</label>
 
             <label class="a2-check" style="margin-top:10px;">
                 <input
@@ -167,11 +167,11 @@
                     value="1"
                     @checked((bool) old('is_default', (int) ($row->is_default ?? 0)))
                 >
-                <span>النوع الافتراضي لهذه الخدمة</span>
+                <span>{{ __('النوع الافتراضي لهذه الخدمة') }}</span>
             </label>
 
             <div class="a2-hint a2-mt-8">
-                عند تفعيله، سيتم إلغاء الافتراضي عن باقي أنواع نفس الخدمة.
+                {{ __('عند تفعيله، سيتم إلغاء الافتراضي عن باقي أنواع نفس الخدمة.') }}
             </div>
 
             @error('is_default')
@@ -185,7 +185,7 @@
     <div class="a2-card-head">
         <div>
             <div class="a2-card-title">Meta</div>
-            <div class="a2-card-sub">بيانات إضافية اختيارية بصيغة JSON</div>
+            <div class="a2-card-sub">{{ __('بيانات إضافية اختيارية بصيغة JSON') }}</div>
         </div>
     </div>
 
@@ -206,7 +206,7 @@
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
     <a href="{{ route('admin.platform-service-item-types.index', ['service_id' => old('platform_service_id', $row->platform_service_id ?? 0)]) }}" class="a2-btn a2-btn-ghost">
-        رجوع
+        {{ __('رجوع') }}
     </a>
 
     <button type="submit" class="a2-btn a2-btn-primary">

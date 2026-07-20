@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'تعديل ألبوم')
+@section('title', __('تعديل ألبوم'))
 @section('body_class', 'admin-v2-albums-edit')
 
 @section('content')
@@ -13,7 +13,7 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل ألبوم #{{ $a->id }}</h1>
+            <h1 class="a2-page-title">{{ __('تعديل ألبوم #') }}{{ $a->id }}</h1>
             <div class="a2-page-subtitle" dir="ltr">
                 Created: {{ $a->created_at ? $a->created_at->format('Y-m-d H:i') : '—' }}
             </div>
@@ -21,7 +21,7 @@
 
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.show', $a->id) }}">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -29,7 +29,7 @@
     <div class="a2-card a2-page-narrow">
         @if ($errors->any())
             <div class="a2-alert a2-alert-danger a2-mb-12">
-                <div class="a2-fw-900 a2-mb-8">يوجد أخطاء</div>
+                <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء') }}</div>
                 <ul class="a2-errors-list">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>
@@ -47,7 +47,7 @@
                 <div>
                     <div class="a2-card a2-card-flat">
                         <div class="a2-header">
-                            <h3 class="a2-section-title">الغلاف</h3>
+                            <h3 class="a2-section-title">{{ __('الغلاف') }}</h3>
                         </div>
 
                         <div class="a2-album-cover-body">
@@ -62,7 +62,7 @@
                                     </div>
                                 @else
                                     <div class="a2-album-cover-placeholder a2-muted">
-                                        اختر صورة
+                                        {{ __('اختر صورة') }}
                                     </div>
                                 @endif
                             </div>
@@ -71,8 +71,8 @@
 
                             <div class="a2-album-upload-row">
                                 <input type="file" id="a2AlbumFile" accept="image/*" class="a2-input a2-album-file-input">
-                                <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumUploadBtn">رفع</button>
-                                <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumClearBtn">مسح</button>
+                                <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumUploadBtn">{{ __('رفع') }}</button>
+                                <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumClearBtn">{{ __('مسح') }}</button>
                             </div>
 
                             <div class="a2-muted a2-mt-8" id="a2AlbumUploadMsg"></div>
@@ -119,8 +119,8 @@
 
             <div class="a2-card a2-card-flat a2-mt-12">
                 <div class="a2-header">
-                    <h3 class="a2-section-title">صور الألبوم</h3>
-                    <div class="a2-hint">{{ $imgs->count() }} صورة</div>
+                    <h3 class="a2-section-title">{{ __('صور الألبوم') }}</h3>
+                    <div class="a2-hint">{{ $imgs->count() }} {{ __('صورة') }}</div>
                 </div>
 
                 <div class="a2-album-gallery-body">
@@ -166,25 +166,25 @@
                                             class="a2-btn a2-btn-ghost a2-btn-sm a2-btn-set-cover"
                                             @disabled($isCover)
                                         >
-                                            تعيين كغلاف
+                                            {{ __('تعيين كغلاف') }}
                                         </button>
 
                                         <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm a2-btn-del-img">
-                                            حذف
+                                            {{ __('حذف') }}
                                         </button>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
                     @else
-                        <div class="a2-muted">لا توجد صور داخل الألبوم.</div>
+                        <div class="a2-muted">{{ __('لا توجد صور داخل الألبوم.') }}</div>
                     @endif
                 </div>
             </div>
 
             <div class="a2-actionsbar a2-mt-16">
-                <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.show', $a->id) }}">إلغاء</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.show', $a->id) }}">{{ __('إلغاء') }}</a>
             </div>
         </form>
     </div>

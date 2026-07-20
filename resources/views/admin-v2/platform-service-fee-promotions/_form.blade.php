@@ -13,7 +13,7 @@
 
 @if($errors->any())
     <div class="a2-alert a2-alert-danger">
-        <strong>يوجد أخطاء:</strong>
+        <strong>{{ __('يوجد أخطاء:') }}</strong>
         <ul class="a2-errors-list">
             @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
@@ -23,27 +23,27 @@
 @endif
 
 <div class="a2-card a2-card--section">
-    <h2 class="a2-section-title">بيانات العرض</h2>
+    <h2 class="a2-section-title">{{ __('بيانات العرض') }}</h2>
     <div class="a2-section-subtitle">
-        هذا العرض لا يغير القيم الأصلية للرسوم، بل يطبق مؤقتًا أثناء الحساب فقط.
+        {{ __('هذا العرض لا يغير القيم الأصلية للرسوم، بل يطبق مؤقتًا أثناء الحساب فقط.') }}
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">اسم العرض</label>
+            <label class="a2-label">{{ __('اسم العرض') }}</label>
             <input
                 type="text"
                 name="name"
                 class="a2-input"
                 value="{{ old('name', $promotion->name ?? '') }}"
-                placeholder="مثال: يوم الحجز بجنيه"
+                placeholder="{{ __('مثال: يوم الحجز بجنيه') }}"
                 required
             >
             @error('name') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
             <label class="a2-check">
                 <input
                     type="checkbox"
@@ -51,17 +51,17 @@
                     value="1"
                     @checked(old('is_active', $promotion->is_active ?? true))
                 >
-                <span>العرض مفعل</span>
+                <span>{{ __('العرض مفعل') }}</span>
             </label>
             @error('is_active') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
 
         <div class="a2-form-group a2-field-full">
-            <label class="a2-label">الوصف</label>
+            <label class="a2-label">{{ __('الوصف') }}</label>
             <textarea
                 name="description"
                 class="a2-textarea"
-                placeholder="وصف مختصر للعرض"
+                placeholder="{{ __('وصف مختصر للعرض') }}"
             >{{ old('description', $promotion->description ?? '') }}</textarea>
             @error('description') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
@@ -69,14 +69,14 @@
 </div>
 
 <div class="a2-card a2-card--section">
-    <h2 class="a2-section-title">نطاق تطبيق العرض</h2>
+    <h2 class="a2-section-title">{{ __('نطاق تطبيق العرض') }}</h2>
     <div class="a2-section-subtitle">
-        اختر هل العرض على كل الخدمات، أو خدمة محددة، أو خدمة داخل قسم فرعي معين.
+        {{ __('اختر هل العرض على كل الخدمات، أو خدمة محددة، أو خدمة داخل قسم فرعي معين.') }}
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">نطاق العرض</label>
+            <label class="a2-label">{{ __('نطاق العرض') }}</label>
             <select name="scope_type" id="scope_type" class="a2-select" required>
                 @foreach($scopeTypes as $key => $label)
                     <option value="{{ $key }}" @selected($scopeVal === $key)>
@@ -88,9 +88,9 @@
         </div>
 
         <div class="a2-form-group" id="serviceWrap">
-            <label class="a2-label" for="service_id">الخدمة</label>
-            <select name="service_id" id="service_id" class="a2-select js-psfp-search" data-placeholder="ابحث عن الخدمة">
-                <option value="">اختر الخدمة</option>
+            <label class="a2-label" for="service_id">{{ __('الخدمة') }}</label>
+            <select name="service_id" id="service_id" class="a2-select js-psfp-search" data-placeholder="{{ __('ابحث عن الخدمة') }}">
+                <option value="">{{ __('اختر الخدمة') }}</option>
                 @foreach($services as $service)
                     <option value="{{ $service->id }}" @selected($serviceVal === (int) $service->id)>
                         {{ $service->name_ar ?? $service->name_en ?? $service->name ?? $service->key ?? ('#' . $service->id) }}
@@ -101,9 +101,9 @@
         </div>
 
         <div class="a2-form-group" id="childWrap">
-            <label class="a2-label" for="child_id">القسم الفرعي</label>
-            <select name="child_id" id="child_id" class="a2-select js-psfp-search" data-placeholder="ابحث عن القسم الفرعي">
-                <option value="">اختر القسم الفرعي</option>
+            <label class="a2-label" for="child_id">{{ __('القسم الفرعي') }}</label>
+            <select name="child_id" id="child_id" class="a2-select js-psfp-search" data-placeholder="{{ __('ابحث عن القسم الفرعي') }}">
+                <option value="">{{ __('اختر القسم الفرعي') }}</option>
                 @foreach($children as $child)
                     <option value="{{ $child->id }}" @selected($childVal === (int) $child->id)>
                         {{ $child->name_ar ?? $child->name_en ?? $child->name ?? ('#' . $child->id) }}
@@ -114,7 +114,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">الأولوية</label>
+            <label class="a2-label">{{ __('الأولوية') }}</label>
             <input
                 type="number"
                 name="priority"
@@ -123,7 +123,7 @@
                 min="1"
             >
             <div class="a2-help-block">
-                الرقم الأقل يتم تطبيقه أولًا عند وجود أكثر من عرض فعال.
+                {{ __('الرقم الأقل يتم تطبيقه أولًا عند وجود أكثر من عرض فعال.') }}
             </div>
             @error('priority') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
@@ -131,11 +131,11 @@
 </div>
 
 <div class="a2-card a2-card--section">
-    <h2 class="a2-section-title">نوع الخصم أو التعديل</h2>
+    <h2 class="a2-section-title">{{ __('نوع الخصم أو التعديل') }}</h2>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">الطرف المستهدف</label>
+            <label class="a2-label">{{ __('الطرف المستهدف') }}</label>
             <select name="target_party" class="a2-select" required>
                 @foreach($targetParties as $key => $label)
                     <option value="{{ $key }}" @selected($targetVal === $key)>
@@ -147,7 +147,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">نوع العرض</label>
+            <label class="a2-label">{{ __('نوع العرض') }}</label>
             <select name="discount_type" id="discount_type" class="a2-select" required>
                 @foreach($discountTypes as $key => $label)
                     <option value="{{ $key }}" @selected($discountVal === $key)>
@@ -159,7 +159,7 @@
         </div>
 
         <div class="a2-form-group" id="discountValueWrap">
-            <label class="a2-label">قيمة العرض</label>
+            <label class="a2-label">{{ __('قيمة العرض') }}</label>
             <input
                 type="number"
                 step="0.01"
@@ -168,10 +168,10 @@
                 id="discount_value"
                 class="a2-input"
                 value="{{ old('discount_value', $promotion->discount_value ?? '') }}"
-                placeholder="مثال: 1"
+                placeholder="{{ __('مثال: 1') }}"
             >
             <div class="a2-help-block">
-                تستخدم مع: قيمة ثابتة / خصم مبلغ / خصم نسبة. لا تستخدم مع إيقاف الرسوم.
+                {{ __('تستخدم مع: قيمة ثابتة / خصم مبلغ / خصم نسبة. لا تستخدم مع إيقاف الرسوم.') }}
             </div>
             @error('discount_value') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
@@ -196,9 +196,9 @@
 @endphp
 
 <div class="a2-card a2-card--section">
-    <h2 class="a2-section-title">مدة العرض</h2>
+    <h2 class="a2-section-title">{{ __('مدة العرض') }}</h2>
     <div class="a2-section-subtitle">
-        اختر تاريخ البداية والوقت بنظام 24 ساعة، وسيتم تحديد النهاية تلقائيًا حسب مدة العرض.
+        {{ __('اختر تاريخ البداية والوقت بنظام 24 ساعة، وسيتم تحديد النهاية تلقائيًا حسب مدة العرض.') }}
     </div>
 
     <input type="hidden" name="starts_at" id="starts_at" value="{{ $startsVal }}">
@@ -206,7 +206,7 @@
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">تاريخ البداية</label>
+            <label class="a2-label">{{ __('تاريخ البداية') }}</label>
             <input
                 type="date"
                 id="start_date"
@@ -216,7 +216,7 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">وقت البداية</label>
+            <label class="a2-label">{{ __('وقت البداية') }}</label>
             <div style="display:flex; gap:8px;">
                 <select id="start_hour" class="a2-select">
                     @for($h = 0; $h <= 23; $h++)
@@ -237,41 +237,41 @@
             </div>
 
             <div class="a2-help-block">
-                مثال: 00:00 تعني بداية اليوم.
+                {{ __('مثال: 00:00 تعني بداية اليوم.') }}
             </div>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">مدة العرض</label>
+            <label class="a2-label">{{ __('مدة العرض') }}</label>
             <select id="duration_preset" class="a2-select">
-                <option value="">اختيار يدوي للنهاية</option>
-                <option value="24h">24 ساعة</option>
-                <option value="3d">3 أيام</option>
-                <option value="7d">7 أيام</option>
-                <option value="14d">14 يوم</option>
-                <option value="30d">30 يوم</option>
-                <option value="custom_hours">عدد ساعات مخصص</option>
-                <option value="custom_days">عدد أيام مخصص</option>
+                <option value="">{{ __('اختيار يدوي للنهاية') }}</option>
+                <option value="24h">{{ __('24 ساعة') }}</option>
+                <option value="3d">{{ __('3 أيام') }}</option>
+                <option value="7d">{{ __('7 أيام') }}</option>
+                <option value="14d">{{ __('14 يوم') }}</option>
+                <option value="30d">{{ __('30 يوم') }}</option>
+                <option value="custom_hours">{{ __('عدد ساعات مخصص') }}</option>
+                <option value="custom_days">{{ __('عدد أيام مخصص') }}</option>
             </select>
         </div>
 
         <div class="a2-form-group a2-hidden" id="customDurationWrap">
-            <label class="a2-label">القيمة المخصصة</label>
+            <label class="a2-label">{{ __('القيمة المخصصة') }}</label>
             <input
                 type="number"
                 min="1"
                 step="1"
                 id="custom_duration_value"
                 class="a2-input"
-                placeholder="مثال: 5"
+                placeholder="{{ __('مثال: 5') }}"
             >
             <div class="a2-help-block" id="customDurationHelp">
-                أدخل القيمة المطلوبة.
+                {{ __('أدخل القيمة المطلوبة.') }}
             </div>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label">النهاية المحسوبة</label>
+            <label class="a2-label">{{ __('النهاية المحسوبة') }}</label>
             <input
                 type="text"
                 id="ends_at_display"
@@ -284,11 +284,11 @@
         </div>
 
         <div class="a2-form-group a2-field-full">
-            <label class="a2-label">ملاحظات داخلية</label>
+            <label class="a2-label">{{ __('ملاحظات داخلية') }}</label>
             <textarea
                 name="notes"
                 class="a2-textarea"
-                placeholder="ملاحظات تظهر للإدارة فقط"
+                placeholder="{{ __('ملاحظات تظهر للإدارة فقط') }}"
             >{{ old('notes', $promotion->notes ?? '') }}</textarea>
             @error('notes') <div class="a2-error">{{ $message }}</div> @enderror
         </div>
@@ -302,7 +302,7 @@
         </button>
 
         <a href="{{ route('admin.platform-service-fee-promotions.index') }}" class="a2-btn a2-btn-ghost">
-            رجوع
+            {{ __('رجوع') }}
         </a>
     </div>
 </div>

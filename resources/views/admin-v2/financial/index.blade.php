@@ -42,7 +42,7 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">المعاملات المالية</h2>
+      <h2 class="a2-title">{{ __('المعاملات المالية') }}</h2>
     </div>
 
     @if(session('success'))
@@ -57,7 +57,7 @@
     <form method="GET" action="{{ route('admin.financial.index') }}" class="a2-toolbar">
       <div class="a2-filters">
 
-        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="بحث بـ ID أو user_id أو amount أو ref">
+        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بـ ID أو user_id أو amount أو ref') }}">
 
         <select class="a2-select" name="type">
           @foreach(($typeOptions ?? []) as $k => $label)
@@ -73,13 +73,13 @@
 
         <select class="a2-select" name="per_page">
           @foreach($perPageOptions as $n)
-            <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} / صفحة</option>
+            <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
           @endforeach
         </select>
 
         <div class="a2-actionsbar">
-          <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-          <a class="a2-btn a2-btn-ghost" href="{{ route('admin.financial.index') }}">تفريغ</a>
+          <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+          <a class="a2-btn a2-btn-ghost" href="{{ route('admin.financial.index') }}">{{ __('تفريغ') }}</a>
         </div>
 
       </div>
@@ -142,12 +142,12 @@
               </td>
 
               <td>
-                <a class="a2-btn a2-btn-ghost" href="{{ $viewUrl }}">عرض</a>
+                <a class="a2-btn a2-btn-ghost" href="{{ $viewUrl }}">{{ __('عرض') }}</a>
               </td>
             </tr>
           @empty
             <tr>
-              <td colspan="7" class="a2-empty-cell">لا يوجد بيانات</td>
+              <td colspan="7" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td>
             </tr>
           @endforelse
         </tbody>

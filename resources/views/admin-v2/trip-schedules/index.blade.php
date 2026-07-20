@@ -19,53 +19,53 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">خطوط التشغيل (الجدولة)</h1>
-            <div class="a2-page-subtitle">إشراف على رحلات الشحن ونقل الركاب والليموزين والتوزيع، محلي ودولي.</div>
+            <h1 class="a2-page-title">{{ __('خطوط التشغيل (الجدولة)') }}</h1>
+            <div class="a2-page-subtitle">{{ __('إشراف على رحلات الشحن ونقل الركاب والليموزين والتوزيع، محلي ودولي.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.trip-schedules.reservations') }}" class="a2-btn a2-btn-ghost">الحجوزات</a>
+            <a href="{{ route('admin.trip-schedules.reservations') }}" class="a2-btn a2-btn-ghost">{{ __('الحجوزات') }}</a>
         </div>
     </div>
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الخطوط</div>
+            <div class="a2-stat-label">{{ __('إجمالي الخطوط') }}</div>
             <div class="a2-stat-value">{{ number_format($totals['count'] ?? 0) }}</div>
         </div>
         <div class="a2-stat-card">
-            <div class="a2-stat-label">المفعلة</div>
+            <div class="a2-stat-label">{{ __('المفعلة') }}</div>
             <div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div>
         </div>
         <div class="a2-stat-card">
-            <div class="a2-stat-label">دولية</div>
+            <div class="a2-stat-label">{{ __('دولية') }}</div>
             <div class="a2-stat-value">{{ number_format($totals['international'] ?? 0) }}</div>
         </div>
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي الحجوزات</div>
+            <div class="a2-stat-label">{{ __('إجمالي الحجوزات') }}</div>
             <div class="a2-stat-value">{{ number_format($totals['reservations'] ?? 0) }}</div>
         </div>
     </div>
 
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.trip-schedules.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="بحث باسم البزنس">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث باسم البزنس') }}">
 
             <select class="a2-select a2-filter-sm" name="mode">
-                <option value="">كل الأنماط</option>
+                <option value="">{{ __('كل الأنماط') }}</option>
                 @foreach($modeLabels as $k => $label)
                     <option value="{{ $k }}" {{ $mode === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="scope">
-                <option value="">محلي + دولي</option>
+                <option value="">{{ __('محلي + دولي') }}</option>
                 @foreach($scopeLabels as $k => $label)
                     <option value="{{ $k }}" {{ $scope === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 @foreach($statusLabels as $k => $label)
                     <option value="{{ $k }}" {{ $status === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
@@ -78,8 +78,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.trip-schedules.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.trip-schedules.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -90,16 +90,16 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>البزنس</th>
-                        <th>النمط</th>
-                        <th>المركبة</th>
-                        <th>النطاق</th>
-                        <th>من → إلى</th>
-                        <th>اليوم/التاريخ</th>
-                        <th>السعة</th>
-                        <th>السعر / العربون</th>
-                        <th>حجوزات نشطة</th>
-                        <th>الحالة</th>
+                        <th>{{ __('البزنس') }}</th>
+                        <th>{{ __('النمط') }}</th>
+                        <th>{{ __('المركبة') }}</th>
+                        <th>{{ __('النطاق') }}</th>
+                        <th>{{ __('من → إلى') }}</th>
+                        <th>{{ __('اليوم/التاريخ') }}</th>
+                        <th>{{ __('السعة') }}</th>
+                        <th>{{ __('السعر / العربون') }}</th>
+                        <th>{{ __('حجوزات نشطة') }}</th>
+                        <th>{{ __('الحالة') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -127,7 +127,7 @@
                                 @elseif($s->schedule_pattern === TripSchedule::PATTERN_ONE_OFF)
                                     {{ optional($s->trip_date)->toDateString() ?: '—' }}
                                 @else
-                                    عند الطلب
+                                    {{ __('عند الطلب') }}
                                 @endif
                                 <div class="a2-muted">{{ $s->departure_time }}</div>
                             </td>
@@ -141,7 +141,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="11" class="a2-empty-cell">لا توجد خطوط تشغيل.</td></tr>
+                        <tr><td colspan="11" class="a2-empty-cell">{{ __('لا توجد خطوط تشغيل.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

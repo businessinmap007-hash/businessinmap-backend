@@ -19,15 +19,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">أسعار خدمات البزنس</h1>
+            <h1 class="a2-page-title">{{ __('أسعار خدمات البزنس') }}</h1>
             <div class="a2-page-subtitle">
-                إدارة سعر الخدمة الذي يحدده البزنس حسب القسم الفرعي والخدمة ونوع العنصر.
+                {{ __('إدارة سعر الخدمة الذي يحدده البزنس حسب القسم الفرعي والخدمة ونوع العنصر.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.business_service_prices.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة سعر
+                {{ __('+ إضافة سعر') }}
             </a>
         </div>
     </div>
@@ -46,7 +46,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء:') }}</div>
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -56,12 +56,11 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">ملاحظة مهمة</div>
+        <div class="a2-section-title">{{ __('ملاحظة مهمة') }}</div>
         <div class="a2-section-subtitle">
-            هذه الصفحة خاصة بسعر الخدمة الذي يحدده البزنس.
-            أما رسوم المنصة على العميل أو البزنس فتتم من شاشة
+            {{ __('هذه الصفحة خاصة بسعر الخدمة الذي يحدده البزنس. أما رسوم المنصة على العميل أو البزنس فتتم من شاشة') }}
             <span dir="ltr">Service Fees</span>
-            ولا يتم خلطها مع السعر هنا.
+            {{ __('ولا يتم خلطها مع السعر هنا.') }}
         </div>
     </div>
 
@@ -71,37 +70,37 @@
                 class="a2-input a2-filter-search"
                 name="q_business"
                 value="{{ $qBusinessVal }}"
-                placeholder="بحث باسم البزنس"
+                placeholder="{{ __('بحث باسم البزنس') }}"
             >
 
             <input
                 class="a2-input a2-filter-sm"
                 name="q_service"
                 value="{{ $qServiceVal }}"
-                placeholder="بحث بالخدمة"
+                placeholder="{{ __('بحث بالخدمة') }}"
             >
 
             <input
                 class="a2-input a2-filter-sm"
                 name="q_child"
                 value="{{ $qChildVal }}"
-                placeholder="بحث بالقسم الفرعي"
+                placeholder="{{ __('بحث بالقسم الفرعي') }}"
             >
 
             <input
                 class="a2-input a2-filter-sm"
                 name="q_item_type"
                 value="{{ $qItemTypeVal }}"
-                placeholder="نوع العنصر"
+                placeholder="{{ __('نوع العنصر') }}"
             >
 
             <select
                 class="a2-select a2-filter-md js-bsp-business-filter"
                 name="business_id"
                 data-remote-url="{{ route('admin.business_service_prices.business-lookup', [], false) }}"
-                data-placeholder="كل البزنسات"
+                data-placeholder="{{ __('كل البزنسات') }}"
             >
-                <option value="0">كل البزنسات</option>
+                <option value="0">{{ __('كل البزنسات') }}</option>
                 @if($selectedBusiness ?? null)
                     <option value="{{ $selectedBusiness->id }}" selected>
                         {{ $selectedBusiness->name ?: ('#'.$selectedBusiness->id) }}
@@ -110,7 +109,7 @@
             </select>
 
             <select class="a2-select a2-filter-md" name="service_id">
-                <option value="0">كل الخدمات</option>
+                <option value="0">{{ __('كل الخدمات') }}</option>
                 @foreach(($services ?? []) as $s)
                     <option value="{{ $s->id }}" @selected($serviceIdVal === (int)$s->id)>
                         {{ $s->name_ar ?: ($s->name_en ?: $s->key) }}
@@ -119,7 +118,7 @@
             </select>
 
             <select class="a2-select a2-filter-md" name="child_id">
-                <option value="0">كل الأقسام الفرعية</option>
+                <option value="0">{{ __('كل الأقسام الفرعية') }}</option>
                 @foreach(($children ?? []) as $child)
                     <option value="{{ $child->id }}" @selected($childIdVal === (int)$child->id)>
                         {{ $child->name_ar ?: ($child->name_en ?: ('#'.$child->id)) }}
@@ -128,51 +127,51 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="is_active">
-                <option value="" @selected($isActiveVal === '')>الكل</option>
+                <option value="" @selected($isActiveVal === '')>{{ __('الكل') }}</option>
                 <option value="1" @selected($isActiveVal === '1')>Active</option>
                 <option value="0" @selected($isActiveVal === '0')>Inactive</option>
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a href="{{ route('admin.business_service_prices.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
 
     <div class="a2-stat-grid" style="margin-top:16px;">
         <div class="a2-stat-card">
-            <div class="a2-stat-label">إجمالي السجلات</div>
+            <div class="a2-stat-label">{{ __('إجمالي السجلات') }}</div>
             <div class="a2-stat-value">{{ $stats['total_rows'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">النشطة</div>
+            <div class="a2-stat-label">{{ __('النشطة') }}</div>
             <div class="a2-stat-value">{{ $stats['active_rows'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">البزنسات</div>
+            <div class="a2-stat-label">{{ __('البزنسات') }}</div>
             <div class="a2-stat-value">{{ $stats['business_count'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">الأقسام الفرعية</div>
+            <div class="a2-stat-label">{{ __('الأقسام الفرعية') }}</div>
             <div class="a2-stat-value">{{ $stats['children_count'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">الخدمات</div>
+            <div class="a2-stat-label">{{ __('الخدمات') }}</div>
             <div class="a2-stat-value">{{ $stats['services_count'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">أنواع العناصر</div>
+            <div class="a2-stat-label">{{ __('أنواع العناصر') }}</div>
             <div class="a2-stat-value">{{ $stats['item_types_count'] ?? 0 }}</div>
         </div>
 
         <div class="a2-stat-card">
-            <div class="a2-stat-label">متوسط السعر</div>
+            <div class="a2-stat-label">{{ __('متوسط السعر') }}</div>
             <div class="a2-stat-value">
                 {{ number_format((float)($stats['avg_price'] ?? 0), 2) }}
             </div>
@@ -301,7 +300,7 @@
                 @empty
                     <tr>
                         <td colspan="11" class="a2-empty-cell">
-                            لا توجد بيانات
+                            {{ __('لا توجد بيانات') }}
                         </td>
                     </tr>
                 @endforelse

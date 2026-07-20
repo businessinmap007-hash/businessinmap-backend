@@ -20,7 +20,7 @@
 
 <div class="a2-form-grid">
     <div class="a2-card">
-        <h2 class="a2-section-title">أطراف الشراكة</h2>
+        <h2 class="a2-section-title">{{ __('أطراف الشراكة') }}</h2>
 
         @php
             $ownerId = (int) old('owner_business_id', $partnership->owner_business_id);
@@ -29,10 +29,10 @@
         @endphp
 
         <div class="a2-field">
-            <label class="a2-label">صاحب الأصل / الفندق / المورد</label>
+            <label class="a2-label">{{ __('صاحب الأصل / الفندق / المورد') }}</label>
             <select class="a2-select" name="owner_business_id" required
-                    data-remote-url="{{ $lookupUrl }}" data-placeholder="اختر البزنس المالك — ابحث بالاسم أو الرقم #">
-                <option value="">اختر البزنس المالك</option>
+                    data-remote-url="{{ $lookupUrl }}" data-placeholder="{{ __('اختر البزنس المالك — ابحث بالاسم أو الرقم #') }}">
+                <option value="">{{ __('اختر البزنس المالك') }}</option>
                 @if($ownerId)
                     <option value="{{ $ownerId }}" selected>#{{ $ownerId }}@if($partnership->ownerBusiness) — {{ $partnership->ownerBusiness->name }}@endif</option>
                 @endif
@@ -40,10 +40,10 @@
         </div>
 
         <div class="a2-field">
-            <label class="a2-label">الشريك / شركة السياحة / الوكيل</label>
+            <label class="a2-label">{{ __('الشريك / شركة السياحة / الوكيل') }}</label>
             <select class="a2-select" name="partner_business_id" required
-                    data-remote-url="{{ $lookupUrl }}" data-placeholder="اختر البزنس الشريك — ابحث بالاسم أو الرقم #">
-                <option value="">اختر البزنس الشريك</option>
+                    data-remote-url="{{ $lookupUrl }}" data-placeholder="{{ __('اختر البزنس الشريك — ابحث بالاسم أو الرقم #') }}">
+                <option value="">{{ __('اختر البزنس الشريك') }}</option>
                 @if($partnerId)
                     <option value="{{ $partnerId }}" selected>#{{ $partnerId }}@if($partnership->partnerBusiness) — {{ $partnership->partnerBusiness->name }}@endif</option>
                 @endif
@@ -52,7 +52,7 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">نوع وقواعد الشراكة</h2>
+        <h2 class="a2-section-title">{{ __('نوع وقواعد الشراكة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Relationship Type</label>
@@ -75,13 +75,13 @@
         <div class="a2-field">
             <label class="a2-checkline">
                 <input type="checkbox" name="approval_required" value="1" {{ old('approval_required', $partnership->approval_required) ? 'checked' : '' }}>
-                <span>تحتاج موافقة قبل التفعيل</span>
+                <span>{{ __('تحتاج موافقة قبل التفعيل') }}</span>
             </label>
         </div>
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">مدة الشراكة</h2>
+        <h2 class="a2-section-title">{{ __('مدة الشراكة') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Starts At</label>
@@ -98,7 +98,7 @@
         <h2 class="a2-section-title">Terms JSON</h2>
 
         <div class="a2-field">
-            <label class="a2-label">الشروط</label>
+            <label class="a2-label">{{ __('الشروط') }}</label>
             <textarea class="a2-textarea" name="terms_json" rows="10" placeholder='{"commission_percent":10,"notes":"optional"}'>{{ $termsJson }}</textarea>
         </div>
     </div>
@@ -114,6 +114,6 @@
 </div>
 
 <div class="a2-form-actions">
-    <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-    <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+    <a href="{{ route('admin.business-partnerships.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
 </div>

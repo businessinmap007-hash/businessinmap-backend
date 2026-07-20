@@ -7,15 +7,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل نوع العنصر #{{ $row->id }}</h1>
+            <h1 class="a2-page-title">{{ __('تعديل نوع العنصر #') }}{{ $row->id }}</h1>
             <div class="a2-page-subtitle">
-                تعديل الاسم، المفتاح، التفعيل، الافتراضي، والترتيب.
+                {{ __('تعديل الاسم، المفتاح، التفعيل، الافتراضي، والترتيب.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.platform-service-item-types.index', ['service_id' => $row->platform_service_id]) }}" class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>

@@ -13,7 +13,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Catalog Brands</h1>
-            <div class="a2-page-subtitle">براندات المنتجات وربطها بعدد المنتجات داخل الكتالوج.</div>
+            <div class="a2-page-subtitle">{{ __('براندات المنتجات وربطها بعدد المنتجات داخل الكتالوج.') }}</div>
         </div>
     </div>
 
@@ -26,15 +26,15 @@
 
     <div class="a2-card">
         <form method="GET" action="{{ route('admin.catalog-brands.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="بحث باسم البراند أو slug">
+            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث باسم البراند أو slug') }}">
             <select class="a2-select a2-filter-sm" name="verified">
-                <option value="" @selected($verifiedVal === '')>كل البراندات</option>
+                <option value="" @selected($verifiedVal === '')>{{ __('كل البراندات') }}</option>
                 <option value="1" @selected($verifiedVal === '1')>Verified</option>
                 <option value="0" @selected($verifiedVal === '0')>Not Verified</option>
             </select>
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">بحث</button>
-                <a href="{{ route('admin.catalog-brands.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('بحث') }}</button>
+                <a href="{{ route('admin.catalog-brands.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -68,7 +68,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="a2-empty">لا توجد براندات.</td></tr>
+                    <tr><td colspan="7" class="a2-empty">{{ __('لا توجد براندات.') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

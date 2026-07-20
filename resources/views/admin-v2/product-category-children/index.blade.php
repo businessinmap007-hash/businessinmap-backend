@@ -13,7 +13,7 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Product Category Children</h1>
-            <div class="a2-page-subtitle">الأقسام الفرعية للمنتجات مثل: ألبان، مشروبات، منظفات.</div>
+            <div class="a2-page-subtitle">{{ __('الأقسام الفرعية للمنتجات مثل: ألبان، مشروبات، منظفات.') }}</div>
         </div>
     </div>
 
@@ -26,16 +26,16 @@
 
     <div class="a2-card">
         <form method="GET" action="{{ route('admin.product-category-children.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="بحث باسم القسم الفرعي أو slug">
+            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث باسم القسم الفرعي أو slug') }}">
             <select class="a2-select a2-filter-md" name="category_id">
-                <option value="0">كل التصنيفات الرئيسية</option>
+                <option value="0">{{ __('كل التصنيفات الرئيسية') }}</option>
                 @foreach(($categories ?? []) as $category)
                     <option value="{{ $category->id }}" @selected($categoryIdVal === (int)$category->id)>{{ $category->name_ar ?: $category->name_en }}</option>
                 @endforeach
             </select>
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">بحث</button>
-                <a href="{{ route('admin.product-category-children.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('بحث') }}</button>
+                <a href="{{ route('admin.product-category-children.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -66,7 +66,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="a2-empty">لا توجد أقسام فرعية للمنتجات.</td></tr>
+                    <tr><td colspan="7" class="a2-empty">{{ __('لا توجد أقسام فرعية للمنتجات.') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -14,10 +14,10 @@
   <div class="a2-card">
 
     <div class="a2-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <h2 class="a2-title" style="margin:0;">تعديل الإعلان</h2>
+      <h2 class="a2-title" style="margin:0;">{{ __('تعديل الإعلان') }}</h2>
 
       <div class="a2-actionsbar" style="display:flex;gap:10px;justify-content:flex-start;align-items:center;">
-        <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">رجوع</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">{{ __('رجوع') }}</a>
 
         <form method="post" action="{{ route('admin.sponsors.toggleActive', ['sponsor' => $sponsor->id]) }}" style="margin:0;">
           @csrf
@@ -32,7 +32,7 @@
               style="margin:0;">
           @csrf
           @method('DELETE')
-          <button type="submit" class="a2-btn a2-btn-danger">حذف</button>
+          <button type="submit" class="a2-btn a2-btn-danger">{{ __('حذف') }}</button>
         </form>
       </div>
     </div>
@@ -58,8 +58,8 @@
           </div>
 
           <div class="a2-actionsbar" style="margin-top:14px;display:flex;gap:10px;">
-            <button class="a2-btn a2-btn-primary" type="submit">تحديث</button>
-            <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">إلغاء</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تحديث') }}</button>
+            <a class="a2-btn a2-btn-ghost" href="{{ $backUrl }}">{{ __('إلغاء') }}</a>
           </div>
         </form>
       </div>

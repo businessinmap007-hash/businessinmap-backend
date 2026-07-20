@@ -11,14 +11,14 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تنظيم فروع الخدمة</h1>
+            <h1 class="a2-page-title">{{ __('تنظيم فروع الخدمة') }}</h1>
             <div class="a2-page-subtitle">
-                اختر الخدمة، ثم الفروع اللي تشتغل عليها، وعلّم كل نوع في الفروع اللي يتبعها. النوع ممكن يكون في أكتر من فرع (زي «غرفة» تحت فنادق ووحدات سكنية).
+                {{ __('اختر الخدمة، ثم الفروع اللي تشتغل عليها، وعلّم كل نوع في الفروع اللي يتبعها. النوع ممكن يكون في أكتر من فرع (زي «غرفة» تحت فنادق ووحدات سكنية).') }}
             </div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.platform-service-item-groups.index') }}" class="a2-btn a2-btn-ghost">إدارة الفروع</a>
-            <a href="{{ route('admin.platform-service-item-types.index', ['service_id' => $serviceIdVal]) }}" class="a2-btn a2-btn-ghost">أنواع العناصر</a>
+            <a href="{{ route('admin.platform-service-item-groups.index') }}" class="a2-btn a2-btn-ghost">{{ __('إدارة الفروع') }}</a>
+            <a href="{{ route('admin.platform-service-item-types.index', ['service_id' => $serviceIdVal]) }}" class="a2-btn a2-btn-ghost">{{ __('أنواع العناصر') }}</a>
         </div>
     </div>
 
@@ -26,25 +26,25 @@
 
     <div class="a2-card a2-card--section">
         <form method="GET" action="{{ route('admin.service-branches.index') }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <label class="a2-label" for="service_id" style="margin:0;">الخدمة</label>
+            <label class="a2-label" for="service_id" style="margin:0;">{{ __('الخدمة') }}</label>
             <select id="service_id" name="service_id" class="a2-select" style="width:auto; min-width:220px;" onchange="this.form.submit()">
                 @foreach($services as $s)
                     <option value="{{ $s->id }}" @selected($serviceIdVal === (int) $s->id)>
-                        {{ $s->name_ar ?: ($s->name_en ?: $s->key) }}@if(! $s->is_active) — (غير مفعّلة)@endif
+                        {{ $s->name_ar ?: ($s->name_en ?: $s->key) }}@if(! $s->is_active) {{ __('— (غير مفعّلة)') }}@endif
                     </option>
                 @endforeach
             </select>
-            <span class="a2-hint" style="margin:0;">خدمة واحدة في المرة.</span>
+            <span class="a2-hint" style="margin:0;">{{ __('خدمة واحدة في المرة.') }}</span>
         </form>
     </div>
 
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">اختر الفروع للعرض في المصفوفة</div>
-                <div class="a2-card-sub">اضغط الفرع لإظهار/إخفاء عموده. الرقم = عدد أنواع هذه الخدمة داخله.</div>
+                <div class="a2-card-title">{{ __('اختر الفروع للعرض في المصفوفة') }}</div>
+                <div class="a2-card-sub">{{ __('اضغط الفرع لإظهار/إخفاء عموده. الرقم = عدد أنواع هذه الخدمة داخله.') }}</div>
             </div>
-            <button type="button" id="a2sbAddBranch" class="a2-btn a2-btn-primary a2-btn-sm"><i class="ti ti-plus"></i> فرع</button>
+            <button type="button" id="a2sbAddBranch" class="a2-btn a2-btn-primary a2-btn-sm"><i class="ti ti-plus"></i> {{ __('فرع') }}</button>
         </div>
         <div id="a2sbChips" style="display:flex; flex-wrap:wrap; gap:8px; padding-top:6px;"></div>
     </div>
@@ -52,17 +52,17 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">المصفوفة — علّم فروع كل نوع</div>
-                <div class="a2-card-sub">النوع ممكن يتبع أكتر من فرع. لو متبوّب في فرع غير معروض بيظهر تحته «أيضًا في: …».</div>
+                <div class="a2-card-title">{{ __('المصفوفة — علّم فروع كل نوع') }}</div>
+                <div class="a2-card-sub">{{ __('النوع ممكن يتبع أكتر من فرع. لو متبوّب في فرع غير معروض بيظهر تحته «أيضًا في: …».') }}</div>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
-                <span id="a2sbSaveState" class="a2-hint" style="margin:0;">لا تغييرات غير محفوظة</span>
+                <span id="a2sbSaveState" class="a2-hint" style="margin:0;">{{ __('لا تغييرات غير محفوظة') }}</span>
                 <button type="button" id="a2sbSaveAll" class="a2-btn a2-btn-primary a2-btn-sm" disabled>
-                    <i class="ti ti-device-floppy"></i> حفظ التغييرات
+                    <i class="ti ti-device-floppy"></i> {{ __('حفظ التغييرات') }}
                 </button>
                 <div style="position:relative;">
                     <i class="ti ti-search" style="position:absolute; right:10px; top:9px; opacity:.5;"></i>
-                    <input type="text" id="a2sbSearch" class="a2-input" placeholder="ابحث عن نوع…" style="width:220px; padding-right:30px;" autocomplete="off">
+                    <input type="text" id="a2sbSearch" class="a2-input" placeholder="{{ __('ابحث عن نوع…') }}" style="width:220px; padding-right:30px;" autocomplete="off">
                 </div>
             </div>
         </div>
@@ -190,8 +190,8 @@
                 '<i class="ti ' + (on ? 'ti-eye' : 'ti-eye-off') + '" style="opacity:.7;"></i>' +
                 '<span class="a2sb-chip-name">' + esc(b.name) + '</span>' +
                 '<span style="font-weight:700;">' + b.count + '</span>' +
-                '<button type="button" class="a2sb-rename" title="إعادة تسمية" style="border:0;background:none;cursor:pointer;padding:0;opacity:.6;"><i class="ti ti-pencil"></i></button>' +
-                '<button type="button" class="a2sb-del" title="حذف الفرع" style="border:0;background:none;cursor:pointer;padding:0;opacity:.6;"><i class="ti ti-x"></i></button>' +
+                '<button type="button" class="a2sb-rename" title="{{ __('إعادة تسمية') }}" style="border:0;background:none;cursor:pointer;padding:0;opacity:.6;"><i class="ti ti-pencil"></i></button>' +
+                '<button type="button" class="a2sb-del" title="{{ __('حذف الفرع') }}" style="border:0;background:none;cursor:pointer;padding:0;opacity:.6;"><i class="ti ti-x"></i></button>' +
                 '</span>';
         }).join('');
     }

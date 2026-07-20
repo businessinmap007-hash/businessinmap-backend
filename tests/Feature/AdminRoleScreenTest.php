@@ -259,6 +259,6 @@ class AdminRoleScreenTest extends TestCase
         $this->actingAs($this->makeAdmin([AdminAbility::ACCESS, AdminAbility::MONEY]))
             ->get('/admin')
             ->assertOk()
-            ->assertSee('ملخص المحفظة');
+            ->assertSee(__('ملخص المحفظة'));
     }
 }

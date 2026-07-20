@@ -17,12 +17,12 @@
     <div class="a2-page-head">
         <div>
             <h1 class="a2-page-title">Catalog Products Manager</h1>
-            <div class="a2-page-subtitle">الحقول تظهر كنص عادي. اضغط على أي قيمة قابلة للتعديل، عدّلها، وسيتم الحفظ تلقائيًا عند الخروج من الحقل.</div>
+            <div class="a2-page-subtitle">{{ __('الحقول تظهر كنص عادي. اضغط على أي قيمة قابلة للتعديل، عدّلها، وسيتم الحفظ تلقائيًا عند الخروج من الحقل.') }}</div>
         </div>
     </div>
 
     <div class="a2-stat-grid" style="margin-bottom:16px;">
-        <div class="a2-stat-card"><div class="a2-stat-label">إجمالي المنتجات</div><div class="a2-stat-value">{{ number_format($stats['total'] ?? 0) }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">{{ __('إجمالي المنتجات') }}</div><div class="a2-stat-value">{{ number_format($stats['total'] ?? 0) }}</div></div>
         <div class="a2-stat-card"><div class="a2-stat-label">Unique</div><div class="a2-stat-value">{{ ($stats['unique'] ?? null) === null ? '—' : number_format($stats['unique']) }}</div></div>
         <div class="a2-stat-card"><div class="a2-stat-label">Duplicate</div><div class="a2-stat-value">{{ ($stats['duplicate'] ?? null) === null ? '—' : number_format($stats['duplicate']) }}</div></div>
         <div class="a2-stat-card"><div class="a2-stat-label">Review</div><div class="a2-stat-value">{{ ($stats['review'] ?? null) === null ? '—' : number_format($stats['review']) }}</div></div>
@@ -30,24 +30,24 @@
 
     <div class="a2-card">
         <form method="GET" action="{{ route('admin.catalog-products.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="بحث باسم المنتج / الكود / البراند / الموديل">
+            <input class="a2-input a2-filter-search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث باسم المنتج / الكود / البراند / الموديل') }}">
 
             <select class="a2-select a2-filter-md" name="child_id">
-                <option value="0">كل الأقسام الفرعية</option>
+                <option value="0">{{ __('كل الأقسام الفرعية') }}</option>
                 @foreach(($children ?? []) as $child)
                     <option value="{{ $child->id }}" @selected($childIdVal === (int)$child->id)>{{ $child->name_ar ?: $child->name_en }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-md" name="brand_id">
-                <option value="0">كل البراندات</option>
+                <option value="0">{{ __('كل البراندات') }}</option>
                 @foreach(($brands ?? []) as $brand)
                     <option value="{{ $brand->id }}" @selected($brandIdVal === (int)$brand->id)>{{ $brand->name_ar ?: $brand->name_en }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="duplicate_status">
-                <option value="" @selected($duplicateStatusVal === '')>كل التكرار</option>
+                <option value="" @selected($duplicateStatusVal === '')>{{ __('كل التكرار') }}</option>
                 <option value="unique" @selected($duplicateStatusVal === 'unique')>Unique</option>
                 <option value="review" @selected($duplicateStatusVal === 'review')>Review</option>
                 <option value="duplicate" @selected($duplicateStatusVal === 'duplicate')>Duplicate</option>
@@ -55,7 +55,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="status">
-                <option value="" @selected($statusVal === '')>كل الحالات</option>
+                <option value="" @selected($statusVal === '')>{{ __('كل الحالات') }}</option>
                 <option value="active" @selected($statusVal === 'active')>Active</option>
                 <option value="inactive" @selected($statusVal === 'inactive')>Inactive</option>
                 <option value="approved" @selected($statusVal === 'approved')>Approved</option>
@@ -66,13 +66,13 @@
 
             <select class="a2-select a2-filter-sm" name="per_page">
                 @foreach([50, 100, 200, 500] as $n)
-                    <option value="{{ $n }}" @selected($perPageVal === $n)>{{ $n }} / صفحة</option>
+                    <option value="{{ $n }}" @selected($perPageVal === $n)>{{ $n }} {{ __('/ صفحة') }}</option>
                 @endforeach
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a href="{{ route('admin.catalog-products.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a href="{{ route('admin.catalog-products.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -97,20 +97,20 @@
 
             <div class="a2-filterbar" style="margin-bottom:12px;">
                 <select class="a2-select a2-filter-md" name="manager_action" required>
-                    <option value="">اختر إجراء للمنتجات المحددة</option>
-                    <option value="duplicate">Mark as Duplicate / إخفاء كمكرر</option>
-                    <option value="unique">Keep as Unique / إبقاء كمنتج صحيح</option>
-                    <option value="review">Send to Review / يحتاج مراجعة</option>
-                    <option value="inactive">Deactivate / تعطيل</option>
-                    <option value="active">Activate / تفعيل</option>
-                    <option value="delete_forever">Delete Forever / حذف نهائي</option>
+                    <option value="">{{ __('اختر إجراء للمنتجات المحددة') }}</option>
+                    <option value="duplicate">{{ __('Mark as Duplicate / إخفاء كمكرر') }}</option>
+                    <option value="unique">{{ __('Keep as Unique / إبقاء كمنتج صحيح') }}</option>
+                    <option value="review">{{ __('Send to Review / يحتاج مراجعة') }}</option>
+                    <option value="inactive">{{ __('Deactivate / تعطيل') }}</option>
+                    <option value="active">{{ __('Activate / تفعيل') }}</option>
+                    <option value="delete_forever">{{ __('Delete Forever / حذف نهائي') }}</option>
                 </select>
-                <button class="a2-btn a2-btn-primary" type="submit">تنفيذ على المحدد</button>
-                <span class="a2-muted">التعديل يتم بالضغط على النص نفسه. الحذف النهائي من هنا للصفوف المحددة فقط.</span>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تنفيذ على المحدد') }}</button>
+                <span class="a2-muted">{{ __('التعديل يتم بالضغط على النص نفسه. الحذف النهائي من هنا للصفوف المحددة فقط.') }}</span>
             </div>
 
             <div class="a2-alert a2-alert-danger" style="margin-bottom:12px;">
-                حذف نهائي يعني حذف المنتج وروابطه المعروفة من قاعدة البيانات. لا يمكن التراجع إلا من نسخة احتياطية.
+                {{ __('حذف نهائي يعني حذف المنتج وروابطه المعروفة من قاعدة البيانات. لا يمكن التراجع إلا من نسخة احتياطية.') }}
             </div>
 
             <div class="a2-table-wrap">
@@ -171,7 +171,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty">لا توجد منتجات.</td></tr>
+                        <tr><td colspan="9" class="a2-empty">{{ __('لا توجد منتجات.') }}</td></tr>
                     @endforelse
                     </tbody>
                 </table>

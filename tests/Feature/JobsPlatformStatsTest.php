@@ -142,8 +142,8 @@ class JobsPlatformStatsTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.job-follows.index'));
 
         $response->assertOk();
-        $response->assertSee('متابعات الوظائف', false);
-        $response->assertSee('أكثر المجالات متابعة', false);
+        $response->assertSee(__('متابعات الوظائف'), false);
+        $response->assertSee(__('أكثر المجالات متابعة'), false);
         $response->assertSee($follower->name, false);
         // The field the follow points at, resolved to its Arabic name.
         $response->assertSee('اكسسوار', false);

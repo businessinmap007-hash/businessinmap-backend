@@ -8,37 +8,37 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">أداء العروض</h1>
-            <div class="a2-page-subtitle">متابعة المشاهدات والضغطات والـ leads والتحويلات الخاصة بالعروض التجارية.</div>
+            <h1 class="a2-page-title">{{ __('أداء العروض') }}</h1>
+            <div class="a2-page-subtitle">{{ __('متابعة المشاهدات والضغطات والـ leads والتحويلات الخاصة بالعروض التجارية.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">العروض</a>
-            <a href="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-btn a2-btn-ghost">اشتراكات العروض</a>
+            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">{{ __('العروض') }}</a>
+            <a href="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-btn a2-btn-ghost">{{ __('اشتراكات العروض') }}</a>
         </div>
     </div>
 
     <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card"><div class="a2-stat-label">Total Events</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">كل الأحداث</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Views</div><div class="a2-stat-value">{{ number_format($totals['views'] ?? 0) }}</div><div class="a2-stat-note">مشاهدات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Clicks</div><div class="a2-stat-value">{{ number_format($totals['clicks'] ?? 0) }}</div><div class="a2-stat-note">ضغطات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Leads</div><div class="a2-stat-value">{{ number_format($totals['leads'] ?? 0) }}</div><div class="a2-stat-note">طلبات اهتمام</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Conversions</div><div class="a2-stat-value">{{ number_format($totals['conversions'] ?? 0) }}</div><div class="a2-stat-note">تحويلات</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Value</div><div class="a2-stat-value">{{ number_format((float) ($totals['value_total'] ?? 0), 2) }}</div><div class="a2-stat-note">إجمالي القيمة</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Total Events</div><div class="a2-stat-value">{{ number_format($totals['all'] ?? 0) }}</div><div class="a2-stat-note">{{ __('كل الأحداث') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Views</div><div class="a2-stat-value">{{ number_format($totals['views'] ?? 0) }}</div><div class="a2-stat-note">{{ __('مشاهدات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Clicks</div><div class="a2-stat-value">{{ number_format($totals['clicks'] ?? 0) }}</div><div class="a2-stat-note">{{ __('ضغطات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Leads</div><div class="a2-stat-value">{{ number_format($totals['leads'] ?? 0) }}</div><div class="a2-stat-note">{{ __('طلبات اهتمام') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Conversions</div><div class="a2-stat-value">{{ number_format($totals['conversions'] ?? 0) }}</div><div class="a2-stat-note">{{ __('تحويلات') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Value</div><div class="a2-stat-value">{{ number_format((float) ($totals['value_total'] ?? 0), 2) }}</div><div class="a2-stat-note">{{ __('إجمالي القيمة') }}</div></div>
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
         <form method="GET" action="{{ route('admin.offer-performance.index') }}" class="a2-filterbar">
             @php $selBizId = (int) ($filters['business_id'] ?? 0); $selBiz = $selBizId ? $businesses->firstWhere('id', $selBizId) : null; @endphp
             <select class="a2-select a2-filter-sm" name="business_id"
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="كل البزنس — ابحث">
-                <option value="">كل البزنس</option>
+                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
+                <option value="">{{ __('كل البزنس') }}</option>
                 @if($selBizId)
                     <option value="{{ $selBizId }}" selected>#{{ $selBizId }}@if($selBiz) — {{ $selBiz->name }}@endif</option>
                 @endif
             </select>
 
             <select class="a2-select a2-filter-sm" name="offer_id">
-                <option value="">كل العروض</option>
+                <option value="">{{ __('كل العروض') }}</option>
                 @foreach($offers as $offer)
                     <option value="{{ $offer->id }}" {{ (int) ($filters['offer_id'] ?? 0) === (int) $offer->id ? 'selected' : '' }}>
                         #{{ $offer->id }} — {{ $offer->title_ar ?: ($offer->title_en ?: 'Offer') }}
@@ -47,7 +47,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="event_type">
-                <option value="">كل الأحداث</option>
+                <option value="">{{ __('كل الأحداث') }}</option>
                 @foreach($eventTypes as $type)
                     <option value="{{ $type }}" {{ ($filters['event_type'] ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
@@ -63,15 +63,15 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-performance.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.offer-performance.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
 
     <div class="a2-grid-2 a2-mb-16">
         <div class="a2-card a2-card--tight">
-            <h2 class="a2-section-title">تفصيل الأحداث</h2>
+            <h2 class="a2-section-title">{{ __('تفصيل الأحداث') }}</h2>
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead>
@@ -89,7 +89,7 @@
                                 <td>{{ number_format((float) $row->value_total, 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="a2-empty-cell">لا توجد أحداث.</td></tr>
+                            <tr><td colspan="3" class="a2-empty-cell">{{ __('لا توجد أحداث.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -97,7 +97,7 @@
         </div>
 
         <div class="a2-card a2-card--tight">
-            <h2 class="a2-section-title">أفضل العروض أداءً</h2>
+            <h2 class="a2-section-title">{{ __('أفضل العروض أداءً') }}</h2>
             <div class="a2-table-wrap">
                 <table class="a2-table">
                     <thead>
@@ -120,7 +120,7 @@
                                 <td>{{ number_format((float) $row->value_total, 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="a2-empty-cell">لا توجد إحصائيات.</td></tr>
+                            <tr><td colspan="4" class="a2-empty-cell">{{ __('لا توجد إحصائيات.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -129,7 +129,7 @@
     </div>
 
     <div class="a2-card a2-card--tight">
-        <h2 class="a2-section-title">آخر الأحداث</h2>
+        <h2 class="a2-section-title">{{ __('آخر الأحداث') }}</h2>
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
@@ -160,7 +160,7 @@
                             <td>{{ $event->occurred_at ? $event->occurred_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="a2-empty-cell">لا توجد أحداث.</td></tr>
+                        <tr><td colspan="8" class="a2-empty-cell">{{ __('لا توجد أحداث.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

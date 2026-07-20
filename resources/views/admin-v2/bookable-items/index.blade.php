@@ -15,15 +15,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">العناصر القابلة للحجز</h1>
+            <h1 class="a2-page-title">{{ __('العناصر القابلة للحجز') }}</h1>
             <div class="a2-page-subtitle">
-                إدارة الغرف والملاعب والطاولات والوحدات والعناصر القابلة للحجز
+                {{ __('إدارة الغرف والملاعب والطاولات والوحدات والعناصر القابلة للحجز') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookable-items.create') }}" class="a2-btn a2-btn-primary">
-                + إضافة عنصر
+                {{ __('+ إضافة عنصر') }}
             </a>
         </div>
     </div>
@@ -43,7 +43,7 @@
                 type="text"
                 name="q"
                 value="{{ $qVal }}"
-                placeholder="بحث: title / code / item type"
+                placeholder="{{ __('بحث: title / code / item type') }}"
             >
 
             <input
@@ -51,11 +51,11 @@
                 type="text"
                 name="item_type"
                 value="{{ $itemTypeVal }}"
-                placeholder="نوع العنصر"
+                placeholder="{{ __('نوع العنصر') }}"
             >
 
             <select class="a2-select a2-filter-md" name="business_id">
-                <option value="0">كل البزنسات</option>
+                <option value="0">{{ __('كل البزنسات') }}</option>
                 @foreach(($businesses ?? []) as $b)
                     <option value="{{ $b->id }}" @selected($businessIdVal === (int) $b->id)>
                         {{ $b->name ?: ('#' . $b->id) }}
@@ -64,7 +64,7 @@
             </select>
 
             <select class="a2-select a2-filter-md" name="service_id">
-                <option value="0">كل الخدمات</option>
+                <option value="0">{{ __('كل الخدمات') }}</option>
                 @foreach(($services ?? []) as $s)
                     <option value="{{ $s->id }}" @selected($serviceIdVal === (int) $s->id)>
                         {{ $s->name_ar ?: ($s->name_en ?: $s->key) }}
@@ -73,14 +73,14 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="is_active">
-                <option value="" @selected($isActiveVal === '')>الكل</option>
+                <option value="" @selected($isActiveVal === '')>{{ __('الكل') }}</option>
                 <option value="1" @selected($isActiveVal === '1')>Active</option>
                 <option value="0" @selected($isActiveVal === '0')>Inactive</option>
             </select>
 
             <div class="a2-filter-actions">
-                <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">تفريغ</a>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a href="{{ route('admin.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('تفريغ') }}</a>
             </div>
         </form>
     </div>
@@ -175,7 +175,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="a2-empty-cell">لا توجد عناصر قابلة للحجز</td>
+                        <td colspan="12" class="a2-empty-cell">{{ __('لا توجد عناصر قابلة للحجز') }}</td>
                     </tr>
                 @endforelse
                 </tbody>

@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','إضافة ألبوم')
+@section('title',__('إضافة ألبوم'))
 @section('body_class','admin-v2-albums-create')
 
 @section('content')
@@ -12,17 +12,17 @@
   <div class="a2-card" style="max-width:980px;margin:0 auto;">
     <div class="a2-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div>
-        <h2 class="a2-title">إضافة ألبوم</h2>
-        <div class="a2-hint">أضف الغلاف والعناوين والأوصاف</div>
+        <h2 class="a2-title">{{ __('إضافة ألبوم') }}</h2>
+        <div class="a2-hint">{{ __('أضف الغلاف والعناوين والأوصاف') }}</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">رجوع</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">{{ __('رجوع') }}</a>
       </div>
     </div>
 
     @if ($errors->any())
       <div class="a2-alert a2-alert-danger" style="margin:12px 0;">
-        <div class="a2-fw-900" style="margin-bottom:6px;">يوجد أخطاء</div>
+        <div class="a2-fw-900" style="margin-bottom:6px;">{{ __('يوجد أخطاء') }}</div>
         <ul style="margin:0;padding-inline-start:18px;">
           @foreach ($errors->all() as $error)
             <li>{{ $error }}</li>
@@ -37,7 +37,7 @@
       <div style="display:grid;grid-template-columns:340px 1fr;gap:12px;">
         <div class="a2-card" style="box-shadow:none;border:1px solid var(--a2-border);">
           <div class="a2-header">
-            <h3 class="a2-title" style="font-size:16px;">الغلاف</h3>
+            <h3 class="a2-title" style="font-size:16px;">{{ __('الغلاف') }}</h3>
           </div>
 
           <div class="a2-body" style="padding:14px;">
@@ -46,7 +46,7 @@
                 <x-admin-v2.image :path="$imageNow" size="300" radius="18px" />
               @else
                 <div style="width:100%;height:260px;border-radius:18px;border:1px dashed var(--a2-border-2);display:flex;align-items:center;justify-content:center;" class="a2-muted">
-                  اختر صورة
+                  {{ __('اختر صورة') }}
                 </div>
               @endif
             </div>
@@ -55,8 +55,8 @@
 
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
               <input type="file" id="a2AlbumFile" accept="image/*" class="a2-input" style="max-width:100%;">
-              <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumUploadBtn">رفع</button>
-              <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumClearBtn">مسح</button>
+              <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumUploadBtn">{{ __('رفع') }}</button>
+              <button type="button" class="a2-btn a2-btn-ghost" id="a2AlbumClearBtn">{{ __('مسح') }}</button>
             </div>
 
             <div class="a2-muted" id="a2AlbumUploadMsg" style="margin-top:8px;"></div>
@@ -66,7 +66,7 @@
         <div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div>
-              <label class="a2-label">User (اختياري)</label>
+              <label class="a2-label">{{ __('User (اختياري)') }}</label>
               <select class="a2-select" name="user_id">
                 <option value="">—</option>
                 @foreach(($users ?? []) as $u)
@@ -101,8 +101,8 @@
       </div>
 
       <div class="a2-actionsbar" style="margin-top:14px;">
-        <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">إلغاء</a>
+        <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.albums.index') }}">{{ __('إلغاء') }}</a>
       </div>
 
     </form>
@@ -129,7 +129,7 @@
       return;
     }
     // عرض بسيط للصورة
-    previewEl.innerHTML = '<img src="'+path+'" alt="معاينة الصورة" style="width:100%;max-width:300px;height:300px;object-fit:cover;border-radius:18px;border:1px solid var(--a2-border);" />';
+    previewEl.innerHTML = '<img src="'+path+'" alt="{{ __('معاينة الصورة') }}" style="width:100%;max-width:300px;height:300px;object-fit:cover;border-radius:18px;border:1px solid var(--a2-border);" />';
   }
 
   async function upload(){

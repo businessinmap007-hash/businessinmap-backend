@@ -22,16 +22,16 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل خيارات الأقسام الفرعية دفعة واحدة</h1>
+            <h1 class="a2-page-title">{{ __('تعديل خيارات الأقسام الفرعية دفعة واحدة') }}</h1>
             <div class="a2-page-subtitle">
-                اختر التصنيف الرئيسي، ثم الأقسام الفرعية، ثم اختر الخيارات من داخل الجروبات
+                {{ __('اختر التصنيف الرئيسي، ثم الأقسام الفرعية، ثم اختر الخيارات من داخل الجروبات') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.category-children.index', $parentIdInt > 0 ? ['parent_id' => $parentIdInt] : []) }}"
                class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -57,13 +57,13 @@
         <div class="a2-card" style="margin-bottom:16px;">
             <div class="a2-section-head">
                 <div>
-                    <h2 class="a2-section-title">التصنيفات الرئيسية</h2>
-                    <div class="a2-section-subtitle">اضغط على التصنيف لعرض الأقسام الفرعية الخاصة به فقط</div>
+                    <h2 class="a2-section-title">{{ __('التصنيفات الرئيسية') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('اضغط على التصنيف لعرض الأقسام الفرعية الخاصة به فقط') }}</div>
                 </div>
             </div>
 
             @if($rootsSafe->isEmpty())
-                <div class="a2-muted">لا توجد تصنيفات رئيسية بها أقسام فرعية.</div>
+                <div class="a2-muted">{{ __('لا توجد تصنيفات رئيسية بها أقسام فرعية.') }}</div>
             @else
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                     @foreach($rootsSafe as $root)
@@ -90,22 +90,22 @@
         <div class="a2-card" style="margin-bottom:16px;">
             <div class="a2-section-head">
                 <div>
-                    <h2 class="a2-section-title">الأقسام الفرعية</h2>
-                    <div class="a2-section-subtitle">سيتم تطبيق التعديل على الأقسام المحددة فقط</div>
+                    <h2 class="a2-section-title">{{ __('الأقسام الفرعية') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('سيتم تطبيق التعديل على الأقسام المحددة فقط') }}</div>
                 </div>
 
                 <div class="a2-page-actions">
                     <button type="button" class="a2-btn a2-btn-ghost" id="checkVisibleChildren">
-                        تحديد الظاهر
+                        {{ __('تحديد الظاهر') }}
                     </button>
                     <button type="button" class="a2-btn a2-btn-ghost" id="uncheckVisibleChildren">
-                        إلغاء تحديد الظاهر
+                        {{ __('إلغاء تحديد الظاهر') }}
                     </button>
                 </div>
             </div>
 
             @if($rootsSafe->isEmpty())
-                <div class="a2-muted">لا توجد أقسام فرعية متاحة.</div>
+                <div class="a2-muted">{{ __('لا توجد أقسام فرعية متاحة.') }}</div>
             @else
                 @foreach($rootsSafe as $root)
                     @php
@@ -119,7 +119,7 @@
                          style="{{ $isActive ? '' : 'display:none;' }}">
 
                         @if($children->isEmpty())
-                            <div class="a2-muted">لا توجد أقسام فرعية داخل هذا التصنيف.</div>
+                            <div class="a2-muted">{{ __('لا توجد أقسام فرعية داخل هذا التصنيف.') }}</div>
                         @else
                             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
                                 @foreach($children as $child)
@@ -144,22 +144,22 @@
 
         {{-- Mode --}}
         <div class="a2-card" style="margin-bottom:16px;">
-            <h2 class="a2-section-title">طريقة التطبيق</h2>
+            <h2 class="a2-section-title">{{ __('طريقة التطبيق') }}</h2>
 
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
                 <label class="a2-check-card">
                     <input type="radio" name="mode" value="append" checked>
-                    <span>إضافة فقط</span>
+                    <span>{{ __('إضافة فقط') }}</span>
                 </label>
 
                 <label class="a2-check-card">
                     <input type="radio" name="mode" value="replace">
-                    <span>استبدال بالكامل</span>
+                    <span>{{ __('استبدال بالكامل') }}</span>
                 </label>
 
                 <label class="a2-check-card">
                     <input type="radio" name="mode" value="remove">
-                    <span>حذف المحدد</span>
+                    <span>{{ __('حذف المحدد') }}</span>
                 </label>
             </div>
         </div>
@@ -168,22 +168,22 @@
         <div class="a2-card" style="margin-bottom:16px;">
             <div class="a2-section-head">
                 <div>
-                    <h2 class="a2-section-title">جروبات الخيارات</h2>
-                    <div class="a2-section-subtitle">اضغط على الجروب لعرض الخيارات الخاصة به فقط</div>
+                    <h2 class="a2-section-title">{{ __('جروبات الخيارات') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('اضغط على الجروب لعرض الخيارات الخاصة به فقط') }}</div>
                 </div>
 
                 <div class="a2-page-actions">
                     <button type="button" class="a2-btn a2-btn-ghost" id="checkVisibleOptions">
-                        تحديد خيارات الجروب
+                        {{ __('تحديد خيارات الجروب') }}
                     </button>
                     <button type="button" class="a2-btn a2-btn-ghost" id="uncheckVisibleOptions">
-                        إلغاء تحديد الجروب
+                        {{ __('إلغاء تحديد الجروب') }}
                     </button>
                 </div>
             </div>
 
             @if($optionGroupsSafe->isEmpty() && !$hasUngrouped)
-                <div class="a2-muted">لا توجد خيارات متاحة.</div>
+                <div class="a2-muted">{{ __('لا توجد خيارات متاحة.') }}</div>
             @else
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
                     @foreach($optionGroupsSafe as $group)
@@ -209,7 +209,7 @@
                             class="a2-btn {{ $optionGroupsSafe->isEmpty() ? 'a2-btn-primary' : 'a2-btn-ghost' }} js-option-group-tab"
                             data-group-id="ungrouped"
                         >
-                            بدون جروب
+                            {{ __('بدون جروب') }}
                             <span class="a2-badge" style="margin-inline-start:6px;">{{ $ungroupedSafe->count() }}</span>
                         </button>
                     @endif
@@ -228,7 +228,7 @@
                         style="{{ $isActiveGroup ? '' : 'display:none;' }}"
                     >
                         @if($groupOptions->isEmpty())
-                            <div class="a2-muted">لا توجد خيارات داخل هذا الجروب.</div>
+                            <div class="a2-muted">{{ __('لا توجد خيارات داخل هذا الجروب.') }}</div>
                         @else
                             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
                                 @foreach($groupOptions as $option)
@@ -273,7 +273,7 @@
 
         <div class="a2-card">
             <button type="submit" class="a2-btn a2-btn-primary">
-                تطبيق التعديل الجماعي
+                {{ __('تطبيق التعديل الجماعي') }}
             </button>
         </div>
     </form>

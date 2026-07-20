@@ -101,11 +101,11 @@
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookings.edit', $booking) }}" class="a2-btn a2-btn-primary">
-                تعديل
+                {{ __('تعديل') }}
             </a>
 
             <a href="{{ route('admin.bookings.index') }}" class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
@@ -143,9 +143,9 @@
                                 @if($nextAction)
                                     {{ $nextAction['label'] ?? $nextAction['key'] }}
                                 @elseif($blockedReasons->isNotEmpty())
-                                    يوجد متطلبات قبل المتابعة
+                                    {{ __('يوجد متطلبات قبل المتابعة') }}
                                 @else
-                                    لا يوجد إجراء مطلوب الآن
+                                    {{ __('لا يوجد إجراء مطلوب الآن') }}
                                 @endif
                             </h2>
                         </div>
@@ -157,15 +157,15 @@
 
                     @if($nextAction)
                         <div class="booking-show-desc">
-                            الإجراء المقترح التالي حسب حالة الحجز الحالية.
+                            {{ __('الإجراء المقترح التالي حسب حالة الحجز الحالية.') }}
                         </div>
                     @elseif($blockedReasons->isNotEmpty())
                         <div class="booking-show-desc">
-                            لا يمكن الانتقال للخطوة التالية قبل معالجة أسباب التعطيل.
+                            {{ __('لا يمكن الانتقال للخطوة التالية قبل معالجة أسباب التعطيل.') }}
                         </div>
                     @else
                         <div class="booking-show-desc">
-                            الحجز لا يحتاج إجراء فوري من هذه الشاشة.
+                            {{ __('الحجز لا يحتاج إجراء فوري من هذه الشاشة.') }}
                         </div>
                     @endif
 
@@ -191,7 +191,7 @@
                 </div>
 
                 <div class="a2-card booking-show-mini-card">
-                    <span>السعر النهائي</span>
+                    <span>{{ __('السعر النهائي') }}</span>
                     <strong>{{ $money($finalPrice, $priceCurrency) }}</strong>
                     <small>Quantity: {{ $pricing['quantity'] ?? $booking->quantity ?? 1 }}</small>
                 </div>
@@ -207,7 +207,7 @@
                 </div>
 
                 <div class="a2-card booking-show-mini-card">
-                    <span>رسوم التنفيذ</span>
+                    <span>{{ __('رسوم التنفيذ') }}</span>
                     <strong>{{ !empty($fees['charged']) ? 'تم الخصم' : 'لم تخصم' }}</strong>
                     <small>{{ $money($totalFee) }}</small>
                 </div>
@@ -218,7 +218,7 @@
                     <div>
                         <h2 class="a2-section-title">Operation Timeline</h2>
                         <div class="a2-section-subtitle">
-                            مراحل تشغيل الحجز من الإنشاء حتى الإغلاق.
+                            {{ __('مراحل تشغيل الحجز من الإنشاء حتى الإغلاق.') }}
                         </div>
                     </div>
                 </div>
@@ -244,23 +244,23 @@
             <div class="booking-show-grid">
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">الأطراف</h2>
+                    <h2 class="a2-section-title">{{ __('الأطراف') }}</h2>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>طالب الحجز</span>
+                            <span>{{ __('طالب الحجز') }}</span>
                             <strong>{{ $client['name'] ?? ($booking->user->name ?? '—') }}</strong>
                             <small>ID: {{ $client['id'] ?? $booking->user_id }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>هاتف / كود طالب الحجز</span>
+                            <span>{{ __('هاتف / كود طالب الحجز') }}</span>
                             <strong>{{ $client['phone'] ?? '—' }}</strong>
                             <small>{{ $client['code'] ?? '' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>مقدم الخدمة</span>
+                            <span>{{ __('مقدم الخدمة') }}</span>
                             <strong>{{ $business['name'] ?? ($booking->business->name ?? '—') }}</strong>
                             <small>ID: {{ $business['id'] ?? $booking->business_id }}</small>
                         </div>
@@ -278,11 +278,11 @@
                 </div>
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">الخدمة والموعد</h2>
+                    <h2 class="a2-section-title">{{ __('الخدمة والموعد') }}</h2>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>الخدمة</span>
+                            <span>{{ __('الخدمة') }}</span>
                             <strong>{{ $service['name'] ?? ($booking->service->name_ar ?? $booking->service->name_en ?? '—') }}</strong>
                             <small dir="ltr">{{ $service['key'] ?? ($booking->service->key ?? '') }}</small>
                         </div>
@@ -309,13 +309,13 @@
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>الكمية</span>
+                            <span>{{ __('الكمية') }}</span>
                             <strong>{{ $pricing['quantity'] ?? $booking->quantity ?? 1 }}</strong>
                             <small>party size: {{ $booking->party_size ?: '—' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>ملاحظات</span>
+                            <span>{{ __('ملاحظات') }}</span>
                             <strong>{{ $booking->notes ?: '—' }}</strong>
                             <small>booking notes</small>
                         </div>
@@ -323,23 +323,23 @@
                 </div>
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">التسعير</h2>
+                    <h2 class="a2-section-title">{{ __('التسعير') }}</h2>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>السعر الأصلي</span>
+                            <span>{{ __('السعر الأصلي') }}</span>
                             <strong>{{ $money($originalPrice, $priceCurrency) }}</strong>
                             <small>original price</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>السعر النهائي</span>
+                            <span>{{ __('السعر النهائي') }}</span>
                             <strong>{{ $money($finalPrice, $priceCurrency) }}</strong>
                             <small>final price</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>الخصم</span>
+                            <span>{{ __('الخصم') }}</span>
                             <strong>{{ !empty($pricing['discount_enabled']) ? 'مفعل' : 'غير مفعل' }}</strong>
                             <small>
                                 {{ $discountPercent }}%
@@ -349,7 +349,7 @@
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>مصدر السعر</span>
+                            <span>{{ __('مصدر السعر') }}</span>
                             <strong>{{ $pricing['source'] ?? '—' }}</strong>
                             <small>business_service_price_id: {{ $pricing['business_service_price_id'] ?? '—' }}</small>
                         </div>
@@ -361,25 +361,25 @@
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>مطلوب؟</span>
+                            <span>{{ __('مطلوب؟') }}</span>
                             <strong>{{ $boolLabel(!empty($depositUi['required'])) }}</strong>
                             <small>{{ !empty($depositUi['exists']) ? 'record exists' : 'no record' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>القيمة</span>
+                            <span>{{ __('القيمة') }}</span>
                             <strong>{{ $money($depositUi['amount'] ?? $depositUi['hold'] ?? 0, $depositUi['currency'] ?? 'EGP') }}</strong>
                             <small>hold: {{ $money($depositUi['hold'] ?? 0, $depositUi['currency'] ?? 'EGP') }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>الحالة</span>
+                            <span>{{ __('الحالة') }}</span>
                             <strong>{{ $depositUi['status'] ?? '—' }}</strong>
                             <small>frozen: {{ $boolLabel(!empty($depositUi['is_frozen'])) }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>التأكيدات</span>
+                            <span>{{ __('التأكيدات') }}</span>
                             <strong>
                                 Client: {{ $boolLabel(!empty($depositUi['client_confirmed'])) }}
                                 /
@@ -391,23 +391,23 @@
                 </div>
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">رسوم التنفيذ</h2>
+                    <h2 class="a2-section-title">{{ __('رسوم التنفيذ') }}</h2>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>تم الخصم؟</span>
+                            <span>{{ __('تم الخصم؟') }}</span>
                             <strong>{{ !empty($fees['charged']) ? 'نعم' : 'لا' }}</strong>
                             <small>{{ $fees['charged_at'] ?? '—' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>رسوم العميل</span>
+                            <span>{{ __('رسوم العميل') }}</span>
                             <strong>{{ $money($fees['client_amount'] ?? 0) }}</strong>
                             <small>client fee</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>رسوم البزنس</span>
+                            <span>{{ __('رسوم البزنس') }}</span>
                             <strong>{{ $money($fees['business_amount'] ?? 0) }}</strong>
                             <small>business fee</small>
                         </div>
@@ -421,23 +421,23 @@
                 </div>
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">التأكيدات والنزاع</h2>
+                    <h2 class="a2-section-title">{{ __('التأكيدات والنزاع') }}</h2>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>تأكيد العميل</span>
+                            <span>{{ __('تأكيد العميل') }}</span>
                             <strong>{{ !empty($confirmations['client_confirmed']) ? 'تم' : 'لم يتم' }}</strong>
                             <small>{{ $confirmations['source'] ?? '—' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>تأكيد البزنس</span>
+                            <span>{{ __('تأكيد البزنس') }}</span>
                             <strong>{{ !empty($confirmations['business_confirmed']) ? 'تم' : 'لم يتم' }}</strong>
                             <small>{{ $confirmations['source'] ?? '—' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>النزاع</span>
+                            <span>{{ __('النزاع') }}</span>
                             <strong>{{ !empty($disputeUi['has_dispute']) ? 'يوجد نزاع' : 'لا يوجد' }}</strong>
                             <small>
                                 ID: {{ $disputeUi['id'] ?? '—' }}
@@ -457,7 +457,7 @@
 
             @if(!empty($booking->bookable) || !empty($bookableMeta))
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">العنصر القابل للحجز</h2>
+                    <h2 class="a2-section-title">{{ __('العنصر القابل للحجز') }}</h2>
 
                     <div class="booking-show-kv-grid booking-show-kv-grid-4">
                         <div class="booking-show-kv">
@@ -467,19 +467,19 @@
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>العنوان</span>
+                            <span>{{ __('العنوان') }}</span>
                             <strong>{{ $bookableMeta['title'] ?? $booking->bookable?->title ?? '—' }}</strong>
                             <small>{{ $bookableMeta['code'] ?? $booking->bookable?->code ?? '' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>النوع</span>
+                            <span>{{ __('النوع') }}</span>
                             <strong>{{ $bookableMeta['item_type'] ?? $booking->bookable?->item_type ?? '—' }}</strong>
                             <small>item_type</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>السعر</span>
+                            <span>{{ __('السعر') }}</span>
                             <strong>{{ $money($bookableMeta['price'] ?? 0) }}</strong>
                             <small>bookable price</small>
                         </div>
@@ -489,7 +489,7 @@
 
             @if($deposit)
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">سجل Deposit</h2>
+                    <h2 class="a2-section-title">{{ __('سجل Deposit') }}</h2>
 
                     <div class="booking-show-kv-grid booking-show-kv-grid-4">
                         <div class="booking-show-kv">
@@ -499,13 +499,13 @@
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>الحالة</span>
+                            <span>{{ __('الحالة') }}</span>
                             <strong>{{ $deposit->status }}</strong>
                             <small>status</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>إجمالي القيمة</span>
+                            <span>{{ __('إجمالي القيمة') }}</span>
                             <strong>{{ $money($deposit->total_amount ?? 0) }}</strong>
                             <small>total_amount</small>
                         </div>
@@ -616,9 +616,9 @@
             <div class="a2-card booking-show-actions-card">
                 <div class="booking-show-section-head">
                     <div>
-                        <h2 class="a2-section-title">الإجراءات</h2>
+                        <h2 class="a2-section-title">{{ __('الإجراءات') }}</h2>
                         <div class="a2-section-subtitle">
-                            الإجراءات المتاحة حسب حالة الحجز.
+                            {{ __('الإجراءات المتاحة حسب حالة الحجز.') }}
                         </div>
                     </div>
                 </div>
@@ -629,7 +629,7 @@
                         <form method="POST" action="{{ route('admin.bookings.start_confirm.client', $booking) }}">
                             @csrf
                             <button type="submit" class="a2-btn a2-btn-primary a2-btn-block">
-                                تأكيد العميل
+                                {{ __('تأكيد العميل') }}
                             </button>
                         </form>
                     @endif
@@ -638,7 +638,7 @@
                         <form method="POST" action="{{ route('admin.bookings.start_confirm.business', $booking) }}">
                             @csrf
                             <button type="submit" class="a2-btn a2-btn-primary a2-btn-block">
-                                تأكيد البزنس
+                                {{ __('تأكيد البزنس') }}
                             </button>
                         </form>
                     @endif
@@ -656,7 +656,7 @@
                         <form method="POST" action="{{ route('admin.bookings.start', $booking) }}">
                             @csrf
                             <button type="submit" class="a2-btn a2-btn-success a2-btn-block">
-                                بدء التنفيذ
+                                {{ __('بدء التنفيذ') }}
                             </button>
                         </form>
                     @endif
@@ -665,7 +665,7 @@
                         <form method="POST" action="{{ route('admin.bookings.complete', $booking) }}">
                             @csrf
                             <button type="submit" class="a2-btn a2-btn-success a2-btn-block">
-                                إنهاء الحجز
+                                {{ __('إنهاء الحجز') }}
                             </button>
                         </form>
                     @endif
@@ -744,13 +744,13 @@
 
                         @if($deposit && $depositIsReleased)
                             <div class="a2-alert a2-alert-success">
-                                تم عمل Release للديبوزت. لا يمكن تنفيذ Refund بعد Release.
+                                {{ __('تم عمل Release للديبوزت. لا يمكن تنفيذ Refund بعد Release.') }}
                             </div>
                         @endif
 
                         @if($deposit && $depositIsRefunded)
                             <div class="a2-alert a2-alert-info">
-                                تم عمل Refund للديبوزت. لا يمكن تنفيذ Release بعد Refund.
+                                {{ __('تم عمل Refund للديبوزت. لا يمكن تنفيذ Release بعد Refund.') }}
                             </div>
                         @endif
 
@@ -762,14 +762,14 @@
                                 class="a2-btn a2-btn-danger a2-btn-block"
                                 onclick="return confirm('هل تريد إلغاء هذا الحجز؟')"
                             >
-                                إلغاء الحجز
+                                {{ __('إلغاء الحجز') }}
                             </button>
                         </form>
                     @endif
 
                     @if($actions->isEmpty())
                         <div class="booking-show-empty">
-                            لا توجد إجراءات متاحة حاليًا.
+                            {{ __('لا توجد إجراءات متاحة حاليًا.') }}
                         </div>
                     @endif
                 </div>

@@ -14,22 +14,22 @@
 <div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة قاعدة تسعير</h1>
+            <h1 class="a2-page-title">{{ __('إضافة قاعدة تسعير') }}</h1>
             <div class="a2-page-subtitle">
-                {{ $item->title }} — إنشاء قاعدة سعر جديدة
+                {{ $item->title }} {{ __('— إنشاء قاعدة سعر جديدة') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.price-rules.index', $item) }}">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>
 
     @if ($errors->any())
         <div class="a2-alert a2-alert-danger a2-mb-12">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء') }}</div>
             <ul class="a2-errors-list">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -41,8 +41,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">ملخص العنصر</div>
-                <div class="a2-card-sub">العنصر الذي سيتم تطبيق قاعدة التسعير عليه</div>
+                <div class="a2-card-title">{{ __('ملخص العنصر') }}</div>
+                <div class="a2-card-sub">{{ __('العنصر الذي سيتم تطبيق قاعدة التسعير عليه') }}</div>
             </div>
         </div>
 
@@ -57,8 +57,8 @@
     <div class="a2-card a2-card--section" style="margin-top:16px;">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">بيانات قاعدة التسعير</div>
-                <div class="a2-card-sub">حدد نوع القاعدة ونوع التأثير السعري والنطاق الزمني</div>
+                <div class="a2-card-title">{{ __('بيانات قاعدة التسعير') }}</div>
+                <div class="a2-card-sub">{{ __('حدد نوع القاعدة ونوع التأثير السعري والنطاق الزمني') }}</div>
             </div>
 
             <div class="a2-page-actions">
@@ -67,13 +67,13 @@
                     href="{{ route('admin.bookable-items.calendar', $item) }}"
                     target="_blank"
                 >
-                    فتح الكاليندر
+                    {{ __('فتح الكاليندر') }}
                 </a>
             </div>
         </div>
 
         <div class="a2-alert a2-alert-warning" style="margin-bottom:16px;">
-            استخدم الكاليندر لاختيار النطاق بصريًا، ثم انسخ أو مرر تاريخ البداية والنهاية هنا.
+            {{ __('استخدم الكاليندر لاختيار النطاق بصريًا، ثم انسخ أو مرر تاريخ البداية والنهاية هنا.') }}
         </div>
 
         <form method="POST" action="{{ route('admin.bookable-items.price-rules.store', $item) }}">
@@ -82,7 +82,7 @@
             <div class="a2-form-grid">
                 <div class="a2-form-group a2-field-full">
                     <label class="a2-label">Title</label>
-                    <input class="a2-input" name="title" value="{{ old('title') }}" placeholder="اسم القاعدة">
+                    <input class="a2-input" name="title" value="{{ old('title') }}" placeholder="{{ __('اسم القاعدة') }}">
                     @error('title')
                         <div class="a2-error">{{ $message }}</div>
                     @enderror
@@ -192,9 +192,9 @@
 
             <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.price-rules.index', $item) }}">
-                    إلغاء
+                    {{ __('إلغاء') }}
                 </a>
-                <button class="a2-btn a2-btn-primary" type="submit">حفظ</button>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
             </div>
         </form>
     </div>

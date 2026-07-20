@@ -8,45 +8,45 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">أرصدة المحافظ</h1>
-            <div class="a2-page-subtitle">عرض رصيد كل عميل أو بزنس داخل المحفظة.</div>
+            <h1 class="a2-page-title">{{ __('أرصدة المحافظ') }}</h1>
+            <div class="a2-page-subtitle">{{ __('عرض رصيد كل عميل أو بزنس داخل المحفظة.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-primary">شحن محفظة</a>
-            <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">حركات المحافظ</a>
+            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-primary">{{ __('شحن محفظة') }}</a>
+            <a href="{{ route('admin.wallet-transactions.index') }}" class="a2-btn a2-btn-ghost">{{ __('حركات المحافظ') }}</a>
         </div>
     </div>
 
     <div class="a2-stat-grid a2-mb-16">
-        <div class="a2-stat-card"><div class="a2-stat-label">Wallets</div><div class="a2-stat-value">{{ number_format($totals['wallets'] ?? 0) }}</div><div class="a2-stat-note">كل المحافظ</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div><div class="a2-stat-note">نشطة</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Available</div><div class="a2-stat-value">{{ number_format((float) ($totals['balance'] ?? 0), 2) }}</div><div class="a2-stat-note">رصيد متاح</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Locked</div><div class="a2-stat-value">{{ number_format((float) ($totals['locked'] ?? 0), 2) }}</div><div class="a2-stat-note">رصيد محجوز</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Total In</div><div class="a2-stat-value">{{ number_format((float) ($totals['total_in'] ?? 0), 2) }}</div><div class="a2-stat-note">إجمالي الداخل</div></div>
-        <div class="a2-stat-card"><div class="a2-stat-label">Total Out</div><div class="a2-stat-value">{{ number_format((float) ($totals['total_out'] ?? 0), 2) }}</div><div class="a2-stat-note">إجمالي الخارج</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Wallets</div><div class="a2-stat-value">{{ number_format($totals['wallets'] ?? 0) }}</div><div class="a2-stat-note">{{ __('كل المحافظ') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Active</div><div class="a2-stat-value">{{ number_format($totals['active'] ?? 0) }}</div><div class="a2-stat-note">{{ __('نشطة') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Available</div><div class="a2-stat-value">{{ number_format((float) ($totals['balance'] ?? 0), 2) }}</div><div class="a2-stat-note">{{ __('رصيد متاح') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Locked</div><div class="a2-stat-value">{{ number_format((float) ($totals['locked'] ?? 0), 2) }}</div><div class="a2-stat-note">{{ __('رصيد محجوز') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Total In</div><div class="a2-stat-value">{{ number_format((float) ($totals['total_in'] ?? 0), 2) }}</div><div class="a2-stat-note">{{ __('إجمالي الداخل') }}</div></div>
+        <div class="a2-stat-card"><div class="a2-stat-label">Total Out</div><div class="a2-stat-value">{{ number_format((float) ($totals['total_out'] ?? 0), 2) }}</div><div class="a2-stat-note">{{ __('إجمالي الخارج') }}</div></div>
     </div>
 
     <div class="a2-card a2-card--tight a2-mb-16">
         <form method="GET" action="{{ route('admin.wallet-overview.index') }}" class="a2-filterbar">
-            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="بحث بالاسم / الهاتف / الإيميل / ID">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم / الهاتف / الإيميل / ID') }}">
 
             <select class="a2-select a2-filter-sm" name="type">
-                <option value="">كل الأنواع</option>
+                <option value="">{{ __('كل الأنواع') }}</option>
                 @foreach(['client' => 'Client', 'business' => 'Business', 'admin' => 'Admin'] as $key => $label)
                     <option value="{{ $key }}" {{ $type === $key ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
 
             <select class="a2-select a2-filter-sm" name="wallet_status">
-                <option value="">كل الحالات</option>
+                <option value="">{{ __('كل الحالات') }}</option>
                 <option value="active" {{ $walletStatus === 'active' ? 'selected' : '' }}>active</option>
                 <option value="blocked" {{ $walletStatus === 'blocked' ? 'selected' : '' }}>blocked</option>
             </select>
 
             <select class="a2-select a2-filter-sm" name="amount_filter">
-                <option value="">كل الأرصدة</option>
-                <option value="with_amount" {{ $amountFilter === 'with_amount' ? 'selected' : '' }}>به رصيد</option>
-                <option value="zero" {{ $amountFilter === 'zero' ? 'selected' : '' }}>رصيد صفر</option>
+                <option value="">{{ __('كل الأرصدة') }}</option>
+                <option value="with_amount" {{ $amountFilter === 'with_amount' ? 'selected' : '' }}>{{ __('به رصيد') }}</option>
+                <option value="zero" {{ $amountFilter === 'zero' ? 'selected' : '' }}>{{ __('رصيد صفر') }}</option>
             </select>
 
             <select class="a2-select a2-filter-sm" name="per_page">
@@ -56,8 +56,8 @@
             </select>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-overview.index') }}">إعادة ضبط</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-overview.index') }}">{{ __('إعادة ضبط') }}</a>
             </div>
         </form>
     </div>
@@ -109,7 +109,7 @@
                             <td>{{ $wallet->last_activity_at ? $wallet->last_activity_at->format('Y-m-d H:i') : '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="11" class="a2-empty-cell">لا توجد محافظ.</td></tr>
+                        <tr><td colspan="11" class="a2-empty-cell">{{ __('لا توجد محافظ.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

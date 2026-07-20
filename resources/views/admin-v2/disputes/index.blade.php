@@ -17,11 +17,11 @@
 
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">النزاعات المفتوحة</h2>
+        <h2 class="a2-title">{{ __('النزاعات المفتوحة') }}</h2>
         <div class="a2-hint">Deposits status = dispute</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">الحجوزات</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">{{ __('الحجوزات') }}</a>
       </div>
     </div>
 
@@ -55,14 +55,14 @@
               </td>
               <td>
 @if($d->booking_exists)
-  <a class="a2-btn a2-btn-ghost" href="{{ url('admin/bookings/'.$d->target_id) }}">فتح الحجز</a>
+  <a class="a2-btn a2-btn-ghost" href="{{ url('admin/bookings/'.$d->target_id) }}">{{ __('فتح الحجز') }}</a>
 @else
-  <span class="a2-badge a2-badge-danger">الحجز غير موجود</span>
+  <span class="a2-badge a2-badge-danger">{{ __('الحجز غير موجود') }}</span>
 @endif              </td>
             </tr>
           @empty
             <tr>
-              <td colspan="7" class="a2-muted" style="text-align:center;padding:14px;">لا توجد نزاعات حالياً</td>
+              <td colspan="7" class="a2-muted" style="text-align:center;padding:14px;">{{ __('لا توجد نزاعات حالياً') }}</td>
             </tr>
           @endforelse
         </tbody>

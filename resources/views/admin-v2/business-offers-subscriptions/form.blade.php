@@ -8,12 +8,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">اشتراك خدمة العروض التجارية</h1>
-            <div class="a2-page-subtitle">تفعيل خدمة business_offers للبزنس مع خصم الرسوم الثابتة من المحفظة.</div>
+            <h1 class="a2-page-title">{{ __('اشتراك خدمة العروض التجارية') }}</h1>
+            <div class="a2-page-subtitle">{{ __('تفعيل خدمة business_offers للبزنس مع خصم الرسوم الثابتة من المحفظة.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">العروض</a>
-            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-ghost">شحن المحفظة</a>
+            <a href="{{ route('admin.commercial-offers.index') }}" class="a2-btn a2-btn-ghost">{{ __('العروض') }}</a>
+            <a href="{{ route('admin.wallet-ops.recharge.form') }}" class="a2-btn a2-btn-ghost">{{ __('شحن المحفظة') }}</a>
         </div>
     </div>
 
@@ -29,14 +29,14 @@
         <form method="GET" action="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-filterbar">
             <select class="a2-select a2-filter-lg" name="business_id" required
                     data-remote-url="{{ route('admin.business-lookup', [], false) }}"
-                    data-placeholder="اختر البزنس — ابحث بالاسم أو الرقم #">
-                <option value="">اختر البزنس</option>
+                    data-placeholder="{{ __('اختر البزنس — ابحث بالاسم أو الرقم #') }}">
+                <option value="">{{ __('اختر البزنس') }}</option>
                 @if($business)
                     <option value="{{ $business->id }}" selected>#{{ $business->id }} — {{ $business->name }}</option>
                 @endif
             </select>
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">عرض الاشتراك</button>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('عرض الاشتراك') }}</button>
             </div>
         </form>
     </div>
@@ -50,17 +50,17 @@
         <div class="a2-stat-card">
             <div class="a2-stat-label">Fee</div>
             <div class="a2-stat-value">{{ number_format((float) ($rules['fixed_fee'] ?? 20), 2) }}</div>
-            <div class="a2-stat-note">{{ $rules['currency'] ?? 'EGP' }} / {{ (int) ($rules['duration_days'] ?? 30) }} يوم</div>
+            <div class="a2-stat-note">{{ $rules['currency'] ?? 'EGP' }} / {{ (int) ($rules['duration_days'] ?? 30) }} {{ __('يوم') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Max Offers</div>
             <div class="a2-stat-value">{{ (int) ($rules['max_active_offers'] ?? 5) }}</div>
-            <div class="a2-stat-note">عروض فعالة</div>
+            <div class="a2-stat-note">{{ __('عروض فعالة') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Wallet</div>
             <div class="a2-stat-value">{{ $wallet ? number_format((float) $wallet->balance, 2) : '—' }}</div>
-            <div class="a2-stat-note">رصيد البزنس</div>
+            <div class="a2-stat-note">{{ __('رصيد البزنس') }}</div>
         </div>
     </div>
 
@@ -110,19 +110,19 @@
 
                 <label class="a2-checkline">
                     <input type="checkbox" name="charge_wallet" value="1" checked>
-                    <span>خصم الرسوم من المحفظة الآن</span>
+                    <span>{{ __('خصم الرسوم من المحفظة الآن') }}</span>
                 </label>
 
-                <input class="a2-input" type="text" name="note" placeholder="ملاحظة اختيارية">
+                <input class="a2-input" type="text" name="note" placeholder="{{ __('ملاحظة اختيارية') }}">
 
-                <button class="a2-btn a2-btn-primary" type="submit">تفعيل / تجديد الاشتراك</button>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تفعيل / تجديد الاشتراك') }}</button>
             </form>
 
             @if($subscription)
                 <form method="POST" action="{{ route('admin.business-offers-subscriptions.deactivate') }}" class="a2-form-actions">
                     @csrf
                     <input type="hidden" name="business_id" value="{{ $business->id }}">
-                    <button class="a2-btn a2-btn-danger" type="submit">إيقاف الاشتراك</button>
+                    <button class="a2-btn a2-btn-danger" type="submit">{{ __('إيقاف الاشتراك') }}</button>
                 </form>
             @endif
         </div>

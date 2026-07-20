@@ -14,14 +14,14 @@
 <div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل سعر خدمة</h1>
+            <h1 class="a2-page-title">{{ __('تعديل سعر خدمة') }}</h1>
             <div class="a2-page-subtitle">
                 {{ $displayName }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">رجوع</a>
+            <a href="{{ $backUrl }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
         </div>
     </div>
 
@@ -39,7 +39,7 @@
 
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
-            <div class="a2-fw-900 a2-mb-8">يوجد أخطاء في البيانات:</div>
+            <div class="a2-fw-900 a2-mb-8">{{ __('يوجد أخطاء في البيانات:') }}</div>
 
             <ul style="margin:0;padding-inline-start:18px;">
                 @foreach($errors->all() as $error)

@@ -1,8 +1,8 @@
 <div class="a2-card a2-card--section js-service-panel" data-service-panel="menu" style="display:none;">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">إعدادات Menu</div>
-            <div class="a2-card-sub">إعدادات خاصة بخدمة المنيو لهذا التصنيف</div>
+            <div class="a2-card-title">{{ __('إعدادات Menu') }}</div>
+            <div class="a2-card-sub">{{ __('إعدادات خاصة بخدمة المنيو لهذا التصنيف') }}</div>
         </div>
     </div>
 

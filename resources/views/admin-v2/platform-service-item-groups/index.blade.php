@@ -19,19 +19,19 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">فروع أنواع العناصر</h1>
+            <h1 class="a2-page-title">{{ __('فروع أنواع العناصر') }}</h1>
             <div class="a2-page-subtitle">
-                تقسيم أنواع العناصر داخل كل خدمة إلى فروع (مثال: فنادق / عيادات / ملاعب داخل الحجز).
+                {{ __('تقسيم أنواع العناصر داخل كل خدمة إلى فروع (مثال: فنادق / عيادات / ملاعب داخل الحجز).') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.platform-service-item-types.index', request()->only('service_id')) }}" class="a2-btn a2-btn-ghost">
-                أنواع العناصر
+                {{ __('أنواع العناصر') }}
             </a>
 
             <a href="{{ route('admin.platform-service-item-groups.create', request()->only('service_id')) }}" class="a2-btn a2-btn-primary">
-                إضافة فرع
+                {{ __('إضافة فرع') }}
             </a>
         </div>
     </div>
@@ -51,14 +51,14 @@
     <div class="a2-card a2-card--soft a2-mb-16">
         <form method="GET" action="{{ route('admin.platform-service-item-groups.index') }}" class="a2-filterbar">
             <div class="a2-filter-search">
-                <label class="a2-label">بحث</label>
-                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="key / عربي / English">
+                <label class="a2-label">{{ __('بحث') }}</label>
+                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('key / عربي / English') }}">
             </div>
 
             <div class="a2-filter-md">
-                <label class="a2-label">الخدمة</label>
+                <label class="a2-label">{{ __('الخدمة') }}</label>
                 <select class="a2-select" name="service_id">
-                    <option value="0">كل الخدمات</option>
+                    <option value="0">{{ __('كل الخدمات') }}</option>
                     @foreach(($services ?? []) as $service)
                         <option value="{{ $service->id }}" @selected($serviceIdVal === (int) $service->id)>
                             {{ $displayName($service) }} — {{ $service->key }}
@@ -68,17 +68,17 @@
             </div>
 
             <div class="a2-filter-sm">
-                <label class="a2-label">الحالة</label>
+                <label class="a2-label">{{ __('الحالة') }}</label>
                 <select class="a2-select" name="active">
-                    <option value="">الكل</option>
-                    <option value="1" @selected($activeVal === '1')>مفعل</option>
-                    <option value="0" @selected($activeVal === '0')>غير مفعل</option>
+                    <option value="">{{ __('الكل') }}</option>
+                    <option value="1" @selected($activeVal === '1')>{{ __('مفعل') }}</option>
+                    <option value="0" @selected($activeVal === '0')>{{ __('غير مفعل') }}</option>
                 </select>
             </div>
 
             <div class="a2-filter-actions">
-                <button class="a2-btn a2-btn-primary" type="submit">تصفية</button>
-                <a href="{{ route('admin.platform-service-item-groups.index') }}" class="a2-btn a2-btn-ghost">إعادة</a>
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('تصفية') }}</button>
+                <a href="{{ route('admin.platform-service-item-groups.index') }}" class="a2-btn a2-btn-ghost">{{ __('إعادة') }}</a>
             </div>
         </form>
     </div>
@@ -89,13 +89,13 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>الفرع</th>
-                        <th>الخدمة</th>
+                        <th>{{ __('الفرع') }}</th>
+                        <th>{{ __('الخدمة') }}</th>
                         <th>Key</th>
-                        <th>الأنواع</th>
-                        <th>الحالة</th>
-                        <th>الترتيب</th>
-                        <th class="a2-text-right">إجراءات</th>
+                        <th>{{ __('الأنواع') }}</th>
+                        <th>{{ __('الحالة') }}</th>
+                        <th>{{ __('الترتيب') }}</th>
+                        <th class="a2-text-right">{{ __('إجراءات') }}</th>
                     </tr>
                 </thead>
 
@@ -122,7 +122,7 @@
 
                             <td>
                                 <a href="{{ route('admin.platform-service-item-types.index', ['group_id' => $row->id, 'service_id' => $row->platform_service_id]) }}" class="a2-pill a2-pill-sub">
-                                    {{ (int) ($row->item_types_count ?? 0) }} نوع
+                                    {{ (int) ($row->item_types_count ?? 0) }} {{ __('نوع') }}
                                 </a>
                             </td>
 
@@ -139,7 +139,7 @@
                             <td class="a2-text-right">
                                 <div class="a2-inline-actions">
                                     <a href="{{ route('admin.platform-service-item-groups.edit', $row) }}" class="a2-btn a2-btn-sm a2-btn-ghost">
-                                        تعديل
+                                        {{ __('تعديل') }}
                                     </a>
 
                                     <form method="POST" action="{{ route('admin.platform-service-item-groups.toggle-active', $row) }}">
@@ -153,7 +153,7 @@
                                         @csrf
                                         @method('DELETE')
                                         <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">
-                                            حذف
+                                            {{ __('حذف') }}
                                         </button>
                                     </form>
                                 </div>
@@ -161,7 +161,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="a2-empty">لا توجد فروع حتى الآن.</td>
+                            <td colspan="8" class="a2-empty">{{ __('لا توجد فروع حتى الآن.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

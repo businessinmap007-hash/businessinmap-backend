@@ -1,8 +1,8 @@
 <div class="a2-card a2-card--section js-service-panel" data-service-panel="booking" style="display:none;">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">إعدادات Booking</div>
-            <div class="a2-card-sub">إعدادات خاصة بخدمة الحجز لهذا التصنيف</div>
+            <div class="a2-card-title">{{ __('إعدادات Booking') }}</div>
+            <div class="a2-card-sub">{{ __('إعدادات خاصة بخدمة الحجز لهذا التصنيف') }}</div>
         </div>
     </div>
 
@@ -97,7 +97,7 @@
     <div class="a2-form-group" style="margin-top:18px;">
         <label class="a2-label">Item Family</label>
         <select class="a2-select" name="item_family">
-            <option value="">اختر النوع العام</option>
+            <option value="">{{ __('اختر النوع العام') }}</option>
             @foreach($itemFamilyOptions as $familyValue => $familyLabel)
                 <option value="{{ $familyValue }}" @selected((string) $itemFamily === (string) $familyValue)>
                     {{ $familyLabel }}

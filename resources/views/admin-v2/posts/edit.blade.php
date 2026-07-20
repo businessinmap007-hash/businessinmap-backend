@@ -39,11 +39,11 @@
   <div class="a2-card">
 
     <div class="a2-header">
-      <h2 class="a2-title">تعديل المنشور</h2>
+      <h2 class="a2-title">{{ __('تعديل المنشور') }}</h2>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.show', ['post'=>$post->id] + $qsKeep) }}">عرض</a>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index', $qsKeep) }}">رجوع</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.show', ['post'=>$post->id] + $qsKeep) }}">{{ __('عرض') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index', $qsKeep) }}">{{ __('رجوع') }}</a>
       </div>
     </div>
 
@@ -99,7 +99,7 @@
                     <button type="submit"
                             class="a2-btn a2-btn-danger"
                             style="height:26px;padding:0 8px;font-size:12px;border-radius:10px;">
-                      حذف
+                      {{ __('حذف') }}
                     </button>
                   </form>
                 </div>
@@ -109,7 +109,7 @@
 
           {{-- Upload new main image --}}
           <div style="display:grid;gap:10px;">
-            <label class="a2-hint" style="font-weight:900;">صورة المنشور (رئيسية تكتب في posts.image)</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('صورة المنشور (رئيسية تكتب في posts.image)') }}</label>
 
             <input type="file"
                    name="image"
@@ -119,20 +119,20 @@
                    style="padding-top:8px;">
 
             <div class="a2-hint">
-              يُسمح: jpg/png/jpeg — الحفظ داخل <b>files/uploads</b>
+              {{ __('يُسمح: jpg/png/jpeg — الحفظ داخل') }} <b>files/uploads</b>
             </div>
           </div>
 
           <hr style="border:0;border-top:1px solid var(--a2-border);margin:12px 0;">
 
           <div style="display:grid;gap:10px;">
-            <label class="a2-hint" style="font-weight:900;">الحالة</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('الحالة') }}</label>
             <select class="a2-select" name="is_active">
               <option value="1" @selected((string)old('is_active', (int)($post->is_active ?? 0)) === '1')>Active</option>
               <option value="0" @selected((string)old('is_active', (int)($post->is_active ?? 0)) === '0')>Inactive</option>
             </select>
 
-            <label class="a2-hint" style="font-weight:900;">تاريخ الانتهاء</label>
+            <label class="a2-hint" style="font-weight:900;">{{ __('تاريخ الانتهاء') }}</label>
             <input class="a2-input"
                    type="date"
                    name="expire_at"
@@ -154,7 +154,7 @@
             </div>
 
             <div>
-              <label class="a2-hint" style="font-weight:900;">المحتوى</label>
+              <label class="a2-hint" style="font-weight:900;">{{ __('المحتوى') }}</label>
               <textarea class="a2-input"
                         name="body"
                         rows="12"
@@ -162,8 +162,8 @@
             </div>
 
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px;">
-              <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-              <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.show', ['post'=>$post->id] + $qsKeep) }}">إلغاء</a>
+              <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+              <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.show', ['post'=>$post->id] + $qsKeep) }}">{{ __('إلغاء') }}</a>
             </div>
 
           </div>

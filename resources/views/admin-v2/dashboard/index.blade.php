@@ -27,19 +27,19 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">لوحة التحكم</h1>
+            <h1 class="a2-page-title">{{ __('لوحة التحكم') }}</h1>
             <div class="a2-page-subtitle">
-                ملخص سريع لحالة المستخدمين، الخدمات، الحجوزات، المحافظ، ورسوم التنفيذ.
+                {{ __('ملخص سريع لحالة المستخدمين، الخدمات، الحجوزات، المحافظ، ورسوم التنفيذ.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             @if(Route::has('admin.bookings.index'))
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">الحجوزات</a>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookings.index') }}">{{ __('الحجوزات') }}</a>
             @endif
 
             @if(Route::has('admin.wallet-transactions.index') && auth()->user()?->can(\App\Support\AdminAbility::MONEY))
-                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">المحفظة</a>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">{{ __('المحفظة') }}</a>
             @endif
 
             @if(Route::has('admin.platform-services.index'))
@@ -50,9 +50,9 @@
 
     @if($openDisputesCount > 0)
         <div class="a2-alert a2-alert-warning">
-            يوجد {{ $openDisputesCount }} نزاع مفتوح يحتاج مراجعة.
+            {{ __('يوجد') }} {{ $openDisputesCount }} {{ __('نزاع مفتوح يحتاج مراجعة.') }}
             @if(Route::has('admin.disputes.index'))
-                <a class="a2-link" href="{{ route('admin.disputes.index') }}">عرض النزاعات</a>
+                <a class="a2-link" href="{{ route('admin.disputes.index') }}">{{ __('عرض النزاعات') }}</a>
             @endif
         </div>
     @endif
@@ -87,7 +87,7 @@
             <div class="a2-stat-label">Business Prices</div>
             <div class="a2-stat-value">{{ $n($stats['business_service_prices'] ?? 0) }}</div>
             <div class="a2-stat-note">
-                أسعار الخدمات الخاصة بالبزنس
+                {{ __('أسعار الخدمات الخاصة بالبزنس') }}
             </div>
         </div>
 
@@ -112,7 +112,7 @@
                 <div class="a2-stat-label">Wallet Transactions</div>
                 <div class="a2-stat-value">{{ $n($stats['wallet_transactions'] ?? 0) }}</div>
                 <div class="a2-stat-note">
-                    إجمالي حركات المحافظ
+                    {{ __('إجمالي حركات المحافظ') }}
                 </div>
             </div>
 
@@ -130,12 +130,12 @@
         <div class="a2-card">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">حالة الحجوزات</h2>
-                    <div class="a2-section-subtitle">توزيع سريع حسب status</div>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('حالة الحجوزات') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('توزيع سريع حسب status') }}</div>
                 </div>
 
                 @if(Route::has('admin.bookings.index'))
-                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.bookings.index') }}">عرض الكل</a>
+                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.bookings.index') }}">{{ __('عرض الكل') }}</a>
                 @endif
             </div>
 
@@ -159,12 +159,12 @@
         <div class="a2-card">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">ملخص المحفظة</h2>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('ملخص المحفظة') }}</h2>
                     <div class="a2-section-subtitle">Completed IN / OUT / Platform Fees</div>
                 </div>
 
                 @if(Route::has('admin.wallet-transactions.index'))
-                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">عرض المحفظة</a>
+                    <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.wallet-transactions.index') }}">{{ __('عرض المحفظة') }}</a>
                 @endif
             </div>
 
@@ -197,8 +197,8 @@
         <div class="a2-card">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">آخر الحجوزات</h2>
-                    <div class="a2-section-subtitle">آخر 8 حجوزات حسب ID</div>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('آخر الحجوزات') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('آخر 8 حجوزات حسب ID') }}</div>
                 </div>
             </div>
 
@@ -225,7 +225,7 @@
                             <td>
                                 @if(Route::has('admin.bookings.show'))
                                     <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.bookings.show', $booking->id) }}">
-                                        عرض
+                                        {{ __('عرض') }}
                                     </a>
                                 @else
                                     —
@@ -234,7 +234,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="a2-empty-cell">لا توجد حجوزات</td>
+                            <td colspan="5" class="a2-empty-cell">{{ __('لا توجد حجوزات') }}</td>
                         </tr>
                     @endforelse
                     </tbody>
@@ -246,8 +246,8 @@
         <div class="a2-card">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">آخر معاملات المحفظة</h2>
-                    <div class="a2-section-subtitle">آخر 8 معاملات حسب ID</div>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('آخر معاملات المحفظة') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('آخر 8 معاملات حسب ID') }}</div>
                 </div>
             </div>
 
@@ -280,7 +280,7 @@
                             <td>
                                 @if(Route::has('admin.wallet-transactions.show'))
                                     <a class="a2-btn a2-btn-sm a2-btn-ghost" href="{{ route('admin.wallet-transactions.show', $tx->id) }}">
-                                        عرض
+                                        {{ __('عرض') }}
                                     </a>
                                 @else
                                     —
@@ -289,7 +289,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="a2-empty-cell">لا توجد معاملات</td>
+                            <td colspan="5" class="a2-empty-cell">{{ __('لا توجد معاملات') }}</td>
                         </tr>
                     @endforelse
                     </tbody>
@@ -303,19 +303,19 @@
         <div class="a2-card a2-mt-16">
             <div class="a2-header">
                 <div>
-                    <h2 class="a2-section-title a2-mb-0">النزاعات المفتوحة</h2>
-                    <div class="a2-section-subtitle">يوجد نزاعات تحتاج مراجعة فورية</div>
+                    <h2 class="a2-section-title a2-mb-0">{{ __('النزاعات المفتوحة') }}</h2>
+                    <div class="a2-section-subtitle">{{ __('يوجد نزاعات تحتاج مراجعة فورية') }}</div>
                 </div>
 
                 @if(Route::has('admin.disputes.index'))
                     <a class="a2-btn a2-btn-danger" href="{{ route('admin.disputes.index') }}">
-                        عرض النزاعات المفتوحة
+                        {{ __('عرض النزاعات المفتوحة') }}
                     </a>
                 @endif
             </div>
 
             <div class="a2-alert a2-alert-warning">
-                راجع النزاعات قبل تنفيذ release أو refund على الودائع المرتبطة بالحجوزات.
+                {{ __('راجع النزاعات قبل تنفيذ release أو refund على الودائع المرتبطة بالحجوزات.') }}
             </div>
         </div>
     @endif

@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','عرض سجل الاشتراك')
+@section('title',__('عرض سجل الاشتراك'))
 @section('body_class','admin-v2-subscriptions-show')
 
 @section('content')
@@ -23,7 +23,7 @@
   <div class="a2-card">
     <div class="a2-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div>
-        <h2 class="a2-title">سجل اشتراك #{{ $s->id }}</h2>
+        <h2 class="a2-title">{{ __('سجل اشتراك #') }}{{ $s->id }}</h2>
         <div class="a2-muted" dir="ltr">
           Created: {{ $s->created_at ? $s->created_at->format('Y-m-d H:i') : '—' }}
           @if($s->updated_at) • Updated: {{ $s->updated_at->format('Y-m-d H:i') }} @endif
@@ -31,15 +31,15 @@
       </div>
 
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.index') }}">رجوع</a>
-        <a class="a2-btn a2-btn-primary" href="{{ route('admin.subscriptions.edit', $s->id) }}">تعديل</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.index') }}">{{ __('رجوع') }}</a>
+        <a class="a2-btn a2-btn-primary" href="{{ route('admin.subscriptions.edit', $s->id) }}">{{ __('تعديل') }}</a>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="a2-card" style="box-shadow:none;border:1px solid var(--a2-border);">
         <div class="a2-header">
-          <h3 class="a2-title" style="font-size:16px;">بيانات السجل</h3>
+          <h3 class="a2-title" style="font-size:16px;">{{ __('بيانات السجل') }}</h3>
         </div>
 
         <div class="a2-body" style="padding:14px;">
@@ -73,7 +73,7 @@
 
       <div class="a2-card" style="box-shadow:none;border:1px solid var(--a2-border);">
         <div class="a2-header">
-          <h3 class="a2-title" style="font-size:16px;">المستخدم</h3>
+          <h3 class="a2-title" style="font-size:16px;">{{ __('المستخدم') }}</h3>
         </div>
 
         <div class="a2-body" style="padding:14px;">

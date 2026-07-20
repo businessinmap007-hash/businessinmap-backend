@@ -7,15 +7,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة نوع عنصر</h1>
+            <h1 class="a2-page-title">{{ __('إضافة نوع عنصر') }}</h1>
             <div class="a2-page-subtitle">
-                إضافة نوع عنصر جديد داخل خدمة منصة.
+                {{ __('إضافة نوع عنصر جديد داخل خدمة منصة.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.platform-service-item-types.index') }}" class="a2-btn a2-btn-ghost">
-                رجوع
+                {{ __('رجوع') }}
             </a>
         </div>
     </div>

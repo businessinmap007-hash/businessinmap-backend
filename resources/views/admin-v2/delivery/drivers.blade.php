@@ -8,17 +8,17 @@
   <div class="a2-card">
     <div class="a2-header">
       <div>
-        <h2 class="a2-title">موصّلو التوصيل</h2>
-        <div class="a2-hint">حلقة التوصيل المتّصلة — العدّادات مدى الحياة</div>
+        <h2 class="a2-title">{{ __('موصّلو التوصيل') }}</h2>
+        <div class="a2-hint">{{ __('حلقة التوصيل المتّصلة — العدّادات مدى الحياة') }}</div>
       </div>
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.delivery.completions.index') }}">سجل التوصيلات</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.delivery.completions.index') }}">{{ __('سجل التوصيلات') }}</a>
       </div>
     </div>
 
     <form method="GET" class="a2-actionsbar" style="margin-bottom:12px;">
-      <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="بحث بالاسم أو البريد أو الهاتف">
-      <button class="a2-btn a2-btn-primary" type="submit">بحث</button>
+      <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم أو البريد أو الهاتف') }}">
+      <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
     </form>
 
     @if(session('success'))
@@ -30,12 +30,12 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>الموصّل</th>
-            <th>الهاتف</th>
-            <th>مُسنَد</th>
-            <th>استُلم</th>
-            <th>سُلّم</th>
-            <th>الحالة</th>
+            <th>{{ __('الموصّل') }}</th>
+            <th>{{ __('الهاتف') }}</th>
+            <th>{{ __('مُسنَد') }}</th>
+            <th>{{ __('استُلم') }}</th>
+            <th>{{ __('سُلّم') }}</th>
+            <th>{{ __('الحالة') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -50,9 +50,9 @@
               <td><strong>{{ $d->delivered_count }}</strong></td>
               <td>
                 @if($d->is_active)
-                  <span class="a2-badge a2-badge-ok">مفعّل</span>
+                  <span class="a2-badge a2-badge-ok">{{ __('مفعّل') }}</span>
                 @else
-                  <span class="a2-badge a2-badge-muted">موقوف</span>
+                  <span class="a2-badge a2-badge-muted">{{ __('موقوف') }}</span>
                 @endif
               </td>
               <td>
@@ -63,7 +63,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="8" class="a2-empty">لا يوجد موصّلون.</td></tr>
+            <tr><td colspan="8" class="a2-empty">{{ __('لا يوجد موصّلون.') }}</td></tr>
           @endforelse
         </tbody>
       </table>

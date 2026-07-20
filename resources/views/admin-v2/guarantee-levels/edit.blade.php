@@ -8,12 +8,12 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل مستوى الضمان #{{ $level->id }}</h1>
-            <div class="a2-page-subtitle">تعديل الرصيد المطلوب، قدرة التغطية، وشروط التأهيل لهذا المستوى.</div>
+            <h1 class="a2-page-title">{{ __('تعديل مستوى الضمان #') }}{{ $level->id }}</h1>
+            <div class="a2-page-subtitle">{{ __('تعديل الرصيد المطلوب، قدرة التغطية، وشروط التأهيل لهذا المستوى.') }}</div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.guarantee-levels.index') }}" class="a2-btn a2-btn-ghost">رجوع للمستويات</a>
-            <a href="{{ route('admin.guarantees.index', ['level_id' => $level->id]) }}" class="a2-btn a2-btn-primary">ضمانات هذا المستوى</a>
+            <a href="{{ route('admin.guarantee-levels.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع للمستويات') }}</a>
+            <a href="{{ route('admin.guarantees.index', ['level_id' => $level->id]) }}" class="a2-btn a2-btn-primary">{{ __('ضمانات هذا المستوى') }}</a>
         </div>
     </div>
 

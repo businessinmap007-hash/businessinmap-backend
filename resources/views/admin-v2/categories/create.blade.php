@@ -1,15 +1,15 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'إضافة قسم رئيسي')
+@section('title', __('إضافة قسم رئيسي'))
 @section('body_class', 'admin-v2 admin-v2-categories-create')
 
 @section('content')
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">إضافة قسم رئيسي</h1>
+            <h1 class="a2-page-title">{{ __('إضافة قسم رئيسي') }}</h1>
             <div class="a2-page-subtitle">
-                إنشاء قسم رئيسي جديد وربطه بالخدمات والإعدادات الخاصة بها
+                {{ __('إنشاء قسم رئيسي جديد وربطه بالخدمات والإعدادات الخاصة بها') }}
             </div>
         </div>
     </div>

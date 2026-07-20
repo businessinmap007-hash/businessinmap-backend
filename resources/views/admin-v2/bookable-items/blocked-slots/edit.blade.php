@@ -9,7 +9,7 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">تعديل فترة الغلق</h1>
+            <h1 class="a2-page-title">{{ __('تعديل فترة الغلق') }}</h1>
             <div class="a2-page-subtitle">
                 {{ $bookableItem->title }} — Slot #{{ $slot->id }}
             </div>
@@ -18,19 +18,19 @@
         <div class="a2-page-actions">
             <a href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id]) }}"
                class="a2-btn a2-btn-ghost">
-                العودة إلى التقويم
+                {{ __('العودة إلى التقويم') }}
             </a>
 
             <a href="{{ route('admin.bookable-items.blocked-slots.index', $bookableItem) }}"
                class="a2-btn a2-btn-ghost">
-                كل فترات الغلق
+                {{ __('كل فترات الغلق') }}
             </a>
         </div>
     </div>
 
     @if ($errors->any())
         <div class="a2-alert a2-alert-danger" style="margin-bottom:16px;">
-            <strong>يوجد أخطاء في البيانات:</strong>
+            <strong>{{ __('يوجد أخطاء في البيانات:') }}</strong>
             <ul style="margin:8px 0 0 18px;">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -43,8 +43,8 @@
         <div class="a2-card">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-card-title">بيانات فترة الغلق</div>
-                    <div class="a2-card-sub">يمكنك تعديل التاريخ والسبب والحالة</div>
+                    <div class="a2-card-title">{{ __('بيانات فترة الغلق') }}</div>
+                    <div class="a2-card-sub">{{ __('يمكنك تعديل التاريخ والسبب والحالة') }}</div>
                 </div>
             </div>
 
@@ -65,20 +65,20 @@
         <div class="a2-card">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-card-title">إجراءات</div>
-                    <div class="a2-card-sub">إدارة سريعة للفترة الحالية</div>
+                    <div class="a2-card-title">{{ __('إجراءات') }}</div>
+                    <div class="a2-card-sub">{{ __('إدارة سريعة للفترة الحالية') }}</div>
                 </div>
             </div>
 
             <div class="a2-stack" style="display:flex;flex-direction:column;gap:12px;">
                 <a href="{{ route('admin.bookable-items.calendar', ['bookableItem' => $bookableItem->id]) }}"
                    class="a2-btn a2-btn-primary a2-btn-block">
-                    فتح التقويم
+                    {{ __('فتح التقويم') }}
                 </a>
 
                 <a href="{{ route('admin.bookable-items.blocked-slots.index', $bookableItem) }}"
                    class="a2-btn a2-btn-ghost a2-btn-block">
-                    عرض جميع فترات الغلق
+                    {{ __('عرض جميع فترات الغلق') }}
                 </a>
 
                 <form method="POST"
@@ -88,7 +88,7 @@
                     @method('DELETE')
 
                     <button type="submit" class="a2-btn a2-btn-danger a2-btn-block">
-                        حذف فترة الغلق
+                        {{ __('حذف فترة الغلق') }}
                     </button>
                 </form>
             </div>

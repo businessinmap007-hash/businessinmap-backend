@@ -116,7 +116,7 @@ class ServiceFeeRuleAdminTest extends TestCase
         $this->actingAs($this->admin)
             ->get("/admin/service-fee-rules/{$rule->id}/edit")
             ->assertOk()
-            ->assertSee('غير مشترك فقط');
+            ->assertSee(__('غير مشترك فقط'));
     }
 
     public function test_a_waive_rule_needs_no_value_and_stores_none(): void

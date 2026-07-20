@@ -9,21 +9,21 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">قواعد التسعير</h1>
+            <h1 class="a2-page-title">{{ __('قواعد التسعير') }}</h1>
             <div class="a2-page-subtitle">
-                {{ $item->title }} — إدارة التسعير الديناميكي لهذا العنصر
+                {{ $item->title }} {{ __('— إدارة التسعير الديناميكي لهذا العنصر') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">رجوع</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.index') }}">{{ __('رجوع') }}</a>
 
             <a class="a2-btn a2-btn-ghost" href="{{ route('admin.bookable-items.calendar', $item) }}">
-                التقويم
+                {{ __('التقويم') }}
             </a>
 
             <a class="a2-btn a2-btn-primary" href="{{ route('admin.bookable-items.price-rules.create', $item) }}">
-                + إضافة Rule
+                {{ __('+ إضافة Rule') }}
             </a>
         </div>
     </div>
@@ -43,8 +43,8 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">ملخص العنصر</div>
-                <div class="a2-card-sub">العنصر الذي يتم تطبيق قواعد التسعير عليه</div>
+                <div class="a2-card-title">{{ __('ملخص العنصر') }}</div>
+                <div class="a2-card-sub">{{ __('العنصر الذي يتم تطبيق قواعد التسعير عليه') }}</div>
             </div>
         </div>
 
@@ -59,12 +59,12 @@
     <div class="a2-card" style="margin-top:16px;">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">قائمة قواعد التسعير</div>
+                <div class="a2-card-title">{{ __('قائمة قواعد التسعير') }}</div>
                 <div class="a2-card-sub">
                     @if(method_exists($rules, 'total'))
-                        إجمالي السجلات: {{ $rules->total() }}
+                        {{ __('إجمالي السجلات:') }} {{ $rules->total() }}
                     @else
-                        عرض قواعد السعر المرتبطة بهذا العنصر
+                        {{ __('عرض قواعد السعر المرتبطة بهذا العنصر') }}
                     @endif
                 </div>
             </div>
@@ -145,7 +145,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="a2-empty-cell">لا توجد قواعد تسعير</td>
+                            <td colspan="9" class="a2-empty-cell">{{ __('لا توجد قواعد تسعير') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

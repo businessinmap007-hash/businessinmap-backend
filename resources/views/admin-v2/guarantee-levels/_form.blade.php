@@ -13,7 +13,7 @@
 
 <div class="a2-form-grid">
     <div class="a2-card">
-        <h2 class="a2-section-title">البيانات الأساسية</h2>
+        <h2 class="a2-section-title">{{ __('البيانات الأساسية') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Code</label>
@@ -21,8 +21,8 @@
         </div>
 
         <div class="a2-field">
-            <label class="a2-label">الاسم عربي</label>
-            <input class="a2-input" type="text" name="name_ar" value="{{ old('name_ar', $level->name_ar) }}" placeholder="ضمان برونزي">
+            <label class="a2-label">{{ __('الاسم عربي') }}</label>
+            <input class="a2-input" type="text" name="name_ar" value="{{ old('name_ar', $level->name_ar) }}" placeholder="{{ __('ضمان برونزي') }}">
         </div>
 
         <div class="a2-field">
@@ -41,13 +41,13 @@
         <div class="a2-field">
             <label class="a2-checkline">
                 <input type="checkbox" name="is_active" value="1" {{ old('is_active', $level->is_active) ? 'checked' : '' }}>
-                <span>مفعل</span>
+                <span>{{ __('مفعل') }}</span>
             </label>
         </div>
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">الرصيد والتغطية</h2>
+        <h2 class="a2-section-title">{{ __('الرصيد والتغطية') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Required Locked Amount</label>
@@ -71,32 +71,32 @@
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">تعزيز التغطية بالتقييم (Boost)</h2>
-        <p class="a2-help">تغطية أعلى تُمنح تلقائيًا لأصحاب التقييم الممتاز، وتُسحب فور تراجع السلوك. اترك المبلغ فارغًا لتعطيل التعزيز على هذا المستوى.</p>
+        <h2 class="a2-section-title">{{ __('تعزيز التغطية بالتقييم (Boost)') }}</h2>
+        <p class="a2-help">{{ __('تغطية أعلى تُمنح تلقائيًا لأصحاب التقييم الممتاز، وتُسحب فور تراجع السلوك. اترك المبلغ فارغًا لتعطيل التعزيز على هذا المستوى.') }}</p>
 
         <div class="a2-field">
             <label class="a2-label">Boost Coverage Amount</label>
-            <input class="a2-input" type="number" step="0.01" min="0" name="boost_coverage_amount" value="{{ old('boost_coverage_amount', $level->boost_coverage_amount) }}" placeholder="فارغ = بدون تعزيز (مثال: active × 1.25)">
+            <input class="a2-input" type="number" step="0.01" min="0" name="boost_coverage_amount" value="{{ old('boost_coverage_amount', $level->boost_coverage_amount) }}" placeholder="{{ __('فارغ = بدون تعزيز (مثال: active × 1.25)') }}">
         </div>
 
         <div class="a2-field">
             <label class="a2-label">Boost: Min Completed Operations</label>
-            <input class="a2-input" type="number" min="0" name="boost_min_operations" value="{{ old('boost_min_operations', $level->boost_min_operations) }}" placeholder="مثال: 5">
+            <input class="a2-input" type="number" min="0" name="boost_min_operations" value="{{ old('boost_min_operations', $level->boost_min_operations) }}" placeholder="{{ __('مثال: 5') }}">
         </div>
 
         <div class="a2-field">
             <label class="a2-label">Boost: Min Success Rate %</label>
-            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_min_success_rate" value="{{ old('boost_min_success_rate', $level->boost_min_success_rate) }}" placeholder="مثال: 90">
+            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_min_success_rate" value="{{ old('boost_min_success_rate', $level->boost_min_success_rate) }}" placeholder="{{ __('مثال: 90') }}">
         </div>
 
         <div class="a2-field">
             <label class="a2-label">Boost: Max Dispute Rate %</label>
-            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_max_dispute_rate" value="{{ old('boost_max_dispute_rate', $level->boost_max_dispute_rate) }}" placeholder="مثال: 5 — فارغ = بدون حد">
+            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="boost_max_dispute_rate" value="{{ old('boost_max_dispute_rate', $level->boost_max_dispute_rate) }}" placeholder="{{ __('مثال: 5 — فارغ = بدون حد') }}">
         </div>
     </div>
 
     <div class="a2-card">
-        <h2 class="a2-section-title">شروط التأهيل</h2>
+        <h2 class="a2-section-title">{{ __('شروط التأهيل') }}</h2>
 
         <div class="a2-field">
             <label class="a2-label">Required Completed Operations</label>
@@ -110,12 +110,12 @@
 
         <div class="a2-field">
             <label class="a2-label">Max Lost Disputes</label>
-            <input class="a2-input" type="number" min="0" name="max_lost_disputes" value="{{ old('max_lost_disputes', $level->max_lost_disputes) }}" placeholder="فارغ = بدون حد">
+            <input class="a2-input" type="number" min="0" name="max_lost_disputes" value="{{ old('max_lost_disputes', $level->max_lost_disputes) }}" placeholder="{{ __('فارغ = بدون حد') }}">
         </div>
 
         <div class="a2-field">
             <label class="a2-label">Max Late Cancellations</label>
-            <input class="a2-input" type="number" min="0" name="max_late_cancellations" value="{{ old('max_late_cancellations', $level->max_late_cancellations) }}" placeholder="فارغ = بدون حد">
+            <input class="a2-input" type="number" min="0" name="max_late_cancellations" value="{{ old('max_late_cancellations', $level->max_late_cancellations) }}" placeholder="{{ __('فارغ = بدون حد') }}">
         </div>
     </div>
 
@@ -130,6 +130,6 @@
 </div>
 
 <div class="a2-form-actions">
-    <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-    <a href="{{ route('admin.guarantee-levels.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+    <a href="{{ route('admin.guarantee-levels.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
 </div>

@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','متابعات الوظائف')
+@section('title',__('متابعات الوظائف'))
 @section('body_class','admin-v2-job-follows')
 
 @section('content')
@@ -19,8 +19,8 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-title">متابعات الوظائف</h2>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index') }}">الوظائف</a>
+            <h2 class="a2-title">{{ __('متابعات الوظائف') }}</h2>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index') }}">{{ __('الوظائف') }}</a>
         </div>
 
         <div class="jf-cards">
@@ -35,21 +35,21 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-title">أكثر المجالات متابعة</h2>
+            <h2 class="a2-title">{{ __('أكثر المجالات متابعة') }}</h2>
         </div>
 
         <div class="a2-hint" style="margin-bottom:10px;">
-            مجال بمتابعين كُثر و«وظائف مفتوحة = ٠» يعني طلب بدون عرض.
+            {{ __('مجال بمتابعين كُثر و«وظائف مفتوحة = ٠» يعني طلب بدون عرض.') }}
         </div>
 
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead>
                 <tr>
-                    <th>التصنيف</th>
-                    <th>التخصص</th>
-                    <th style="width:140px;">عدد المتابعين</th>
-                    <th style="width:160px;">وظائف مفتوحة</th>
+                    <th>{{ __('التصنيف') }}</th>
+                    <th>{{ __('التخصص') }}</th>
+                    <th style="width:140px;">{{ __('عدد المتابعين') }}</th>
+                    <th style="width:160px;">{{ __('وظائف مفتوحة') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -60,14 +60,14 @@
                         <td>{{ number_format($f['followers']) }}</td>
                         <td>
                             @if($f['open_jobs'] === 0)
-                                <span class="jf-gap">لا يوجد</span>
+                                <span class="jf-gap">{{ __('لا يوجد') }}</span>
                             @else
                                 {{ number_format($f['open_jobs']) }}
                             @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="a2-empty-cell">لا توجد متابعات بعد</td></tr>
+                    <tr><td colspan="4" class="a2-empty-cell">{{ __('لا توجد متابعات بعد') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -76,15 +76,15 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-title">كل المتابعات</h2>
+            <h2 class="a2-title">{{ __('كل المتابعات') }}</h2>
         </div>
 
         <form method="GET" action="{{ route('admin.job-follows.index') }}" class="a2-toolbar">
             <div class="a2-filters">
-                <input class="a2-input" name="q" value="{{ $q }}" placeholder="بحث باسم أو هاتف المتابِع">
+                <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('بحث باسم أو هاتف المتابِع') }}">
                 <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">تطبيق</button>
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.job-follows.index') }}">تفريغ</a>
+                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.job-follows.index') }}">{{ __('تفريغ') }}</a>
                 </div>
             </div>
         </form>
@@ -94,11 +94,11 @@
                 <thead>
                 <tr>
                     <th style="width:90px;">ID</th>
-                    <th>المتابِع</th>
-                    <th>التصنيف</th>
-                    <th>التخصص</th>
-                    <th style="width:100px;">نشطة</th>
-                    <th style="width:170px;">آخر إشعار</th>
+                    <th>{{ __('المتابِع') }}</th>
+                    <th>{{ __('التصنيف') }}</th>
+                    <th>{{ __('التخصص') }}</th>
+                    <th style="width:100px;">{{ __('نشطة') }}</th>
+                    <th style="width:170px;">{{ __('آخر إشعار') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -112,7 +112,7 @@
                         <td dir="ltr">{{ $f->last_matched_at ? $f->last_matched_at->format('Y-m-d H:i') : '—' }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="a2-empty-cell">لا يوجد بيانات</td></tr>
+                    <tr><td colspan="6" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

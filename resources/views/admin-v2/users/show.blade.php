@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'عرض المستخدم')
+@section('title', __('عرض المستخدم'))
 @section('body_class', 'admin-v2-users-show')
 
 @section('content')
@@ -20,23 +20,23 @@
 <div class="a2-page a2-page-narrow">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">عرض المستخدم #{{ $user->id }}</h1>
+            <h1 class="a2-page-title">{{ __('عرض المستخدم #') }}{{ $user->id }}</h1>
             <div class="a2-page-subtitle">{{ $name ?: '—' }}</div>
         </div>
 
        <div class="a2-page-actions">
-            <a class="a2-btn a2-btn-primary" href="{{ route('admin.users.edit', $user->id) }}">تعديل</a>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">شحن المحفظة</a>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.user', $user->id) }}">معاملات المحفظة</a>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">الضمانات</a>
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.users.edit', $user->id) }}">{{ __('تعديل') }}</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">{{ __('شحن المحفظة') }}</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-transactions.user', $user->id) }}">{{ __('معاملات المحفظة') }}</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">{{ __('الضمانات') }}</a>
 
             @if(Route::has('admin.user-service-fee-consents.edit'))
                 <a class="a2-btn a2-btn-ghost" href="{{ route('admin.user-service-fee-consents.edit', $user) }}">
-                    موافقات رسوم الخدمة
+                    {{ __('موافقات رسوم الخدمة') }}
                 </a>
             @endif
 
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">رجوع</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.users.index') }}">{{ __('رجوع') }}</a>
         </div>
     </div>
 
@@ -48,17 +48,17 @@
         <div class="a2-stat-card">
             <div class="a2-stat-label">Wallet Balance</div>
             <div class="a2-stat-value">{{ number_format((float) optional($wallet)->balance, 2) }}</div>
-            <div class="a2-stat-note">الرصيد المتاح</div>
+            <div class="a2-stat-note">{{ __('الرصيد المتاح') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Locked Balance</div>
             <div class="a2-stat-value">{{ number_format((float) optional($wallet)->locked_balance, 2) }}</div>
-            <div class="a2-stat-note">الرصيد المقفل للضمان/الحجز</div>
+            <div class="a2-stat-note">{{ __('الرصيد المقفل للضمان/الحجز') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Wallet Status</div>
             <div class="a2-stat-value">{{ optional($wallet)->status ?: '—' }}</div>
-            <div class="a2-stat-note">حالة المحفظة</div>
+            <div class="a2-stat-note">{{ __('حالة المحفظة') }}</div>
         </div>
         <div class="a2-stat-card">
             <div class="a2-stat-label">Active Guarantee</div>
@@ -69,7 +69,7 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-section-title a2-mb-0">الصورة</h2>
+            <h2 class="a2-section-title a2-mb-0">{{ __('الصورة') }}</h2>
         </div>
 
         <div class="a2-row-actions">
@@ -83,7 +83,7 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-section-title a2-mb-0">البيانات الأساسية</h2>
+            <h2 class="a2-section-title a2-mb-0">{{ __('البيانات الأساسية') }}</h2>
         </div>
 
         <div class="a2-form-grid-3">
@@ -141,7 +141,7 @@
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-section-title a2-mb-0">الضمانات الأخيرة</h2>
+            <h2 class="a2-section-title a2-mb-0">{{ __('الضمانات الأخيرة') }}</h2>
         </div>
 
         <div class="a2-table-wrap">
@@ -166,24 +166,24 @@
                             <td>{{ $guarantee->status }}</td>
                             <td>{{ number_format((float) $guarantee->locked_amount, 2) }}</td>
                             <td>{{ number_format((float) $guarantee->current_coverage_amount, 2) }}</td>
-                            <td><a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.guarantees.show', $guarantee->id) }}">فتح</a></td>
+                            <td><a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.guarantees.show', $guarantee->id) }}">{{ __('فتح') }}</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="a2-empty-cell">لا توجد ضمانات لهذا المستخدم.</td></tr>
+                        <tr><td colspan="7" class="a2-empty-cell">{{ __('لا توجد ضمانات لهذا المستخدم.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
         <div class="a2-form-actions">
-            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">شحن واختيار مستوى ضمان</a>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">كل ضمانات المستخدم</a>
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.wallet-ops.recharge.form', ['user_id' => $user->id]) }}">{{ __('شحن واختيار مستوى ضمان') }}</a>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.guarantees.index', ['q' => $user->id]) }}">{{ __('كل ضمانات المستخدم') }}</a>
         </div>
     </div>
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-section-title a2-mb-0">تصنيف البزنس</h2>
+            <h2 class="a2-section-title a2-mb-0">{{ __('تصنيف البزنس') }}</h2>
         </div>
 
         <div class="a2-form-grid-3">
@@ -221,13 +221,13 @@
                 @endforeach
             </div>
         @else
-            <div class="a2-view-box">لا توجد خيارات مختارة.</div>
+            <div class="a2-view-box">{{ __('لا توجد خيارات مختارة.') }}</div>
         @endif
     </div>
 
     <div class="a2-card">
         <div class="a2-header">
-            <h2 class="a2-section-title a2-mb-0">الاشتراكات الأخيرة</h2>
+            <h2 class="a2-section-title a2-mb-0">{{ __('الاشتراكات الأخيرة') }}</h2>
         </div>
 
         <div class="a2-table-wrap">
@@ -235,9 +235,9 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>الحالة</th>
-                        <th>بدأ</th>
-                        <th>ينتهي</th>
+                        <th>{{ __('الحالة') }}</th>
+                        <th>{{ __('بدأ') }}</th>
+                        <th>{{ __('ينتهي') }}</th>
                     </tr>
                 </thead>
 
@@ -247,9 +247,9 @@
                             <td>{{ $sub->id }}</td>
                             <td>
                                 @if((int) ($sub->is_active ?? 0) === 1)
-                                    <span class="a2-pill a2-pill-sub-active">نشط</span>
+                                    <span class="a2-pill a2-pill-sub-active">{{ __('نشط') }}</span>
                                 @else
-                                    <span class="a2-pill a2-pill-sub-none">غير نشط</span>
+                                    <span class="a2-pill a2-pill-sub-none">{{ __('غير نشط') }}</span>
                                 @endif
                             </td>
                             <td>{{ $sub->starts_at ?? '—' }}</td>
@@ -257,7 +257,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="a2-empty-cell">لا توجد اشتراكات</td>
+                            <td colspan="4" class="a2-empty-cell">{{ __('لا توجد اشتراكات') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

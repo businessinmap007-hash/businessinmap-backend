@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title', 'عروض رسوم المنصة')
+@section('title', __('عروض رسوم المنصة'))
 @section('body_class', 'admin-v2 admin-v2-platform-service-fee-promotions')
 
 @section('content')
@@ -27,15 +27,15 @@
 <div class="a2-page">
     <div class="a2-page-head">
         <div>
-            <h1 class="a2-page-title">عروض رسوم المنصة</h1>
+            <h1 class="a2-page-title">{{ __('عروض رسوم المنصة') }}</h1>
             <div class="a2-page-subtitle">
-                إدارة العروض المؤقتة لتعديل أو إيقاف رسوم المنصة مع الاحتفاظ بالقيم الأصلية.
+                {{ __('إدارة العروض المؤقتة لتعديل أو إيقاف رسوم المنصة مع الاحتفاظ بالقيم الأصلية.') }}
             </div>
         </div>
 
         <div class="a2-page-actions">
             <a href="{{ route('admin.platform-service-fee-promotions.create') }}" class="a2-btn a2-btn-primary">
-                إضافة عرض جديد
+                {{ __('إضافة عرض جديد') }}
             </a>
         </div>
     </div>
@@ -53,11 +53,11 @@
                 name="q"
                 class="a2-input a2-filter-search"
                 value="{{ $f['q'] ?? '' }}"
-                placeholder="بحث باسم العرض أو الملاحظات"
+                placeholder="{{ __('بحث باسم العرض أو الملاحظات') }}"
             >
 
             <select name="service_id" class="a2-select a2-filter-md">
-                <option value="0">كل الخدمات</option>
+                <option value="0">{{ __('كل الخدمات') }}</option>
                 @foreach($services as $service)
                     <option value="{{ $service->id }}" @selected((int)($f['service_id'] ?? 0) === (int)$service->id)>
                         {{ $service->name_ar ?? $service->name_en ?? $service->name ?? $service->key ?? ('#' . $service->id) }}
@@ -66,7 +66,7 @@
             </select>
 
             <select name="scope_type" class="a2-select a2-filter-md">
-                <option value="">كل النطاقات</option>
+                <option value="">{{ __('كل النطاقات') }}</option>
                 @foreach($scopeTypes as $key => $label)
                     <option value="{{ $key }}" @selected(($f['scope_type'] ?? '') === $key)>
                         {{ $label }}
@@ -75,7 +75,7 @@
             </select>
 
             <select name="target_party" class="a2-select a2-filter-md">
-                <option value="">كل الأطراف</option>
+                <option value="">{{ __('كل الأطراف') }}</option>
                 @foreach($targetParties as $key => $label)
                     <option value="{{ $key }}" @selected(($f['target_party'] ?? '') === $key)>
                         {{ $label }}
@@ -84,7 +84,7 @@
             </select>
 
             <select name="discount_type" class="a2-select a2-filter-md">
-                <option value="">كل أنواع العروض</option>
+                <option value="">{{ __('كل أنواع العروض') }}</option>
                 @foreach($discountTypes as $key => $label)
                     <option value="{{ $key }}" @selected(($f['discount_type'] ?? '') === $key)>
                         {{ $label }}
@@ -93,14 +93,14 @@
             </select>
 
             <select name="active" class="a2-select a2-filter-sm">
-                <option value="">كل الحالات</option>
-                <option value="1" @selected(($f['active'] ?? '') === '1')>مفعل</option>
-                <option value="0" @selected(($f['active'] ?? '') === '0')>موقوف</option>
+                <option value="">{{ __('كل الحالات') }}</option>
+                <option value="1" @selected(($f['active'] ?? '') === '1')>{{ __('مفعل') }}</option>
+                <option value="0" @selected(($f['active'] ?? '') === '0')>{{ __('موقوف') }}</option>
             </select>
 
             <select name="running" class="a2-select a2-filter-sm">
-                <option value="">كل الفترات</option>
-                <option value="1" @selected(($f['running'] ?? '') === '1')>فعال الآن</option>
+                <option value="">{{ __('كل الفترات') }}</option>
+                <option value="1" @selected(($f['running'] ?? '') === '1')>{{ __('فعال الآن') }}</option>
             </select>
 
             <select name="per_page" class="a2-select a2-filter-sm">
@@ -113,11 +113,11 @@
 
             <div class="a2-filter-actions">
                 <button class="a2-btn a2-btn-primary" type="submit">
-                    فلترة
+                    {{ __('فلترة') }}
                 </button>
 
                 <a href="{{ route('admin.platform-service-fee-promotions.index') }}" class="a2-btn a2-btn-ghost">
-                    تصفية
+                    {{ __('تصفية') }}
                 </a>
             </div>
         </form>
@@ -129,17 +129,17 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>العرض</th>
-                        <th>النطاق</th>
-                        <th>الخدمة</th>
-                        <th>القسم الفرعي</th>
-                        <th>الطرف</th>
-                        <th>نوع العرض</th>
-                        <th>القيمة</th>
-                        <th>الفترة</th>
-                        <th>الأولوية</th>
-                        <th>الحالة</th>
-                        <th>إجراءات</th>
+                        <th>{{ __('العرض') }}</th>
+                        <th>{{ __('النطاق') }}</th>
+                        <th>{{ __('الخدمة') }}</th>
+                        <th>{{ __('القسم الفرعي') }}</th>
+                        <th>{{ __('الطرف') }}</th>
+                        <th>{{ __('نوع العرض') }}</th>
+                        <th>{{ __('القيمة') }}</th>
+                        <th>{{ __('الفترة') }}</th>
+                        <th>{{ __('الأولوية') }}</th>
+                        <th>{{ __('الحالة') }}</th>
+                        <th>{{ __('إجراءات') }}</th>
                     </tr>
                 </thead>
 
@@ -194,8 +194,8 @@
 
                             <td>
                                 <div class="a2-stack-sm">
-                                    <div>من: {{ $fmtDate($promotion->starts_at) }}</div>
-                                    <div>إلى: {{ $fmtDate($promotion->ends_at) }}</div>
+                                    <div>{{ __('من:') }} {{ $fmtDate($promotion->starts_at) }}</div>
+                                    <div>{{ __('إلى:') }} {{ $fmtDate($promotion->ends_at) }}</div>
                                 </div>
                             </td>
 
@@ -204,15 +204,15 @@
                             <td>
                                 <div class="a2-stack-sm">
                                     @if($promotion->is_active)
-                                        <span class="a2-pill a2-pill-success">مفعل</span>
+                                        <span class="a2-pill a2-pill-success">{{ __('مفعل') }}</span>
                                     @else
-                                        <span class="a2-pill a2-pill-danger">موقوف</span>
+                                        <span class="a2-pill a2-pill-danger">{{ __('موقوف') }}</span>
                                     @endif
 
                                     @if($isRunning)
-                                        <span class="a2-pill a2-pill-warning">فعال الآن</span>
+                                        <span class="a2-pill a2-pill-warning">{{ __('فعال الآن') }}</span>
                                     @else
-                                        <span class="a2-pill a2-pill-gray">غير فعال الآن</span>
+                                        <span class="a2-pill a2-pill-gray">{{ __('غير فعال الآن') }}</span>
                                     @endif
                                 </div>
                             </td>
@@ -220,7 +220,7 @@
                             <td>
                                 <div class="a2-table-actions">
                                     <a href="{{ route('admin.platform-service-fee-promotions.edit', $promotion) }}" class="a2-btn a2-btn-sm a2-btn-ghost">
-                                        تعديل
+                                        {{ __('تعديل') }}
                                     </a>
 
                                     <form method="POST" action="{{ route('admin.platform-service-fee-promotions.toggle', $promotion) }}">
@@ -235,7 +235,7 @@
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="a2-btn a2-btn-sm a2-btn-danger">
-                                            حذف
+                                            {{ __('حذف') }}
                                         </button>
                                     </form>
                                 </div>
@@ -244,7 +244,7 @@
                     @empty
                         <tr>
                             <td colspan="12" class="a2-empty-cell">
-                                لا توجد عروض رسوم منصة حتى الآن.
+                                {{ __('لا توجد عروض رسوم منصة حتى الآن.') }}
                             </td>
                         </tr>
                     @endforelse

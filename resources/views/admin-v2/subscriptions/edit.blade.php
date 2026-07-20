@@ -1,6 +1,6 @@
 @extends('admin-v2.layouts.master')
 
-@section('title','تعديل سجل الاشتراك')
+@section('title',__('تعديل سجل الاشتراك'))
 @section('body_class','admin-v2-subscriptions-edit')
 
 @section('content')
@@ -15,14 +15,14 @@
   <div class="a2-card">
     <div class="a2-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div>
-        <h2 class="a2-title">تعديل سجل #{{ $s->id }}</h2>
+        <h2 class="a2-title">{{ __('تعديل سجل #') }}{{ $s->id }}</h2>
         <div class="a2-muted" dir="ltr">
           Created: {{ $s->created_at ? $s->created_at->format('Y-m-d H:i') : '—' }}
         </div>
       </div>
 
       <div class="a2-actionsbar">
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.show', $s->id) }}">رجوع</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.show', $s->id) }}">{{ __('رجوع') }}</a>
         <form method="POST" action="{{ route('admin.subscriptions.toggle-active', $s->id) }}" style="display:inline;">
           @csrf
           <button class="a2-btn a2-btn-ghost" type="submit">
@@ -34,7 +34,7 @@
 
     @if ($errors->any())
       <div class="a2-alert a2-alert-danger" style="margin:12px 0;">
-        <div class="a2-fw-900" style="margin-bottom:6px;">يوجد أخطاء</div>
+        <div class="a2-fw-900" style="margin-bottom:6px;">{{ __('يوجد أخطاء') }}</div>
         <ul style="margin:0;padding-inline-start:18px;">
           @foreach ($errors->all() as $error)
             <li>{{ $error }}</li>
@@ -50,7 +50,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
 
         <div>
-          <label class="a2-label">القسم الرئيسي</label>
+          <label class="a2-label">{{ __('القسم الرئيسي') }}</label>
           <select class="a2-select" name="category_id">
             <option value="">—</option>
 
@@ -71,12 +71,12 @@
           </select>
 
           <div class="a2-muted" style="margin-top:6px;font-size:12px;">
-            يتم اختيار الأقسام الرئيسية فقط (Parent).
+            {{ __('يتم اختيار الأقسام الرئيسية فقط (Parent).') }}
           </div>
         </div>
 
         <div>
-          <label class="a2-label">الحالة</label>
+          <label class="a2-label">{{ __('الحالة') }}</label>
           <select class="a2-select" name="is_active">
             <option value="1" @selected((string)$activeNow === '1')>Active</option>
             <option value="0" @selected((string)$activeNow === '0')>Off</option>
@@ -86,8 +86,8 @@
       </div>
 
       <div class="a2-actionsbar" style="margin-top:14px;">
-        <button type="submit" class="a2-btn a2-btn-primary">حفظ</button>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.show', $s->id) }}">إلغاء</a>
+        <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.subscriptions.show', $s->id) }}">{{ __('إلغاء') }}</a>
       </div>
     </form>
 

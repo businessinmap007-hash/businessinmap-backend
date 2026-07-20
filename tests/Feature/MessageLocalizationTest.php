@@ -71,6 +71,33 @@ class MessageLocalizationTest extends TestCase
         $this->assertSame('المنشورات', __('المنشورات'));
     }
 
+    /**
+     * The file-wide version of the rule above, and the one that actually holds
+     * the line: fallback_locale is 'en', so ANY key present in en.json but
+     * missing from ar.json renders as English inside the Arabic UI. ar.json is
+     * therefore an identity map — every key maps to itself.
+     */
+    public function test_the_two_language_files_stay_in_parity(): void
+    {
+        $en = json_decode(file_get_contents(lang_path('en.json')), true);
+        $ar = json_decode(file_get_contents(lang_path('ar.json')), true);
+
+        $this->assertIsArray($en, 'en.json must be valid JSON.');
+        $this->assertIsArray($ar, 'ar.json must be valid JSON.');
+
+        $this->assertSame([], array_keys(array_diff_key($en, $ar)), 'Keys in en.json missing from ar.json — these leak English into the Arabic UI.');
+        $this->assertSame([], array_keys(array_diff_key($ar, $en)), 'Keys in ar.json with no English translation.');
+
+        $notIdentity = [];
+        foreach ($ar as $key => $value) {
+            if ($key !== $value) {
+                $notIdentity[] = $key;
+            }
+        }
+
+        $this->assertSame([], $notIdentity, 'ar.json entries must map each key to itself.');
+    }
+
     public function test_english_is_served_when_selected(): void
     {
         app()->setLocale('en');

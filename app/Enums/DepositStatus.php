@@ -26,6 +26,12 @@ enum DepositStatus: string
     case REFUNDED = 'refunded';
 
     /**
+     * قرار تحكيم بالقسمة: جزء للعميل وجزء للنشاط.
+     * ليس release ولا refund — نتيجة ثالثة مستقلة.
+     */
+    case SPLIT = 'split';
+
+    /**
      * Helper: كل القيم كنصوص (للفاليديشن)
      */
     public static function values(): array
@@ -41,6 +47,7 @@ enum DepositStatus: string
         return in_array($this, [
             self::RELEASED,
             self::REFUNDED,
+            self::SPLIT,
         ], true);
     }
 }

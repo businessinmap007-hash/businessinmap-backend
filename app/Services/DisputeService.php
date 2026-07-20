@@ -219,6 +219,7 @@ class DisputeService
                     ]);
                 }
 
+                $this->depositsEscrowService->split($deposit, $clientPercent, $businessPercent);
                 break;
 
             default:

@@ -13,7 +13,8 @@ use Illuminate\Validation\ValidationException;
 class DepositsEscrowService
 {
     public function __construct(
-        protected ServiceFeeService $serviceFeeService
+        protected ServiceFeeService $serviceFeeService,
+        protected WalletService $walletService
     ) {}
 
     /* ==========================================================
@@ -400,6 +401,136 @@ class DepositsEscrowService
             $deposit->update([
                 'status' => DepositStatus::REFUNDED,
                 'refunded_at' => now(),
+            ]);
+
+            return $deposit;
+        });
+    }
+
+    /* ==========================================================
+     * SPLIT (arbitration ruling) + Guards + Idempotent internals
+     * ========================================================== */
+
+    /**
+     * Divide the escrow between the two parties by percentage — the ruling an
+     * arbitrator actually reaches for when neither side is wholly at fault.
+     *
+     * Done in two moves, because money can only leave a wallet it is locked in:
+     * first every hold is unlocked back to whoever posted it, then the
+     * DIFFERENCE between what a party posted and what they were awarded is
+     * transferred across. So a 100 client-side hold split 60/40 unlocks 100 to
+     * the client and then transfers 40 to the business — nobody is ever asked
+     * to pay out of their own pocket, since the payer is only ever moving money
+     * that was just returned to them.
+     */
+    public function split(Deposit $deposit, float $clientPercent, float $businessPercent): Deposit
+    {
+        if ($clientPercent < 0 || $businessPercent < 0) {
+            throw ValidationException::withMessages([
+                'split' => 'Split percentages cannot be negative.',
+            ]);
+        }
+
+        if (round($clientPercent + $businessPercent, 2) !== 100.00) {
+            throw ValidationException::withMessages([
+                'split' => 'Split percentages must total 100%.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($deposit, $clientPercent) {
+
+            // Row lock (see release()): serialize concurrent settlements on the
+            // same deposit and make the status guards authoritative.
+            $deposit = $this->lockDeposit($deposit);
+
+            $statusValue = $this->depositStatusValue($deposit);
+
+            // ✅ already split
+            if ($statusValue === DepositStatus::SPLIT->value) {
+                return $deposit;
+            }
+
+            if ($deposit->released_at !== null || $statusValue === DepositStatus::RELEASED->value) {
+                throw ValidationException::withMessages([
+                    'deposit' => 'Cannot split a released deposit.',
+                ]);
+            }
+
+            if ($deposit->refunded_at !== null || $statusValue === DepositStatus::REFUNDED->value) {
+                throw ValidationException::withMessages([
+                    'deposit' => 'Cannot split a refunded deposit.',
+                ]);
+            }
+
+            if ($statusValue !== DepositStatus::FROZEN->value) {
+                throw ValidationException::withMessages([
+                    'deposit' => 'Cannot split a non-frozen deposit.',
+                ]);
+            }
+
+            $clientHold = (float) $deposit->client_amount;
+            $businessHold = (float) $deposit->business_amount;
+            $total = $clientHold + $businessHold;
+
+            // Derive the business share by subtraction, never by a second
+            // rounding: two independently rounded halves can miss the total by
+            // a cent, and that cent would be created or destroyed out of thin
+            // air inside a money transaction.
+            $clientShare = round(($total * $clientPercent) / 100.0, 2);
+
+            // Step 1 — unlock each side's own hold back to its owner.
+            if ($clientHold > 0) {
+                $this->releaseLockedToBalance(
+                    (int) $deposit->client_id,
+                    $deposit->client_amount,
+                    $deposit,
+                    WalletTransactionType::REFUND,
+                    'Unlock client deposit for split ruling'
+                );
+            }
+
+            if ($businessHold > 0) {
+                $this->releaseLockedToBalance(
+                    (int) $deposit->business_id,
+                    $deposit->business_amount,
+                    $deposit,
+                    WalletTransactionType::REFUND,
+                    'Unlock business deposit for split ruling'
+                );
+            }
+
+            // Step 2 — move only the difference between posted and awarded.
+            $delta = round($clientShare - $clientHold, 2);
+
+            if (abs($delta) >= 0.01) {
+                $fromUserId = $delta > 0 ? (int) $deposit->business_id : (int) $deposit->client_id;
+                $toUserId = $delta > 0 ? (int) $deposit->client_id : (int) $deposit->business_id;
+
+                $this->walletService->transfer(
+                    fromUserId: $fromUserId,
+                    toUserId: $toUserId,
+                    amount: abs($delta),
+                    referenceType: 'deposit',
+                    referenceId: (string) $deposit->id,
+                    note: 'Split ruling settlement',
+                    idempotencyKey: 'deposit_split_' . $deposit->id,
+                    meta: [
+                        'deposit_id' => $deposit->id,
+                        'target_type' => $deposit->target_type,
+                        'target_id' => $deposit->target_id,
+                        'client_percent' => $clientPercent,
+                        'client_share' => $clientShare,
+                        'total' => $total,
+                    ]
+                );
+            }
+
+            // released_at doubles as "escrow settled at" — the status says which
+            // way it settled, and leaving it null would show a split deposit as
+            // never having been settled at all.
+            $deposit->update([
+                'status' => DepositStatus::SPLIT,
+                'released_at' => now(),
             ]);
 
             return $deposit;

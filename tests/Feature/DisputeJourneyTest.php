@@ -189,17 +189,18 @@ class DisputeJourneyTest extends TestCase
     }
 
     /**
-     * FINDING — `split` moves no money.
-     *
-     * resolveBookingDispute() validates that the percentages sum to 100 and
-     * then breaks without touching the deposit: the dispute is marked resolved
-     * and the escrow is left frozen, so a split ruling is recorded but never
-     * executed. This test pins the behaviour as it actually is; it is not an
-     * endorsement of it.
+     * split: the escrow is actually divided, 60 to the client and 40 to the
+     * business. The whole hold sits on the client's side, so the money reaches
+     * the business by being unlocked to the client and then transferred across
+     * — what matters is only where it ends up.
      */
-    public function test_split_is_recorded_but_never_executed_against_the_escrow(): void
+    public function test_split_divides_the_escrow_between_both_parties(): void
     {
         $deposit = $this->freeze(100);
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->assertEqualsWithDelta(100.0, (float) $clientWallet->fresh()->locked_balance, 0.01, 'setup: held');
 
         $dispute = $this->disputes->resolve($this->open(), 'split', [
             'client_percent' => 60,
@@ -209,16 +210,67 @@ class DisputeJourneyTest extends TestCase
         $this->assertSame(Dispute::STATUS_RESOLVED, $dispute->status);
         $this->assertSame('split', $dispute->resolution_type);
 
-        $this->assertFalse(
-            $deposit->fresh()->isFinal(),
-            'split leaves the escrow frozen — the money is never actually divided'
-        );
+        $client = $clientWallet->fresh();
+        $business = $businessWallet->fresh();
+
+        $this->assertEqualsWithDelta(0.0, (float) $client->locked_balance, 0.01, 'nothing may stay frozen');
+        $this->assertEqualsWithDelta(960.0, (float) $client->balance, 0.01, 'the client keeps 60 of the 100');
+        $this->assertEqualsWithDelta(1040.0, (float) $business->balance, 0.01, 'the business receives 40');
+
+        $this->assertTrue($deposit->fresh()->isSplit());
+        $this->assertTrue($deposit->fresh()->isFinal(), 'a split is a settled deposit');
+    }
+
+    /** A split that awards everything to one side still balances to the total. */
+    public function test_a_hundred_percent_split_behaves_like_a_full_award(): void
+    {
+        $this->freeze(100);
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->disputes->resolve($this->open(), 'split', [
+            'client_percent' => 0,
+            'business_percent' => 100,
+        ]);
+
+        $this->assertEqualsWithDelta(900.0, (float) $clientWallet->fresh()->balance, 0.01, 'the client keeps nothing');
+        $this->assertEqualsWithDelta(1100.0, (float) $businessWallet->fresh()->balance, 0.01, 'the business takes all 100');
+    }
+
+    /** The escrow is conserved: an odd percentage must not mint or burn a cent. */
+    public function test_a_split_with_an_awkward_percentage_conserves_the_total(): void
+    {
+        $this->freeze(100);
+        $clientWallet = $this->wallet((int) $this->booking->user_id);
+        $businessWallet = $this->wallet((int) $this->booking->business_id);
+
+        $this->disputes->resolve($this->open(), 'split', [
+            'client_percent' => 33.33,
+            'business_percent' => 66.67,
+        ]);
+
+        $client = $clientWallet->fresh();
+        $business = $businessWallet->fresh();
+
         $this->assertEqualsWithDelta(
-            100.0,
-            (float) $this->wallet((int) $this->booking->user_id)->fresh()->locked_balance,
-            0.01,
-            'the client money stays locked after a split ruling'
+            2000.0,
+            (float) $client->balance + (float) $business->balance,
+            0.001,
+            'the two wallets together must hold exactly what they started with'
         );
+        $this->assertEqualsWithDelta(933.33, (float) $client->balance, 0.01);
+        $this->assertEqualsWithDelta(0.0, (float) $client->locked_balance, 0.01);
+    }
+
+    /** A settled deposit cannot be split afterwards. */
+    public function test_a_released_deposit_cannot_then_be_split(): void
+    {
+        $deposit = $this->freeze(100);
+
+        $this->disputes->resolve($this->open(), 'release_business');
+
+        $this->expectException(ValidationException::class);
+        app(\App\Services\DepositsEscrowService::class)->split($deposit->fresh(), 50, 50);
     }
 
     public function test_percentages_that_do_not_total_100_are_rejected(): void

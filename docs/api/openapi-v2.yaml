@@ -1944,7 +1944,7 @@ paths:
       summary: Escrow deposits this account is a party to
       description: 'No filter can widen the scope beyond the caller.'
       parameters:
-        - { in: query, name: status, schema: { type: string, enum: [frozen, in_progress, released, refunded] } }
+        - { in: query, name: status, schema: { type: string, enum: [frozen, in_progress, released, refunded, split] } }
         - { in: query, name: role, schema: { type: string, enum: [client, business] } }
         - { in: query, name: per_page, schema: { type: integer, maximum: 50 } }
       responses:

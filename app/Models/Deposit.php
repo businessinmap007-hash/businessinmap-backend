@@ -129,11 +129,17 @@ class Deposit extends Model
         return $this->status === DepositStatus::REFUNDED;
     }
 
+    public function isSplit(): bool
+    {
+        return $this->status === DepositStatus::SPLIT;
+    }
+
     public function isFinal(): bool
     {
         return in_array($this->status, [
             DepositStatus::RELEASED,
             DepositStatus::REFUNDED,
+            DepositStatus::SPLIT,
         ], true);
     }
 

@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\DisputeResource;
+use App\Http\Resources\V2\ThreadMessageResource;
 use App\Models\Booking;
 use App\Models\Dispute;
 use App\Services\BookingDepositService;
+use App\Services\DisputeService;
+use App\Services\ThreadService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -134,6 +137,73 @@ final class DisputeController extends Controller
         // 200, not 201: an existing live dispute is returned rather than a
         // second one created, so the caller has not always created anything.
         return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
+    // ─────────────────────────── the room ───────────────────────────
+
+    /**
+     * GET /api/v2/disputes/{dispute}/room — the conversation on this dispute.
+     *
+     * The settlement window asks the two parties to agree; before this there
+     * was nowhere for them to do it. An arbitrator joins the same room when the
+     * window expires, which is why the thread has a participant list rather
+     * than the two user columns the legacy `conversations` table has.
+     */
+    public function room(Request $request, Dispute $dispute, ThreadService $threads)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $data = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $thread = app(DisputeService::class)->room($dispute);
+
+        $messages = $thread->messages()
+            ->with('sender:id,name')
+            ->orderByDesc('id')
+            ->paginate((int) ($data['per_page'] ?? 30))
+            ->appends($request->query());
+
+        // Opening the room is reading it.
+        $threads->markRead($thread, (int) $request->user()->id);
+
+        return ThreadMessageResource::collection($messages)->additional([
+            'meta' => [
+                'thread' => [
+                    'id' => (int) $thread->id,
+                    'status' => $thread->status,
+                    'locked' => $thread->isLocked(),
+                    'participants' => $thread->participants->map(fn ($p) => [
+                        'user_id' => (int) $p->user_id,
+                        'role' => $p->role,
+                    ])->values(),
+                ],
+            ],
+        ]);
+    }
+
+    /** POST /api/v2/disputes/{dispute}/room/messages — say something. */
+    public function postMessage(Request $request, Dispute $dispute, ThreadService $threads)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $thread = app(DisputeService::class)->room($dispute);
+
+        // ThreadService refuses a non-participant and a locked room; both come
+        // back as 422 rather than being re-checked here.
+        $message = $threads->post($thread, (int) $request->user()->id, $data['body']);
+
+        $message->loadMissing('sender:id,name');
+
+        return response()->json([
+            'success' => true,
+            'data' => new ThreadMessageResource($message),
+        ], 201);
     }
 
     private function ensureParty(Request $request, Dispute $dispute): void

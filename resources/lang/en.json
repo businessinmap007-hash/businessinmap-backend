@@ -2152,5 +2152,9 @@
     "هذا الحساب مُنفَّذ حذفه بالفعل.": "This account has already been deleted.",
     "تم إتمام حذف الحساب. المبلغ المُؤول للمنصة: ": "The account deletion is complete. Amount escheated to the platform: ",
     "تمت استعادة الحساب وإلغاء طلب الحذف.": "The account was restored and the deletion request cancelled.",
-    "لا يمكنك الإعلان عن عنصر لا يخصك.": "You cannot advertise an item that is not yours."
+    "لا يمكنك الإعلان عن عنصر لا يخصك.": "You cannot advertise an item that is not yours.",
+    "لا يمكن لطرف في النزاع أن يكون محكِّمًا فيه.": "A party to a dispute cannot arbitrate it.",
+    "لست طرفًا في هذه المحادثة.": "You are not a party to this conversation.",
+    "أُغلقت هذه المحادثة ولا يمكن إضافة رسائل إليها.": "This conversation is closed and cannot be added to.",
+    "لا يمكن إرسال رسالة فارغة.": "A message cannot be empty."
 }

@@ -2024,6 +2024,41 @@ paths:
         '200': { description: 'Opened, or the existing live dispute' }
         '404': { description: 'Not found, or you are not a party to the booking' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/room:
+    get:
+      tags: [Disputes]
+      summary: The conversation on this dispute
+      description: >-
+        Opens with the dispute, so the settlement window has somewhere to happen.
+        An arbitrator takes a third seat in the same thread once the window
+        expires. Reading it marks it read. `meta.thread` carries the status, the
+        lock and the seat list.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+        - { in: query, name: per_page, schema: { type: integer, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+  /disputes/{dispute}/room/messages:
+    post:
+      tags: [Disputes]
+      summary: Post a message into the dispute's room
+      description: 'Refused once a ruling has sealed the room — the record is evidence.'
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 5000 }
+      responses:
+        '201': { description: Created }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /posts:
     get:
       tags: [Posts]

@@ -8,6 +8,8 @@ use App\Models\Deposit;
 use App\Models\Dispute;
 use App\Models\OperationGuarantor;
 use App\Models\PlatformService;
+use App\Models\Thread;
+use App\Models\ThreadParticipant;
 use App\Services\Guarantees\OperationGuarantorService;
 use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +20,7 @@ class DisputeService
         protected DepositsEscrowService $depositsEscrowService,
         protected OperationGuarantorService $operationGuarantors,
         protected InAppNotificationService $notifications,
+        protected ThreadService $threads,
     ) {
     }
 
@@ -66,7 +69,7 @@ class DisputeService
 
         $now = now();
 
-        return Dispute::create([
+        $dispute = Dispute::create([
             'platform_service_id' => $platformServiceId,
             'disputeable_type' => $disputeableType,
             'disputeable_id' => $disputeableId,
@@ -106,6 +109,83 @@ class DisputeService
                 'source_payload' => $payload,
             ],
         ]);
+
+        // The settlement window is the two parties being asked to agree, so it
+        // needs somewhere for them to actually talk. The room opens with the
+        // dispute, not when an arbitrator arrives.
+        $this->room($dispute);
+
+        return $dispute;
+    }
+
+    /**
+     * The dispute's conversation, created on first ask, with both parties
+     * seated. The arbitrator's seat is added later by joinAsArbitrator().
+     */
+    public function room(Dispute $dispute): Thread
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+
+        // For a booking the sides are known, and the role matters: an
+        // arbitrator reading the room must be able to tell who was buying.
+        if ($disputeable instanceof Booking) {
+            $participants = [
+                ['user_id' => (int) $disputeable->user_id, 'role' => ThreadParticipant::ROLE_CLIENT],
+                ['user_id' => (int) $disputeable->business_id, 'role' => ThreadParticipant::ROLE_BUSINESS],
+            ];
+        } else {
+            $participants = array_map(
+                fn (int $userId) => ['user_id' => $userId, 'role' => ThreadParticipant::ROLE_MEMBER],
+                array_values(array_unique(array_filter([
+                    (int) $dispute->opened_by_user_id,
+                    (int) $dispute->against_user_id,
+                ])))
+            );
+        }
+
+        $existed = Thread::query()
+            ->where('subject_type', $dispute->getMorphClass())
+            ->where('subject_id', $dispute->getKey())
+            ->exists();
+
+        $thread = $this->threads->forSubject($dispute, $participants);
+
+        if (! $existed) {
+            $this->threads->system($thread, 'فُتح النزاع. أمامكما مهلة للتوصل إلى حل بالتراضي قبل تحويله إلى التحكيم.');
+        }
+
+        return $thread;
+    }
+
+    /**
+     * Seat an arbitrator. This is the whole reason the conversation has a
+     * participant list instead of two user columns.
+     */
+    public function joinAsArbitrator(Dispute $dispute, int $arbitratorId): Thread
+    {
+        $thread = $this->room($dispute);
+
+        // An arbitrator must not be a party to the case they are judging.
+        if (in_array($arbitratorId, [
+            (int) $dispute->opened_by_user_id,
+            (int) $dispute->against_user_id,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'arbitrator' => __('لا يمكن لطرف في النزاع أن يكون محكِّمًا فيه.'),
+            ]);
+        }
+
+        $already = $thread->participants()
+            ->where('user_id', $arbitratorId)
+            ->exists();
+
+        $this->threads->addParticipant($thread, $arbitratorId, ThreadParticipant::ROLE_ARBITRATOR);
+
+        if (! $already) {
+            $this->threads->system($thread, 'انضم محكِّم إلى الغرفة للفصل في النزاع.');
+        }
+
+        return $thread->fresh(['participants']);
     }
 
     public function openForBooking(
@@ -185,6 +265,14 @@ class DisputeService
         $dispute->meta = $meta;
         $dispute->save();
 
+        // Said in the room as well as pushed: the parties read the case here,
+        // and a notification they dismiss should not erase the record of why
+        // the case moved.
+        $this->threads->system(
+            $this->room($dispute),
+            'انتهت مهلة الحل بالتراضي وتم تحويل النزاع إلى التحكيم.'
+        );
+
         $this->notifyEscalation($dispute);
 
         return true;
@@ -263,7 +351,36 @@ class DisputeService
         $dispute->resolved_at = now();
         $dispute->save();
 
+        $this->closeRoom($dispute, $resolutionType, $resolutionPayload);
+
         return $dispute;
+    }
+
+    /**
+     * The ruling is announced in the room, then the room is sealed. Locking
+     * after the announcement, not before, is what lets the last word be the
+     * decision itself rather than silence.
+     */
+    protected function closeRoom(Dispute $dispute, string $resolutionType, array $resolutionPayload): void
+    {
+        try {
+            $thread = $this->room($dispute);
+
+            $this->threads->system($thread, match ($resolutionType) {
+                'refund_client' => 'صدر القرار: إعادة مبلغ الضمان إلى العميل.',
+                'release_business' => 'صدر القرار: تسليم مبلغ الضمان إلى النشاط.',
+                'split' => 'صدر القرار: تقسيم مبلغ الضمان بنسبة '
+                    . (float) ($resolutionPayload['client_percent'] ?? 0) . '% للعميل و'
+                    . (float) ($resolutionPayload['business_percent'] ?? 0) . '% للنشاط.',
+                default => 'صدر القرار وأُغلق النزاع.',
+            });
+
+            $this->threads->lock($thread);
+        } catch (\Throwable $e) {
+            // The ruling already moved real money. A failure to narrate it must
+            // not undo that.
+            report($e);
+        }
     }
 
     protected function resolveBookingDispute(

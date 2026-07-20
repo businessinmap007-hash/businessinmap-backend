@@ -124,7 +124,36 @@ class DisputeController extends Controller
             ]);
         }
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable'));
+        // Read the room without taking a seat: an admin should be able to look
+        // at a case before deciding to arbitrate it, and joining announces
+        // itself to both parties.
+        $thread = $this->disputeService->room($dispute);
+        $thread->load(['participants.user:id,name', 'messages.sender:id,name']);
+
+        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread'));
+    }
+
+    /** Take the arbitrator's seat in the dispute's room, and speak in it. */
+    public function roomPost(Request $request, Dispute $dispute)
+    {
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        try {
+            $thread = $this->disputeService->joinAsArbitrator($dispute, (int) auth()->id());
+
+            app(\App\Services\ThreadService::class)
+                ->post($thread, (int) auth()->id(), $data['body']);
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', __('تعذر إرسال الرسالة: ') . $e->getMessage());
+        }
+
+        return back()->with('success', __('تم إرسال الرسالة إلى غرفة النزاع.'));
     }
 
     public function store(Request $request)

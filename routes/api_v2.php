@@ -226,6 +226,13 @@ Route::prefix('v2')->group(function () {
         Route::post('bookings/{booking}/disputes', [DisputeController::class, 'storeForBooking'])
             ->whereNumber('booking');
 
+        // The arbitration room. Opens with the dispute so the settlement window
+        // has somewhere to happen; an arbitrator takes a seat in the same
+        // thread when the window expires.
+        Route::get('disputes/{dispute}/room', [DisputeController::class, 'room'])->whereNumber('dispute');
+        Route::post('disputes/{dispute}/room/messages', [DisputeController::class, 'postMessage'])
+            ->whereNumber('dispute');
+
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding
         // out by being refused.

@@ -429,6 +429,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
             Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->whereNumber('dispute')->name('under-review');
+            // Posting takes the arbitrator's seat — reading the case does not.
+            Route::post('{dispute}/room', [DisputeController::class, 'roomPost'])->whereNumber('dispute')->name('room.post');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
             // Triage above; payout below. These three decide who gets the money,
             // so they need MONEY as well as DISPUTES — which is exactly what

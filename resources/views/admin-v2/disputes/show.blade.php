@@ -89,6 +89,50 @@
         </div>
     @endif
 
+    <div class="a2-card" style="padding:14px;margin-top:14px;">
+        <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('غرفة النزاع') }}</div>
+
+        <div class="a2-hint" style="margin-bottom:10px;">
+            {{ __('الأطراف:') }}
+            @foreach($thread->participants as $participant)
+                <span style="font-weight:700;">{{ $participant->user?->name ?? '#'.$participant->user_id }}</span>
+                <span>({{ $participant->role }})</span>@if(! $loop->last), @endif
+            @endforeach
+        </div>
+
+        <div style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:8px;background:rgba(0,0,0,.03);border-radius:8px;">
+            @forelse($thread->messages->sortBy('id') as $message)
+                @if($message->kind === \App\Models\ThreadMessage::KIND_SYSTEM)
+                    <div class="a2-hint" style="text-align:center;font-style:italic;">{{ $message->body }}</div>
+                @else
+                    <div style="background:#fff;border-radius:8px;padding:8px 10px;">
+                        <div class="a2-hint">
+                            {{ $message->sender?->name ?? ('#'.$message->sender_id) }}
+                            — {{ optional($message->created_at)->format('Y-m-d H:i') }}
+                        </div>
+                        <div style="margin-top:4px;">{{ $message->body }}</div>
+                    </div>
+                @endif
+            @empty
+                <div class="a2-hint" style="text-align:center;">{{ __('لا توجد رسائل بعد.') }}</div>
+            @endforelse
+        </div>
+
+        @if($thread->isLocked())
+            <div class="a2-hint" style="margin-top:10px;">{{ __('أُغلقت الغرفة بعد صدور القرار.') }}</div>
+        @else
+            <form method="POST" action="{{ route('admin.disputes.room.post', $dispute) }}" style="margin-top:10px;">
+                @csrf
+                <label class="a2-label">{{ __('رسالة كمحكِّم') }}</label>
+                <textarea class="a2-input" name="body" rows="3" maxlength="5000" required></textarea>
+                <div class="a2-hint" style="margin-top:6px;">
+                    {{ __('إرسال رسالة يضمّك إلى الغرفة كمحكِّم ويُعلن ذلك للطرفين.') }}
+                </div>
+                <button class="a2-btn a2-btn-primary" style="margin-top:8px;" type="submit">{{ __('إرسال') }}</button>
+            </form>
+        @endif
+    </div>
+
     @if($canResolve)
         <div class="a2-card" style="padding:14px;margin-top:14px;">
             <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('قرارات النزاع والخصم من الضمان') }}</div>

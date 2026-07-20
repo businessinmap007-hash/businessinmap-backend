@@ -2072,6 +2072,95 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement-payments:
+    get:
+      tags: [Disputes]
+      summary: The off-app settlement proposals on this dispute
+      description: >-
+        `current` is the one on the table (proposed or accepted); `history` keeps
+        every figure including the refused ones, because the haggling is part of
+        what an arbitrator needs to read.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+    post:
+      tags: [Disputes]
+      summary: Propose an amount settled outside the platform
+      description: >-
+        The platform never touches this money and cannot verify a transfer, so
+        it records the statements about it instead. Only one proposal may be
+        live at a time — accept or reject the current one first.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payer_side, amount]
+              properties:
+                payer_side: { type: string, enum: [client, business], description: 'Who hands over the money; the other side is the payee.' }
+                amount: { type: number, minimum: 0.01 }
+                method: { type: string, maxLength: 40 }
+                note: { type: string, maxLength: 2000 }
+      responses:
+        '201': { description: Created }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement-payments/{settlement}:
+    delete:
+      tags: [Disputes]
+      summary: Withdraw your own proposal
+      description: 'Only the proposer, and only while it is still unaccepted.'
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+        - { in: path, name: settlement, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or not part of this dispute' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement-payments/{settlement}/accept:
+    post:
+      tags: [Disputes]
+      summary: Accept the proposed amount
+      description: 'The OTHER side only — the proposer already agreed by proposing.'
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+        - { in: path, name: settlement, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or not part of this dispute' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement-payments/{settlement}/reject:
+    post:
+      tags: [Disputes]
+      summary: Reject the proposed amount
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+        - { in: path, name: settlement, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or not part of this dispute' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement-payments/{settlement}/received:
+    post:
+      tags: [Disputes]
+      summary: Confirm the money actually arrived
+      description: >-
+        The PAYEE only — a payer confirming their own payment proves nothing.
+        This is the statement that closes the dispute: it resolves as
+        `mutual_settlement` and the escrow unwinds, each hold returning to
+        whoever posted it. The off-app amount itself never touches a wallet.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+        - { in: path, name: settlement, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'Received; the dispute is now resolved' }
+        '404': { description: 'Not found, or not part of this dispute' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/request-arbitration:
     post:
       tags: [Disputes]

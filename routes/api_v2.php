@@ -239,6 +239,19 @@ Route::prefix('v2')->group(function () {
         Route::delete('disputes/{dispute}/settlement', [DisputeController::class, 'withdrawSettlement'])
             ->whereNumber('dispute');
 
+        // A payment the parties settled off the platform. Three statements by
+        // three acts — propose, accept, and the RECEIVER confirms arrival. The
+        // receipt is what closes the dispute, because it is the only one made
+        // by the party who had something to lose by making it falsely.
+        Route::prefix('disputes/{dispute}/settlement-payments')->whereNumber('dispute')->group(function () {
+            Route::get('/', [DisputeController::class, 'settlementPayments']);
+            Route::post('/', [DisputeController::class, 'proposeSettlementPayment']);
+            Route::post('{settlement}/accept', [DisputeController::class, 'acceptSettlementPayment'])->whereNumber('settlement');
+            Route::post('{settlement}/reject', [DisputeController::class, 'rejectSettlementPayment'])->whereNumber('settlement');
+            Route::post('{settlement}/received', [DisputeController::class, 'confirmSettlementReceived'])->whereNumber('settlement');
+            Route::delete('{settlement}', [DisputeController::class, 'withdrawSettlementPayment'])->whereNumber('settlement');
+        });
+
         // Asking for a judge without waiting out the window. One party is
         // enough — needing both would let a stonewaller block arbitration
         // forever, which is what it exists for.

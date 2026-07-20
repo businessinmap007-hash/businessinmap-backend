@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\DisputeResource;
+use App\Http\Resources\V2\DisputeSettlementResource;
 use App\Http\Resources\V2\ThreadMessageResource;
 use App\Models\Booking;
 use App\Models\Dispute;
+use App\Models\DisputeSettlement;
 use App\Services\BookingDepositService;
 use App\Services\DisputeService;
+use App\Services\DisputeSettlementService;
 use App\Services\ThreadService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -224,6 +227,122 @@ final class DisputeController extends Controller
         $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
 
         return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
+    // ───────────────── a payment settled off the platform ─────────────────
+
+    /**
+     * The off-app settlement screen: propose an amount, the other side accepts
+     * it, and the RECEIVER confirms it arrived.
+     *
+     * The platform never touches this money and cannot verify a transfer, so it
+     * records the three statements instead. The receipt is the one that closes
+     * the dispute, because it is the only one made by the party who had
+     * something to lose by making it falsely.
+     */
+    public function settlementPayments(Request $request, Dispute $dispute, DisputeSettlementService $settlements)
+    {
+        $this->ensureParty($request, $dispute);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current' => $settlements->current($dispute)
+                    ? new DisputeSettlementResource($settlements->current($dispute))
+                    : null,
+                'history' => DisputeSettlementResource::collection($settlements->history($dispute)),
+            ],
+        ]);
+    }
+
+    public function proposeSettlementPayment(Request $request, Dispute $dispute, DisputeSettlementService $settlements)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $data = $request->validate([
+            'payer_side' => ['required', 'in:client,business'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
+            'method' => ['nullable', 'string', 'max:40'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $settlement = $settlements->propose(
+            dispute: $dispute,
+            userId: (int) $request->user()->id,
+            payerSide: $data['payer_side'],
+            amount: (float) $data['amount'],
+            method: $data['method'] ?? null,
+            note: $data['note'] ?? null
+        );
+
+        return response()->json(['success' => true, 'data' => new DisputeSettlementResource($settlement)], 201);
+    }
+
+    public function acceptSettlementPayment(
+        Request $request,
+        Dispute $dispute,
+        DisputeSettlement $settlement,
+        DisputeSettlementService $settlements
+    ) {
+        $this->ensureSettlementBelongs($request, $dispute, $settlement);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeSettlementResource($settlements->accept($settlement, (int) $request->user()->id)),
+        ]);
+    }
+
+    public function rejectSettlementPayment(
+        Request $request,
+        Dispute $dispute,
+        DisputeSettlement $settlement,
+        DisputeSettlementService $settlements
+    ) {
+        $this->ensureSettlementBelongs($request, $dispute, $settlement);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeSettlementResource($settlements->reject($settlement, (int) $request->user()->id)),
+        ]);
+    }
+
+    public function withdrawSettlementPayment(
+        Request $request,
+        Dispute $dispute,
+        DisputeSettlement $settlement,
+        DisputeSettlementService $settlements
+    ) {
+        $this->ensureSettlementBelongs($request, $dispute, $settlement);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeSettlementResource($settlements->withdraw($settlement, (int) $request->user()->id)),
+        ]);
+    }
+
+    /** "I actually received it" — the statement that ends the dispute. */
+    public function confirmSettlementReceived(
+        Request $request,
+        Dispute $dispute,
+        DisputeSettlement $settlement,
+        DisputeSettlementService $settlements
+    ) {
+        $this->ensureSettlementBelongs($request, $dispute, $settlement);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeSettlementResource(
+                $settlements->confirmReceived($settlement, (int) $request->user()->id)
+            ),
+        ]);
+    }
+
+    private function ensureSettlementBelongs(Request $request, Dispute $dispute, DisputeSettlement $settlement): void
+    {
+        $this->ensureParty($request, $dispute);
+
+        // A settlement id from another dispute must not be actionable here.
+        abort_if((int) $settlement->dispute_id !== (int) $dispute->id, 404);
     }
 
     // ─────────────────────────── the room ───────────────────────────

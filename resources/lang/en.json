@@ -2165,5 +2165,17 @@
     "لا يمكن طلب التحكيم في الحالة الحالية للنزاع.": "Arbitration cannot be requested in the dispute's current state.",
     "سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.": "Declare that you are engaging with the settlement before asking for arbitration.",
     "لا يمكن تسجيل الاتفاق في الحالة الحالية للنزاع.": "The agreement cannot be recorded in the dispute's current state.",
-    "صدر القرار بالفعل ولا يمكن التراجع عن الاتفاق.": "A ruling has already been issued; the agreement cannot be withdrawn."
+    "صدر القرار بالفعل ولا يمكن التراجع عن الاتفاق.": "A ruling has already been issued; the agreement cannot be withdrawn.",
+    "يجب تحديد الطرف الذي يدفع.": "You must say which party is paying.",
+    "قيمة المبلغ غير صالحة.": "The amount is not valid.",
+    "يوجد مقترح تسوية قائم — لا بد من قبوله أو رفضه أولًا.": "A settlement proposal is already on the table — accept or reject it first.",
+    "لا يمكن قبول هذا المقترح في حالته الحالية.": "This proposal cannot be accepted in its current state.",
+    "لا يمكنك قبول مقترحك أنت.": "You cannot accept your own proposal.",
+    "لا يمكن رفض هذا المقترح في حالته الحالية.": "This proposal cannot be rejected in its current state.",
+    "استخدم سحب المقترح بدلًا من رفضه.": "Withdraw your proposal instead of rejecting it.",
+    "لا يمكن سحب مقترح لم تقدّمه أنت.": "You cannot withdraw a proposal you did not make.",
+    "لا يمكن سحب المقترح بعد الموافقة عليه.": "A proposal cannot be withdrawn once it has been accepted.",
+    "لا بد من الموافقة على المقترح قبل تأكيد الاستلام.": "The proposal must be accepted before receipt can be confirmed.",
+    "لا يؤكد استلام المبلغ إلا الطرف المستلم.": "Only the receiving party may confirm the money arrived.",
+    "لا يمكن تسجيل تسوية في الحالة الحالية للنزاع.": "A settlement cannot be recorded in the dispute's current state."
 }

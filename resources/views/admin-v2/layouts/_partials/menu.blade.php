@@ -101,7 +101,7 @@
             ['label' => 'خطوط التشغيل', 'route' => 'admin.trip-schedules.index', 'active_routes' => ['admin.trip-schedules.index']],
             ['label' => 'حجوزات الرحلات', 'route' => 'admin.trip-schedules.reservations', 'active_routes' => ['admin.trip-schedules.reservations']],
         ]],
-        ['label' => 'المحفظة والمالية', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.'], 'children' => [
+        ['label' => 'المحفظة والمالية', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.', 'admin.held-deletions.'], 'children' => [
             ['label' => 'نظرة عامة على المحفظة', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
             ['label' => 'معاملات المحفظة', 'route' => 'admin.wallet-transactions.index', 'active' => 'admin.wallet-transactions.'],
             ['label' => 'شحن المحفظة', 'route' => 'admin.wallet-ops.recharge.form', 'active' => 'admin.wallet-ops.'],
@@ -110,6 +110,7 @@
             ['label' => 'ملاحظات المحفظة', 'route' => 'admin.wallet-notes.index', 'active' => 'admin.wallet-notes.'],
             ['label' => 'المدفوعات', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
             ['label' => 'الاشتراكات', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
+            ['label' => 'طلبات حذف موقوفة', 'route' => 'admin.held-deletions.index', 'active' => 'admin.held-deletions.'],
         ]],
         ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [
             ['label' => 'سائقو التوصيل', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],

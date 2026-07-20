@@ -58,7 +58,8 @@ class AccountDeletionService
         TripReservation::STATUS_CONFIRMED,
     ];
 
-    private const LIVE_DISPUTE_STATUSES = [
+    /** Public: the held-deletions admin screen counts the same live disputes. */
+    public const LIVE_DISPUTE_STATUSES = [
         Dispute::STATUS_OPEN,
         Dispute::STATUS_UNDER_REVIEW,
         Dispute::STATUS_MUTUAL_RESOLUTION,
@@ -394,6 +395,32 @@ class AccountDeletionService
 
             return ['status' => 'finalized', 'escheated' => $escheated];
         });
+    }
+
+    /**
+     * Accounts the sweep refused and flagged for a human. dueForFinalization()
+     * skips anything with a hold reason, so nothing brings these back on its
+     * own — without a screen reading this, they wait forever.
+     */
+    public function held(?int $limit = null): Collection
+    {
+        return User::onlyTrashed()
+            ->whereNotNull('deletion_hold_reason')
+            ->whereNull('anonymized_at')
+            ->orderBy('deletion_scheduled_at')
+            ->when($limit !== null, fn ($q) => $q->limit($limit))
+            ->get();
+    }
+
+    /**
+     * Whether the stored hold still applies right now. The reason on the row is
+     * a snapshot from the sweep; the admin needs to know whether the underlying
+     * cause (locked money, a live dispute) has since been resolved, because
+     * that is what decides if retrying will do anything.
+     */
+    public function currentHoldReason(User $user): ?string
+    {
+        return $this->finalizationHold($user);
     }
 
     /** A reason not to sweep this account, or null to proceed. */

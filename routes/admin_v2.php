@@ -32,6 +32,7 @@ use App\Http\Controllers\AdminV2\{
     DisputeController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
+    HeldDeletionController,
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
@@ -331,6 +332,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
             // Wallet top-ups (money-in) oversight for reconciliation.
             Route::get('wallet-topups', [WalletTopupAdminController::class, 'index'])->name('wallet-topups.index');
+
+            // Deletions the day-31 sweep refused. Gated on MONEY, not USERS:
+            // both actions move money — finalizing escheats the balance to the
+            // treasury, restoring unfreezes a blocked wallet.
+            Route::prefix('held-deletions')->name('held-deletions.')->group(function () {
+                Route::get('/', [HeldDeletionController::class, 'index'])->name('index');
+                Route::post('{user}/finalize', [HeldDeletionController::class, 'finalize'])->whereNumber('user')->name('finalize');
+                Route::post('{user}/restore', [HeldDeletionController::class, 'restore'])->whereNumber('user')->name('restore');
+            });
 
             Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
                 Route::get('/', [WalletTransactionController::class, 'index'])->name('index');

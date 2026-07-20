@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AppNotification;
+use App\Models\ArbitrationSession;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
@@ -353,11 +354,67 @@ class DisputeService
 
         // Written by the ruling, not by the ruler: nobody decides whether their
         // own case gets into the record.
-        app(ArbitrationService::class)->recordSession($dispute, $resolutionType, $resolutionPayload, $actorId);
+        $session = app(ArbitrationService::class)
+            ->recordSession($dispute, $resolutionType, $resolutionPayload, $actorId);
 
         $this->closeRoom($dispute, $resolutionType, $resolutionPayload);
+        $this->notifyRuling($dispute, $session);
 
         return $dispute;
+    }
+
+    /**
+     * Tell both parties how it ended.
+     *
+     * The room announces the ruling too, but a system message notifies nobody
+     * by design — so without this a party who never opens the room has money
+     * taken or returned and is told nothing at all. Escalation notifies; the
+     * decision that actually moves the money must not be quieter than it.
+     */
+    protected function notifyRuling(Dispute $dispute, ?ArbitrationSession $session): void
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+
+        // Who is on which side, so each party is told what THEY received rather
+        // than a neutral summary they have to decode.
+        $clientId = $disputeable instanceof Booking ? (int) $disputeable->user_id : (int) $dispute->opened_by_user_id;
+        $businessId = $disputeable instanceof Booking ? (int) $disputeable->business_id : (int) $dispute->against_user_id;
+
+        $toClient = round((float) ($session?->amount_to_client ?? 0), 2);
+        $toBusiness = round((float) ($session?->amount_to_business ?? 0), 2);
+
+        $recipients = [
+            $clientId => $toClient,
+            $businessId => $toBusiness,
+        ];
+
+        foreach ($recipients as $userId => $amount) {
+            if ($userId <= 0) {
+                continue;
+            }
+
+            try {
+                $this->notifications->create([
+                    'user_id' => $userId,
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'priority' => AppNotification::PRIORITY_HIGH,
+                    'title_ar' => 'صدر قرار في النزاع',
+                    'title_en' => 'A ruling was issued on the dispute',
+                    'body_ar' => $amount > 0
+                        ? 'تمت تسوية النزاع، وحُوّل إلى محفظتك مبلغ ' . number_format($amount, 2) . '.'
+                        : 'تمت تسوية النزاع دون تحويل مبلغ إلى محفظتك.',
+                    'body_en' => $amount > 0
+                        ? 'The dispute was settled and ' . number_format($amount, 2) . ' was moved to your wallet.'
+                        : 'The dispute was settled with no amount moved to your wallet.',
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                ]);
+            } catch (\Throwable $e) {
+                // The ruling already moved real money; a failed notification
+                // must not undo it.
+                report($e);
+            }
+        }
     }
 
     /**

@@ -232,6 +232,29 @@ class ArbitrationTest extends TestCase
         $this->assertSame('business', $session->platform_fine_on);
     }
 
+    /**
+     * The fine is applied after the ruling, so the ruling notice knew nothing
+     * about it — money leaves a wallet and needs its own notice.
+     */
+    public function test_a_fine_notifies_the_party_who_paid_it(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'refund_client', [], (int) $admin->id);
+
+        $this->arbitration->applyPlatformFine($dispute->fresh(), 'business', 25.0);
+
+        $notice = \App\Models\AppNotification::query()
+            ->where('notifiable_type', Dispute::class)
+            ->where('notifiable_id', $dispute->id)
+            ->where('title_ar', 'غرامة منصة على نزاع')
+            ->get();
+
+        $this->assertCount(1, $notice, 'only the party who paid is told');
+        $this->assertSame((int) $this->booking->business_id, (int) $notice->first()->user_id);
+        $this->assertStringContainsString('25.00', $notice->first()->body_ar);
+    }
+
     /** One fine per ruling — a retry must not charge twice. */
     public function test_a_fine_cannot_be_applied_twice(): void
     {

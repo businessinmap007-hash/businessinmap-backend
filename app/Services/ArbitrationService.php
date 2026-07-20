@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\AppNotification;
 use App\Models\ArbitrationSession;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
 use App\Models\User;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Wallet\PlatformTreasuryService;
 use App\Support\AdminAbility;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +45,7 @@ class ArbitrationService
     public function __construct(
         protected WalletService $wallets,
         protected PlatformTreasuryService $treasury,
+        protected InAppNotificationService $notifications,
     ) {
     }
 
@@ -235,8 +238,33 @@ class ArbitrationService
                 'platform_fine_on' => $side,
             ]);
 
+            // A separate movement from the ruling, applied after it, so it
+            // needs its own notice — the ruling notification was already sent
+            // and knew nothing about this.
+            $this->notifyFine($payerId, $dispute, $amount);
+
             return $session->fresh();
         });
+    }
+
+    private function notifyFine(int $userId, Dispute $dispute, float $amount): void
+    {
+        try {
+            $this->notifications->create([
+                'user_id' => $userId,
+                'type' => AppNotification::TYPE_DISPUTE,
+                'priority' => AppNotification::PRIORITY_HIGH,
+                'title_ar' => 'غرامة منصة على نزاع',
+                'title_en' => 'A platform fine was imposed',
+                'body_ar' => 'خُصم من محفظتك مبلغ ' . number_format($amount, 2) . ' كغرامة منصة على النزاع.',
+                'body_en' => number_format($amount, 2) . ' was deducted from your wallet as a platform fine.',
+                'notifiable_type' => Dispute::class,
+                'notifiable_id' => (int) $dispute->id,
+            ]);
+        } catch (\Throwable $e) {
+            // The money is already taken; a failed notice must not undo it.
+            report($e);
+        }
     }
 
     private function partyId(Dispute $dispute, string $side): ?int

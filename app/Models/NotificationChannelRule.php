@@ -58,6 +58,8 @@ class NotificationChannelRule extends Model
             'coguarantor_accepted' => ['قبول طلب الضمان', 'Co-guarantor accepted', AppNotification::TYPE_GUARANTEE, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'guarantee'],
             'coguarantor_declined' => ['رفض طلب الضمان', 'Co-guarantor declined', AppNotification::TYPE_GUARANTEE, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'guarantee'],
             'dispute_opened' => ['نزاع جديد', 'Dispute opened', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_URGENT, true, true, true, true, false, true, 5, 'warning'],
+            'dispute_resolved' => ['صدور قرار في نزاع', 'Dispute ruling issued', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'warning'],
+            'dispute_fine' => ['غرامة منصة على نزاع', 'Platform fine on a dispute', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'warning'],
             'dispute_room_message' => ['رسالة جديدة في غرفة النزاع', 'New message in the dispute room', AppNotification::TYPE_MESSAGE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'offer_matched' => ['عرض مناسب لمتابعتك', 'Offer matched your follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'offer'],
             'job_posted' => ['وظيفة جديدة في مجال تتابعه', 'New job in a field you follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'offer'],

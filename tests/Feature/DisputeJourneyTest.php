@@ -434,6 +434,59 @@ class DisputeJourneyTest extends TestCase
         $this->assertFalse((bool) $fresh->business_non_cooperation_flag);
     }
 
+    // ───────────────── telling people what happened ─────────────────
+
+    /**
+     * The room announces the ruling, but a system message notifies nobody by
+     * design — so without this a party who never opens the room has money
+     * taken or returned and is told nothing.
+     */
+    public function test_a_ruling_notifies_both_parties(): void
+    {
+        $this->freeze(100);
+        $dispute = $this->open();
+
+        $this->disputes->resolve($dispute, 'refund_client');
+
+        $notified = \App\Models\AppNotification::query()
+            ->where('type', \App\Models\AppNotification::TYPE_DISPUTE)
+            ->where('notifiable_type', Dispute::class)
+            ->where('notifiable_id', $dispute->id)
+            ->where('title_ar', 'صدر قرار في النزاع')
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()->values()->all();
+
+        $this->assertSame(
+            collect([(int) $this->booking->user_id, (int) $this->booking->business_id])->sort()->values()->all(),
+            $notified
+        );
+    }
+
+    /** Each side is told what THEY got, not a neutral summary to decode. */
+    public function test_the_ruling_notice_states_the_amount_that_side_received(): void
+    {
+        $this->freeze(100);
+        $dispute = $this->open();
+
+        $this->disputes->resolve($dispute, 'refund_client');
+
+        $clientBody = \App\Models\AppNotification::query()
+            ->where('notifiable_id', $dispute->id)
+            ->where('user_id', $this->booking->user_id)
+            ->where('title_ar', 'صدر قرار في النزاع')
+            ->value('body_ar');
+
+        $businessBody = \App\Models\AppNotification::query()
+            ->where('notifiable_id', $dispute->id)
+            ->where('user_id', $this->booking->business_id)
+            ->where('title_ar', 'صدر قرار في النزاع')
+            ->value('body_ar');
+
+        $this->assertStringContainsString('100.00', $clientBody, 'the client got the escrow back');
+        $this->assertStringNotContainsString('100.00', $businessBody, 'the business got nothing');
+    }
+
     /** The ruling is attributable — who decided, and when. */
     public function test_the_ruling_records_its_author(): void
     {

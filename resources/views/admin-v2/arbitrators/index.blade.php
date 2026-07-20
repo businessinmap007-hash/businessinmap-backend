@@ -18,6 +18,7 @@
                         <th>{{ __('الحكم') }}</th>
                         <th>{{ __('الجلسات') }}</th>
                         <th>{{ __('النتائج') }}</th>
+                        <th>{{ __('رسوم التحكيم') }}</th>
                         <th>{{ __('الغرامات المحصّلة') }}</th>
                         <th>{{ __('آخر جلسة') }}</th>
                         <th></th>
@@ -40,6 +41,7 @@
                                     <span class="a2-hint">-</span>
                                 @endforelse
                             </td>
+                            <td style="font-weight:800;">{{ number_format($row['stats']['fees_earned'], 2) }}</td>
                             <td style="font-weight:800;">{{ number_format($row['stats']['fines_collected'], 2) }}</td>
                             <td class="a2-hint">{{ $row['stats']['last_session_at'] ?? '-' }}</td>
                             <td>
@@ -52,7 +54,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="a2-hint">{{ __('لا يوجد حُكّام معيّنون بعد.') }}</td></tr>
+                        <tr><td colspan="7" class="a2-hint">{{ __('لا يوجد حُكّام معيّنون بعد.') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

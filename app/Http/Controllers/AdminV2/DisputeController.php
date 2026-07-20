@@ -130,7 +130,43 @@ class DisputeController extends Controller
         $thread = $this->disputeService->room($dispute);
         $thread->load(['participants.user:id,name', 'messages.sender:id,name']);
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread'));
+        $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
+
+        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session'));
+    }
+
+    /**
+     * Accept the case on stated terms, then take the seat.
+     *
+     * The fee is fixed before anything is heard and announced to both parties;
+     * setting it afterwards would let the price of a ruling be adjusted to the
+     * ruling.
+     */
+    public function acceptSession(Request $request, Dispute $dispute)
+    {
+        $data = $request->validate([
+            'fee_type' => ['required', 'in:fixed,percent'],
+            'fee_value' => ['required', 'numeric', 'min:0', 'max:99999999'],
+        ]);
+
+        try {
+            app(\App\Services\ArbitrationService::class)->acceptSession(
+                dispute: $dispute,
+                arbitratorId: (int) auth()->id(),
+                feeType: $data['fee_type'],
+                feeValue: (float) $data['fee_value']
+            );
+
+            $this->disputeService->joinAsArbitrator($dispute, (int) auth()->id());
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', __('تعذر قبول الجلسة: ') . $e->getMessage());
+        }
+
+        return back()->with('success', __('تم قبول الجلسة وإعلام الطرفين برسم التحكيم.'));
     }
 
     /** Take the arbitrator's seat in the dispute's room, and speak in it. */
@@ -278,6 +314,7 @@ class DisputeController extends Controller
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
+            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
         ]);
 
         try {
@@ -294,6 +331,8 @@ class DisputeController extends Controller
                 $this->recordBookingDisputeResult($resolved, 'release_business');
 
                 $this->applyPlatformFineIfNeeded($resolved, $data);
+
+                $this->chargeArbitrationFeeIfSet($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -319,6 +358,7 @@ class DisputeController extends Controller
             'penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
+            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
         ]);
 
         try {
@@ -335,6 +375,8 @@ class DisputeController extends Controller
                 $this->recordBookingDisputeResult($resolved, 'refund_client');
 
                 $this->applyPlatformFineIfNeeded($resolved, $data);
+
+                $this->chargeArbitrationFeeIfSet($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -364,6 +406,7 @@ class DisputeController extends Controller
             'business_penalty_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_amount' => ['nullable', 'numeric', 'min:0'],
             'platform_fine_on' => ['nullable', 'in:client,business'],
+            'arbitration_fee_on' => ['nullable', 'in:client,business,split'],
         ]);
 
         $clientPercent = (float) $data['client_percent'];
@@ -393,6 +436,8 @@ class DisputeController extends Controller
                 $this->recordBookingDisputeResult($resolved, 'split');
 
                 $this->applyPlatformFineIfNeeded($resolved, $data);
+
+                $this->chargeArbitrationFeeIfSet($resolved, $data);
 
                 $this->applyGuaranteePenaltyIfNeeded(
                     dispute: $resolved,
@@ -507,6 +552,21 @@ class DisputeController extends Controller
      * BALANCE. A party can easily have one and not the other, so an arbitrator
      * has to be able to reach for either.
      */
+    /**
+     * The fee agreed BEFORE the case was heard. Only who bears it is decided
+     * here — the amount was fixed at acceptance and cannot be revisited.
+     */
+    protected function chargeArbitrationFeeIfSet(Dispute $dispute, array $data): void
+    {
+        $on = (string) ($data['arbitration_fee_on'] ?? '');
+
+        if ($on === '') {
+            return;
+        }
+
+        app(\App\Services\ArbitrationService::class)->chargeArbitrationFee($dispute, $on);
+    }
+
     protected function applyPlatformFineIfNeeded(Dispute $dispute, array $data): void
     {
         $amount = round((float) ($data['platform_fine_amount'] ?? 0), 2);

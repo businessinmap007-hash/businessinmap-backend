@@ -293,6 +293,156 @@ class ArbitrationTest extends TestCase
         $this->arbitration->applyPlatformFine($dispute->fresh(), '', 25.0);
     }
 
+    // ─────────────────────── the arbitration fee ───────────────────────
+
+    /** A fixed fee is exactly what was stated, whatever the case is worth. */
+    public function test_accepting_a_session_fixes_a_flat_fee_up_front(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+
+        $this->assertEqualsWithDelta(40.0, (float) $session->fee_amount, 0.01);
+        $this->assertNotNull($session->fee_terms_set_at);
+        $this->assertNotNull($session->accepted_at);
+        $this->assertNull($session->outcome, 'accepted is not decided');
+        $this->assertTrue($session->isOpen());
+    }
+
+    /** A percentage is taken from what the case is actually worth. */
+    public function test_a_percentage_fee_is_computed_from_the_disputed_amount(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        // The escrow is 100.
+        $session = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'percent', 10.0);
+
+        $this->assertEqualsWithDelta(10.0, (float) $session->fee_amount, 0.01);
+        $this->assertEqualsWithDelta(10.0, (float) $session->fee_value, 0.01, 'the terms are kept, not just the total');
+    }
+
+    /**
+     * The price of a ruling must not be adjustable to the ruling, so the terms
+     * are sealed the moment the case is accepted.
+     */
+    public function test_the_fee_cannot_be_rewritten_after_acceptance(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 400.0);
+    }
+
+    public function test_an_impossible_percentage_is_refused(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->acceptSession($this->open(), (int) $admin->id, 'percent', 150.0);
+    }
+
+    /** The session accepted earlier is filled in, not duplicated. */
+    public function test_ruling_fills_in_the_session_that_was_accepted(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $accepted = $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+
+        $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
+
+        $this->assertSame(1, ArbitrationSession::query()->where('dispute_id', $dispute->id)->count());
+
+        $session = ArbitrationSession::findOrFail($accepted->id);
+        $this->assertSame('refund_client', $session->outcome);
+        $this->assertEqualsWithDelta(40.0, (float) $session->fee_amount, 0.01, 'the agreed fee survives the ruling');
+    }
+
+    public function test_the_fee_is_charged_to_the_party_the_arbitrator_names(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->disputes->resolve($dispute->fresh(), 'refund_client', [], (int) $admin->id);
+
+        $before = (float) $this->wallet((int) $this->booking->business_id)->balance;
+
+        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'business');
+
+        $this->assertEqualsWithDelta(
+            $before - 40.0,
+            (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
+            0.01
+        );
+    }
+
+    /** Split by subtraction, so an odd fee cannot mint or burn a piastre. */
+    public function test_a_split_fee_divides_without_losing_a_piastre(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 33.33);
+        $this->disputes->resolve($dispute->fresh(), 'no_action', [], (int) $admin->id);
+
+        $clientBefore = (float) $this->wallet((int) $this->booking->user_id)->balance;
+        $businessBefore = (float) $this->wallet((int) $this->booking->business_id)->balance;
+
+        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'split');
+
+        $clientPaid = $clientBefore - (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance;
+        $businessPaid = $businessBefore - (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
+
+        $this->assertEqualsWithDelta(33.33, $clientPaid + $businessPaid, 0.001, 'the halves must total the fee exactly');
+    }
+
+    /** Charging twice would double the price of one ruling. */
+    public function test_the_fee_is_charged_only_once(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'fixed', 40.0);
+        $this->disputes->resolve($dispute->fresh(), 'no_action', [], (int) $admin->id);
+
+        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'business');
+        $after = (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
+
+        $this->arbitration->chargeArbitrationFee($dispute->fresh(), 'client');
+
+        $this->assertEqualsWithDelta(
+            $after,
+            (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
+            0.01
+        );
+    }
+
+    /** Both parties learn the price before anything is heard. */
+    public function test_accepting_announces_the_terms_to_both_parties(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id, 'percent', 10.0);
+
+        $notified = \App\Models\AppNotification::query()
+            ->where('notifiable_type', Dispute::class)
+            ->where('notifiable_id', $dispute->id)
+            ->where('title_ar', 'قُبلت جلسة التحكيم')
+            ->pluck('user_id')->map(fn ($v) => (int) $v)->sort()->values()->all();
+
+        $this->assertSame(
+            collect([(int) $this->booking->user_id, (int) $this->booking->business_id])->sort()->values()->all(),
+            $notified
+        );
+    }
+
     // ─────────────────────────── the stats ───────────────────────────
 
     public function test_the_record_adds_up_across_cases(): void
@@ -306,6 +456,7 @@ class ArbitrationTest extends TestCase
         $stats = $this->arbitration->statsFor((int) $admin->id);
 
         $this->assertSame(1, $stats['sessions']);
+        $this->assertSame(0, $stats['open_sessions'], 'it was decided');
         $this->assertSame(['refund_client' => 1], $stats['by_outcome']);
         $this->assertEqualsWithDelta(30.0, $stats['fines_collected'], 0.01);
         $this->assertEqualsWithDelta(100.0, $stats['moved_to_clients'], 0.01);

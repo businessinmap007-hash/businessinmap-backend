@@ -440,6 +440,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [DisputeController::class, 'index'])->name('index');
             Route::get('{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute')->name('show');
             Route::post('{dispute}/under-review', [DisputeController::class, 'setUnderReview'])->whereNumber('dispute')->name('under-review');
+            // Accepting states the fee BEFORE anything is heard, and announces
+            // it to both parties.
+            Route::post('{dispute}/accept-session', [DisputeController::class, 'acceptSession'])->whereNumber('dispute')->name('accept-session');
             // Posting takes the arbitrator's seat — reading the case does not.
             Route::post('{dispute}/room', [DisputeController::class, 'roomPost'])->whereNumber('dispute')->name('room.post');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');

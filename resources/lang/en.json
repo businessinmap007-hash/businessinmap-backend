@@ -2177,5 +2177,10 @@
     "لا يمكن سحب المقترح بعد الموافقة عليه.": "A proposal cannot be withdrawn once it has been accepted.",
     "لا بد من الموافقة على المقترح قبل تأكيد الاستلام.": "The proposal must be accepted before receipt can be confirmed.",
     "لا يؤكد استلام المبلغ إلا الطرف المستلم.": "Only the receiving party may confirm the money arrived.",
-    "لا يمكن تسجيل تسوية في الحالة الحالية للنزاع.": "A settlement cannot be recorded in the dispute's current state."
+    "لا يمكن تسجيل تسوية في الحالة الحالية للنزاع.": "A settlement cannot be recorded in the dispute's current state.",
+    "نوع الرسم غير مدعوم.": "That fee type is not supported.",
+    "قيمة الرسم غير صالحة.": "The fee value is not valid.",
+    "نسبة الرسم لا يمكن أن تتجاوز 100%.": "The fee percentage cannot exceed 100%.",
+    "تم تحديد رسم هذه الجلسة بالفعل ولا يمكن تعديله.": "This session's fee has already been set and cannot be changed.",
+    "يجب تحديد من يتحمل رسم التحكيم.": "You must say who bears the arbitration fee."
 }

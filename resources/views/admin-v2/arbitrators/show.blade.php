@@ -20,8 +20,16 @@
                 <div style="font-weight:800;">{{ $stats['sessions'] }}</div>
             </div>
             <div>
+                <div class="a2-hint">{{ __('رسوم التحكيم المحصّلة') }}</div>
+                <div style="font-weight:800;">{{ number_format($stats['fees_earned'], 2) }}</div>
+            </div>
+            <div>
                 <div class="a2-hint">{{ __('الغرامات المحصّلة') }}</div>
                 <div style="font-weight:800;">{{ number_format($stats['fines_collected'], 2) }}</div>
+            </div>
+            <div>
+                <div class="a2-hint">{{ __('جلسات قيد النظر') }}</div>
+                <div style="font-weight:800;">{{ $stats['open_sessions'] }}</div>
             </div>
             <div>
                 <div class="a2-hint">{{ __('حُوّل للعملاء') }}</div>

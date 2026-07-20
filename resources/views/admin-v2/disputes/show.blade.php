@@ -118,6 +118,62 @@
     @endif
 
     <div class="a2-card" style="padding:14px;margin-top:14px;">
+        <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('جلسة التحكيم') }}</div>
+
+        @if($session && $session->fee_terms_set_at)
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <div>
+                    <div class="a2-hint">{{ __('رسم التحكيم') }}</div>
+                    <div style="font-weight:800;">
+                        @if($session->fee_type === \App\Models\ArbitrationSession::FEE_PERCENT)
+                            {{ (float) $session->fee_value }}% = {{ number_format((float) $session->fee_amount, 2) }}
+                        @else
+                            {{ number_format((float) $session->fee_amount, 2) }}
+                        @endif
+                    </div>
+                </div>
+                <div>
+                    <div class="a2-hint">{{ __('قُبلت في') }}</div>
+                    <div style="font-weight:800;">{{ optional($session->accepted_at)->format('Y-m-d H:i') ?: '-' }}</div>
+                </div>
+                <div>
+                    <div class="a2-hint">{{ __('المحكّم') }}</div>
+                    <div style="font-weight:800;">{{ $session->arbitrator?->name ?? '-' }}</div>
+                </div>
+                <div>
+                    <div class="a2-hint">{{ __('تحصيل الرسم') }}</div>
+                    <div style="font-weight:800;">{{ $session->fee_on ?? __('لم يُحصّل بعد') }}</div>
+                </div>
+            </div>
+        @elseif($canResolve)
+            <form method="POST" action="{{ route('admin.disputes.accept-session', $dispute) }}"
+                  onsubmit="return confirm('{{ __('تأكيد قبول الجلسة بهذا الرسم؟ لا يمكن تعديله بعد ذلك.') }}');">
+                @csrf
+                <div class="a2-hint" style="margin-bottom:8px;">
+                    {{ __('يُحدَّد الرسم قبل النظر في النزاع ويُعلَن للطرفين، ولا يمكن تعديله بعد القبول.') }}
+                </div>
+
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                    <div>
+                        <label class="a2-label">{{ __('نوع الرسم') }}</label>
+                        <select class="a2-input" name="fee_type" required>
+                            <option value="fixed">{{ __('مبلغ ثابت') }}</option>
+                            <option value="percent">{{ __('نسبة من قيمة النزاع') }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="a2-label">{{ __('القيمة') }}</label>
+                        <input class="a2-input" type="number" step="0.01" min="0" name="fee_value" value="0" required>
+                    </div>
+                    <button class="a2-btn a2-btn-primary" type="submit">{{ __('قبول الجلسة') }}</button>
+                </div>
+            </form>
+        @else
+            <div class="a2-hint">{{ __('لم تُقبل جلسة تحكيم على هذا النزاع.') }}</div>
+        @endif
+    </div>
+
+    <div class="a2-card" style="padding:14px;margin-top:14px;">
         <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('غرفة النزاع') }}</div>
 
         <div class="a2-hint" style="margin-bottom:10px;">
@@ -180,6 +236,14 @@
                         <option value="business">{{ __('النشاط') }}</option>
                     </select>
 
+                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
+                    <select class="a2-input" name="arbitration_fee_on">
+                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                        <option value="split">{{ __('مناصفة') }}</option>
+                    </select>
+
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">
                         Release Business
                     </button>
@@ -197,6 +261,14 @@
                         <option value="">{{ __('على من؟') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
+                    </select>
+
+                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
+                    <select class="a2-input" name="arbitration_fee_on">
+                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                        <option value="split">{{ __('مناصفة') }}</option>
                     </select>
 
                     <button class="a2-btn a2-btn-danger" style="margin-top:10px;" type="submit">
@@ -227,6 +299,14 @@
                         <option value="">{{ __('على من؟') }}</option>
                         <option value="client">{{ __('العميل') }}</option>
                         <option value="business">{{ __('النشاط') }}</option>
+                    </select>
+
+                    <label class="a2-label" style="margin-top:8px;">{{ __('من يتحمل رسم التحكيم') }}</label>
+                    <select class="a2-input" name="arbitration_fee_on">
+                        <option value="">{{ __('لا تُحصّل الآن') }}</option>
+                        <option value="client">{{ __('العميل') }}</option>
+                        <option value="business">{{ __('النشاط') }}</option>
+                        <option value="split">{{ __('مناصفة') }}</option>
                     </select>
 
                     <button class="a2-btn a2-btn-primary" style="margin-top:10px;" type="submit">

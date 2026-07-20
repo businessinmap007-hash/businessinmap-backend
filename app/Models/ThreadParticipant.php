@@ -17,11 +17,15 @@ class ThreadParticipant extends Model
         'user_id',
         'role',
         'joined_at',
+        'conduct_accepted_at',
+        'conduct_version',
         'last_read_at',
     ];
 
     protected $casts = [
         'joined_at' => 'datetime',
+        'conduct_accepted_at' => 'datetime',
+        'conduct_version' => 'integer',
         'last_read_at' => 'datetime',
     ];
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AppNotification;
+use App\Models\ConductViolation;
 use App\Models\Thread;
 use App\Models\ThreadMessage;
 use App\Models\ThreadParticipant;
@@ -84,14 +85,141 @@ class ThreadService
         ]);
     }
 
+    /**
+     * The conduct rules, and their version.
+     *
+     * Bumping the version invalidates every existing acceptance, on purpose: a
+     * rewritten charter is a different promise, and someone who agreed to the
+     * old wording has not agreed to the new one.
+     */
+    public const CONDUCT_VERSION = 1;
+
+    public function conductCharter(): array
+    {
+        return [
+            'version' => self::CONDUCT_VERSION,
+            'title' => __('قواعد السلوك داخل غرفة النزاع'),
+            'clauses' => [
+                __('التزم بالموضوع: اذكر ما حدث والأدلة، لا أوصاف الطرف الآخر.'),
+                __('التعدي بالألفاظ أو الإهانة أو التهديد مخالفة يقدّرها المحكّم.'),
+                __('قد تخسر الجلسة بسبب المخالفة حتى لو كان الحق معك في أصل النزاع.'),
+                __('قد تُفرض عليك غرامة منصة بسبب المخالفة، مستقلة عن نتيجة النزاع.'),
+                __('محتوى الغرفة محفوظ بالكامل ولا يُحذف، ويُستخدم كدليل عند الفصل.'),
+            ],
+        ];
+    }
+
+    /** Has this person agreed to the CURRENT charter? */
+    public function hasAcceptedConduct(Thread $thread, int $userId): bool
+    {
+        $seat = $thread->participantFor($userId);
+
+        return $seat !== null
+            && $seat->conduct_accepted_at !== null
+            && (int) $seat->conduct_version >= self::CONDUCT_VERSION;
+    }
+
+    public function acceptConduct(Thread $thread, int $userId): ThreadParticipant
+    {
+        $thread->loadMissing('participants');
+
+        $seat = $thread->participantFor($userId);
+
+        if (! $seat) {
+            throw ValidationException::withMessages([
+                'thread' => __('لست طرفًا في هذه المحادثة.'),
+            ]);
+        }
+
+        $seat->update([
+            'conduct_accepted_at' => now(),
+            'conduct_version' => self::CONDUCT_VERSION,
+        ]);
+
+        return $seat->fresh();
+    }
+
+    /**
+     * Record that someone broke the rules they agreed to.
+     *
+     * A row pointing at a message, not a counter: the party must be able to see
+     * exactly what is held against them, and a ruling that cannot be argued
+     * with is not a ruling. Recording it is all this does — no automatic loss,
+     * no automatic fine. The charter is consent to the arbitrator's JUDGEMENT,
+     * not to a machine deciding what counts as an insult.
+     */
+    public function recordViolation(
+        Thread $thread,
+        int $againstUserId,
+        int $recordedByUserId,
+        string $reason,
+        ?int $messageId = null
+    ): ConductViolation {
+        $thread->loadMissing('participants');
+
+        if (! $thread->participantFor($againstUserId)) {
+            throw ValidationException::withMessages([
+                'against_user_id' => __('هذا المستخدم ليس طرفًا في هذه المحادثة.'),
+            ]);
+        }
+
+        if ($messageId !== null) {
+            $belongs = ThreadMessage::query()
+                ->whereKey($messageId)
+                ->where('thread_id', $thread->id)
+                ->exists();
+
+            if (! $belongs) {
+                throw ValidationException::withMessages([
+                    'thread_message_id' => __('الرسالة المحددة ليست في هذه المحادثة.'),
+                ]);
+            }
+        }
+
+        $violation = ConductViolation::create([
+            'thread_id' => (int) $thread->id,
+            'thread_message_id' => $messageId,
+            'against_user_id' => $againstUserId,
+            'recorded_by_user_id' => $recordedByUserId,
+            'reason' => trim($reason),
+        ]);
+
+        // Said out loud in the room. A mark recorded in silence is one the
+        // party first learns about from the ruling.
+        $this->system($thread, 'سجّل المحكّم مخالفة سلوك على أحد الأطراف: ' . trim($reason));
+
+        return $violation;
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, ConductViolation> */
+    public function violations(Thread $thread)
+    {
+        return ConductViolation::query()
+            ->with(['against:id,name', 'recordedBy:id,name'])
+            ->where('thread_id', $thread->id)
+            ->orderByDesc('id')
+            ->get();
+    }
+
     /** A message from a person. Refused if they are not seated, or it is locked. */
     public function post(Thread $thread, int $senderId, string $body): ThreadMessage
     {
         $thread->loadMissing('participants');
 
-        if (! $thread->participantFor($senderId)) {
+        $seat = $thread->participantFor($senderId);
+
+        if (! $seat) {
             throw ValidationException::withMessages([
                 'thread' => __('لست طرفًا في هذه المحادثة.'),
+            ]);
+        }
+
+        // The charter binds the parties, not the arbitrator: its clauses are
+        // about losing the case and being fined, neither of which can happen to
+        // the person deciding it. Staff conduct is a staffing matter.
+        if ($seat->role !== ThreadParticipant::ROLE_ARBITRATOR && ! $this->hasAcceptedConduct($thread, $senderId)) {
+            throw ValidationException::withMessages([
+                'conduct' => __('لا بد من الموافقة على قواعد السلوك قبل الكتابة في الغرفة.'),
             ]);
         }
 

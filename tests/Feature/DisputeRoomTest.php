@@ -238,6 +238,8 @@ class DisputeRoomTest extends TestCase
         $id = $this->postJson("/api/v2/bookings/{$this->booking->id}/disputes", ['reason_code' => 'quality'])
             ->json('data.id');
 
+        $this->postJson("/api/v2/disputes/{$id}/room/conduct")->assertOk();
+
         $this->postJson("/api/v2/disputes/{$id}/room/messages", ['body' => 'The room was not as advertised.'])
             ->assertCreated()
             ->assertJsonPath('data.is_mine', true);
@@ -351,7 +353,8 @@ class DisputeRoomTest extends TestCase
         $dispute = $this->open();
         $thread = $this->disputes->room($dispute);
 
-        $this->threads->post($thread, (int) $this->booking->user_id, 'Any update on this?');
+        $this->threads->acceptConduct($thread, (int) $this->booking->user_id);
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'Any update on this?');
 
         $notified = \App\Models\AppNotification::query()
             ->where('type', \App\Models\AppNotification::TYPE_MESSAGE)
@@ -371,6 +374,7 @@ class DisputeRoomTest extends TestCase
         $arbitrator = $this->stranger();
         $thread = $this->disputes->joinAsArbitrator($dispute, (int) $arbitrator->id);
 
+        $this->threads->acceptConduct($thread, (int) $this->booking->user_id);
         $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'Here is my evidence.');
 
         $this->assertSame(
@@ -389,7 +393,8 @@ class DisputeRoomTest extends TestCase
         $dispute = $this->open();
         $thread = $this->disputes->room($dispute);
 
-        $this->threads->post($thread, (int) $this->booking->user_id, 'hello');
+        $this->threads->acceptConduct($thread, (int) $this->booking->user_id);
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'hello');
 
         $notification = \App\Models\AppNotification::query()
             ->where('source_id', $thread->id)
@@ -423,8 +428,9 @@ class DisputeRoomTest extends TestCase
         $dispute = $this->open();
         $thread = $this->disputes->room($dispute);
 
+        $this->threads->acceptConduct($thread, (int) $this->booking->user_id);
         $this->threads->markRead($thread, (int) $this->booking->user_id);
-        $this->threads->post($thread, (int) $this->booking->user_id, 'from the client');
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'from the client');
 
         $counts = $this->threads->unreadCounts((int) $this->booking->user_id, [(int) $thread->id]);
 

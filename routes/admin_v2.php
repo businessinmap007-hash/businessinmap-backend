@@ -443,6 +443,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Accepting states the fee BEFORE anything is heard, and announces
             // it to both parties.
             Route::post('{dispute}/accept-session', [DisputeController::class, 'acceptSession'])->whereNumber('dispute')->name('accept-session');
+            // Recording a violation is a record, never an automatic penalty.
+            Route::post('{dispute}/conduct-violation', [DisputeController::class, 'recordConductViolation'])->whereNumber('dispute')->name('conduct-violation');
             // Posting takes the arbitrator's seat — reading the case does not.
             Route::post('{dispute}/room', [DisputeController::class, 'roomPost'])->whereNumber('dispute')->name('room.post');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');

@@ -131,8 +131,9 @@ class DisputeController extends Controller
         $thread->load(['participants.user:id,name', 'messages.sender:id,name']);
 
         $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
+        $violations = app(\App\Services\ThreadService::class)->violations($thread);
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session'));
+        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations'));
     }
 
     /**
@@ -167,6 +168,43 @@ class DisputeController extends Controller
         }
 
         return back()->with('success', __('تم قبول الجلسة وإعلام الطرفين برسم التحكيم.'));
+    }
+
+    /**
+     * Record a conduct violation against a party.
+     *
+     * Recording is all it does — no automatic loss and no automatic fine. The
+     * charter a party accepted is consent to the arbitrator's JUDGEMENT, not to
+     * a machine deciding what counts as an insult; the consequence is applied
+     * through the ordinary ruling and fine controls, with this on the record.
+     */
+    public function recordConductViolation(Request $request, Dispute $dispute)
+    {
+        $data = $request->validate([
+            'against_user_id' => ['required', 'integer', 'exists:users,id'],
+            'reason' => ['required', 'string', 'max:2000'],
+            'thread_message_id' => ['nullable', 'integer'],
+        ]);
+
+        try {
+            $thread = $this->disputeService->joinAsArbitrator($dispute, (int) auth()->id());
+
+            app(\App\Services\ThreadService::class)->recordViolation(
+                thread: $thread,
+                againstUserId: (int) $data['against_user_id'],
+                recordedByUserId: (int) auth()->id(),
+                reason: $data['reason'],
+                messageId: isset($data['thread_message_id']) ? (int) $data['thread_message_id'] : null
+            );
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', __('تعذر تسجيل المخالفة: ') . $e->getMessage());
+        }
+
+        return back()->with('success', __('تم تسجيل مخالفة السلوك.'));
     }
 
     /** Take the arbitrator's seat in the dispute's room, and speak in it. */

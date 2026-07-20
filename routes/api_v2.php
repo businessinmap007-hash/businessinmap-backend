@@ -262,6 +262,11 @@ Route::prefix('v2')->group(function () {
         // has somewhere to happen; an arbitrator takes a seat in the same
         // thread when the window expires.
         Route::get('disputes/{dispute}/room', [DisputeController::class, 'room'])->whereNumber('dispute');
+        // The conduct charter. Agreeing is what opens the composer: a party is
+        // consenting to be ruled against and fined for HOW they behave here,
+        // separately from who is right about the booking.
+        Route::get('disputes/{dispute}/room/conduct', [DisputeController::class, 'conduct'])->whereNumber('dispute');
+        Route::post('disputes/{dispute}/room/conduct', [DisputeController::class, 'acceptConduct'])->whereNumber('dispute');
         Route::post('disputes/{dispute}/room/messages', [DisputeController::class, 'postMessage'])
             ->whereNumber('dispute');
 

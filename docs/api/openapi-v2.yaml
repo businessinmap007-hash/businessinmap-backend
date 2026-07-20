@@ -2194,6 +2194,36 @@ paths:
       responses:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
+  /disputes/{dispute}/room/conduct:
+    get:
+      tags: [Disputes]
+      summary: The conduct rules, and whether you have accepted them
+      description: >-
+        Must be shown and explicitly accepted before the composer is opened.
+        What a party consents to is that the arbitrator may rule against them,
+        and fine them, for HOW they behave here — separately from who is right
+        about the booking. `version` is stored with the acceptance: a rewritten
+        charter is a different promise, so bumping it invalidates earlier
+        agreements.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+    post:
+      tags: [Disputes]
+      summary: Accept the conduct rules
+      description: >-
+        Required before posting; the room refuses messages from a party who has
+        not accepted the current version. Arbitrators are exempt — the clauses
+        are about losing the case and being fined, neither of which can happen
+        to the person deciding it.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/room/messages:
     post:
       tags: [Disputes]

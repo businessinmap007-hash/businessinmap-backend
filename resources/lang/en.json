@@ -2182,5 +2182,14 @@
     "قيمة الرسم غير صالحة.": "The fee value is not valid.",
     "نسبة الرسم لا يمكن أن تتجاوز 100%.": "The fee percentage cannot exceed 100%.",
     "تم تحديد رسم هذه الجلسة بالفعل ولا يمكن تعديله.": "This session's fee has already been set and cannot be changed.",
-    "يجب تحديد من يتحمل رسم التحكيم.": "You must say who bears the arbitration fee."
+    "يجب تحديد من يتحمل رسم التحكيم.": "You must say who bears the arbitration fee.",
+    "قواعد السلوك داخل غرفة النزاع": "Conduct rules inside the dispute room",
+    "التزم بالموضوع: اذكر ما حدث والأدلة، لا أوصاف الطرف الآخر.": "Stay on the facts: describe what happened and your evidence, not the other party.",
+    "التعدي بالألفاظ أو الإهانة أو التهديد مخالفة يقدّرها المحكّم.": "Abusive language, insults or threats are a violation, judged by the arbitrator.",
+    "قد تخسر الجلسة بسبب المخالفة حتى لو كان الحق معك في أصل النزاع.": "A violation may cost you the case even if you are right about the dispute itself.",
+    "قد تُفرض عليك غرامة منصة بسبب المخالفة، مستقلة عن نتيجة النزاع.": "A platform fine may be imposed for a violation, independently of how the dispute ends.",
+    "محتوى الغرفة محفوظ بالكامل ولا يُحذف، ويُستخدم كدليل عند الفصل.": "Everything in this room is kept, never deleted, and is used as evidence when ruling.",
+    "هذا المستخدم ليس طرفًا في هذه المحادثة.": "That user is not a participant in this conversation.",
+    "الرسالة المحددة ليست في هذه المحادثة.": "That message is not in this conversation.",
+    "لا بد من الموافقة على قواعد السلوك قبل الكتابة في الغرفة.": "You must accept the conduct rules before writing in the room."
 }

@@ -202,6 +202,55 @@
             @endforelse
         </div>
 
+        <div style="margin-top:14px;">
+            <div class="a2-hint" style="margin-bottom:6px;">{{ __('مخالفات السلوك المسجّلة') }}</div>
+
+            @forelse($violations as $violation)
+                <div style="border-right:3px solid #b42318;padding:6px 10px;margin-bottom:6px;">
+                    <div style="font-weight:700;">{{ $violation->against?->name ?? '#'.$violation->against_user_id }}</div>
+                    <div>{{ $violation->reason }}</div>
+                    <div class="a2-hint">
+                        {{ $violation->recordedBy?->name }} — {{ optional($violation->created_at)->format('Y-m-d H:i') }}
+                        @if($violation->thread_message_id)
+                            — {{ __('على الرسالة') }} #{{ $violation->thread_message_id }}
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <div class="a2-hint">{{ __('لا توجد مخالفات مسجّلة.') }}</div>
+            @endforelse
+
+            @if(! $thread->isLocked())
+                <form method="POST" action="{{ route('admin.disputes.conduct-violation', $dispute) }}" style="margin-top:8px;">
+                    @csrf
+                    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                        <div>
+                            <label class="a2-label">{{ __('على من') }}</label>
+                            <select class="a2-input" name="against_user_id" required>
+                                @foreach($thread->participants->where('role', '!=', 'arbitrator') as $participant)
+                                    <option value="{{ $participant->user_id }}">
+                                        {{ $participant->user?->name ?? '#'.$participant->user_id }} ({{ $participant->role }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="a2-label">{{ __('رقم الرسالة (اختياري)') }}</label>
+                            <input class="a2-input" type="number" name="thread_message_id" min="1">
+                        </div>
+                        <div style="flex:1;min-width:240px;">
+                            <label class="a2-label">{{ __('السبب') }}</label>
+                            <input class="a2-input" type="text" name="reason" maxlength="2000" required>
+                        </div>
+                        <button class="a2-btn a2-btn-danger" type="submit">{{ __('تسجيل مخالفة') }}</button>
+                    </div>
+                    <div class="a2-hint" style="margin-top:6px;">
+                        {{ __('التسجيل قرينة أمامك عند الحكم — لا يخصم مالًا ولا يحسم النزاع تلقائيًا.') }}
+                    </div>
+                </form>
+            @endif
+        </div>
+
         @if($thread->isLocked())
             <div class="a2-hint" style="margin-top:10px;">{{ __('أُغلقت الغرفة بعد صدور القرار.') }}</div>
         @else

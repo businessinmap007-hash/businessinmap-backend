@@ -380,11 +380,56 @@ final class DisputeController extends Controller
                     'id' => (int) $thread->id,
                     'status' => $thread->status,
                     'locked' => $thread->isLocked(),
+                    // The composer stays shut until this is true — posting is
+                    // refused server-side either way.
+                    'conduct_accepted' => $threads->hasAcceptedConduct($thread, (int) $request->user()->id),
+                    'conduct_version' => ThreadService::CONDUCT_VERSION,
                     'participants' => $thread->participants->map(fn ($p) => [
                         'user_id' => (int) $p->user_id,
                         'role' => $p->role,
                     ])->values(),
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/v2/disputes/{dispute}/room/conduct — the rules, and whether the
+     * caller has agreed to them.
+     *
+     * The app must show these and take an explicit agreement before opening the
+     * composer: what a party is consenting to is that the arbitrator may rule
+     * against them, and fine them, for how they behave here — separately from
+     * who is right about the booking.
+     */
+    public function conduct(Request $request, Dispute $dispute, ThreadService $threads)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $thread = app(DisputeService::class)->room($dispute);
+
+        return response()->json([
+            'success' => true,
+            'data' => $threads->conductCharter() + [
+                'accepted' => $threads->hasAcceptedConduct($thread, (int) $request->user()->id),
+            ],
+        ]);
+    }
+
+    /** POST /api/v2/disputes/{dispute}/room/conduct — agree to them. */
+    public function acceptConduct(Request $request, Dispute $dispute, ThreadService $threads)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $thread = app(DisputeService::class)->room($dispute);
+        $seat = $threads->acceptConduct($thread, (int) $request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'accepted' => true,
+                'version' => (int) $seat->conduct_version,
+                'accepted_at' => optional($seat->conduct_accepted_at)->toIso8601String(),
             ],
         ]);
     }

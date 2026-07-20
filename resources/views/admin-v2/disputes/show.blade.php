@@ -212,7 +212,7 @@
                       onsubmit="return confirm('{{ __('تأكيد الحكم بالتعويض؟ لا يمكن تعديله بعد ذلك.') }}');">
                     @csrf
                     <div class="a2-hint" style="margin-bottom:8px;">
-                        {{ __('تكلفة حقيقية لا يغطيها الضمان — رسوم شحن مدفوعة، ضرر، فرق قيمة. تُخصم من محفظة الطرف الآخر.') }}
+                        {{ __('المبلغ هو مجموع البنود المختارة من العملية نفسها — لا يُكتب يدويًا، حتى لا يُطالَب أحد بأكثر مما اتُّفق عليه. يُخصم من محفظة الطرف الآخر.') }}
                     </div>
 
                     <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
@@ -223,9 +223,16 @@
                                 <option value="business">{{ __('النشاط') }}</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="a2-label">{{ __('المبلغ') }}</label>
-                            <input class="a2-input" type="number" step="0.01" min="0.01" name="compensation_amount" required>
+                        <div style="flex:1;min-width:260px;">
+                            <label class="a2-label">{{ __('البنود المستحقة') }}</label>
+                            @forelse($claimableLines as $line)
+                                <label class="a2-check" style="min-height:auto;">
+                                    <input type="checkbox" name="compensation_lines[]" value="{{ $line['key'] }}">
+                                    <span>{{ $line['label'] }} — {{ number_format($line['amount'], 2) }}</span>
+                                </label>
+                            @empty
+                                <div class="a2-hint">{{ __('لا توجد بنود قابلة للمطالبة في هذه العملية.') }}</div>
+                            @endforelse
                         </div>
                         <div style="flex:1;min-width:220px;">
                             <label class="a2-label">{{ __('السبب') }}</label>

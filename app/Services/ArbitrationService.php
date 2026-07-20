@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\ConductViolation;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\Order;
 use App\Models\DisputeObligation;
 use App\Models\DisputeFee;
 use App\Models\Thread;
@@ -458,6 +459,86 @@ class ArbitrationService
     /* ======================== compensation ======================== */
 
     /**
+     * What may actually be claimed, read off the operation itself.
+     *
+     * The point is that nobody can be made to pay more than was ever agreed:
+     * a compensation typed freehand can name any figure, while a line read from
+     * the order can only ever name what the parties already signed up to. The
+     * arbitrator picks which lines are owed; the amount is their sum, never a
+     * number of the arbitrator's own.
+     *
+     * The platform's own service fee is deliberately NOT claimable. It went to
+     * the platform, not to the counterparty, so making the counterparty refund
+     * it would charge them for money they never received.
+     *
+     * @return array<int, array{key: string, label: string, amount: float}>
+     */
+    public function claimableLines(Dispute $dispute): array
+    {
+        $subject = $dispute->disputeable_type && class_exists($dispute->disputeable_type)
+            ? $dispute->disputeable_type::find($dispute->disputeable_id)
+            : null;
+
+        if ($subject instanceof Booking) {
+            return array_values(array_filter([
+                $this->line('booking_price', 'قيمة الحجز', (float) $subject->price),
+            ]));
+        }
+
+        if ($subject instanceof Order) {
+            return array_values(array_filter([
+                $this->line('goods', 'قيمة الطلب', (float) $subject->total),
+                $this->line('delivery_fee', 'رسوم الشحن', (float) $subject->delivery_fee),
+                $this->line('tax', 'الضريبة', (float) $subject->tax),
+            ]));
+        }
+
+        return [];
+    }
+
+    private function line(string $key, string $label, float $amount): ?array
+    {
+        $amount = round($amount, 2);
+
+        return $amount > 0 ? ['key' => $key, 'label' => __($label), 'amount' => $amount] : null;
+    }
+
+    /**
+     * Turn a set of chosen line keys into the amount owed.
+     *
+     * An unknown key is refused rather than ignored: silently dropping one
+     * would hand down a smaller award than the arbitrator believed they were
+     * making.
+     */
+    public function amountForLines(Dispute $dispute, array $keys): float
+    {
+        $available = collect($this->claimableLines($dispute))->keyBy('key');
+
+        $keys = array_values(array_unique(array_filter($keys)));
+
+        if ($keys === []) {
+            throw ValidationException::withMessages([
+                'compensation_lines' => __('اختر بندًا واحدًا على الأقل من بنود العملية.'),
+            ]);
+        }
+
+        $total = 0.0;
+
+        foreach ($keys as $key) {
+            if (! $available->has($key)) {
+                throw ValidationException::withMessages([
+                    'compensation_lines' => __('بند غير موجود في هذه العملية.'),
+                ]);
+            }
+
+            $total += (float) $available[$key]['amount'];
+        }
+
+        return round($total, 2);
+    }
+
+
+    /**
      * Order one party to compensate the other — shipping already paid, a cost
      * incurred, a difference in value. Distinct from the escrow, which is only
      * ever the money the platform was already holding: a real loss is often
@@ -472,7 +553,7 @@ class ArbitrationService
     public function awardCompensation(
         Dispute $dispute,
         string $toSide,
-        float $amount,
+        array $lineKeys,
         ?string $note = null
     ): ArbitrationSession {
         if (! in_array($toSide, ['client', 'business'], true)) {
@@ -481,7 +562,10 @@ class ArbitrationService
             ]);
         }
 
-        $amount = round($amount, 2);
+        // The amount is the sum of lines taken from the operation, never a
+        // figure anyone typed. That is the whole guard: a line can only ever
+        // name what the parties already agreed to.
+        $amount = $this->amountForLines($dispute, $lineKeys);
 
         if ($amount <= 0) {
             throw ValidationException::withMessages([
@@ -504,10 +588,13 @@ class ArbitrationService
         $session->update([
             'compensation_amount' => $amount,
             'compensation_to' => $toSide,
-            'compensation_note' => $note,
+            // The chosen lines ARE the justification, so they are kept even
+            // when the arbitrator wrote nothing of their own.
+            'compensation_note' => trim(implode(' + ', $this->labelsFor($dispute, $lineKeys))
+                . ($note ? ' — ' . $note : '')),
         ]);
 
-        $this->announceCompensation($dispute, $toSide, $amount, $note);
+        $this->announceCompensation($dispute, $toSide, $amount, implode(' + ', $this->labelsFor($dispute, $lineKeys)));
 
         return $this->settleCompensation($dispute);
     }
@@ -559,6 +646,18 @@ class ArbitrationService
         $this->notifyCompensation($payeeId, $payerId, $dispute, $amount);
 
         return $session->fresh();
+    }
+
+    /** @return array<int, string> */
+    private function labelsFor(Dispute $dispute, array $keys): array
+    {
+        $available = collect($this->claimableLines($dispute))->keyBy('key');
+
+        return collect($keys)
+            ->map(fn ($key) => $available[$key]['label'] ?? null)
+            ->filter()
+            ->values()
+            ->all();
     }
 
     protected function announceCompensation(Dispute $dispute, string $toSide, float $amount, ?string $note): void

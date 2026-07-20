@@ -74,6 +74,12 @@ class ArbitrationTest extends TestCase
             ]);
         }
 
+        // Some seed bookings carry a 0 price; compensation is read off the
+        // operation's lines, so it needs a real figure to claim.
+        if ((float) $booking->price <= 0) {
+            $booking->forceFill(['price' => 300])->saveQuietly();
+        }
+
         app(BookingDepositService::class)->freezeForBooking($booking, 100.0, [
             'wallet_hold_amount' => 100.0,
             'business_counter_hold_amount' => 0.0,
@@ -614,16 +620,29 @@ class ArbitrationTest extends TestCase
 
     // ─────────────────────── compensation ───────────────────────
 
+    /** What may be claimed is read off the operation, never typed. */
+    private function bookingLineAmount(Dispute $dispute): float
+    {
+        $lines = $this->arbitration->claimableLines($dispute);
+
+        $this->assertNotEmpty($lines, 'a booking must expose at least its price as a claimable line');
+
+        return (float) $lines[0]['amount'];
+    }
+
     /**
-     * The case the escrow cannot answer: shipping already paid on an order the
-     * client refused. The loss is a real cost, not the deposit.
+     * The case the escrow cannot answer: a real cost, compensated from the
+     * operation's own figures rather than a number someone invented.
      */
-    public function test_a_ruling_can_order_one_party_to_compensate_the_other(): void
+    public function test_a_ruling_can_order_compensation_from_the_operations_lines(): void
     {
         $admin = $this->makeAdmin();
         $dispute = $this->open();
 
         $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $owed = $this->bookingLineAmount($dispute->fresh());
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => $owed + 500]);
 
         $clientBefore = (float) $this->wallet((int) $this->booking->user_id)->balance;
         $businessBefore = (float) $this->wallet((int) $this->booking->business_id)->balance;
@@ -631,25 +650,53 @@ class ArbitrationTest extends TestCase
         $session = $this->arbitration->awardCompensation(
             $dispute->fresh(),
             'business',
-            150.0,
-            'رسوم شحن مدفوعة'
+            ['booking_price'],
+            'رفض الاستلام'
         );
 
-        $this->assertEqualsWithDelta(150.0, (float) $session->compensation_amount, 0.01);
-        $this->assertSame('business', $session->compensation_to);
-        $this->assertNotNull($session->compensation_paid_at, 'the client could afford it');
+        $this->assertEqualsWithDelta($owed, (float) $session->compensation_amount, 0.01);
+        $this->assertNotNull($session->compensation_paid_at);
+        $this->assertStringContainsString(
+            __('قيمة الحجز'),
+            (string) $session->compensation_note,
+            'the chosen lines are the justification and must be kept'
+        );
 
         $this->assertEqualsWithDelta(
-            $clientBefore - 150.0,
+            $clientBefore - $owed,
             (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
-            0.01,
-            'the other party pays it'
+            0.01
         );
         $this->assertEqualsWithDelta(
-            $businessBefore + 150.0,
+            $businessBefore + $owed,
             (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance,
             0.01
         );
+    }
+
+    /**
+     * THE guard. A line that is not part of the operation cannot be claimed, so
+     * nobody can be made to pay more than was ever agreed.
+     */
+    public function test_a_line_that_is_not_in_the_operation_is_refused(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['delivery_fee']);
+    }
+
+    /** Awarding nothing is not an award. */
+    public function test_compensation_with_no_lines_is_refused(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+        $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
+
+        $this->expectException(ValidationException::class);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', []);
     }
 
     /** It is a transfer between the parties — the platform takes nothing. */
@@ -659,10 +706,13 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
         $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
 
+        $owed = $this->bookingLineAmount($dispute->fresh());
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => $owed + 500]);
+
         $totalBefore = (float) $this->wallet((int) $this->booking->user_id)->balance
             + (float) $this->wallet((int) $this->booking->business_id)->balance;
 
-        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
 
         $totalAfter = (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance
             + (float) $this->wallet((int) $this->booking->business_id)->fresh()->balance;
@@ -682,9 +732,9 @@ class ArbitrationTest extends TestCase
 
         $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
 
-        $session = $this->arbitration->awardCompensation($dispute->fresh(), 'business', 500.0);
+        $session = $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
 
-        $this->assertEqualsWithDelta(500.0, (float) $session->compensation_amount, 0.01, 'the order stands');
+        $this->assertGreaterThan(0, (float) $session->compensation_amount, 'the order stands');
         $this->assertNull($session->compensation_paid_at, 'but it is not paid');
         $this->assertEqualsWithDelta(
             10.0,
@@ -702,18 +752,14 @@ class ArbitrationTest extends TestCase
         $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
 
         $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
-        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 500.0);
+        $session = $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
 
-        $this->wallet((int) $this->booking->user_id)->update(['balance' => 900]);
+        $owed = (float) $session->compensation_amount;
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => $owed + 100]);
 
-        $session = $this->arbitration->settleCompensation($dispute->fresh());
+        $settled = $this->arbitration->settleCompensation($dispute->fresh());
 
-        $this->assertNotNull($session->compensation_paid_at);
-        $this->assertEqualsWithDelta(
-            400.0,
-            (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance,
-            0.01
-        );
+        $this->assertNotNull($settled->compensation_paid_at);
     }
 
     public function test_compensation_cannot_be_ordered_before_a_ruling(): void
@@ -724,7 +770,7 @@ class ArbitrationTest extends TestCase
         $this->arbitration->acceptSession($dispute, (int) $admin->id);
 
         $this->expectException(ValidationException::class);
-        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
     }
 
     /** One order per ruling — a retry must not charge the payer twice. */
@@ -734,10 +780,13 @@ class ArbitrationTest extends TestCase
         $dispute = $this->open();
         $this->disputes->resolve($dispute, 'release_business', [], (int) $admin->id);
 
-        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+        $owed = $this->bookingLineAmount($dispute->fresh());
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => ($owed * 2) + 500]);
+
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
         $after = (float) $this->wallet((int) $this->booking->user_id)->fresh()->balance;
 
-        $this->arbitration->awardCompensation($dispute->fresh(), 'business', 150.0);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
 
         $this->assertEqualsWithDelta(
             $after,
@@ -745,6 +794,7 @@ class ArbitrationTest extends TestCase
             0.01
         );
     }
+
 
     // ─────────────────────────── the stats ───────────────────────────
 

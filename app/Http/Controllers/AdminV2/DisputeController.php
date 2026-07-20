@@ -132,8 +132,9 @@ class DisputeController extends Controller
 
         $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
         $violations = app(\App\Services\ThreadService::class)->violations($thread);
+        $claimableLines = app(\App\Services\ArbitrationService::class)->claimableLines($dispute);
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations'));
+        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations', 'claimableLines'));
     }
 
     /**
@@ -210,7 +211,10 @@ class DisputeController extends Controller
     {
         $data = $request->validate([
             'compensation_to' => ['required', 'in:client,business'],
-            'compensation_amount' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
+            // Lines, not an amount. The figure is the sum of what the parties
+            // already agreed to, so nobody can be made to pay more than that.
+            'compensation_lines' => ['required', 'array', 'min:1'],
+            'compensation_lines.*' => ['required', 'string', 'max:40'],
             'compensation_note' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -218,7 +222,7 @@ class DisputeController extends Controller
             $session = app(\App\Services\ArbitrationService::class)->awardCompensation(
                 dispute: $dispute,
                 toSide: $data['compensation_to'],
-                amount: (float) $data['compensation_amount'],
+                lineKeys: $data['compensation_lines'],
                 note: $data['compensation_note'] ?? null
             );
         } catch (ValidationException $e) {

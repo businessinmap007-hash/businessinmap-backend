@@ -95,6 +95,18 @@ tags:
       know why the money is moving. v1 exposed those as raw REST with no
       authorization at all; re-exposing them here would rebuild that hole.
       You only ever see deposits you are a party to.
+  - name: Disputes
+    description: |
+      A grievance over an operation, and the escrow frozen behind it. Opening
+      is the point of these endpoints: the whole mechanism — freezing,
+      warnings, escalation, rulings that move money — existed with no way for
+      the party who had the grievance to reach it.
+
+      **Ruling is admin-only and deliberately absent here.** A party deciding
+      their own dispute would be the v1 escrow hole in a new namespace. Time
+      moves a dispute instead: an unmet settlement window escalates itself to
+      review (`disputes:process`). You only ever see disputes you are a party
+      to, and never the admin's notes or the internal file.
   - name: Posts
     description: |
       The social feed. Browsing is public, but sending a bearer token
@@ -1959,6 +1971,59 @@ paths:
       responses:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
+  /disputes/reason-codes:
+    get:
+      tags: [Disputes]
+      summary: The reason codes a dispute may be opened with
+      description: 'A controlled vocabulary, so the app can show a localized picker and cases can be grouped by what went wrong.'
+      responses:
+        '200': { description: OK }
+  /disputes:
+    get:
+      tags: [Disputes]
+      summary: Disputes this account is a party to
+      description: 'No filter can widen the scope beyond the caller.'
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [open, mutual_resolution, under_review, resolved, closed, cancelled, expired] } }
+        - { in: query, name: role, schema: { type: string, enum: [opener, respondent] } }
+        - { in: query, name: per_page, schema: { type: integer, maximum: 50 } }
+      responses:
+        '200': { description: OK }
+  /disputes/{dispute}:
+    get:
+      tags: [Disputes]
+      summary: One dispute, if you are a party to it
+      description: 'Internal meta and the admin resolution notes are never returned; a split ruling exposes only its percentages.'
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+  /bookings/{booking}/disputes:
+    post:
+      tags: [Disputes]
+      summary: Open a dispute on a booking
+      description: >-
+        Only the booking's client or business may open one; anyone else gets 404 so
+        ids cannot be probed. Returns 200 rather than 201 because an already-open
+        dispute over the same booking is returned instead of a second one being
+        created. Ruling is admin-only and deliberately absent here.
+      parameters:
+        - { in: path, name: booking, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              properties:
+                reason_code: { type: string, enum: [not_delivered, not_as_described, quality, late, cancelled_by_business, no_show, overcharged, damage, other] }
+                reason_text: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: 'Opened, or the existing live dispute' }
+        '404': { description: 'Not found, or you are not a party to the booking' }
+        '422': { $ref: '#/components/responses/Validation' }
   /posts:
     get:
       tags: [Posts]

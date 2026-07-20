@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V2\CategoryController;
 use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
+use App\Http\Controllers\Api\V2\DisputeController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
@@ -214,6 +215,16 @@ Route::prefix('v2')->group(function () {
         // money. See Api\V2\DepositController.
         Route::get('deposits', [DepositController::class, 'index']);
         Route::get('deposits/{deposit}', [DepositController::class, 'show'])->whereNumber('deposit');
+
+        // Disputes. Opening is the point: the whole mechanism existed with no
+        // way for the party who had the grievance to reach it, so the table
+        // stayed empty. Ruling stays with the admin — a party deciding their
+        // own dispute would be the v1 /deposits hole again.
+        Route::get('disputes/reason-codes', [DisputeController::class, 'reasonCodes']);
+        Route::get('disputes', [DisputeController::class, 'index']);
+        Route::get('disputes/{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute');
+        Route::post('bookings/{booking}/disputes', [DisputeController::class, 'storeForBooking'])
+            ->whereNumber('booking');
 
         // Delete my account (BIM-15.1). Eligibility is a read of its own so the
         // app can show what must be finished first, instead of the user finding

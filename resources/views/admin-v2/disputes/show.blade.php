@@ -246,6 +246,38 @@
         </div>
     @endif
 
+    @if($dispute->status === 'resolved')
+        <div class="a2-card" style="padding:14px;margin-top:14px;">
+            <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('إغلاق النزاع') }}</div>
+
+            @if($compliance['compliant'])
+                <div class="a2-hint" style="margin-bottom:10px;">
+                    {{ __('نُفِّذ القرار بالكامل: لا مستحقات معلّقة ولا تسوية غير مؤكَّدة.') }}
+                </div>
+                <form method="POST" action="{{ route('admin.disputes.close-complied', $dispute) }}"
+                      onsubmit="return confirm('{{ __('تأكيد إغلاق النزاع بإثبات الامتثال؟') }}');">
+                    @csrf
+                    <button class="a2-btn a2-btn-primary" type="submit">{{ __('تم فض النزاع وتم الامتثال') }}</button>
+                </form>
+            @else
+                <div class="a2-hint" style="margin-bottom:10px;color:#b42318;">
+                    {{ __('لا يمكن إثبات الامتثال بعد:') }}
+                    @if($compliance['pending_obligations'] > 0)
+                        {{ __('مستحقات غير مسدَّدة') }} ({{ $compliance['pending_obligations'] }})
+                    @endif
+                    @if($compliance['pending_settlement'])
+                        {{ __('تسوية بانتظار تأكيد الاستلام') }}
+                    @endif
+                </div>
+                <form method="POST" action="{{ route('admin.disputes.close', $dispute) }}"
+                      onsubmit="return confirm('{{ __('إغلاق النزاع دون إثبات الامتثال؟') }}');">
+                    @csrf
+                    <button class="a2-btn a2-btn-ghost" type="submit">{{ __('إغلاق إداري دون امتثال') }}</button>
+                </form>
+            @endif
+        </div>
+    @endif
+
     <div class="a2-card" style="padding:14px;margin-top:14px;">
         <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('غرفة النزاع') }}</div>
 

@@ -469,6 +469,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Posting takes the arbitrator's seat — reading the case does not.
             Route::post('{dispute}/room', [DisputeController::class, 'roomPost'])->whereNumber('dispute')->name('room.post');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
+            // The verdict that the ruling was carried out — refused while anything is unpaid.
+            Route::post('{dispute}/close-complied', [DisputeController::class, 'closeWithCompliance'])->whereNumber('dispute')->name('close-complied');
             // Triage above; payout below. These three decide who gets the money,
             // so they need MONEY as well as DISPUTES — which is exactly what
             // lets a support agent work the queue without being able to pay

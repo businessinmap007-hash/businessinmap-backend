@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
 use App\Models\DisputeFee;
+use App\Models\DisputeObligation;
+use App\Models\DisputeSettlement;
 use App\Models\OperationGuarantor;
 use App\Models\PlatformService;
 use App\Models\Thread;
@@ -616,6 +618,110 @@ class DisputeService
             } catch (\Throwable $e) {
                 // A failed notification must not roll back the escalation: the
                 // status change is the part that matters.
+                report($e);
+            }
+        }
+    }
+
+    /**
+     * Is everything the ruling ordered actually done?
+     *
+     * A ruling resolves a dispute, but resolving is not the same as being over:
+     * a session fee may sit unpaid, a compensation may be waiting on a top-up,
+     * an off-app settlement may be proposed but not yet confirmed received. The
+     * matter is only genuinely finished when none of those is outstanding.
+     *
+     * @return array{compliant: bool, pending_obligations: int, pending_settlement: bool}
+     */
+    public function complianceState(Dispute $dispute): array
+    {
+        $pendingObligations = DisputeObligation::query()
+            ->where('dispute_id', $dispute->id)
+            ->where('status', DisputeObligation::STATUS_PENDING)
+            ->count();
+
+        // A settlement that was proposed/accepted but whose receipt was never
+        // confirmed is money still hanging in the air between the parties.
+        $pendingSettlement = DisputeSettlement::query()
+            ->where('dispute_id', $dispute->id)
+            ->whereIn('status', DisputeSettlement::LIVE_STATUSES)
+            ->exists();
+
+        return [
+            'compliant' => $pendingObligations === 0 && ! $pendingSettlement,
+            'pending_obligations' => $pendingObligations,
+            'pending_settlement' => $pendingSettlement,
+        ];
+    }
+
+    /**
+     * Close a resolved dispute as COMPLIED — the verdict that it is truly over.
+     *
+     * Refused while anything the ruling ordered is still outstanding, because
+     * "complied" is a statement of fact an arbitrator is putting on the record,
+     * and certifying compliance that has not happened would make the record
+     * lie. An admin who needs to shut a case that was NOT complied with uses
+     * the plain close instead.
+     */
+    public function closeWithCompliance(Dispute $dispute, ?int $actorId = null): Dispute
+    {
+        if ($dispute->status !== Dispute::STATUS_RESOLVED) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن إثبات الامتثال إلا بعد صدور القرار.'),
+            ]);
+        }
+
+        $state = $this->complianceState($dispute);
+
+        if (! $state['compliant']) {
+            throw ValidationException::withMessages([
+                'compliance' => $state['pending_settlement']
+                    ? __('لا يمكن إثبات الامتثال قبل تأكيد استلام مبلغ التسوية.')
+                    : __('لا يمكن إثبات الامتثال قبل سداد كل المستحقات المترتبة على القرار.'),
+            ]);
+        }
+
+        $dispute->status = Dispute::STATUS_CLOSED;
+        $dispute->closed_reason = 'complied';
+        $dispute->closed_at = now();
+        $dispute->save();
+
+        // Announced in the room and sealed there: the closing line of the case
+        // should be that it was carried out, not silence.
+        try {
+            $thread = $this->room($dispute);
+            $this->threads->system($thread, 'تم فض النزاع وتم الامتثال لقرار الحكم. أُغلقت الجلسة.');
+            $this->threads->lock($thread);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $this->notifyCompliance($dispute);
+
+        return $dispute;
+    }
+
+    protected function notifyCompliance(Dispute $dispute): void
+    {
+        $recipients = array_values(array_unique(array_filter([
+            (int) ($dispute->opened_by_user_id ?? 0),
+            (int) ($dispute->against_user_id ?? 0),
+        ])));
+
+        foreach ($recipients as $userId) {
+            try {
+                $this->notifications->create([
+                    'user_id' => $userId,
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'priority' => AppNotification::PRIORITY_NORMAL,
+                    'title_ar' => 'أُغلق النزاع',
+                    'title_en' => 'The dispute is closed',
+                    'body_ar' => 'تم فض النزاع وتم الامتثال لقرار الحكم.',
+                    'body_en' => 'The dispute was resolved and the ruling was complied with.',
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                ]);
+            } catch (\Throwable $e) {
                 report($e);
             }
         }

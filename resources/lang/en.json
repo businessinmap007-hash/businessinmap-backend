@@ -2215,5 +2215,8 @@
     "قيمة الحجز": "Booking price",
     "قيمة الطلب": "Order total",
     "رسوم الشحن": "Delivery fee",
-    "الضريبة": "Tax"
+    "الضريبة": "Tax",
+    "لا يمكن إثبات الامتثال إلا بعد صدور القرار.": "Compliance can only be certified after a ruling is issued.",
+    "لا يمكن إثبات الامتثال قبل تأكيد استلام مبلغ التسوية.": "Compliance cannot be certified before the settlement amount is confirmed received.",
+    "لا يمكن إثبات الامتثال قبل سداد كل المستحقات المترتبة على القرار.": "Compliance cannot be certified before every obligation from the ruling is paid."
 }

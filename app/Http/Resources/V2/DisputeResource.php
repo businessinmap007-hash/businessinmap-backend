@@ -81,6 +81,11 @@ class DisputeResource extends JsonResource
                 'business_percent' => (float) ($resolution['business_percent'] ?? 0),
             ] : null,
             'resolved_at' => optional($this->resolved_at)->toIso8601String(),
+            'closed_at' => optional($this->closed_at)->toIso8601String(),
+            // A closed case says WHY: `complied` is the verdict that the ruling
+            // was carried out, which is what a party points to to prove it is
+            // genuinely over.
+            'closed_reason' => $this->closed_reason,
 
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];

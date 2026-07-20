@@ -133,8 +133,9 @@ class DisputeController extends Controller
         $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
         $violations = app(\App\Services\ThreadService::class)->violations($thread);
         $claimableLines = app(\App\Services\ArbitrationService::class)->claimableLines($dispute);
+        $compliance = $this->disputeService->complianceState($dispute);
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations', 'claimableLines'));
+        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations', 'claimableLines', 'compliance'));
     }
 
     /**
@@ -376,17 +377,39 @@ class DisputeController extends Controller
         return back()->with('success', __('تم إلغاء النزاع.'));
     }
 
+    /**
+     * Plain close: the case is shut but NOT certified as complied with. Kept
+     * distinct from the compliance close so an admin cannot stamp "carried out"
+     * on a case where it was not.
+     */
     public function close(Dispute $dispute)
     {
         $this->ensureDisputeStatus($dispute, ['resolved']);
 
         $dispute->status = 'closed';
+        $dispute->closed_reason = 'admin_closed';
         if (Schema::hasColumn('disputes', 'closed_at')) {
             $dispute->closed_at = now();
         }
         $dispute->save();
 
         return back()->with('success', __('تم إغلاق النزاع.'));
+    }
+
+    /**
+     * Close as complied: the verdict that the ruling was actually carried out.
+     * The service refuses it while any obligation is unpaid or a settlement is
+     * unconfirmed, so this button cannot certify compliance that did not happen.
+     */
+    public function closeWithCompliance(Dispute $dispute)
+    {
+        try {
+            $this->disputeService->closeWithCompliance($dispute, (int) auth()->id());
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return back()->with('success', __('تم إغلاق النزاع بإثبات الامتثال لقرار الحكم.'));
     }
 
     public function resolveReleaseBusiness(Request $request, Dispute $dispute)

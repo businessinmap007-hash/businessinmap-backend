@@ -25,6 +25,7 @@ class Dispute extends Model
         'opened_at',
         'resolved_at',
         'closed_at',
+        'closed_reason',
         'deposit_id','type',
         'mutual_resolution_started_at',
         'mutual_resolution_deadline_at',

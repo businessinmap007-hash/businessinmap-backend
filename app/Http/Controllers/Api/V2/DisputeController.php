@@ -191,6 +191,41 @@ final class DisputeController extends Controller
         return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
     }
 
+    /**
+     * POST /api/v2/disputes/{dispute}/settlement — "we agreed".
+     *
+     * Takes effect only when BOTH sides have pressed it. The first tap is a
+     * proposal the other party is shown and asked to confirm; the second ends
+     * the dispute and unwinds the escrow, each hold going back to whoever
+     * posted it.
+     */
+    public function agreeSettlement(Request $request, Dispute $dispute, DisputeService $disputes)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $dispute = $disputes->agreeSettlement($dispute, (int) $request->user()->id);
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => new DisputeResource($dispute),
+            'my_side' => $disputes->sideOf($dispute, (int) $request->user()->id),
+        ]);
+    }
+
+    /** DELETE /api/v2/disputes/{dispute}/settlement — take it back. */
+    public function withdrawSettlement(Request $request, Dispute $dispute, DisputeService $disputes)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $dispute = $disputes->withdrawSettlement($dispute, (int) $request->user()->id);
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
+        return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
     // ─────────────────────────── the room ───────────────────────────
 
     /**

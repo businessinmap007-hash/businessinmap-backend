@@ -60,6 +60,15 @@ class DisputeResource extends JsonResource
                 'business_at' => optional($this->business_cooperated_at)->toIso8601String(),
             ],
 
+            // Both taps are shown to both sides: seeing that the other party
+            // has already agreed is the whole prompt to confirm.
+            'settlement' => [
+                'client_agreed_at' => optional($this->client_settlement_agreed_at)->toIso8601String(),
+                'business_agreed_at' => optional($this->business_settlement_agreed_at)->toIso8601String(),
+                'complete' => $this->client_settlement_agreed_at !== null
+                    && $this->business_settlement_agreed_at !== null,
+            ],
+
             'opened_at' => optional($this->opened_at)->toIso8601String(),
             'mutual_resolution_deadline_at' => optional($this->mutual_resolution_deadline_at)->toIso8601String(),
             'warning_count' => (int) $this->warning_count,

@@ -312,6 +312,136 @@ class DisputeService
         return $escalated;
     }
 
+    /** The only outcome the parties can reach by themselves. */
+    public const RESOLUTION_MUTUAL = 'mutual_settlement';
+
+    /**
+     * A party pressing "we agreed". The dispute ends only when BOTH have.
+     *
+     * Allowed right up to a ruling, including once an arbitrator is already
+     * involved: an agreement the two sides reached themselves should always
+     * beat a decision imposed on them, and withdrawing it is possible until the
+     * second tap lands.
+     */
+    public function agreeSettlement(Dispute $dispute, int $userId): Dispute
+    {
+        $side = $this->requireSide($dispute, $userId);
+
+        if (! in_array($dispute->status, [
+            Dispute::STATUS_OPEN,
+            Dispute::STATUS_MUTUAL_RESOLUTION,
+            Dispute::STATUS_UNDER_REVIEW,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'dispute' => __('لا يمكن تسجيل الاتفاق في الحالة الحالية للنزاع.'),
+            ]);
+        }
+
+        $column = $side . '_settlement_agreed_at';
+
+        if ($dispute->{$column} === null) {
+            $dispute->{$column} = now();
+            $dispute->save();
+
+            $this->threads->system(
+                $this->room($dispute),
+                $side === 'client'
+                    ? 'سجّل العميل أن الطرفين توصّلا إلى اتفاق. ينتظر تأكيد النشاط.'
+                    : 'سجّل النشاط أن الطرفين توصّلا إلى اتفاق. ينتظر تأكيد العميل.'
+            );
+
+            $this->notifySettlementProgress($dispute, $side);
+        }
+
+        // The second tap is what ends it.
+        if ($dispute->client_settlement_agreed_at !== null && $dispute->business_settlement_agreed_at !== null) {
+            return $this->resolve($dispute, self::RESOLUTION_MUTUAL);
+        }
+
+        return $dispute;
+    }
+
+    /**
+     * Taking it back, while it still can be taken back.
+     *
+     * A mis-tap must not become a settlement the moment the other side agrees,
+     * so this is open until the second tap lands — after that the dispute is
+     * resolved and there is nothing left to withdraw from.
+     */
+    public function withdrawSettlement(Dispute $dispute, int $userId): Dispute
+    {
+        $side = $this->requireSide($dispute, $userId);
+
+        if ($dispute->resolved_at !== null) {
+            throw ValidationException::withMessages([
+                'dispute' => __('صدر القرار بالفعل ولا يمكن التراجع عن الاتفاق.'),
+            ]);
+        }
+
+        $column = $side . '_settlement_agreed_at';
+
+        if ($dispute->{$column} !== null) {
+            $dispute->{$column} = null;
+            $dispute->save();
+
+            $this->threads->system(
+                $this->room($dispute),
+                $side === 'client'
+                    ? 'تراجع العميل عن تسجيل الاتفاق.'
+                    : 'تراجع النشاط عن تسجيل الاتفاق.'
+            );
+        }
+
+        return $dispute;
+    }
+
+    private function requireSide(Dispute $dispute, int $userId): string
+    {
+        $side = $this->sideOf($dispute, $userId);
+
+        if ($side === null) {
+            throw ValidationException::withMessages([
+                'dispute' => __('لست طرفًا في هذا النزاع.'),
+            ]);
+        }
+
+        return $side;
+    }
+
+    /** Tell the OTHER side that they are being asked to confirm. */
+    protected function notifySettlementProgress(Dispute $dispute, string $agreedSide): void
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+
+        if (! $disputeable instanceof Booking) {
+            return;
+        }
+
+        $recipient = $agreedSide === 'client'
+            ? (int) $disputeable->business_id
+            : (int) $disputeable->user_id;
+
+        if ($recipient <= 0) {
+            return;
+        }
+
+        try {
+            $this->notifications->create([
+                'user_id' => $recipient,
+                'type' => AppNotification::TYPE_DISPUTE,
+                'priority' => AppNotification::PRIORITY_HIGH,
+                'title_ar' => 'الطرف الآخر سجّل الاتفاق',
+                'title_en' => 'The other party marked this as agreed',
+                'body_ar' => 'أكّد الاتفاق لإنهاء النزاع وفكّ مبلغ الضمان.',
+                'body_en' => 'Confirm to close the dispute and release the escrow.',
+                'notifiable_type' => Dispute::class,
+                'notifiable_id' => (int) $dispute->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /**
      * A party asking for a judge, instead of waiting out the window.
      *
@@ -564,6 +694,7 @@ class DisputeService
             $thread = $this->room($dispute);
 
             $this->threads->system($thread, match ($resolutionType) {
+                self::RESOLUTION_MUTUAL => 'اتفق الطرفان على إنهاء النزاع، وأُعيد مبلغ الضمان إلى صاحبه.',
                 'refund_client' => 'صدر القرار: إعادة مبلغ الضمان إلى العميل.',
                 'release_business' => 'صدر القرار: تسليم مبلغ الضمان إلى النشاط.',
                 'split' => 'صدر القرار: تقسيم مبلغ الضمان بنسبة '
@@ -607,6 +738,15 @@ class DisputeService
                 break;
 
             case 'refund_client':
+                $this->depositsEscrowService->refund($deposit, true, true);
+                break;
+
+            case self::RESOLUTION_MUTUAL:
+                // Each side gets its OWN hold back. The deposit is a guarantee,
+                // not a payment: when the parties settle it between themselves
+                // the guarantee has done its job and simply unwinds. Any money
+                // that changed hands as part of their agreement is theirs to
+                // move, and is recorded separately.
                 $this->depositsEscrowService->refund($deposit, true, true);
                 break;
 

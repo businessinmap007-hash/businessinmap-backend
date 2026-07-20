@@ -141,6 +141,9 @@ class ArbitrationService
         $total = $deposit ? (float) $deposit->client_amount + (float) $deposit->business_amount : 0.0;
 
         return match ($outcome) {
+            // A mutual settlement returns each hold to whoever posted it,
+            // so nothing moved BETWEEN the parties through the escrow.
+            'mutual_settlement' => [0.0, 0.0],
             'refund_client' => [$total, 0.0],
             'release_business' => [0.0, $total],
             'split' => [

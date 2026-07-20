@@ -2041,6 +2041,37 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/settlement:
+    post:
+      tags: [Disputes]
+      summary: Mark the dispute as settled between the parties
+      description: >-
+        Takes effect only when BOTH sides have pressed it — an agreement one
+        party declares alone is not an agreement. The first tap is a proposal
+        the other party is notified about and asked to confirm; the second
+        resolves the dispute as `mutual_settlement` and unwinds the escrow, each
+        hold returning to whoever posted it. Allowed right up to a ruling,
+        including once an arbitrator is involved: an agreement the parties
+        reached themselves beats a decision imposed on them. Idempotent.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+    delete:
+      tags: [Disputes]
+      summary: Withdraw your agreement
+      description: >-
+        Open until the second tap lands, so a mis-tap does not become a
+        settlement the moment the other side agrees. Refused once the dispute
+        has been resolved.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/request-arbitration:
     post:
       tags: [Disputes]

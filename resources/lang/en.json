@@ -2163,5 +2163,7 @@
     "تعذر تحديد الطرف الذي تُفرض عليه الغرامة.": "Could not identify the party to fine.",
     "لست طرفًا في هذا النزاع.": "You are not a party to this dispute.",
     "لا يمكن طلب التحكيم في الحالة الحالية للنزاع.": "Arbitration cannot be requested in the dispute's current state.",
-    "سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.": "Declare that you are engaging with the settlement before asking for arbitration."
+    "سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.": "Declare that you are engaging with the settlement before asking for arbitration.",
+    "لا يمكن تسجيل الاتفاق في الحالة الحالية للنزاع.": "The agreement cannot be recorded in the dispute's current state.",
+    "صدر القرار بالفعل ولا يمكن التراجع عن الاتفاق.": "A ruling has already been issued; the agreement cannot be withdrawn."
 }

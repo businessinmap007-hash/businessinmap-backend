@@ -232,6 +232,13 @@ Route::prefix('v2')->group(function () {
         Route::post('disputes/{dispute}/cooperate', [DisputeController::class, 'cooperate'])
             ->whereNumber('dispute');
 
+        // "We agreed." Takes effect only when BOTH sides have pressed it —
+        // an agreement one party declares alone is not an agreement.
+        Route::post('disputes/{dispute}/settlement', [DisputeController::class, 'agreeSettlement'])
+            ->whereNumber('dispute');
+        Route::delete('disputes/{dispute}/settlement', [DisputeController::class, 'withdrawSettlement'])
+            ->whereNumber('dispute');
+
         // Asking for a judge without waiting out the window. One party is
         // enough — needing both would let a stonewaller block arbitration
         // forever, which is what it exists for.

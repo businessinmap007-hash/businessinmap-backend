@@ -420,6 +420,138 @@ class DisputeApiTest extends TestCase
         );
     }
 
+    // ──────────────────── settling it between themselves ────────────────────
+
+    /** One tap is a proposal, not a settlement. */
+    public function test_one_party_agreeing_does_not_close_the_dispute(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")
+            ->assertOk()
+            ->assertJsonPath('data.settlement.complete', false);
+
+        $dispute = Dispute::findOrFail($id);
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, $dispute->status);
+        $this->assertNotNull($dispute->client_settlement_agreed_at);
+        $this->assertNull($dispute->business_settlement_agreed_at);
+    }
+
+    /** The second tap ends it, and the escrow unwinds to whoever posted it. */
+    public function test_both_parties_agreeing_closes_the_dispute_and_returns_the_hold(): void
+    {
+        $clientWallet = \App\Models\Wallet::query()->where('user_id', $this->booking->user_id)->firstOrFail();
+
+        $this->assertEqualsWithDelta(100.0, (float) $clientWallet->locked_balance, 0.01, 'setup: held');
+
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/disputes/{$id}/settlement")
+            ->assertOk()
+            ->assertJsonPath('data.settlement.complete', true)
+            ->assertJsonPath('data.status', Dispute::STATUS_RESOLVED)
+            ->assertJsonPath('data.resolution_type', 'mutual_settlement');
+
+        $after = $clientWallet->fresh();
+        $this->assertEqualsWithDelta(0.0, (float) $after->locked_balance, 0.01, 'nothing may stay frozen');
+        $this->assertEqualsWithDelta(1000.0, (float) $after->balance, 0.01, 'the client gets their own hold back');
+    }
+
+    /** A mis-tap must not become a settlement the moment the other side agrees. */
+    public function test_an_agreement_can_be_withdrawn_before_the_other_side_confirms(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+        $this->deleteJson("/api/v2/disputes/{$id}/settlement")
+            ->assertOk()
+            ->assertJsonPath('data.settlement.client_agreed_at', null);
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/disputes/{$id}/settlement")
+            ->assertOk()
+            ->assertJsonPath('data.settlement.complete', false);
+
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, Dispute::findOrFail($id)->status);
+    }
+
+    public function test_a_settlement_cannot_be_withdrawn_after_it_completed(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        $this->deleteJson("/api/v2/disputes/{$id}/settlement")->assertStatus(422);
+    }
+
+    /** An agreement the parties reached themselves beats a pending arbitration. */
+    public function test_the_parties_can_still_settle_after_arbitration_was_requested(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")->assertOk();
+
+        $this->assertSame(Dispute::STATUS_UNDER_REVIEW, Dispute::findOrFail($id)->status);
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/disputes/{$id}/settlement")
+            ->assertOk()
+            ->assertJsonPath('data.status', Dispute::STATUS_RESOLVED);
+    }
+
+    /** Pressing twice is one agreement, not two. */
+    public function test_agreeing_twice_is_harmless(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+        $first = Dispute::findOrFail($id)->client_settlement_agreed_at;
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        $this->assertEquals($first, Dispute::findOrFail($id)->client_settlement_agreed_at);
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, Dispute::findOrFail($id)->status);
+    }
+
+    public function test_a_stranger_cannot_agree_a_settlement(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        Sanctum::actingAs($this->someoneElse());
+
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertNotFound();
+    }
+
+    /** Nobody ruled, so the session records the outcome with no arbitrator. */
+    public function test_a_mutual_settlement_is_recorded_with_no_arbitrator(): void
+    {
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/disputes/{$id}/settlement")->assertOk();
+
+        $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $id)->firstOrFail();
+
+        $this->assertSame('mutual_settlement', $session->outcome);
+        $this->assertNull($session->arbitrator_id, 'the parties settled it themselves');
+        $this->assertEqualsWithDelta(0.0, (float) $session->amount_to_client, 0.01, 'nothing moved between them');
+    }
+
     public function test_the_reason_code_picker_is_served(): void
     {
         Sanctum::actingAs($this->client);

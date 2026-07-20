@@ -76,7 +76,7 @@ class GuaranteeCoverageService
 
         if (! $wallet || (float) $wallet->balance < $requiredAmount) {
             throw ValidationException::withMessages([
-                'wallet' => 'يجب وجود رصيد حر كافٍ لخصم رسوم المنصة. الضمان لا يستخدم لدفع رسوم التشغيل.',
+                'wallet' => __('يجب وجود رصيد حر كافٍ لخصم رسوم المنصة. الضمان لا يستخدم لدفع رسوم التشغيل.'),
             ]);
         }
     }

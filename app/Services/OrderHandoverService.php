@@ -35,7 +35,7 @@ class OrderHandoverService
         $this->assertParty($order, $byUserId);
 
         if ((string) $order->status !== self::STATUS_PENDING) {
-            throw ValidationException::withMessages(['order' => 'الطلب غير جاهز للتسليم.']);
+            throw ValidationException::withMessages(['order' => __('الطلب غير جاهز للتسليم.')]);
         }
 
         if (! $order->handover_token) {
@@ -59,13 +59,13 @@ class OrderHandoverService
                 ->first();
 
             if (! $order) {
-                abort(404, 'رمز التسليم غير صالح أو تم استخدامه.');
+                abort(404, __('رمز التسليم غير صالح أو تم استخدامه.'));
             }
 
             $this->assertParty($order, $byUserId);
 
             if ((string) $order->status !== self::STATUS_PENDING) {
-                abort(409, 'لا يمكن تأكيد تسليم هذا الطلب.');
+                abort(409, __('لا يمكن تأكيد تسليم هذا الطلب.'));
             }
 
             $order->status = self::STATUS_COMPLETED;
@@ -92,7 +92,7 @@ class OrderHandoverService
     private function assertParty(Order $order, int $userId): void
     {
         if ((int) $order->business_id !== $userId && (int) $order->user_id !== $userId) {
-            abort(403, 'لست طرفاً في هذا الطلب.');
+            abort(403, __('لست طرفاً في هذا الطلب.'));
         }
     }
 }

@@ -87,7 +87,7 @@ class AdminAbilityService
         if ((int) $actor->id === (int) $target->id) {
             // Removes self-lockout and self-escalation in one rule. Nobody needs
             // to edit their own permissions; every reason to want to is a bad one.
-            return 'لا يمكنك تعديل صلاحيات حسابك أنت.';
+            return __('لا يمكنك تعديل صلاحيات حسابك أنت.');
         }
 
         if ($this->isSuperAdmin($target)) {
@@ -95,16 +95,16 @@ class AdminAbilityService
             // wildcards outright, so offering an Edit button here would be an
             // offer the screen cannot keep.
             return $this->isSuperAdmin($actor)
-                ? 'مدير عام — صلاحياته لا تُدار من هذه الشاشة.'
-                : 'هذا مدير عام — لا يعدّله إلا مدير عام مثله.';
+                ? __('مدير عام — صلاحياته لا تُدار من هذه الشاشة.')
+                : __('هذا مدير عام — لا يعدّله إلا مدير عام مثله.');
         }
 
         if ((int) $target->id === (int) config('bim.platform_wallet_user_id')) {
-            return 'حساب خزينة المنصة لا يملك صلاحيات لوحة.';
+            return __('حساب خزينة المنصة لا يملك صلاحيات لوحة.');
         }
 
         if ($target->type !== User::TYPE_ADMIN) {
-            return 'هذا الحساب ليس مشرفًا.';
+            return __('هذا الحساب ليس مشرفًا.');
         }
 
         return null;
@@ -131,7 +131,7 @@ class AdminAbilityService
             // Nothing here may touch a wildcard: stripping the last super-admin
             // would brick the panel, and the UI must not be able to mint or
             // unmake root at all.
-            throw new RuntimeException('صلاحيات المدير العام لا تُدار من هذه الشاشة.');
+            throw new RuntimeException(__('صلاحيات المدير العام لا تُدار من هذه الشاشة.'));
         }
 
         $wanted = array_values(array_intersect(AdminAbility::ALL, $wanted));
@@ -145,10 +145,12 @@ class AdminAbilityService
 
         if ($escalation !== []) {
             throw new RuntimeException(
-                'لا يمكنك منح صلاحية لا تملكها: ' . implode('، ', array_map(
-                    fn ($a) => AdminAbility::label($a),
-                    $escalation
-                ))
+                __('لا يمكنك منح صلاحية لا تملكها: :abilities', [
+                    'abilities' => implode('، ', array_map(
+                        fn ($a) => AdminAbility::label($a),
+                        $escalation
+                    )),
+                ])
             );
         }
 

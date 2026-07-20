@@ -140,7 +140,7 @@ class DisputeService
             Dispute::STATUS_UNDER_REVIEW,
         ], true)) {
             throw ValidationException::withMessages([
-                'status' => 'الحالة الحالية للنزاع لا تسمح بتنفيذ القرار.',
+                'status' => __('الحالة الحالية للنزاع لا تسمح بتنفيذ القرار.'),
             ]);
         }
 
@@ -189,7 +189,7 @@ class DisputeService
 
         if (! $deposit) {
             throw ValidationException::withMessages([
-                'deposit' => 'لا يوجد Deposit مرتبط بهذا الحجز.',
+                'deposit' => __('لا يوجد Deposit مرتبط بهذا الحجز.'),
             ]);
         }
 
@@ -215,7 +215,7 @@ class DisputeService
 
                 if (round($clientPercent + $businessPercent, 2) !== 100.00) {
                     throw ValidationException::withMessages([
-                        'split' => 'مجموع النسب يجب أن يساوي 100%.',
+                        'split' => __('مجموع النسب يجب أن يساوي 100%.'),
                     ]);
                 }
 
@@ -223,7 +223,7 @@ class DisputeService
 
             default:
                 throw ValidationException::withMessages([
-                    'resolution_type' => 'نوع القرار غير مدعوم.',
+                    'resolution_type' => __('نوع القرار غير مدعوم.'),
                 ]);
         }
     }
@@ -240,7 +240,7 @@ class DisputeService
 
         if (! $platformService) {
             throw ValidationException::withMessages([
-                'platform_service' => 'تعذر تحديد Platform Service الخاص بالحجوزات.',
+                'platform_service' => __('تعذر تحديد Platform Service الخاص بالحجوزات.'),
             ]);
         }
 

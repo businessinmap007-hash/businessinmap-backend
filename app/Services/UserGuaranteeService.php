@@ -22,7 +22,7 @@ class UserGuaranteeService
 
         if ($level->target_type !== $targetType) {
             throw ValidationException::withMessages([
-                'level' => 'مستوى الضمان غير مناسب لنوع المستخدم.',
+                'level' => __('مستوى الضمان غير مناسب لنوع المستخدم.'),
             ]);
         }
 
@@ -121,7 +121,7 @@ class UserGuaranteeService
 
         if ($amount <= 0) {
             throw ValidationException::withMessages([
-                'amount' => 'قيمة الخصم غير صالحة.',
+                'amount' => __('قيمة الخصم غير صالحة.'),
             ]);
         }
 
@@ -132,7 +132,7 @@ class UserGuaranteeService
 
             if (! $guarantee) {
                 throw ValidationException::withMessages([
-                    'guarantee' => 'لا يوجد ضمان نشط لهذا المستخدم.',
+                    'guarantee' => __('لا يوجد ضمان نشط لهذا المستخدم.'),
                 ]);
             }
 
@@ -143,7 +143,7 @@ class UserGuaranteeService
 
             if (! $wallet) {
                 throw ValidationException::withMessages([
-                    'wallet' => 'لا توجد محفظة لهذا المستخدم.',
+                    'wallet' => __('لا توجد محفظة لهذا المستخدم.'),
                 ]);
             }
 
@@ -160,7 +160,7 @@ class UserGuaranteeService
             if ($remaining > 0) {
                 if ((float) $wallet->locked_balance < $remaining) {
                     throw ValidationException::withMessages([
-                        'locked_balance' => 'رصيد الضمان المجمد غير كافٍ لتنفيذ الخصم.',
+                        'locked_balance' => __('رصيد الضمان المجمد غير كافٍ لتنفيذ الخصم.'),
                     ]);
                 }
 
@@ -240,7 +240,7 @@ class UserGuaranteeService
 
         if (! $wallet || (float) $wallet->balance < $requiredAmount) {
             throw ValidationException::withMessages([
-                'wallet' => 'يجب وجود رصيد حر كافٍ لخصم رسوم المنصة. الضمان لا يستخدم لدفع رسوم التشغيل.',
+                'wallet' => __('يجب وجود رصيد حر كافٍ لخصم رسوم المنصة. الضمان لا يستخدم لدفع رسوم التشغيل.'),
             ]);
         }
     }
@@ -251,7 +251,7 @@ class UserGuaranteeService
 
         if ($amount <= 0) {
             throw ValidationException::withMessages([
-                'amount' => 'قيمة الضمان غير صالحة.',
+                'amount' => __('قيمة الضمان غير صالحة.'),
             ]);
         }
 
@@ -270,13 +270,13 @@ class UserGuaranteeService
 
         if ((string) $wallet->status !== 'active') {
             throw ValidationException::withMessages([
-                'wallet' => 'المحفظة غير مفعلة.',
+                'wallet' => __('المحفظة غير مفعلة.'),
             ]);
         }
 
         if ((float) $wallet->balance < $amount) {
             throw ValidationException::withMessages([
-                'wallet' => 'الرصيد الحر غير كافٍ لتفعيل مستوى الضمان.',
+                'wallet' => __('الرصيد الحر غير كافٍ لتفعيل مستوى الضمان.'),
             ]);
         }
 

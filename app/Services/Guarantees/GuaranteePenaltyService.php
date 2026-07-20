@@ -31,7 +31,7 @@ class GuaranteePenaltyService
 
         if ($amount <= 0) {
             throw ValidationException::withMessages([
-                'amount' => 'قيمة الخصم غير صالحة.',
+                'amount' => __('قيمة الخصم غير صالحة.'),
             ]);
         }
 
@@ -62,7 +62,7 @@ class GuaranteePenaltyService
 
             if (! $guarantee) {
                 throw ValidationException::withMessages([
-                    'guarantee' => 'لا يوجد ضمان نشط لهذا المستخدم.',
+                    'guarantee' => __('لا يوجد ضمان نشط لهذا المستخدم.'),
                 ]);
             }
 
@@ -73,13 +73,13 @@ class GuaranteePenaltyService
 
             if (! $wallet) {
                 throw ValidationException::withMessages([
-                    'wallet' => 'لا توجد محفظة لهذا المستخدم.',
+                    'wallet' => __('لا توجد محفظة لهذا المستخدم.'),
                 ]);
             }
 
             if ((string) $wallet->status !== 'active') {
                 throw ValidationException::withMessages([
-                    'wallet' => 'المحفظة غير مفعلة.',
+                    'wallet' => __('المحفظة غير مفعلة.'),
                 ]);
             }
 
@@ -99,7 +99,7 @@ class GuaranteePenaltyService
             if ($remaining > 0) {
                 if ($lockedBefore < $remaining) {
                     throw ValidationException::withMessages([
-                        'locked_balance' => 'رصيد الضمان المجمد غير كافٍ لتنفيذ الخصم.',
+                        'locked_balance' => __('رصيد الضمان المجمد غير كافٍ لتنفيذ الخصم.'),
                     ]);
                 }
 

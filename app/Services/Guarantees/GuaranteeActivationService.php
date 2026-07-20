@@ -21,7 +21,7 @@ class GuaranteeActivationService
     {
         if ($level->target_type !== $this->resolveTargetType($user)) {
             throw ValidationException::withMessages([
-                'level' => 'مستوى الضمان غير مناسب لنوع المستخدم.',
+                'level' => __('مستوى الضمان غير مناسب لنوع المستخدم.'),
             ]);
         }
 
@@ -33,7 +33,7 @@ class GuaranteeActivationService
 
             if (! $wallet || (string) $wallet->status !== 'active') {
                 throw ValidationException::withMessages([
-                    'wallet' => 'المحفظة غير موجودة أو غير مفعلة.',
+                    'wallet' => __('المحفظة غير موجودة أو غير مفعلة.'),
                 ]);
             }
 
@@ -41,7 +41,7 @@ class GuaranteeActivationService
 
             if ((float) $wallet->balance < $required) {
                 throw ValidationException::withMessages([
-                    'wallet' => 'الرصيد الحر غير كافٍ لتفعيل مستوى الضمان.',
+                    'wallet' => __('الرصيد الحر غير كافٍ لتفعيل مستوى الضمان.'),
                 ]);
             }
 

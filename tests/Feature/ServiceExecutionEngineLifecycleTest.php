@@ -169,7 +169,12 @@ class ServiceExecutionEngineLifecycleTest extends TestCase
             $this->engine->moveBookingToInProgress($this->booking);
             $this->fail('starting without both confirmations must throw');
         } catch (ValidationException $e) {
-            $this->assertStringContainsString('تأكيد الطرفين', implode(' ', $e->errors()['status'] ?? []));
+            // Through __(): the message is translated now, so asserting the
+            // Arabic literal would break under an English-locale run.
+            $this->assertStringContainsString(
+                __('يجب تأكيد الطرفين قبل بدء التنفيذ.'),
+                implode(' ', $e->errors()['status'] ?? [])
+            );
         }
 
         $this->assertSame(

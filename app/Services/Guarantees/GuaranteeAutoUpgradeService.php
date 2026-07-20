@@ -80,13 +80,13 @@ final class GuaranteeAutoUpgradeService
     ): array {
         if (! $level->is_active) {
             throw ValidationException::withMessages([
-                'level' => 'مستوى الضمان غير مفعل.',
+                'level' => __('مستوى الضمان غير مفعل.'),
             ]);
         }
 
         if ($level->target_type !== $this->resolveTargetType($user)) {
             throw ValidationException::withMessages([
-                'level' => 'مستوى الضمان غير مناسب لنوع المستخدم.',
+                'level' => __('مستوى الضمان غير مناسب لنوع المستخدم.'),
             ]);
         }
 
@@ -159,7 +159,7 @@ final class GuaranteeAutoUpgradeService
         if ($additionalLock > round((float) $wallet->balance, 2)) {
             if ($failWhenBalanceInsufficient) {
                 throw ValidationException::withMessages([
-                    'wallet' => 'الرصيد الحر غير كافٍ للانتقال إلى مستوى الضمان المختار.',
+                    'wallet' => __('الرصيد الحر غير كافٍ للانتقال إلى مستوى الضمان المختار.'),
                 ]);
             }
 
@@ -318,7 +318,7 @@ final class GuaranteeAutoUpgradeService
 
         if (! $wallet || (string) $wallet->status !== Wallet::STATUS_ACTIVE) {
             throw ValidationException::withMessages([
-                'wallet' => 'المحفظة غير موجودة أو غير مفعلة.',
+                'wallet' => __('المحفظة غير موجودة أو غير مفعلة.'),
             ]);
         }
 

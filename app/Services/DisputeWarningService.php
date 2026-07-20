@@ -47,7 +47,7 @@ class DisputeWarningService
                 'sent_to_user_id' => $userId,
                 'warning_no' => $warningNo,
                 'channel' => $channel,
-                'message' => 'تنبيه: يوجد نزاع مفتوح يحتاج إلى حل بالتراضي قبل انتهاء مهلة 15 يوم.',
+                'message' => __('تنبيه: يوجد نزاع مفتوح يحتاج إلى حل بالتراضي قبل انتهاء مهلة 15 يوم.'),
                 'sent_at' => now(),
             ]);
         }

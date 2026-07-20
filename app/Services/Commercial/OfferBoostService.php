@@ -23,13 +23,13 @@ final class OfferBoostService
 
             if ((string) $offer->source_type === CommercialOffer::SOURCE_ALLOCATION) {
                 throw ValidationException::withMessages([
-                    'offer_id' => 'لا يمكن تفعيل Boost لعروض allocation لأنها تدار من نظام الحصص.',
+                    'offer_id' => __('لا يمكن تفعيل Boost لعروض allocation لأنها تدار من نظام الحصص.'),
                 ]);
             }
 
             if ((string) $offer->status !== CommercialOffer::STATUS_ACTIVE) {
                 throw ValidationException::withMessages([
-                    'offer_id' => 'يجب أن يكون العرض Active قبل تفعيل Boost.',
+                    'offer_id' => __('يجب أن يكون العرض Active قبل تفعيل Boost.'),
                 ]);
             }
 

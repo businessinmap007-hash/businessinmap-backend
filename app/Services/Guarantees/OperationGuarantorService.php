@@ -86,13 +86,13 @@ class OperationGuarantorService
             $guarantee = $this->coverage->activeGuarantee($requester, GuaranteeLevel::TARGET_CLIENT);
 
             if (! $guarantee || ! $guarantee->isUsable()) {
-                throw ValidationException::withMessages(['guarantee' => 'لا تملك ضمانًا نشطًا صالحًا.']);
+                throw ValidationException::withMessages(['guarantee' => __('لا تملك ضمانًا نشطًا صالحًا.')]);
             }
 
             $guarantee = UserGuarantee::query()->whereKey($guarantee->id)->lockForUpdate()->first();
 
             if (! $guarantee->covers($amount)) {
-                throw ValidationException::withMessages(['guarantee' => 'سعة ضمانك لا تكفي لتجميد هذه القيمة.']);
+                throw ValidationException::withMessages(['guarantee' => __('سعة ضمانك لا تكفي لتجميد هذه القيمة.')]);
             }
 
             $guarantee->used_coverage_amount = round((float) $guarantee->used_coverage_amount + $amount, 2);
@@ -120,13 +120,13 @@ class OperationGuarantorService
     public function invite(string $operationType, int $operationId, User $requester, User $friend): OperationGuarantor
     {
         if ((int) $friend->id === (int) $requester->id) {
-            throw ValidationException::withMessages(['guarantor' => 'لا يمكنك ضمان نفسك.']);
+            throw ValidationException::withMessages(['guarantor' => __('لا يمكنك ضمان نفسك.')]);
         }
 
         $guarantee = $this->coverage->activeGuarantee($friend, GuaranteeLevel::TARGET_CLIENT);
 
         if (! $guarantee || ! $guarantee->isUsable()) {
-            throw ValidationException::withMessages(['guarantor' => 'الصديق لا يملك ضمانًا نشطًا صالحًا.']);
+            throw ValidationException::withMessages(['guarantor' => __('الصديق لا يملك ضمانًا نشطًا صالحًا.')]);
         }
 
         $existing = OperationGuarantor::query()
@@ -166,21 +166,21 @@ class OperationGuarantorService
             }
 
             if ($row->status !== OperationGuarantor::STATUS_INVITED) {
-                throw ValidationException::withMessages(['guarantor' => 'لا يمكن قبول هذه الدعوة في حالتها الحالية.']);
+                throw ValidationException::withMessages(['guarantor' => __('لا يمكن قبول هذه الدعوة في حالتها الحالية.')]);
             }
 
             if ($amount <= 0) {
-                throw ValidationException::withMessages(['amount' => 'قيمة التغطية غير صالحة.']);
+                throw ValidationException::withMessages(['amount' => __('قيمة التغطية غير صالحة.')]);
             }
 
             $guarantee = UserGuarantee::query()->whereKey($row->user_guarantee_id)->lockForUpdate()->first();
 
             if (! $guarantee || ! $guarantee->isUsable()) {
-                throw ValidationException::withMessages(['guarantor' => 'ضمان الصديق لم يعد صالحًا.']);
+                throw ValidationException::withMessages(['guarantor' => __('ضمان الصديق لم يعد صالحًا.')]);
             }
 
             if (! $guarantee->covers($amount)) {
-                throw ValidationException::withMessages(['guarantor' => 'سعة ضمان الصديق لا تكفي لتغطية هذه القيمة.']);
+                throw ValidationException::withMessages(['guarantor' => __('سعة ضمان الصديق لا تكفي لتغطية هذه القيمة.')]);
             }
 
             // Freeze (not charge): lock the coverage by raising used_coverage_amount.

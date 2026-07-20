@@ -71,8 +71,7 @@ class OrderFeeSettlementService
             if ($balanceBefore < $fee) {
                 // Per product decision: block progression until the business tops up.
                 throw ValidationException::withMessages([
-                    'wallet' => 'رصيد محفظة النشاط لا يكفي لعمولة الخدمة (' . number_format($fee, 2)
-                        . '). يرجى شحن المحفظة لقبول الطلب.',
+                    'wallet' => __('رصيد محفظة النشاط لا يكفي لعمولة الخدمة (:fee). يرجى شحن المحفظة لقبول الطلب.', ['fee' => number_format($fee, 2)]),
                 ]);
             }
 

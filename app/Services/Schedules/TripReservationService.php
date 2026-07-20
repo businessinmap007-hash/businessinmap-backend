@@ -35,11 +35,11 @@ final class TripReservationService
         $units = max(1, $units);
 
         if ((string) $schedule->status !== TripSchedule::STATUS_ACTIVE) {
-            throw ValidationException::withMessages(['schedule' => 'خط التشغيل غير متاح للحجز.']);
+            throw ValidationException::withMessages(['schedule' => __('خط التشغيل غير متاح للحجز.')]);
         }
 
         if ((int) $schedule->business_id === (int) $client->id) {
-            throw ValidationException::withMessages(['schedule' => 'لا يمكنك حجز خط تشغيل تملكه.']);
+            throw ValidationException::withMessages(['schedule' => __('لا يمكنك حجز خط تشغيل تملكه.')]);
         }
 
         $reservation = DB::transaction(function () use ($client, $schedule, $units, $notes) {
@@ -138,7 +138,7 @@ final class TripReservationService
 
         if ($held + $units > (int) $locked->capacity) {
             throw ValidationException::withMessages([
-                'units' => 'السعة المتاحة لا تكفي لهذا الحجز.',
+                'units' => __('السعة المتاحة لا تكفي لهذا الحجز.'),
             ]);
         }
     }
@@ -147,7 +147,7 @@ final class TripReservationService
     public function confirm(TripReservation $reservation): TripReservation
     {
         if ($reservation->status !== TripReservation::STATUS_PENDING) {
-            throw ValidationException::withMessages(['status' => 'لا يمكن تأكيد هذا الحجز في حالته الحالية.']);
+            throw ValidationException::withMessages(['status' => __('لا يمكن تأكيد هذا الحجز في حالته الحالية.')]);
         }
 
         $reservation->update(['status' => TripReservation::STATUS_CONFIRMED]);
@@ -165,7 +165,7 @@ final class TripReservationService
     public function complete(TripReservation $reservation): TripReservation
     {
         if ($reservation->status !== TripReservation::STATUS_CONFIRMED) {
-            throw ValidationException::withMessages(['status' => 'لا يمكن إكمال حجز غير مؤكد.']);
+            throw ValidationException::withMessages(['status' => __('لا يمكن إكمال حجز غير مؤكد.')]);
         }
 
         $result = DB::transaction(function () use ($reservation) {
@@ -201,7 +201,7 @@ final class TripReservationService
             TripReservation::STATUS_CONFIRMED,
             TripReservation::STATUS_BLOCKED,
         ], true)) {
-            throw ValidationException::withMessages(['status' => 'لا يمكن إلغاء هذا الحجز في حالته الحالية.']);
+            throw ValidationException::withMessages(['status' => __('لا يمكن إلغاء هذا الحجز في حالته الحالية.')]);
         }
 
         // Only a real, confirmed in-app dealing leaves a cancel on reputation.

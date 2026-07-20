@@ -160,10 +160,10 @@ final class GuaranteeOperationCoverageService
     private function messageForReason(string $reason): string
     {
         return match ($reason) {
-            'missing_guarantee' => 'لا يوجد ضمان مفعل لهذه العملية.',
-            'guarantee_not_usable' => 'الضمان الحالي غير قابل للاستخدام.',
-            'insufficient_coverage' => 'قيمة التغطية المتاحة لا تكفي لهذه العملية.',
-            default => 'لا يمكن تغطية هذه العملية بالضمان الحالي.',
+            'missing_guarantee' => __('لا يوجد ضمان مفعل لهذه العملية.'),
+            'guarantee_not_usable' => __('الضمان الحالي غير قابل للاستخدام.'),
+            'insufficient_coverage' => __('قيمة التغطية المتاحة لا تكفي لهذه العملية.'),
+            default => __('لا يمكن تغطية هذه العملية بالضمان الحالي.'),
         };
     }
 }

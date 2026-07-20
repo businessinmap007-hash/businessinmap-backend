@@ -134,7 +134,7 @@ class CustomerCartService
                 ->first();
 
             if (! $cart || $cart->items()->count() === 0) {
-                throw ValidationException::withMessages(['cart' => 'السلة فارغة.']);
+                throw ValidationException::withMessages(['cart' => __('السلة فارغة.')]);
             }
 
             $this->placeOrder($cart, $data);
@@ -348,7 +348,7 @@ class CustomerCartService
         $participant = $this->participantOrFail($hostId, $orderId);
 
         if (! $participant->isHost()) {
-            abort(403, 'المضيف فقط يمكنه إتمام الطلب.');
+            abort(403, __('المضيف فقط يمكنه إتمام الطلب.'));
         }
 
         return DB::transaction(function () use ($orderId, $data) {
@@ -359,7 +359,7 @@ class CustomerCartService
                 ->findOrFail($orderId);
 
             if ($cart->items()->count() === 0) {
-                throw ValidationException::withMessages(['cart' => 'السلة فارغة.']);
+                throw ValidationException::withMessages(['cart' => __('السلة فارغة.')]);
             }
 
             $this->placeOrder($cart, $data);
@@ -374,7 +374,7 @@ class CustomerCartService
         $participant = $this->participantOrFail($userId, $orderId);
 
         if ($participant->isHost()) {
-            abort(422, 'المضيف لا يمكنه المغادرة.');
+            abort(422, __('المضيف لا يمكنه المغادرة.'));
         }
 
         DB::transaction(function () use ($userId, $orderId, $participant) {
@@ -398,7 +398,7 @@ class CustomerCartService
         $participant = $this->participantOrFail($hostId, $orderId);
 
         if (! $participant->isHost()) {
-            abort(403, 'المضيف فقط يمكنه إلغاء السلة.');
+            abort(403, __('المضيف فقط يمكنه إلغاء السلة.'));
         }
 
         $cart = Order::query()
@@ -407,7 +407,7 @@ class CustomerCartService
             ->find($orderId);
 
         if (! $cart) {
-            abort(404, 'السلة غير موجودة أو تم إتمامها.');
+            abort(404, __('السلة غير موجودة أو تم إتمامها.'));
         }
 
         // Snapshot the members (everyone but the host) before we delete the rows.
@@ -548,7 +548,7 @@ class CustomerCartService
         [$businessId, $offeringType, $price, $menuId, $sizeId, $addons] = $resolved;
 
         if ((int) $cart->business_id !== (int) $businessId) {
-            throw ValidationException::withMessages(['offering_id' => 'هذا العرض لا يخص نشاط هذه السلة.']);
+            throw ValidationException::withMessages(['offering_id' => __('هذا العرض لا يخص نشاط هذه السلة.')]);
         }
 
         $signature = $this->lineSignature($sizeId, $addons, $addedBy);
@@ -577,13 +577,13 @@ class CustomerCartService
         $type = self::KINDS[$kind] ?? null;
 
         if ($type === null) {
-            throw ValidationException::withMessages(['kind' => 'نوع العرض غير معروف.']);
+            throw ValidationException::withMessages(['kind' => __('نوع العرض غير معروف.')]);
         }
 
         if ($type === BusinessCatalogListing::class) {
             $listing = BusinessCatalogListing::query()->where('is_active', 1)->find($offeringId);
             if (! $listing) {
-                throw ValidationException::withMessages(['offering_id' => 'المنتج غير متاح.']);
+                throw ValidationException::withMessages(['offering_id' => __('المنتج غير متاح.')]);
             }
 
             return [(int) $listing->business_id, $type, (float) $listing->price, null, null, null];
@@ -591,7 +591,7 @@ class CustomerCartService
 
         $menu = MenuItem::query()->where('is_active', 1)->find($offeringId);
         if (! $menu) {
-            throw ValidationException::withMessages(['offering_id' => 'الصنف غير متاح.']);
+            throw ValidationException::withMessages(['offering_id' => __('الصنف غير متاح.')]);
         }
 
         $base = (float) $menu->base_price;
@@ -605,7 +605,7 @@ class CustomerCartService
                 ->find((int) $options['size_id']);
 
             if (! $variant) {
-                throw ValidationException::withMessages(['size_id' => 'الحجم المختار غير متاح.']);
+                throw ValidationException::withMessages(['size_id' => __('الحجم المختار غير متاح.')]);
             }
 
             $unit = $variant->resolvePrice($base);
@@ -655,7 +655,7 @@ class CustomerCartService
             ->get();
 
         if ($rows->count() !== count($wanted)) {
-            throw ValidationException::withMessages(['extras' => 'إحدى الإضافات المختارة غير متاحة.']);
+            throw ValidationException::withMessages(['extras' => __('إحدى الإضافات المختارة غير متاحة.')]);
         }
 
         return $rows->sortBy('id')->map(function (MenuItemExtra $x) use ($wanted) {
@@ -706,7 +706,7 @@ class CustomerCartService
             ->first();
 
         if (! $participant) {
-            abort(403, 'لست مشاركاً في هذه السلة.');
+            abort(403, __('لست مشاركاً في هذه السلة.'));
         }
 
         return $participant;
@@ -719,11 +719,11 @@ class CustomerCartService
 
         $line = OrderItem::query()->where('order_id', $orderId)->find($itemId);
         if (! $line) {
-            abort(404, 'السطر غير موجود.');
+            abort(404, __('السطر غير موجود.'));
         }
 
         if (! $participant->isHost() && (int) $line->added_by_user_id !== $userId) {
-            abort(403, 'لا يمكنك تعديل طلب مشارك آخر.');
+            abort(403, __('لا يمكنك تعديل طلب مشارك آخر.'));
         }
 
         return $line;

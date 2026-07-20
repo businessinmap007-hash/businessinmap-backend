@@ -65,7 +65,7 @@ class DeliveryDispatchService
     {
         $driver = DeliveryDriver::query()->where('user_id', $userId)->first();
         if (! $driver) {
-            abort(403, 'لست مسجّلاً كموصّل.');
+            abort(403, __('لست مسجّلاً كموصّل.'));
         }
 
         return $driver;
@@ -96,17 +96,17 @@ class DeliveryDispatchService
     {
         $driver = $this->driverOrFail($userId);
         if (! $driver->is_active) {
-            abort(403, 'حسابك كموصّل غير مفعّل.');
+            abort(403, __('حسابك كموصّل غير مفعّل.'));
         }
 
         $order = DB::transaction(function () use ($driver, $orderId) {
             $order = Order::query()->lockForUpdate()->find($orderId);
 
             if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
-                abort(404, 'طلب التوصيل غير موجود.');
+                abort(404, __('طلب التوصيل غير موجود.'));
             }
             if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id) {
-                abort(409, 'هذا الطلب غير متاح للاستلام.');
+                abort(409, __('هذا الطلب غير متاح للاستلام.'));
             }
 
             $order->delivery_driver_id = $driver->id;
@@ -132,10 +132,10 @@ class DeliveryDispatchService
     public function issuePickupToken(Order $order, int $businessUserId): string
     {
         if ((int) $order->business_id !== $businessUserId) {
-            abort(403, 'لست صاحب هذا الطلب.');
+            abort(403, __('لست صاحب هذا الطلب.'));
         }
         if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
-            throw ValidationException::withMessages(['order' => 'الطلب غير جاهز لتسليمه للموصّل.']);
+            throw ValidationException::withMessages(['order' => __('الطلب غير جاهز لتسليمه للموصّل.')]);
         }
 
         if (! $order->pickup_token) {
@@ -152,15 +152,15 @@ class DeliveryDispatchService
         return DB::transaction(function () use ($token, $byUserId) {
             $order = Order::query()->where('pickup_token', $token)->lockForUpdate()->first();
             if (! $order) {
-                abort(404, 'رمز الاستلام غير صالح أو تم استخدامه.');
+                abort(404, __('رمز الاستلام غير صالح أو تم استخدامه.'));
             }
 
             $driver = $order->deliveryDriver;
             if (! $driver || (int) $driver->user_id !== $byUserId) {
-                abort(403, 'هذا الطلب غير مُسنَد إليك.');
+                abort(403, __('هذا الطلب غير مُسنَد إليك.'));
             }
             if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
-                abort(409, 'لا يمكن تأكيد الاستلام في هذه المرحلة.');
+                abort(409, __('لا يمكن تأكيد الاستلام في هذه المرحلة.'));
             }
 
             $order->delivery_stage = self::STAGE_PICKED_UP;
@@ -182,10 +182,10 @@ class DeliveryDispatchService
 
         $driver = $order->deliveryDriver;
         if (! $driver || (int) $driver->user_id !== $driverUserId) {
-            abort(403, 'هذا الطلب غير مُسنَد إليك.');
+            abort(403, __('هذا الطلب غير مُسنَد إليك.'));
         }
         if ((string) $order->delivery_stage !== self::STAGE_PICKED_UP) {
-            throw ValidationException::withMessages(['order' => 'لم يتم استلام الطلب من المطعم بعد.']);
+            throw ValidationException::withMessages(['order' => __('لم يتم استلام الطلب من المطعم بعد.')]);
         }
 
         if (! $order->delivery_token) {
@@ -205,13 +205,13 @@ class DeliveryDispatchService
         $order = DB::transaction(function () use ($token, $byUserId) {
             $order = Order::query()->where('delivery_token', $token)->lockForUpdate()->first();
             if (! $order) {
-                abort(404, 'رمز التسليم غير صالح أو تم استخدامه.');
+                abort(404, __('رمز التسليم غير صالح أو تم استخدامه.'));
             }
             if ((int) $order->user_id !== $byUserId) {
-                abort(403, 'هذا الطلب ليس طلبك.');
+                abort(403, __('هذا الطلب ليس طلبك.'));
             }
             if ((string) $order->delivery_stage !== self::STAGE_PICKED_UP) {
-                abort(409, 'لا يمكن تأكيد التسليم في هذه المرحلة.');
+                abort(409, __('لا يمكن تأكيد التسليم في هذه المرحلة.'));
             }
 
             $driver = $order->deliveryDriver;

@@ -39,7 +39,7 @@ class BookableAvailabilityService
             return $this->result(
                 ok: true,
                 available: false,
-                reason: 'العنصر غير نشط',
+                reason: __('العنصر غير نشط'),
                 code: 'item_inactive',
                 item: $item,
                 start: $start,
@@ -54,7 +54,7 @@ class BookableAvailabilityService
             return $this->result(
                 ok: true,
                 available: false,
-                reason: 'العنصر غير متاح في الفترة المحددة',
+                reason: __('العنصر غير متاح في الفترة المحددة'),
                 code: 'blocked_slot_conflict',
                 item: $item,
                 start: $start,

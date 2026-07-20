@@ -411,11 +411,11 @@ class WalletFeeService
             ->find($userId);
 
         if (! $user) {
-            throw new RuntimeException("المستخدم رقم {$userId} غير موجود.");
+            throw new RuntimeException(__('المستخدم رقم :id غير موجود.', ['id' => $userId]));
         }
 
         if (! $this->canAutoChargeFees($user)) {
-            throw new RuntimeException("المستخدم رقم {$userId} لم يوافق على خصم رسوم الخدمة تلقائيًا.");
+            throw new RuntimeException(__('المستخدم رقم :id لم يوافق على خصم رسوم الخدمة تلقائيًا.', ['id' => $userId]));
         }
 
         $wallet = $this->getActiveWalletForUser($userId);
@@ -425,12 +425,14 @@ class WalletFeeService
         $amount = round((float) $amount, 2);
 
         if ($amount <= 0) {
-            throw new RuntimeException('قيمة الرسوم غير صالحة.');
+            throw new RuntimeException(__('قيمة الرسوم غير صالحة.'));
         }
 
         if ($balanceBefore < $amount) {
             throw new RuntimeException(
-                "رصيد المستخدم رقم {$userId} غير كافٍ لتطبيق رسوم {$payer} على الحجز #{$booking->id}"
+                __('رصيد المستخدم رقم :id غير كافٍ لتطبيق رسوم :payer على الحجز #:booking', [
+                    'id' => $userId, 'payer' => $payer, 'booking' => $booking->id,
+                ])
             );
         }
 
@@ -564,11 +566,11 @@ class WalletFeeService
             ->first();
 
         if (! $wallet) {
-            throw new RuntimeException("لا توجد محفظة للمستخدم رقم {$userId}");
+            throw new RuntimeException(__('لا توجد محفظة للمستخدم رقم :id', ['id' => $userId]));
         }
 
         if ((string) $wallet->status === 'blocked') {
-            throw new RuntimeException("محفظة المستخدم رقم {$userId} محظورة");
+            throw new RuntimeException(__('محفظة المستخدم رقم :id محظورة', ['id' => $userId]));
         }
 
         return $wallet;

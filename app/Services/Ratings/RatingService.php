@@ -137,17 +137,17 @@ final class RatingService
         ?string $comment = null
     ): array {
         if (! in_array($operationType, [RatingOutcomeEvent::OP_BOOKING, RatingOutcomeEvent::OP_ORDER], true)) {
-            return $this->reviewError(422, 'نوع العملية غير صالح.');
+            return $this->reviewError(422, __('نوع العملية غير صالح.'));
         }
 
         if ($stars < 1 || $stars > 5) {
-            return $this->reviewError(422, 'التقييم يجب أن يكون بين 1 و5 نجوم.');
+            return $this->reviewError(422, __('التقييم يجب أن يكون بين 1 و5 نجوم.'));
         }
 
         $operation = $this->resolveOperation($operationType, $operationId);
 
         if (! $operation) {
-            return $this->reviewError(404, 'العملية غير موجودة.');
+            return $this->reviewError(404, __('العملية غير موجودة.'));
         }
 
         $businessId = (int) $operation->business_id;
@@ -156,12 +156,12 @@ final class RatingService
 
         // Must be a real, finished dealing.
         if ((string) $operation->status !== 'completed') {
-            return $this->reviewError(409, 'لا يمكن التقييم إلا بعد اكتمال العملية.');
+            return $this->reviewError(409, __('لا يمكن التقييم إلا بعد اكتمال العملية.'));
         }
 
         // The rater must have actually been part of this operation.
         if (! in_array($raterId, [$businessId, $clientId], true)) {
-            return $this->reviewError(403, 'لا يمكنك تقييم عملية لست طرفاً فيها.');
+            return $this->reviewError(403, __('لا يمكنك تقييم عملية لست طرفاً فيها.'));
         }
 
         // The ratee is the OTHER party, rated in the role they acted in.
@@ -174,7 +174,7 @@ final class RatingService
         }
 
         if ($rateeId <= 0 || $rateeId === $raterId) {
-            return $this->reviewError(422, 'لا يوجد طرف آخر لتقييمه في هذه العملية.');
+            return $this->reviewError(422, __('لا يوجد طرف آخر لتقييمه في هذه العملية.'));
         }
 
         $review = DB::transaction(function () use ($operationType, $operationId, $raterId, $rateeId, $rateeRole, $stars, $comment) {

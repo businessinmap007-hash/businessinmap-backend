@@ -55,7 +55,7 @@ class ServiceExecutionEngine
 
         if (! $business) {
             throw ValidationException::withMessages([
-                'business_id' => 'البزنس غير موجود أو غير صحيح.',
+                'business_id' => __('البزنس غير موجود أو غير صحيح.'),
             ]);
         }
 
@@ -74,7 +74,7 @@ class ServiceExecutionEngine
 
         if (! $service) {
             throw ValidationException::withMessages([
-                'service_id' => 'الخدمة غير موجودة أو غير مفعلة.',
+                'service_id' => __('الخدمة غير موجودة أو غير مفعلة.'),
             ]);
         }
 
@@ -98,8 +98,8 @@ class ServiceExecutionEngine
         if (! $businessPrice) {
             throw ValidationException::withMessages([
                 'service_id' => $itemType
-                    ? "لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر ({$itemType})."
-                    : 'هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.',
+                    ? __('لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر (:type).', ['type' => $itemType])
+                    : __('هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.'),
             ]);
         }
 
@@ -287,19 +287,19 @@ class ServiceExecutionEngine
         $messages = [];
 
         if ((bool) data_get($depositPolicy, 'client_guarantee_covered', false) && ! $clientDepositCoveredByGuarantee && $clientDepositRequired > 0) {
-            $messages[] = 'ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.';
+            $messages[] = __('ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.');
         }
 
         if ((bool) data_get($depositPolicy, 'business_guarantee_covered', false) && ! $businessDepositCoveredByGuarantee && $businessDepositRequired > 0) {
-            $messages[] = 'ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.';
+            $messages[] = __('ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.');
         }
 
         if (! $clientReady && $clientRequiredTotal > 0) {
-            $messages[] = 'رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.';
+            $messages[] = __('رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
         }
 
         if (! $businessReady && $businessRequiredTotal > 0) {
-            $messages[] = 'رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.';
+            $messages[] = __('رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
         }
 
         // When the client can't proceed, offer concrete ways to close the gap:
@@ -383,7 +383,7 @@ class ServiceExecutionEngine
 
         if (! ($preview['ok'] ?? false)) {
             throw ValidationException::withMessages([
-                'balance' => $preview['messages'] ?: ['لا يمكن بدء التنفيذ بسبب عدم جاهزية الرصيد.'],
+                'balance' => $preview['messages'] ?: [__('لا يمكن بدء التنفيذ بسبب عدم جاهزية الرصيد.')],
             ]);
         }
 
@@ -505,7 +505,7 @@ class ServiceExecutionEngine
 
             if (! $booking->canMoveToInProgress()) {
                 throw ValidationException::withMessages([
-                    'status' => 'لا يمكن بدء التنفيذ من الحالة الحالية.',
+                    'status' => __('لا يمكن بدء التنفيذ من الحالة الحالية.'),
                 ]);
             }
 
@@ -516,7 +516,7 @@ class ServiceExecutionEngine
 
             if (! $clientConfirmed || ! $businessConfirmed) {
                 throw ValidationException::withMessages([
-                    'status' => 'يجب تأكيد الطرفين قبل بدء التنفيذ.',
+                    'status' => __('يجب تأكيد الطرفين قبل بدء التنفيذ.'),
                 ]);
             }
 
@@ -545,7 +545,7 @@ class ServiceExecutionEngine
 
                         if ($holdAmount <= 0) {
                             throw ValidationException::withMessages([
-                                'deposit' => 'قيمة Wallet Hold المطلوبة غير صالحة.',
+                                'deposit' => __('قيمة Wallet Hold المطلوبة غير صالحة.'),
                             ]);
                         }
 
@@ -558,13 +558,13 @@ class ServiceExecutionEngine
 
                         if (! $deposit->isFrozen()) {
                             throw ValidationException::withMessages([
-                                'deposit' => 'تعذر تجميد الـ Deposit تلقائيًا. راجع حالة الـ Deposit الحالية.',
+                                'deposit' => __('تعذر تجميد الـ Deposit تلقائيًا. راجع حالة الـ Deposit الحالية.'),
                             ]);
                         }
                     }
                 } elseif (! $deposit && $externalRequired) {
                     throw ValidationException::withMessages([
-                        'deposit' => 'يجب إنشاء سجل العربون الخارجي واعتماده قبل بدء التنفيذ.',
+                        'deposit' => __('يجب إنشاء سجل العربون الخارجي واعتماده قبل بدء التنفيذ.'),
                     ]);
                 }
 
@@ -573,7 +573,7 @@ class ServiceExecutionEngine
 
                     if (! $deposit || (string) ($deposit->external_deposit_status ?? '') !== 'verified') {
                         throw ValidationException::withMessages([
-                            'external_deposit' => 'يجب اعتماد العربون الخارجي قبل بدء التنفيذ.',
+                            'external_deposit' => __('يجب اعتماد العربون الخارجي قبل بدء التنفيذ.'),
                         ]);
                     }
                 }
@@ -1005,7 +1005,7 @@ class ServiceExecutionEngine
 
         if (! $bookable) {
             throw ValidationException::withMessages([
-                'bookable_id' => 'العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.',
+                'bookable_id' => __('العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.'),
             ]);
         }
 

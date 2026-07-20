@@ -102,12 +102,12 @@ final class PushSettingsService
         $data = json_decode($raw, true);
 
         if (! is_array($data)) {
-            return 'ملف JSON غير صالح — تأكّد من لصق محتوى ملف الحساب الخدمي كاملًا.';
+            return __('ملف JSON غير صالح — تأكّد من لصق محتوى ملف الحساب الخدمي كاملًا.');
         }
 
         foreach (self::REQUIRED_JSON_KEYS as $required) {
             if (empty($data[$required])) {
-                return "ملف الحساب الخدمي ينقصه الحقل: {$required}.";
+                return __('ملف الحساب الخدمي ينقصه الحقل: :field.', ['field' => $required]);
             }
         }
 

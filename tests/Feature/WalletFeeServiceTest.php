@@ -95,7 +95,13 @@ class WalletFeeServiceTest extends TestCase
             $this->charge(10);
             $this->fail('charging without consent must throw');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('يوافق', $e->getMessage());
+            // Compared through __() rather than a hardcoded Arabic substring:
+            // the message is now translated, so a literal would only hold in
+            // whichever locale the suite happens to run under.
+            $this->assertSame(
+                __('المستخدم رقم :id لم يوافق على خصم رسوم الخدمة تلقائيًا.', ['id' => $this->userId]),
+                $e->getMessage()
+            );
         }
 
         $this->assertEqualsWithDelta($before, $this->balance(), 0.001, 'no consent must never move money');
@@ -127,7 +133,12 @@ class WalletFeeServiceTest extends TestCase
             $this->charge(10);
             $this->fail('charging more than the balance must throw');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('غير كافٍ', $e->getMessage());
+            $this->assertStringContainsString(
+                __('رصيد المستخدم رقم :id غير كافٍ لتطبيق رسوم :payer على الحجز #:booking', [
+                    'id' => $this->userId, 'payer' => 'client', 'booking' => $this->booking->id,
+                ]),
+                $e->getMessage()
+            );
         }
 
         $this->assertEqualsWithDelta(5, $this->balance(), 0.001, 'balance must be intact after a refused charge');

@@ -50,7 +50,7 @@ class BookingDepositService
 
         if (! $deposit) {
             throw ValidationException::withMessages([
-                'deposit' => 'لا يوجد Deposit لهذا الحجز.',
+                'deposit' => __('لا يوجد Deposit لهذا الحجز.'),
             ]);
         }
 
@@ -66,7 +66,7 @@ class BookingDepositService
     {
         if ($holdAmount <= 0 && ! ($policy['external_deposit_required'] ?? false)) {
             throw ValidationException::withMessages([
-                'deposit' => 'قيمة الـ Deposit غير صالحة.',
+                'deposit' => __('قيمة الـ Deposit غير صالحة.'),
             ]);
         }
 
@@ -80,7 +80,7 @@ class BookingDepositService
             }
 
             throw ValidationException::withMessages([
-                'deposit' => 'يوجد Deposit غير نهائي لكنه غير مجمد. لا يمكن بدء التنفيذ قبل معالجة حالة الـ Deposit.',
+                'deposit' => __('يوجد Deposit غير نهائي لكنه غير مجمد. لا يمكن بدء التنفيذ قبل معالجة حالة الـ Deposit.'),
             ]);
         }
 
@@ -92,7 +92,7 @@ class BookingDepositService
 
         if ($total <= 0 && ! ($policy['external_deposit_required'] ?? false)) {
             throw ValidationException::withMessages([
-                'deposit' => 'لا توجد قيمة Wallet Hold أو External Deposit مطلوبة.',
+                'deposit' => __('لا توجد قيمة Wallet Hold أو External Deposit مطلوبة.'),
             ]);
         }
 
@@ -186,7 +186,7 @@ class BookingDepositService
 
         if (! in_array((string) $deposit->external_deposit_status, ['submitted', 'pending'], true)) {
             throw ValidationException::withMessages([
-                'external_deposit' => 'حالة العربون الخارجي لا تسمح بالاعتماد.',
+                'external_deposit' => __('حالة العربون الخارجي لا تسمح بالاعتماد.'),
             ]);
         }
 
@@ -219,7 +219,7 @@ class BookingDepositService
 
         if ($deposit->isFinal()) {
             throw ValidationException::withMessages([
-                'deposit' => 'لا يمكن فتح نزاع بعد إنهاء حالة الـ Deposit.',
+                'deposit' => __('لا يمكن فتح نزاع بعد إنهاء حالة الـ Deposit.'),
             ]);
         }
 

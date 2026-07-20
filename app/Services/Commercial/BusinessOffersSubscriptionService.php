@@ -62,7 +62,7 @@ final class BusinessOffersSubscriptionService
     {
         if ($sellerBusinessId <= 0) {
             throw ValidationException::withMessages([
-                'seller_business_id' => 'يجب تحديد البزنس صاحب العرض.',
+                'seller_business_id' => __('يجب تحديد البزنس صاحب العرض.'),
             ]);
         }
 
@@ -77,13 +77,13 @@ final class BusinessOffersSubscriptionService
 
         if (! $service) {
             throw ValidationException::withMessages([
-                'source_type' => 'خدمة العروض التجارية business_offers غير مفعلة في platform_services.',
+                'source_type' => __('خدمة العروض التجارية business_offers غير مفعلة في platform_services.'),
             ]);
         }
 
         if ((bool) ($rules['requires_subscription'] ?? true) && ! $this->businessSubscribed($sellerBusinessId, (int) $service->id)) {
             throw ValidationException::withMessages([
-                'seller_business_id' => 'هذا البزنس غير مشترك في خدمة العروض التجارية.',
+                'seller_business_id' => __('هذا البزنس غير مشترك في خدمة العروض التجارية.'),
             ]);
         }
 
@@ -104,7 +104,7 @@ final class BusinessOffersSubscriptionService
 
         if ($limit <= 0) {
             throw ValidationException::withMessages([
-                'status' => 'اشتراك العروض لا يسمح بأي عروض فعالة حاليًا.',
+                'status' => __('اشتراك العروض لا يسمح بأي عروض فعالة حاليًا.'),
             ]);
         }
 
@@ -112,7 +112,7 @@ final class BusinessOffersSubscriptionService
 
         if ($activeCount >= $limit) {
             throw ValidationException::withMessages([
-                'status' => "تم الوصول للحد الأقصى للعروض الفعالة لهذا الاشتراك ({$limit}).",
+                'status' => __('تم الوصول للحد الأقصى للعروض الفعالة لهذا الاشتراك (:limit).', ['limit' => $limit]),
             ]);
         }
     }

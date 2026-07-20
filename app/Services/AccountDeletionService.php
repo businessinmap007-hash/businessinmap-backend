@@ -87,14 +87,14 @@ class AccountDeletionService
         if ($user->isBanned()) {
             $blockers[] = [
                 'code' => 'banned',
-                'message' => 'الحساب موقوف نهائيًا ولا يمكن حذفه.',
+                'message' => __('الحساب موقوف نهائيًا ولا يمكن حذفه.'),
             ];
         }
 
         if ($this->treasury->isTreasury($id)) {
             $blockers[] = [
                 'code' => 'platform_account',
-                'message' => 'حساب المنصة لا يُحذف.',
+                'message' => __('حساب المنصة لا يُحذف.'),
             ];
         }
 
@@ -106,7 +106,7 @@ class AccountDeletionService
         if ($disputes > 0) {
             $blockers[] = [
                 'code' => 'open_dispute',
-                'message' => 'يوجد نزاع مفتوح. لا يمكن حذف الحساب حتى ينتهي النزاع.',
+                'message' => __('يوجد نزاع مفتوح. لا يمكن حذف الحساب حتى ينتهي النزاع.'),
                 'count' => $disputes,
             ];
         }
@@ -139,7 +139,7 @@ class AccountDeletionService
             if ($count > 0) {
                 $blockers[] = [
                     'code' => $code,
-                    'message' => 'يوجد عمليات معلقة يجب إنهاؤها أولًا.',
+                    'message' => __('يوجد عمليات معلقة يجب إنهاؤها أولًا.'),
                     'count' => $count,
                 ];
             }
@@ -155,7 +155,7 @@ class AccountDeletionService
         if ($guaranteeing > 0) {
             $blockers[] = [
                 'code' => 'guarantor_obligation',
-                'message' => 'أنت ضامن لعملية جارية لصديق. لا يمكن حذف الحساب حتى تنتهي.',
+                'message' => __('أنت ضامن لعملية جارية لصديق. لا يمكن حذف الحساب حتى تنتهي.'),
                 'count' => $guaranteeing,
             ];
         }
@@ -168,7 +168,7 @@ class AccountDeletionService
         if ($locked > 0) {
             $blockers[] = [
                 'code' => 'locked_balance',
-                'message' => 'يوجد مبلغ محجوز كعربون (' . number_format($locked, 2) . '). يجب إنهاء العملية المرتبطة به أولًا.',
+                'message' => __('يوجد مبلغ محجوز كعربون (:amount). يجب إنهاء العملية المرتبطة به أولًا.', ['amount' => number_format($locked, 2)]),
             ];
         }
 
@@ -218,7 +218,7 @@ class AccountDeletionService
         if ($availableAt->isFuture()) {
             return [
                 'allowed' => false,
-                'reason' => 'يجب مرور ' . $days . ' أيام على آخر عملية أو نزاع قبل تحويل الرصيد.',
+                'reason' => __('يجب مرور :days أيام على آخر عملية أو نزاع قبل تحويل الرصيد.', ['days' => $days]),
                 'available_at' => $availableAt->toIso8601String(),
             ];
         }
@@ -309,7 +309,7 @@ class AccountDeletionService
     public function restore(User $user): User
     {
         if ($user->anonymized_at !== null) {
-            throw new \RuntimeException('انتهت مهلة الاسترجاع ولا يمكن استعادة الحساب.');
+            throw new \RuntimeException(__('انتهت مهلة الاسترجاع ولا يمكن استعادة الحساب.'));
         }
 
         return DB::transaction(function () use ($user) {

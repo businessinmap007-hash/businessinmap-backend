@@ -71,7 +71,7 @@ final class TripScheduleValidator
 
             if (! $ownsParent) {
                 throw ValidationException::withMessages([
-                    'parent_trip_id' => 'الرحلة الأصلية غير موجودة أو ليست ملكك.',
+                    'parent_trip_id' => __('الرحلة الأصلية غير موجودة أو ليست ملكك.'),
                 ]);
             }
         }
@@ -79,11 +79,11 @@ final class TripScheduleValidator
         // Origin and destination must differ, on whichever axis anchors the leg.
         if ($isIntl) {
             if (! empty($data['origin_country_id']) && (int) $data['origin_country_id'] === (int) ($data['destination_country_id'] ?? 0)) {
-                throw ValidationException::withMessages(['destination_country_id' => 'دولة الوصول يجب أن تختلف عن دولة المصدر.']);
+                throw ValidationException::withMessages(['destination_country_id' => __('دولة الوصول يجب أن تختلف عن دولة المصدر.')]);
             }
         } else {
             if (! empty($data['origin_governorate_id']) && (int) $data['origin_governorate_id'] === (int) ($data['destination_governorate_id'] ?? 0)) {
-                throw ValidationException::withMessages(['destination_governorate_id' => 'محافظة الوصول يجب أن تختلف عن محافظة المصدر.']);
+                throw ValidationException::withMessages(['destination_governorate_id' => __('محافظة الوصول يجب أن تختلف عن محافظة المصدر.')]);
             }
         }
 
@@ -96,7 +96,7 @@ final class TripScheduleValidator
                 ->exists();
 
             if (! $ok) {
-                throw ValidationException::withMessages(['vehicle_type_id' => 'نوع المركبة غير صالح لخدمة الجدولة.']);
+                throw ValidationException::withMessages(['vehicle_type_id' => __('نوع المركبة غير صالح لخدمة الجدولة.')]);
             }
         }
 

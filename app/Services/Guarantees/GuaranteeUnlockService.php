@@ -42,13 +42,13 @@ class GuaranteeUnlockService
                 ->first();
 
             if (! $guarantee) {
-                throw ValidationException::withMessages(['guarantee' => 'لا يوجد ضمان نشط قابل للفكّ.']);
+                throw ValidationException::withMessages(['guarantee' => __('لا يوجد ضمان نشط قابل للفكّ.')]);
             }
 
             // Any coverage frozen for an active operation blocks the unlock.
             if (round((float) $guarantee->used_coverage_amount, 2) > 0) {
                 throw ValidationException::withMessages([
-                    'guarantee' => 'لا يمكن فكّ الضمان: جزء منه محجوز لعمليات جارية. أكمل أو أنهِ تلك العمليات أولًا.',
+                    'guarantee' => __('لا يمكن فكّ الضمان: جزء منه محجوز لعمليات جارية. أكمل أو أنهِ تلك العمليات أولًا.'),
                 ]);
             }
 
@@ -60,7 +60,7 @@ class GuaranteeUnlockService
 
             if ($activeAsGuarantor) {
                 throw ValidationException::withMessages([
-                    'guarantee' => 'لا يمكن فكّ الضمان: أنت ضامن لعملية صديق جارية.',
+                    'guarantee' => __('لا يمكن فكّ الضمان: أنت ضامن لعملية صديق جارية.'),
                 ]);
             }
 
@@ -69,7 +69,7 @@ class GuaranteeUnlockService
             $wallet = Wallet::query()->where('user_id', (int) $user->id)->lockForUpdate()->first();
 
             if (! $wallet || (string) $wallet->status !== 'active') {
-                throw ValidationException::withMessages(['wallet' => 'المحفظة غير موجودة أو غير مفعلة.']);
+                throw ValidationException::withMessages(['wallet' => __('المحفظة غير موجودة أو غير مفعلة.')]);
             }
 
             $balanceBefore = round((float) $wallet->balance, 2);
@@ -78,7 +78,7 @@ class GuaranteeUnlockService
             if ($amount > 0) {
                 if ($lockedBefore + 0.001 < $amount) {
                     throw ValidationException::withMessages([
-                        'wallet' => 'الرصيد المحجوز في المحفظة لا يكفي لعكس قيمة الضمان.',
+                        'wallet' => __('الرصيد المحجوز في المحفظة لا يكفي لعكس قيمة الضمان.'),
                     ]);
                 }
 

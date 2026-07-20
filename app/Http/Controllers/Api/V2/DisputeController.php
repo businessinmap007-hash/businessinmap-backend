@@ -109,6 +109,10 @@ final class DisputeController extends Controller
             // `cooperation` timestamps. Resolved here rather than in the
             // resource because it costs a query and the list must not pay it.
             'my_side' => app(DisputeService::class)->sideOf($dispute, (int) $request->user()->id),
+            // So the app can show the price and offer a top-up BEFORE the user
+            // taps a button that will refuse them.
+            'arbitration' => app(DisputeService::class)
+                ->arbitrationReadiness($dispute, (int) $request->user()->id),
         ]);
     }
 

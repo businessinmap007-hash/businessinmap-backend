@@ -2168,6 +2168,10 @@ paths:
       description: >-
         ONE party is enough — requiring both to agree would let a stonewaller
         block arbitration forever, which is the exact situation it exists for.
+        The asker must hold the session fee in their wallet (see
+        `arbitration.fee` on GET /disputes/{dispute}); the RESPONDENT's balance
+        is deliberately not checked, or emptying a wallet would block every
+        request. Escalation by deadline is never gated on any balance.
         The asker must have declared cooperation first: you have to show up
         before you can demand a judge, and that also stops a dispute being
         opened and escalated in the same breath. Unlike expiry, this does NOT

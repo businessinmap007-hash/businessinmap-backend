@@ -345,6 +345,103 @@ class DisputeApiTest extends TestCase
         $this->assertSame((int) $this->client->id, (int) data_get($dispute->meta, 'escalation_requested_by'));
     }
 
+    // ───────── paying for what you ask for ─────────
+
+    private function setSessionFee(int $amount): void
+    {
+        \App\Models\DisputeFee::query()->updateOrCreate(
+            ['platform_service_id' => null],
+            ['amount' => $amount, 'is_active' => true]
+        );
+    }
+
+    private function setBalance(int $userId, float $balance): void
+    {
+        \App\Models\Wallet::query()->where('user_id', $userId)->update(['balance' => $balance]);
+    }
+
+    /**
+     * You may only ask for a paid service you could pay for. The fee falls on
+     * whoever loses, and the asker is the one choosing to create that cost.
+     */
+    public function test_asking_for_arbitration_needs_the_session_fee_in_the_wallet(): void
+    {
+        $this->setSessionFee(200);
+        $this->setBalance((int) $this->booking->user_id, 50);
+
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('balance');
+
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, Dispute::findOrFail($id)->status);
+
+        $this->setBalance((int) $this->booking->user_id, 500);
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertOk()
+            ->assertJsonPath('data.status', Dispute::STATUS_UNDER_REVIEW);
+    }
+
+    /**
+     * Deliberately NOT gated on the other side's balance: refusing because the
+     * RESPONDENT is broke would let anyone dodge arbitration by emptying their
+     * wallet — the stonewalling this path exists to defeat.
+     */
+    public function test_a_broke_respondent_cannot_block_the_request(): void
+    {
+        $this->setSessionFee(200);
+        $this->setBalance((int) $this->booking->user_id, 500);
+        $this->setBalance((int) $this->booking->business_id, 0);
+
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+        $this->postJson("/api/v2/disputes/{$id}/cooperate")->assertOk();
+
+        $this->postJson("/api/v2/disputes/{$id}/request-arbitration")
+            ->assertOk()
+            ->assertJsonPath('data.status', Dispute::STATUS_UNDER_REVIEW);
+    }
+
+    /** The price and the shortfall are readable before the button is tapped. */
+    public function test_the_price_is_shown_before_asking(): void
+    {
+        $this->setSessionFee(200);
+        $this->setBalance((int) $this->booking->user_id, 50);
+
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        $this->getJson("/api/v2/disputes/{$id}")
+            ->assertOk()
+            ->assertJsonPath('arbitration.fee', 200)
+            ->assertJsonPath('arbitration.balance', 50)
+            ->assertJsonPath('arbitration.sufficient', false);
+    }
+
+    /**
+     * Time is not a purchase. An expired window escalates whatever anyone's
+     * balance is — nobody chose that cost, so nobody can be priced out of it.
+     */
+    public function test_the_deadline_escalates_a_penniless_dispute_anyway(): void
+    {
+        $this->setSessionFee(200);
+        $this->setBalance((int) $this->booking->user_id, 0);
+        $this->setBalance((int) $this->booking->business_id, 0);
+
+        Sanctum::actingAs($this->client);
+        $id = $this->openDispute();
+
+        Dispute::query()->whereKey($id)->update(['mutual_resolution_deadline_at' => now()->subDay()]);
+
+        app(\App\Services\DisputeService::class)->escalateExpired();
+
+        $this->assertSame(Dispute::STATUS_UNDER_REVIEW, Dispute::findOrFail($id)->status);
+    }
+
     /** You have to show up before you can demand a judge. */
     public function test_asking_before_declaring_cooperation_is_refused(): void
     {

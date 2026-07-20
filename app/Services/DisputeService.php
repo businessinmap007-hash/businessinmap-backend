@@ -7,9 +7,11 @@ use App\Models\ArbitrationSession;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\DisputeFee;
 use App\Models\OperationGuarantor;
 use App\Models\PlatformService;
 use App\Models\Thread;
+use App\Models\Wallet;
 use App\Models\ThreadParticipant;
 use App\Services\Guarantees\OperationGuarantorService;
 use App\Services\Notifications\InAppNotificationService;
@@ -194,6 +196,33 @@ class DisputeService
         );
 
         return $dispute;
+    }
+
+    /**
+     * Can this party afford to ask for a ruling, and what does it cost?
+     *
+     * Only the session fee is checked. A fine is not a certainty and its amount
+     * is unknown until an arbitrator decides there are grounds for one, so
+     * demanding cover for it here would be demanding cover for a punishment
+     * nobody has earned yet. The fee, by contrast, is a published number that
+     * exists the moment the session is accepted.
+     *
+     * @return array{fee: int, balance: float, sufficient: bool}
+     */
+    public function arbitrationReadiness(Dispute $dispute, int $userId): array
+    {
+        $fee = DisputeFee::amountFor(
+            $dispute->platform_service_id ? (int) $dispute->platform_service_id : null
+        );
+
+        // The escrow is already locked away, so only free balance can pay.
+        $balance = (float) (Wallet::query()->where('user_id', $userId)->value('balance') ?? 0);
+
+        return [
+            'fee' => $fee,
+            'balance' => round($balance, 2),
+            'sufficient' => $balance >= $fee,
+        ];
     }
 
     /** Which side of the case this user is on, or null if neither. */
@@ -475,6 +504,25 @@ class DisputeService
         if ($dispute->{$side . '_cooperated_at'} === null) {
             throw ValidationException::withMessages([
                 'cooperation' => __('سجّل استعدادك للحل بالتراضي أولًا قبل طلب التحكيم.'),
+            ]);
+        }
+
+        // You may only ask for a paid service you could pay for. The fee falls
+        // on whoever loses, and the person ASKING is choosing to create that
+        // cost — so they are the one who must be able to cover it.
+        //
+        // Deliberately NOT applied to the other party: refusing the request
+        // because the RESPONDENT is broke would let anyone dodge arbitration by
+        // emptying their wallet, which is the stonewalling this whole path
+        // exists to defeat. Collecting from a loser who cannot pay is a
+        // separate problem, solved at collection time.
+        $readiness = $this->arbitrationReadiness($dispute, $userId);
+
+        if (! $readiness['sufficient']) {
+            throw ValidationException::withMessages([
+                'balance' => __('رصيدك لا يغطي رسم الجلسة (:fee). اشحن محفظتك ثم اطلب التحكيم.', [
+                    'fee' => (string) $readiness['fee'],
+                ]),
             ]);
         }
 

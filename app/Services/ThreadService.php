@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AppNotification;
 use App\Models\Thread;
 use App\Models\ThreadMessage;
 use App\Models\ThreadParticipant;
+use App\Models\User;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +23,11 @@ use Illuminate\Validation\ValidationException;
  */
 class ThreadService
 {
+    public function __construct(
+        protected InAppNotificationService $notifications
+    ) {
+    }
+
     /**
      * The thread for a subject, created on first ask.
      *
@@ -93,7 +101,53 @@ class ThreadService
             ]);
         }
 
-        return $this->write($thread, $senderId, ThreadMessage::KIND_MESSAGE, $body);
+        $message = $this->write($thread, $senderId, ThreadMessage::KIND_MESSAGE, $body);
+
+        $this->notifyOthers($thread, $message);
+
+        return $message;
+    }
+
+    /**
+     * Tell everyone else in the room that something was said.
+     *
+     * The notification points at the thread's SUBJECT, not the thread: the app
+     * has a dispute screen, not a thread screen, and this is the only place
+     * ThreadService needs to know that a thread is about something.
+     */
+    private function notifyOthers(Thread $thread, ThreadMessage $message): void
+    {
+        $senderName = User::query()->whereKey($message->sender_id)->value('name');
+
+        // A long message becomes a preview; the room holds the full text.
+        $preview = mb_substr($message->body, 0, 120)
+            . (mb_strlen($message->body) > 120 ? '…' : '');
+
+        foreach ($thread->participants as $participant) {
+            if ((int) $participant->user_id === (int) $message->sender_id) {
+                continue;
+            }
+
+            try {
+                $this->notifications->create([
+                    'user_id' => (int) $participant->user_id,
+                    'actor_id' => (int) $message->sender_id,
+                    'type' => AppNotification::TYPE_MESSAGE,
+                    'title_ar' => 'رسالة جديدة من ' . ($senderName ?: 'أحد الأطراف'),
+                    'title_en' => 'New message from ' . ($senderName ?: 'a participant'),
+                    'body_ar' => $preview,
+                    'body_en' => $preview,
+                    'notifiable_type' => $thread->subject_type,
+                    'notifiable_id' => $thread->subject_id !== null ? (int) $thread->subject_id : null,
+                    'source_type' => Thread::class,
+                    'source_id' => (int) $thread->id,
+                ]);
+            } catch (\Throwable $e) {
+                // The message is already stored. A failed notification must not
+                // undo someone's words.
+                report($e);
+            }
+        }
     }
 
     /**

@@ -343,6 +343,80 @@ class DisputeRoomTest extends TestCase
         );
     }
 
+    // ─────────────────────────── notifications ───────────────────────────
+
+    /** A message nobody is told about is a message nobody answers. */
+    public function test_a_new_message_notifies_the_other_party_only(): void
+    {
+        $dispute = $this->open();
+        $thread = $this->disputes->room($dispute);
+
+        $this->threads->post($thread, (int) $this->booking->user_id, 'Any update on this?');
+
+        $notified = \App\Models\AppNotification::query()
+            ->where('type', \App\Models\AppNotification::TYPE_MESSAGE)
+            ->where('source_type', Thread::class)
+            ->where('source_id', $thread->id)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $this->assertSame([(int) $this->booking->business_id], $notified, 'the sender must not be told about their own message');
+    }
+
+    /** The arbitrator is told too, once seated — that is the point of the seat. */
+    public function test_a_message_reaches_the_arbitrator(): void
+    {
+        $dispute = $this->open();
+        $arbitrator = $this->stranger();
+        $thread = $this->disputes->joinAsArbitrator($dispute, (int) $arbitrator->id);
+
+        $this->threads->post($thread->fresh('participants'), (int) $this->booking->user_id, 'Here is my evidence.');
+
+        $this->assertSame(
+            1,
+            \App\Models\AppNotification::query()
+                ->where('type', \App\Models\AppNotification::TYPE_MESSAGE)
+                ->where('source_id', $thread->id)
+                ->where('user_id', $arbitrator->id)
+                ->count()
+        );
+    }
+
+    /** The notification points at the dispute — the app has no thread screen. */
+    public function test_the_notification_points_at_the_dispute(): void
+    {
+        $dispute = $this->open();
+        $thread = $this->disputes->room($dispute);
+
+        $this->threads->post($thread, (int) $this->booking->user_id, 'hello');
+
+        $notification = \App\Models\AppNotification::query()
+            ->where('source_id', $thread->id)
+            ->where('type', \App\Models\AppNotification::TYPE_MESSAGE)
+            ->firstOrFail();
+
+        $this->assertSame(Dispute::class, $notification->notifiable_type);
+        $this->assertSame((int) $dispute->id, (int) $notification->notifiable_id);
+    }
+
+    /** System narration must not spam: escalation and rulings notify on their own. */
+    public function test_a_system_message_notifies_nobody(): void
+    {
+        $dispute = $this->open();
+        $thread = $this->disputes->room($dispute);
+
+        $this->threads->system($thread, 'something happened');
+
+        $this->assertSame(
+            0,
+            \App\Models\AppNotification::query()
+                ->where('type', \App\Models\AppNotification::TYPE_MESSAGE)
+                ->where('source_id', $thread->id)
+                ->count()
+        );
+    }
+
     /** Reading the room clears the badge; your own words were never unread. */
     public function test_unread_counts_ignore_your_own_messages(): void
     {

@@ -17,6 +17,7 @@ class AppNotification extends Model
     public const TYPE_WALLET = 'wallet';
     public const TYPE_GUARANTEE = 'guarantee';
     public const TYPE_DISPUTE = 'dispute';
+    public const TYPE_MESSAGE = 'message';
     public const TYPE_SYSTEM = 'system';
 
     public const PRIORITY_LOW = 'low';

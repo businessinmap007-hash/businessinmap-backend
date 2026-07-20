@@ -148,6 +148,7 @@ final class NotificationTypeService
             AppNotification::TYPE_WALLET => 'المحفظة',
             AppNotification::TYPE_GUARANTEE => 'الضمان',
             AppNotification::TYPE_DISPUTE => 'النزاعات',
+            AppNotification::TYPE_MESSAGE => 'الرسائل',
             AppNotification::TYPE_SYSTEM => 'النظام',
             default => $type,
         };

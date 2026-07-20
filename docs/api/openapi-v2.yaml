@@ -1981,11 +1981,21 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [title, body]
+              required: [body]
               properties:
-                title: { type: string, maxLength: 191, description: 'The post title, in whichever language the author writes it.' }
+                title: { type: string, maxLength: 191, description: 'The post title, in whichever language the author writes it. Required unless subject_type is sent, in which case the linked item names the post.' }
                 body: { type: string }
                 expire_at: { type: string, format: date-time }
+                subject_type:
+                  type: string
+                  enum: [menu_item, bookable_item]
+                  description: >
+                    Optionally link the post to something the caller sells, so the
+                    reader can act on it. Must be sent together with subject_id, and
+                    the item must belong to the caller — otherwise 422. This is a
+                    reference only: price, discount and audience live on
+                    commercial_offers, not here.
+                subject_id: { type: integer, minimum: 1 }
                 image: { type: string, format: binary, description: Main image. }
                 images:
                   type: array
@@ -2107,6 +2117,49 @@ paths:
       summary: My own posts, active or not
       responses:
         '200': { description: OK }
+  /posts/subject-options:
+    get:
+      tags: [Posts]
+      summary: What this account can link a post to
+      description: >
+        The pickable subjects, derived from what the caller actually owns
+        (menu items grouped by section, bookable units) rather than from a
+        service subscription. An empty list is a normal answer: a business with
+        no menu and no bookable units has nothing to advertise but free text.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      options:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            type: { type: string, enum: [menu_item, bookable_item] }
+                            label: { type: string }
+                            groups:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  id: { type: integer, nullable: true }
+                                  label: { type: string }
+                                  items:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id: { type: integer }
+                                        name: { type: string }
+                                        price: { type: number, nullable: true }
   /posts/{post}:
     get:
       tags: [Posts]
@@ -2136,6 +2189,14 @@ paths:
                 body: { type: string }
                 expire_at: { type: string, format: date-time }
                 is_active: { type: boolean }
+                subject_type:
+                  type: string
+                  nullable: true
+                  enum: [menu_item, bookable_item]
+                  description: >
+                    Omit to leave the existing link untouched; send null (or empty)
+                    to unlink; send it with subject_id to relink.
+                subject_id: { type: integer, minimum: 1 }
                 replace_images: { type: boolean }
                 image: { type: string, format: binary }
                 images:

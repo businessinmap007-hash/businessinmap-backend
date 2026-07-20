@@ -193,6 +193,8 @@ Route::prefix('v2')->group(function () {
         // update is POST, not PUT: PHP does not parse multipart bodies on PUT,
         // so an image edit would arrive empty.
         Route::get('posts/mine', [PostController::class, 'mine']);
+        // Static before {post}: what this account can link a post to.
+        Route::get('posts/subject-options', [PostController::class, 'subjectOptions']);
         Route::post('posts', [PostController::class, 'store']);
         Route::post('posts/{post}', [PostController::class, 'update'])->whereNumber('post');
         Route::delete('posts/{post}', [PostController::class, 'destroy'])->whereNumber('post');

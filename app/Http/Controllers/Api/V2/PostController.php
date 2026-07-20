@@ -10,9 +10,12 @@ use App\Models\FeedPost;
 use App\Models\Post;
 use App\Services\Media\ImageUploadService;
 use App\Services\Posts\PostAudienceService;
+use App\Services\Posts\PostSubjectService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Posts — the social feed, ported from v1.
@@ -54,7 +57,49 @@ final class PostController extends Controller
     public function __construct(
         private readonly PostAudienceService $audience,
         private readonly ImageUploadService $uploads,
+        private readonly PostSubjectService $subjects,
     ) {
+    }
+
+    /**
+     * GET /api/v2/posts/subject-options — what the caller can link a post to,
+     * derived from what they actually own (menu items, bookable units).
+     *
+     * Empty is a normal answer, and the common one right now: a business with
+     * no menu and no bookable units has nothing to advertise but free text.
+     */
+    public function subjectOptions(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['options' => $this->subjects->optionsFor($request->user())],
+        ]);
+    }
+
+    /**
+     * The chosen subject, verified to belong to the caller.
+     *
+     * 422 rather than silently dropping the link: a business that picked an
+     * item it does not own must be told, not quietly published without it.
+     *
+     * @return array{type: ?string, id: ?int}
+     */
+    private function ownedSubject(array $data, int $businessId): array
+    {
+        $type = $data['subject_type'] ?? null;
+        $id = (int) ($data['subject_id'] ?? 0);
+
+        if ($type === null || $id <= 0) {
+            return ['type' => null, 'id' => null];
+        }
+
+        if (! $this->subjects->resolveOwned($type, $id, $businessId)) {
+            throw ValidationException::withMessages([
+                'subject_id' => __('لا يمكنك الإعلان عن عنصر لا يخصك.'),
+            ]);
+        }
+
+        return ['type' => $type, 'id' => $id];
     }
 
     /**
@@ -133,9 +178,14 @@ final class PostController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:191'],
+            // Optional now that a post can carry a subject: a linked post takes
+            // its heading from the item. Still required when nothing is linked,
+            // which is every post today — menu_items is empty platform-wide.
+            'title' => ['required_without:subject_type', 'nullable', 'string', 'max:191'],
             'body' => ['required', 'string'],
             'expire_at' => ['nullable', 'date'],
+            'subject_type' => ['nullable', 'required_with:subject_id', 'string', Rule::in($this->subjects->types())],
+            'subject_id' => ['nullable', 'required_with:subject_type', 'integer', 'min:1'],
             'image' => ['nullable', ...ImageUploadService::validationRules()],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
@@ -143,12 +193,16 @@ final class PostController extends Controller
 
         $user = $request->user();
 
-        $post = DB::transaction(function () use ($request, $data, $user) {
+        $subject = $this->ownedSubject($data, (int) $user->id);
+
+        $post = DB::transaction(function () use ($request, $data, $user, $subject) {
             $post = FeedPost::create([
                 'user_id' => $user->id,
                 'is_active' => true,
                 'share_count' => 0,
-                'title' => $data['title'],
+                'title' => $data['title'] ?? null,
+                'subject_type' => $subject['type'],
+                'subject_id' => $subject['id'],
                 'body' => $data['body'],
                 'expire_at' => $data['expire_at'] ?? null,
                 'image' => $request->hasFile('image')
@@ -177,6 +231,9 @@ final class PostController extends Controller
             'body' => ['nullable', 'string'],
             'expire_at' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
+            // Send subject_type='' (or null) to unlink; send both to relink.
+            'subject_type' => ['nullable', 'string', Rule::in($this->subjects->types())],
+            'subject_id' => ['nullable', 'required_with:subject_type', 'integer', 'min:1'],
             'image' => ['nullable', ...ImageUploadService::validationRules()],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
@@ -195,6 +252,14 @@ final class PostController extends Controller
                 if (array_key_exists($field, $data)) {
                     $post->{$field} = $data[$field];
                 }
+            }
+
+            // Only touched when the caller mentions it, so an edit that says
+            // nothing about the link leaves the link alone.
+            if (array_key_exists('subject_type', $data)) {
+                $subject = $this->ownedSubject($data, (int) $post->user_id);
+                $post->subject_type = $subject['type'];
+                $post->subject_id = $subject['id'];
             }
 
             $post->save();
@@ -340,6 +405,10 @@ final class PostController extends Controller
     private function decorate($posts, $user)
     {
         $this->attachViewerState($posts->getCollection(), $user);
+
+        // One query per linked subject type for the whole page, so PostResource
+        // can render the tap target without a lookup per row.
+        $this->subjects->preload($posts->getCollection());
 
         return $posts;
     }

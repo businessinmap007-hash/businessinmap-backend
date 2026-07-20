@@ -2151,5 +2151,6 @@
     "لا يزال الحساب موقوفًا: ": "The account is still held: ",
     "هذا الحساب مُنفَّذ حذفه بالفعل.": "This account has already been deleted.",
     "تم إتمام حذف الحساب. المبلغ المُؤول للمنصة: ": "The account deletion is complete. Amount escheated to the platform: ",
-    "تمت استعادة الحساب وإلغاء طلب الحذف.": "The account was restored and the deletion request cancelled."
+    "تمت استعادة الحساب وإلغاء طلب الحذف.": "The account was restored and the deletion request cancelled.",
+    "لا يمكنك الإعلان عن عنصر لا يخصك.": "You cannot advertise an item that is not yours."
 }

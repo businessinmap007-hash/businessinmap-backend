@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\BusinessServicePrice;
 use App\Models\Deposit;
+use App\Services\Posts\PostSubjectService;
 use App\Support\AdminAbility;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Route;
@@ -16,7 +17,12 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Singleton on purpose: PostSubjectService caches the subjects a page
+        // of posts points at. The controller preloads them and PostResource
+        // reads them back — with a fresh instance per resolution the cache
+        // would be empty every time and the feed would go back to a query
+        // per linked post.
+        $this->app->singleton(PostSubjectService::class);
     }
 
     public function boot(): void

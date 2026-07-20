@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V2;
 
+use App\Services\Posts\PostSubjectService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -20,7 +21,13 @@ class PostResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'type' => $this->type ?: 'post',
-            'title' => $this->title,
+            // A linked post falls back to the item's name, in the reader's
+            // language — that is the point of linking. Unlinked posts (all of
+            // them today) keep their own free-text title.
+            'title' => $this->title ?: $this->subjects()->nameFor($this->resource),
+            // null when unlinked; the client renders the action button only
+            // when this is present.
+            'subject' => $this->subjects()->present($this->resource),
             'body' => $this->body,
             'image' => $this->image ?: null,
             'images' => $this->whenLoaded('images', fn () => $this->images
@@ -45,5 +52,14 @@ class PostResource extends JsonResource
             'is_mine' => $this->when(isset($this->is_mine), fn () => (bool) $this->is_mine),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * One instance per request, so the subjects the controller preloaded are
+     * still cached here — resolving a fresh one per row would re-query.
+     */
+    private function subjects(): PostSubjectService
+    {
+        return app(PostSubjectService::class);
     }
 }

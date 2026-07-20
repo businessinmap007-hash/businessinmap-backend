@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\DeleteExpiredSponsors::class,
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
         \App\Console\Commands\ProcessExpiredGuarantees::class,
+        \App\Console\Commands\ProcessDisputes::class,
     ];
 
     protected function schedule(Schedule $schedule): void
@@ -22,6 +23,12 @@ class Kernel extends ConsoleKernel
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();
+
+        // Warnings are scheduled in days and the settlement window in weeks, so
+        // hourly is already far finer than either needs.
+        $schedule->command('disputes:process --limit=100')
+            ->hourly()
+            ->withoutOverlapping();
 
         // Safety net for missed gateway callbacks (Fawry money-in). No-op until
         // gateway credentials are set, so it is safe to schedule now.

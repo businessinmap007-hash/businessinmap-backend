@@ -322,51 +322,116 @@ class DisputeJourneyTest extends TestCase
         $this->assertSame(1, (int) $dispute->fresh()->warning_count);
     }
 
-    /**
-     * FINDING — nothing ever calls it.
-     *
-     * `next_warning_at` is computed on every dispute and read by no scheduled
-     * job: Kernel::schedule() runs six commands and none of them is this one,
-     * and no command references the service at all. So the parties are never
-     * actually chased. Same shape as deletion_hold_reason before its screen.
-     */
-    public function test_no_scheduled_command_ever_sends_dispute_warnings(): void
+    /** The command exists and is wired into the scheduler, not just defined. */
+    public function test_the_dispute_command_is_scheduled(): void
     {
-        $commands = array_keys(\Illuminate\Support\Facades\Artisan::all());
+        $this->assertArrayHasKey('disputes:process', \Illuminate\Support\Facades\Artisan::all());
 
-        $disputeCommands = array_values(array_filter(
-            $commands,
-            fn ($name) => str_contains($name, 'dispute')
-        ));
+        $scheduled = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->map(fn ($event) => $event->command ?? '')
+            ->filter(fn ($command) => str_contains($command, 'disputes:process'));
+
+        $this->assertTrue($scheduled->isNotEmpty(), 'defining the command is not enough — it must be scheduled');
+    }
+
+    /** Running the command chases the parties whose warning has come due. */
+    public function test_the_command_sends_due_warnings(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+        $dispute->update([
+            'next_warning_at' => now()->subDay(),
+            'against_user_id' => (int) $this->booking->business_id,
+        ]);
+
+        $this->artisan('disputes:process')->assertExitCode(0);
+
+        $this->assertSame(1, (int) $dispute->fresh()->warning_count);
+        $this->assertTrue($dispute->fresh()->next_warning_at->isFuture(), 'the next chase must be rescheduled');
+    }
+
+    /** An expired settlement window is handed to review, by time and not by a human. */
+    public function test_an_expired_mutual_resolution_window_escalates_itself(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+        $dispute->update([
+            'mutual_resolution_deadline_at' => now()->subDays(30),
+            'against_user_id' => (int) $this->booking->business_id,
+        ]);
+
+        $this->artisan('disputes:process')->assertExitCode(0);
+
+        $this->assertSame(Dispute::STATUS_UNDER_REVIEW, $dispute->fresh()->status);
+        $this->assertNotNull(data_get($dispute->fresh()->meta, 'escalated_at'));
+    }
+
+    /** Both parties are told, or escalation is just a silent status change. */
+    public function test_escalation_notifies_both_parties(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+        $dispute->update([
+            'mutual_resolution_deadline_at' => now()->subDays(30),
+            'against_user_id' => (int) $this->booking->business_id,
+        ]);
+
+        $this->disputes->escalateExpired();
+
+        $notified = \App\Models\AppNotification::query()
+            ->where('notifiable_type', Dispute::class)
+            ->where('notifiable_id', $dispute->id)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()->values()->all();
 
         $this->assertSame(
-            [],
-            $disputeCommands,
-            'A dispute command now exists — wire it into Kernel::schedule() and delete this test.'
+            collect([(int) $this->booking->user_id, (int) $this->booking->business_id])->sort()->values()->all(),
+            $notified
         );
     }
 
-    /**
-     * FINDING — the mutual-resolution deadline is stored and never read.
-     *
-     * Nothing moves a dispute to `under_review` when the window expires; only an
-     * admin clicking in AdminV2\DisputeController does. So an expired dispute
-     * sits in mutual_resolution indefinitely, which is why an arbitration step
-     * has nothing to trigger it.
-     */
-    public function test_an_expired_mutual_resolution_window_does_not_escalate_itself(): void
+    /** A window still open must not be escalated early. */
+    public function test_a_live_window_is_left_alone(): void
     {
         $this->freeze();
         $dispute = $this->open();
 
+        $this->assertTrue($dispute->mutual_resolution_deadline_at->isFuture(), 'setup: still live');
+
+        $this->disputes->escalateExpired();
+
+        $this->assertSame(Dispute::STATUS_MUTUAL_RESOLUTION, $dispute->fresh()->status);
+    }
+
+    /** Escalating twice must not re-notify or re-stamp. */
+    public function test_escalation_is_idempotent(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
         $dispute->update(['mutual_resolution_deadline_at' => now()->subDays(30)]);
 
-        $this->assertTrue($dispute->fresh()->mutual_resolution_deadline_at->isPast());
-        $this->assertSame(
-            Dispute::STATUS_MUTUAL_RESOLUTION,
-            $dispute->fresh()->status,
-            'nothing escalates an expired dispute — it waits for a human who is never told'
-        );
+        $this->assertSame([$dispute->id], $this->disputes->escalateExpired());
+        $this->assertSame([], $this->disputes->escalateExpired(), 'an already-escalated dispute is no longer due');
+    }
+
+    /**
+     * The non-cooperation flags stay untouched on expiry. Nothing in the product
+     * lets a party record that they cooperated, so flagging here would mark
+     * everyone uncooperative for a button that was never built — and the flag
+     * feeds a real fee (BusinessDepositPolicy::non_cooperation_fee_enabled).
+     */
+    public function test_escalation_does_not_flag_non_cooperation(): void
+    {
+        $this->freeze();
+        $dispute = $this->open();
+        $dispute->update(['mutual_resolution_deadline_at' => now()->subDays(30)]);
+
+        $this->disputes->escalateExpired();
+
+        $fresh = $dispute->fresh();
+        $this->assertFalse((bool) $fresh->client_non_cooperation_flag);
+        $this->assertFalse((bool) $fresh->business_non_cooperation_flag);
     }
 
     /** The ruling is attributable — who decided, and when. */

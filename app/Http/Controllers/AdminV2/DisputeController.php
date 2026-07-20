@@ -201,7 +201,10 @@ class DisputeController extends Controller
 
     public function setUnderReview(Dispute $dispute)
     {
-        $this->ensureDisputeStatus($dispute, ['open']);
+        // `mutual_resolution` belongs here: it is the status every dispute is
+        // actually opened in, so without it an admin could not escalate a
+        // single real dispute by hand — only the ones no code path creates.
+        $this->ensureDisputeStatus($dispute, ['open', 'mutual_resolution']);
 
         $dispute->status = 'under_review';
         if (Schema::hasColumn('disputes', 'opened_at') && empty($dispute->opened_at)) {

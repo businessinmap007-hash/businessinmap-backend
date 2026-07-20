@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Deposit;
 use App\Models\Dispute;
 use App\Models\OperationGuarantor;
 use App\Models\PlatformService;
 use App\Services\Guarantees\OperationGuarantorService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Validation\ValidationException;
 
 class DisputeService
@@ -15,6 +17,7 @@ class DisputeService
     public function __construct(
         protected DepositsEscrowService $depositsEscrowService,
         protected OperationGuarantorService $operationGuarantors,
+        protected InAppNotificationService $notifications,
     ) {
     }
 
@@ -126,6 +129,93 @@ class DisputeService
             actorId: $actorId,
             payload: $payload
         );
+    }
+
+    /**
+     * Move every dispute whose mutual-resolution window has run out into
+     * `under_review`, so an arbitrator has something to pick up.
+     *
+     * Until this existed the deadline was written on every dispute and read by
+     * nobody: an expired window sat in `mutual_resolution` forever, waiting for
+     * an admin who was never told.
+     *
+     * @return array<int, int> ids of the disputes escalated
+     */
+    public function escalateExpired(?int $limit = 100): array
+    {
+        $due = Dispute::query()
+            ->where('status', Dispute::STATUS_MUTUAL_RESOLUTION)
+            ->whereNotNull('mutual_resolution_deadline_at')
+            ->where('mutual_resolution_deadline_at', '<=', now())
+            ->whereNull('resolved_at')
+            ->orderBy('id')
+            ->limit(max((int) ($limit ?? 100), 1))
+            ->get();
+
+        $escalated = [];
+
+        foreach ($due as $dispute) {
+            if ($this->escalate($dispute)) {
+                $escalated[] = (int) $dispute->id;
+            }
+        }
+
+        return $escalated;
+    }
+
+    /**
+     * Hand a single dispute to review and tell both parties it happened.
+     *
+     * Deliberately does NOT set the non-cooperation flags: nothing in the
+     * product lets a party record that they cooperated, so flagging on expiry
+     * would mark everyone as uncooperative for a button that was never built —
+     * and those flags feed a real non-cooperation fee.
+     */
+    public function escalate(Dispute $dispute): bool
+    {
+        if ($dispute->status !== Dispute::STATUS_MUTUAL_RESOLUTION) {
+            return false;
+        }
+
+        $meta = is_array($dispute->meta ?? null) ? $dispute->meta : [];
+        $meta['escalated_at'] = now()->toIso8601String();
+        $meta['escalated_by'] = 'schedule:mutual_resolution_expired';
+
+        $dispute->status = Dispute::STATUS_UNDER_REVIEW;
+        $dispute->meta = $meta;
+        $dispute->save();
+
+        $this->notifyEscalation($dispute);
+
+        return true;
+    }
+
+    protected function notifyEscalation(Dispute $dispute): void
+    {
+        $recipients = array_values(array_unique(array_filter([
+            (int) ($dispute->opened_by_user_id ?? 0),
+            (int) ($dispute->against_user_id ?? 0),
+        ])));
+
+        foreach ($recipients as $userId) {
+            try {
+                $this->notifications->create([
+                    'user_id' => $userId,
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'priority' => AppNotification::PRIORITY_HIGH,
+                    'title_ar' => 'انتهت مهلة الحل بالتراضي',
+                    'title_en' => 'The settlement window has closed',
+                    'body_ar' => 'تم تحويل النزاع إلى المراجعة للفصل فيه.',
+                    'body_en' => 'The dispute has been moved to review for a ruling.',
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                ]);
+            } catch (\Throwable $e) {
+                // A failed notification must not roll back the escalation: the
+                // status change is the part that matters.
+                report($e);
+            }
+        }
     }
 
     public function resolve(

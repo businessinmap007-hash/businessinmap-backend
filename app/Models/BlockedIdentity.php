@@ -152,4 +152,22 @@ class BlockedIdentity extends Model
 
         return self::create($attributes);
     }
+
+    /**
+     * Lift the block for a live account's current identities. Matches on the
+     * stored user_id AND on the email/phone hash, so a manual ban (which carries
+     * the id) and a hash added for the same contact are both cleared. Returns
+     * the number of rows removed.
+     */
+    public static function unblockUser(User $user): int
+    {
+        $emailHash = self::hashEmail($user->email);
+        $phoneHash = self::hashPhone($user->phone);
+
+        return self::query()
+            ->where('user_id', (int) $user->id)
+            ->when($emailHash !== null, fn ($q) => $q->orWhere('email_hash', $emailHash))
+            ->when($phoneHash !== null, fn ($q) => $q->orWhere('phone_hash', $phoneHash))
+            ->delete();
+    }
 }

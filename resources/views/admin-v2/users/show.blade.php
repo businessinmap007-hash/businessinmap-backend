@@ -43,6 +43,44 @@
     @if(session('success'))
         <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
     @endif
+    @if(session('error'))
+        <div class="a2-alert a2-alert-danger">{{ session('error') }}</div>
+    @endif
+
+    <div class="a2-card a2-mb-16">
+        <div class="a2-header">
+            <h2 class="a2-section-title a2-mb-0">{{ __('الإيقاف') }}</h2>
+            @if($user->banned_at)
+                <span class="a2-badge a2-badge-danger">{{ __('موقوف') }} · {{ $user->banned_at->format('Y-m-d') }}</span>
+            @else
+                <span class="a2-badge a2-badge-muted">{{ __('نشط') }}</span>
+            @endif
+        </div>
+
+        @if($user->banned_at)
+            <div class="a2-hint" style="margin:8px 0;">{{ __('سبب الإيقاف:') }} {{ $user->ban_reason ?: '—' }}</div>
+            <form method="POST" action="{{ route('admin.users.unban', $user->id) }}"
+                  onsubmit="return confirm('{{ __('رفع الإيقاف يسمح للمستخدم بالدخول من جديد. متابعة؟') }}')">
+                @csrf
+                <button class="a2-btn a2-btn-primary" type="submit">{{ __('رفع الإيقاف') }}</button>
+            </form>
+        @else
+            <div class="a2-hint" style="margin:8px 0;">
+                {{ __('الإيقاف يمنع الدخول ويسجّل الهوية في قائمة حظر مجزّأة تنجو من حذف الحساب وإعادة التسجيل، ويُلغي جلسات المستخدم فورًا.') }}
+            </div>
+            <form method="POST" action="{{ route('admin.users.ban', $user->id) }}"
+                  onsubmit="return confirm('{{ __('إيقاف المستخدم وإلغاء جلساته. متابعة؟') }}')">
+                @csrf
+                <div class="a2-form-group" style="max-width:520px;">
+                    <label class="a2-label">{{ __('سبب الإيقاف (اختياري)') }}</label>
+                    <input class="a2-input" name="reason" maxlength="1000" placeholder="{{ __('احتيال / إساءة …') }}">
+                </div>
+                <div style="margin-top:10px;">
+                    <button class="a2-btn a2-btn-danger" type="submit">{{ __('إيقاف المستخدم') }}</button>
+                </div>
+            </form>
+        @endif
+    </div>
 
     <div class="a2-stat-grid a2-mb-16">
         <div class="a2-stat-card">

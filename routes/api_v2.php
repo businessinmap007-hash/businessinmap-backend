@@ -157,7 +157,7 @@ Route::prefix('v2')->group(function () {
     // Optional ?gateway= selects the provider (defaults to config).
     Route::post('wallet/topup/callback', [WalletTopupController::class, 'callback']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.
         Route::prefix('auth')->group(function () {
             Route::get('me', [AuthController::class, 'me']);

@@ -729,6 +729,31 @@ class UserController extends Controller
         return back()->with('success', __('تم تحديث حالة التفعيل.'));
     }
 
+    /**
+     * Ban a user: mark the account, add its identities to the hashed block list
+     * (so a re-register is caught), and kill live tokens. Distinct from
+     * toggle-suspend, which is a reversible activation flag with no ban list.
+     */
+    public function ban(Request $request, User $user, \App\Services\BanService $bans)
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+
+        if ((int) $user->id === (int) $request->user()->id) {
+            return back()->with('error', __('لا يمكنك إيقاف حسابك.'));
+        }
+
+        $bans->ban($user, $data['reason'] ?? null, (int) $request->user()->id);
+
+        return back()->with('success', __('تم إيقاف المستخدم.'));
+    }
+
+    public function unban(Request $request, User $user, \App\Services\BanService $bans)
+    {
+        $bans->unban($user, (int) $request->user()->id);
+
+        return back()->with('success', __('تم رفع الإيقاف.'));
+    }
+
     private function hasOptionIsActiveColumn(): bool
     {
         return Schema::hasColumn('options', 'is_active');

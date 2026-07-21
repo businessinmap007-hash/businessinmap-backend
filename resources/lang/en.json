@@ -2233,5 +2233,9 @@
     "أُلغيت الغرامة وفُكّ التجميد.": "The fine was cancelled and the hold released.",
     "تم تقديم اعتراضك وسيُراجَع.": "Your appeal was submitted and will be reviewed.",
     "سُجّل قرار الاعتراض.": "The appeal decision was recorded.",
-    "فُرضت الغرامة وجُمّد ما أمكن من المبلغ.": "The fine was levied and as much as possible was frozen."
+    "فُرضت الغرامة وجُمّد ما أمكن من المبلغ.": "The fine was levied and as much as possible was frozen.",
+    "حسابك موقوف.": "Your account is suspended.",
+    "لا يمكنك إيقاف حسابك.": "You cannot ban your own account.",
+    "تم إيقاف المستخدم.": "The user was banned.",
+    "تم رفع الإيقاف.": "The ban was lifted."
 }

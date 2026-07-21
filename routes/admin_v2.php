@@ -112,6 +112,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{id}/restore', [UserController::class, 'restore'])->whereNumber('id')->name('restore');
             Route::delete('{id}/force', [UserController::class, 'forceDelete'])->whereNumber('id')->name('forceDelete');
             Route::post('{user}/toggle-suspend', [UserController::class, 'toggleSuspend'])->whereNumber('user')->name('toggleSuspend');
+            Route::post('{user}/ban', [UserController::class, 'ban'])->whereNumber('user')->name('ban');
+            Route::post('{user}/unban', [UserController::class, 'unban'])->whereNumber('user')->name('unban');
         });
 
         Route::prefix('categories')->name('categories.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {

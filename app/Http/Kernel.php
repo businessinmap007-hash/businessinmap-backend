@@ -77,6 +77,8 @@ class Kernel extends HttpKernel
         'check.pin' => \App\Http\Middleware\CheckWalletPin::class,
         // Owe a ruling, start no new business until it is met.
         'dispute.settled' => \App\Http\Middleware\BlockUnpaidDisputeObligations::class,
+        // A banned account is stopped on every authenticated request, not just login.
+        'banned' => \App\Http\Middleware\BlockBannedUsers::class,
         'has.location' => \App\Http\Middleware\EnsureUserHasLocation::class,
         'admin.only' => \App\Http\Middleware\EnsureAdminWeb::class,
         'admin.v2' => \App\Http\Middleware\AdminV2Middleware::class,

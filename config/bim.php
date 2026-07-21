@@ -49,4 +49,17 @@ return [
         'balance_transfer_cooldown_days' => (int) env('BIM_DELETION_COOLDOWN_DAYS', 3),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Location resolution (BIM-11.1)
+    |--------------------------------------------------------------------------
+    | nearest_max_km: how far a "use my location" GPS point may be from the
+    | closest city in our tables before we return "no confident match" and let
+    | the app fall back to the manual pickers. A city index is coarse, so this
+    | is deliberately generous.
+    */
+    'location' => [
+        'nearest_max_km' => (float) env('BIM_LOCATION_NEAREST_MAX_KM', 60),
+    ],
+
 ];

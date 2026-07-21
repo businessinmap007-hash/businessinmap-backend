@@ -730,6 +730,56 @@ paths:
                                 name_en: { type: string }
         '422': { $ref: '#/components/responses/Validation' }
 
+  /locations/nearest:
+    get:
+      tags: [Locations]
+      summary: Nearest city to a GPS point (public)
+      security: []
+      description: >
+        "Use my location": resolves a device GPS point to one of our own cities
+        with no map provider or third-party geocoder involved. Beyond the
+        distance cap (config bim.location.nearest_max_km, default 60 km) it
+        returns match=null and the app falls back to the manual pickers.
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, format: float, minimum: -90, maximum: 90 } }
+        - { name: lng, in: query, required: true, schema: { type: number, format: float, minimum: -180, maximum: 180 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      match:
+                        type: object
+                        nullable: true
+                        properties:
+                          city:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              governorate_id: { type: integer }
+                              name_ar: { type: string }
+                              name_en: { type: string }
+                              latitude: { type: number, format: float }
+                              longitude: { type: number, format: float }
+                          governorate:
+                            type: object
+                            nullable: true
+                            properties:
+                              id: { type: integer }
+                              country_id: { type: integer }
+                              name_ar: { type: string }
+                              name_en: { type: string }
+                          country_id: { type: integer, nullable: true }
+                          distance_km: { type: number, format: float }
+        '422': { $ref: '#/components/responses/Validation' }
+
   # ──────────────────── Account deletion (BIM-15.1) ────────────────────
   /account/deletion:
     get:

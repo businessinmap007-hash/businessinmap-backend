@@ -72,6 +72,7 @@ Route::prefix('v2')->group(function () {
         Route::get('governorates', [LocationController::class, 'governorates']);
         Route::get('cities/search', [LocationController::class, 'searchCities']);
         Route::get('cities', [LocationController::class, 'cities']);
+        Route::get('nearest', [LocationController::class, 'nearest']);
     });
 
     Route::prefix('offers')->group(function () {

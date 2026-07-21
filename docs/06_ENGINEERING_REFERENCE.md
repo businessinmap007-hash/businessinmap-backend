@@ -300,13 +300,18 @@ never-confirmed pending request cancels with no rating hit.
   (levy/decide/cancel); user side is `GET /fines`, `GET /fines/{id}`,
   `POST /fines/{id}/appeal` (own only, stranger = 404). A settlement-consented
   fine is marked `is_appealable=false` (the flag exists; that path isn't levied
-  yet). **Still deferred:** (1) auto-detection from the `user_operation_ratings`
-  transaction graph — this slice is admin-levied only, by explicit choice;
-  (2) wiring a fine to the ban (`users.banned_at` + `blocked_identities` exist,
-  but levying a fine does not ban, and there is still no standalone admin
-  ban-a-user action); (3) the settlement→fine bridge. Instant seizure was
-  rejected as legally risky; email/phone bans stay weak (recycled numbers), so
-  the durable fraud signal remains the transaction graph, not the identity.
+  yet). **Now also built (2026-07-21):** a **standalone admin ban** (`fb053dc`,
+  `BanService` + `banned` middleware + user-show control — marks `banned_at`,
+  records the hashed `blocked_identities`, revokes live tokens); the **fine→ban
+  bridge** (`f13dff9`, an "also ban" on levy + a ban control on the fine screen,
+  freeze survives the ban so the money stays appealable); and **auto-detection**
+  (`565046b`, `FraudDetectionService` + `fraud:scan` daily + a USERS-gated review
+  screen — raises `fraud_flags` from the rating graph but only SUGGESTS, never
+  fines/bans; thresholds in `config/bim.php`). **Still deferred:** the
+  settlement→fine bridge (auto-creating a non-appealable fine when a settlement
+  is agreed). Instant seizure stays rejected as legally risky; email/phone bans
+  stay weak (recycled numbers), so the durable fraud signal is the transaction
+  graph, not the identity.
 **Done and worth not re-litigating:** the held-deletions admin screen (`admin/held-deletions`, MONEY-gated, commit `c9781e5`), the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
 subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,

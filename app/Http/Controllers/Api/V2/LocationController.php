@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\Governorate;
+use App\Services\CityLocatorService;
 use Illuminate\Http\Request;
 
 /**
@@ -135,45 +136,19 @@ final class LocationController extends Controller
      * the exact Haversine sort, then a hard distance cap decides the match: a
      * point far out at sea or in a neighbouring country must return "no confident
      * match" rather than the least-distant city hundreds of km away. On no match
-     * `data.match` is null and the app falls back to the manual pickers.
+     * `data.match` is null and the app falls back to the manual pickers. The
+     * resolution itself lives in CityLocatorService, shared with checkout.
      */
-    public function nearest(Request $request)
+    public function nearest(Request $request, CityLocatorService $locator)
     {
         $data = $request->validate([
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
         ]);
 
-        $lat = (float) $data['lat'];
-        $lng = (float) $data['lng'];
+        $city = $locator->nearest((float) $data['lat'], (float) $data['lng']);
 
-        // Widest the answer is allowed to be from the pin before we call it
-        // unconfident. A city index is coarse, so this is generous, not tight.
-        $maxKm = (float) config('bim.location.nearest_max_km', 60);
-
-        // Degree half-widths for the pre-filter box. Longitude degrees shrink
-        // toward the poles, so scale by cos(lat); clamp near the poles so the
-        // divisor never collapses to zero.
-        $latPad = rad2deg($maxKm / 6371);
-        $lngPad = rad2deg($maxKm / 6371 / max(0.01, cos(deg2rad($lat))));
-
-        $city = City::query()
-            ->whereNotNull('latitude')->whereNotNull('longitude')
-            ->whereBetween('latitude', [$lat - $latPad, $lat + $latPad])
-            ->whereBetween('longitude', [$lng - $lngPad, $lng + $lngPad])
-            ->selectRaw(
-                '*, (6371 * acos(LEAST(1, GREATEST(-1,'
-                . ' cos(radians(?)) * cos(radians(latitude))'
-                . ' * cos(radians(longitude) - radians(?))'
-                . ' + sin(radians(?)) * sin(radians(latitude))'
-                . ')))) AS distance_km',
-                [$lat, $lng, $lat]
-            )
-            ->orderBy('distance_km')
-            ->with('governorate:id,country_id,name_ar,name_en')
-            ->first();
-
-        if (! $city || (float) $city->distance_km > $maxKm) {
+        if (! $city) {
             return response()->json(['success' => true, 'data' => ['match' => null]]);
         }
 

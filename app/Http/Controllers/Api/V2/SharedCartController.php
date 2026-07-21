@@ -112,6 +112,10 @@ final class SharedCartController extends Controller
             'fulfillment_type' => ['nullable', 'in:delivery,pickup,dine_in'],
             'address_id' => ['nullable', 'integer'],
             'address' => ['nullable', 'string', 'max:500'],
+            // A one-off GPS delivery pin (both required together). Ignored when
+            // address_id is given. Resolved to a city line server-side.
+            'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -224,6 +228,10 @@ final class SharedCartController extends Controller
                 'logo' => $order->business->logo,
             ] : null,
             'fulfillment_type' => (string) $order->fulfillment_type,
+            'address' => $order->address !== '' ? (string) $order->address : null,
+            'delivery_address_id' => $order->delivery_address_id !== null ? (int) $order->delivery_address_id : null,
+            'delivery_lat' => $order->delivery_lat !== null ? (float) $order->delivery_lat : null,
+            'delivery_lng' => $order->delivery_lng !== null ? (float) $order->delivery_lng : null,
             'participants' => $breakdown,
             'items' => $items,
             'totals' => [

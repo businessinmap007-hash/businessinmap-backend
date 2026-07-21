@@ -48,6 +48,7 @@ class CustomerCartService
         protected MenuOrderService $orders,
         protected MenuBillingService $billing,
         protected NotificationDispatcherService $notifications,
+        protected CityLocatorService $cityLocator,
     ) {
     }
 
@@ -491,14 +492,45 @@ class CustomerCartService
      * Apply fulfilment/payment fields, flip a draft cart to pending, and persist
      * the menu service fee + tax on the order (final_total includes them).
      */
+    /**
+     * A courier-readable snapshot for a one-off GPS delivery pin: the customer's
+     * own note (if any) followed by the city and governorate our `cities` table
+     * puts the pin in. When the pin resolves to no confident city (out at sea,
+     * over a border) we still hand over the note, or the bare coordinates, so the
+     * driver is never left with an empty line.
+     */
+    private function gpsDeliveryLine(float $lat, float $lng, ?string $note): string
+    {
+        $city = $this->cityLocator->nearest($lat, $lng);
+
+        $parts = array_filter([
+            $note,
+            $city ? ($city->name_ar ?: $city->name_en) : null,
+            $city && $city->governorate ? ($city->governorate->name_ar ?: $city->governorate->name_en) : null,
+        ], fn ($p) => filled($p));
+
+        if (! empty($parts)) {
+            return implode('، ', $parts);
+        }
+
+        // No note and no confident city — hand the courier the raw pin.
+        return __('موقع على الخريطة') . ': ' . round($lat, 6) . ', ' . round($lng, 6);
+    }
+
     private function placeOrder(Order $cart, array $data): void
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
 
-        // A saved address wins over a free string: it carries city, governorate
-        // and coordinates. Scoped to the cart owner so one customer can't attach
-        // another's address; a snapshot line is written so the courier still has
-        // something readable and a later edit to the address never rewrites it.
+        // Delivery target, most specific first. Each is scoped to the cart owner
+        // and snapshotted so a later edit never rewrites an order already out for
+        // delivery:
+        //   1. A saved address book entry (address_id) — carries city, governorate
+        //      and its own coordinates.
+        //   2. A one-off GPS pin (lat/lng) — "I'm with friends, deliver here for
+        //      this order only". Resolved to a readable city line via our own
+        //      `cities` table (no map provider) and stored on the order; the saved
+        //      addresses stay untouched.
+        //   3. A free string.
         if (! empty($data['address_id'])) {
             $address = Address::query()
                 ->where('id', (int) $data['address_id'])
@@ -510,7 +542,18 @@ class CustomerCartService
             }
 
             $cart->delivery_address_id = (int) $address->id;
+            $cart->delivery_lat = null;
+            $cart->delivery_lng = null;
             $cart->address = $address->toDeliveryLine();
+        } elseif (isset($data['lat'], $data['lng'])) {
+            $cart->delivery_address_id = null;
+            $cart->delivery_lat = (float) $data['lat'];
+            $cart->delivery_lng = (float) $data['lng'];
+            $cart->address = $this->gpsDeliveryLine(
+                (float) $data['lat'],
+                (float) $data['lng'],
+                isset($data['address']) ? (string) $data['address'] : null
+            );
         } else {
             $cart->address = (string) ($data['address'] ?? $cart->address ?? '');
         }

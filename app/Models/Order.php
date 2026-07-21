@@ -54,6 +54,8 @@ class Order extends Model
         'payment_method',
         'address',
         'delivery_address_id',
+        'delivery_lat',
+        'delivery_lng',
         'notes',
         'status',
         'prep_status',
@@ -69,6 +71,8 @@ class Order extends Model
         'business_table_id' => 'integer',
         'delivery_driver_id' => 'integer',
         'delivery_address_id' => 'integer',
+        'delivery_lat' => 'float',
+        'delivery_lng' => 'float',
         'is_shared' => 'boolean',
         'handover_confirmed_at' => 'datetime',
     ];

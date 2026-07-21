@@ -7,6 +7,7 @@
 
     $modeLabels = TripSchedule::modeLabels();
     $statusLabels = TripSchedule::statusLabels();
+    $scopeLabels = TripSchedule::scopeLabels();
     $dayLabels = TripSchedule::dayLabels();
 @endphp
 
@@ -83,7 +84,7 @@
                         <td class="a2-text-right">
                             @if($isIntl)
                                 {{ optional($row->originCountry)->name_ar ?: '—' }} → {{ optional($row->destinationCountry)->name_ar ?: '—' }}
-                                <span class="a2-pill a2-pill-gray">دولي</span>
+                                <span class="a2-pill a2-pill-gray">{{ $scopeLabels[TripSchedule::SCOPE_INTERNATIONAL] ?? '' }}</span>
                             @else
                                 {{ optional($row->originGovernorate)->name_ar ?: '—' }} → {{ optional($row->destinationGovernorate)->name_ar ?: '—' }}
                             @endif

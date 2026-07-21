@@ -62,4 +62,19 @@ return [
         'nearest_max_km' => (float) env('BIM_LOCATION_NEAREST_MAX_KM', 60),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Fraud detection (fines system, stage C)
+    |--------------------------------------------------------------------------
+    | The rating-graph scan raises a suspected-fraud flag for an admin to
+    | review — it never fines or bans on its own. A flag needs a minimum number
+    | of operations first, or one dispute on one operation reads as 100%. The
+    | ratios are the share of a user's operations that ended disputed/cancelled.
+    */
+    'fraud' => [
+        'min_operations' => (int) env('BIM_FRAUD_MIN_OPERATIONS', 5),
+        'disputed_ratio' => (float) env('BIM_FRAUD_DISPUTED_RATIO', 0.30),
+        'cancelled_ratio' => (float) env('BIM_FRAUD_CANCELLED_RATIO', 0.50),
+    ],
+
 ];

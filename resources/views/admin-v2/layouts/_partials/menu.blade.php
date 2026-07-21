@@ -111,6 +111,7 @@
             ['label' => 'المدفوعات', 'route' => 'admin.payments.index', 'active' => 'admin.payments.'],
             ['label' => 'الاشتراكات', 'route' => 'admin.subscriptions.index', 'active' => 'admin.subscriptions.'],
             ['label' => 'الغرامات', 'route' => 'admin.fines.index', 'active' => 'admin.fines.'],
+            ['label' => 'مراجعة الاحتيال', 'route' => 'admin.fraud-flags.index', 'active' => 'admin.fraud-flags.'],
             ['label' => 'طلبات حذف موقوفة', 'route' => 'admin.held-deletions.index', 'active' => 'admin.held-deletions.'],
         ]],
         ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [

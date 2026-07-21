@@ -2238,5 +2238,7 @@
     "لا يمكنك إيقاف حسابك.": "You cannot ban your own account.",
     "تم إيقاف المستخدم.": "The user was banned.",
     "تم رفع الإيقاف.": "The ban was lifted.",
-    "فُرضت الغرامة وأُوقف الحساب.": "The fine was levied and the account was banned."
+    "فُرضت الغرامة وأُوقف الحساب.": "The fine was levied and the account was banned.",
+    "اكتمل الفحص: :flagged حساب مشبوه.": "Scan complete: :flagged suspected accounts.",
+    "صُرف البلاغ كإيجابية كاذبة.": "The flag was dismissed as a false positive."
 }

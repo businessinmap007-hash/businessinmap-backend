@@ -23,9 +23,10 @@
                     <input class="a2-input" type="search" id="fineUserSearch" autocomplete="off"
                            placeholder="{{ __('اكتب اسمًا / هاتفًا / بريدًا') }}" list="fineUsersList">
                     <datalist id="fineUsersList"></datalist>
-                    <input type="hidden" name="user_id" id="fineUserId" value="{{ old('user_id') }}">
+                    @php $prefillUserId = old('user_id', request('user_id')); @endphp
+                    <input type="hidden" name="user_id" id="fineUserId" value="{{ $prefillUserId }}">
                     <div class="a2-hint" id="fineUserPicked" style="margin-top:6px;">
-                        @if(old('user_id')) {{ __('المحدد:') }} #{{ old('user_id') }} @endif
+                        @if($prefillUserId) {{ __('المحدد:') }} #{{ $prefillUserId }} @endif
                     </div>
                 </div>
 

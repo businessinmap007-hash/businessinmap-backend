@@ -34,6 +34,7 @@ use App\Http\Controllers\AdminV2\{
     DisputeFeeController,
     DisputeRuleController,
     FineController,
+    FraudFlagController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     HeldDeletionController,
@@ -114,6 +115,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{user}/toggle-suspend', [UserController::class, 'toggleSuspend'])->whereNumber('user')->name('toggleSuspend');
             Route::post('{user}/ban', [UserController::class, 'ban'])->whereNumber('user')->name('ban');
             Route::post('{user}/unban', [UserController::class, 'unban'])->whereNumber('user')->name('unban');
+        });
+
+        // Suspected-fraud review (fines system, stage C). USERS-gated: it leads
+        // to a ban or a fine, and only ever suggests — the scan raises flags,
+        // the admin acts. Read + dismiss only.
+        Route::prefix('fraud-flags')->name('fraud-flags.')->middleware('can:' . AdminAbility::USERS)->group(function () {
+            Route::get('/', [FraudFlagController::class, 'index'])->name('index');
+            Route::post('scan', [FraudFlagController::class, 'scan'])->name('scan');
+            Route::post('{flag}/dismiss', [FraudFlagController::class, 'dismiss'])->whereNumber('flag')->name('dismiss');
         });
 
         Route::prefix('categories')->name('categories.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {

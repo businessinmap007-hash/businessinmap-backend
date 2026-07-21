@@ -36,6 +36,13 @@ class Kernel extends ConsoleKernel
             ->hourly()
             ->withoutOverlapping();
 
+        // Suspected-fraud flags from the rating graph. Daily and off-peak: the
+        // signal moves on the scale of many operations, and it only suggests —
+        // an admin still reviews every flag before anyone is fined or banned.
+        $schedule->command('fraud:scan --limit=500')
+            ->dailyAt('04:00')
+            ->withoutOverlapping();
+
         // Safety net for missed gateway callbacks (Fawry money-in). No-op until
         // gateway credentials are set, so it is safe to schedule now.
         $schedule->command('wallet:reconcile-topups --minutes=15 --limit=200')

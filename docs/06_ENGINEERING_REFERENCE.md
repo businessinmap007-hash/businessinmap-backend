@@ -275,10 +275,11 @@ never-confirmed pending request cancels with no rating hit.
 **Open:**
 - `catalog_products` is empty (§10) — retail has no master data until a real
   import feed exists. Needs a data source decision, not code. This is also what
-  blocks a **retail journey test** (§11.1): four of the six services are walked
-  end to end, but retail has nothing to sell and its merchant side is web-panel
-  only (`business/products`) with no API at all. `business_offers` is the other
-  service still unwalked.
+  blocks a **retail journey test** (§11.1): **five of the six** services are now
+  walked end to end (`business_offers` was closed by `BusinessOfferJourneyTest`,
+  commit `249fbf2`), but retail has nothing to sell and its merchant side is
+  web-panel only (`business/products`) with no API at all — so retail is the one
+  service still unwalked, and it is blocked on data, not code.
 - **Creating a super-admin is server-only, on purpose.** The roles screen manages
   the 12 named abilities and deliberately cannot mint or unmake a wildcard
   holder — that takes a migration or tinker. Fine as-is; noted so nobody
@@ -372,7 +373,8 @@ Guards that will fail the build if you drift:
 
 ### 11.1 Journey tests, and why they are a different kind of test
 
-Four services are now walked end to end the way the app walks them:
+Five services are now walked end to end the way the app walks them (retail is
+the sixth, blocked on `catalog_products` data, not code):
 
 | Test | Covers |
 |---|---|
@@ -380,6 +382,7 @@ Four services are now walked end to end the way the app walks them:
 | `MenuOrderJourneyTest` | browse menu → cart (variants + extras) → checkout → the kitchen sees it |
 | `DeliveryJourneyTest` | order → kitchen → driver takes it → pickup scan → delivery scan → ledgered |
 | `SchedulesJourneyTest` | carrier publishes a leg → passenger searches → reserves → rides → both rated |
+| `BusinessOfferJourneyTest` | subscribe → publish → discovery + storefront → client views/follows → toggle/edit/boost/performance → delete |
 
 They exist because BIM-11.1 proved that *"has passing tests" is not "works"*:
 the old `AddressApiTest` was green for months while creating an address was

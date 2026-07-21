@@ -21,7 +21,6 @@ Generated at: 2026-03-04 01:36:08
 - `app/Enums/WalletTransactionType.php`
 - `app/Exceptions/Handler.php`
 - `app/Helpers/ArabicNormalizer.php`
-- `app/Helpers/LocationHelper.php`
 - `app/Helpers/NotificationHelper.php`
 - `app/Http/Controllers/AddressController.php`
 - `app/Http/Controllers/Admin/AbilitiesController.php`
@@ -374,7 +373,6 @@ Generated at: 2026-03-04 01:36:08
 - `app/Providers/RouteServiceProvider.php`
 - `app/Providers/ViewServiceProvider.php`
 - `app/Services/DepositsEscrowService.php`
-- `app/Services/LocationResolverService.php`
 - `app/Services/LocationService.php`
 - `app/Services/PaymentConfirmService.php`
 - `app/Services/ServiceFeeService.php`

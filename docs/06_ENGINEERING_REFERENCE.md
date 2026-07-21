@@ -307,10 +307,12 @@ the free string stays as the fallback), and **nearest-city-by-GPS** (commit
 `ee83ff9` — `GET /locations/nearest?lat=&lng=` resolves a GPS point to our own
 city via a bounding-box-then-Haversine query over `cities`, capped by
 `bim.location.nearest_max_km`; map-provider-agnostic, no third-party geocoder.
-NB three older detectors are now superseded: `LocationHelper::detectFromLatLng`
-and `LocationService::detect` (both correct-table but unwired) and
-`LocationResolverService::nearestCity` (reads the DEAD `locations` tree, always
-returns null) — dead, safe to remove).
+NB two older detectors were superseded and removed: `LocationHelper::detectFromLatLng`
+(correct-table but unwired) and `LocationResolverService::nearestCity` (read the
+DEAD `locations` tree, always returned null). A third, `LocationService::detect`,
+survives the sweep only because it is still wired: the legacy web route
+`POST /profile/update` (`ProfileController::profileUpdateUser`) calls it in its
+GPS branch, so it stays until that legacy profile flow is retired).
 
 ---
 

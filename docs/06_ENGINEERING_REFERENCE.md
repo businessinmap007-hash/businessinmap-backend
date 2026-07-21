@@ -283,8 +283,6 @@ never-confirmed pending request cancels with no rating hit.
   the 12 named abilities and deliberately cannot mint or unmake a wildcard
   holder — that takes a migration or tinker. Fine as-is; noted so nobody
   "fixes" it by adding a button.
-- The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
-  instead of using `TripSchedule::modeLabels()` etc.
 - **The legacy web address form** (`AddressController` + `StoreAddressRequest`) is
   routed but unreachable: `resources/views/addresses/` does not exist. Its id
   space is fixed so it cannot corrupt `addresses`, but it should probably be

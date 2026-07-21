@@ -300,21 +300,13 @@ never-confirmed pending request cancels with no rating hit.
   bans are inherently weak — numbers get recycled and addresses are free. The
   durable fraud signal is the transaction graph around `user_operation_ratings`,
   not the identity.
-- **The address book is not wired to menu checkout.**
-  `POST /api/v2/cart/{business}/checkout` takes `address` as a free **string**,
-  not an `address_id`. Now that addresses actually work (§14), delivery orders
-  should reference a saved address rather than re-typing one: the courier gets a
-  typed line with no city, governorate or coordinates behind it.
-  **Correction (2026-07-20):** this used to claim the free string also starves
-  `ServiceFeeRuleEngine` of a geo match. It does not — the engine anchors
-  governorate/city on the **business's** primary address, on purpose, because
-  the service is delivered at the business (`ServiceFeeRuleEngine::primaryLocationFor`).
-  The gap is real; the fee-rule justification was not.
-
 **Done and worth not re-litigating:** the held-deletions admin screen (`admin/held-deletions`, MONEY-gated, commit `c9781e5`), the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
 subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,
-BIM-15.1 account deletion, and BIM-14.1 AdminV2 abilities.
+BIM-15.1 account deletion, BIM-14.1 AdminV2 abilities, and **the address book
+wired into menu checkout** (commit `29dd6c9` — `POST /cart/{business}/checkout`
+takes an owner-scoped `address_id` that snapshots a courier line onto the order;
+the free string stays as the fallback).
 
 ---
 

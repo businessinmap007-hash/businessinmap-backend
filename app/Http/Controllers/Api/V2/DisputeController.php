@@ -349,6 +349,25 @@ final class DisputeController extends Controller
         abort_if((int) $settlement->dispute_id !== (int) $dispute->id, 404);
     }
 
+    /**
+     * POST /api/v2/disputes/{dispute}/closure-confirmation — agree to delete
+     * the finished dispute's conversation.
+     *
+     * Takes both parties: the first tap is a request the other side is shown,
+     * the second erases the conversation for good. Only the record — number,
+     * parties, ruling — is kept.
+     */
+    public function confirmClosurePurge(Request $request, Dispute $dispute, DisputeService $disputes)
+    {
+        $this->ensureParty($request, $dispute);
+
+        $dispute = $disputes->confirmClosurePurge($dispute, (int) $request->user()->id);
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
+        return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
     // ─────────────────────────── the room ───────────────────────────
 
     /**
@@ -366,6 +385,16 @@ final class DisputeController extends Controller
         $data = $request->validate([
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+
+        // Deleted by both parties' consent — there is nothing to read, and
+        // asking for it must not rebuild it.
+        if ($dispute->isRoomPurged()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'meta' => ['thread' => ['purged' => true, 'purged_at' => optional($dispute->room_purged_at)->toIso8601String()]],
+            ]);
+        }
 
         $thread = app(DisputeService::class)->room($dispute);
 

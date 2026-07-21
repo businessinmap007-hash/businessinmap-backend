@@ -126,12 +126,13 @@ class DisputeController extends Controller
 
         // Read the room without taking a seat: an admin should be able to look
         // at a case before deciding to arbitrate it, and joining announces
-        // itself to both parties.
-        $thread = $this->disputeService->room($dispute);
-        $thread->load(['participants.user:id,name', 'messages.sender:id,name']);
+        // itself to both parties. A purged room no longer exists and must not
+        // be rebuilt just to display it.
+        $thread = $dispute->isRoomPurged() ? null : $this->disputeService->room($dispute);
+        $thread?->load(['participants.user:id,name', 'messages.sender:id,name']);
 
         $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
-        $violations = app(\App\Services\ThreadService::class)->violations($thread);
+        $violations = $thread ? app(\App\Services\ThreadService::class)->violations($thread) : collect();
         $claimableLines = app(\App\Services\ArbitrationService::class)->claimableLines($dispute);
         $compliance = $this->disputeService->complianceState($dispute);
 

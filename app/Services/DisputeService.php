@@ -129,6 +129,15 @@ class DisputeService
      */
     public function room(Dispute $dispute): Thread
     {
+        // A purged room must never be silently recreated: the thread is built
+        // on demand, so without this guard the next page view would make a
+        // fresh empty one and quietly undo the deletion both parties asked for.
+        if ($dispute->isRoomPurged()) {
+            throw ValidationException::withMessages([
+                'room' => __('حُذفت محادثة هذا النزاع باتفاق الطرفين ولا يمكن استرجاعها.'),
+            ]);
+        }
+
         $disputeable = $this->resolveDisputeable($dispute);
 
         // For a booking the sides are known, and the role matters: an
@@ -744,6 +753,134 @@ class DisputeService
             } catch (\Throwable $e) {
                 report($e);
             }
+        }
+    }
+
+    /**
+     * A party agreeing that the finished dispute's conversation may be deleted.
+     *
+     * Only on a CLOSED dispute — while anything can still be reopened or
+     * appealed, the conversation is live evidence and must not go. Deletion is
+     * irreversible, so it takes BOTH hands: the first confirmation is a request
+     * the other party is shown, the second is what actually erases it.
+     */
+    public function confirmClosurePurge(Dispute $dispute, int $userId): Dispute
+    {
+        $side = $this->requireSide($dispute, $userId);
+
+        if ($dispute->status !== Dispute::STATUS_CLOSED) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن حذف المحادثة إلا بعد إغلاق النزاع.'),
+            ]);
+        }
+
+        if ($dispute->isRoomPurged()) {
+            return $dispute; // already gone
+        }
+
+        $column = $side . '_purge_confirmed_at';
+
+        if ($dispute->{$column} === null) {
+            $dispute->{$column} = now();
+            $dispute->save();
+
+            // Said in the room while it still exists — the other side sees the
+            // request to delete it before it is deleted.
+            try {
+                $this->threads->system(
+                    $this->room($dispute),
+                    $side === 'client'
+                        ? 'طلب العميل حذف محادثة النزاع نهائيًا. ينتظر تأكيد النشاط.'
+                        : 'طلب النشاط حذف محادثة النزاع نهائيًا. ينتظر تأكيد العميل.'
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
+            $this->notifyPurgeRequest($dispute, $side);
+        }
+
+        if ($dispute->client_purge_confirmed_at !== null && $dispute->business_purge_confirmed_at !== null) {
+            $this->purgeRoom($dispute);
+        }
+
+        return $dispute->fresh();
+    }
+
+    /**
+     * Delete the conversation, keep the record.
+     *
+     * The thread and everything under it — messages, participants, conduct
+     * violations — are the conversation, and cascade away. The dispute row
+     * (its number, both parties, the ruling) and the arbitration session (the
+     * outcome and the money) are NOT touched, so what happened stays provable;
+     * only the back-and-forth is gone.
+     */
+    protected function purgeRoom(Dispute $dispute): void
+    {
+        Thread::query()
+            ->where('subject_type', $dispute->getMorphClass())
+            ->where('subject_id', $dispute->getKey())
+            ->get()
+            ->each->delete();
+
+        $dispute->room_purged_at = now();
+        $dispute->save();
+
+        $this->notifyPurged($dispute);
+    }
+
+    protected function notifyPurgeRequest(Dispute $dispute, string $requestingSide): void
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+
+        if (! $disputeable instanceof Booking) {
+            return;
+        }
+
+        $recipient = $requestingSide === 'client'
+            ? (int) $disputeable->business_id
+            : (int) $disputeable->user_id;
+
+        if ($recipient > 0) {
+            $this->purgeNotice(
+                $recipient,
+                $dispute,
+                'طلب حذف محادثة النزاع',
+                'طلب الطرف الآخر حذف محادثة النزاع نهائيًا. أكّد لإتمام الحذف — لا يمكن التراجع بعد ذلك.'
+            );
+        }
+    }
+
+    protected function notifyPurged(Dispute $dispute): void
+    {
+        foreach (array_values(array_unique(array_filter([
+            (int) $dispute->opened_by_user_id,
+            (int) $dispute->against_user_id,
+        ]))) as $userId) {
+            $this->purgeNotice(
+                $userId,
+                $dispute,
+                'حُذفت محادثة النزاع',
+                'حُذفت محادثة النزاع نهائيًا باتفاق الطرفين. بقي رقم النزاع وأطرافه وقرار الحكم في السجل.'
+            );
+        }
+    }
+
+    private function purgeNotice(int $userId, Dispute $dispute, string $titleAr, string $bodyAr): void
+    {
+        try {
+            $this->notifications->create([
+                'user_id' => $userId,
+                'type' => AppNotification::TYPE_DISPUTE,
+                'priority' => AppNotification::PRIORITY_NORMAL,
+                'title_ar' => $titleAr,
+                'body_ar' => $bodyAr,
+                'notifiable_type' => Dispute::class,
+                'notifiable_id' => (int) $dispute->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

@@ -2218,5 +2218,7 @@
     "الضريبة": "Tax",
     "لا يمكن إثبات الامتثال إلا بعد صدور القرار.": "Compliance can only be certified after a ruling is issued.",
     "لا يمكن إثبات الامتثال قبل تأكيد استلام مبلغ التسوية.": "Compliance cannot be certified before the settlement amount is confirmed received.",
-    "لا يمكن إثبات الامتثال قبل سداد كل المستحقات المترتبة على القرار.": "Compliance cannot be certified before every obligation from the ruling is paid."
+    "لا يمكن إثبات الامتثال قبل سداد كل المستحقات المترتبة على القرار.": "Compliance cannot be certified before every obligation from the ruling is paid.",
+    "حُذفت محادثة هذا النزاع باتفاق الطرفين ولا يمكن استرجاعها.": "This dispute's conversation was deleted by both parties' consent and cannot be recovered.",
+    "لا يمكن حذف المحادثة إلا بعد إغلاق النزاع.": "The conversation can only be deleted after the dispute is closed."
 }

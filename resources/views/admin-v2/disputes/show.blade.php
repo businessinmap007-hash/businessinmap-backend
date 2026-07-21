@@ -278,6 +278,16 @@
         </div>
     @endif
 
+    @if($dispute->isRoomPurged())
+        <div class="a2-card" style="padding:14px;margin-top:14px;">
+            <div class="a2-title" style="font-size:15px;margin-bottom:6px;">{{ __('غرفة النزاع') }}</div>
+            <div class="a2-hint">
+                {{ __('حُذفت محادثة هذا النزاع باتفاق الطرفين في') }}
+                {{ optional($dispute->room_purged_at)->format('Y-m-d H:i') }}.
+                {{ __('بقي رقم النزاع وأطرافه وقرار الحكم في السجل.') }}
+            </div>
+        </div>
+    @else
     <div class="a2-card" style="padding:14px;margin-top:14px;">
         <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('غرفة النزاع') }}</div>
 
@@ -385,6 +395,7 @@
             </form>
         @endif
     </div>
+    @endif
 
     @if($canResolve)
         <div class="a2-card" style="padding:14px;margin-top:14px;">

@@ -26,6 +26,9 @@ class Dispute extends Model
         'resolved_at',
         'closed_at',
         'closed_reason',
+        'client_purge_confirmed_at',
+        'business_purge_confirmed_at',
+        'room_purged_at',
         'deposit_id','type',
         'mutual_resolution_started_at',
         'mutual_resolution_deadline_at',
@@ -44,6 +47,9 @@ class Dispute extends Model
         'opened_at' => 'datetime',
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
+        'client_purge_confirmed_at' => 'datetime',
+        'business_purge_confirmed_at' => 'datetime',
+        'room_purged_at' => 'datetime',
         'mutual_resolution_started_at' => 'datetime',
         'mutual_resolution_deadline_at' => 'datetime',
         'last_warning_sent_at' => 'datetime',
@@ -87,6 +93,12 @@ class Dispute extends Model
     public function disputeable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** The conversation has been deleted by both parties' consent. */
+    public function isRoomPurged(): bool
+    {
+        return $this->room_purged_at !== null;
     }
 
     public function platformService(): BelongsTo

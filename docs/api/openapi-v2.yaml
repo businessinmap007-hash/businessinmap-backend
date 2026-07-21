@@ -2041,6 +2041,22 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+  /disputes/{dispute}/closure-confirmation:
+    post:
+      tags: [Disputes]
+      summary: Agree to delete a finished dispute's conversation
+      description: >-
+        Only on a CLOSED dispute, and only with BOTH parties confirming: the
+        first tap is a request the other side is shown, the second erases the
+        conversation for good. The dispute number, both parties and the ruling
+        are kept — only the messages, seats and conduct violations go. A purged
+        room's GET returns `meta.thread.purged: true` and is never rebuilt.
+      parameters:
+        - { in: path, name: dispute, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/settlement:
     post:
       tags: [Disputes]

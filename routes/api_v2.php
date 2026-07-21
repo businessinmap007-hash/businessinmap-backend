@@ -232,6 +232,11 @@ Route::prefix('v2')->group(function () {
         Route::post('disputes/{dispute}/cooperate', [DisputeController::class, 'cooperate'])
             ->whereNumber('dispute');
 
+        // Both parties agreeing to delete a finished dispute's conversation.
+        // Irreversible on the second confirmation; the record is kept.
+        Route::post('disputes/{dispute}/closure-confirmation', [DisputeController::class, 'confirmClosurePurge'])
+            ->whereNumber('dispute');
+
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.
         Route::post('disputes/{dispute}/settlement', [DisputeController::class, 'agreeSettlement'])

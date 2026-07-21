@@ -86,6 +86,14 @@ class DisputeResource extends JsonResource
             // was carried out, which is what a party points to to prove it is
             // genuinely over.
             'closed_reason' => $this->closed_reason,
+            // The consented deletion of the conversation. Both timestamps are
+            // shown to both sides: seeing the other party has already asked is
+            // the prompt to confirm.
+            'purge' => [
+                'client_confirmed_at' => optional($this->client_purge_confirmed_at)->toIso8601String(),
+                'business_confirmed_at' => optional($this->business_purge_confirmed_at)->toIso8601String(),
+                'purged_at' => optional($this->room_purged_at)->toIso8601String(),
+            ],
 
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];

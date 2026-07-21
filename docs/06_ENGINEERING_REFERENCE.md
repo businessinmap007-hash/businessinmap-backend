@@ -307,11 +307,17 @@ never-confirmed pending request cancels with no rating hit.
   freeze survives the ban so the money stays appealable); and **auto-detection**
   (`565046b`, `FraudDetectionService` + `fraud:scan` daily + a USERS-gated review
   screen — raises `fraud_flags` from the rating graph but only SUGGESTS, never
-  fines/bans; thresholds in `config/bim.php`). **Still deferred:** the
-  settlement→fine bridge (auto-creating a non-appealable fine when a settlement
-  is agreed). Instant seizure stays rejected as legally risky; email/phone bans
-  stay weak (recycled numbers), so the durable fraud signal is the transaction
-  graph, not the identity.
+  fines/bans; thresholds in `config/bim.php`). And the **settlement→fine bridge**
+  (`2abc3ae`, `FineService::levyFromSettlement` + a dispute-screen action): on a
+  dispute the parties themselves settled (`resolution_type=mutual_settlement`),
+  an admin records a platform fine they agreed to, created NON-appealable
+  (`source=settlement`, no window) because the consent was the settlement — so
+  it is collectable the moment it is frozen. One per dispute; refused on a
+  contested dispute (that gets the arbitrator's `DisputeObligation` fine
+  instead). **The fines system is now complete end to end.** Instant seizure
+  stays rejected as legally risky; email/phone bans stay weak (recycled
+  numbers), so the durable fraud signal is the transaction graph, not the
+  identity.
 **Done and worth not re-litigating:** the held-deletions admin screen (`admin/held-deletions`, MONEY-gated, commit `c9781e5`), the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
 subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,

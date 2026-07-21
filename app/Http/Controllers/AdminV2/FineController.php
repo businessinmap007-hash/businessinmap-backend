@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Fine;
 use App\Models\User;
+use App\Services\BanService;
 use App\Services\FineService;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,10 @@ use Illuminate\Http\Request;
  */
 final class FineController extends Controller
 {
-    public function __construct(private readonly FineService $fines) {}
+    public function __construct(
+        private readonly FineService $fines,
+        private readonly BanService $bans,
+    ) {}
 
     public function index(Request $request)
     {
@@ -51,6 +55,7 @@ final class FineController extends Controller
             'amount' => ['required', 'numeric', 'min:0.01', 'max:1000000'],
             'reason' => ['required', 'string', 'max:1000'],
             'appeal_days' => ['nullable', 'integer', 'min:1', 'max:90'],
+            'also_ban' => ['nullable', 'boolean'],
         ]);
 
         $fine = $this->fines->levy(
@@ -61,15 +66,22 @@ final class FineController extends Controller
             appealDays: (int) ($data['appeal_days'] ?? FineService::DEFAULT_APPEAL_DAYS),
         );
 
-        return redirect()
-            ->route('admin.fines.show', $fine->id)
-            ->with('status', __('فُرضت الغرامة وجُمّد ما أمكن من المبلغ.'));
+        // Fraud rarely warrants only a fine. Banning here reuses the standalone
+        // ban wholesale — the freeze still stands, so an appeal can still undo
+        // the money even after the account is stopped.
+        $status = __('فُرضت الغرامة وجُمّد ما أمكن من المبلغ.');
+        if (! empty($data['also_ban']) && (int) $data['user_id'] !== (int) $request->user()->id) {
+            $this->bans->ban(User::findOrFail((int) $data['user_id']), $data['reason'], (int) $request->user()->id);
+            $status = __('فُرضت الغرامة وأُوقف الحساب.');
+        }
+
+        return redirect()->route('admin.fines.show', $fine->id)->with('status', $status);
     }
 
     public function show(int $fine)
     {
         $fine = Fine::query()
-            ->with(['user:id,name,email,phone', 'appeals'])
+            ->with(['user:id,name,email,phone,banned_at,ban_reason', 'appeals'])
             ->findOrFail($fine);
 
         return view('admin-v2.fines.show', compact('fine'));

@@ -44,6 +44,13 @@
                     <textarea class="a2-input" name="reason" rows="3" required maxlength="1000"
                               placeholder="{{ __('اذكر سبب الاحتيال/الإساءة بوضوح — يراه المستخدم.') }}">{{ old('reason') }}</textarea>
                 </div>
+
+                <div class="a2-form-group" style="grid-column:1/-1;">
+                    <label class="a2-label" style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                        <input type="checkbox" name="also_ban" value="1" @checked(old('also_ban'))>
+                        {{ __('إيقاف الحساب أيضًا (يمنع الدخول ويسجّل الهوية في قائمة الحظر — التجميد يبقى فيمكن الطعن ماليًّا)') }}
+                    </label>
+                </div>
             </div>
 
             <div style="margin-top:16px;display:flex;gap:8px;">

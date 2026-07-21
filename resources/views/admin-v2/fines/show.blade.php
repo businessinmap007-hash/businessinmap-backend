@@ -30,6 +30,26 @@
             <div><div class="a2-hint">{{ __('نهاية الاعتراض') }}</div><div>{{ optional($fine->appeal_deadline_at)->format('Y-m-d H:i') ?: '—' }}</div></div>
         </div>
         <div style="margin-top:10px;"><div class="a2-hint">{{ __('السبب') }}</div><div>{{ $fine->reason }}</div></div>
+
+        {{-- Fine → ban bridge: act on the account from the fine context. --}}
+        <div style="margin-top:12px;border-top:1px solid var(--a2-border,#eee);padding-top:10px;">
+            @if($fine->user?->banned_at)
+                <span class="a2-badge a2-badge-danger">{{ __('الحساب موقوف') }}</span>
+                <form method="POST" action="{{ route('admin.users.unban', $fine->user_id) }}" style="display:inline;margin-inline-start:8px;"
+                      onsubmit="return confirm('{{ __('رفع الإيقاف عن الحساب. متابعة؟') }}')">
+                    @csrf
+                    <button class="a2-btn a2-btn-sm">{{ __('رفع الإيقاف') }}</button>
+                </form>
+            @else
+                <form method="POST" action="{{ route('admin.users.ban', $fine->user_id) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"
+                      onsubmit="return confirm('{{ __('إيقاف صاحب الغرامة وإلغاء جلساته. متابعة؟') }}')">
+                    @csrf
+                    <input type="hidden" name="reason" value="{{ $fine->reason }}">
+                    <button class="a2-btn a2-btn-sm a2-btn-danger">{{ __('إيقاف صاحب الغرامة') }}</button>
+                    <span class="a2-hint">{{ __('يستخدم سبب الغرامة نفسه.') }}</span>
+                </form>
+            @endif
+        </div>
     </div>
 
     {{-- Appeals --}}

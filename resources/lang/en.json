@@ -2237,5 +2237,6 @@
     "حسابك موقوف.": "Your account is suspended.",
     "لا يمكنك إيقاف حسابك.": "You cannot ban your own account.",
     "تم إيقاف المستخدم.": "The user was banned.",
-    "تم رفع الإيقاف.": "The ban was lifted."
+    "تم رفع الإيقاف.": "The ban was lifted.",
+    "فُرضت الغرامة وأُوقف الحساب.": "The fine was levied and the account was banned."
 }

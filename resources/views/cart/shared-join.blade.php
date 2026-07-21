@@ -157,6 +157,20 @@
                     <option value="delivery">توصيل</option>
                 </select>
             </div>
+
+            {{-- Delivery only: a one-off GPS pin for this order (no saved address needed). --}}
+            <div id="delivery-fields" class="hidden">
+                <div class="field">
+                    <label>موقع التوصيل</label>
+                    <button id="use-location" type="button" class="btn btn-ghost" style="width:auto;padding:9px 14px;font-size:13px;">📍 استخدم موقعي الحالي</button>
+                    <div id="loc-status" class="muted" style="font-size:12px;margin-top:8px;"></div>
+                </div>
+                <div class="field">
+                    <label for="address-note">تفاصيل العنوان (اختياري)</label>
+                    <input id="address-note" type="text" placeholder="مثال: بجوار المسجد، الدور الثالث">
+                </div>
+            </div>
+
             <div style="display:grid;gap:10px;margin-top:14px;">
                 <button id="checkout-btn" class="btn btn-ok">إتمام الطلب</button>
                 <button id="cancel-btn" class="btn btn-danger">إلغاء السلة</button>
@@ -180,7 +194,7 @@
     const JOIN_URL = '/api/v2/cart/join/' + encodeURIComponent(TOKEN);
     const CUR = 'ج.م';
 
-    const state = { cart: null, menuLoaded: false };
+    const state = { cart: null, menuLoaded: false, pin: null };
 
     const $ = (id) => document.getElementById(id);
     const show = (id) => $(id).classList.remove('hidden');
@@ -282,6 +296,7 @@
         const isHost = cart.viewer && cart.viewer.is_host;
         (isHost ? show : hide)('host-actions');
         (!isHost && cart.viewer ? show : hide)('member-actions');
+        if (isHost) toggleDeliveryFields();
 
         hide('intro'); hide('loading'); hide('gate'); hide('terminal'); clearFail();
         show('cart');
@@ -387,11 +402,49 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // ── Delivery location (a one-off GPS pin) ──
+    function toggleDeliveryFields() {
+        const isDelivery = $('fulfillment').value === 'delivery';
+        (isDelivery ? show : hide)('delivery-fields');
+    }
+
+    // Uses the browser's built-in Geolocation (no map provider); the pin is
+    // resolved to one of our own cities for display via /locations/nearest.
+    function useMyLocation() {
+        if (!navigator.geolocation) { $('loc-status').textContent = 'المتصفح لا يدعم تحديد الموقع.'; return; }
+        $('loc-status').textContent = 'جارٍ تحديد موقعك…';
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            state.pin = { lat, lng };
+            $('loc-status').textContent = '📍 تم تحديد موقعك. جارٍ التعرّف على المدينة…';
+            try {
+                const r = await fetch(`/api/v2/locations/nearest?lat=${lat}&lng=${lng}`, { headers: { 'Accept': 'application/json' } });
+                const j = await r.json();
+                const m = j && j.data && j.data.match;
+                const city = m && m.city ? (m.city.name_ar || m.city.name_en) : null;
+                $('loc-status').textContent = city ? `📍 موقعك الحالي: ${city}` : '📍 تم تحديد موقعك على الخريطة.';
+            } catch (e) {
+                $('loc-status').textContent = '📍 تم تحديد موقعك على الخريطة.';
+            }
+        }, (err) => {
+            state.pin = null;
+            $('loc-status').textContent = err.code === err.PERMISSION_DENIED
+                ? 'تم رفض إذن الموقع. فعّله أو اكتب العنوان يدوياً.'
+                : 'تعذّر تحديد موقعك. حاول مجدداً أو اكتب العنوان.';
+        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+
     // ── Lifecycle ──
     async function checkout() {
         if (!confirm('تأكيد إتمام الطلب؟')) return;
         const oid = state.cart.id;
-        const { res, handled } = await api('POST', `/api/v2/cart/shared/${oid}/checkout`, { fulfillment_type: $('fulfillment').value });
+        const payload = { fulfillment_type: $('fulfillment').value };
+        if (payload.fulfillment_type === 'delivery') {
+            const note = $('address-note').value.trim();
+            if (note) payload.address = note;
+            if (state.pin) { payload.lat = state.pin.lat; payload.lng = state.pin.lng; }
+        }
+        const { res, handled } = await api('POST', `/api/v2/cart/shared/${oid}/checkout`, payload);
         if (handled) return;
         if (!res.ok) { fail('تعذّر إتمام الطلب.'); return; }
         terminal('تم إرسال الطلب ✓', 'استلم المطعم طلبكم. الدفع نقداً عند الوصول، وكل مشارك يدفع فاتورته.');
@@ -437,6 +490,8 @@
     $('toggle-menu').addEventListener('click', loadMenu);
     $('checkout-btn').addEventListener('click', checkout);
     $('cancel-btn').addEventListener('click', cancelCart);
+    $('fulfillment').addEventListener('change', toggleDeliveryFields);
+    $('use-location').addEventListener('click', useMyLocation);
     $('leave-btn').addEventListener('click', leaveCart);
     $('save-token').addEventListener('click', () => {
         const v = $('token-input').value.trim();

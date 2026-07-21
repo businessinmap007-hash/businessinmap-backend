@@ -283,10 +283,6 @@ never-confirmed pending request cancels with no rating hit.
   the 12 named abilities and deliberately cannot mint or unmake a wildcard
   holder — that takes a migration or tinker. Fine as-is; noted so nobody
   "fixes" it by adding a button.
-- **The legacy web address form** (`AddressController` + `StoreAddressRequest`) is
-  routed but unreachable: `resources/views/addresses/` does not exist. Its id
-  space is fixed so it cannot corrupt `addresses`, but it should probably be
-  retired — kept for now under the keep-v1 rule.
 - **Fines system — the mechanism is now built** (commit `480481e`); what is left
   is deferred by decision. `FineService` levies a fraud/abuse fine OUTSIDE a
   dispute and collects it **freeze → appeal window → deduct** (never instant
@@ -331,7 +327,11 @@ NB two older detectors were superseded and removed: `LocationHelper::detectFromL
 DEAD `locations` tree, always returned null). A third, `LocationService::detect`,
 survives the sweep only because it is still wired: the legacy web route
 `POST /profile/update` (`ProfileController::profileUpdateUser`) calls it in its
-GPS branch, so it stays until that legacy profile flow is retired).
+GPS branch, so it stays until that legacy profile flow is retired). Also done:
+**the legacy web address form was unrouted** (commit `721c488` — the
+`Route::resource('addresses')`, `GET /user/addresses` and the primary-address
+route only ever 500'd; `AddressController` + `StoreAddressRequest` are kept
+unrouted for porting, the live book is `Api\V2\AddressController`).
 
 ---
 

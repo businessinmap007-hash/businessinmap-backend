@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
+use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
@@ -237,6 +238,12 @@ Route::prefix('v2')->group(function () {
         // Irreversible on the second confirmation; the record is kept.
         Route::post('disputes/{dispute}/closure-confirmation', [DisputeController::class, 'confirmClosurePurge'])
             ->whereNumber('dispute');
+
+        // Platform fines (fraud/abuse) the user can see and contest. Levy,
+        // decide and collect are the platform's, on the admin side.
+        Route::get('fines', [FineController::class, 'index']);
+        Route::get('fines/{fine}', [FineController::class, 'show'])->whereNumber('fine');
+        Route::post('fines/{fine}/appeal', [FineController::class, 'appeal'])->whereNumber('fine');
 
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.

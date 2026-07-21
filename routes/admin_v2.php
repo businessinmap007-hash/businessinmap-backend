@@ -33,6 +33,7 @@ use App\Http\Controllers\AdminV2\{
     DisputeController,
     DisputeFeeController,
     DisputeRuleController,
+    FineController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     HeldDeletionController,
@@ -355,6 +356,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('wallet-ops/users/search', [WalletOpsController::class, 'searchUsersJson'])->name('wallet-ops.users.search');
             Route::post('wallet-ops/recharge', [WalletOpsController::class, 'recharge'])->name('wallet-ops.recharge');
             Route::post('wallet-ops/activate-guarantee', [WalletOpsController::class, 'activateGuarantee'])->name('wallet-ops.activate-guarantee');
+
+            // Platform fines (fraud/abuse) — freeze → appeal window → capture.
+            // MONEY, not DISPUTES: it takes money from one user, not rules
+            // between two. Nothing is captured here; the sweep does that.
+            Route::prefix('fines')->name('fines.')->group(function () {
+                Route::get('/', [FineController::class, 'index'])->name('index');
+                Route::get('create', [FineController::class, 'create'])->name('create');
+                Route::post('/', [FineController::class, 'store'])->name('store');
+                Route::get('{fine}', [FineController::class, 'show'])->whereNumber('fine')->name('show');
+                Route::post('{fine}/appeal-decision', [FineController::class, 'decideAppeal'])->whereNumber('fine')->name('appeal-decision');
+                Route::post('{fine}/cancel', [FineController::class, 'cancel'])->whereNumber('fine')->name('cancel');
+            });
         });
 
         Route::prefix('guarantee-levels')->name('guarantee-levels.')->middleware('can:' . AdminAbility::TRUST)->group(function () {

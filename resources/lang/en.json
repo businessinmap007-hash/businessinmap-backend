@@ -2220,5 +2220,17 @@
     "لا يمكن إثبات الامتثال قبل تأكيد استلام مبلغ التسوية.": "Compliance cannot be certified before the settlement amount is confirmed received.",
     "لا يمكن إثبات الامتثال قبل سداد كل المستحقات المترتبة على القرار.": "Compliance cannot be certified before every obligation from the ruling is paid.",
     "حُذفت محادثة هذا النزاع باتفاق الطرفين ولا يمكن استرجاعها.": "This dispute's conversation was deleted by both parties' consent and cannot be recovered.",
-    "لا يمكن حذف المحادثة إلا بعد إغلاق النزاع.": "The conversation can only be deleted after the dispute is closed."
+    "لا يمكن حذف المحادثة إلا بعد إغلاق النزاع.": "The conversation can only be deleted after the dispute is closed.",
+    "انتهت مهلة الاعتراض على هذه الغرامة.": "The appeal window for this fine has closed.",
+    "سبب الغرامة مطلوب.": "A reason for the fine is required.",
+    "قيمة الغرامة يجب أن تكون أكبر من صفر.": "The fine amount must be greater than zero.",
+    "لا يمكن إلغاء غرامة مغلقة.": "A closed fine cannot be cancelled.",
+    "لا يمكنك الاعتراض على غرامة ليست لك.": "You cannot appeal a fine that is not yours.",
+    "لا يوجد اعتراض قيد النظر على هذه الغرامة.": "There is no pending appeal on this fine.",
+    "هذه الغرامة غير قابلة للاعتراض.": "This fine is not appealable.",
+    "يجب كتابة سبب الاعتراض.": "You must state a reason for the appeal.",
+    "أُلغيت الغرامة وفُكّ التجميد.": "The fine was cancelled and the hold released.",
+    "تم تقديم اعتراضك وسيُراجَع.": "Your appeal was submitted and will be reviewed.",
+    "سُجّل قرار الاعتراض.": "The appeal decision was recorded.",
+    "فُرضت الغرامة وجُمّد ما أمكن من المبلغ.": "The fine was levied and as much as possible was frozen."
 }

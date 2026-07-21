@@ -30,6 +30,12 @@ class Kernel extends ConsoleKernel
             ->hourly()
             ->withoutOverlapping();
 
+        // Fine appeal windows close on the scale of days; hourly is ample to
+        // notice a closed window and capture the frozen hold.
+        $schedule->command('fines:process --limit=100')
+            ->hourly()
+            ->withoutOverlapping();
+
         // Safety net for missed gateway callbacks (Fawry money-in). No-op until
         // gateway credentials are set, so it is safe to schedule now.
         $schedule->command('wallet:reconcile-topups --minutes=15 --limit=200')

@@ -107,6 +107,14 @@ tags:
       moves a dispute instead: an unmet settlement window escalates itself to
       review (`disputes:process`). You only ever see disputes you are a party
       to, and never the admin's notes or the internal file.
+  - name: Fines
+    description: |
+      Platform fines for fraud/abuse, levied on a user outside a dispute. You
+      can only see and contest your own. Levy, decide and collect are the
+      platform's, on the admin side — never here. The money is frozen at levy
+      and captured only after the appeal window closes; a successful appeal
+      costs nothing. A fine you already consented to in a settlement is not
+      appealable.
   - name: Posts
     description: |
       The social feed. Browsing is public, but sending a bearer token
@@ -2330,6 +2338,47 @@ paths:
         '201': { description: Created }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+
+  # ──────────────────── Fines (fraud/abuse) ────────────────────
+  /fines:
+    get:
+      tags: [Fines]
+      summary: My platform fines
+      description: The fines levied on you, newest first. Paginated.
+      responses:
+        '200': { description: OK }
+  /fines/{fine}:
+    get:
+      tags: [Fines]
+      summary: One of my fines
+      parameters:
+        - { in: path, name: fine, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or not yours' }
+  /fines/{fine}/appeal:
+    post:
+      tags: [Fines]
+      summary: Contest a fine while its window is open
+      description: >-
+        Allowed only on your own fine, only while it is appealable and the
+        window has not closed. Filing pauses collection until an admin decides.
+      parameters:
+        - { in: path, name: fine, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [statement]
+              properties:
+                statement: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: 'Appeal submitted' }
+        '404': { description: 'Not found, or not yours' }
+        '422': { $ref: '#/components/responses/Validation' }
+
   /posts:
     get:
       tags: [Posts]

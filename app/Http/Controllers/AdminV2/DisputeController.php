@@ -243,6 +243,61 @@ class DisputeController extends Controller
         );
     }
 
+    /**
+     * A platform fine that was part of the parties' own settlement.
+     *
+     * Only on a dispute they mutually settled (no ruling): the consent that
+     * makes it non-appealable is that agreement, so this path is closed on a
+     * contested dispute — those get the arbitrator's fine instead. Recorded as
+     * a settlement-source Fine (freeze, no appeal window), one per dispute.
+     */
+    public function attachSettlementFine(Request $request, Dispute $dispute)
+    {
+        $data = $request->validate([
+            'side' => ['required', 'in:client,business'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:1000000'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        if ((string) $dispute->resolution_type !== \App\Services\DisputeService::RESOLUTION_MUTUAL) {
+            return back()->with('error', __('غرامة التسوية تُسجَّل فقط على نزاع أُغلق بتسوية ودية.'));
+        }
+
+        $userId = $this->partyUserId($dispute, $data['side']);
+        if (! $userId) {
+            return back()->with('error', __('تعذر تحديد الطرف.'));
+        }
+
+        try {
+            app(\App\Services\FineService::class)->levyFromSettlement(
+                userId: $userId,
+                amount: (float) $data['amount'],
+                reason: $data['reason'],
+                adminId: (int) $request->user()->id,
+                disputeId: (int) $dispute->id,
+            );
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return back()->with('success', __('سُجّلت غرامة التسوية (غير قابلة للطعن) وجُمّد المبلغ.'));
+    }
+
+    /** The user id behind a booking dispute's side. */
+    private function partyUserId(Dispute $dispute, string $side): ?int
+    {
+        if ((string) $dispute->disputeable_type !== Booking::class) {
+            return null;
+        }
+
+        $booking = Booking::query()->find((int) $dispute->disputeable_id);
+        if (! $booking) {
+            return null;
+        }
+
+        return $side === 'client' ? (int) $booking->user_id : (int) $booking->business_id;
+    }
+
     /** Retry an ordered compensation the payer could not afford at the time. */
     public function settleCompensation(Dispute $dispute)
     {

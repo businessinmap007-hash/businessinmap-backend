@@ -2240,5 +2240,9 @@
     "تم رفع الإيقاف.": "The ban was lifted.",
     "فُرضت الغرامة وأُوقف الحساب.": "The fine was levied and the account was banned.",
     "اكتمل الفحص: :flagged حساب مشبوه.": "Scan complete: :flagged suspected accounts.",
-    "صُرف البلاغ كإيجابية كاذبة.": "The flag was dismissed as a false positive."
+    "صُرف البلاغ كإيجابية كاذبة.": "The flag was dismissed as a false positive.",
+    "لهذا النزاع غرامة تسوية بالفعل.": "This dispute already has a settlement fine.",
+    "غرامة التسوية تُسجَّل فقط على نزاع أُغلق بتسوية ودية.": "A settlement fine can only be recorded on a mutually settled dispute.",
+    "تعذر تحديد الطرف.": "Could not determine the party.",
+    "سُجّلت غرامة التسوية (غير قابلة للطعن) وجُمّد المبلغ.": "The settlement fine (non-appealable) was recorded and the amount frozen."
 }

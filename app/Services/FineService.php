@@ -92,6 +92,47 @@ class FineService
     }
 
     /**
+     * A fine that is part of a mutual settlement the parties themselves reached.
+     *
+     * Non-appealable by design: the consent to it was the settlement, so there
+     * is nothing left to contest (the user's rule — «لا طعن بعد الاتفاق»). With
+     * no appeal window it becomes collectable the moment it is frozen, so the
+     * sweep captures it on its next run. One per dispute.
+     */
+    public function levyFromSettlement(int $userId, float $amount, string $reason, int $adminId, ?int $disputeId = null): Fine
+    {
+        if ($disputeId !== null && $this->settlementFineExistsFor($disputeId)) {
+            throw ValidationException::withMessages(['dispute' => __('لهذا النزاع غرامة تسوية بالفعل.')]);
+        }
+
+        $fine = $this->levy(
+            userId: $userId,
+            amount: $amount,
+            reason: $reason,
+            adminId: $adminId,
+            appealDays: 0,
+            appealable: false,
+            source: Fine::SOURCE_SETTLEMENT,
+        );
+
+        if ($disputeId !== null) {
+            $fine->update(['meta' => array_merge((array) $fine->meta, ['dispute_id' => $disputeId])]);
+        }
+
+        return $fine->fresh();
+    }
+
+    /** Is there already a live/collected settlement fine for this dispute? */
+    public function settlementFineExistsFor(int $disputeId): bool
+    {
+        return Fine::query()
+            ->where('source', Fine::SOURCE_SETTLEMENT)
+            ->where('meta->dispute_id', $disputeId)
+            ->whereNotIn('status', [Fine::STATUS_CANCELLED, Fine::STATUS_OVERTURNED])
+            ->exists();
+    }
+
+    /**
      * Lock as much of the outstanding shortfall as the wallet's free balance
      * allows. Idempotent per call — it only ever adds up to the shortfall.
      */

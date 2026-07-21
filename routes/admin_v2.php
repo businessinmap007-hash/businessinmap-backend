@@ -504,6 +504,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('{dispute}/resolve/release-business', [DisputeController::class, 'resolveReleaseBusiness'])->whereNumber('dispute')->name('resolve.release-business');
                 Route::post('{dispute}/resolve/refund-client', [DisputeController::class, 'resolveRefundClient'])->whereNumber('dispute')->name('resolve.refund-client');
                 Route::post('{dispute}/resolve/split', [DisputeController::class, 'resolveSplit'])->whereNumber('dispute')->name('resolve.split');
+                // A fine the parties themselves agreed to as part of a mutual
+                // settlement — non-appealable, so it is money and needs MONEY.
+                Route::post('{dispute}/settlement-fine', [DisputeController::class, 'attachSettlementFine'])->whereNumber('dispute')->name('settlement-fine');
             });
 
             Route::post('{dispute}/resolve/no-action', [DisputeController::class, 'resolveNoAction'])->whereNumber('dispute')->name('resolve.no-action');

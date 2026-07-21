@@ -246,6 +246,50 @@
         </div>
     @endif
 
+    {{-- Settlement fine: only on a dispute the parties themselves settled. --}}
+    @if($dispute->resolution_type === \App\Services\DisputeService::RESOLUTION_MUTUAL)
+        @php $settlementFine = \App\Models\Fine::where('source', \App\Models\Fine::SOURCE_SETTLEMENT)->where('meta->dispute_id', $dispute->id)->whereNotIn('status', ['cancelled','overturned'])->first(); @endphp
+        <div class="a2-card" style="padding:14px;margin-top:14px;">
+            <div class="a2-title" style="font-size:15px;margin-bottom:6px;">{{ __('غرامة التسوية') }}</div>
+            <div class="a2-hint" style="margin-bottom:10px;">
+                {{ __('غرامة منصة اتفق عليها الطرفان ضمن التسوية الودية. غير قابلة للطعن لأن الموافقة كانت مشروطة بإتمام التسوية.') }}
+            </div>
+
+            @if($settlementFine)
+                <div class="a2-hint">{{ __('سُجّلت غرامة تسوية:') }}
+                    <a href="{{ route('admin.fines.show', $settlementFine->id) }}" style="font-weight:800;">#{{ $settlementFine->id }}</a>
+                    · {{ number_format((float) $settlementFine->amount, 2) }} · {{ $settlementFine->statusLabel() }}
+                </div>
+            @else
+                <form method="POST" action="{{ route('admin.disputes.settlement-fine', $dispute) }}"
+                      onsubmit="return confirm('{{ __('تسجيل غرامة تسوية غير قابلة للطعن وتجميد المبلغ. متابعة؟') }}');">
+                    @csrf
+                    <div class="a2-form-grid">
+                        <div class="a2-form-group">
+                            <label class="a2-label">{{ __('الطرف الملتزم') }}</label>
+                            <select class="a2-select" name="side" required>
+                                <option value="client">{{ __('العميل') }}</option>
+                                <option value="business">{{ __('النشاط') }}</option>
+                            </select>
+                        </div>
+                        <div class="a2-form-group">
+                            <label class="a2-label">{{ __('المبلغ') }}</label>
+                            <input class="a2-input" type="number" step="0.01" min="0.01" name="amount" required>
+                        </div>
+                        <div class="a2-form-group" style="grid-column:1/-1;">
+                            <label class="a2-label">{{ __('السبب') }}</label>
+                            <input class="a2-input" type="text" name="reason" maxlength="1000" required
+                                   placeholder="{{ __('ما اتفق عليه الطرفان في التسوية') }}">
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <button class="a2-btn a2-btn-danger" type="submit">{{ __('تسجيل غرامة التسوية') }}</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+    @endif
+
     @if($dispute->status === 'resolved')
         <div class="a2-card" style="padding:14px;margin-top:14px;">
             <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('إغلاق النزاع') }}</div>

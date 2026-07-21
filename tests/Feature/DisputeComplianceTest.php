@@ -231,6 +231,71 @@ class DisputeComplianceTest extends TestCase
         );
     }
 
+    /**
+     * The leak a live walk found: an unaffordable compensation used to run its
+     * own transfer path, so it left nothing in the obligations ledger and
+     * `complianceState` reported the case as compliant — letting an arbitrator
+     * certify a ruling that was never carried out. Compensation now flows
+     * through the same ledger as the fee and fine.
+     */
+    public function test_an_unpaid_compensation_blocks_the_compliance_close(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        if ((float) $this->booking->price <= 0) {
+            $this->booking->forceFill(['price' => 300])->saveQuietly();
+        }
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
+        $this->disputes->resolve($dispute->fresh(), 'release_business', [], (int) $admin->id);
+        $this->arbitration->chargeArbitrationFee($dispute->fresh());
+
+        // The client cannot afford the compensation.
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => 5]);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
+
+        $state = $this->disputes->complianceState($dispute->fresh());
+
+        $this->assertFalse($state['compliant'], 'an unpaid compensation is outstanding');
+        $this->assertGreaterThan(0, $state['pending_obligations'], 'it lives in the ledger now');
+        $this->assertTrue(
+            app(\App\Services\DisputeCollectionService::class)->isBlocked((int) $this->booking->user_id),
+            'and it blocks new operations like any other debt'
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->disputes->closeWithCompliance($dispute->fresh(), (int) $admin->id);
+    }
+
+    /** Topping up settles the compensation and unlocks the close. */
+    public function test_paying_the_compensation_unlocks_compliance(): void
+    {
+        $admin = $this->makeAdmin();
+        $dispute = $this->open();
+
+        if ((float) $this->booking->price <= 0) {
+            $this->booking->forceFill(['price' => 300])->saveQuietly();
+        }
+
+        $this->arbitration->acceptSession($dispute, (int) $admin->id);
+        $this->disputes->resolve($dispute->fresh(), 'release_business', [], (int) $admin->id);
+        $this->arbitration->chargeArbitrationFee($dispute->fresh());
+
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => 5]);
+        $this->arbitration->awardCompensation($dispute->fresh(), 'business', ['booking_price']);
+
+        // They top up; the retry settles it.
+        $this->wallet((int) $this->booking->user_id)->update(['balance' => (float) $this->booking->price + 100]);
+        $this->arbitration->settleCompensation($dispute->fresh());
+
+        $this->assertTrue($this->disputes->complianceState($dispute->fresh())['compliant']);
+        $this->assertSame(
+            'complied',
+            $this->disputes->closeWithCompliance($dispute->fresh(), (int) $admin->id)->closed_reason
+        );
+    }
+
     // ─────────────────────────── the admin screen ───────────────────────────
 
     public function test_the_compliance_close_works_from_the_panel(): void

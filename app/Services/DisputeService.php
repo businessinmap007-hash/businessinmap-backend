@@ -647,8 +647,28 @@ class DisputeService
             ->whereIn('status', DisputeSettlement::LIVE_STATUSES)
             ->exists();
 
+        // Belt and braces: a compensation ordered on the session but not yet
+        // shown paid must count as outstanding even if, for any reason, its
+        // obligation row is missing — UNLESS a paid compensation obligation
+        // exists (the sweep may have settled it without touching the session
+        // field). Certifying compliance is a factual claim, so it errs toward
+        // "not yet".
+        $orderedCompensation = ArbitrationSession::query()
+            ->where('dispute_id', $dispute->id)
+            ->where('compensation_amount', '>', 0)
+            ->whereNull('compensation_paid_at')
+            ->exists();
+
+        $compensationSettled = DisputeObligation::query()
+            ->where('dispute_id', $dispute->id)
+            ->where('type', DisputeObligation::TYPE_COMPENSATION)
+            ->where('status', DisputeObligation::STATUS_PAID)
+            ->exists();
+
+        $unpaidCompensation = $orderedCompensation && ! $compensationSettled;
+
         return [
-            'compliant' => $pendingObligations === 0 && ! $pendingSettlement,
+            'compliant' => $pendingObligations === 0 && ! $pendingSettlement && ! $unpaidCompensation,
             'pending_obligations' => $pendingObligations,
             'pending_settlement' => $pendingSettlement,
         ];

@@ -596,54 +596,60 @@ class ArbitrationService
 
         $this->announceCompensation($dispute, $toSide, $amount, implode(' + ', $this->labelsFor($dispute, $lineKeys)));
 
-        return $this->settleCompensation($dispute);
+        // Compensation is collected through the SAME ledger as the fee and the
+        // fine — recorded as a debt, paid from the wallet if it can be, and
+        // otherwise left pending so it blocks new operations and, after the
+        // window, is taken from the guarantee. Its own direct-transfer path
+        // used to bypass all of that: an unaffordable compensation stayed
+        // unpaid on the session but created no obligation, so the block never
+        // fired and — worse — a compliance close saw nothing outstanding and
+        // could certify a ruling that was never carried out.
+        $payerSide = $toSide === 'client' ? 'business' : 'client';
+        $payerId = $this->partyId($dispute, $payerSide);
+        $payeeId = $this->partyId($dispute, $toSide);
+
+        if ($payerId && $payeeId) {
+            $obligation = app(DisputeCollectionService::class)->charge(
+                dispute: $dispute,
+                userId: $payerId,
+                type: DisputeObligation::TYPE_COMPENSATION,
+                amount: $amount,
+                payeeUserId: $payeeId
+            );
+
+            if ($obligation->status === DisputeObligation::STATUS_PAID) {
+                $session->update(['compensation_paid_at' => $obligation->paid_at]);
+            } else {
+                app(DisputeCollectionService::class)->notifyUnpaid($obligation);
+            }
+        }
+
+        return $session->fresh();
     }
 
     /**
-     * Try to actually move the ordered compensation.
+     * Retry an ordered compensation the payer could not afford at the time.
      *
-     * Safe to call again: an order that could not be paid when it was made can
-     * be paid the moment the payer tops up, which is the whole reason the order
-     * survives the failure.
+     * Delegates to the collection ledger, which is where the debt actually
+     * lives now; the session's `compensation_paid_at` is kept in step for the
+     * admin screen.
      */
     public function settleCompensation(Dispute $dispute): ArbitrationSession
     {
         $session = ArbitrationSession::query()->where('dispute_id', $dispute->id)->firstOrFail();
 
-        $amount = round((float) $session->compensation_amount, 2);
+        $obligation = DisputeObligation::query()
+            ->where('dispute_id', $dispute->id)
+            ->where('type', DisputeObligation::TYPE_COMPENSATION)
+            ->first();
 
-        if ($amount <= 0 || $session->compensation_paid_at !== null) {
-            return $session;
+        if ($obligation && $obligation->isPending()) {
+            $obligation = app(DisputeCollectionService::class)->settle($obligation);
         }
 
-        $payerSide = $session->compensation_to === 'client' ? 'business' : 'client';
-        $payerId = $this->partyId($dispute, $payerSide);
-        $payeeId = $this->partyId($dispute, (string) $session->compensation_to);
-
-        if (! $payerId || ! $payeeId) {
-            return $session;
+        if ($obligation && $obligation->status === DisputeObligation::STATUS_PAID && $session->compensation_paid_at === null) {
+            $session->update(['compensation_paid_at' => $obligation->paid_at]);
         }
-
-        try {
-            $this->wallets->transfer(
-                fromUserId: $payerId,
-                toUserId: $payeeId,
-                amount: $amount,
-                referenceType: 'dispute_compensation',
-                referenceId: (string) $dispute->id,
-                note: 'تعويض بحكم تحكيم في نزاع #' . $dispute->id,
-                idempotencyKey: 'dispute_compensation_' . $dispute->id,
-                meta: ['dispute_id' => (int) $dispute->id, 'to' => $session->compensation_to]
-            );
-        } catch (ValidationException $e) {
-            // Almost always an empty wallet. The order stands and stays unpaid;
-            // that unpaid state is what an arbitrator later fines for.
-            return $session->fresh();
-        }
-
-        $session->update(['compensation_paid_at' => now()]);
-
-        $this->notifyCompensation($payeeId, $payerId, $dispute, $amount);
 
         return $session->fresh();
     }

@@ -289,14 +289,24 @@ never-confirmed pending request cancels with no rating hit.
   routed but unreachable: `resources/views/addresses/` does not exist. Its id
   space is fixed so it cannot corrupt `addresses`, but it should probably be
   retired — kept for now under the keep-v1 rule.
-- **Fines system** (deferred by decision). The `PURPOSE_FINE` treasury bucket and
-  the `users.banned_at` + `blocked_identities` machinery already exist, so this
-  needs the fraud *detection* and the appeal path, not a redesign. Two things to
-  settle first: seizing a balance the instant fraud is suspected is legally
-  risky (freeze → review → deduct, reusing `disputes`, is safer), and email+phone
-  bans are inherently weak — numbers get recycled and addresses are free. The
-  durable fraud signal is the transaction graph around `user_operation_ratings`,
-  not the identity.
+- **Fines system — the mechanism is now built** (commit `480481e`); what is left
+  is deferred by decision. `FineService` levies a fraud/abuse fine OUTSIDE a
+  dispute and collects it **freeze → appeal window → deduct** (never instant
+  seizure): the amount is held in the wallet at levy, captured to the treasury
+  `PURPOSE_FINE` only when upheld or the window closes unappealed, and released
+  in full on an accepted appeal or a cancel. A broke user is still fined — the
+  `fines:process` sweep tops the frozen hold up from later balance before
+  capturing, and never takes more than is locked. Admin side is MONEY-gated
+  (levy/decide/cancel); user side is `GET /fines`, `GET /fines/{id}`,
+  `POST /fines/{id}/appeal` (own only, stranger = 404). A settlement-consented
+  fine is marked `is_appealable=false` (the flag exists; that path isn't levied
+  yet). **Still deferred:** (1) auto-detection from the `user_operation_ratings`
+  transaction graph — this slice is admin-levied only, by explicit choice;
+  (2) wiring a fine to the ban (`users.banned_at` + `blocked_identities` exist,
+  but levying a fine does not ban, and there is still no standalone admin
+  ban-a-user action); (3) the settlement→fine bridge. Instant seizure was
+  rejected as legally risky; email/phone bans stay weak (recycled numbers), so
+  the durable fraud signal remains the transaction graph, not the identity.
 **Done and worth not re-litigating:** the held-deletions admin screen (`admin/held-deletions`, MONEY-gated, commit `c9781e5`), the 5-phase architecture reorg (0–5), the
 7-point v2 gap list (tests, wallet↔order states, order lifecycle, duplicate
 subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,

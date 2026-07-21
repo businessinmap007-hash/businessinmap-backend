@@ -285,9 +285,6 @@ never-confirmed pending request cancels with no rating hit.
   "fixes" it by adding a button.
 - The older AdminV2 trip-schedules blade hardcodes its own Arabic label maps
   instead of using `TripSchedule::modeLabels()` etc.
-- **Nearest-city-by-GPS** (the rest of BIM-11.1). `LocationHelper::detectFromLatLng`
-  exists but is not wired to any v2 endpoint, so the app cannot offer "use my
-  location" — only the manual pickers.
 - **The legacy web address form** (`AddressController` + `StoreAddressRequest`) is
   routed but unreachable: `resources/views/addresses/` does not exist. Its id
   space is fixed so it cannot corrupt `addresses`, but it should probably be
@@ -306,7 +303,14 @@ subsystems, mail, authz, docs), BIM-13 QR, BIM-3.5, the platform treasury,
 BIM-15.1 account deletion, BIM-14.1 AdminV2 abilities, and **the address book
 wired into menu checkout** (commit `29dd6c9` — `POST /cart/{business}/checkout`
 takes an owner-scoped `address_id` that snapshots a courier line onto the order;
-the free string stays as the fallback).
+the free string stays as the fallback), and **nearest-city-by-GPS** (commit
+`ee83ff9` — `GET /locations/nearest?lat=&lng=` resolves a GPS point to our own
+city via a bounding-box-then-Haversine query over `cities`, capped by
+`bim.location.nearest_max_km`; map-provider-agnostic, no third-party geocoder.
+NB three older detectors are now superseded: `LocationHelper::detectFromLatLng`
+and `LocationService::detect` (both correct-table but unwired) and
+`LocationResolverService::nearestCity` (reads the DEAD `locations` tree, always
+returns null) — dead, safe to remove).
 
 ---
 

@@ -8,8 +8,10 @@ use App\Models\Country;
 use Illuminate\Http\Request;
 
 /**
- * ⚠️ Legacy web address form — routed but non-functional, and left in place
- * rather than deleted (v1 is kept deliberately; parts are still being ported).
+ * ⚠️ Legacy web address form — now UNROUTED, and left in place rather than
+ * deleted (v1 is kept deliberately; parts are still being ported). The web
+ * routes were removed because they only ever 500'd; if you revive this, add the
+ * routes back and build the missing `addresses.*` views + methods first.
  *
  * index() renders `addresses.index`, a view that does not exist, so it throws.
  * store() used to look up `locations` for name_en = 'Egypt' in a table where all

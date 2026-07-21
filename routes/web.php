@@ -38,9 +38,11 @@ Route::get("terms-and-conditions", "App\Http\Controllers\PageController@termsAnd
 Route::get("privacy-and-policy", "App\Http\Controllers\PageController@privacy")->name('privacy');
 
 Route::get('/user/profile', 'App\Http\Controllers\ProfileController@profile')->name('profile');
-Route::get('/user/addresses', 'App\Http\Controllers\ProfileController@userAddresses')->name('addresses');
-Route::resource('addresses', 'App\Http\Controllers\AddressController');
-Route::post('addresses/update/primary', 'App\Http\Controllers\AddressController@updatePrimaryAddress')->name('update.primary.address');
+// Legacy web address form retired: the routes only 500'd — the resource's
+// create/show/edit/update/destroy methods and ProfileController@userAddresses
+// never existed, and addresses.index rendered a view that was never built. The
+// live address book is Api\V2\AddressController. AddressController +
+// StoreAddressRequest are kept (unrouted) under the keep-v1 rule for porting.
 Route::post('/profile/update', 'App\Http\Controllers\ProfileController@profileUpdateUser')->name('profile.update');
 
 Auth::routes();

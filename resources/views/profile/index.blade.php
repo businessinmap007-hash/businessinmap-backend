@@ -14,9 +14,6 @@
                                 <ul class="sidebar">
                                     <li><a class="{{ request()->route()->getName() == 'profile' ? "active" : "" }}"
                                            href="{{ route('profile') }}">الحساب الشخصي</a></li>
-                                    <li>
-                                        <a class="{{ request()->route()->getName() == 'addresses.index' ? "active" : "" }}"
-                                           href="{{ route('addresses.index') }}">عناوينى</a></li>
                                     <li><a href="#">الطلبات</a></li>
                                     <li><a href="{{ route('wishlist') }}">@lang('trans.wishlists')</a></li>
                                     <li><a href="{{ route('user.auth.logout') }}">تسجيل خروج</a></li>

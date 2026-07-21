@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Address;
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
@@ -493,7 +494,27 @@ class CustomerCartService
     private function placeOrder(Order $cart, array $data): void
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
-        $cart->address = (string) ($data['address'] ?? $cart->address ?? '');
+
+        // A saved address wins over a free string: it carries city, governorate
+        // and coordinates. Scoped to the cart owner so one customer can't attach
+        // another's address; a snapshot line is written so the courier still has
+        // something readable and a later edit to the address never rewrites it.
+        if (! empty($data['address_id'])) {
+            $address = Address::query()
+                ->where('id', (int) $data['address_id'])
+                ->where('user_id', (int) $cart->user_id)
+                ->first();
+
+            if (! $address) {
+                throw ValidationException::withMessages(['address_id' => __('العنوان غير موجود.')]);
+            }
+
+            $cart->delivery_address_id = (int) $address->id;
+            $cart->address = $address->toDeliveryLine();
+        } else {
+            $cart->address = (string) ($data['address'] ?? $cart->address ?? '');
+        }
+
         $cart->notes = $data['notes'] ?? $cart->notes;
         $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
         $cart->status = self::STATUS_PENDING;

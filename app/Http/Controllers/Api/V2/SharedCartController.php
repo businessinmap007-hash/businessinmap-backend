@@ -110,6 +110,7 @@ final class SharedCartController extends Controller
     {
         $data = $request->validate([
             'fulfillment_type' => ['nullable', 'in:delivery,pickup,dine_in'],
+            'address_id' => ['nullable', 'integer'],
             'address' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);

@@ -49,4 +49,31 @@ class Address extends Model
     {
         return $this->belongsTo(City::class, 'city_id');
     }
+
+    /**
+     * A human-readable delivery line for a courier: the street line followed by
+     * city then governorate. Snapshotted onto an order at checkout so editing
+     * the address later never rewrites an order already in flight.
+     */
+    public function toDeliveryLine(): string
+    {
+        $parts = array_filter([
+            $this->address_line,
+            $this->nameOf($this->city),
+            $this->nameOf($this->governorate),
+        ], fn ($p) => filled($p));
+
+        return implode('، ', $parts);
+    }
+
+    private function nameOf($relation): ?string
+    {
+        if (! $relation instanceof Model) {
+            return null;
+        }
+
+        return method_exists($relation, 'loc')
+            ? $relation->loc('name')
+            : ($relation->name_ar ?: $relation->name_en);
+    }
 }

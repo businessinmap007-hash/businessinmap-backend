@@ -101,6 +101,7 @@ final class CartController extends Controller
     {
         $data = $request->validate([
             'fulfillment_type' => ['nullable', 'in:delivery,pickup,dine_in'],
+            'address_id' => ['nullable', 'integer'],
             'address' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -154,6 +155,8 @@ final class CartController extends Controller
                 'logo' => $order->business->logo,
             ] : null,
             'fulfillment_type' => (string) $order->fulfillment_type,
+            'address' => $order->address !== '' ? (string) $order->address : null,
+            'delivery_address_id' => $order->delivery_address_id !== null ? (int) $order->delivery_address_id : null,
             'items' => $items,
             'items_count' => $items->sum('qty'),
             'bill' => [

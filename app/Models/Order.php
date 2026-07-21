@@ -53,6 +53,7 @@ class Order extends Model
         'final_total',
         'payment_method',
         'address',
+        'delivery_address_id',
         'notes',
         'status',
         'prep_status',
@@ -67,6 +68,7 @@ class Order extends Model
         'booking_id' => 'integer',
         'business_table_id' => 'integer',
         'delivery_driver_id' => 'integer',
+        'delivery_address_id' => 'integer',
         'is_shared' => 'boolean',
         'handover_confirmed_at' => 'datetime',
     ];
@@ -94,6 +96,12 @@ class Order extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'booking_id');
+    }
+
+    /** The saved address book entry this delivery order was placed against. */
+    public function deliveryAddress()
+    {
+        return $this->belongsTo(Address::class, 'delivery_address_id');
     }
 
     public function isDineIn(): bool

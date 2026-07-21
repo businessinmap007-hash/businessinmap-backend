@@ -1121,7 +1121,8 @@ paths:
               type: object
               properties:
                 fulfillment_type: { type: string, enum: [delivery, pickup, dine_in] }
-                address: { type: string }
+                address_id: { type: integer, description: A saved address book entry (must be the caller's); wins over the free string. }
+                address: { type: string, description: Free-text fallback used only when address_id is absent. }
                 notes: { type: string }
                 payment_method: { type: string }
       responses: { '200': { description: OK } }

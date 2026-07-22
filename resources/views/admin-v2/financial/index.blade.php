@@ -54,34 +54,30 @@
     @endif
 
     {{-- Filters --}}
-    <form method="GET" action="{{ route('admin.financial.index') }}" class="a2-toolbar">
-      <div class="a2-filters">
+    <form method="GET" action="{{ route('admin.financial.index') }}" class="a2-filterbar">
+      <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بـ ID أو user_id أو amount أو ref') }}">
 
-        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بـ ID أو user_id أو amount أو ref') }}">
+      <select class="a2-select a2-filter-sm" name="type">
+        @foreach(($typeOptions ?? []) as $k => $label)
+          <option value="{{ $k }}" @selected((string)$typeVal === (string)$k)>{{ $label }}</option>
+        @endforeach
+      </select>
 
-        <select class="a2-select" name="type">
-          @foreach(($typeOptions ?? []) as $k => $label)
-            <option value="{{ $k }}" @selected((string)$typeVal === (string)$k)>{{ $label }}</option>
-          @endforeach
-        </select>
+      <select class="a2-select a2-filter-sm" name="status">
+        @foreach(($statusOptions ?? []) as $k => $label)
+          <option value="{{ $k }}" @selected((string)$statusVal === (string)$k)>{{ $label }}</option>
+        @endforeach
+      </select>
 
-        <select class="a2-select" name="status">
-          @foreach(($statusOptions ?? []) as $k => $label)
-            <option value="{{ $k }}" @selected((string)$statusVal === (string)$k)>{{ $label }}</option>
-          @endforeach
-        </select>
+      <select class="a2-select a2-filter-sm" name="per_page">
+        @foreach($perPageOptions as $n)
+          <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
+        @endforeach
+      </select>
 
-        <select class="a2-select" name="per_page">
-          @foreach($perPageOptions as $n)
-            <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
-          @endforeach
-        </select>
-
-        <div class="a2-actionsbar">
-          <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
-          <a class="a2-btn a2-btn-ghost" href="{{ route('admin.financial.index') }}">{{ __('تفريغ') }}</a>
-        </div>
-
+      <div class="a2-filter-actions">
+        <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('admin.financial.index') }}">{{ __('تفريغ') }}</a>
       </div>
 
       <input type="hidden" name="sort" value="{{ $sortNow }}">

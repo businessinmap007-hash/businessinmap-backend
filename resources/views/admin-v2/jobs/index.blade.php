@@ -56,41 +56,26 @@
         @endif
 
         {{-- Toolbar / Filters --}}
-        <form method="GET" action="{{ route('admin.jobs.index') }}" class="a2-toolbar">
-            <div class="a2-filters">
+        <form method="GET" action="{{ route('admin.jobs.index') }}" class="a2-filterbar">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
 
-                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
+            <select class="a2-select a2-filter-sm" name="expire">
+                @foreach(($expireOptions ?? []) as $k => $label)
+                    <option value="{{ $k }}" {{ ((string)$expireVal === (string)$k) ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="expire">
-                    @foreach(($expireOptions ?? []) as $k => $label)
-                        <option value="{{ $k }}" {{ ((string)$expireVal === (string)$k) ? 'selected' : '' }}>
-                            {{ $label }}
-                        </option>
-                    @endforeach
-                </select>
+            <select class="a2-select a2-filter-sm" name="per_page">
+                @foreach(($perPageOptions ?? []) as $n)
+                    <option value="{{ $n }}" {{ ((int)$perPageVal === (int)$n) ? 'selected' : '' }}>{{ $n }} {{ __('/ صفحة') }}</option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="per_page">
-                    @foreach(($perPageOptions ?? []) as $n)
-                        <option value="{{ $n }}" {{ ((int)$perPageVal === (int)$n) ? 'selected' : '' }}>
-                            {{ $n }} {{ __('/ صفحة') }}
-                        </option>
-                    @endforeach
-                </select>
-
-                <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index') }}">{{ __('تفريغ') }}</a>
-                    
-                    {{-- ✅ Bulk Delete (Modal) --}}
-                    <button type="button" id="btnBulkDelete" class="a2-btn a2-btn-danger" disabled>
-                        {{ __('حذف المحدد') }}
-                    </button>
-
-                    <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">
-                        {{ __('تحديد الكل') }}
-                    </button>
-                </div>
-
+            <div class="a2-filter-actions">
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.jobs.index') }}">{{ __('تفريغ') }}</a>
+                <button type="button" id="btnBulkDelete" class="a2-btn a2-btn-danger" disabled>{{ __('حذف المحدد') }}</button>
+                <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">{{ __('تحديد الكل') }}</button>
             </div>
 
             <input type="hidden" name="sort" value="{{ $sortNow }}">

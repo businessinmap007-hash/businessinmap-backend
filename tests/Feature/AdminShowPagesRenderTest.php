@@ -47,6 +47,20 @@ class AdminShowPagesRenderTest extends TestCase
             ->assertSee('a2-kv', false);               // a2 key/value details
     }
 
+    public function test_the_job_applicants_page_renders(): void
+    {
+        $job = JobPost::query()->first();
+        if (! $job) {
+            $this->markTestSkipped('no job posts');
+        }
+
+        $this->actingAs($this->contentAdmin())
+            ->get(route('admin.jobs.applicants', $job->id))
+            ->assertOk()
+            ->assertSee('a2-page-head', false)   // unified header, not the inline-styled one
+            ->assertSee('a2-table-wrap', false); // wrapped table
+    }
+
     public function test_the_sponsor_show_page_renders(): void
     {
         $sponsor = Sponsor::query()->first();

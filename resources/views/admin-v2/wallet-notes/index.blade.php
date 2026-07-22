@@ -49,23 +49,23 @@
       <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
     @endif
 
-    <form method="GET" class="a2-toolbar" action="{{ route('admin.wallet-notes.index') }}">
-      <div class="a2-filters">
-        <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالعنوان/النص/ID') }}">
+    <form method="GET" class="a2-filterbar" action="{{ route('admin.wallet-notes.index') }}">
+      <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالعنوان/النص/ID') }}">
 
-        <select class="a2-select" name="active">
-          <option value=""  @selected($activeVal==='')>{{ __('الكل') }}</option>
-          <option value="1" @selected($activeVal==='1')>{{ __('نشط') }}</option>
-          <option value="0" @selected($activeVal==='0')>{{ __('غير نشط') }}</option>
-        </select>
+      <select class="a2-select a2-filter-sm" name="active">
+        <option value=""  @selected($activeVal==='')>{{ __('الكل') }}</option>
+        <option value="1" @selected($activeVal==='1')>{{ __('نشط') }}</option>
+        <option value="0" @selected($activeVal==='0')>{{ __('غير نشط') }}</option>
+      </select>
 
-        <select class="a2-select" name="per_page">
-          @foreach([10,20,50,100] as $n)
-            <option value="{{ $n }}" @selected($perPageVal===$n)>{{ $n }}{{ __('/صفحة') }}</option>
-          @endforeach
-        </select>
+      <select class="a2-select a2-filter-sm" name="per_page">
+        @foreach([10,20,50,100] as $n)
+          <option value="{{ $n }}" @selected($perPageVal===$n)>{{ $n }}{{ __('/صفحة') }}</option>
+        @endforeach
+      </select>
 
-        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('تطبيق') }}</button>
+      <div class="a2-filter-actions">
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
         <a class="a2-btn a2-btn-ghost" href="{{ route('admin.wallet-notes.index') }}">{{ __('مسح') }}</a>
       </div>
     </form>

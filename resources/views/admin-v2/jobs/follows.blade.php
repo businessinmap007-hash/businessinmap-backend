@@ -79,13 +79,11 @@
             <h2 class="a2-title">{{ __('كل المتابعات') }}</h2>
         </div>
 
-        <form method="GET" action="{{ route('admin.job-follows.index') }}" class="a2-toolbar">
-            <div class="a2-filters">
-                <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('بحث باسم أو هاتف المتابِع') }}">
-                <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.job-follows.index') }}">{{ __('تفريغ') }}</a>
-                </div>
+        <form method="GET" action="{{ route('admin.job-follows.index') }}" class="a2-filterbar">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث باسم أو هاتف المتابِع') }}">
+            <div class="a2-filter-actions">
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.job-follows.index') }}">{{ __('تفريغ') }}</a>
             </div>
         </form>
 

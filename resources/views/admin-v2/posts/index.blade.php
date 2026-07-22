@@ -53,44 +53,27 @@
             <div class="a2-alert a2-alert-danger">{{ $errors->first() }}</div>
         @endif
 
-        {{-- Toolbar / Filters --}}
-        <form method="GET" action="{{ route('admin.posts.index') }}" class="a2-toolbar">
-            <div class="a2-filters">
+        {{-- Filters (unified a2-filterbar) --}}
+        <form method="GET" action="{{ route('admin.posts.index') }}" class="a2-filterbar">
+            <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
 
-                <input class="a2-input" name="q" value="{{ $qVal }}" placeholder="{{ __('بحث بالاسم') }}">
+            <select class="a2-select a2-filter-sm" name="active">
+                @foreach(($activeOptions ?? []) as $k => $label)
+                    <option value="{{ $k }}" @selected((string)$activeVal === (string)$k)>{{ $label }}</option>
+                @endforeach
+            </select>
 
-                {{-- ✅ حذفنا type filter بالكامل --}}
+            <select class="a2-select a2-filter-sm" name="per_page">
+                @foreach(($perPageOptions ?? []) as $n)
+                    <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
+                @endforeach
+            </select>
 
-                <select class="a2-select" name="active">
-                    @foreach(($activeOptions ?? []) as $k => $label)
-                        <option value="{{ $k }}" @selected((string)$activeVal === (string)$k)>{{ $label }}</option>
-                    @endforeach
-                </select>
-
-                <select class="a2-select" name="per_page">
-                    @foreach(($perPageOptions ?? []) as $n)
-                        <option value="{{ $n }}" @selected((int)$perPageVal === (int)$n)>{{ $n }} {{ __('/ صفحة') }}</option>
-                    @endforeach
-                </select>
-
-                <div class="a2-actionsbar">
-                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
-
-                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index') }}">{{ __('تفريغ') }}</a>
-
-                    {{-- ✅ حذفنا زر الإضافة create --}}
-
-                    {{-- Bulk Toggle --}}
-                    <button type="button" id="btnBulkToggle" class="a2-btn a2-btn-ghost" disabled>
-                        {{ __('تفعيل / تعطيل') }}
-                    </button>
-
-                    {{-- Select all --}}
-                    <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">
-                        {{ __('تحديد الكل') }}
-                    </button>
-                </div>
-
+            <div class="a2-filter-actions">
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
+                <a class="a2-btn a2-btn-ghost" href="{{ route('admin.posts.index') }}">{{ __('تفريغ') }}</a>
+                <button type="button" id="btnBulkToggle" class="a2-btn a2-btn-ghost" disabled>{{ __('تفعيل / تعطيل') }}</button>
+                <button type="button" id="btnBulkSelectAll" class="a2-btn a2-btn-ghost">{{ __('تحديد الكل') }}</button>
             </div>
         </form>
 

@@ -7,12 +7,21 @@
 
     <title>@yield('title', 'Admin V2')</title>
 
-    <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}">
+    @php
+        // filemtime cache-buster: the panel CSS is served with no version, so a
+        // browser keeps a stale copy after a CSS fix until a hard refresh. Keying
+        // the URL on the file's mtime makes every CSS change land immediately.
+        $cssPath = public_path('admin-v2/css/admin.css');
+        $fixPath = public_path('admin-v2/css/admin-fixes.css');
+        $cssV = is_file($cssPath) ? filemtime($cssPath) : null;
+        $fixV = is_file($fixPath) ? filemtime($fixPath) : null;
+    @endphp
+    <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}{{ $cssV ? '?v='.$cssV : '' }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
     {{-- Global admin hot-fixes (selects/dropdowns/form grids). Loaded after
          tom-select so its .ts-* overrides win. The data-admin-fixes marker tells
          booking-protection-preview.js not to inject a duplicate copy. --}}
-    <link rel="stylesheet" href="{{ asset('admin-v2/css/admin-fixes.css') }}" data-admin-fixes="1">
+    <link rel="stylesheet" href="{{ asset('admin-v2/css/admin-fixes.css') }}{{ $fixV ? '?v='.$fixV : '' }}" data-admin-fixes="1">
 
     @yield('head')
     @stack('styles')

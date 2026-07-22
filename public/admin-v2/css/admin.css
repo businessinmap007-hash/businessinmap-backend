@@ -986,7 +986,38 @@ body.admin-v2 .a2-toolbar{
   flex-wrap: wrap;
 }
 
+/* Legacy filter toolbar (a2-toolbar / a2-filters / a2-actionsbar), still used by
+   the jobs, sponsors, wallet-notes and financial index screens. Its controls had
+   no width, so each defaulted to full width and stacked one-per-row (the "old"
+   look). Give them the same row sizing as the modern a2-filterbar so those
+   screens match the rest of the panel: search grows, selects stay compact,
+   actions push to the end. */
+.a2-filters .a2-input,
+.a2-filters .a2-select{
+  width: auto;
+}
+.a2-filters .a2-input[name="q"]{
+  min-width: 200px;
+  flex: 1 1 200px;
+}
+.a2-filters .a2-select{
+  min-width: 120px;
+}
+.a2-filters .a2-actionsbar{
+  margin-inline-start: auto;
+}
+
 @media (max-width: 768px){
+  .a2-filters .a2-input,
+  .a2-filters .a2-select,
+  .a2-filters .a2-input[name="q"]{
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+  .a2-filters .a2-actionsbar{
+    width: 100%;
+    margin-inline-start: 0;
+  }
   .a2-filterbar{
     align-items: stretch;
   }

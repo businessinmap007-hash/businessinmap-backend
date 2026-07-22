@@ -1136,6 +1136,47 @@ body.admin-v2 .a2-toolbar{
 }
 
 /* -----------------------------------------------------------------------
+   Coverage-sweep fixes: class tokens used across admin-v2 blades that were
+   never defined, so their elements rendered unstyled. Two are a hyphenation
+   split of an existing class (statgrid/tablewrap == stat-grid/table-wrap) and
+   are aliased to the exact same rules; two are genuinely-missing variants
+   (a warning button, a block/cell empty-state) built from existing tokens.
+   ----------------------------------------------------------------------- */
+.a2-statgrid{
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 14px;
+}
+@media (max-width: 1200px){
+  .a2-statgrid{ grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .a2-statgrid{ grid-template-columns: 1fr; }
+}
+
+.a2-tablewrap{
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--a2-border);
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.a2-btn-warning{
+  background: var(--a2-warning);
+  color: #fff;
+  border-color: var(--a2-warning);
+}
+
+.a2-empty{
+  padding: 18px;
+  text-align: center;
+  color: var(--a2-muted);
+}
+
+/* -----------------------------------------------------------------------
    Status / Pills
    ----------------------------------------------------------------------- */
 .a2-pill{

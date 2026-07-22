@@ -1185,6 +1185,56 @@ body.admin-v2 .a2-toolbar{
 }
 
 /* -----------------------------------------------------------------------
+   a2-badge — status chip aliases (mirror a2-pill).
+   Used across ~17 admin screens but was previously undefined, so those
+   status chips rendered as unstyled plain text. Base is a neutral gray
+   chip; semantic variants (incl. domain statuses like paid/pending/
+   expired/failed) map to the shared success/danger/warning/gray tokens.
+   ----------------------------------------------------------------------- */
+.a2-badge{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--a2-gray-br);
+  background: var(--a2-gray-bg);
+  color: #344054;
+  font-weight: 800;
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.a2-badge-success,
+.a2-badge-ok,
+.a2-badge-paid,
+.a2-badge-active{
+  background: var(--a2-success-bg);
+  border-color: var(--a2-success-br);
+  color: var(--a2-success);
+}
+.a2-badge-danger,
+.a2-badge-failed,
+.a2-badge-banned{
+  background: var(--a2-danger-bg);
+  border-color: var(--a2-danger-br);
+  color: var(--a2-danger);
+}
+.a2-badge-warning,
+.a2-badge-pending{
+  background: var(--a2-warning-bg);
+  border-color: var(--a2-warning-br);
+  color: var(--a2-warning);
+}
+.a2-badge-muted,
+.a2-badge-expired,
+.a2-badge-gray{
+  background: var(--a2-gray-bg);
+  border-color: var(--a2-gray-br);
+  color: #344054;
+}
+
+/* -----------------------------------------------------------------------
    Links / Empty / Hint
    ----------------------------------------------------------------------- */
 .a2-link{

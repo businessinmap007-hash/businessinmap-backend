@@ -50,7 +50,9 @@
         return $dirNow === 'asc' ? ' ▲' : ' ▼';
     };
 
-    $deleteTpl = route('admin.sponsors.destroy', ['sponsor' => '__ID__']);
+    // Root-relative (false): fetched from JS, so an absolute APP_URL-based URL
+    // fails cross-origin when the browser host differs.
+    $deleteTpl = route('admin.sponsors.destroy', ['sponsor' => '__ID__'], false);
 
     $isActiveNow = function($s) {
         return !is_null($s->activated_at)

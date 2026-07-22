@@ -2349,6 +2349,68 @@ body.admin-v2.admin-v2-subscriptions .a2-page{
     grid-template-columns:1fr;
   }
 }
+
+/* Album SHOW page — these were never defined, so images rendered at their
+   natural (huge) size and the two-column layout collapsed. Mirrors the edit
+   page: a details column beside cover+gallery, thumbnails as fixed cards. */
+.a2-album-show-grid{
+  display:grid;
+  grid-template-columns:1fr 340px;
+  gap:12px;
+  align-items:start;
+}
+
+.a2-album-details-body{
+  padding:14px;
+}
+
+.a2-album-desc-box{
+  max-height:160px;
+  overflow:auto;
+  white-space:pre-wrap;
+}
+
+.a2-album-show-images-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:12px;
+}
+
+.a2-album-show-image-card{
+  padding:10px;
+}
+
+.a2-album-show-image-link{
+  all:unset;
+  cursor:pointer;
+  display:block;
+  width:100%;
+}
+
+.a2-album-show-thumb{
+  width:100%;
+  height:160px;
+  object-fit:cover;
+  border-radius:12px;
+  border:1px solid var(--a2-border);
+  display:block;
+}
+
+.a2-album-show-thumb-placeholder{
+  width:100%;
+  height:160px;
+  border-radius:12px;
+  border:1px dashed var(--a2-border-2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+@media (max-width: 980px){
+  .a2-album-show-grid{
+    grid-template-columns:1fr;
+  }
+}
 /* -----------------------------------------------------------------------
    Bookable Items
    ----------------------------------------------------------------------- */

@@ -141,12 +141,21 @@ final class GuaranteeLevelAdminController extends Controller
     {
         $levelId = $level ? (int) $level->id : null;
 
+        // A code is unique PER target_type, not globally: the same ladder
+        // (bronze/silver/gold…) exists for both client and business, so
+        // client/bronze and business/bronze legitimately share the code
+        // "bronze". Scoping the rule to target_type is what lets one be edited
+        // without colliding with the other (the "code مستخدم" bug).
+        $targetType = (string) $request->input('target_type');
+
         $data = $request->validate([
             'code' => [
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('guarantee_levels', 'code')->ignore($levelId),
+                Rule::unique('guarantee_levels', 'code')
+                    ->where(fn ($q) => $q->where('target_type', $targetType))
+                    ->ignore($levelId),
             ],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'name_en' => ['nullable', 'string', 'max:255'],

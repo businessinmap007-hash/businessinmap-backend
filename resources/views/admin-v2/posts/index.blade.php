@@ -33,8 +33,9 @@
         return $dirNow === 'asc' ? ' ▲' : ' ▼';
     };
 
-    // route templates for JS bulk actions
-    $toggleTpl  = route('admin.posts.toggleActive', ['post' => '__ID__']);
+    // route templates for JS bulk actions — root-relative (false) so a JS fetch
+    // stays same-origin (an absolute APP_URL host mismatch fails cross-origin).
+    $toggleTpl  = route('admin.posts.toggleActive', ['post' => '__ID__'], false);
 @endphp
 
 <div class="a2-page">

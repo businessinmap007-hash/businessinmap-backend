@@ -131,8 +131,9 @@
                                     $p = (string) ($img->path ?? $img->url ?? $img->image ?? '');
                                     $isCover = ($p !== '' && (string) $a->image === $p);
 
-                                    $setCoverUrl = route('admin.albums.images.set-cover', [$a->id, $img->id]);
-                                    $deleteUrl = route('admin.albums.images.delete', [$a->id, $img->id]);
+                                    // Root-relative (false): both are fetched from JS.
+                                    $setCoverUrl = route('admin.albums.images.set-cover', [$a->id, $img->id], false);
+                                    $deleteUrl = route('admin.albums.images.delete', [$a->id, $img->id], false);
                                 @endphp
 
                                 <div

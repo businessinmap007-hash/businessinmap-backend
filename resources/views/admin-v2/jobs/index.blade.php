@@ -33,7 +33,10 @@
         return $dirNow === 'asc' ? ' ▲' : ' ▼';
     };
 
-    $deleteTpl = route('admin.jobs.destroy', ['post' => '__ID__']);
+    // Root-relative (false): this URL is fetched from JS, and an absolute one
+    // built from APP_URL fails cross-origin when the browser host differs
+    // (e.g. 127.0.0.1 vs localhost) — the DELETE then errors instead of saving.
+    $deleteTpl = route('admin.jobs.destroy', ['post' => '__ID__'], false);
 @endphp
 
 <div class="a2-page">

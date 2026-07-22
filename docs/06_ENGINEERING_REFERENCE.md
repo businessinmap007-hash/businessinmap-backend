@@ -273,13 +273,19 @@ never-confirmed pending request cancels with no rating hit.
 ## 9. Pending tasks
 
 **Open:**
-- `catalog_products` is empty (§10) — retail has no master data until a real
-  import feed exists. Needs a data source decision, not code. This is also what
-  blocks a **retail journey test** (§11.1): **five of the six** services are now
-  walked end to end (`business_offers` was closed by `BusinessOfferJourneyTest`,
-  commit `249fbf2`), but retail has nothing to sell and its merchant side is
-  web-panel only (`business/products`) with no API at all — so retail is the one
-  service still unwalked, and it is blocked on data, not code.
+- `catalog_products` is empty (§10) — retail has no *production* master data
+  until a real import feed exists. Needs a data source decision, not code.
+  This blocks a real product *catalogue*, but no longer blocks a **retail
+  journey test**: `RetailJourneyTest` seeds its own master via
+  `Tests\Concerns\SeedsRetailCatalog` (a `furniture` child under the seeded
+  retail taxonomy) and walks the loop end to end — two owners list the same
+  product through the real `business/products` panel POST, a customer browses
+  the discovery `filters` facets (previously untested) + `products` price range
+  + `products/{id}` offers cheapest-first, then an owner deactivates through the
+  panel and the seller drops out. So **all six** typed services are now walked
+  (`business_offers` by `BusinessOfferJourneyTest` `249fbf2`; retail by
+  `RetailJourneyTest`). The remaining retail gap is data (an import feed), not
+  coverage.
 - **Creating a super-admin is server-only, on purpose.** The roles screen manages
   the 12 named abilities and deliberately cannot mint or unmake a wildcard
   holder — that takes a migration or tinker. Fine as-is; noted so nobody

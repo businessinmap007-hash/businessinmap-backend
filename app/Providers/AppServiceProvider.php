@@ -7,6 +7,7 @@ use App\Models\Deposit;
 use App\Services\Posts\PostSubjectService;
 use App\Support\AdminAbility;
 use Carbon\Carbon;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
@@ -30,6 +31,12 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(191);
 
         Carbon::setLocale('ar');
+
+        // Every panel (admin-v2 + business) and the customer views use the a2
+        // CSS, not Tailwind — but the paginator's default view is
+        // pagination::tailwind, so {{ $rows->links() }} rendered unstyled
+        // everywhere. Point it at the a2 paginator view instead.
+        Paginator::defaultView('vendor.pagination.a2');
 
         $this->configureLocale();
         $this->configureUrl();

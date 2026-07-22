@@ -1176,6 +1176,57 @@ body.admin-v2 .a2-toolbar{
   color: var(--a2-muted);
 }
 
+/* Pagination — the a2 paginator view (resources/views/vendor/pagination/a2)
+   set as the global default. .a2-pagination is the wrapper already present in
+   many index blades; .a2-pager* is the nav/list the view emits. */
+.a2-pagination{
+  margin-top: 16px;
+}
+.a2-pager-list{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin: 16px 0 0;
+  list-style: none;
+}
+.a2-pager-item{
+  list-style: none;
+}
+.a2-pager-item > a,
+.a2-pager-item > span{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--a2-border-2);
+  background: #fff;
+  color: var(--a2-text);
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+  transition: .15s ease;
+}
+.a2-pager-item > a:hover{
+  border-color: var(--a2-primary);
+  color: var(--a2-primary);
+}
+.a2-pager-active > span{
+  background: var(--a2-primary);
+  border-color: var(--a2-primary);
+  color: #fff;
+}
+.a2-pager-disabled > span,
+.a2-pager-dots > span{
+  opacity: .5;
+  cursor: default;
+}
+
 /* -----------------------------------------------------------------------
    Status / Pills
    ----------------------------------------------------------------------- */

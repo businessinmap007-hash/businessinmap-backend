@@ -43,6 +43,14 @@ class RegistrationController extends Controller
 
         $inputs = $request->all();
         $inputs['type'] = $request->has('auth') && $request->get('auth') == 'vendor' ? 'vendor' : "client";
+
+        // A ban lives on the identity, not the row: mirror the API register
+        // guard (Api\V2\AuthController@register) so a banned user cannot
+        // re-register through the legacy web form after a delete/re-signup.
+        if (\App\Models\BlockedIdentity::isBlocked($request->input('email'), $request->input('phone'))) {
+            return returnedResponse(400, __('لا يمكن إنشاء حساب بهذه البيانات.'), null, null);
+        }
+
         $user = User::create(array_merge($inputs, array('api_token' => str_random(120))));
         if ($user) {
             if($request->has('auth') && $request->get('auth') == 'vendor' )

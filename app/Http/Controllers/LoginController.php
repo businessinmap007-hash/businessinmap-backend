@@ -52,6 +52,18 @@ class LoginController extends Controller
 
             if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
 
+                // A ban is enforced on every entry point, not just the API
+                // (Api\V2\AuthController@login). Without this a banned account
+                // signs straight in through the legacy web form.
+                if (auth()->user()->isBanned()) {
+                    Auth::logout();
+
+                    return response()->json([
+                        'status' => 400,
+                        'message' => __('تم إيقاف هذا الحساب نهائيًا.'),
+                    ]);
+                }
+
                 if (!auth()->user()->api_token) {
                     auth()->user()->api_token = str_random(60);
                     auth()->user()->save();

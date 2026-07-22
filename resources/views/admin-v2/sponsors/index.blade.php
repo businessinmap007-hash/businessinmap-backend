@@ -159,6 +159,7 @@
                     @php
                         $activeNow = $isActiveNow($s);
                         $expired   = $isExpired($s);
+                        $showUrl   = route('admin.sponsors.show', ['sponsor' => $s->id] + $qsKeep);
                         $editUrl   = route('admin.sponsors.edit', ['sponsor' => $s->id] + $qsKeep);
                     @endphp
 
@@ -177,14 +178,14 @@
 
                         <td>
                             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                                <span class="a2-badge">{{ $s->type }}</span>
+                                <span class="a2-pill a2-pill-gray">{{ $s->type === 'paid' ? __('مدفوع') : __('مجاني') }}</span>
 
                                 @if($activeNow)
-                                    <span class="a2-badge a2-badge-success">Active</span>
+                                    <span class="a2-pill a2-pill-active">{{ __('نشط') }}</span>
                                 @elseif($expired)
-                                    <span class="a2-badge a2-badge-danger">Expired</span>
+                                    <span class="a2-pill a2-pill-danger">{{ __('منتهٍ') }}</span>
                                 @else
-                                    <span class="a2-badge a2-badge-muted">Inactive</span>
+                                    <span class="a2-pill a2-pill-gray">{{ __('غير مفعّل') }}</span>
                                 @endif
                             </div>
                         </td>
@@ -210,6 +211,10 @@
                                     @method('DELETE')
                                     <button class="a2-btn a2-btn-danger" type="submit" style="min-width:78px;">{{ __('حذف') }}</button>
                                 </form>
+
+                                <a class="a2-btn a2-btn-ghost"
+                                   style="min-width:78px;text-align:center;"
+                                   href="{{ $showUrl }}">{{ __('عرض') }}</a>
 
                                 <a class="a2-btn a2-btn-ghost"
                                    style="min-width:78px;text-align:center;"

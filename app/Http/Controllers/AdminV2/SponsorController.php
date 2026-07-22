@@ -91,6 +91,13 @@ class SponsorController extends Controller
             ->with('success', __('تم إنشاء Sponsor بنجاح'));
     }
 
+    public function show(Sponsor $sponsor)
+    {
+        $sponsor->loadMissing('user:id,name,email,phone');
+
+        return view('admin-v2.sponsors.show', compact('sponsor'));
+    }
+
     public function edit(Sponsor $sponsor)
     {
         return view('admin-v2.sponsors.edit', compact('sponsor'));

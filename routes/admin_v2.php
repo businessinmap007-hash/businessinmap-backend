@@ -566,7 +566,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // registers an unconstrained GET jobs/{post} that would swallow it.
             Route::get('job-follows', [JobFollowController::class, 'index'])->name('job-follows.index');
 
-            Route::resource('sponsors', SponsorController::class)->except(['show'])->names('sponsors');
+            Route::resource('sponsors', SponsorController::class)->names('sponsors');
             Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');
 
             Route::resource('albums', AlbumController::class)->names('albums');

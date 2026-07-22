@@ -986,6 +986,20 @@ body.admin-v2 .a2-toolbar{
   flex-wrap: wrap;
 }
 
+/* Modern filterbar + tom-select: the global initializer wraps every <select> in
+   a .ts-wrapper that admin-fixes.css forces to width:100% (which would make each
+   select fill the row and stack). Size the wrapper and out-specify
+   .admin-v2 .ts-wrapper (0,2,0) by qualifying with .a2-filterbar (0,3,0) so the
+   selects stay compact on one row. */
+.admin-v2 .a2-filterbar .ts-wrapper{
+  width: auto;
+  min-width: 120px;
+  flex: 0 0 auto;
+}
+.admin-v2 .a2-filterbar .ts-wrapper.a2-filter-md{
+  min-width: 150px;
+}
+
 /* Legacy filter toolbar (a2-toolbar / a2-filters / a2-actionsbar), still used by
    several index screens (delivery, disputes, service-catalog-matrix, …). Its
    controls had no width, so each defaulted to full width and stacked one per

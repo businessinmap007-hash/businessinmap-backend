@@ -13,9 +13,11 @@
       </div>
     </div>
 
-    <form method="GET" class="a2-actionsbar" style="margin-bottom:12px;">
-      <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم أو المطعم') }}">
-      <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
+    <form method="GET" class="a2-filterbar">
+      <input class="a2-input a2-filter-search" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم أو المطعم') }}">
+      <div class="a2-filter-actions">
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('بحث') }}</button>
+      </div>
     </form>
 
     <div class="a2-tablewrap">

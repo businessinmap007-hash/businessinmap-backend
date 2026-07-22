@@ -12,17 +12,20 @@
         <h2 class="a2-title">{{ __('شحنات المحفظة (Money-in)') }}</h2>
         <div class="a2-hint">{{ __('نيّات الشحن عبر بوابة الدفع — للمطابقة والمتابعة') }}</div>
       </div>
-      <form class="a2-actionsbar" method="get">
-        <input class="a2-input" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالمرجع / مرجع البوابة') }}">
-        <select class="a2-input" name="status" onchange="this.form.submit()">
-          <option value="">{{ __('كل الحالات') }}</option>
-          @foreach(['pending' => 'قيد الانتظار','paid' => 'مدفوع','failed' => 'فشل','expired' => 'منتهٍ'] as $val => $label)
-            <option value="{{ $val }}" @selected($status === $val)>{{ $label }}</option>
-          @endforeach
-        </select>
-        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('تصفية') }}</button>
-      </form>
     </div>
+
+    <form class="a2-filterbar" method="get">
+      <input class="a2-input a2-filter-search" type="text" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالمرجع / مرجع البوابة') }}">
+      <select class="a2-input a2-select a2-filter-sm" name="status" onchange="this.form.submit()">
+        <option value="">{{ __('كل الحالات') }}</option>
+        @foreach(['pending' => 'قيد الانتظار','paid' => 'مدفوع','failed' => 'فشل','expired' => 'منتهٍ'] as $val => $label)
+          <option value="{{ $val }}" @selected($status === $val)>{{ $label }}</option>
+        @endforeach
+      </select>
+      <div class="a2-filter-actions">
+        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('تصفية') }}</button>
+      </div>
+    </form>
 
     <div class="a2-statgrid">
       @foreach(['paid' => 'مدفوع','pending' => 'قيد الانتظار','failed' => 'فشل'] as $val => $label)

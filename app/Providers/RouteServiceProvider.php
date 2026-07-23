@@ -18,6 +18,16 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Credential entry points (login/register). Keyed by (email + IP) so a
+        // brute-force against one account is capped at 6/min without one IP being
+        // able to lock out every account, and so a shared NAT doesn't punish
+        // unrelated users. The 60/min baseline `api` limiter backstops the IP.
+        RateLimiter::for('auth-attempts', function (Request $request) {
+            $email = mb_strtolower(trim((string) $request->input('email')));
+
+            return Limit::perMinute(6)->by($email . '|' . $request->ip());
+        });
+
         $this->routes(function () {
             // api_v2.php was loaded via a `require` at the tail of the now-deleted
             // routes/api.php (which held the v1 surface); it is loaded directly here.

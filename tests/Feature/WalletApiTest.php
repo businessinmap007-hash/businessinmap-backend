@@ -53,6 +53,32 @@ class WalletApiTest extends TestCase
         $this->assertSame(125.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));
     }
 
+    public function test_pin_locks_after_five_wrong_attempts(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/wallet/pin', ['pin' => '1234', 'pin_confirmation' => '1234'])
+            ->assertOk();
+
+        // Five wrong PINs trip the lockout.
+        for ($i = 0; $i < 5; $i++) {
+            $this->actingAs($this->user, 'sanctum')
+                ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '0000'])
+                ->assertStatus(422);
+        }
+
+        $this->assertNotNull(
+            WalletPin::where('user_id', $this->user->id)->value('locked_until'),
+            'the PIN must be locked after five wrong attempts'
+        );
+
+        // Even the CORRECT PIN is refused while locked, and nothing is debited.
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '1234'])
+            ->assertStatus(422);
+
+        $this->assertSame(100.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));
+    }
+
     public function test_set_pin_then_withdraw_respects_pin(): void
     {
         // Set a PIN (confirmed).

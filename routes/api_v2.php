@@ -50,8 +50,13 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v2')->group(function () {
     // Auth: the mobile app's token entry point (v2 is self-sufficient, no v1).
     Route::prefix('auth')->group(function () {
-        Route::post('register', [AuthController::class, 'register']);
-        Route::post('login', [AuthController::class, 'login']);
+        // Brute-force / credential-stuffing blunt on the credential entry points.
+        // `auth-attempts` (RouteServiceProvider) caps per (email + IP) at 6/min,
+        // so a password guess against one account is throttled without one IP
+        // being able to lock out every account. The baseline throttle:api (60/min
+        // per IP) still backstops mass attempts across accounts.
+        Route::middleware('throttle:auth-attempts')->post('register', [AuthController::class, 'register']);
+        Route::middleware('throttle:auth-attempts')->post('login', [AuthController::class, 'login']);
 
         // Password reset by emailed code. Throttled to blunt abuse/enumeration.
         Route::middleware('throttle:6,1')->prefix('password')->group(function () {

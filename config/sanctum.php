@@ -46,7 +46,11 @@ return [
     |
     */
 
-    'expiration' => null,
+    // A finite lifetime so a stolen/leaked bearer token cannot be used forever.
+    // Defaults to 90 days (mobile apps expect a long session); override with
+    // SANCTUM_TOKEN_EXPIRATION_MINUTES. Sanctum enforces this on every request,
+    // and logout / logout-all still revoke immediately.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION_MINUTES', 60 * 24 * 90),
 
     /*
     |--------------------------------------------------------------------------

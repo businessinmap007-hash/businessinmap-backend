@@ -28,10 +28,12 @@ Route::post('/user/auth/login', 'App\Http\Controllers\LoginController@login')->n
 Route::get('user/auth/logout', 'App\Http\Controllers\LoginController@logout')->name('user.auth.logout');
 Route::post('user/signup', 'App\Http\Controllers\RegistrationController@signup')->middleware('throttle:auth-attempts')->name('user.signup');
 Route::post('user/col/check', 'App\Http\Controllers\RegistrationController@checkIsColExist')->name('user.col.check');
-Route::post('forgot/password', 'App\Http\Controllers\ForgotPasswordController@sendCode')->name('user.forgot.password');
-Route::post('check/reset/code', 'App\Http\Controllers\ResetPasswordController@checkCode')->name('check.reset.code');
-Route::post('reset/password', 'App\Http\Controllers\ResetPasswordController@reset')->name('reset.password');
-Route::post('resend/activation/password', 'App\Http\Controllers\ResetPasswordController@resendActivationCode')->name('resend.activation.code');
+// Legacy web password-reset retired: ForgotPasswordController/ResetPasswordController
+// were an insecure account-takeover surface — they returned the reset code in the
+// HTTP response, matched a 4-digit code with no phone binding (9000-guess takeover),
+// and the reset ignored/weakly-bound the code. They were never wired to any UI (the
+// "forgot password" link is '#'). The secure flow is Api\V2\PasswordResetController
+// (hashed codes, expiry, attempt-lock, no enumeration). Controllers quarantined.
 
 Route::get("aboutus", "App\Http\Controllers\PageController@aboutUs")->name('aboutus');
 Route::get("terms-and-conditions", "App\Http\Controllers\PageController@termsAndConditions")->name('terms');
@@ -45,7 +47,13 @@ Route::get('/user/profile', 'App\Http\Controllers\ProfileController@profile')->n
 // StoreAddressRequest are kept (unrouted) under the keep-v1 rule for porting.
 Route::post('/profile/update', 'App\Http\Controllers\ProfileController@profileUpdateUser')->name('profile.update');
 
-Auth::routes();
+// The custom /user/* flow (LoginController + RegistrationController) is the real
+// web auth surface. Keep the framework scaffold ONLY for the route names other
+// code needs — `login` (Authenticate middleware redirect), `logout`, and the
+// secure default password broker. `register` is disabled: the scaffold's
+// Auth\RegisterController@register bypassed the BlockedIdentity ban check and the
+// business category logic that RegistrationController@signup enforces.
+Auth::routes(['register' => false]);
 
 // The legacy `administrator` group (Admin\HomeController + Admin\BusinessController)
 // was removed with the v1 panel: both controllers are deleted, its `admin.dashboard`

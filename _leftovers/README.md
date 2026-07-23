@@ -32,6 +32,16 @@
 | `resources/views/layouts/master-Old.blade.php` | قالب قديم غير مُشار إليه إطلاقًا (استبدله `layouts/master`) |
 | `resources/views/layouts/app-old.blade.php` | نفس الشيء |
 
+## متحكّمات استعادة باسورد غير آمنة (نُقلت 2026-07-23)
+
+| الملف | لماذا |
+|---|---|
+| `app/Http/Controllers/ForgotPasswordController.php` | كان يُرجع كود الإعادة في استجابة HTTP + بلا انتهاء صلاحية — سطح استيلاء |
+| `app/Http/Controllers/ResetPasswordController.php` | يطابق كودًا من ٤ أرقام بلا ربط بالهاتف (تخمين ٩٠٠٠) |
+
+البديل الآمن الحيّ: `Api\V2\PasswordResetController` (كود مُجزّأ، انتهاء صلاحية،
+قفل محاولات، لا تعداد حسابات). لم تكن مربوطة بأي واجهة على الويب.
+
 ## لاستعادة ملف
 ```
 git mv _leftovers/<المسار> <المسار الأصلي>

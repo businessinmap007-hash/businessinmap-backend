@@ -56,6 +56,36 @@ class WebAuthBanTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_default_scaffold_login_also_refuses_a_banned_account(): void
+    {
+        // The framework's Auth::routes() /login must honour the ban too, not just
+        // the custom /user/auth/login.
+        $user = $this->throwawayUser();
+        app(BanService::class)->ban($user, 'احتيال', $this->adminId());
+
+        $this->post('/login', ['email' => $user->email, 'password' => 'secret-password']);
+
+        $this->assertGuest();
+    }
+
+    public function test_default_register_route_is_disabled(): void
+    {
+        // Auth::routes(['register' => false]) — the scaffold register bypassed the
+        // ban check + business category logic, so it must not exist.
+        $this->post('/register', [
+            'name' => 'Scaffold', 'email' => 'scaffold-' . uniqid() . '@example.test',
+            'password' => 'x', 'password_confirmation' => 'x',
+        ])->assertNotFound();
+    }
+
+    public function test_insecure_web_password_reset_routes_are_gone(): void
+    {
+        // The takeover-prone legacy web reset was removed; the secure flow is the API.
+        $this->post('/forgot/password', ['phone' => '0100000000'])->assertNotFound();
+        $this->post('/check/reset/code', ['activation_code' => '1234'])->assertNotFound();
+        $this->post('/reset/password', ['password' => 'x'])->assertNotFound();
+    }
+
     public function test_web_signup_refuses_a_blocked_identity(): void
     {
         // Ban records the identity on the hashed block list, then the account is

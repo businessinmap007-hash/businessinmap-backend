@@ -53,6 +53,9 @@ tags:
   - name: Orders (Business)
   - name: Business Menu
   - name: Business Offers
+  - name: Business Prices
+  - name: Business Bookables
+  - name: Business Retail
   - name: Delivery
   - name: Order Handover
   - name: Tables
@@ -1417,6 +1420,123 @@ paths:
       - { name: extra, in: path, required: true, schema: { type: integer } }
     patch: { tags: [Business Menu], summary: Update an extra, responses: { '200': { description: OK } } }
     delete: { tags: [Business Menu], summary: Delete an extra, responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Business Prices ───────────────────────
+  /business/prices:
+    get:
+      tags: [Business Prices]
+      summary: The business's price rows
+      parameters:
+        - { name: service_id, in: query, schema: { type: integer } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Prices]
+      summary: Create a price for one (service, item type)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, bookable_item_type, price]
+              properties:
+                service_id: { type: integer, description: Must be a service the owner offers. }
+                bookable_item_type: { type: string, description: Must be an item type the owner's subcategory offers. }
+                price: { type: number, minimum: 0 }
+                charge_mode: { type: string, enum: [standard, free, reservation_fee, minimum_charge] }
+                charge_amount: { type: number, minimum: 0, description: Only used by reservation_fee / minimum_charge. }
+                currency: { type: string }
+                is_active: { type: boolean }
+                discount_enabled: { type: boolean }
+                discount_percent: { type: integer, minimum: 0, maximum: 100 }
+      responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/prices/options:
+    get: { tags: [Business Prices], summary: Services + allowed item types + charge modes for the create form, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /business/prices/{price}:
+    parameters: [{ name: price, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Prices], summary: Price detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Prices], summary: Update a price, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    patch: { tags: [Business Prices], summary: Update a price, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Prices], summary: Delete a price, responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Business Bookables ───────────────────────
+  /business/bookable-items:
+    get:
+      tags: [Business Bookables]
+      summary: The business's bookable units
+      parameters:
+        - { name: service_id, in: query, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Bookables]
+      summary: Create a bookable unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service_id, item_type, code]
+              properties:
+                service_id: { type: integer, description: Must be a service the owner offers. }
+                item_type: { type: string, description: Must be an item type the owner's subcategory offers. }
+                code: { type: string }
+                title: { type: string }
+                capacity: { type: integer, minimum: 1 }
+                quantity: { type: integer, minimum: 1 }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/bookable-items/options:
+    get: { tags: [Business Bookables], summary: Services + allowed item types for the create form, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /business/bookable-items/{item}:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Bookables], summary: Bookable unit detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Bookables], summary: Update a bookable unit, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    patch: { tags: [Business Bookables], summary: Update a bookable unit, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Bookables], summary: Delete a bookable unit, responses: { '200': { description: OK } } }
+
+  # ─────────────────────── Business Retail ───────────────────────
+  /business/retail-listings:
+    get:
+      tags: [Business Retail]
+      summary: The business's retail listings
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Retail]
+      summary: List a catalog product (must be an in-scope active master, once per business)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [catalog_product_id, price]
+              properties:
+                catalog_product_id: { type: integer, description: An active master within the owner's retail scope. }
+                price: { type: number, minimum: 0 }
+                stock: { type: integer, minimum: 0 }
+                sku: { type: string }
+                currency: { type: string }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/retail-listings/lookup:
+    get:
+      tags: [Business Retail]
+      summary: Search in-scope catalog masters this business hasn't listed yet (picker feed)
+      parameters: [{ name: q, in: query, schema: { type: string } }]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/retail-listings/{listing}:
+    parameters: [{ name: listing, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Retail], summary: Listing detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Retail], summary: Update a listing (price/stock/sku/active), responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    patch: { tags: [Business Retail], summary: Update a listing, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Retail], summary: Delete a listing, responses: { '200': { description: OK } } }
 
   # ─────────────────────── Business Offers ───────────────────────
   /business/offers:

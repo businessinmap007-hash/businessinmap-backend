@@ -4,9 +4,12 @@ use App\Http\Controllers\Api\V2\AccountDeletionController;
 use App\Http\Controllers\Api\V2\AddressController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
+use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
+use App\Http\Controllers\Api\V2\BusinessRetailListingController;
+use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
 use App\Http\Controllers\Api\V2\DeliveryController;
@@ -379,6 +382,39 @@ Route::prefix('v2')->group(function () {
             Route::post('items/{item}/extras', [BusinessMenuItemController::class, 'storeExtra'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'updateExtra'])->whereNumber(['item', 'extra']);
             Route::delete('items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'destroyExtra'])->whereNumber(['item', 'extra']);
+        });
+
+        // Business pricing: one row per (service, item type). `options` returns
+        // the services + allowed item types the owner may price. Numeric-only
+        // {price} so it never captures `options`.
+        Route::prefix('business/prices')->middleware('business')->group(function () {
+            Route::get('/', [BusinessServicePriceController::class, 'index']);
+            Route::get('options', [BusinessServicePriceController::class, 'options']);
+            Route::post('/', [BusinessServicePriceController::class, 'store']);
+            Route::get('{price}', [BusinessServicePriceController::class, 'show'])->whereNumber('price');
+            Route::match(['put', 'patch'], '{price}', [BusinessServicePriceController::class, 'update'])->whereNumber('price');
+            Route::delete('{price}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('price');
+        });
+
+        // Business bookable items: the units customers book (booking service).
+        Route::prefix('business/bookable-items')->middleware('business')->group(function () {
+            Route::get('/', [BusinessBookableItemController::class, 'index']);
+            Route::get('options', [BusinessBookableItemController::class, 'options']);
+            Route::post('/', [BusinessBookableItemController::class, 'store']);
+            Route::get('{item}', [BusinessBookableItemController::class, 'show'])->whereNumber('item');
+            Route::match(['put', 'patch'], '{item}', [BusinessBookableItemController::class, 'update'])->whereNumber('item');
+            Route::delete('{item}', [BusinessBookableItemController::class, 'destroy'])->whereNumber('item');
+        });
+
+        // Business retail listings: a merchant's priced listings over the shared
+        // catalog master (retail service). `lookup` searches in-scope masters.
+        Route::prefix('business/retail-listings')->middleware('business')->group(function () {
+            Route::get('/', [BusinessRetailListingController::class, 'index']);
+            Route::get('lookup', [BusinessRetailListingController::class, 'lookup']);
+            Route::post('/', [BusinessRetailListingController::class, 'store']);
+            Route::get('{listing}', [BusinessRetailListingController::class, 'show'])->whereNumber('listing');
+            Route::match(['put', 'patch'], '{listing}', [BusinessRetailListingController::class, 'update'])->whereNumber('listing');
+            Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
         });
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and

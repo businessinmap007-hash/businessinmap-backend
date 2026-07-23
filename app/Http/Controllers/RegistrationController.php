@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Admin\StoreUsersRequest;
 use App\Libraries\PushNotification;
-use App\Models\Device;
 use App\Models\Notification;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Validator;
-use App\Http\Helpers\Sms;
+use Illuminate\Support\Str;
 
 class RegistrationController extends Controller
 {
@@ -39,10 +37,7 @@ class RegistrationController extends Controller
 
     public function signup(StoreUsersRequest $request)
     {
-
-
-        $inputs = $request->all();
-        $inputs['type'] = $request->has('auth') && $request->get('auth') == 'vendor' ? 'vendor' : "client";
+        $type = $request->get('auth') === 'vendor' ? 'vendor' : 'client';
 
         // A ban lives on the identity, not the row: mirror the API register
         // guard (Api\V2\AuthController@register) so a banned user cannot
@@ -51,81 +46,35 @@ class RegistrationController extends Controller
             return returnedResponse(400, __('لا يمكن إنشاء حساب بهذه البيانات.'), null, null);
         }
 
-        $user = User::create(array_merge($inputs, array('api_token' => str_random(120))));
+        // Whitelist EXPLICITLY. Never mass-assign $request->all() here: User's
+        // $fillable includes privileged columns (balance, guarantee_enabled,
+        // rating_enabled, commercial_operations_enabled, pin_code, activated_at,
+        // paid_at, category_child_id …). A crafted POST could otherwise self-fund
+        // a wallet or self-grant consent/commercial flags, bypassing the
+        // ServiceFeeConsentEnforcer. Only these come from the user. The password
+        // is hashed by User::setPasswordAttribute.
+        $name = $request->input('name')
+            ?: trim($request->input('first_name') . ' ' . $request->input('last_name'));
+
+        $user = User::create([
+            'name' => $name,
+            'email' => $request->input('email'),
+            'phone' => $request->input('phone'),
+            'password' => $request->input('password'),
+            'type' => $type,
+            'api_token' => Str::random(120),
+        ]);
+
         if ($user) {
-            if($request->has('auth') && $request->get('auth') == 'vendor' )
+            if ($type === 'vendor') {
                 $user->assign(2);
+            }
             auth()->loginUsingId($user->id);
             session()->flash('success', 'لقد تم تسجيل المستخدم بنجاح');
-            return returnedResponse(200, "لقد تم تسجيل المستخدم بنجاح", null, route('profile'));
+            return returnedResponse(200, 'لقد تم تسجيل المستخدم بنجاح', null, route('profile'));
         }
 
-
-        // Get Input
-        $postData = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-        ];
-
-        // Declare Validation Rules.
-        $valRules = [
-            'name' => 'required',
-            'password' => 'required',
-            'email' => 'required|email|unique:users,email',
-        ];
-
-        // Declare Validation Messages
-        $valMessages = [
-            'phone.required' => trans('global.field_required'),
-            'password.required' => trans('global.field_required'),
-            'email.required' => trans('global.field_required'),
-        ];
-
-        // Validate Input
-        $valResult = Validator::make($postData, $valRules, $valMessages);
-
-        if ($valResult->passes()) {
-            $user = new User;
-            $user->name = $request->name;
-
-            $user->email = $request->email;
-            $user->phone = $request->phone;
-            $user->api_token = str_random(60);
-            $user->password = $request->password;
-            $user->is_user = 4;
-
-            $user->is_active = 1;
-            $user->is_suspend = 0;
-            $actionCode = rand(1000, 9999);
-            $actionCode = $user->actionCode($actionCode);
-            $user->action_code = $actionCode;
-
-
-            if ($user->save()) {
-
-
-//                $this->notificationsSender($user->id);
-
-                $inputs = $request->all();
-
-                sendEmail($inputs);
-
-                session()->put('phoneForResend', $user->phone);
-                return response()->json([
-                    'status' => 200,
-                    'message' => __('trans.account_created_success'),
-                    'is_active' => $user->is_active,
-                    'phone' => $user->phone
-                ]);
-            }
-        } else {
-            return response()->json([
-                'status' => 402,
-                'errors' => $valResult->messages()->all(),
-
-            ]);
-        }
+        return returnedResponse(400, 'تعذّر إنشاء الحساب، حاول مرة أخرى.', null, null);
     }
 
 

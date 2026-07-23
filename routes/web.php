@@ -26,7 +26,7 @@ Route::get('/user/login', 'App\Http\Controllers\LoginController@showLogin')->nam
 Route::get('/user/register', 'App\Http\Controllers\RegistrationController@showRegister')->name('get.user.register');
 Route::post('/user/auth/login', 'App\Http\Controllers\LoginController@login')->name('user.login');
 Route::get('user/auth/logout', 'App\Http\Controllers\LoginController@logout')->name('user.auth.logout');
-Route::post('user/signup', 'App\Http\Controllers\RegistrationController@signup')->name('user.signup');
+Route::post('user/signup', 'App\Http\Controllers\RegistrationController@signup')->middleware('throttle:auth-attempts')->name('user.signup');
 Route::post('user/col/check', 'App\Http\Controllers\RegistrationController@checkIsColExist')->name('user.col.check');
 Route::post('forgot/password', 'App\Http\Controllers\ForgotPasswordController@sendCode')->name('user.forgot.password');
 Route::post('check/reset/code', 'App\Http\Controllers\ResetPasswordController@checkCode')->name('check.reset.code');

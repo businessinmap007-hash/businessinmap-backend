@@ -80,4 +80,37 @@ class WebAuthBanTest extends TestCase
         $res->assertJsonPath('status', 400);
         $this->assertDatabaseMissing('users', ['email' => $email]);
     }
+
+    public function test_web_signup_ignores_injected_privileged_fields(): void
+    {
+        // The signup form must whitelist its inputs. User::$fillable contains
+        // privileged columns (balance, the consent/commercial flags, …); a
+        // crafted POST that carries them must NOT be able to self-fund a wallet
+        // or self-grant consent — those values have to be dropped on the floor.
+        $email = 'inject-' . uniqid() . '@example.test';
+        $phone = '0100' . random_int(1000000, 9999999);
+
+        $this->postJson('/user/signup', [
+            'first_name' => 'Mass',
+            'last_name' => 'Assign',
+            'name' => 'Mass Assign',
+            'email' => $email,
+            'phone' => $phone,
+            'password' => 'a-good-password',
+            // Injected — every one of these is fillable and must be ignored here.
+            'balance' => 999999,
+            'guarantee_enabled' => 1,
+            'rating_enabled' => 1,
+            'commercial_operations_enabled' => 1,
+            'type' => 'admin',
+        ]);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+
+        $this->assertSame('0.00', (string) $user->balance, 'balance must not be self-set at signup');
+        $this->assertFalse((bool) $user->guarantee_enabled);
+        $this->assertFalse((bool) $user->rating_enabled);
+        $this->assertFalse((bool) $user->commercial_operations_enabled);
+        $this->assertSame(User::TYPE_CLIENT, $user->type, 'type must be server-decided, not injected');
+    }
 }

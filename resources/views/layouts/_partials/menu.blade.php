@@ -14,7 +14,7 @@
                 </div>
                 <div class="collapse navbar-collapse" id="myNavbar">
                     <ul class="nav navbar-nav">
-                        <li><a href="{{ route('user.home') }}"><span></span>الرئيسية</a></li>
+                        <li><a href="{{ Route::has('user.home') ? route('user.home') : route('landing') }}"><span></span>الرئيسية</a></li>
 
                         @foreach($menuCategories as $category)
                         <li class="dropdown">

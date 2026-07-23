@@ -32,8 +32,17 @@ final class AuthController extends Controller
             'phone' => ['required', 'string', 'max:15', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'type' => ['nullable', Rule::in([User::TYPE_CLIENT, User::TYPE_BUSINESS])],
+            // A business is defined by its category_child: it decides which
+            // platform services (booking/menu/retail/…) the owner may sell, via
+            // CategoryPlatformService (see ResolvesOwnerCatalog). Without it the
+            // merchant panel is empty, so it is required for the business path.
+            // The child lives in category_children_master (NOT category_children,
+            // which does not exist — that was a silently-broken exists rule).
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
-            'category_child_id' => ['nullable', 'integer', 'exists:category_children,id'],
+            'category_child_id' => [
+                'required_if:type,' . User::TYPE_BUSINESS,
+                'nullable', 'integer', 'exists:category_children_master,id',
+            ],
         ]);
 
         // A ban is on the identity, not on the row: without this, a banned user

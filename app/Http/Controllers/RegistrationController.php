@@ -31,13 +31,27 @@ class RegistrationController extends Controller
 
     public function showRegister()
     {
-        return view('auth.register');
+        // Sectors (parent categories) each with their business types (children),
+        // to drive the cascading select on the business path of the two-path
+        // form. Clients don't need these.
+        $sectors = \App\Models\Category::query()
+            ->whereHas('children')
+            ->with(['children' => fn ($q) => $q->orderBy('category_children_master.reorder')->orderBy('category_children_master.id')])
+            ->orderBy('name_ar')
+            ->get(['id', 'name_ar', 'name_en']);
+
+        return view('auth.register', compact('sectors'));
     }
 
 
     public function signup(StoreUsersRequest $request)
     {
-        $type = $request->get('auth') === 'vendor' ? 'vendor' : 'client';
+        // The form's path choice. Accept the modern 'business' and the legacy
+        // 'vendor' value, but always STORE User::TYPE_BUSINESS — isBusiness()
+        // checks for exactly 'business', so a stored 'vendor' would never count
+        // as a business (that was a latent bug).
+        $isBusiness = in_array($request->get('auth'), ['business', 'vendor'], true);
+        $type = $isBusiness ? User::TYPE_BUSINESS : User::TYPE_CLIENT;
 
         // A ban lives on the identity, not the row: mirror the API register
         // guard (Api\V2\AuthController@register) so a banned user cannot
@@ -46,27 +60,43 @@ class RegistrationController extends Controller
             return returnedResponse(400, __('لا يمكن إنشاء حساب بهذه البيانات.'), null, null);
         }
 
+        // A business is defined by its category_child (its service catalog key),
+        // so the business path must pick one. Validated inline — not in the
+        // shared StoreUsersRequest, which the admin user form also uses.
+        if ($isBusiness) {
+            $request->validate([
+                'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+                'category_child_id' => ['required', 'integer', 'exists:category_children_master,id'],
+            ]);
+        }
+
         // Whitelist EXPLICITLY. Never mass-assign $request->all() here: User's
         // $fillable includes privileged columns (balance, guarantee_enabled,
         // rating_enabled, commercial_operations_enabled, pin_code, activated_at,
-        // paid_at, category_child_id …). A crafted POST could otherwise self-fund
-        // a wallet or self-grant consent/commercial flags, bypassing the
-        // ServiceFeeConsentEnforcer. Only these come from the user. The password
-        // is hashed by User::setPasswordAttribute.
+        // paid_at …). A crafted POST could otherwise self-fund a wallet or
+        // self-grant consent/commercial flags, bypassing the
+        // ServiceFeeConsentEnforcer. The password is hashed by User::setPasswordAttribute.
         $name = $request->input('name')
             ?: trim($request->input('first_name') . ' ' . $request->input('last_name'));
 
-        $user = User::create([
+        $attributes = [
             'name' => $name,
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
             'password' => $request->input('password'),
             'type' => $type,
             'api_token' => Str::random(120),
-        ]);
+        ];
+
+        if ($isBusiness) {
+            $attributes['category_id'] = $request->input('category_id') ?: null;
+            $attributes['category_child_id'] = (int) $request->input('category_child_id');
+        }
+
+        $user = User::create($attributes);
 
         if ($user) {
-            if ($type === 'vendor') {
+            if ($isBusiness) {
                 $user->assign(2);
             }
             auth()->loginUsingId($user->id);

@@ -113,4 +113,35 @@ class WebAuthBanTest extends TestCase
         $this->assertFalse((bool) $user->commercial_operations_enabled);
         $this->assertSame(User::TYPE_CLIENT, $user->type, 'type must be server-decided, not injected');
     }
+
+    public function test_web_business_signup_stores_business_type_and_child(): void
+    {
+        $childId = (int) \App\Models\CategoryChild::query()->orderBy('id')->value('id');
+        $email = 'bizweb-' . uniqid() . '@example.test';
+
+        $this->postJson('/user/signup', [
+            'first_name' => 'Biz', 'last_name' => 'Web',
+            'email' => $email, 'phone' => '0100' . random_int(1000000, 9999999),
+            'password' => 'a-good-password',
+            'auth' => 'business',
+            'category_child_id' => $childId,
+        ])->assertJsonPath('status', 200);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $this->assertTrue($user->isBusiness(), 'the account must count as a business (type=business)');
+        $this->assertSame($childId, (int) $user->category_child_id);
+    }
+
+    public function test_web_business_signup_requires_a_category_child(): void
+    {
+        $res = $this->postJson('/user/signup', [
+            'first_name' => 'Biz', 'last_name' => 'NoChild',
+            'email' => 'nochild-' . uniqid() . '@example.test',
+            'phone' => '0100' . random_int(1000000, 9999999),
+            'password' => 'a-good-password',
+            'auth' => 'business',
+        ]);
+
+        $res->assertStatus(422);
+    }
 }

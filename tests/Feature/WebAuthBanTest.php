@@ -160,6 +160,18 @@ class WebAuthBanTest extends TestCase
         $this->get('/user/login')->assertOk();
     }
 
+    public function test_login_screen_wires_the_forgot_password_modal(): void
+    {
+        // The "forgot password" link must open the modal that drives the secure
+        // Api\V2\PasswordResetController flow (email → code → new password), not
+        // the retired takeover-prone web reset.
+        $this->get('/user/login')
+            ->assertOk()
+            ->assertSee('forgotPasswordModal')
+            ->assertSee('data-target="#forgotPasswordModal"', false)
+            ->assertSee('/api/v2/auth/password', false);
+    }
+
     public function test_web_business_signup_stores_business_type_and_child(): void
     {
         $childId = (int) \App\Models\CategoryChild::query()->orderBy('id')->value('id');

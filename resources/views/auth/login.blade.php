@@ -58,7 +58,7 @@
                                             </div>
                                             <button type="submit" id="btn-submit" class="the-btn3">تسجيل الدخول</button>
                                             <div class="form-footer">
-								<a href="#">نسيت كلمة المرور ؟</a>
+								<a href="#" data-toggle="modal" data-target="#forgotPasswordModal">نسيت كلمة المرور ؟</a>
 							</div>
                                         </form>
                                     </div>
@@ -331,6 +331,50 @@
         </section>
     </main>
     <!-- End Main Content-->
+
+    {{-- Forgot-password: a 3-step modal onto the secure Api\V2\PasswordResetController
+         (hashed codes, expiry, attempt-lock, no account enumeration). Step 1 asks for
+         the email; step 2 for the emailed 6-digit code; step 3 for the new password. --}}
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content" dir="rtl" style="text-align:right;">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="float:left;"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="fp-title">استعادة كلمة المرور</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="fp-alert" class="alert" style="display:none;"></div>
+
+                    {{-- Step 1: email --}}
+                    <div id="fp-step-email">
+                        <h5>البريد الالكتروني</h5>
+                        <input id="fp-email" type="email" class="form-control grey-input" placeholder="أدخل بريدك">
+                        <button id="fp-send-code" type="button" class="the-btn3" style="margin-top:15px;">إرسال الرمز</button>
+                    </div>
+
+                    {{-- Step 2: code --}}
+                    <div id="fp-step-code" style="display:none;">
+                        <p>أدخل الرمز المكوّن من 6 أرقام المُرسَل إلى بريدك.</p>
+                        <h5>رمز الاستعادة</h5>
+                        <input id="fp-code" type="text" inputmode="numeric" maxlength="6" class="form-control grey-input" placeholder="------">
+                        <button id="fp-verify-code" type="button" class="the-btn3" style="margin-top:15px;">تأكيد الرمز</button>
+                        <div class="form-footer" style="margin-top:10px;">
+                            <a href="#" id="fp-resend">إعادة إرسال الرمز</a>
+                        </div>
+                    </div>
+
+                    {{-- Step 3: new password --}}
+                    <div id="fp-step-password" style="display:none;">
+                        <h5>كلمة المرور الجديدة</h5>
+                        <input id="fp-password" type="password" class="form-control grey-input" placeholder="6 أحرف على الأقل">
+                        <h5 style="margin-top:10px;">تأكيد كلمة المرور</h5>
+                        <input id="fp-password-confirm" type="password" class="form-control grey-input" placeholder="أعد إدخال كلمة المرور">
+                        <button id="fp-reset" type="button" class="the-btn3" style="margin-top:15px;">حفظ كلمة المرور</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 
@@ -727,6 +771,113 @@
 
 
 
+    </script>
+
+    {{-- Forgot-password modal wiring → secure Api\V2\PasswordResetController.
+         Host-relative paths only (same-origin), so it never breaks on an APP_URL
+         host mismatch (see the cross-origin AJAX rule). --}}
+    <script>
+        (function () {
+            var api = '/api/v2/auth/password';
+            var $modal = $('#forgotPasswordModal');
+
+            function alertBox(msg, ok) {
+                $('#fp-alert').stop(true, true)
+                    .removeClass('alert-success alert-danger')
+                    .addClass(ok ? 'alert-success' : 'alert-danger')
+                    .text(msg).show();
+            }
+
+            function step(name) {
+                $('#fp-step-email, #fp-step-code, #fp-step-password').hide();
+                $('#fp-step-' + name).show();
+                $('#fp-alert').hide();
+            }
+
+            function post(path, body) {
+                return fetch(api + path, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+                    body: JSON.stringify(body)
+                }).then(function (r) {
+                    return r.json().catch(function () { return {}; }).then(function (j) {
+                        return {ok: r.ok, status: r.status, body: j};
+                    });
+                });
+            }
+
+            // Laravel 422 validation errors → first message.
+            function firstError(res, fallback) {
+                if (res.body && res.body.errors) {
+                    for (var k in res.body.errors) {
+                        if (res.body.errors[k] && res.body.errors[k].length) return res.body.errors[k][0];
+                    }
+                }
+                return (res.body && res.body.message) || fallback;
+            }
+
+            function busy($btn, on, label) {
+                if (!$btn.data('label')) $btn.data('label', $btn.text());
+                $btn.prop('disabled', on).text(on ? '...' : (label || $btn.data('label')));
+            }
+
+            $modal.on('show.bs.modal', function () {
+                $('#fp-email, #fp-code, #fp-password, #fp-password-confirm').val('');
+                step('email');
+            });
+
+            // Step 1 → send code
+            $('#fp-send-code').on('click', function () {
+                var email = $.trim($('#fp-email').val());
+                if (!email) { alertBox('أدخل بريدك الالكتروني.', false); return; }
+                var $btn = $(this); busy($btn, true);
+                post('/forgot', {email: email}).then(function (res) {
+                    busy($btn, false, 'إرسال الرمز');
+                    if (res.ok) { step('code'); alertBox(res.body.message || 'أُرسل الرمز إن كان الحساب موجوداً.', true); }
+                    else { alertBox(firstError(res, 'تعذّر إرسال الرمز.'), false); }
+                }).catch(function () { busy($btn, false, 'إرسال الرمز'); alertBox('تعذّر الاتصال بالخادم.', false); });
+            });
+
+            // Resend
+            $('#fp-resend').on('click', function (e) {
+                e.preventDefault();
+                post('/resend', {email: $.trim($('#fp-email').val())}).then(function () {
+                    alertBox('أُعيد إرسال الرمز.', true);
+                });
+            });
+
+            // Step 2 → verify code
+            $('#fp-verify-code').on('click', function () {
+                var code = $.trim($('#fp-code').val());
+                if (!code) { alertBox('أدخل الرمز.', false); return; }
+                var $btn = $(this); busy($btn, true);
+                post('/verify', {email: $.trim($('#fp-email').val()), code: code}).then(function (res) {
+                    busy($btn, false, 'تأكيد الرمز');
+                    if (res.ok) { step('password'); }
+                    else { alertBox(firstError(res, 'رمز غير صحيح.'), false); }
+                }).catch(function () { busy($btn, false, 'تأكيد الرمز'); alertBox('تعذّر الاتصال بالخادم.', false); });
+            });
+
+            // Step 3 → reset
+            $('#fp-reset').on('click', function () {
+                var pass = $('#fp-password').val(), confirm = $('#fp-password-confirm').val();
+                if (!pass || pass.length < 6) { alertBox('كلمة المرور 6 أحرف على الأقل.', false); return; }
+                if (pass !== confirm) { alertBox('كلمتا المرور غير متطابقتين.', false); return; }
+                var $btn = $(this); busy($btn, true);
+                post('/reset', {
+                    email: $.trim($('#fp-email').val()),
+                    code: $.trim($('#fp-code').val()),
+                    password: pass,
+                    password_confirmation: confirm
+                }).then(function (res) {
+                    busy($btn, false, 'حفظ كلمة المرور');
+                    if (res.ok) {
+                        alertBox(res.body.message || 'تم تغيير كلمة المرور. يمكنك تسجيل الدخول الآن.', true);
+                        setTimeout(function () { $modal.modal('hide'); }, 1800);
+                    } else { alertBox(firstError(res, 'تعذّر تغيير كلمة المرور.'), false); }
+                }).catch(function () { busy($btn, false, 'حفظ كلمة المرور'); alertBox('تعذّر الاتصال بالخادم.', false); });
+            });
+        })();
     </script>
 
 @endsection

@@ -71,11 +71,11 @@ class RegistrationController extends Controller
         }
 
         // Whitelist EXPLICITLY. Never mass-assign $request->all() here: User's
-        // $fillable includes privileged columns (balance, guarantee_enabled,
-        // rating_enabled, commercial_operations_enabled, pin_code, activated_at,
-        // paid_at …). A crafted POST could otherwise self-fund a wallet or
-        // self-grant consent/commercial flags, bypassing the
-        // ServiceFeeConsentEnforcer. The password is hashed by User::setPasswordAttribute.
+        // $fillable still carries some privileged columns (pin_code, activated_at,
+        // paid_at, api_token …). The worst offenders (balance + the consent/trust
+        // flags) are no longer fillable, but explicit whitelisting is the
+        // defence that does not depend on remembering to keep $fillable clean.
+        // The password is hashed by User::setPasswordAttribute.
         $name = $request->input('name')
             ?: trim($request->input('first_name') . ' ' . $request->input('last_name'));
 

@@ -38,10 +38,6 @@ class User extends Authenticatable
         'booking_hold_enabled',
         'booking_hold_amount',
 
-        'guarantee_enabled',
-        'rating_enabled',
-        'commercial_operations_enabled',
-
         'action_code',
         'code',
         'logo',
@@ -57,9 +53,19 @@ class User extends Authenticatable
         'pin_code',
 
         'api_token',
-        'balance',
         'pin_attempts',
         'pin_locked_until',
+
+        // Deliberately NOT fillable (privilege / money): a mass-assigned
+        // create()/update() from a request must never set these. Kept in step
+        // with the ban/deletion columns above.
+        //   - balance                        → wallet money; written only by the
+        //                                        Sync*Balance commands (direct
+        //                                        property assignment).
+        //   - guarantee_enabled / rating_enabled / commercial_operations_enabled
+        //                                     → trust & fee-consent flags; written
+        //                                        only via forceFill() by the
+        //                                        guarantee services + ServiceFeeConsentEnforcer.
     ];
 
     protected $hidden = [

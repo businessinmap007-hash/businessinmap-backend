@@ -25,8 +25,15 @@
 | `app/Http/Controllers/FilesController.php` | — |
 | `app/Http/Controllers/Api/OrderController.php` | `Api\V2\OrderController` (بقايا v1) |
 
+## قوالب عرض ميتة (نُقلت 2026-07-23)
+
+| الملف | الحالة |
+|---|---|
+| `resources/views/layouts/master-Old.blade.php` | قالب قديم غير مُشار إليه إطلاقًا (استبدله `layouts/master`) |
+| `resources/views/layouts/app-old.blade.php` | نفس الشيء |
+
 ## لاستعادة ملف
 ```
 git mv _leftovers/<المسار> <المسار الأصلي>
 ```
-ثم `composer dump-autoload`.
+ثم `composer dump-autoload` (للأصناف؛ القوالب لا تحتاجه).

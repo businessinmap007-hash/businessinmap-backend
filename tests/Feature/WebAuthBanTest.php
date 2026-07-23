@@ -123,6 +123,13 @@ class WebAuthBanTest extends TestCase
             ->assertSee('اختر القطاع');
     }
 
+    public function test_login_screen_renders(): void
+    {
+        // The login page shares the (now-hardened) legacy chrome and hosts the
+        // forgot-password modal; it must render without a missing-route fatal.
+        $this->get('/user/login')->assertOk();
+    }
+
     public function test_web_business_signup_stores_business_type_and_child(): void
     {
         $childId = (int) \App\Models\CategoryChild::query()->orderBy('id')->value('id');

@@ -578,7 +578,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: "{{ route('subscription.newsletter') }}",
+                url: "{{ Route::has('subscription.newsletter') ? route('subscription.newsletter') : '#' }}",
                 data: {email: subscriptionEmail},
                 // cache: false,
                 // contentType: false,
@@ -646,7 +646,7 @@
 
             $.ajax({
                 type: 'post',
-                url: '{{ route('get.all.selected.cities') }}',
+                url: '{{ Route::has('get.all.selected.cities') ? route('get.all.selected.cities') : '#' }}',
                 data: {countryId: countryId},
                 dataType: 'json',
                 success:
@@ -688,7 +688,7 @@
 
             $.ajax({
                 type: 'post',
-                url: '{{ route('get.all.selected.cities') }}',
+                url: '{{ Route::has('get.all.selected.cities') ? route('get.all.selected.cities') : '#' }}',
                 data: {countryId: countryId},
                 dataType: 'json',
                 success:

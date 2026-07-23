@@ -41,6 +41,14 @@ class Setting extends Model
 
     public static function getBody($key)
     {
+        // The legacy site-settings table is not present in every environment
+        // (it was never migrated here). Degrade to null instead of a 1146 so the
+        // shared layout — composed onto every view — still renders. Schema
+        // lookups are cached, so this is cheap.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('settings')) {
+            return null;
+        }
+
         $option = Setting::where('key', $key)->first();
         return $option ? $option->body : null;
     }

@@ -80,7 +80,7 @@
         var productId = $this.data('id');
         $this.html('<i class="fas fa-circle-notch fa-spin" style="color:#fff"></i>').attr('disabled', true);
 
-        $.post('{{ route('add.to.cart') }}', { productId: productId }, function (data) {
+        $.post('{{ Route::has('add.to.cart') ? route('add.to.cart') : '#' }}', { productId: productId }, function (data) {
             setTimeout(function () {
                 $this.html(currentBtnContent).attr('disabled', false);
                 showToastrMessage(data.in_cart ? 'warning' : 'success', data.message);

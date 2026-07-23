@@ -114,6 +114,15 @@ class WebAuthBanTest extends TestCase
         $this->assertSame(User::TYPE_CLIENT, $user->type, 'type must be server-decided, not injected');
     }
 
+    public function test_register_screen_renders_both_paths(): void
+    {
+        $this->get('/user/register')
+            ->assertOk()
+            ->assertSee('حساب مستخدم')
+            ->assertSee('حساب بزنس')
+            ->assertSee('اختر القطاع');
+    }
+
     public function test_web_business_signup_stores_business_type_and_child(): void
     {
         $childId = (int) \App\Models\CategoryChild::query()->orderBy('id')->value('id');

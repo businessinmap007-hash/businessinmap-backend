@@ -26,7 +26,7 @@
                                 @foreach($category->children as $child)
                                 <li class="col-sm-3">
                                     <ul>
-                                        <li><i class="fa fa-angle-left"></i><a href="{{ route('category.products') }}?category={{$child->id}}">{{ $child->name }}</a></li>
+                                        <li><i class="fa fa-angle-left"></i><a href="{{ Route::has('category.products') ? route('category.products') . '?category=' . $child->id : '#' }}">{{ $child->name }}</a></li>
                                     </ul>
                                 </li>
                                 @endforeach
@@ -34,7 +34,7 @@
                         </li>
                         @endforeach
 
-                        <li><a href="{{ route('categories') }}"><span></span>آخري</a></li>
+                        <li><a href="{{ Route::has('categories') ? route('categories') : '#' }}"><span></span>آخري</a></li>
                     </ul>
                 </div>
             </div>

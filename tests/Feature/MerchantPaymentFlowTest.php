@@ -8,6 +8,7 @@ use App\Models\WalletTransaction;
 use App\Services\Payments\MerchantPaymentAccountService;
 use App\Services\Payments\PaymentSettingsService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -183,6 +184,56 @@ class MerchantPaymentFlowTest extends TestCase
         $this->start(50);
 
         $this->actingAs($admin)->get('/admin/merchant-payments')->assertOk();
+    }
+
+    public function test_reconcile_settles_a_paid_merchant_payment(): void
+    {
+        $this->enableMerchantRouting();
+
+        $payment = MerchantPayment::create([
+            'customer_id' => $this->customer->id,
+            'business_id' => $this->business->id,
+            'gateway' => 'fawry',
+            'routed_to' => MerchantPayment::ROUTED_MERCHANT,
+            'merchant_ref' => 'MP-RECON-1',
+            'amount' => 40,
+            'currency' => 'EGP',
+            'status' => MerchantPayment::STATUS_PENDING,
+            'created_at' => now()->subHour(),
+        ]);
+
+        // Fawry's status API now reports it paid (a missed callback).
+        Http::fake(['*Fawry/payments/status*' => Http::response([
+            'orderStatus' => 'PAID', 'paymentAmount' => '40.00', 'orderAmount' => '40.00',
+            'merchantRefNumber' => 'MP-RECON-1', 'fawryRefNumber' => 'FR-RECON', 'paymentMethod' => 'CARD',
+        ], 200)]);
+
+        $this->artisan('payments:reconcile-merchant', ['--minutes' => 0])->assertSuccessful();
+
+        $this->assertSame(MerchantPayment::STATUS_PAID, $payment->fresh()->status);
+        $this->assertSame('FR-RECON', $payment->fresh()->gateway_ref);
+    }
+
+    public function test_reconcile_is_a_noop_without_credentials(): void
+    {
+        config(['services.fawry.security_key' => '', 'services.fawry.merchant_code' => '']);
+
+        $payment = MerchantPayment::create([
+            'customer_id' => $this->customer->id,
+            'business_id' => $this->business->id,
+            'gateway' => 'fawry',
+            'routed_to' => MerchantPayment::ROUTED_PLATFORM,
+            'merchant_ref' => 'MP-RECON-2',
+            'amount' => 25,
+            'currency' => 'EGP',
+            'status' => MerchantPayment::STATUS_PENDING,
+            'created_at' => now()->subHour(),
+        ]);
+
+        $this->artisan('payments:reconcile-merchant', ['--minutes' => 0])->assertSuccessful();
+
+        // fetchStatus returns null (no creds) → nothing settled.
+        $this->assertSame(MerchantPayment::STATUS_PENDING, $payment->fresh()->status);
     }
 
     public function test_show_is_scoped_to_owner(): void

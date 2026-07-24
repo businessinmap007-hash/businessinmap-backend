@@ -49,6 +49,11 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->withoutOverlapping();
 
+        // Same safety net for customer→merchant payments. No-op until creds set.
+        $schedule->command('payments:reconcile-merchant --minutes=15 --limit=200')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
         // The day-31 sweep (BIM-15.1). Daily and off-peak: the grace window is
         // measured in days, so nothing is gained by running it often, and this
         // is the one job that takes money irreversibly.

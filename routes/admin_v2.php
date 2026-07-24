@@ -65,6 +65,7 @@ use App\Http\Controllers\AdminV2\{
     CatalogProductController,
     PaymentSettingsController,
     MerchantPaymentAccountController,
+    MerchantAccountRequestController,
     PushSettingsController,
     ProductCategoryChildController,
     ProductCategoryController,
@@ -447,6 +448,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('merchant-payment-accounts', [MerchantPaymentAccountController::class, 'index'])->name('merchant-payment-accounts.index');
             Route::put('merchant-payment-accounts/toggle', [MerchantPaymentAccountController::class, 'toggle'])->name('merchant-payment-accounts.toggle');
             Route::post('merchant-payment-accounts', [MerchantPaymentAccountController::class, 'save'])->name('merchant-payment-accounts.save');
+
+            // Businesses applying for a merchant sub-account: review + provision.
+            Route::get('merchant-account-requests', [MerchantAccountRequestController::class, 'index'])->name('merchant-account-requests.index');
+            Route::post('merchant-account-requests/{merchantAccountRequest}/approve', [MerchantAccountRequestController::class, 'approve'])->name('merchant-account-requests.approve');
+            Route::post('merchant-account-requests/{merchantAccountRequest}/reject', [MerchantAccountRequestController::class, 'reject'])->name('merchant-account-requests.reject');
         });
 
         // Live push credentials (Firebase service-account JSON) — paste-and-go.

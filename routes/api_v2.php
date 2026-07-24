@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
 use App\Http\Controllers\Api\V2\MerchantPaymentController;
+use App\Http\Controllers\Api\V2\MerchantAccountController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -319,6 +320,12 @@ Route::prefix('v2')->group(function () {
             // poll its status. Crediting happens in the public callback above.
             Route::post('topup', [WalletTopupController::class, 'store']);
             Route::get('topup/{topup}', [WalletTopupController::class, 'show'])->whereNumber('topup');
+        });
+
+        // A business's own Fawry merchant sub-account: status + apply.
+        Route::prefix('merchant-account')->group(function () {
+            Route::get('/', [MerchantAccountController::class, 'status']);
+            Route::post('request', [MerchantAccountController::class, 'apply']);
         });
 
         // Customer→merchant payments (settle to the merchant's own account).

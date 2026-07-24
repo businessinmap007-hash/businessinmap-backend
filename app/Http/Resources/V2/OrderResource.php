@@ -31,6 +31,8 @@ class OrderResource extends JsonResource
             ],
 
             'payment_method' => $this->payment_method,
+            'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
+            'paid_at' => optional($this->paid_at)->toIso8601String(),
             'address' => $this->address,
             'notes' => $this->notes,
 

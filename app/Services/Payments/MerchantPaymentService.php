@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\MerchantPayment;
+use App\Models\Order;
 use App\Models\User;
 use App\Services\Payments\Dtos\ChargeResult;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,15 @@ class MerchantPaymentService
                 'method' => $method,
                 'paid_at' => now(),
             ]);
+
+            // Mark the linked order paid (gateway-settled). Fulfillment status is
+            // left alone — this only records that the money arrived.
+            if ($locked->order_id) {
+                Order::whereKey($locked->order_id)->update([
+                    'payment_status' => Order::PAYMENT_PAID,
+                    'paid_at' => now(),
+                ]);
+            }
 
             return $locked->fresh();
         });

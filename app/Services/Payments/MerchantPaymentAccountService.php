@@ -27,6 +27,26 @@ final class MerchantPaymentAccountService
     }
 
     /**
+     * Whether a business has a fully-configured, active sub-account (code + key),
+     * independent of the global feature toggle. Used by the request flow to decide
+     * if a business already has an account.
+     */
+    public function isConfigured(int $businessId): bool
+    {
+        if (! Schema::hasTable('merchant_payment_accounts')) {
+            return false;
+        }
+
+        $row = MerchantPaymentAccount::query()
+            ->where('business_id', $businessId)
+            ->where('gateway', 'fawry')
+            ->where('is_active', true)
+            ->first();
+
+        return $row !== null && (string) $row->merchant_code !== '' && (string) $row->security_key !== '';
+    }
+
+    /**
      * Fawry config that routes a charge to this business's sub-account, or null
      * to fall back to the platform account.
      *

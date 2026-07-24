@@ -104,10 +104,12 @@ class OrderGatewayCheckoutTest extends TestCase
         app(MerchantPaymentAccountService::class)->save($this->businessId, 'MERCH-CODE', self::MERCHANT_SEC, true);
 
         $res = $this->addItemAndCheckout('card');
+        $orderId = (int) $res->json('data.order.id');
         $payment = MerchantPayment::findOrFail((int) $res->json('data.merchant_payment_id'));
 
         $this->assertSame(MerchantPayment::ROUTED_MERCHANT, $payment->routed_to);
         $this->assertSame('MERCH-CODE', $payment->meta['charge_request']['merchantCode'] ?? null);
+        $this->assertSame(Order::PAYMENT_UNPAID, Order::whereKey($orderId)->value('payment_status'));
 
         // The callback (signed with the merchant key) settles the order's payment.
         $amt = number_format((float) $payment->amount, 2, '.', '');
@@ -122,5 +124,9 @@ class OrderGatewayCheckoutTest extends TestCase
 
         $this->postJson('/api/v2/merchant-payments/callback', $payload)->assertOk();
         $this->assertSame(MerchantPayment::STATUS_PAID, $payment->fresh()->status);
+
+        // The linked order is now marked paid (gateway-settled); fulfillment status untouched.
+        $this->assertSame(Order::PAYMENT_PAID, Order::whereKey($orderId)->value('payment_status'));
+        $this->assertNotNull(Order::whereKey($orderId)->value('paid_at'));
     }
 }

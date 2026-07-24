@@ -52,6 +52,8 @@ class Order extends Model
         'tax',
         'final_total',
         'payment_method',
+        'payment_status',
+        'paid_at',
         'address',
         'delivery_address_id',
         'delivery_lat',
@@ -75,7 +77,11 @@ class Order extends Model
         'delivery_lng' => 'float',
         'is_shared' => 'boolean',
         'handover_confirmed_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
+
+    public const PAYMENT_UNPAID = 'unpaid';
+    public const PAYMENT_PAID = 'paid';
 
     public function businessTable()
     {

@@ -2244,5 +2244,8 @@
     "لهذا النزاع غرامة تسوية بالفعل.": "This dispute already has a settlement fine.",
     "غرامة التسوية تُسجَّل فقط على نزاع أُغلق بتسوية ودية.": "A settlement fine can only be recorded on a mutually settled dispute.",
     "تعذر تحديد الطرف.": "Could not determine the party.",
-    "سُجّلت غرامة التسوية (غير قابلة للطعن) وجُمّد المبلغ.": "The settlement fine (non-appealable) was recorded and the amount frozen."
+    "سُجّلت غرامة التسوية (غير قابلة للطعن) وجُمّد المبلغ.": "The settlement fine (non-appealable) was recorded and the amount frozen.",
+    "هذه الخدمة متاحة لحسابات التجّار فقط.": "This service is available to business accounts only.",
+    "لديك حساب merchant مُفعّل بالفعل.": "You already have an active merchant account.",
+    "لديك طلب قيد المراجعة بالفعل.": "You already have a request under review."
 }

@@ -1142,6 +1142,18 @@ paths:
         '400': { description: Invalid signature. }
         '422': { description: Amount mismatch. }
 
+  # ─────────────────── Merchant Account (business applies) ───────────────────
+  /merchant-account:
+    get:
+      tags: [Merchant Payments]
+      summary: A business's own merchant sub-account status (has account / pending request)
+      responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
+  /merchant-account/request:
+    post:
+      tags: [Merchant Payments]
+      summary: Apply for a Fawry merchant sub-account (business only)
+      responses: { '201': { description: Created }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { description: Not eligible (not a business / already has one / pending). } }
+
   # ─────────────────── Merchant Payments (customer→merchant) ───────────────────
   /merchant-payments:
     post:

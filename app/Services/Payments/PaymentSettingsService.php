@@ -110,6 +110,22 @@ final class PaymentSettingsService
         }
     }
 
+    /**
+     * Whether the per-merchant sub-account routing feature is ON. When off, all
+     * charges use the platform's own Fawry account (the default). Stored as a
+     * plain '1'/'0' flag; defaults OFF so nothing changes until an admin enables it.
+     */
+    public function subMerchantEnabled(): bool
+    {
+        return $this->tableReady() && $this->get(self::FAWRY_PREFIX . 'submerchant_enabled') === '1';
+    }
+
+    /** Turn the sub-account routing feature on or off (admin action). */
+    public function setSubMerchantEnabled(bool $on): void
+    {
+        $this->put(self::FAWRY_PREFIX . 'submerchant_enabled', $on ? '1' : '0', false);
+    }
+
     /** Decrypted value for a key, or null if unset. */
     private function get(string $key): ?string
     {

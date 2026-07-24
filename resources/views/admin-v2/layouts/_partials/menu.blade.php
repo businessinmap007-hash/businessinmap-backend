@@ -128,8 +128,9 @@
             ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
         ]],
         // App-level integration credentials (paste-and-go, no redeploy).
-        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.', 'admin.dispute-fees.'], 'children' => [
+        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.merchant-payment-accounts.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.', 'admin.dispute-fees.'], 'children' => [
             ['label' => 'بوابة الدفع (فوري)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
+            ['label' => 'حسابات التجّار الفرعية', 'route' => 'admin.merchant-payment-accounts.index', 'active' => 'admin.merchant-payment-accounts.'],
             ['label' => 'الإشعارات (Firebase)', 'route' => 'admin.push-settings.edit', 'active' => 'admin.push-settings.'],
             ['label' => 'صلاحيات المشرفين', 'route' => 'admin.admin-roles.index', 'active' => 'admin.admin-roles.'],
             ['label' => 'الحُكّام', 'route' => 'admin.arbitrators.index', 'active' => 'admin.arbitrators.'],

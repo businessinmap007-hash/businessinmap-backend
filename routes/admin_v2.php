@@ -64,6 +64,7 @@ use App\Http\Controllers\AdminV2\{
     CatalogBrandController,
     CatalogProductController,
     PaymentSettingsController,
+    MerchantPaymentAccountController,
     PushSettingsController,
     ProductCategoryChildController,
     ProductCategoryController,
@@ -435,6 +436,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // real money, which makes it the most dangerous form in the panel.
             Route::get('payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings.edit');
             Route::put('payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
+
+            // Per-merchant Fawry sub-accounts: global toggle + each merchant's own
+            // gateway code/key, so a customer's payment can be routed to the
+            // merchant's Fawry account. Also MONEY — it redirects real money.
+            Route::get('merchant-payment-accounts', [MerchantPaymentAccountController::class, 'index'])->name('merchant-payment-accounts.index');
+            Route::put('merchant-payment-accounts/toggle', [MerchantPaymentAccountController::class, 'toggle'])->name('merchant-payment-accounts.toggle');
+            Route::post('merchant-payment-accounts', [MerchantPaymentAccountController::class, 'save'])->name('merchant-payment-accounts.save');
         });
 
         // Live push credentials (Firebase service-account JSON) — paste-and-go.

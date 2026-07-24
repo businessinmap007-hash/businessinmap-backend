@@ -104,8 +104,28 @@ class LegalConsentTest extends TestCase
             ->assertSee('الشروط والأحكام وسياسة الخصوصية');
     }
 
-    public function test_terms_page_renders(): void
+    public function test_terms_page_renders_with_standard_sections(): void
     {
-        $this->get('/terms-and-conditions')->assertOk();
+        $this->get('/terms-and-conditions')
+            ->assertOk()
+            ->assertSee('قبول الشروط')
+            ->assertSee('المحفظة والمدفوعات')
+            ->assertSee('الملكية الفكرية');
+    }
+
+    public function test_about_page_explains_the_app_and_its_dealings(): void
+    {
+        $this->get('/aboutus')
+            ->assertOk()
+            ->assertSee('كيف تتم التعاملات')
+            ->assertSee('خدمات ومميزات التطبيق')
+            ->assertSee('المحفظة والرسوم');
+    }
+
+    public function test_privacy_page_renders(): void
+    {
+        $this->get('/privacy-and-policy')
+            ->assertOk()
+            ->assertSee('سياسة الخصوصية');
     }
 }

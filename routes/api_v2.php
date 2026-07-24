@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
+use App\Http\Controllers\Api\V2\MerchantPaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -164,6 +165,10 @@ Route::prefix('v2')->group(function () {
     // gateway calls it, not the app) — security is the signed-payload check.
     // Optional ?gateway= selects the provider (defaults to config).
     Route::post('wallet/topup/callback', [WalletTopupController::class, 'callback']);
+
+    // Customer→merchant payment callback. PUBLIC, same rationale — verified with
+    // the merchant's (or platform's) signed payload inside the controller.
+    Route::post('merchant-payments/callback', [MerchantPaymentController::class, 'callback']);
 
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.
@@ -314,6 +319,12 @@ Route::prefix('v2')->group(function () {
             // poll its status. Crediting happens in the public callback above.
             Route::post('topup', [WalletTopupController::class, 'store']);
             Route::get('topup/{topup}', [WalletTopupController::class, 'show'])->whereNumber('topup');
+        });
+
+        // Customer→merchant payments (settle to the merchant's own account).
+        Route::prefix('merchant-payments')->group(function () {
+            Route::post('/', [MerchantPaymentController::class, 'store']);
+            Route::get('{payment}', [MerchantPaymentController::class, 'show'])->whereNumber('payment');
         });
 
         Route::prefix('addresses')->group(function () {

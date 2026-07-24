@@ -47,6 +47,7 @@ tags:
   - name: Addresses
   - name: Wallet
   - name: Wallet Top-up
+  - name: Merchant Payments
   - name: Cart
   - name: Shared Cart
   - name: Orders (Customer)
@@ -1139,6 +1140,31 @@ paths:
       responses:
         '200': { description: Acknowledged. }
         '400': { description: Invalid signature. }
+        '422': { description: Amount mismatch. }
+
+  # ─────────────────── Merchant Payments (customer→merchant) ───────────────────
+  /merchant-payments:
+    post:
+      tags: [Merchant Payments]
+      summary: Pay a merchant (routed to the merchant's sub-account when configured)
+      description: Creates a pending intent and returns the hosted-checkout payload. Settles to the merchant's own gateway account, not the platform wallet.
+      responses: { '201': { description: Created }, '401': { $ref: '#/components/responses/Unauthorized' }, '422': { description: Validation error. } }
+  /merchant-payments/{payment}:
+    get:
+      tags: [Merchant Payments]
+      summary: Poll a merchant payment's status (own only)
+      parameters: [{ name: payment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /merchant-payments/callback:
+    post:
+      tags: [Merchant Payments]
+      summary: Gateway server-to-server callback (PUBLIC — the gateway calls it)
+      security: []
+      description: Verifies the signed payload with the merchant's (or platform's) key, then idempotently marks the payment paid. No wallet is credited.
+      responses:
+        '200': { description: Acknowledged. }
+        '400': { description: Invalid signature. }
+        '404': { description: Unknown reference. }
         '422': { description: Amount mismatch. }
 
   # ─────────────────────────── Cart ───────────────────────────

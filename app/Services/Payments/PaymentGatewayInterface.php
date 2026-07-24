@@ -2,7 +2,6 @@
 
 namespace App\Services\Payments;
 
-use App\Models\WalletTopup;
 use App\Services\Payments\Dtos\CallbackResult;
 use App\Services\Payments\Dtos\ChargeResult;
 
@@ -21,7 +20,7 @@ interface PaymentGatewayInterface
      * is the app's requested payment method (card / apple_pay / google_pay /
      * fawry_cash / mobile_wallet / valu) or null to let the hosted page offer all.
      */
-    public function createCharge(WalletTopup $topup, array $customer = [], ?string $method = null): ChargeResult;
+    public function createCharge(GatewayChargeable $intent, array $customer = [], ?string $method = null): ChargeResult;
 
     /** Verify a server-to-server callback's signature. MUST reject if absent. */
     public function verifyCallbackSignature(array $payload): bool;
@@ -34,5 +33,5 @@ interface PaymentGatewayInterface
      * safety net for missed callbacks). Returns null when not configured or the
      * status can't be fetched.
      */
-    public function fetchStatus(WalletTopup $topup): ?CallbackResult;
+    public function fetchStatus(GatewayChargeable $intent): ?CallbackResult;
 }

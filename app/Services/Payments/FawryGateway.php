@@ -2,7 +2,6 @@
 
 namespace App\Services\Payments;
 
-use App\Models\WalletTopup;
 use App\Services\Payments\Dtos\CallbackResult;
 use App\Services\Payments\Dtos\ChargeResult;
 use Illuminate\Support\Facades\Http;
@@ -30,19 +29,19 @@ final class FawryGateway implements PaymentGatewayInterface
         return 'fawry';
     }
 
-    public function createCharge(WalletTopup $topup, array $customer = [], ?string $method = null): ChargeResult
+    public function createCharge(GatewayChargeable $intent, array $customer = [], ?string $method = null): ChargeResult
     {
         $charge = [
             'merchantCode' => (string) ($this->config['merchant_code'] ?? ''),
-            'merchantRefNum' => (string) $topup->merchant_ref,
+            'merchantRefNum' => $intent->chargeRef(),
             'customerMobile' => (string) ($customer['mobile'] ?? ''),
             'customerEmail' => (string) ($customer['email'] ?? ''),
-            'customerProfileId' => (string) $topup->user_id,
+            'customerProfileId' => $intent->chargeCustomerRef(),
             'customerName' => (string) ($customer['name'] ?? ''),
             'chargeItems' => [[
-                'itemId' => 'WT-' . $topup->id,
-                'description' => 'BIM wallet top-up',
-                'price' => $this->money($topup->amount),
+                'itemId' => $intent->chargeItemId(),
+                'description' => $intent->chargeDescription(),
+                'price' => $this->money($intent->chargeAmount()),
                 'quantity' => 1,
             ]],
             'returnUrl' => (string) ($this->config['return_url'] ?? ''),
@@ -59,7 +58,7 @@ final class FawryGateway implements PaymentGatewayInterface
 
         $charge['signature'] = $this->signCharge($charge);
 
-        return new ChargeResult('fawry', (string) $topup->merchant_ref, $this->initUrl(), $charge);
+        return new ChargeResult('fawry', $intent->chargeRef(), $this->initUrl(), $charge);
     }
 
     /**
@@ -67,14 +66,14 @@ final class FawryGateway implements PaymentGatewayInterface
      * sha256(merchantCode + merchantRefNum + secureKey). Returns null when
      * credentials are missing or the request fails.
      */
-    public function fetchStatus(WalletTopup $topup): ?CallbackResult
+    public function fetchStatus(GatewayChargeable $intent): ?CallbackResult
     {
         if ($this->securityKey() === '' || (string) ($this->config['merchant_code'] ?? '') === '') {
             return null;
         }
 
         $merchantCode = (string) $this->config['merchant_code'];
-        $ref = (string) $topup->merchant_ref;
+        $ref = $intent->chargeRef();
         $signature = hash('sha256', $merchantCode . $ref . $this->securityKey());
 
         try {

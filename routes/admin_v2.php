@@ -74,6 +74,7 @@ use App\Http\Controllers\AdminV2\{
     WalletOpsController,
     WalletOverviewController,
     WalletTopupAdminController,
+    MerchantPaymentAdminController,
     WalletTransactionController
 };
 use App\Support\AdminAbility;
@@ -349,6 +350,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('can:' . AdminAbility::MONEY)->group(function () {
             // Wallet top-ups (money-in) oversight for reconciliation.
             Route::get('wallet-topups', [WalletTopupAdminController::class, 'index'])->name('wallet-topups.index');
+
+            // Customer→merchant payments (money-in that settles to the merchant).
+            Route::get('merchant-payments', [MerchantPaymentAdminController::class, 'index'])->name('merchant-payments.index');
 
             // Deletions the day-31 sweep refused. Gated on MONEY, not USERS:
             // both actions move money — finalizing escheats the balance to the

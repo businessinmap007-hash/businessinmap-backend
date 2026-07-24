@@ -114,11 +114,12 @@
             ['label' => 'مراجعة الاحتيال', 'route' => 'admin.fraud-flags.index', 'active' => 'admin.fraud-flags.'],
             ['label' => 'طلبات حذف موقوفة', 'route' => 'admin.held-deletions.index', 'active' => 'admin.held-deletions.'],
         ]],
-        ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.'], 'children' => [
+        ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.', 'admin.merchant-payments.'], 'children' => [
             ['label' => 'سائقو التوصيل', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
             ['label' => 'عمليات التوصيل المكتملة', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
             ['label' => 'طاولات المطاعم', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
             ['label' => 'شحن الأرصدة', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
+            ['label' => 'مدفوعات التجّار', 'route' => 'admin.merchant-payments.index', 'active' => 'admin.merchant-payments.'],
         ]],
         ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.job-follows.', 'admin.sponsors.', 'admin.albums.'], 'children' => [
             ['label' => 'المنشورات', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],

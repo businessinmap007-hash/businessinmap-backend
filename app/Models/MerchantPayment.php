@@ -7,20 +7,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A real-money-in intent for topping up the points wallet. Created `pending`,
- * settled `paid` by the gateway callback (which credits WalletService), or
- * `failed`. See [[wallet-topup-payment-plan]].
+ * A customer→merchant payment intent. Created `pending`, settled `paid` by the
+ * gateway callback. Unlike a wallet top-up it credits NO platform wallet — the
+ * money settles into the merchant's own gateway account (when routed_to =
+ * merchant) or the platform account for later manual payout. See
+ * [[fawry-submerchant-routing]].
  */
-class WalletTopup extends Model implements GatewayChargeable
+class MerchantPayment extends Model implements GatewayChargeable
 {
     public const STATUS_PENDING = 'pending';
     public const STATUS_PAID    = 'paid';
     public const STATUS_FAILED  = 'failed';
     public const STATUS_EXPIRED = 'expired';
 
+    public const ROUTED_MERCHANT = 'merchant';
+    public const ROUTED_PLATFORM = 'platform';
+
     protected $fillable = [
-        'user_id',
+        'customer_id',
+        'business_id',
         'gateway',
+        'routed_to',
         'merchant_ref',
         'gateway_ref',
         'method',
@@ -32,15 +39,21 @@ class WalletTopup extends Model implements GatewayChargeable
     ];
 
     protected $casts = [
-        'user_id' => 'integer',
+        'customer_id' => 'integer',
+        'business_id' => 'integer',
         'amount' => 'decimal:2',
         'meta' => 'array',
         'paid_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'business_id');
     }
 
     public function isPaid(): bool
@@ -66,16 +79,16 @@ class WalletTopup extends Model implements GatewayChargeable
 
     public function chargeCustomerRef(): string
     {
-        return (string) $this->user_id;
+        return (string) $this->customer_id;
     }
 
     public function chargeItemId(): string
     {
-        return 'WT-' . $this->id;
+        return 'MP-' . $this->id;
     }
 
     public function chargeDescription(): string
     {
-        return 'BIM wallet top-up';
+        return 'BIM merchant payment';
     }
 }

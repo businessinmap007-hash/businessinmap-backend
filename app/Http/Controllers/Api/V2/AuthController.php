@@ -67,6 +67,10 @@ final class AuthController extends Controller
             ]);
         });
 
+        // Record acceptance of the current terms + privacy (audit trail); the app
+        // presents the documents + consent gate before calling register.
+        app(\App\Services\LegalConsentService::class)->recordSignupConsent($user, $request->ip());
+
         $token = $user->createToken('mobile')->plainTextToken;
 
         return response()->json([

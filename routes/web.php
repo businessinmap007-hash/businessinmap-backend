@@ -36,6 +36,7 @@ Route::post('user/col/check', 'App\Http\Controllers\RegistrationController@check
 // (hashed codes, expiry, attempt-lock, no enumeration). Controllers quarantined.
 
 Route::get("aboutus", "App\Http\Controllers\PageController@aboutUs")->name('aboutus');
+Route::get("features", "App\Http\Controllers\PageController@features")->name('features');
 Route::get("terms-and-conditions", "App\Http\Controllers\PageController@termsAndConditions")->name('terms');
 Route::get("privacy-and-policy", "App\Http\Controllers\PageController@privacy")->name('privacy');
 

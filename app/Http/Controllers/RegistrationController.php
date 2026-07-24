@@ -99,6 +99,10 @@ class RegistrationController extends Controller
             if ($isBusiness) {
                 $user->assign(2);
             }
+            // Every new account records its acceptance of the current terms +
+            // privacy versions (audit trail). The form carries a required consent
+            // checkbox; this is the server-side record of it.
+            app(\App\Services\LegalConsentService::class)->recordSignupConsent($user, $request->ip());
             auth()->loginUsingId($user->id);
             session()->flash('success', 'لقد تم تسجيل المستخدم بنجاح');
             return returnedResponse(200, 'لقد تم تسجيل المستخدم بنجاح', null, route('profile'));

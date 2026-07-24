@@ -69,6 +69,16 @@
                         <div>
                             <input type="password" name="confirm_password" class="form-control" placeholder="تأكيد كلمة المرور"  required />
                         </div>
+                        <div class="mt-2 mb-3" style="font-size:14px">
+                            <label style="font-weight:normal">
+                                <input type="checkbox" name="terms_accepted" value="1" required />
+                                أوافق على
+                                <a href="{{ route('features') }}#terms" target="_blank">الشروط والأحكام</a>
+                                @if(\Illuminate\Support\Facades\Route::has('terms'))
+                                    و<a href="{{ route('terms') }}" target="_blank">سياسة الاستخدام</a>
+                                @endif
+                            </label>
+                        </div>
                         <label for="submit" class="btn">تسجيل </label>
                         <input id="submit" class="btn btn-primary btn-lg btn-block" type="submit" />
                         <hr class="mb-4">

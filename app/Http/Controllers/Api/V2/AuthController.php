@@ -30,7 +30,7 @@ final class AuthController extends Controller
             'name' => ['required', 'string', 'max:191'],
             'email' => ['required', 'string', 'email', 'max:191', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:15', 'unique:users,phone'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'password' => \App\Support\PasswordPolicy::rules(),
             'type' => ['nullable', Rule::in([User::TYPE_CLIENT, User::TYPE_BUSINESS])],
             // A business is defined by its category_child: it decides which
             // platform services (booking/menu/retail/…) the owner may sell, via

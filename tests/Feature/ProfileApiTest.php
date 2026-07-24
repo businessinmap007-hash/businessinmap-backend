@@ -48,19 +48,19 @@ class ProfileApiTest extends TestCase
         $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v2/profile/password', [
                 'current_password' => 'nope',
-                'password' => 'new-pass-1',
-                'password_confirmation' => 'new-pass-1',
+                'password' => 'New-pass-12',
+                'password_confirmation' => 'New-pass-12',
             ])->assertStatus(422);
 
         // Correct current password → changed.
         $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v2/profile/password', [
                 'current_password' => 'old-pass',
-                'password' => 'new-pass-1',
-                'password_confirmation' => 'new-pass-1',
+                'password' => 'New-pass-12',
+                'password_confirmation' => 'New-pass-12',
             ])->assertOk();
 
-        $this->assertTrue(Hash::check('new-pass-1', $this->user->fresh()->password));
+        $this->assertTrue(Hash::check('New-pass-12', $this->user->fresh()->password));
     }
 
     public function test_profile_requires_auth(): void

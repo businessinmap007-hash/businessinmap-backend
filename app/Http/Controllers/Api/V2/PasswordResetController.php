@@ -72,7 +72,7 @@ final class PasswordResetController extends Controller
         $data = $request->validate([
             'email' => ['required', 'string', 'email'],
             'code' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'password' => \App\Support\PasswordPolicy::rules(),
         ]);
 
         $this->assertValidCode($data['email'], $data['code']);

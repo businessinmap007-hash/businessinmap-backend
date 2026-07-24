@@ -23,8 +23,8 @@ class AuthApiTest extends TestCase
             'name' => 'Test User',
             'email' => "t_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
-            'password' => 'secret123',
-            'password_confirmation' => 'secret123',
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
         ])->assertCreated();
 
         $this->assertNotEmpty($res->json('token'));
@@ -42,8 +42,8 @@ class AuthApiTest extends TestCase
             'name' => 'Biz No Child',
             'email' => "b_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
-            'password' => 'secret123',
-            'password_confirmation' => 'secret123',
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
             'type' => User::TYPE_BUSINESS,
         ])->assertStatus(422)->assertJsonValidationErrors('category_child_id');
     }
@@ -57,8 +57,8 @@ class AuthApiTest extends TestCase
             'name' => 'Biz With Child',
             'email' => "b_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
-            'password' => 'secret123',
-            'password_confirmation' => 'secret123',
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
             'type' => User::TYPE_BUSINESS,
             'category_child_id' => $childId,
         ])->assertCreated();

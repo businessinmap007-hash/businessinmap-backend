@@ -135,7 +135,7 @@ final class ProfileController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'password' => \App\Support\PasswordPolicy::rules(),
         ]);
 
         if (! Hash::check($data['current_password'], $user->password)) {

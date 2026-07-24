@@ -1590,7 +1590,9 @@ paths:
 
   # ─────────────────────────── Ratings ───────────────────────────
   /ratings/me:
-    get: { tags: [Ratings], summary: My operation rating (percentages + stars), responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
+    get: { tags: [Ratings], summary: My operation rating (percentages + stars) + my rating/fee opt-in state, responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
+  /ratings/enable:
+    post: { tags: [Ratings], summary: Open my own rating (per-party opt-in; makes only me liable for service fees — transacting is free), responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
   /ratings/user/{user}:
     get: { tags: [Ratings], summary: Another user's operation rating, parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /ratings/user/{user}/reviews:

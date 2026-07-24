@@ -35,7 +35,7 @@ class MenuOrderJourneyTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const PASSWORD = 'secret-password';
+    private const PASSWORD = 'Secret-password1';
 
     private User $business;
 

@@ -65,6 +65,14 @@ return [
     ],
     'mimes'                => 'يجب أن يكون ملفًا من نوع : :values.',
     'mimetypes'            => 'يجب أن يكون ملفًا من نوع : :values.',
+    // Messages for the Password complexity rule (App\Support\PasswordPolicy).
+    'password'             => [
+        'letters'       => 'يجب أن تحتوي :attribute على حرف واحد على الأقل.',
+        'mixed'         => 'يجب أن تحتوي :attribute على حرف كبير وحرف صغير على الأقل.',
+        'numbers'       => 'يجب أن تحتوي :attribute على رقم واحد على الأقل.',
+        'symbols'       => 'يجب أن تحتوي :attribute على رمز واحد على الأقل.',
+        'uncompromised' => 'ظهرت :attribute في تسريب بيانات. اختر كلمة مرور أخرى.',
+    ],
     'min'                  => [
         'numeric' => 'يجب أن تكون قيمة :attribute مساوية أو أكبر لـ :min.',
         'file'    => 'يجب أن يكون حجم الملف :attribute على الأقل :min كيلوبايت',

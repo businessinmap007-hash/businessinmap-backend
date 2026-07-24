@@ -473,6 +473,9 @@ Route::prefix('v2')->group(function () {
         // Operation-based rating: objective %'s + subjective star reviews.
         Route::prefix('ratings')->group(function () {
             Route::get('me', [RatingController::class, 'me']);
+            // Open your OWN rating (per-party opt-in): this is what makes the
+            // caller liable for service fees — transacting itself is free.
+            Route::post('enable', [RatingController::class, 'enable']);
             Route::get('user/{user}', [RatingController::class, 'show'])->whereNumber('user');
             Route::get('user/{user}/reviews', [RatingController::class, 'reviews'])->whereNumber('user');
             // Star review — gated on a real, completed operation between the parties.

@@ -80,11 +80,11 @@ class PasswordResetApiTest extends TestCase
         $this->postJson('/api/v2/auth/password/reset', [
             'email' => $this->user->email,
             'code' => '654321',
-            'password' => 'brand-new-pass',
-            'password_confirmation' => 'brand-new-pass',
+            'password' => 'Brand-new-pass1',
+            'password_confirmation' => 'Brand-new-pass1',
         ])->assertOk();
 
-        $this->assertTrue(Hash::check('brand-new-pass', $this->user->fresh()->password));
+        $this->assertTrue(Hash::check('Brand-new-pass1', $this->user->fresh()->password));
         $this->assertDatabaseMissing('password_reset_codes', ['email' => $this->user->email]);
         $this->assertSame(0, (int) $this->user->tokens()->count());
     }
@@ -96,8 +96,8 @@ class PasswordResetApiTest extends TestCase
         $this->postJson('/api/v2/auth/password/reset', [
             'email' => $this->user->email,
             'code' => '111111',
-            'password' => 'whatever-pass',
-            'password_confirmation' => 'whatever-pass',
+            'password' => 'Whatever-pass1',
+            'password_confirmation' => 'Whatever-pass1',
         ])->assertStatus(422);
     }
 }

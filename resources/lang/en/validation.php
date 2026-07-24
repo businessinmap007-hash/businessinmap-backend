@@ -65,6 +65,14 @@ return [
     ],
     'mimes'                => 'file type must be : :values.',
     'mimetypes'            => 'file type must be : :values.',
+    // Messages for the Password complexity rule (App\Support\PasswordPolicy).
+    'password'             => [
+        'letters'       => 'The :attribute must contain at least one letter.',
+        'mixed'         => 'The :attribute must contain at least one uppercase and one lowercase letter.',
+        'numbers'       => 'The :attribute must contain at least one number.',
+        'symbols'       => 'The :attribute must contain at least one symbol.',
+        'uncompromised' => 'The given :attribute has appeared in a data leak. Please choose a different :attribute.',
+    ],
     'min'                  => [
         'numeric' => 'value must be :attribute equal to or exceeds :min.',
         'file'    => 'file size must be :attributeat least :min kilo byte',

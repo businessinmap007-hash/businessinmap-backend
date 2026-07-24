@@ -29,7 +29,9 @@ class StoreUsersRequest extends FormRequest
             'last_name' => 'required',
             'email' => 'required|email|unique:users,email',
             'phone' => 'required|unique:users,phone',
-            'password' => 'required',
+            // 8–20 chars, mixed case + a digit. `confirmed` is off because the
+            // web signup form (which shares this request) has no confirm field.
+            'password' => \App\Support\PasswordPolicy::rules(false),
         ];
     }
 

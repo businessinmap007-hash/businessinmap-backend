@@ -40,6 +40,7 @@ class LegalConsentTest extends TestCase
             'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'Str0ng-pass',
             'password_confirmation' => 'Str0ng-pass',
+            'terms_accepted' => true,
         ])->assertCreated();
 
         $user = User::query()->where('email', $email)->firstOrFail();
@@ -55,10 +56,43 @@ class LegalConsentTest extends TestCase
             'email' => $email,
             'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'A-good-password1',
+            'terms_accepted' => true,
         ])->assertJsonPath('status', 200);
 
         $user = User::query()->where('email', $email)->firstOrFail();
         $this->assertConsentRecorded((int) $user->id);
+    }
+
+    public function test_api_register_without_consent_is_rejected(): void
+    {
+        $email = 'noconsent-' . uniqid() . '@example.test';
+
+        // No terms_accepted → registration is cancelled, and no user is created.
+        $this->postJson('/api/v2/auth/register', [
+            'name' => 'No Consent',
+            'email' => $email,
+            'phone' => '0100' . random_int(1000000, 9999999),
+            'password' => 'Str0ng-pass',
+            'password_confirmation' => 'Str0ng-pass',
+        ])->assertStatus(422)->assertJsonValidationErrors('terms_accepted');
+
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+    }
+
+    public function test_web_signup_without_consent_is_rejected(): void
+    {
+        $email = 'webnoconsent-' . uniqid() . '@example.test';
+
+        // terms_accepted explicitly refused → cancelled, no user.
+        $this->postJson('/user/signup', [
+            'first_name' => 'Web', 'last_name' => 'NoConsent',
+            'email' => $email,
+            'phone' => '0100' . random_int(1000000, 9999999),
+            'password' => 'A-good-password1',
+            'terms_accepted' => false,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('users', ['email' => $email]);
     }
 
     public function test_features_page_renders_with_the_terms_section(): void

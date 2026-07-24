@@ -105,6 +105,7 @@ class WebAuthBanTest extends TestCase
             'email' => $email,
             'phone' => $phone,
             'password' => 'Another-password1',
+            'terms_accepted' => true,
         ]);
 
         $res->assertJsonPath('status', 400);
@@ -127,6 +128,7 @@ class WebAuthBanTest extends TestCase
             'email' => $email,
             'phone' => $phone,
             'password' => 'A-good-password1',
+            'terms_accepted' => true,
             // Injected — every one of these is fillable and must be ignored here.
             'balance' => 999999,
             'guarantee_enabled' => 1,
@@ -181,6 +183,7 @@ class WebAuthBanTest extends TestCase
             'first_name' => 'Biz', 'last_name' => 'Web',
             'email' => $email, 'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'A-good-password1',
+            'terms_accepted' => true,
             'auth' => 'business',
             'category_child_id' => $childId,
         ])->assertJsonPath('status', 200);
@@ -197,6 +200,7 @@ class WebAuthBanTest extends TestCase
             'email' => 'nochild-' . uniqid() . '@example.test',
             'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'A-good-password1',
+            'terms_accepted' => true,
             'auth' => 'business',
         ]);
 

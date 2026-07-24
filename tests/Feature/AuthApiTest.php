@@ -25,6 +25,7 @@ class AuthApiTest extends TestCase
             'phone' => '019' . random_int(10_000_000, 99_999_999),
             'password' => 'Secret123',
             'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
         ])->assertCreated();
 
         $this->assertNotEmpty($res->json('token'));
@@ -44,6 +45,7 @@ class AuthApiTest extends TestCase
             'phone' => '019' . random_int(10_000_000, 99_999_999),
             'password' => 'Secret123',
             'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
             'type' => User::TYPE_BUSINESS,
         ])->assertStatus(422)->assertJsonValidationErrors('category_child_id');
     }
@@ -59,6 +61,7 @@ class AuthApiTest extends TestCase
             'phone' => '019' . random_int(10_000_000, 99_999_999),
             'password' => 'Secret123',
             'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
             'type' => User::TYPE_BUSINESS,
             'category_child_id' => $childId,
         ])->assertCreated();

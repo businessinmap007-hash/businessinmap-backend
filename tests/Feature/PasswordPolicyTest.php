@@ -47,6 +47,7 @@ class PasswordPolicyTest extends TestCase
             'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'Str0ng-pass',
             'password_confirmation' => 'Str0ng-pass',
+            'terms_accepted' => true,
         ])->assertCreated();
     }
 
@@ -69,6 +70,7 @@ class PasswordPolicyTest extends TestCase
             'email' => 'strongweb-' . uniqid() . '@example.test',
             'phone' => '0100' . random_int(1000000, 9999999),
             'password' => 'Str0ng-pass',
+            'terms_accepted' => true,
         ])->assertJsonPath('status', 200);
     }
 }

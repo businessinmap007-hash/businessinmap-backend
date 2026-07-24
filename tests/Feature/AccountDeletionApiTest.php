@@ -205,6 +205,7 @@ class AccountDeletionApiTest extends TestCase
             'phone' => $phone,
             'password' => 'Another-password1',
             'password_confirmation' => 'Another-password1',
+            'terms_accepted' => true,
         ])->assertStatus(422)->assertJsonValidationErrors('email');
 
         // Including in the Arabic-digit spelling of the same number.
@@ -214,6 +215,7 @@ class AccountDeletionApiTest extends TestCase
             'phone' => strtr($phone, ['0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤', '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩']),
             'password' => 'Another-password1',
             'password_confirmation' => 'Another-password1',
+            'terms_accepted' => true,
         ])->assertStatus(422)->assertJsonValidationErrors('email');
     }
 }

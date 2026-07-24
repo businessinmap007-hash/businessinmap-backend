@@ -50,6 +50,13 @@ class RegistrationController extends Controller
         // 'vendor' value, but always STORE User::TYPE_BUSINESS — isBusiness()
         // checks for exactly 'business', so a stored 'vendor' would never count
         // as a business (that was a latent bug).
+        // No consent, no account: registration is cancelled if the terms are not
+        // accepted. Validated inline (not in the shared StoreUsersRequest, which
+        // the admin user form — with no consent checkbox — also uses).
+        $request->validate(['terms_accepted' => ['accepted']], [
+            'terms_accepted.accepted' => __('يجب الموافقة على الشروط والأحكام لإنشاء الحساب.'),
+        ]);
+
         $isBusiness = in_array($request->get('auth'), ['business', 'vendor'], true);
         $type = $isBusiness ? User::TYPE_BUSINESS : User::TYPE_CLIENT;
 
@@ -99,9 +106,8 @@ class RegistrationController extends Controller
             if ($isBusiness) {
                 $user->assign(2);
             }
-            // Every new account records its acceptance of the current terms +
-            // privacy versions (audit trail). The form carries a required consent
-            // checkbox; this is the server-side record of it.
+            // Consent was validated as accepted above → record it against the
+            // current terms + privacy versions (audit trail).
             app(\App\Services\LegalConsentService::class)->recordSignupConsent($user, $request->ip());
             auth()->loginUsingId($user->id);
             session()->flash('success', 'لقد تم تسجيل المستخدم بنجاح');

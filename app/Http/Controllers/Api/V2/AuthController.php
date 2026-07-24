@@ -43,6 +43,11 @@ final class AuthController extends Controller
                 'required_if:type,' . User::TYPE_BUSINESS,
                 'nullable', 'integer', 'exists:category_children_master,id',
             ],
+            // No consent, no account: registration is cancelled if the terms are
+            // not accepted. `accepted` also fails when the field is absent.
+            'terms_accepted' => ['accepted'],
+        ], [
+            'terms_accepted.accepted' => __('يجب الموافقة على الشروط والأحكام لإنشاء الحساب.'),
         ]);
 
         // A ban is on the identity, not on the row: without this, a banned user
@@ -67,8 +72,8 @@ final class AuthController extends Controller
             ]);
         });
 
-        // Record acceptance of the current terms + privacy (audit trail); the app
-        // presents the documents + consent gate before calling register.
+        // Consent was just validated as accepted → record it against the current
+        // terms + privacy versions (audit trail).
         app(\App\Services\LegalConsentService::class)->recordSignupConsent($user, $request->ip());
 
         $token = $user->createToken('mobile')->plainTextToken;

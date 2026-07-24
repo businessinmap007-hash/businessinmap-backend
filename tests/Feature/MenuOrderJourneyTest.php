@@ -100,6 +100,7 @@ class MenuOrderJourneyTest extends TestCase
             'phone' => '0155' . random_int(1000000, 9999999),
             'password' => self::PASSWORD,
             'password_confirmation' => self::PASSWORD,
+            'terms_accepted' => true,
         ])->assertCreated();
 
         // The app holds a token from here on — nothing else.

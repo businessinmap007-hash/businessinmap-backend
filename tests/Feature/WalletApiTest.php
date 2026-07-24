@@ -29,6 +29,27 @@ class WalletApiTest extends TestCase
         WalletPin::where('user_id', $this->user->id)->delete();
     }
 
+    public function test_pin_must_be_exactly_six_digits(): void
+    {
+        // 4 digits was accepted before; the PIN is now a fixed 6 (WalletService::PIN_LENGTH).
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/wallet/pin', ['pin' => '1234', 'pin_confirmation' => '1234'])
+            ->assertStatus(422)->assertJsonValidationErrors('pin');
+
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/wallet/pin', ['pin' => '123456', 'pin_confirmation' => '123456'])
+            ->assertOk();
+    }
+
+    public function test_pin_status_reports_the_fixed_length(): void
+    {
+        // The app reads `length` to auto-submit when the last box is filled.
+        $this->actingAs($this->user, 'sanctum')->getJson('/api/v2/wallet/pin')
+            ->assertOk()
+            ->assertJsonPath('data.is_set', false)
+            ->assertJsonPath('data.length', WalletService::PIN_LENGTH);
+    }
+
     public function test_show_returns_balance(): void
     {
         $res = $this->actingAs($this->user, 'sanctum')->getJson('/api/v2/wallet')->assertOk();
@@ -56,13 +77,13 @@ class WalletApiTest extends TestCase
     public function test_pin_locks_after_five_wrong_attempts(): void
     {
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/pin', ['pin' => '1234', 'pin_confirmation' => '1234'])
+            ->postJson('/api/v2/wallet/pin', ['pin' => '123456', 'pin_confirmation' => '123456'])
             ->assertOk();
 
         // Five wrong PINs trip the lockout.
         for ($i = 0; $i < 5; $i++) {
             $this->actingAs($this->user, 'sanctum')
-                ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '0000'])
+                ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '000000'])
                 ->assertStatus(422);
         }
 
@@ -73,7 +94,7 @@ class WalletApiTest extends TestCase
 
         // Even the CORRECT PIN is refused while locked, and nothing is debited.
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '1234'])
+            ->postJson('/api/v2/wallet/withdraw', ['amount' => 5, 'pin' => '123456'])
             ->assertStatus(422);
 
         $this->assertSame(100.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));
@@ -83,18 +104,18 @@ class WalletApiTest extends TestCase
     {
         // Set a PIN (confirmed).
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/pin', ['pin' => '1234', 'pin_confirmation' => '1234'])
+            ->postJson('/api/v2/wallet/pin', ['pin' => '123456', 'pin_confirmation' => '123456'])
             ->assertOk();
 
         // Wrong PIN → rejected, no debit.
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/withdraw', ['amount' => 10, 'pin' => '9999'])
+            ->postJson('/api/v2/wallet/withdraw', ['amount' => 10, 'pin' => '999999'])
             ->assertStatus(422);
         $this->assertSame(100.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));
 
         // Correct PIN → debit.
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/withdraw', ['amount' => 10, 'pin' => '1234'])
+            ->postJson('/api/v2/wallet/withdraw', ['amount' => 10, 'pin' => '123456'])
             ->assertCreated();
         $this->assertSame(90.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));
     }
@@ -104,16 +125,16 @@ class WalletApiTest extends TestCase
         $recipient = User::query()->where('id', '!=', $this->user->id)->orderBy('id')->firstOrFail();
         app(WalletService::class)->getOrCreateWallet((int) $recipient->id)
             ->update(['status' => Wallet::STATUS_ACTIVE, 'balance' => 0]);
-        app(WalletService::class)->setPin((int) $this->user->id, '4321');
+        app(WalletService::class)->setPin((int) $this->user->id, '654321');
 
         // Self-transfer blocked.
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/transfer', ['to_user_id' => $this->user->id, 'amount' => 5, 'pin' => '4321'])
+            ->postJson('/api/v2/wallet/transfer', ['to_user_id' => $this->user->id, 'amount' => 5, 'pin' => '654321'])
             ->assertStatus(422);
 
         // Valid transfer.
         $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/v2/wallet/transfer', ['to_user_id' => $recipient->id, 'amount' => 30, 'pin' => '4321'])
+            ->postJson('/api/v2/wallet/transfer', ['to_user_id' => $recipient->id, 'amount' => 30, 'pin' => '654321'])
             ->assertCreated();
 
         $this->assertSame(70.0, (float) Wallet::where('user_id', $this->user->id)->value('balance'));

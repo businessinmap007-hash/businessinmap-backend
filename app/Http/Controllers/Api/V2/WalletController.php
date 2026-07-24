@@ -160,6 +160,8 @@ final class WalletController extends Controller
     {
         return response()->json(['success' => true, 'data' => [
             'is_set' => WalletPin::query()->where('user_id', (int) $request->user()->id)->exists(),
+            // Fixed PIN length so the app can auto-submit when the last box fills.
+            'length' => WalletService::PIN_LENGTH,
         ]]);
     }
 
@@ -172,8 +174,10 @@ final class WalletController extends Controller
         $userId = (int) $request->user()->id;
 
         $data = $request->validate([
-            'pin' => ['required', 'string', 'regex:/^\d{4,6}$/', 'confirmed'],
+            'pin' => ['required', 'string', 'regex:/^\d{' . WalletService::PIN_LENGTH . '}$/', 'confirmed'],
             'current_pin' => ['nullable', 'string'],
+        ], [
+            'pin.regex' => __('رمز المحفظة يجب أن يكون :n أرقام.', ['n' => WalletService::PIN_LENGTH]),
         ]);
 
         if (WalletPin::query()->where('user_id', $userId)->exists()) {

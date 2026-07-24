@@ -12,6 +12,13 @@ use Illuminate\Validation\ValidationException;
 class WalletService
 {
     /**
+     * The wallet PIN is a FIXED 6 digits (was 4–6). A fixed length lets the app
+     * auto-submit the moment the last box is filled, and keeps one policy across
+     * every entry point. Single source of truth — reference this, never inline.
+     */
+    public const PIN_LENGTH = 6;
+
+    /**
      * Create wallet if missing (safe for first-time users)
      */
     public function getOrCreateWallet(int $userId): Wallet
@@ -480,9 +487,9 @@ class WalletService
      */
     public function setPin(int $userId, string $pin): void
     {
-        if (!preg_match('/^\d{4,6}$/', $pin)) {
+        if (!preg_match('/^\d{' . self::PIN_LENGTH . '}$/', $pin)) {
             throw ValidationException::withMessages([
-                'pin' => 'PIN must be 4 to 6 digits.',
+                'pin' => 'PIN must be exactly ' . self::PIN_LENGTH . ' digits.',
             ]);
         }
 

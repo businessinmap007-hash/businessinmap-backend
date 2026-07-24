@@ -23,9 +23,13 @@ class MerchantPayment extends Model implements GatewayChargeable
     public const ROUTED_MERCHANT = 'merchant';
     public const ROUTED_PLATFORM = 'platform';
 
+    /** Checkout payment methods that go through the gateway (vs 'cash' in person). */
+    public const GATEWAY_METHODS = ['card', 'apple_pay', 'google_pay', 'fawry_cash', 'mobile_wallet', 'valu'];
+
     protected $fillable = [
         'customer_id',
         'business_id',
+        'order_id',
         'gateway',
         'routed_to',
         'merchant_ref',
@@ -41,6 +45,7 @@ class MerchantPayment extends Model implements GatewayChargeable
     protected $casts = [
         'customer_id' => 'integer',
         'business_id' => 'integer',
+        'order_id' => 'integer',
         'amount' => 'decimal:2',
         'meta' => 'array',
         'paid_at' => 'datetime',
@@ -49,6 +54,11 @@ class MerchantPayment extends Model implements GatewayChargeable
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_id');
     }
 
     public function business(): BelongsTo

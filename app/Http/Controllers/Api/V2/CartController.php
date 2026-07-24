@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
+use App\Models\MerchantPayment;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\CustomerCartService;
 use App\Services\MenuBillingService;
+use App\Services\Payments\MerchantPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +29,7 @@ final class CartController extends Controller
     public function __construct(
         private readonly CustomerCartService $cart,
         private readonly MenuBillingService $billing,
+        private readonly MerchantPaymentService $merchantPayments,
     ) {
     }
 
@@ -113,10 +117,35 @@ final class CartController extends Controller
 
         $order = $this->cart->checkout((int) $request->user()->id, $business, $data);
 
-        return response()->json([
+        $response = [
             'success' => true,
             'data' => ['order' => $this->presentCart($order->loadMissing('business:id,name,logo'))],
-        ], 201);
+        ];
+
+        // Online payment method → open a gateway payment for the order total,
+        // routed to the merchant's sub-account when configured. 'cash' (or none)
+        // stays pay-in-person, unchanged. The amount comes from the ORDER, never
+        // the client. Fulfillment status is untouched — payment is tracked apart.
+        $method = (string) ($data['payment_method'] ?? '');
+        if (in_array($method, MerchantPayment::GATEWAY_METHODS, true)) {
+            $amount = round((float) ($order->final_total ?? $order->total ?? 0), 2);
+            if ($amount > 0) {
+                $businessUser = User::query()->find((int) $order->business_id);
+                if ($businessUser) {
+                    $result = $this->merchantPayments->start(
+                        $request->user(),
+                        $businessUser,
+                        $amount,
+                        $method,
+                        (int) $order->id,
+                    );
+                    $response['payment'] = $result['charge']->toArray();
+                    $response['data']['merchant_payment_id'] = (int) $result['payment']->id;
+                }
+            }
+        }
+
+        return response()->json($response, 201);
     }
 
     /** Serialize a cart/order with resolved line names and totals. */

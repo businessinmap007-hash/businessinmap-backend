@@ -23,8 +23,6 @@ use Illuminate\Validation\ValidationException;
  */
 final class MerchantPaymentController extends Controller
 {
-    private const METHODS = ['card', 'apple_pay', 'google_pay', 'fawry_cash', 'mobile_wallet', 'valu'];
-
     public function __construct(
         private readonly PaymentGatewayFactory $gateways,
         private readonly MerchantPaymentService $payments,
@@ -41,7 +39,7 @@ final class MerchantPaymentController extends Controller
                 'min:' . config('services.payments.topup_min', 10),
                 'max:' . config('services.payments.topup_max', 50000),
             ],
-            'payment_method' => ['nullable', 'string', 'in:' . implode(',', self::METHODS)],
+            'payment_method' => ['nullable', 'string', 'in:' . implode(',', MerchantPayment::GATEWAY_METHODS)],
         ]);
 
         $customer = $request->user();
@@ -55,43 +53,12 @@ final class MerchantPaymentController extends Controller
             throw ValidationException::withMessages(['business_id' => [__('لا يمكنك الدفع لنفسك.')]]);
         }
 
-        // Route to the merchant's sub-account when configured, else the platform.
-        $merchantGateway = $this->gateways->makeForMerchant($businessId);
-        $gateway = $merchantGateway ?? $this->gateways->make();
-        $routedTo = $merchantGateway ? MerchantPayment::ROUTED_MERCHANT : MerchantPayment::ROUTED_PLATFORM;
-        $method = $data['payment_method'] ?? null;
-
-        $payment = new MerchantPayment([
-            'customer_id' => (int) $customer->id,
-            'business_id' => $businessId,
-            'gateway' => $gateway->name(),
-            'routed_to' => $routedTo,
-            'amount' => number_format((float) $data['amount'], 2, '.', ''),
-            'currency' => (string) config('services.fawry.currency', 'EGP'),
-            'status' => MerchantPayment::STATUS_PENDING,
-        ]);
-        $payment->save();
-
-        $payment->merchant_ref = (string) $payment->id;
-        $payment->save();
-
-        $charge = $gateway->createCharge($payment, [
-            'mobile' => (string) ($customer->phone ?? ''),
-            'email' => (string) ($customer->email ?? ''),
-            'name' => (string) ($customer->name ?? ''),
-        ], $method);
-
-        $payment->update([
-            'meta' => array_merge((array) $payment->meta, [
-                'requested_method' => $method,
-                'charge_request' => $charge->chargeRequest,
-            ]),
-        ]);
+        $result = $this->payments->start($customer, $business, (float) $data['amount'], $data['payment_method'] ?? null);
 
         return response()->json([
             'success' => true,
-            'data' => $this->present($payment),
-            'payment' => $charge->toArray(),
+            'data' => $this->present($result['payment']),
+            'payment' => $result['charge']->toArray(),
         ], 201);
     }
 
@@ -175,6 +142,7 @@ final class MerchantPaymentController extends Controller
         return [
             'id' => (int) $p->id,
             'business_id' => (int) $p->business_id,
+            'order_id' => $p->order_id !== null ? (int) $p->order_id : null,
             'amount' => (string) $p->amount,
             'currency' => $p->currency,
             'status' => $p->status,

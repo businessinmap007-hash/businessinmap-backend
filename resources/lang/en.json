@@ -1,6 +1,8 @@
 {
     "مرفق": "Attachment",
     "لا يمكنك بدء محادثة مع نفسك.": "You cannot start a chat with yourself.",
+    "لا يمكن حذف المحادثة قبل انتهاء مدتها.": "The chat cannot be deleted before its period ends.",
+    "لا يمكن حذف محادثة عليها نزاع؛ فهي دليل.": "A chat with a dispute cannot be deleted; it is evidence.",
     "موقع على الخريطة": "Map location",
     "كلمة المرور غير صحيحة.": "Incorrect password.",
     "تم استلام طلب حذف الحساب. يمكنك استعادته خلال ": "Account deletion request received. You can restore it within ",

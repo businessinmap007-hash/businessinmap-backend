@@ -67,6 +67,22 @@ class OperationChatController extends Controller
     }
 
     /**
+     * DELETE /api/v2/operation-chats/{type}/{id} — a party deletes the chat.
+     *
+     * Allowed only once it has expired and only when there is no dispute (a
+     * disputed chat is evidence and is kept). This is the "press delete now"
+     * the ending notice offers, before the auto-delete sweep would remove it.
+     */
+    public function destroy(Request $request, string $type, int $id)
+    {
+        $operation = $this->chats->resolve($type, $id);
+
+        $this->chats->deleteByParty($operation, (int) $request->user()->id);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * POST /api/v2/operation-chats/{type}/{id}/messages — say something, with
      * optional evidence files (multipart: body + attachments[]).
      *

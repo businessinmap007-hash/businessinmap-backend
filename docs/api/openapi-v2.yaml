@@ -2543,7 +2543,21 @@ paths:
       responses:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
-    # messages are posted at the sub-path below
+    delete:
+      tags: [Operation Chats]
+      summary: Delete the chat (a party's "delete now")
+      description: >-
+        Allowed only once the chat has expired (its 7-day retention passed) and
+        only when there is no dispute on the operation — a disputed chat is
+        evidence and is kept. Either party may delete; otherwise the sweep
+        auto-deletes it after a grace window.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Deleted }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /operation-chats/{type}/{id}/messages:
     post:
       tags: [Operation Chats]

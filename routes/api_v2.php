@@ -269,6 +269,9 @@ Route::prefix('v2')->group(function () {
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
         Route::post('operation-chats/{type}/{id}/messages', [OperationChatController::class, 'postMessage'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+        // A party deletes an expired, undisputed chat (or lets the sweep do it).
+        Route::delete('operation-chats/{type}/{id}', [OperationChatController::class, 'destroy'])
+            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
 
         // General person-to-person chat (direct messages). A conversation about
         // nothing in particular — subjectless threads with `member` seats. Only

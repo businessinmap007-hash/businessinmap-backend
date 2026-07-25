@@ -53,11 +53,18 @@ class OperationChatTest extends TestCase
         $this->client = $booking->user;
         $this->business = $booking->business;
 
-        // Start each test from a clean chat + a non-completed operation.
+        // Start each test from a clean chat + a non-completed, undisputed
+        // operation (a leftover dispute would make hasDispute() true and skip
+        // the cleanup paths under test).
         Thread::query()
             ->where('subject_type', $booking->getMorphClass())
             ->where('subject_id', $booking->id)
             ->get()->each->delete();
+
+        \App\Models\Dispute::query()
+            ->where('disputeable_type', $booking->getMorphClass())
+            ->where('disputeable_id', $booking->id)
+            ->delete();
 
         $booking->update(['status' => Booking::STATUS_IN_PROGRESS]);
     }
@@ -224,6 +231,92 @@ class OperationChatTest extends TestCase
 
         $this->actingAs($admin)->delete("/admin/operation-chats/{$thread->id}")->assertRedirect();
 
+        $this->assertDatabaseHas('threads', ['id' => $thread->id]);
+    }
+
+    // ─────────────── ending notice / auto-delete / party delete ───────────────
+
+    public function test_expiry_notifies_both_parties_and_a_party_can_delete_it(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->chatUrl() . '/messages', ['body' => 'done, thanks'])->assertCreated();
+
+        $thread = $this->threadRow();
+        $thread->update(['retain_until' => now()->subDay()]); // window passed
+        $this->chats->sweep();
+
+        // Both parties were told the chat ended.
+        foreach ([(int) $this->booking->user_id, (int) $this->booking->business_id] as $uid) {
+            $this->assertDatabaseHas('app_notifications', [
+                'user_id' => $uid,
+                'type' => \App\Models\AppNotification::TYPE_SYSTEM,
+                'source_type' => Thread::class,
+                'source_id' => $thread->id,
+            ]);
+        }
+
+        // A single party can delete it now.
+        Sanctum::actingAs($this->business);
+        $this->deleteJson($this->chatUrl())->assertOk();
+        $this->assertDatabaseMissing('threads', ['id' => $thread->id]);
+    }
+
+    public function test_a_party_cannot_delete_before_the_window_ends(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->chatUrl() . '/messages', ['body' => 'still going'])->assertCreated();
+
+        // retain_until null → not expired.
+        $this->deleteJson($this->chatUrl())->assertStatus(422);
+        $this->assertDatabaseHas('threads', ['id' => $this->threadRow()->id]);
+    }
+
+    public function test_the_sweep_auto_deletes_an_undisputed_chat_after_the_grace_window(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->chatUrl() . '/messages', [
+            'body' => 'evidence',
+            'attachments' => [$this->file()],
+        ])->assertCreated();
+
+        $path = ThreadMessageAttachment::query()->latest('id')->value('path');
+        $thread = $this->threadRow();
+
+        // Past the retention window AND its grace period.
+        $thread->update([
+            'retain_until' => now()->subDays(OperationChatService::AUTO_DELETE_GRACE_DAYS + 1),
+        ]);
+
+        $this->chats->sweep();
+
+        $this->assertDatabaseMissing('threads', ['id' => $thread->id]);
+        $this->assertFileDoesNotExist(public_path($path), 'auto-delete must remove the files too');
+    }
+
+    public function test_a_disputed_chat_is_kept_not_auto_deleted_or_deletable_by_a_party(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->chatUrl() . '/messages', ['body' => 'there is a problem'])->assertCreated();
+
+        // A dispute exists on the same operation (raw insert — hasDispute()
+        // only checks existence by disputeable_type/id).
+        \Illuminate\Support\Facades\DB::table('disputes')->insert([
+            'disputeable_type' => $this->booking->getMorphClass(),
+            'disputeable_id' => $this->booking->id,
+            'opened_by_user_id' => (int) $this->booking->user_id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $thread = $this->threadRow();
+        $thread->update(['retain_until' => now()->subDays(OperationChatService::AUTO_DELETE_GRACE_DAYS + 1)]);
+
+        $this->chats->sweep();
+        $this->assertDatabaseHas('threads', ['id' => $thread->id]); // evidence — never auto-deleted
+
+        // And a party cannot force it either.
+        Sanctum::actingAs($this->client);
+        $this->deleteJson($this->chatUrl())->assertStatus(422);
         $this->assertDatabaseHas('threads', ['id' => $thread->id]);
     }
 

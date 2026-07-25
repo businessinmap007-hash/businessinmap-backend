@@ -25,7 +25,7 @@ class ExpireOperationChats extends Command
     {
         $result = $chats->sweep();
 
-        $this->info("Operation chats swept: {$result['stamped']} entered retention, {$result['locked']} locked.");
+        $this->info("Operation chats swept: {$result['stamped']} entered retention, {$result['locked']} locked, {$result['purged']} auto-deleted.");
 
         return self::SUCCESS;
     }

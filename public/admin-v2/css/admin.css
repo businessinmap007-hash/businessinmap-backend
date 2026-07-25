@@ -5274,17 +5274,22 @@ body.admin-v2-auth{
 
 /* --- (1) Sticky headers -----------------------------------------------
    `.a2-table thead th` already declares position:sticky; top:0 (see the
-   TABLES block), but it never engaged because `.a2-tablewrap` used
+   TABLES block), but it never engaged because the wrappers used
    overflow-y:hidden — that still establishes a scroll container, but one
    with no vertical room, so the header could never move/pin. Turning the
    wrapper into a real (viewport-tall) scroll box lets the header pin to the
    top of the box while the body scrolls under it, and keeps horizontal
-   scroll for wide tables so every column stays reachable. */
-.a2-tablewrap{
+   scroll for wide tables so every column stays reachable.
+   NOTE: two wrapper classes are in use — `.a2-table-wrap` (hyphen, ~57
+   views incl. users) and `.a2-tablewrap` (no hyphen, ~8 views). Both must
+   be covered or half the tables silently keep the old broken headers. */
+.a2-tablewrap,
+.a2-table-wrap{
   overflow: auto;
   max-height: calc(100vh - 160px);
 }
-.a2-tablewrap .a2-table thead th{
+.a2-tablewrap .a2-table thead th,
+.a2-table-wrap .a2-table thead th{
   top: 0;
   z-index: 3;
 }
@@ -5311,6 +5316,12 @@ body.admin-v2-auth{
     padding-inline-start: var(--a2-sidebar-mini-w);
   }
 
+  /* The rail is a fixed 100vh column; let its nav scroll so a long menu
+     (expanded on hover) can still reach its bottom items. */
+  body.a2-sidebar-mini .a2-nav{
+    overflow-y: auto;
+  }
+
   body.a2-sidebar-mini .a2-sidebar:hover{
     box-shadow: 0 18px 50px rgba(0,0,0,.35);
   }
@@ -5319,5 +5330,41 @@ body.admin-v2-auth{
      toggled by click (not only by hover). */
   .a2-burger--mobile{
     display: inline-flex;
+  }
+
+  /* --- Collapsed rail must still show every section ------------------
+     Only "Dashboard" and "Users" are flat links; every other route lives
+     inside a <details class="a2-nav-group">. The original mini mode did
+     `display:none` on those groups (with no hover counterpart), so a
+     collapsed-by-default sidebar showed just those two items. Instead keep
+     the group parents visible as icons in the rail, collapse their children,
+     and reveal the full menu on hover (when the rail expands). */
+  body.a2-sidebar-mini .a2-nav-group{
+    display: block;
+    pointer-events: auto;
+  }
+  body.a2-sidebar-mini .a2-nav-parent{
+    justify-content: center;
+    padding: 12px 0;
+  }
+  body.a2-sidebar-mini .a2-nav-parent .a2-nav-caret{
+    display: none;
+  }
+  /* Collapse an active (open) group's children while in the rail, so the
+     rail stays a rail. Closed <details> hide their children natively. */
+  body.a2-sidebar-mini .a2-nav-group[open] > .a2-nav-children{
+    display: none;
+  }
+
+  /* Hovering the rail expands it → restore the full menu. */
+  body.a2-sidebar-mini .a2-sidebar:hover .a2-nav-parent{
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+  body.a2-sidebar-mini .a2-sidebar:hover .a2-nav-parent .a2-nav-caret{
+    display: inline-block;
+  }
+  body.a2-sidebar-mini .a2-sidebar:hover .a2-nav-group[open] > .a2-nav-children{
+    display: block;
   }
 }

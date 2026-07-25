@@ -23,6 +23,13 @@ class ThreadMessageResource extends JsonResource
                 'id' => (int) $this->sender_id,
                 'name' => $this->whenLoaded('sender', fn () => $this->sender?->name),
             ],
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => [
+                'id' => (int) $a->id,
+                'url' => $a->url(),
+                'name' => $a->original_name,
+                'mime' => $a->mime,
+                'size' => $a->size,
+            ])->values()),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
     }

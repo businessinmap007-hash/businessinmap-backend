@@ -12,7 +12,9 @@ use App\Models\DisputeSettlement;
 use App\Services\BookingDepositService;
 use App\Services\DisputeService;
 use App\Services\DisputeSettlementService;
+use App\Services\Media\ImageUploadService;
 use App\Services\ThreadService;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -399,7 +401,7 @@ final class DisputeController extends Controller
         $thread = app(DisputeService::class)->room($dispute);
 
         $messages = $thread->messages()
-            ->with('sender:id,name')
+            ->with('sender:id,name', 'attachments')
             ->orderByDesc('id')
             ->paginate((int) ($data['per_page'] ?? 30))
             ->appends($request->query());
@@ -491,22 +493,42 @@ final class DisputeController extends Controller
         ]);
     }
 
-    /** POST /api/v2/disputes/{dispute}/room/messages — say something. */
+    /**
+     * POST /api/v2/disputes/{dispute}/room/messages — say something, optionally
+     * with evidence files (multipart: body + attachments[]).
+     *
+     * The body is optional WHEN files are sent — a photo of the item can be the
+     * whole message — but a post with neither text nor a file is refused. Files
+     * are images only (see ImageUploadService), capped per message.
+     */
     public function postMessage(Request $request, Dispute $dispute, ThreadService $threads)
     {
         $this->ensureParty($request, $dispute);
 
         $data = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'attachments' => ['nullable', 'array', 'max:' . ThreadService::MAX_ATTACHMENTS],
+            'attachments.*' => ImageUploadService::validationRules(),
         ]);
+
+        $files = array_values(array_filter(
+            (array) $request->file('attachments', []),
+            fn ($f) => $f instanceof \Illuminate\Http\UploadedFile
+        ));
+
+        if (trim((string) ($data['body'] ?? '')) === '' && $files === []) {
+            throw ValidationException::withMessages([
+                'body' => __('اكتب رسالة أو أرفق ملفًا.'),
+            ]);
+        }
 
         $thread = app(DisputeService::class)->room($dispute);
 
         // ThreadService refuses a non-participant and a locked room; both come
         // back as 422 rather than being re-checked here.
-        $message = $threads->post($thread, (int) $request->user()->id, $data['body']);
+        $message = $threads->post($thread, (int) $request->user()->id, (string) ($data['body'] ?? ''), $files);
 
-        $message->loadMissing('sender:id,name');
+        $message->loadMissing('sender:id,name', 'attachments');
 
         return response()->json([
             'success' => true,

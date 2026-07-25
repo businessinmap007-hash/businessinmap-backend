@@ -2481,8 +2481,13 @@ paths:
   /disputes/{dispute}/room/messages:
     post:
       tags: [Disputes]
-      summary: Post a message into the dispute's room
-      description: 'Refused once a ruling has sealed the room — the record is evidence.'
+      summary: Post a message into the dispute's room, optionally with evidence files
+      description: >-
+        Refused once a ruling has sealed the room — the record is evidence.
+        `body` is optional when one or more `attachments` are sent (a photo of
+        the item can be the whole message), but a post with neither is refused.
+        Attachments are images only (jpg, jpeg, png, webp, gif), max 6 per
+        message. Use multipart/form-data to include files.
       parameters:
         - { in: path, name: dispute, required: true, schema: { type: integer } }
       requestBody:
@@ -2491,11 +2496,19 @@ paths:
           application/json:
             schema:
               type: object
-              required: [body]
               properties:
                 body: { type: string, maxLength: 5000 }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                body: { type: string, maxLength: 5000 }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
       responses:
-        '201': { description: Created }
+        '201': { description: 'Created. The message includes an `attachments` array of { id, url, name, mime, size }.' }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
 

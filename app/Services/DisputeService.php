@@ -818,11 +818,22 @@ class DisputeService
      */
     protected function purgeRoom(Dispute $dispute): void
     {
-        Thread::query()
+        $threads = Thread::query()
             ->where('subject_type', $dispute->getMorphClass())
             ->where('subject_id', $dispute->getKey())
-            ->get()
-            ->each->delete();
+            ->get();
+
+        // The DB cascade removes the attachment ROWS with their messages, but it
+        // cannot reach the files on disk — unlink those first, or a purged room
+        // leaves its evidence images orphaned in public/.
+        $uploads = app(\App\Services\Media\ImageUploadService::class);
+
+        \App\Models\ThreadMessageAttachment::query()
+            ->whereHas('message', fn ($q) => $q->whereIn('thread_id', $threads->pluck('id')))
+            ->pluck('path')
+            ->each(fn ($path) => $uploads->delete($path));
+
+        $threads->each->delete();
 
         $dispute->room_purged_at = now();
         $dispute->save();

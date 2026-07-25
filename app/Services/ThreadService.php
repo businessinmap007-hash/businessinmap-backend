@@ -7,10 +7,13 @@ use App\Models\ConductViolation;
 use App\Models\DisputeRuleVersion;
 use App\Models\Thread;
 use App\Models\ThreadMessage;
+use App\Models\ThreadMessageAttachment;
 use App\Models\ThreadParticipant;
 use App\Models\User;
+use App\Services\Media\ImageUploadService;
 use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -26,9 +29,13 @@ use Illuminate\Validation\ValidationException;
 class ThreadService
 {
     public function __construct(
-        protected InAppNotificationService $notifications
+        protected InAppNotificationService $notifications,
+        protected ImageUploadService $uploads
     ) {
     }
+
+    /** How many files one message may carry. */
+    public const MAX_ATTACHMENTS = 6;
 
     /**
      * The thread for a subject, created on first ask.
@@ -292,7 +299,15 @@ class ThreadService
     }
 
     /** A message from a person. Refused if they are not seated, or it is locked. */
-    public function post(Thread $thread, int $senderId, string $body): ThreadMessage
+    /**
+     * Say something in the room, optionally attaching evidence files.
+     *
+     * @param list<UploadedFile> $files Already-validated uploads (see the
+     *   controller). Stored only AFTER every guard passes, so a rejected post
+     *   (non-participant, unaccepted charter, locked room) never leaves an
+     *   orphan file on disk. A message may carry files with no text.
+     */
+    public function post(Thread $thread, int $senderId, string $body, array $files = []): ThreadMessage
     {
         $thread->loadMissing('participants');
 
@@ -319,11 +334,80 @@ class ThreadService
             ]);
         }
 
-        $message = $this->write($thread, $senderId, ThreadMessage::KIND_MESSAGE, $body);
+        $hasFiles = $files !== [];
+
+        if (trim($body) === '' && ! $hasFiles) {
+            throw ValidationException::withMessages([
+                'body' => __('لا يمكن إرسال رسالة فارغة.'),
+            ]);
+        }
+
+        // Move the uploads to disk now the post is certain to be written. If the
+        // DB write then fails, unlink them so nothing is left dangling.
+        $stored = $this->storeFiles($files);
+
+        try {
+            $message = DB::transaction(function () use ($thread, $senderId, $body, $stored) {
+                $message = $this->write($thread, $senderId, ThreadMessage::KIND_MESSAGE, $body, $stored !== []);
+
+                foreach ($stored as $file) {
+                    ThreadMessageAttachment::create([
+                        'thread_message_id' => (int) $message->id,
+                        'path' => $file['path'],
+                        'original_name' => $file['original_name'],
+                        'mime' => $file['mime'],
+                        'size' => $file['size'],
+                    ]);
+                }
+
+                return $message;
+            });
+        } catch (\Throwable $e) {
+            foreach ($stored as $file) {
+                $this->uploads->delete($file['path']);
+            }
+
+            throw $e;
+        }
+
+        $message->loadMissing('attachments');
 
         $this->notifyOthers($thread, $message);
 
         return $message;
+    }
+
+    /**
+     * Move each upload to storage, returning the rows to persist. Extracted so
+     * post() can run it only after its guards.
+     *
+     * @param  list<UploadedFile>  $files
+     * @return list<array{path:string,original_name:string,mime:?string,size:?int}>
+     */
+    private function storeFiles(array $files): array
+    {
+        $stored = [];
+
+        foreach (array_slice($files, 0, self::MAX_ATTACHMENTS) as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            // Read metadata BEFORE storing: store() moves the temp file, after
+            // which getSize() can no longer read it.
+            $originalName = mb_substr((string) $file->getClientOriginalName(), 0, 180);
+            $mime = $file->getClientMimeType() ?: null;
+            $size = $file->getSize();
+
+            $stored[] = [
+                'path' => $this->uploads->store($file),
+                'original_name' => $originalName,
+                'mime' => $mime,
+                'size' => $size !== false ? (int) $size : null,
+            ];
+        }
+
+        return $stored;
     }
 
     /**
@@ -340,6 +424,17 @@ class ThreadService
         // A long message becomes a preview; the room holds the full text.
         $preview = mb_substr($message->body, 0, 120)
             . (mb_strlen($message->body) > 120 ? '…' : '');
+
+        // An attachment-only message would otherwise preview as blank; say a
+        // file arrived so the recipient knows there is something to open.
+        $attachmentCount = $message->relationLoaded('attachments')
+            ? $message->attachments->count()
+            : $message->attachments()->count();
+
+        if ($attachmentCount > 0) {
+            $label = '📎 ' . __('مرفق');
+            $preview = trim($message->body) === '' ? $label : $label . ' · ' . $preview;
+        }
 
         foreach ($thread->participants as $participant) {
             if ((int) $participant->user_id === (int) $message->sender_id) {
@@ -427,11 +522,12 @@ class ThreadService
         return $counts;
     }
 
-    private function write(Thread $thread, ?int $senderId, string $kind, string $body): ThreadMessage
+    private function write(Thread $thread, ?int $senderId, string $kind, string $body, bool $allowEmpty = false): ThreadMessage
     {
         $body = trim($body);
 
-        if ($body === '') {
+        // An attachment-only message is a real message; the caller says so.
+        if ($body === '' && ! $allowEmpty) {
             throw ValidationException::withMessages([
                 'body' => __('لا يمكن إرسال رسالة فارغة.'),
             ]);

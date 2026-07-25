@@ -129,7 +129,7 @@ class DisputeController extends Controller
         // itself to both parties. A purged room no longer exists and must not
         // be rebuilt just to display it.
         $thread = $dispute->isRoomPurged() ? null : $this->disputeService->room($dispute);
-        $thread?->load(['participants.user:id,name', 'messages.sender:id,name']);
+        $thread?->load(['participants.user:id,name', 'messages.sender:id,name', 'messages.attachments']);
 
         $session = \App\Models\ArbitrationSession::query()->where('dispute_id', $dispute->id)->first();
         $violations = $thread ? app(\App\Services\ThreadService::class)->violations($thread) : collect();
@@ -313,14 +313,25 @@ class DisputeController extends Controller
     public function roomPost(Request $request, Dispute $dispute)
     {
         $data = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'string', 'max:5000'],
+            'attachments' => ['nullable', 'array', 'max:' . \App\Services\ThreadService::MAX_ATTACHMENTS],
+            'attachments.*' => \App\Services\Media\ImageUploadService::validationRules(),
         ]);
+
+        $files = array_values(array_filter(
+            (array) $request->file('attachments', []),
+            fn ($f) => $f instanceof \Illuminate\Http\UploadedFile
+        ));
+
+        if (trim((string) ($data['body'] ?? '')) === '' && $files === []) {
+            return back()->with('error', __('اكتب رسالة أو أرفق ملفًا.'));
+        }
 
         try {
             $thread = $this->disputeService->joinAsArbitrator($dispute, (int) auth()->id());
 
             app(\App\Services\ThreadService::class)
-                ->post($thread, (int) auth()->id(), $data['body']);
+                ->post($thread, (int) auth()->id(), (string) ($data['body'] ?? ''), $files);
         } catch (ValidationException $e) {
             return back()->with('error', collect($e->errors())->flatten()->first());
         } catch (\Throwable $e) {

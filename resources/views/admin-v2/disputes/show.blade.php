@@ -353,7 +353,19 @@
                             {{ $message->sender?->name ?? ('#'.$message->sender_id) }}
                             — {{ optional($message->created_at)->format('Y-m-d H:i') }}
                         </div>
-                        <div style="margin-top:4px;">{{ $message->body }}</div>
+                        @if(trim((string) $message->body) !== '')
+                            <div style="margin-top:4px;">{{ $message->body }}</div>
+                        @endif
+                        @if($message->attachments->isNotEmpty())
+                            <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
+                                @foreach($message->attachments as $att)
+                                    <a href="{{ $att->url() }}" target="_blank" rel="noopener" title="{{ $att->original_name }}">
+                                        <img src="{{ $att->url() }}" alt="{{ $att->original_name }}"
+                                             style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid var(--a2-border,#e5e7eb);">
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 @endif
             @empty
@@ -428,10 +440,12 @@
         @if($thread->isLocked())
             <div class="a2-hint" style="margin-top:10px;">{{ __('أُغلقت الغرفة بعد صدور القرار.') }}</div>
         @else
-            <form method="POST" action="{{ route('admin.disputes.room.post', $dispute) }}" style="margin-top:10px;">
+            <form method="POST" action="{{ route('admin.disputes.room.post', $dispute) }}" style="margin-top:10px;" enctype="multipart/form-data">
                 @csrf
                 <label class="a2-label">{{ __('رسالة كمحكِّم') }}</label>
-                <textarea class="a2-input" name="body" rows="3" maxlength="5000" required></textarea>
+                <textarea class="a2-input" name="body" rows="3" maxlength="5000"></textarea>
+                <label class="a2-label" style="margin-top:8px;">{{ __('مرفقات (صور، حتى 6)') }}</label>
+                <input class="a2-input" type="file" name="attachments[]" accept="image/*" multiple>
                 <div class="a2-hint" style="margin-top:6px;">
                     {{ __('إرسال رسالة يضمّك إلى الغرفة كمحكِّم ويُعلن ذلك للطرفين.') }}
                 </div>

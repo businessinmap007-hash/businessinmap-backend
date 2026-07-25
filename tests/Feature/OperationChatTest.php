@@ -6,7 +6,7 @@ use App\Models\Booking;
 use App\Models\Thread;
 use App\Models\ThreadMessageAttachment;
 use App\Models\User;
-use App\Services\Media\ImageUploadService;
+use App\Services\Media\ThreadAttachmentStorage;
 use App\Services\OperationChatService;
 use App\Support\AdminAbility;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -71,7 +71,7 @@ class OperationChatTest extends TestCase
 
     protected function tearDown(): void
     {
-        $uploads = app(ImageUploadService::class);
+        $uploads = app(ThreadAttachmentStorage::class);
         foreach (ThreadMessageAttachment::query()->pluck('path') as $path) {
             $uploads->delete($path);
         }
@@ -131,7 +131,7 @@ class OperationChatTest extends TestCase
 
         $this->assertCount(1, $res->json('data.attachments'));
         $path = ThreadMessageAttachment::query()->latest('id')->value('path');
-        $this->assertFileExists(public_path($path));
+        $this->assertFileExists(storage_path('app/'.$path));
     }
 
     public function test_the_other_party_reads_it_and_a_stranger_cannot(): void
@@ -201,7 +201,7 @@ class OperationChatTest extends TestCase
         ])->assertCreated();
 
         $path = ThreadMessageAttachment::query()->latest('id')->value('path');
-        $this->assertFileExists(public_path($path));
+        $this->assertFileExists(storage_path('app/'.$path));
 
         // Make it expired.
         $thread = $this->threadRow();
@@ -218,7 +218,7 @@ class OperationChatTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseMissing('threads', ['id' => $thread->id]);
-        $this->assertFileDoesNotExist(public_path($path), 'deleting the chat must remove its files');
+        $this->assertFileDoesNotExist(storage_path('app/'.$path), 'deleting the chat must remove its files');
     }
 
     public function test_admin_cannot_delete_a_chat_that_is_not_expired(): void
@@ -290,7 +290,7 @@ class OperationChatTest extends TestCase
         $this->chats->sweep();
 
         $this->assertDatabaseMissing('threads', ['id' => $thread->id]);
-        $this->assertFileDoesNotExist(public_path($path), 'auto-delete must remove the files too');
+        $this->assertFileDoesNotExist(storage_path('app/'.$path), 'auto-delete must remove the files too');
     }
 
     public function test_a_disputed_chat_is_kept_not_auto_deleted_or_deletable_by_a_party(): void

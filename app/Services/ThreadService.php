@@ -10,7 +10,7 @@ use App\Models\ThreadMessage;
 use App\Models\ThreadMessageAttachment;
 use App\Models\ThreadParticipant;
 use App\Models\User;
-use App\Services\Media\ImageUploadService;
+use App\Services\Media\ThreadAttachmentStorage;
 use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -30,7 +30,7 @@ class ThreadService
 {
     public function __construct(
         protected InAppNotificationService $notifications,
-        protected ImageUploadService $uploads
+        protected ThreadAttachmentStorage $uploads
     ) {
     }
 

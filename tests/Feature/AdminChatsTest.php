@@ -41,10 +41,24 @@ class AdminChatsTest extends TestCase
         [$this->alice, $this->bob] = [$users[0], $users[1]];
 
         $thread = app(DirectChatService::class)->startWith($this->alice, (int) $this->bob->id);
-        $message = app(ThreadService::class)->post($thread, (int) $this->alice->id, $this->secret);
+        $message = app(ThreadService::class)->post(
+            $thread,
+            (int) $this->alice->id,
+            $this->secret,
+            [\Illuminate\Http\UploadedFile::fake()->create('evidence.jpg', 32, 'image/jpeg')]
+        );
 
         $this->threadId = (int) $thread->id;
         $this->messageId = (int) $message->id;
+    }
+
+    protected function tearDown(): void
+    {
+        $storage = app(\App\Services\Media\ThreadAttachmentStorage::class);
+        foreach (\App\Models\ThreadMessageAttachment::query()->pluck('path') as $path) {
+            $storage->delete($path);
+        }
+        parent::tearDown();
     }
 
     private function judge(): User
@@ -81,6 +95,18 @@ class AdminChatsTest extends TestCase
         $this->actingAs($judge)->get("/admin/chats/{$this->threadId}")
             ->assertOk()
             ->assertSee($this->secret); // decrypted for the one allowed to read it
+    }
+
+    public function test_the_judge_can_stream_a_private_attachment_but_a_plain_admin_cannot(): void
+    {
+        $attachment = \App\Models\ThreadMessageAttachment::query()->latest('id')->firstOrFail();
+
+        // The file is not public — only the authed admin route reaches it.
+        $this->assertFileDoesNotExist(public_path($attachment->path));
+
+        $this->actingAs($this->judge())
+            ->get("/admin/chat-attachments/{$attachment->id}")
+            ->assertOk();
     }
 
     public function test_an_admin_without_the_judge_ability_is_forbidden(): void

@@ -37,8 +37,8 @@
             @if($message->attachments->isNotEmpty())
               <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
                 @foreach($message->attachments as $att)
-                  <a href="{{ $att->url() }}" target="_blank" rel="noopener" title="{{ $att->original_name }}">
-                    <img src="{{ $att->url() }}" alt="{{ $att->original_name }}"
+                  <a href="{{ $att->adminUrl() }}" target="_blank" rel="noopener" title="{{ $att->original_name }}">
+                    <img src="{{ $att->adminUrl() }}" alt="{{ $att->original_name }}"
                          style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid var(--a2-border,#e5e7eb);">
                   </a>
                 @endforeach

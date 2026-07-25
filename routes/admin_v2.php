@@ -38,6 +38,7 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     ChatAdminController,
+    ChatAttachmentController,
     HeldDeletionController,
     OperationChatController,
     JobFollowController,
@@ -379,6 +380,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/', [ChatAdminController::class, 'index'])->name('index');
                 Route::get('{thread}', [ChatAdminController::class, 'show'])->whereNumber('thread')->name('show');
             });
+
+            // Private conversation evidence, streamed to the judge (DISPUTES).
+            Route::get('chat-attachments/{attachment}', [ChatAttachmentController::class, 'show'])
+                ->whereNumber('attachment')->middleware('can:' . AdminAbility::DISPUTES)->name('chat-attachments.show');
 
             Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
                 Route::get('/', [WalletTransactionController::class, 'index'])->name('index');

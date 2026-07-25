@@ -12,7 +12,7 @@ use App\Models\Wallet;
 use App\Services\ArbitrationService;
 use App\Services\BookingDepositService;
 use App\Services\DisputeService;
-use App\Services\Media\ImageUploadService;
+use App\Services\Media\ThreadAttachmentStorage;
 use App\Services\ThreadService;
 use App\Services\WalletService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -87,7 +87,7 @@ class DisputeRoomAttachmentTest extends TestCase
     {
         // The DB transaction rolls back, but files on disk do not — unlink each
         // stored evidence file while its row is still readable.
-        $uploads = app(ImageUploadService::class);
+        $uploads = app(ThreadAttachmentStorage::class);
 
         foreach (ThreadMessageAttachment::query()->pluck('path') as $path) {
             $uploads->delete($path);
@@ -125,7 +125,7 @@ class DisputeRoomAttachmentTest extends TestCase
 
     private function uploadDirCount(): int
     {
-        $dir = public_path(ImageUploadService::PUBLIC_DIR);
+        $dir = storage_path('app/' . ThreadAttachmentStorage::DIR);
 
         return is_dir($dir) ? count(glob($dir . '/*') ?: []) : 0;
     }
@@ -151,7 +151,7 @@ class DisputeRoomAttachmentTest extends TestCase
         // The file is really on disk, and the row records it.
         $path = ThreadMessageAttachment::query()->latest('id')->value('path');
         $this->assertNotNull($path);
-        $this->assertFileExists(public_path($path));
+        $this->assertFileExists(storage_path('app/'.$path));
     }
 
     public function test_a_message_can_be_an_attachment_with_no_text(): void
@@ -231,7 +231,7 @@ class DisputeRoomAttachmentTest extends TestCase
         ])->assertCreated();
 
         $path = ThreadMessageAttachment::query()->latest('id')->value('path');
-        $this->assertFileExists(public_path($path));
+        $this->assertFileExists(storage_path('app/'.$path));
 
         // Close the case (the room locks), then both parties consent to delete
         // the conversation — the one path that purges.
@@ -245,6 +245,6 @@ class DisputeRoomAttachmentTest extends TestCase
         $this->disputes->confirmClosurePurge($dispute->fresh(), (int) $this->booking->user_id);
         $this->disputes->confirmClosurePurge($dispute->fresh(), (int) $this->booking->business_id);
 
-        $this->assertFileDoesNotExist(public_path($path), 'a purged room must not leave its evidence on disk');
+        $this->assertFileDoesNotExist(storage_path('app/'.$path), 'a purged room must not leave its evidence on disk');
     }
 }

@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\OperationChatController;
+use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
 use App\Http\Controllers\Api\V2\JobFollowController;
@@ -284,6 +285,11 @@ Route::prefix('v2')->group(function () {
         Route::post('chats/{thread}/messages', [ChatController::class, 'postMessage'])->whereNumber('thread');
         Route::post('chats/{thread}/members', [ChatController::class, 'addMember'])->whereNumber('thread');
         Route::post('chats/{thread}/leave', [ChatController::class, 'leave'])->whereNumber('thread');
+
+        // Private conversation evidence files — served only to a party of the
+        // thread (the files live outside the web root).
+        Route::get('thread-attachments/{attachment}', [ThreadAttachmentController::class, 'show'])
+            ->whereNumber('attachment');
 
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.

@@ -2731,6 +2731,22 @@ paths:
         '404': { description: 'Not found, or you are not a participant' }
         '422': { $ref: '#/components/responses/Validation' }
 
+  /thread-attachments/{attachment}:
+    get:
+      tags: [Chats]
+      summary: Stream a private conversation evidence file
+      description: >-
+        The evidence files (dispute rooms, operation chats, direct and group
+        chats) live outside the web root, so this authenticated route is the
+        only way to fetch one — and only a party to the conversation the
+        attachment belongs to may. A non-participant gets 404. Returns the
+        image bytes with its Content-Type.
+      parameters:
+        - { in: path, name: attachment, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'The file bytes.' }
+        '404': { description: 'Not found, or you are not a party to it' }
+
   # ──────────────────── Fines (fraud/abuse) ────────────────────
   /fines:
     get:

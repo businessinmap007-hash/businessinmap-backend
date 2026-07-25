@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ThreadMessageAttachment;
 use App\Models\User;
-use App\Services\Media\ImageUploadService;
+use App\Services\Media\ThreadAttachmentStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
@@ -39,7 +39,7 @@ class DirectChatTest extends TestCase
 
     protected function tearDown(): void
     {
-        $uploads = app(ImageUploadService::class);
+        $uploads = app(ThreadAttachmentStorage::class);
         foreach (ThreadMessageAttachment::query()->pluck('path') as $path) {
             $uploads->delete($path);
         }
@@ -98,6 +98,29 @@ class DirectChatTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.is_mine', false)
             ->assertJsonCount(1, 'data.0.attachments');
+    }
+
+    public function test_an_attachment_is_private_and_served_only_to_a_participant(): void
+    {
+        Sanctum::actingAs($this->alice);
+        $threadId = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
+        $this->postJson("/api/v2/chats/{$threadId}/messages", [
+            'body' => 'see attached',
+            'attachments' => [$this->file()],
+        ])->assertCreated();
+
+        $attachment = ThreadMessageAttachment::query()->latest('id')->firstOrFail();
+
+        // Stored outside the web root — no public file, only an authed route.
+        $this->assertStringStartsWith('thread-attachments/', (string) $attachment->path);
+        $this->assertFileDoesNotExist(public_path($attachment->path));
+
+        // A party can fetch it; a non-participant gets 404, an anon 401.
+        Sanctum::actingAs($this->bob);
+        $this->get("/api/v2/thread-attachments/{$attachment->id}")->assertOk();
+
+        Sanctum::actingAs($this->carol);
+        $this->get("/api/v2/thread-attachments/{$attachment->id}")->assertNotFound();
     }
 
     public function test_a_non_participant_cannot_read_or_post(): void

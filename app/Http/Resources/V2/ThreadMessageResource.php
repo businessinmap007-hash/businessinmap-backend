@@ -25,7 +25,7 @@ class ThreadMessageResource extends JsonResource
             ],
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => [
                 'id' => (int) $a->id,
-                'url' => $a->url(),
+                'url' => $a->apiUrl(),
                 'name' => $a->original_name,
                 'mime' => $a->mime,
                 'size' => $a->size,

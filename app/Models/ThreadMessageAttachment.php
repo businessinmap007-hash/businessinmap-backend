@@ -31,8 +31,19 @@ class ThreadMessageAttachment extends Model
         return $this->belongsTo(ThreadMessage::class, 'thread_message_id');
     }
 
-    public function url(): string
+    /**
+     * The file is private (storage/, not public/), so both URLs point at an
+     * AUTHENTICATED streaming route, not the file itself:
+     *  - apiUrl: the app, as a party to the conversation (sanctum).
+     *  - adminUrl: the admin/judge moderation screen (web session + DISPUTES).
+     */
+    public function apiUrl(): string
     {
-        return asset((string) $this->path);
+        return url('api/v2/thread-attachments/' . $this->id);
+    }
+
+    public function adminUrl(): string
+    {
+        return url('admin/chat-attachments/' . $this->id);
     }
 }

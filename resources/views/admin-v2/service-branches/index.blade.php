@@ -67,7 +67,7 @@
             </div>
         </div>
 
-        <div id="a2sbMatrixWrap" style="overflow-x:auto; border:1px solid var(--a2-border, #e5e7eb); border-radius:8px;">
+        <div id="a2sbMatrixWrap" style="overflow:auto; max-height:calc(100vh - 220px); border:1px solid var(--a2-border, #e5e7eb); border-radius:8px;">
             <table id="a2sbMatrix" style="border-collapse:collapse; width:100%; font-size:13px; min-width:max-content;"></table>
         </div>
         <div id="a2sbNoTypes" class="a2-hint" style="display:none; padding:12px 4px;"></div>
@@ -210,11 +210,16 @@
         noTypes.style.display = rows.length ? 'none' : 'block';
         if (!rows.length) noTypes.textContent = 'لا توجد نتائج مطابقة للبحث.';
 
+        // Pinned first column (body rows): sticks to the start edge on X-scroll.
         const sticky = 'position:sticky; right:0; background:var(--a2-surface, #fff); z-index:1;';
+        // Pinned header row: sticks to the top on Y-scroll. The corner cell
+        // pins on BOTH axes and sits above everything.
+        const headCell = 'position:sticky; top:0; background:var(--a2-surface, #fff); z-index:2; box-shadow:0 1px 0 var(--a2-border,#e5e7eb);';
+        const headCorner = 'position:sticky; top:0; right:0; background:var(--a2-surface, #fff); z-index:3; box-shadow:0 1px 0 var(--a2-border,#e5e7eb);';
         const head = '<thead><tr>' +
-            '<th style="text-align:right; padding:8px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); ' + sticky + '">نوع العنصر</th>' +
+            '<th style="text-align:right; padding:8px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); ' + headCorner + '">نوع العنصر</th>' +
             cols.map(b =>
-                '<th style="padding:6px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); white-space:nowrap;">' +
+                '<th style="padding:6px 10px; border-bottom:1px solid var(--a2-border,#e5e7eb); white-space:nowrap; ' + headCell + '">' +
                 '<div>' + esc(b.name) + '</div>' +
                 '<div style="font-size:11px; color:var(--a2-primary,#2563eb);">' + b.count + ' نوع</div>' +
                 '</th>'

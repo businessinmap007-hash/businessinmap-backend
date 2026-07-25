@@ -33,7 +33,7 @@
             </select>
         </form>
 
-        <div style="overflow-x:auto;margin-top:12px;">
+        <div class="a2-table-wrap" style="margin-top:12px;">
             <table class="a2-table" style="width:100%;">
                 <thead>
                     <tr>

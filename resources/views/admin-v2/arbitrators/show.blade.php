@@ -45,7 +45,7 @@
     <div class="a2-card" style="padding:14px;margin-top:14px;">
         <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('الجلسات') }}</div>
 
-        <div style="overflow-x:auto;">
+        <div class="a2-table-wrap">
             <table class="a2-table" style="width:100%;">
                 <thead>
                     <tr>

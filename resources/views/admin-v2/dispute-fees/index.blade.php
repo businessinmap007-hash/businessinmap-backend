@@ -26,7 +26,7 @@
                 </div>
             </div>
 
-            <div style="overflow-x:auto;margin-top:16px;">
+            <div class="a2-table-wrap" style="margin-top:16px;">
                 <table class="a2-table" style="width:100%;">
                     <thead>
                         <tr>

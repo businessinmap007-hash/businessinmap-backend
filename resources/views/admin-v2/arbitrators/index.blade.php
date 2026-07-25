@@ -11,7 +11,7 @@
             {{ __('الحكم مشرف يملك صلاحية الفصل في النزاعات وتحريك مبلغ الضمان. كل قرار يُسجَّل في سجله ولا يمكن تعديله.') }}
         </div>
 
-        <div style="overflow-x:auto;">
+        <div class="a2-table-wrap">
             <table class="a2-table" style="width:100%;">
                 <thead>
                     <tr>

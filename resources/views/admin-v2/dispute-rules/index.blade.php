@@ -80,7 +80,7 @@
             {{ __('محفوظة كما هي: موافقة كل طرف مرتبطة برقم نسخة، وهذه هي الطريقة الوحيدة لمعرفة ما وافق عليه فعلًا.') }}
         </div>
 
-        <div style="overflow-x:auto;">
+        <div class="a2-table-wrap">
             <table class="a2-table" style="width:100%;">
                 <thead>
                     <tr>

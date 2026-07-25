@@ -66,6 +66,29 @@ class AdminUiStickyAndMenuTest extends TestCase
         $this->assertStringContainsString('/admin/disputes', $html);
     }
 
+    public function test_custom_wrapped_tables_now_use_the_sticky_wrapper_and_render(): void
+    {
+        // These screens wrapped a `.a2-table` in a bare inline overflow-x div,
+        // so their headers were trapped (never pinned). They now use
+        // `.a2-table-wrap`. Assert they still render AND carry the class.
+        foreach (['/admin/fines', '/admin/arbitrators'] as $url) {
+            $html = $this->actingAs($this->admin())->get($url)->assertOk()->getContent();
+            $this->assertStringContainsString('a2-table-wrap', $html);
+        }
+    }
+
+    public function test_service_branch_matrix_pins_its_header_row(): void
+    {
+        // The matrix is a JS-built table with inline styles; the fix lives in
+        // the view's script. Assert the scroll box + a sticky header row.
+        $this->actingAs($this->admin())->get('/admin/service-branches')->assertOk();
+
+        $blade = file_get_contents(resource_path('views/admin-v2/service-branches/index.blade.php'));
+        $this->assertStringContainsString('max-height:calc(100vh - 220px)', $blade);
+        $this->assertStringContainsString("position:sticky; top:0", $blade);   // header row
+        $this->assertStringContainsString("position:sticky; top:0; right:0", $blade); // corner
+    }
+
     public function test_sticky_header_css_covers_both_wrapper_classes(): void
     {
         $css = file_get_contents(public_path('admin-v2/css/admin.css'));

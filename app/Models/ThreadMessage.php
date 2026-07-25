@@ -18,6 +18,17 @@ class ThreadMessage extends Model
         'body',
     ];
 
+    /**
+     * Conversation text is encrypted at rest: a database dump never reveals
+     * what people said. It decrypts transparently on read (for the parties'
+     * own API, and the admin/judge moderation screen), and the DB column holds
+     * only ciphertext. Rotating APP_KEY makes every stored body unreadable —
+     * back it up like the secret it now protects.
+     */
+    protected $casts = [
+        'body' => 'encrypted',
+    ];
+
     public function thread(): BelongsTo
     {
         return $this->belongsTo(Thread::class);

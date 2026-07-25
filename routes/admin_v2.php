@@ -37,6 +37,7 @@ use App\Http\Controllers\AdminV2\{
     FraudFlagController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
+    ChatAdminController,
     HeldDeletionController,
     OperationChatController,
     JobFollowController,
@@ -370,6 +371,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::prefix('operation-chats')->name('operation-chats.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
                 Route::get('/', [OperationChatController::class, 'index'])->name('index');
                 Route::delete('{thread}', [OperationChatController::class, 'destroy'])->whereNumber('thread')->name('destroy');
+            });
+
+            // Every conversation on the platform, merged for moderation. Text is
+            // encrypted at rest; only a judge (DISPUTES) may read it. Read-only.
+            Route::prefix('chats')->name('chats.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {
+                Route::get('/', [ChatAdminController::class, 'index'])->name('index');
+                Route::get('{thread}', [ChatAdminController::class, 'show'])->whereNumber('thread')->name('show');
             });
 
             Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

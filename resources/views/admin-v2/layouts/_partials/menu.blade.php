@@ -83,7 +83,7 @@
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.'], 'children' => [
+        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.'], 'children' => [
             ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
                 ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
                 ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
@@ -97,6 +97,7 @@
                 ['label' => 'إنشاء عنصر منيو', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
             ]],
             ['label' => 'المحادثات', 'type' => 'section', 'children' => [
+                ['label' => 'المحادثات (إشراف)', 'route' => 'admin.chats.index', 'active' => 'admin.chats.'],
                 ['label' => 'محادثات العمليات المنتهية', 'route' => 'admin.operation-chats.index', 'active' => 'admin.operation-chats.'],
             ]],
         ]],

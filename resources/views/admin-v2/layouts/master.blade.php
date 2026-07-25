@@ -29,6 +29,21 @@
 
 <body class="admin-v2 @yield('body_class')">
 
+    {{-- Sidebar default state: collapse to a rail on desktop (content full-width,
+         no horizontal scroll) unless the admin explicitly expanded it before.
+         Runs before paint to avoid a flash of the full-width sidebar. --}}
+    <script>
+    (function () {
+        try {
+            var desktop = window.matchMedia('(min-width: 769px)').matches;
+            var pref = localStorage.getItem('a2-sidebar-mini');
+            if (desktop && pref !== '0') {
+                document.body.classList.add('a2-sidebar-mini');
+            }
+        } catch (e) {}
+    })();
+    </script>
+
     <a href="#a2MainContent" class="a2-skip-link">{{ __('تخطي إلى المحتوى الرئيسي') }}</a>
 
     <div class="a2-shell">
@@ -183,12 +198,20 @@
             body.classList.remove('a2-sidebar-open');
         }
 
+        function persistMini(on) {
+            try {
+                localStorage.setItem('a2-sidebar-mini', on ? '1' : '0');
+            } catch (e) {}
+        }
+
         function toggleMini() {
-            body.classList.toggle('a2-sidebar-mini');
+            const on = body.classList.toggle('a2-sidebar-mini');
+            persistMini(on);
         }
 
         function enableMini() {
             body.classList.add('a2-sidebar-mini');
+            persistMini(true);
         }
 
         btnOpen?.addEventListener('click', function () {

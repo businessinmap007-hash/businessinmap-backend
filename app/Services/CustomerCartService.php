@@ -73,6 +73,54 @@ class CustomerCartService
         });
     }
 
+    /**
+     * "Order it again": add every line of a past order back into the customer's
+     * cart, so a one-tap reorder is a review-then-checkout, not a blind
+     * re-charge. Goes through addItem, so today's price, availability and
+     * customisation validation all apply — a meal that is gone, or a size that
+     * was retired, is skipped (reported), never silently re-priced.
+     *
+     * @return array{order: ?Order, added: int, skipped: list<int>}
+     */
+    public function reorder(int $userId, Order $source): array
+    {
+        $source->loadMissing('items');
+
+        $added = 0;
+        $skipped = [];
+        $cart = null;
+
+        foreach ($source->items as $line) {
+            $kind = array_search((string) $line->offering_type, self::KINDS, true);
+
+            if ($kind === false || ! $line->offering_id) {
+                $skipped[] = (int) ($line->offering_id ?? 0);
+                continue;
+            }
+
+            // addons are stored as [['id','name','price','qty'], ...]; reduce
+            // them back to the extras selection addItem expects.
+            $extras = collect($line->addons ?: [])
+                ->map(fn ($a) => ['id' => (int) ($a['id'] ?? 0), 'qty' => max(1, (int) ($a['qty'] ?? 1))])
+                ->filter(fn ($e) => $e['id'] > 0)
+                ->values()
+                ->all();
+
+            try {
+                $cart = $this->addItem($userId, (string) $kind, (int) $line->offering_id, (int) $line->qty, [
+                    'size_id' => $line->size_id ? (int) $line->size_id : null,
+                    'extras' => $extras,
+                ]);
+                $added++;
+            } catch (ValidationException $e) {
+                // Gone, deactivated, or its size/extra retired — skip it.
+                $skipped[] = (int) $line->offering_id;
+            }
+        }
+
+        return ['order' => $cart, 'added' => $added, 'skipped' => $skipped];
+    }
+
     /** Change a personal-cart line's quantity. qty<=0 removes the line. */
     public function updateItemQty(int $userId, int $itemId, int $qty): Order
     {

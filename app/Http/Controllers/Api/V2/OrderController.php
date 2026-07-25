@@ -29,6 +29,7 @@ final class OrderController extends Controller
         private readonly NotificationDispatcherService $notifications,
         private readonly OrderFeeSettlementService $feeSettlement,
         private readonly \App\Services\Ratings\RatingService $ratingService,
+        private readonly \App\Services\CustomerCartService $cart,
     ) {
     }
 
@@ -72,6 +73,36 @@ final class OrderController extends Controller
         }
 
         return (new OrderResource($model))->additional(['success' => true]);
+    }
+
+    /**
+     * POST /api/v2/orders/{order}/reorder — "order it again".
+     *
+     * Adds this past order's lines back into the customer's cart (today's
+     * prices/availability), so the app's one-tap reorder lands on a cart ready
+     * to check out. Only the customer who placed it may reorder; a line whose
+     * offering is gone is skipped and reported.
+     */
+    public function reorder(Request $request, int $order)
+    {
+        $userId = (int) $request->user()->id;
+
+        $model = Order::query()
+            ->where('status', '!=', 'cart')
+            ->where('user_id', $userId) // yours only; 404 otherwise (not 403)
+            ->findOrFail($order);
+
+        $result = $this->cart->reorder($userId, $model);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'added' => $result['added'],
+                'skipped' => $result['skipped'],
+                'business_id' => (int) $model->business_id,
+                'cart_order_id' => $result['order'] ? (int) $result['order']->id : null,
+            ],
+        ], 201);
     }
 
     /** POST /api/v2/orders/{order}/cancel — customer cancels their pending order. */

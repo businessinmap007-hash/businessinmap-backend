@@ -393,6 +393,8 @@ Route::prefix('v2')->group(function () {
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
+        // "Order it again": re-adds the past order's lines to the cart.
+        Route::post('orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
         // Business-only, gated centrally by the `business` middleware.

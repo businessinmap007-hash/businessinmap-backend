@@ -1309,6 +1309,20 @@ paths:
       responses:
         '200': { description: Cancelled }
         '409': { $ref: '#/components/responses/Conflict' }
+  /orders/{order}/reorder:
+    post:
+      tags: [Orders (Customer)]
+      summary: Order it again — re-add this order's lines to the cart
+      description: >-
+        Adds every line of a past order back into your cart at today's prices
+        and availability (a review-then-checkout, not a blind re-charge). Only
+        the customer who placed it may reorder. Returns how many lines were
+        added, which offering ids were skipped (gone/retired), the business id,
+        and the resulting cart order id.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '201': { description: 'Lines added to the cart; see data.added / data.skipped / data.cart_order_id.' }
+        '404': { description: 'Not found, or not your order' }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]

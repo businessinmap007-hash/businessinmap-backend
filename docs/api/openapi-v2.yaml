@@ -119,6 +119,12 @@ tags:
       stranger gets 404, never 403. Messages can carry image attachments (same
       as the dispute room). A chat is kept for 7 days after the operation
       completes, then it locks (read-only) and an admin can delete it.
+  - name: Chats
+    description: |
+      General person-to-person chat (direct messages) — a conversation about
+      nothing in particular, deduped to one thread per pair. Only a participant
+      may read or post; a stranger gets 404. Messages can carry image
+      attachments, same as everywhere else. No conduct charter, no retention.
   - name: Fines
     description: |
       Platform fines for fraud/abuse, levied on a user outside a dispute. You
@@ -2571,6 +2577,77 @@ paths:
       responses:
         '201': { description: 'Created. The message includes an `attachments` array of { id, url, name, mime, size }.' }
         '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ──────────────────── Direct chats ────────────────────
+  /chats:
+    get:
+      tags: [Chats]
+      summary: My conversations, most-recently-active first
+      description: >-
+        Each row carries the other participant(s), the last message, an unread
+        count, and last_message_at.
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Chats]
+      summary: Start (or return) a direct chat with a user
+      description: >-
+        Deduped: messaging the same person again returns the same conversation,
+        never a parallel one. 201 whether it was created or already existed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: 'Created or existing; returns the thread and the other participant(s).' }
+        '404': { description: 'That user does not exist' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /chats/{thread}:
+    get:
+      tags: [Chats]
+      summary: Read a conversation
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+        - { in: query, name: per_page, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a participant' }
+  /chats/{thread}/messages:
+    post:
+      tags: [Chats]
+      summary: Post a message into a direct chat, optionally with files
+      description: >-
+        body is optional when one or more attachments are sent; a post with
+        neither is refused. Attachments are images only, max 6, via
+        multipart/form-data.
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body: { type: string, maxLength: 5000 }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                body: { type: string, maxLength: 5000 }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        '201': { description: 'Created. The message includes an `attachments` array.' }
+        '404': { description: 'Not found, or you are not a participant' }
         '422': { $ref: '#/components/responses/Validation' }
 
   # ──────────────────── Fines (fraud/abuse) ────────────────────

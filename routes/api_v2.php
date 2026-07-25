@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
+use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\OperationChatController;
@@ -268,6 +269,14 @@ Route::prefix('v2')->group(function () {
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
         Route::post('operation-chats/{type}/{id}/messages', [OperationChatController::class, 'postMessage'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+
+        // General person-to-person chat (direct messages). A conversation about
+        // nothing in particular — subjectless threads with `member` seats. Only
+        // a participant may read or post; attachments as everywhere else.
+        Route::get('chats', [ChatController::class, 'index']);
+        Route::post('chats', [ChatController::class, 'store']);
+        Route::get('chats/{thread}', [ChatController::class, 'show'])->whereNumber('thread');
+        Route::post('chats/{thread}/messages', [ChatController::class, 'postMessage'])->whereNumber('thread');
 
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.

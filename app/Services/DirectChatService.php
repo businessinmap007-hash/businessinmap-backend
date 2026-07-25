@@ -63,10 +63,126 @@ class DirectChatService
     {
         return Thread::query()
             ->whereNull('subject_type')
+            ->whereNull('created_by') // a DM, never a two-person group
             ->whereHas('participants', fn ($q) => $q->where('user_id', $userA))
             ->whereHas('participants', fn ($q) => $q->where('user_id', $userB))
             ->has('participants', '=', 2)
             ->first();
+    }
+
+    /** How many people one group may hold. */
+    public const MAX_GROUP_MEMBERS = 50;
+
+    /**
+     * Create a group: a titled, owned, subjectless thread seating the creator
+     * plus the given members. The creator owns it (rename / add / delete).
+     *
+     * @param  list<int>  $memberIds  other users to seat (self is ignored)
+     */
+    public function createGroup(User $creator, string $title, array $memberIds): Thread
+    {
+        $title = trim($title);
+
+        if ($title === '') {
+            throw ValidationException::withMessages(['title' => __('اسم المجموعة مطلوب.')]);
+        }
+
+        $others = collect($memberIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== (int) $creator->id)
+            ->unique()
+            ->values();
+
+        if ($others->isEmpty()) {
+            throw ValidationException::withMessages(['user_ids' => __('أضف عضوًا واحدًا على الأقل.')]);
+        }
+
+        // Every named member must be a real user.
+        $existing = User::query()->whereIn('id', $others)->pluck('id')->map(fn ($id) => (int) $id);
+        $missing = $others->diff($existing);
+
+        if ($missing->isNotEmpty()) {
+            throw ValidationException::withMessages(['user_ids' => __('بعض الأعضاء غير موجودين.')]);
+        }
+
+        if ($others->count() + 1 > self::MAX_GROUP_MEMBERS) {
+            throw ValidationException::withMessages(['user_ids' => __('عدد الأعضاء يتجاوز الحد المسموح.')]);
+        }
+
+        $thread = Thread::create([
+            'title' => mb_substr($title, 0, 120),
+            'created_by' => (int) $creator->id,
+            'status' => Thread::STATUS_OPEN,
+            'requires_conduct' => false,
+        ]);
+
+        $this->threads->addParticipant($thread, (int) $creator->id, ThreadParticipant::ROLE_MEMBER);
+        foreach ($others as $id) {
+            $this->threads->addParticipant($thread, $id, ThreadParticipant::ROLE_MEMBER);
+        }
+
+        $this->threads->system($thread, 'أنشأ ' . ($creator->name ?: 'عضو') . ' المجموعة «' . $thread->title . '».');
+
+        return $thread->load('participants');
+    }
+
+    /** Only the group's owner may add members. */
+    public function addMember(Thread $thread, User $actor, int $userId): ThreadParticipant
+    {
+        $this->assertGroupOwner($thread, (int) $actor->id);
+
+        User::query()->findOrFail($userId);
+
+        if ($thread->participants()->count() >= self::MAX_GROUP_MEMBERS) {
+            throw ValidationException::withMessages(['user_id' => __('عدد الأعضاء يتجاوز الحد المسموح.')]);
+        }
+
+        $already = $thread->participants()->where('user_id', $userId)->exists();
+        $seat = $this->threads->addParticipant($thread, $userId, ThreadParticipant::ROLE_MEMBER);
+
+        if (! $already) {
+            $name = User::query()->whereKey($userId)->value('name');
+            $this->threads->system($thread, 'أُضيف ' . ($name ?: 'عضو') . ' إلى المجموعة.');
+        }
+
+        return $seat;
+    }
+
+    /**
+     * Leave a group. Deleting the seat is fine here — a personal group is not
+     * evidence, unlike a dispute room where nobody leaves. When the last member
+     * leaves, the empty group is purged rather than left dangling.
+     */
+    public function leave(Thread $thread, User $actor): void
+    {
+        if (! $thread->isGroup()) {
+            throw ValidationException::withMessages(['thread' => __('لا يمكن مغادرة هذه المحادثة.')]);
+        }
+
+        $seat = $thread->participants()->where('user_id', $actor->id)->first();
+
+        if (! $seat) {
+            abort(404);
+        }
+
+        $seat->delete();
+
+        if ($thread->participants()->count() === 0) {
+            $this->threads->purge($thread);
+
+            return;
+        }
+
+        $this->threads->system($thread, 'غادر ' . ($actor->name ?: 'عضو') . ' المجموعة.');
+    }
+
+    private function assertGroupOwner(Thread $thread, int $userId): void
+    {
+        abort_if(! $thread->isGroup(), 404);
+
+        if (! $thread->isOwnedBy($userId)) {
+            throw ValidationException::withMessages(['thread' => __('لا يملك هذا الإجراء إلا منشئ المجموعة.')]);
+        }
     }
 
     /** Only a participant may read or post; a stranger gets 404, never 403. */
@@ -98,6 +214,10 @@ class DirectChatService
 
             return [
                 'id' => (int) $thread->id,
+                'type' => $thread->isGroup() ? 'group' : 'direct',
+                'title' => $thread->title,
+                // For a DM this is the one other person; for a group, everyone
+                // but me.
                 'participants' => $thread->participants
                     ->where('user_id', '!=', (int) $me->id)
                     ->map(fn ($p) => [

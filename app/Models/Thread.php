@@ -14,6 +14,8 @@ class Thread extends Model
     protected $fillable = [
         'subject_type',
         'subject_id',
+        'title',
+        'created_by',
         'status',
         'requires_conduct',
         'locked_at',
@@ -51,6 +53,17 @@ class Thread extends Model
     public function requiresConduct(): bool
     {
         return (bool) $this->requires_conduct;
+    }
+
+    /** A group is a subjectless thread with an owner; a DM has neither. */
+    public function isGroup(): bool
+    {
+        return $this->subject_type === null && $this->created_by !== null;
+    }
+
+    public function isOwnedBy(int $userId): bool
+    {
+        return (int) $this->created_by === $userId;
     }
 
     /**

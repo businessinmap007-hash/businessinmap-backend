@@ -278,8 +278,12 @@ Route::prefix('v2')->group(function () {
         // a participant may read or post; attachments as everywhere else.
         Route::get('chats', [ChatController::class, 'index']);
         Route::post('chats', [ChatController::class, 'store']);
+        // Group chats: a titled, owned conversation with more than two members.
+        Route::post('chats/group', [ChatController::class, 'storeGroup']);
         Route::get('chats/{thread}', [ChatController::class, 'show'])->whereNumber('thread');
         Route::post('chats/{thread}/messages', [ChatController::class, 'postMessage'])->whereNumber('thread');
+        Route::post('chats/{thread}/members', [ChatController::class, 'addMember'])->whereNumber('thread');
+        Route::post('chats/{thread}/leave', [ChatController::class, 'leave'])->whereNumber('thread');
 
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.

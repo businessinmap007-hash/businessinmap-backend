@@ -50,6 +50,51 @@ class ChatController extends Controller
         ], 201);
     }
 
+    /** POST /api/v2/chats/group — create a group chat. */
+    public function storeGroup(Request $request)
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+            'user_ids' => ['required', 'array', 'min:1', 'max:' . DirectChatService::MAX_GROUP_MEMBERS],
+            'user_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $thread = $this->chats->createGroup($request->user(), (string) $data['title'], $data['user_ids']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->threadMeta($thread, (int) $request->user()->id),
+        ], 201);
+    }
+
+    /** POST /api/v2/chats/{thread}/members — owner adds a member to the group. */
+    public function addMember(Request $request, Thread $thread)
+    {
+        $this->assertDirect($thread);
+
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $this->chats->addMember($thread, $request->user(), (int) $data['user_id']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->threadMeta($thread->fresh('participants'), (int) $request->user()->id),
+        ], 201);
+    }
+
+    /** POST /api/v2/chats/{thread}/leave — leave a group (empty group is deleted). */
+    public function leave(Request $request, Thread $thread)
+    {
+        $this->assertDirect($thread);
+        $this->chats->assertParticipant($thread, (int) $request->user()->id);
+
+        $this->chats->leave($thread, $request->user());
+
+        return response()->json(['success' => true]);
+    }
+
     /** GET /api/v2/chats/{thread} — read a conversation. */
     public function show(Request $request, Thread $thread)
     {
@@ -117,6 +162,9 @@ class ChatController extends Controller
 
         return [
             'id' => (int) $thread->id,
+            'type' => $thread->isGroup() ? 'group' : 'direct',
+            'title' => $thread->title,
+            'is_owner' => $thread->isOwnedBy($viewerId),
             'participants' => $thread->participants
                 ->where('user_id', '!=', $viewerId)
                 ->map(fn ($p) => ['user_id' => (int) $p->user_id, 'name' => $p->user?->name])

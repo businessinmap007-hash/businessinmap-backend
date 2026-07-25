@@ -2636,6 +2636,27 @@ paths:
         '201': { description: 'Created or existing; returns the thread and the other participant(s).' }
         '404': { description: 'That user does not exist' }
         '422': { $ref: '#/components/responses/Validation' }
+  /chats/group:
+    post:
+      tags: [Chats]
+      summary: Create a group chat
+      description: >-
+        A titled conversation with more than two members. The caller becomes
+        the owner (may add members, and is the only one who can). Every listed
+        user_id must exist and must not be the caller.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, user_ids]
+              properties:
+                title: { type: string, maxLength: 120 }
+                user_ids: { type: array, minItems: 1, maxItems: 50, items: { type: integer, minimum: 1 } }
+      responses:
+        '201': { description: 'Created; returns the group (type=group, title, is_owner, participants).' }
+        '422': { $ref: '#/components/responses/Validation' }
   /chats/{thread}:
     get:
       tags: [Chats]
@@ -2675,6 +2696,38 @@ paths:
                   items: { type: string, format: binary }
       responses:
         '201': { description: 'Created. The message includes an `attachments` array.' }
+        '404': { description: 'Not found, or you are not a participant' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /chats/{thread}/members:
+    post:
+      tags: [Chats]
+      summary: Add a member to a group (owner only)
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: 'Added; returns the group.' }
+        '404': { description: 'Not a group, or not found' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /chats/{thread}/leave:
+    post:
+      tags: [Chats]
+      summary: Leave a group
+      description: >-
+        Any member may leave a group; when the last member leaves, the group is
+        deleted. A 1-to-1 DM cannot be left (422).
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Left }
         '404': { description: 'Not found, or you are not a participant' }
         '422': { $ref: '#/components/responses/Validation' }
 

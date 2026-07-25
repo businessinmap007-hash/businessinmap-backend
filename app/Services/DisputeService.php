@@ -162,7 +162,9 @@ class DisputeService
             ->where('subject_id', $dispute->getKey())
             ->exists();
 
-        $thread = $this->threads->forSubject($dispute, $participants);
+        // A dispute room requires conduct-charter acceptance before a party may
+        // post (an operation chat does not) — see ThreadService::post().
+        $thread = $this->threads->forSubject($dispute, $participants, true);
 
         if (! $existed) {
             $this->threads->system($thread, 'فُتح النزاع. أمامكما مهلة للتوصل إلى حل بالتراضي قبل تحويله إلى التحكيم.');
@@ -818,22 +820,11 @@ class DisputeService
      */
     protected function purgeRoom(Dispute $dispute): void
     {
-        $threads = Thread::query()
+        Thread::query()
             ->where('subject_type', $dispute->getMorphClass())
             ->where('subject_id', $dispute->getKey())
-            ->get();
-
-        // The DB cascade removes the attachment ROWS with their messages, but it
-        // cannot reach the files on disk — unlink those first, or a purged room
-        // leaves its evidence images orphaned in public/.
-        $uploads = app(\App\Services\Media\ImageUploadService::class);
-
-        \App\Models\ThreadMessageAttachment::query()
-            ->whereHas('message', fn ($q) => $q->whereIn('thread_id', $threads->pluck('id')))
-            ->pluck('path')
-            ->each(fn ($path) => $uploads->delete($path));
-
-        $threads->each->delete();
+            ->get()
+            ->each(fn (Thread $thread) => $this->threads->purge($thread));
 
         $dispute->room_purged_at = now();
         $dispute->save();

@@ -36,6 +36,13 @@ class Kernel extends ConsoleKernel
             ->hourly()
             ->withoutOverlapping();
 
+        // Operation-chat retention: start the 7-day clock on completed
+        // operations' chats and lock expired ones. Retention is measured in
+        // days, so daily off-peak is plenty.
+        $schedule->command('operation-chats:expire')
+            ->dailyAt('03:30')
+            ->withoutOverlapping();
+
         // Suspected-fraud flags from the rating graph. Daily and off-peak: the
         // signal moves on the scale of many operations, and it only suggests —
         // an admin still reviews every flag before anyone is fined or banned.

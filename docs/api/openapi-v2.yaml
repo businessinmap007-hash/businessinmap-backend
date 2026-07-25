@@ -111,6 +111,14 @@ tags:
       moves a dispute instead: an unmet settlement window escalates itself to
       review (`disputes:process`). You only ever see disputes you are a party
       to, and never the admin's notes or the internal file.
+  - name: Operation Chats
+    description: |
+      The native customer↔business chat on an operation (order or booking) —
+      the trusted, in-app alternative to attaching forgeable screenshots from
+      elsewhere. Only the two parties to the operation may read or post; a
+      stranger gets 404, never 403. Messages can carry image attachments (same
+      as the dispute room). A chat is kept for 7 days after the operation
+      completes, then it locks (read-only) and an admin can delete it.
   - name: Fines
     description: |
       Platform fines for fraud/abuse, levied on a user outside a dispute. You
@@ -2490,6 +2498,59 @@ paths:
         message. Use multipart/form-data to include files.
       parameters:
         - { in: path, name: dispute, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body: { type: string, maxLength: 5000 }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                body: { type: string, maxLength: 5000 }
+                attachments:
+                  type: array
+                  maxItems: 6
+                  items: { type: string, format: binary }
+      responses:
+        '201': { description: 'Created. The message includes an `attachments` array of { id, url, name, mime, size }.' }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # ──────────────────── Operation chats ────────────────────
+  /operation-chats/{type}/{id}:
+    get:
+      tags: [Operation Chats]
+      summary: Open and read an operation's customer↔business chat
+      description: >-
+        Opens the chat if it does not exist yet (seating both parties) and
+        returns its messages, newest first. Only a party to the operation may
+        read it; a stranger gets 404. `meta.thread` carries status, locked,
+        expired and retain_until.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - { in: query, name: per_page, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+    # messages are posted at the sub-path below
+  /operation-chats/{type}/{id}/messages:
+    post:
+      tags: [Operation Chats]
+      summary: Post a message into the operation chat, optionally with evidence files
+      description: >-
+        `body` is optional when one or more `attachments` are sent, but a post
+        with neither is refused. Attachments are images only (jpg, jpeg, png,
+        webp, gif), max 6 per message; use multipart/form-data. A chat that has
+        expired (7 days after the operation completed) is locked and refuses new
+        messages.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
       requestBody:
         required: true
         content:

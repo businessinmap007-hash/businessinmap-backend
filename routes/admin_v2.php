@@ -38,6 +38,7 @@ use App\Http\Controllers\AdminV2\{
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
     HeldDeletionController,
+    OperationChatController,
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
@@ -362,6 +363,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/', [HeldDeletionController::class, 'index'])->name('index');
                 Route::post('{user}/finalize', [HeldDeletionController::class, 'finalize'])->whereNumber('user')->name('finalize');
                 Route::post('{user}/restore', [HeldDeletionController::class, 'restore'])->whereNumber('user')->name('restore');
+            });
+
+            // Operation chats whose retention window has passed — evidence kept
+            // for 7 days after completion, then deletable here. Gated OPERATIONS.
+            Route::prefix('operation-chats')->name('operation-chats.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+                Route::get('/', [OperationChatController::class, 'index'])->name('index');
+                Route::delete('{thread}', [OperationChatController::class, 'destroy'])->whereNumber('thread')->name('destroy');
             });
 
             Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {

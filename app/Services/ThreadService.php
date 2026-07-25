@@ -42,9 +42,9 @@ class ThreadService
      *
      * @param  array<int, array{user_id: int, role: string}>  $participants
      */
-    public function forSubject(Model $subject, array $participants = []): Thread
+    public function forSubject(Model $subject, array $participants = [], bool $requiresConduct = false): Thread
     {
-        return DB::transaction(function () use ($subject, $participants) {
+        return DB::transaction(function () use ($subject, $participants, $requiresConduct) {
             $thread = Thread::query()
                 ->where('subject_type', $subject->getMorphClass())
                 ->where('subject_id', $subject->getKey())
@@ -56,6 +56,7 @@ class ThreadService
                     'subject_type' => $subject->getMorphClass(),
                     'subject_id' => $subject->getKey(),
                     'status' => Thread::STATUS_OPEN,
+                    'requires_conduct' => $requiresConduct,
                 ]);
             }
 
@@ -321,8 +322,11 @@ class ThreadService
 
         // The charter binds the parties, not the arbitrator: its clauses are
         // about losing the case and being fined, neither of which can happen to
-        // the person deciding it. Staff conduct is a staffing matter.
-        if ($seat->role !== ThreadParticipant::ROLE_ARBITRATOR && ! $this->hasAcceptedConduct($thread, $senderId)) {
+        // the person deciding it. Staff conduct is a staffing matter. And it is
+        // a DISPUTE concern only — a plain operation chat asks for no charter.
+        if ($thread->requiresConduct()
+            && $seat->role !== ThreadParticipant::ROLE_ARBITRATOR
+            && ! $this->hasAcceptedConduct($thread, $senderId)) {
             throw ValidationException::withMessages([
                 'conduct' => __('لا بد من الموافقة على قواعد السلوك قبل الكتابة في الغرفة.'),
             ]);
@@ -480,6 +484,23 @@ class ThreadService
         }
 
         return $thread;
+    }
+
+    /**
+     * Delete a thread and everything under it, including the attachment FILES.
+     *
+     * The DB cascade removes the attachment rows with their messages, but it
+     * cannot reach the files on disk — unlink those first, or a deleted
+     * conversation leaves its evidence images orphaned in public/.
+     */
+    public function purge(Thread $thread): void
+    {
+        ThreadMessageAttachment::query()
+            ->whereHas('message', fn ($q) => $q->where('thread_id', $thread->id))
+            ->pluck('path')
+            ->each(fn ($path) => $this->uploads->delete($path));
+
+        $thread->delete();
     }
 
     public function markRead(Thread $thread, int $userId): void

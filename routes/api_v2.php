@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
 use App\Http\Controllers\Api\V2\JobFollowController;
@@ -258,6 +259,15 @@ Route::prefix('v2')->group(function () {
         Route::get('fines', [FineController::class, 'index']);
         Route::get('fines/{fine}', [FineController::class, 'show'])->whereNumber('fine');
         Route::post('fines/{fine}/appeal', [FineController::class, 'appeal'])->whereNumber('fine');
+
+        // The native customer↔business chat on an operation (order|booking) —
+        // trusted in-app evidence instead of forgeable screenshots. Kept until
+        // 7 days after the operation completes, then read-only. {type} is
+        // order|booking; only a party to the operation may read or post.
+        Route::get('operation-chats/{type}/{id}', [OperationChatController::class, 'show'])
+            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+        Route::post('operation-chats/{type}/{id}/messages', [OperationChatController::class, 'postMessage'])
+            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
 
         // "We agreed." Takes effect only when BOTH sides have pressed it —
         // an agreement one party declares alone is not an agreement.

@@ -29,11 +29,17 @@ class Project extends Model
         self::STATUS_CANCELLED,
     ];
 
+    public const VISIBILITY_PRIVATE = 'private';
+    public const VISIBILITY_PUBLIC = 'public';
+
+    public const VISIBILITIES = [self::VISIBILITY_PRIVATE, self::VISIBILITY_PUBLIC];
+
     protected $fillable = [
         'business_id',
         'title',
         'description',
         'status',
+        'visibility',
         'reference',
         'starts_on',
         'due_on',
@@ -67,6 +73,16 @@ class Project extends Model
     public function operation(): MorphTo
     {
         return $this->morphTo('operation');
+    }
+
+    public function followers(): HasMany
+    {
+        return $this->hasMany(ProjectFollower::class);
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->visibility === self::VISIBILITY_PUBLIC;
     }
 
     public function scopeForBusiness(Builder $query, int $businessId): Builder

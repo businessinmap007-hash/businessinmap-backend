@@ -2265,5 +2265,9 @@
     "يجب إرفاق صورة ملتقطة بالكاميرا قبل إنهاء هذه المرحلة.": "Attach a camera-captured photo before completing this stage.",
     "صور الإثبات يجب أن تكون ملتقطة بالكاميرا مباشرة.": "Evidence photos must be captured live with the camera.",
     "يمكنك ربط المشروع بعملية تخصّ نشاطك فقط.": "You can only link a project to an operation that belongs to your business.",
-    "لا توجد خطة تقدّم لهذه العملية بعد.": "There is no progress plan for this operation yet."
+    "لا توجد خطة تقدّم لهذه العملية بعد.": "There is no progress plan for this operation yet.",
+    "تم تحديث متابعة المشروع.": "Project follow updated.",
+    "تمت إزالة المتابع.": "Follower removed.",
+    "تم إرسال طلب متابعة المشروع.": "Follow request sent.",
+    "تم إلغاء متابعة المشروع.": "You stopped following the project."
 }

@@ -77,6 +77,11 @@ class NotificationChannelRule extends Model
             // direct or group). In-app + realtime, with Firebase push so the
             // other party is reached even with the app closed.
             'chat_message' => ['رسالة جديدة', 'New message', AppNotification::TYPE_MESSAGE, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'message'],
+
+            // A project stage was completed — the contracted customer and any
+            // approved followers are told progress advanced. Reaches them with
+            // the app closed (Firebase), so they can check the new milestone.
+            'project_stage_completed' => ['اكتمال مرحلة في المشروع', 'A project stage was completed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
         ];
     }
 

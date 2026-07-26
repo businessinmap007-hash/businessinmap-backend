@@ -45,6 +45,7 @@ class BusinessProjectController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'reference' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::in(Project::STATUSES)],
+            'visibility' => ['nullable', Rule::in(Project::VISIBILITIES)],
             'starts_on' => ['nullable', 'date'],
             'due_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'operation_type' => ['nullable', Rule::in(array_keys(OperationChatService::TYPES)), 'required_with:operation_id'],
@@ -57,6 +58,7 @@ class BusinessProjectController extends Controller
             'description' => $data['description'] ?? null,
             'reference' => $data['reference'] ?? null,
             'status' => $data['status'] ?? Project::STATUS_PLANNING,
+            'visibility' => $data['visibility'] ?? Project::VISIBILITY_PRIVATE,
             'starts_on' => $data['starts_on'] ?? null,
             'due_on' => $data['due_on'] ?? null,
         ]);
@@ -99,6 +101,7 @@ class BusinessProjectController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'reference' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', Rule::in(Project::STATUSES)],
+            'visibility' => ['nullable', Rule::in(Project::VISIBILITIES)],
             'starts_on' => ['nullable', 'date'],
             'due_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'operation_type' => ['nullable', Rule::in(array_keys(OperationChatService::TYPES)), 'required_with:operation_id'],
@@ -114,7 +117,7 @@ class BusinessProjectController extends Controller
         }
 
         $row->update(array_intersect_key($data, array_flip([
-            'title', 'description', 'reference', 'status', 'starts_on', 'due_on',
+            'title', 'description', 'reference', 'status', 'visibility', 'starts_on', 'due_on',
         ])));
 
         return response()->json([
@@ -140,6 +143,71 @@ class BusinessProjectController extends Controller
         $row->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف المشروع.')]);
+    }
+
+    /** GET /business/projects/{project}/followers — requests + granted followers. */
+    public function followers(Request $request, int $project)
+    {
+        $row = $this->ownedOrFail($request, $project);
+
+        $followers = $row->followers()
+            ->with('user:id,name,logo')
+            ->latest('id')
+            ->get()
+            ->map(fn (\App\Models\ProjectFollower $f) => [
+                'user' => $f->user ? [
+                    'id' => (int) $f->user->id,
+                    'name' => $f->user->name,
+                    'logo' => $f->user->logo,
+                ] : ['id' => (int) $f->user_id],
+                'status' => (string) $f->status,
+                'access_level' => (string) $f->access_level,
+                'requested_at' => optional($f->created_at)->toIso8601String(),
+            ]);
+
+        return response()->json(['success' => true, 'data' => ['followers' => $followers]]);
+    }
+
+    /**
+     * PATCH /business/projects/{project}/followers/{user} — decide a follow
+     * request (approve with an access level, or reject). Creates the grant if
+     * the business is inviting a user directly (no prior request needed).
+     */
+    public function decideFollower(Request $request, int $project, int $user)
+    {
+        $row = $this->ownedOrFail($request, $project);
+
+        $data = $request->validate([
+            'approve' => ['required', 'boolean'],
+            'access_level' => ['nullable', Rule::in(\App\Models\ProjectFollower::ACCESS_LEVELS)],
+        ]);
+
+        $follower = \App\Models\ProjectFollower::query()->firstOrCreate(
+            ['project_id' => (int) $row->id, 'user_id' => $user],
+            ['status' => \App\Models\ProjectFollower::STATUS_PENDING, 'access_level' => \App\Models\ProjectFollower::ACCESS_SUMMARY],
+        );
+
+        $follower = $this->projects->decideFollow($follower, (bool) $data['approve'], $data['access_level'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تحديث متابعة المشروع.'),
+            'data' => ['follower' => [
+                'user_id' => (int) $follower->user_id,
+                'status' => (string) $follower->status,
+                'access_level' => (string) $follower->access_level,
+            ]],
+        ]);
+    }
+
+    /** DELETE /business/projects/{project}/followers/{user} — revoke access. */
+    public function removeFollower(Request $request, int $project, int $user)
+    {
+        $row = $this->ownedOrFail($request, $project);
+
+        $row->followers()->where('user_id', $user)->delete();
+
+        return response()->json(['success' => true, 'message' => __('تمت إزالة المتابع.')]);
     }
 
     private function ownedOrFail(Request $request, int $projectId): Project
@@ -181,6 +249,7 @@ class BusinessProjectController extends Controller
             'description' => $p->description,
             'reference' => $p->reference,
             'status' => (string) $p->status,
+            'visibility' => (string) $p->visibility,
             'progress' => (int) $p->progress,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'due_on' => optional($p->due_on)->toDateString(),

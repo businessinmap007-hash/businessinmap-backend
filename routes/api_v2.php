@@ -284,6 +284,13 @@ Route::prefix('v2')->group(function () {
         Route::get('operations/{type}/{id}/project', [CustomerProjectController::class, 'show'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
 
+        // Follow a project directly (public, shared, or as the contracted
+        // customer): view it at your granted depth, request to follow, unfollow.
+        // Detailed access stays gated on the business's approval.
+        Route::get('projects/{project}', [CustomerProjectController::class, 'showById'])->whereNumber('project');
+        Route::post('projects/{project}/follow', [CustomerProjectController::class, 'follow'])->whereNumber('project');
+        Route::delete('projects/{project}/follow', [CustomerProjectController::class, 'unfollow'])->whereNumber('project');
+
         // General person-to-person chat (direct messages). A conversation about
         // nothing in particular — subjectless threads with `member` seats. Only
         // a participant may read or post; attachments as everywhere else.
@@ -625,6 +632,13 @@ Route::prefix('v2')->group(function () {
             Route::patch('{project}/tasks/{task}/progress', [BusinessProjectTaskController::class, 'progress'])->whereNumber('project')->whereNumber('task');
             Route::post('{project}/tasks/{task}/photo', [BusinessProjectTaskController::class, 'photo'])->whereNumber('project')->whereNumber('task');
             Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');
+
+            // Followers: who may follow this project's progress, and at what
+            // depth. The business approves requests and grants summary/detailed,
+            // or invites a user directly.
+            Route::get('{project}/followers', [BusinessProjectController::class, 'followers'])->whereNumber('project');
+            Route::patch('{project}/followers/{user}', [BusinessProjectController::class, 'decideFollower'])->whereNumber('project')->whereNumber('user');
+            Route::delete('{project}/followers/{user}', [BusinessProjectController::class, 'removeFollower'])->whereNumber('project')->whereNumber('user');
         });
 
         Route::prefix('business/offers')->middleware('business')->group(function () {

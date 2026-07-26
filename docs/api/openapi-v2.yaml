@@ -1405,6 +1405,7 @@ paths:
                 description: { type: string }
                 reference: { type: string, description: 'Shipment/unit/contract reference the business recognises' }
                 status: { type: string, enum: [planning, active, on_hold, completed, cancelled] }
+                visibility: { type: string, enum: [private, public], default: private, description: 'public exposes the coarse map + %s to any signed-in user; detailed access always needs the business''s approval' }
                 starts_on: { type: string, format: date }
                 due_on: { type: string, format: date }
                 operation_type: { type: string, enum: [order, booking], description: 'Link the project to an operation you own so the customer can follow progress (send with operation_id)' }
@@ -1549,6 +1550,42 @@ paths:
         '201': { description: Created }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
+  /business/projects/{project}/followers:
+    get:
+      tags: [Projects]
+      summary: Who follows this project (requests + granted followers)
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/projects/{project}/followers/{user}:
+    patch:
+      tags: [Projects]
+      summary: Approve/reject a follow request (or invite a user directly)
+      description: >-
+        approve=true grants access at access_level (summary = coarse map + %s;
+        detailed = full stages + camera evidence). approve=false rejects. If the
+        user never requested, the grant is created — so the business can invite a
+        specific person to follow a private project.
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: user, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approve]
+              properties:
+                approve: { type: boolean }
+                access_level: { type: string, enum: [summary, detailed] }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+    delete:
+      tags: [Projects]
+      summary: Revoke a follower's access
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: user, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /business/orders:
     get:
       tags: [Orders (Business)]
@@ -2753,6 +2790,36 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
 
   # ──────────────────── Operation chats ────────────────────
+  /projects/{project}:
+    get:
+      tags: [Projects]
+      summary: View a project at your granted depth
+      description: >-
+        Detailed (timeline + camera evidence) for the owner, the contracted
+        customer, or an approved detailed follower; the coarse map + completion
+        percentages for a summary follower or a public project. No access → 404,
+        so a private project stays invisible.
+      parameters: [{ in: path, name: project, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you may not see it' }
+  /projects/{project}/follow:
+    post:
+      tags: [Projects]
+      summary: Request to follow a project's progress
+      description: >-
+        Creates a pending follow request; the business approves it and grants an
+        access level. Allowed on a public project, for the contracted customer,
+        or to re-send an existing request — otherwise 404.
+      parameters: [{ in: path, name: project, required: true, schema: { type: integer } }]
+      responses:
+        '201': { description: Requested }
+        '404': { description: 'Not found, or you may not follow it' }
+    delete:
+      tags: [Projects]
+      summary: Stop following a project
+      parameters: [{ in: path, name: project, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
   /operations/{type}/{id}/project:
     get:
       tags: [Projects]

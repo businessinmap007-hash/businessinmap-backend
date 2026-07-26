@@ -4,8 +4,11 @@ namespace App\Services\Projects;
 
 use App\Models\Image;
 use App\Models\Project;
+use App\Models\ProjectFollower;
 use App\Models\ProjectTask;
+use App\Models\User;
 use App\Services\Media\ImageUploadService;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -24,8 +27,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ProjectService
 {
-    public function __construct(private readonly ImageUploadService $uploads)
-    {
+    public function __construct(
+        private readonly ImageUploadService $uploads,
+        private readonly NotificationDispatcherService $notifications,
+    ) {
     }
 
     /* ---------------------------------------------------------------- tasks */
@@ -100,11 +105,19 @@ class ProjectService
             $targetStatus = ProjectTask::STATUS_DONE;
         }
 
+        $wasDone = $task->isDone();
+
         $task->progress = $targetProgress;
         $task->status = $targetStatus;
         $task->save();
 
-        $this->recomputeProgress($task->project()->first());
+        $project = $task->project()->first();
+        $this->recomputeProgress($project);
+
+        // A stage just crossed into "done" → tell the followers progress moved.
+        if (! $wasDone && $task->isDone() && $project) {
+            $this->notifyStageCompleted($project, $task);
+        }
 
         return $task->fresh();
     }
@@ -141,6 +154,121 @@ class ProjectService
         $project->save();
     }
 
+    /* ----------------------------------------------------------- followers */
+
+    /**
+     * A user asks to follow a project's progress. Idempotent — a repeat request
+     * returns the existing row (an already-approved follow is left intact).
+     */
+    public function requestFollow(Project $project, User $user): ProjectFollower
+    {
+        return ProjectFollower::query()->firstOrCreate(
+            ['project_id' => (int) $project->id, 'user_id' => (int) $user->id],
+            ['status' => ProjectFollower::STATUS_PENDING, 'access_level' => ProjectFollower::ACCESS_SUMMARY],
+        );
+    }
+
+    /**
+     * The business decides a follow request: approve (granting summary or the
+     * detailed level) or reject. Detailed is the precise, evidence-bearing view;
+     * summary is the coarse map + percentages.
+     */
+    public function decideFollow(ProjectFollower $follower, bool $approve, ?string $accessLevel = null): ProjectFollower
+    {
+        $follower->status = $approve ? ProjectFollower::STATUS_APPROVED : ProjectFollower::STATUS_REJECTED;
+
+        if ($approve) {
+            $follower->access_level = in_array($accessLevel, ProjectFollower::ACCESS_LEVELS, true)
+                ? $accessLevel
+                : ProjectFollower::ACCESS_SUMMARY;
+        }
+
+        $follower->save();
+
+        return $follower;
+    }
+
+    /**
+     * What a viewer may see of a project: 'owner' / 'detailed' / 'summary' / null.
+     *   - the owning business → owner (everything);
+     *   - the contracted customer on the linked operation → detailed;
+     *   - an approved follower → the level the business granted them;
+     *   - a public project → summary for any signed-in viewer;
+     *   - otherwise null (no access → the caller should 404).
+     */
+    public function accessLevelFor(Project $project, ?User $user): ?string
+    {
+        if ($user && (int) $user->id === (int) $project->business_id) {
+            return 'owner';
+        }
+
+        if ($user && (int) $user->id === $this->contractedCustomerId($project)) {
+            return ProjectFollower::ACCESS_DETAILED;
+        }
+
+        if ($user) {
+            $follow = ProjectFollower::query()
+                ->where('project_id', (int) $project->id)
+                ->where('user_id', (int) $user->id)
+                ->where('status', ProjectFollower::STATUS_APPROVED)
+                ->first();
+
+            if ($follow) {
+                return $follow->access_level;
+            }
+        }
+
+        if ($project->isPublic()) {
+            return ProjectFollower::ACCESS_SUMMARY;
+        }
+
+        return null;
+    }
+
+    /** Render a project for a viewer at the given access level. */
+    public function viewFor(Project $project, string $accessLevel): array
+    {
+        return $accessLevel === ProjectFollower::ACCESS_SUMMARY
+            ? $this->summaryView($project)
+            : $this->customerView($project);
+    }
+
+    /**
+     * The coarse view: just the shape (the timeline map) and completion
+     * percentages — no dates, notes, or evidence photos. This is what a
+     * summary-level follower or a public viewer sees.
+     */
+    public function summaryView(Project $project): array
+    {
+        $timeline = $this->timeline($project);
+
+        $tasks = array_values(array_map(fn (array $t) => [
+            'id' => $t['id'],
+            'title' => $t['title'],
+            'progress' => $t['progress'],
+            'is_critical' => $t['is_critical'],
+            'earliest_start_offset' => $t['earliest_start_offset'],
+            'earliest_finish_offset' => $t['earliest_finish_offset'],
+            'depends_on' => $t['depends_on'],
+        ], $timeline['tasks']));
+
+        return [
+            'access_level' => ProjectFollower::ACCESS_SUMMARY,
+            'project' => [
+                'id' => (int) $project->id,
+                'title' => (string) $project->title,
+                'status' => (string) $project->status,
+                'progress' => (int) $project->progress,
+                'visibility' => (string) $project->visibility,
+            ],
+            'timeline' => [
+                'project_duration_days' => $timeline['project_duration_days'],
+                'critical_path' => $timeline['critical_path'],
+                'tasks' => $tasks,
+            ],
+        ];
+    }
+
     /**
      * The read-only progress view for the customer following an operation: the
      * project header, the computed timeline, and each stage's camera evidence.
@@ -165,6 +293,7 @@ class ProjectService
         ])->all();
 
         return [
+            'access_level' => ProjectFollower::ACCESS_DETAILED,
             'project' => [
                 'id' => (int) $project->id,
                 'title' => (string) $project->title,
@@ -346,6 +475,60 @@ class ProjectService
     }
 
     /* ------------------------------------------------------------ helpers */
+
+    /** The user_id of the customer on the project's linked operation, if any. */
+    private function contractedCustomerId(Project $project): ?int
+    {
+        if (! $project->operation_type || ! $project->operation_id) {
+            return null;
+        }
+
+        $operation = $project->operation()->first();
+
+        return $operation ? (int) $operation->user_id : null;
+    }
+
+    /**
+     * Tell everyone entitled to follow that a stage was completed: the
+     * contracted customer and every approved follower. Best-effort — a delivery
+     * failure never blocks the progress update.
+     */
+    private function notifyStageCompleted(Project $project, ProjectTask $task): void
+    {
+        $recipients = $project->followers()
+            ->where('status', ProjectFollower::STATUS_APPROVED)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $customerId = $this->contractedCustomerId($project);
+        if ($customerId) {
+            $recipients[] = $customerId;
+        }
+
+        $recipients = array_values(array_unique(array_filter(
+            $recipients,
+            fn (int $id) => $id > 0 && $id !== (int) $project->business_id,
+        )));
+
+        foreach ($recipients as $userId) {
+            try {
+                $this->notifications->dispatch('project_stage_completed', $userId, [
+                    // Stored notification content stays UNwrapped (bilingual columns).
+                    'title_ar' => 'اكتملت مرحلة في مشروعك',
+                    'title_en' => 'A stage was completed',
+                    'body_ar' => 'اكتملت المرحلة «' . $task->title . '» في المشروع «' . $project->title . '».',
+                    'body_en' => 'The stage "' . $task->title . '" of "' . $project->title . '" is complete.',
+                    'notifiable_type' => Project::class,
+                    'notifiable_id' => (int) $project->id,
+                    'source_type' => ProjectTask::class,
+                    'source_id' => (int) $task->id,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
 
     /**
      * Every task reachable from $task by following successor edges (i.e. the

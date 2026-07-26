@@ -11,7 +11,7 @@ use App\Models\ThreadMessageAttachment;
 use App\Models\ThreadParticipant;
 use App\Models\User;
 use App\Services\Media\ThreadAttachmentStorage;
-use App\Services\Notifications\InAppNotificationService;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 class ThreadService
 {
     public function __construct(
-        protected InAppNotificationService $notifications,
+        protected NotificationDispatcherService $notifications,
         protected ThreadAttachmentStorage $uploads
     ) {
     }
@@ -446,8 +446,9 @@ class ThreadService
             }
 
             try {
-                $this->notifications->create([
-                    'user_id' => (int) $participant->user_id,
+                // Through the dispatcher (not a bare in-app row) so the other
+                // party is reached by push/realtime too, per the channel rule.
+                $this->notifications->dispatch('chat_message', (int) $participant->user_id, [
                     'actor_id' => (int) $message->sender_id,
                     'type' => AppNotification::TYPE_MESSAGE,
                     'title_ar' => 'رسالة جديدة من ' . ($senderName ?: 'أحد الأطراف'),

@@ -101,6 +101,13 @@ class BusinessHoursTest extends TestCase
         $this->assertTrue($map[$unknown->id]);
     }
 
+    public function test_open_now_is_accepted_by_retail_and_offers_search(): void
+    {
+        // The filter must apply cleanly (no SQL error) on both surfaces.
+        $this->getJson('/api/v2/discovery/retail/products?open_now=1')->assertOk();
+        $this->getJson('/api/v2/search/offers?open_now=1')->assertOk();
+    }
+
     public function test_a_business_sets_and_reads_its_own_hours(): void
     {
         $shop = $this->makeBusiness();
@@ -119,5 +126,33 @@ class BusinessHoursTest extends TestCase
         $this->assertSame('10:00', $days[0]['open']);
         $this->assertSame('23:00', $days[0]['close']);
         $this->assertTrue($days[1]['is_closed']);
+    }
+
+    public function test_bulk_sets_all_days_at_once_and_per_day_overrides_it(): void
+    {
+        $shop = $this->makeBusiness();
+        Sanctum::actingAs($shop);
+
+        // Whole week 09:00–17:00 in one call.
+        $this->putJson('/api/v2/business/working-hours', [
+            'bulk' => ['all' => true, 'open' => '09:00', 'close' => '17:00'],
+        ])->assertOk();
+
+        $days = collect($this->getJson('/api/v2/business/working-hours')->json('data.days'))->keyBy('day');
+        foreach (BusinessHoursService::DAYS as $d) {
+            $this->assertSame('09:00', $days[$d]['open']);
+            $this->assertSame('17:00', $days[$d]['close']);
+        }
+
+        // Bulk-close the weekend, but override Saturday individually.
+        $this->putJson('/api/v2/business/working-hours', [
+            'bulk' => ['days' => [5, 6], 'is_closed' => true],
+            'days' => [['day' => 6, 'open' => '12:00', 'close' => '20:00']],
+        ])->assertOk();
+
+        $after = collect($this->getJson('/api/v2/business/working-hours')->json('data.days'))->keyBy('day');
+        $this->assertTrue($after[5]['is_closed']);          // bulk closed
+        $this->assertSame('12:00', $after[6]['open']);      // per-day override won
+        $this->assertFalse($after[6]['is_closed']);
     }
 }

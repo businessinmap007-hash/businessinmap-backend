@@ -24,6 +24,7 @@ final class SearchOffersController extends Controller
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'sort' => ['nullable', Rule::in(['boosted', 'lowest_price', 'highest_price', 'latest', 'ranking'])],
+            'open_now' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -45,6 +46,14 @@ final class SearchOffersController extends Controller
                 $q->whereIn('seller_business_id', $ids)
                     ->orWhereIn('owner_business_id', $ids);
             });
+        }
+
+        // Skip offers whose selling shop is closed right now, when asked.
+        if ($request->boolean('open_now')) {
+            app(\App\Services\BusinessHoursService::class)->applyOpenNow(
+                $offersQuery,
+                'COALESCE(commercial_offers.seller_business_id, commercial_offers.owner_business_id)'
+            );
         }
 
         $this->applySort($offersQuery, (string) ($data['sort'] ?? 'boosted'));

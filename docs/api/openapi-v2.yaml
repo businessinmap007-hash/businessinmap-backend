@@ -2181,7 +2181,7 @@ paths:
   /discovery/retail/filters:
     get: { tags: [Discovery], summary: Retail filters (public), security: [], responses: { '200': { description: OK } } }
   /discovery/retail/products:
-    get: { tags: [Discovery], summary: Browse retail products (public), security: [], responses: { '200': { description: OK } } }
+    get: { tags: [Discovery], summary: 'Browse retail products (public). open_now=1 keeps only products an open shop currently sells.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /discovery/retail/products/{product}:
     get: { tags: [Discovery], summary: Retail product + its offers (public), security: [], parameters: [{ name: product, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 
@@ -2201,7 +2201,7 @@ paths:
 
   # ─────────────────────────── Search ───────────────────────────
   /search/offers:
-    get: { tags: [Search], summary: Search offers (public), security: [], responses: { '200': { description: OK } } }
+    get: { tags: [Search], summary: 'Search offers (public). open_now=1 keeps only offers whose selling shop is open now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /search/business/{business}/offers:
     get: { tags: [Search], summary: Search a business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 

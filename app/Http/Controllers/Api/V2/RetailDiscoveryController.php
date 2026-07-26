@@ -89,6 +89,7 @@ final class RetailDiscoveryController extends Controller
             'child_id' => ['nullable', 'integer', 'min:1'],
             'brand_id' => ['nullable', 'integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
+            'open_now' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -97,8 +98,15 @@ final class RetailDiscoveryController extends Controller
         $brandId = (int) ($data['brand_id'] ?? 0);
         $q = trim((string) ($data['q'] ?? ''));
 
+        // Only count listings from shops open right now, when asked — so a
+        // product surfaces only if an open shop actually sells it.
         $offers = DB::table('business_catalog_listings')
             ->where('is_active', 1)
+            ->when(
+                $request->boolean('open_now'),
+                fn ($qq) => app(\App\Services\BusinessHoursService::class)
+                    ->applyOpenNow($qq, 'business_catalog_listings.business_id')
+            )
             ->groupBy('catalog_product_id')
             ->selectRaw('catalog_product_id, MIN(price) AS min_price, MAX(price) AS max_price, COUNT(DISTINCT business_id) AS businesses');
 

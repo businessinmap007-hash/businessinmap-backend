@@ -111,19 +111,34 @@ class BusinessHoursService
     }
 
     /**
-     * Restrict a `users` query to businesses open at $at: exclude any that have
-     * a row for today saying they are closed now. Businesses with no row for
-     * today are kept (unknown → available). Handles past-midnight windows.
+     * Restrict a `users` query to businesses open at $at (keyed on users.id).
      */
     public function filterOpenNow(Builder $query, ?Carbon $at = null): Builder
+    {
+        return $this->applyOpenNow($query, 'users.id', $at);
+    }
+
+    /**
+     * The reusable "open now" constraint for ANY query that carries a business
+     * id — a users query (users.id), a catalog-listings subquery
+     * (business_catalog_listings.business_id), an offers query (a COALESCE of
+     * its seller/owner columns). Excludes rows whose business has a today-row
+     * saying it is closed now; a business with no today-row is kept.
+     *
+     * $businessColumn is a developer-supplied SQL expression (never user input),
+     * so a raw correlation is safe and lets a COALESCE be passed.
+     *
+     * @param  \Illuminate\Database\Query\Builder|Builder  $query
+     */
+    public function applyOpenNow($query, string $businessColumn, ?Carbon $at = null)
     {
         $at = $at ?: Carbon::now();
         $dow = $at->dayOfWeek;
         $now = $at->format('H:i:s');
 
-        return $query->whereNotExists(function ($sub) use ($dow, $now) {
+        return $query->whereNotExists(function ($sub) use ($dow, $now, $businessColumn) {
             $sub->from('business_working_hours as wh')
-                ->whereColumn('wh.business_id', 'users.id')
+                ->whereRaw('wh.business_id = ' . $businessColumn)
                 ->where('wh.day_of_week', $dow)
                 ->where(function ($w) use ($now) {
                     // Explicitly closed, or missing a window.

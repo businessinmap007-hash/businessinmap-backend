@@ -73,6 +73,10 @@ class NotificationChannelRule extends Model
             'shared_cart_member_joined' => ['انضمام عضو للسلة الجماعية', 'Member joined shared cart', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'shared_cart_cancelled' => ['إلغاء السلة الجماعية', 'Shared cart cancelled', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'system_announcement' => ['تنبيه من النظام', 'System announcement', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'system'],
+            // A new message in any conversation (dispute room, operation chat,
+            // direct or group). In-app + realtime, with Firebase push so the
+            // other party is reached even with the app closed.
+            'chat_message' => ['رسالة جديدة', 'New message', AppNotification::TYPE_MESSAGE, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'message'],
         ];
     }
 

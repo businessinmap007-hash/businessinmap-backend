@@ -43,18 +43,63 @@ class BusinessHoursController extends Controller
         ]);
     }
 
-    /** PUT /api/v2/business/working-hours — replace my week. */
+    /**
+     * PUT /api/v2/business/working-hours — set my week.
+     *
+     * Two ways, combinable: `bulk` applies ONE open/close (or closed) across
+     * many days at once — `all: true` for the whole week, or `days: [..]` —
+     * and `days[]` sets individual days. When both are sent, bulk is applied
+     * first and the per-day entries override it.
+     */
     public function update(Request $request)
     {
         $data = $request->validate([
-            'days' => ['required', 'array', 'min:1', 'max:7'],
-            'days.*.day' => ['required', 'integer', 'between:0,6'],
+            'days' => ['nullable', 'array', 'max:7'],
+            'days.*.day' => ['required_with:days', 'integer', 'between:0,6'],
             'days.*.is_closed' => ['nullable', 'boolean'],
             'days.*.open' => ['nullable', 'date_format:H:i'],
             'days.*.close' => ['nullable', 'date_format:H:i'],
+
+            'bulk' => ['nullable', 'array'],
+            'bulk.all' => ['nullable', 'boolean'],
+            'bulk.days' => ['nullable', 'array'],
+            'bulk.days.*' => ['integer', 'between:0,6'],
+            'bulk.is_closed' => ['nullable', 'boolean'],
+            'bulk.open' => ['nullable', 'date_format:H:i'],
+            'bulk.close' => ['nullable', 'date_format:H:i'],
         ]);
 
-        $this->hours->save((int) $request->user()->id, $data['days']);
+        $entries = [];
+
+        if (! empty($data['bulk'])) {
+            $bulk = $data['bulk'];
+            $days = ! empty($bulk['all'])
+                ? BusinessHoursService::DAYS
+                : array_values(array_unique(array_map('intval', $bulk['days'] ?? [])));
+
+            foreach ($days as $day) {
+                $entries[] = [
+                    'day' => (int) $day,
+                    'is_closed' => (bool) ($bulk['is_closed'] ?? false),
+                    'open' => $bulk['open'] ?? null,
+                    'close' => $bulk['close'] ?? null,
+                ];
+            }
+        }
+
+        // Per-day entries come after, so they win over the bulk defaults.
+        foreach ($data['days'] ?? [] as $entry) {
+            $entries[] = $entry;
+        }
+
+        if ($entries === []) {
+            return response()->json([
+                'success' => false,
+                'message' => __('حدّد المواعيد عبر days أو bulk.'),
+            ], 422);
+        }
+
+        $this->hours->save((int) $request->user()->id, $entries);
 
         return $this->show($request);
     }

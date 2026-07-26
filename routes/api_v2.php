@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
+use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
+use App\Http\Controllers\Api\V2\PrescriptionController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
@@ -290,6 +292,25 @@ Route::prefix('v2')->group(function () {
         Route::get('projects/{project}', [CustomerProjectController::class, 'showById'])->whereNumber('project');
         Route::post('projects/{project}/follow', [CustomerProjectController::class, 'follow'])->whereNumber('project');
         Route::delete('projects/{project}/follow', [CustomerProjectController::class, 'unfollow'])->whereNumber('project');
+
+        // Medical prescriptions (روشتة). A doctor (a clinic business) issues one
+        // for a patient; the patient reads theirs and sends one to a pharmacy to
+        // dispense (delivery or pickup). Only the three parties may read one.
+        Route::get('prescriptions', [PrescriptionController::class, 'index']);
+        Route::post('prescriptions', [PrescriptionController::class, 'store']);
+        Route::get('prescriptions/issued', [PrescriptionController::class, 'issued']);
+        Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
+
+        // Pharmacy side: incoming prescriptions + dispensing lifecycle.
+        Route::prefix('pharmacy/prescriptions')->middleware('business')->group(function () {
+            Route::get('/', [PharmacyPrescriptionController::class, 'incoming']);
+            Route::post('{prescription}/prepare', [PharmacyPrescriptionController::class, 'prepare'])->whereNumber('prescription');
+            Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');
+            Route::post('{prescription}/dispense', [PharmacyPrescriptionController::class, 'dispense'])->whereNumber('prescription');
+            Route::post('{prescription}/reject', [PharmacyPrescriptionController::class, 'reject'])->whereNumber('prescription');
+        });
 
         // General person-to-person chat (direct messages). A conversation about
         // nothing in particular — subjectless threads with `member` seats. Only

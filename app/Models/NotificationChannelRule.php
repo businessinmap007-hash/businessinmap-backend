@@ -82,6 +82,13 @@ class NotificationChannelRule extends Model
             // approved followers are told progress advanced. Reaches them with
             // the app closed (Firebase), so they can check the new milestone.
             'project_stage_completed' => ['اكتمال مرحلة في المشروع', 'A project stage was completed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+
+            // Medical prescriptions: the doctor issues one (→ patient), the
+            // patient sends it to a pharmacy (→ pharmacy), the pharmacy has it
+            // ready (→ patient).
+            'prescription_issued' => ['وصفة طبية جديدة', 'New prescription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'prescription_received' => ['وصفة طبية لتجهيزها', 'A prescription to prepare', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],
+            'prescription_ready' => ['دواؤك جاهز', 'Your medicine is ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
         ];
     }
 

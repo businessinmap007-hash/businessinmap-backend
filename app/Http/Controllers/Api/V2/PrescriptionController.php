@@ -1,0 +1,194 @@
+<?php
+
+namespace App\Http\Controllers\Api\V2;
+
+use App\Http\Controllers\Controller;
+use App\Models\Prescription;
+use App\Models\User;
+use App\Services\Prescriptions\PrescriptionService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+/**
+ * Prescriptions from the doctor's and the patient's side. A doctor (a clinic
+ * business) issues one for a patient; the patient reads their prescriptions and
+ * sends one to a pharmacy to be dispensed. Pharmacy-side actions live in
+ * PharmacyPrescriptionController.
+ */
+class PrescriptionController extends Controller
+{
+    public function __construct(private readonly PrescriptionService $service)
+    {
+    }
+
+    /** POST /api/v2/prescriptions — a doctor issues one for a patient. */
+    public function store(Request $request)
+    {
+        $doctor = $this->businessOrFail($request); // a clinic is a business account
+
+        $data = $request->validate([
+            'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $doctor->id],
+            'diagnosis' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.name' => ['required', 'string', 'max:200'],
+            'items.*.dosage' => ['nullable', 'string', 'max:120'],
+            'items.*.quantity' => ['nullable', 'string', 'max:120'],
+            'items.*.instructions' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $patient = User::query()->findOrFail((int) $data['patient_id']);
+
+        $prescription = $this->service->issue($doctor, $patient, [
+            'diagnosis' => $data['diagnosis'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ], $data['items']);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إصدار الوصفة الطبية.'),
+            'data' => ['prescription' => $this->serialize($prescription)],
+        ], 201);
+    }
+
+    /** GET /api/v2/prescriptions/issued — a doctor's issued prescriptions. */
+    public function issued(Request $request)
+    {
+        $doctor = $this->businessOrFail($request);
+
+        $rows = Prescription::query()
+            ->where('doctor_id', (int) $doctor->id)
+            ->with(['items', 'patient:id,name', 'pharmacy:id,name'])
+            ->latest('id')
+            ->paginate((int) $request->get('per_page', 20));
+
+        $rows->getCollection()->transform(fn (Prescription $p) => $this->serialize($p));
+
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    /** GET /api/v2/prescriptions — the caller's prescriptions as a patient. */
+    public function index(Request $request)
+    {
+        $rows = Prescription::query()
+            ->where('patient_id', (int) $request->user()->id)
+            ->with(['items', 'doctor:id,name', 'pharmacy:id,name'])
+            ->latest('id')
+            ->paginate((int) $request->get('per_page', 20));
+
+        $rows->getCollection()->transform(fn (Prescription $p) => $this->serialize($p));
+
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    /** GET /api/v2/prescriptions/{prescription} — any of the three parties. */
+    public function show(Request $request, int $prescription)
+    {
+        $row = $this->partyOrFail($request, $prescription);
+
+        return response()->json(['success' => true, 'data' => ['prescription' => $this->serialize($row)]]);
+    }
+
+    /** POST /api/v2/prescriptions/{prescription}/send — patient → pharmacy. */
+    public function send(Request $request, int $prescription)
+    {
+        $row = Prescription::query()->findOrFail($prescription);
+
+        // Only the patient may send their own prescription.
+        abort_if((int) $row->patient_id !== (int) $request->user()->id, 404);
+
+        $data = $request->validate([
+            'pharmacy_id' => ['required', 'integer', 'exists:users,id'],
+            'fulfillment_type' => ['required', Rule::in(Prescription::FULFILLMENTS)],
+            'delivery_address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $pharmacy = User::query()->findOrFail((int) $data['pharmacy_id']);
+        abort_unless($pharmacy->isBusiness(), 422, __('يجب اختيار صيدلية صحيحة.'));
+
+        $row = $this->service->sendToPharmacy(
+            $row,
+            $pharmacy,
+            $data['fulfillment_type'],
+            $data['delivery_address'] ?? null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إرسال الوصفة إلى الصيدلية.'),
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'pharmacy:id,name']))],
+        ]);
+    }
+
+    /** POST /api/v2/prescriptions/{prescription}/cancel — doctor or patient. */
+    public function cancel(Request $request, int $prescription)
+    {
+        $row = Prescription::query()->findOrFail($prescription);
+
+        $uid = (int) $request->user()->id;
+        abort_if($uid !== (int) $row->doctor_id && $uid !== (int) $row->patient_id, 404);
+
+        $row = $this->service->cancel($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إلغاء الوصفة.'),
+            'data' => ['prescription' => $this->serialize($row)],
+        ]);
+    }
+
+    private function businessOrFail(Request $request): User
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->isBusiness()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => __('إصدار الوصفات متاح لحسابات العيادات فقط.'),
+            ], 403));
+        }
+
+        return $user;
+    }
+
+    private function partyOrFail(Request $request, int $id): Prescription
+    {
+        $row = Prescription::query()
+            ->with(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name'])
+            ->findOrFail($id);
+
+        abort_unless($row->isParty((int) $request->user()->id), 404);
+
+        return $row;
+    }
+
+    private function serialize(Prescription $p): array
+    {
+        return [
+            'id' => (int) $p->id,
+            'status' => (string) $p->status,
+            'fulfillment_type' => $p->fulfillment_type,
+            'diagnosis' => $p->diagnosis,
+            'notes' => $p->notes,
+            'delivery_address' => $p->delivery_address,
+            'doctor' => $this->party($p->doctor, $p->doctor_id),
+            'patient' => $this->party($p->patient, $p->patient_id),
+            'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
+            'items' => $p->relationLoaded('items')
+                ? $p->items->map(fn ($i) => [
+                    'name' => $i->name,
+                    'dosage' => $i->dosage,
+                    'quantity' => $i->quantity,
+                    'instructions' => $i->instructions,
+                ])->all()
+                : [],
+            'issued_at' => optional($p->issued_at)->toIso8601String(),
+            'dispensed_at' => optional($p->dispensed_at)->toIso8601String(),
+        ];
+    }
+
+    private function party(?User $user, $id): array
+    {
+        return $user ? ['id' => (int) $user->id, 'name' => $user->name] : ['id' => (int) $id];
+    }
+}

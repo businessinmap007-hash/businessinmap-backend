@@ -53,6 +53,11 @@ tags:
   - name: Orders (Customer)
   - name: Orders (Business)
   - name: Business Hours
+  - name: Prescriptions
+    description: >-
+      Medical prescriptions (روشتة): a doctor (clinic business) issues one for a
+      patient, who sends it to a pharmacy (business) to dispense — delivery or
+      pickup. Readable only by the three parties.
   - name: Projects
     description: >-
       A business's internal project-management timeline for manufacturing and
@@ -2820,6 +2825,116 @@ paths:
       summary: Stop following a project
       parameters: [{ in: path, name: project, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK } }
+  /prescriptions:
+    get:
+      tags: [Prescriptions]
+      summary: My prescriptions as a patient
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Prescriptions]
+      summary: Issue a prescription (doctor → patient)
+      description: The caller must be a clinic (business) account; otherwise 403.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id, items]
+              properties:
+                patient_id: { type: integer }
+                diagnosis: { type: string }
+                notes: { type: string }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      name: { type: string }
+                      dosage: { type: string }
+                      quantity: { type: string }
+                      instructions: { type: string }
+      responses:
+        '201': { description: Created }
+        '403': { description: 'Not a clinic account' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /prescriptions/issued:
+    get:
+      tags: [Prescriptions]
+      summary: The prescriptions a doctor has issued
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK }, '403': { description: 'Not a clinic account' } }
+  /prescriptions/{prescription}:
+    get:
+      tags: [Prescriptions]
+      summary: Read a prescription (doctor, patient, or pharmacy only)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not found, or you are not a party' } }
+  /prescriptions/{prescription}/send:
+    post:
+      tags: [Prescriptions]
+      summary: Patient sends the prescription to a pharmacy
+      description: delivery requires a delivery_address; pickup does not.
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pharmacy_id, fulfillment_type]
+              properties:
+                pharmacy_id: { type: integer }
+                fulfillment_type: { type: string, enum: [delivery, pickup] }
+                delivery_address: { type: string }
+      responses:
+        '200': { description: Sent }
+        '404': { description: 'Not found, or you are not the patient' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /prescriptions/{prescription}/cancel:
+    post:
+      tags: [Prescriptions]
+      summary: Cancel a prescription (doctor or patient, before dispensing)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: Cancelled }
+        '404': { description: 'Not found, or you are not a party' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /pharmacy/prescriptions:
+    get:
+      tags: [Prescriptions]
+      summary: The pharmacy's incoming prescriptions
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [sent_to_pharmacy, preparing, ready, dispensed] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+  /pharmacy/prescriptions/{prescription}/prepare:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy begins preparing
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /pharmacy/prescriptions/{prescription}/ready:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy marks it ready (notifies the patient)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /pharmacy/prescriptions/{prescription}/dispense:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy dispenses (delivered or handed over)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /pharmacy/prescriptions/{prescription}/reject:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy rejects (returns it to the patient to send elsewhere)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /operations/{type}/{id}/project:
     get:
       tags: [Projects]

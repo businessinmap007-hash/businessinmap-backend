@@ -2269,5 +2269,18 @@
     "تم تحديث متابعة المشروع.": "Project follow updated.",
     "تمت إزالة المتابع.": "Follower removed.",
     "تم إرسال طلب متابعة المشروع.": "Follow request sent.",
-    "تم إلغاء متابعة المشروع.": "You stopped following the project."
+    "تم إلغاء متابعة المشروع.": "You stopped following the project.",
+    "لا يمكن إرسال هذه الوصفة في حالتها الحالية.": "This prescription cannot be sent in its current state.",
+    "أدخل عنوان التوصيل.": "Enter a delivery address.",
+    "لا يمكن تنفيذ هذا الإجراء على الوصفة الآن.": "This action is not allowed on the prescription right now.",
+    "لا يمكن إلغاء وصفة تم صرفها.": "A dispensed prescription cannot be cancelled.",
+    "تم إصدار الوصفة الطبية.": "Prescription issued.",
+    "يجب اختيار صيدلية صحيحة.": "Choose a valid pharmacy.",
+    "تم إرسال الوصفة إلى الصيدلية.": "Prescription sent to the pharmacy.",
+    "تم إلغاء الوصفة.": "Prescription cancelled.",
+    "إصدار الوصفات متاح لحسابات العيادات فقط.": "Issuing prescriptions is available to clinic accounts only.",
+    "جارٍ تجهيز الوصفة.": "Preparing the prescription.",
+    "الوصفة جاهزة.": "The prescription is ready.",
+    "تم صرف الوصفة.": "Prescription dispensed.",
+    "تم رفض الوصفة وإعادتها للمريض.": "Prescription rejected and returned to the patient."
 }

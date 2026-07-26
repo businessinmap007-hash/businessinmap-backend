@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
 use App\Http\Controllers\Api\V2\BusinessHoursController;
+use App\Http\Controllers\Api\V2\BusinessProjectController;
+use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
@@ -598,6 +600,24 @@ Route::prefix('v2')->group(function () {
 
             Route::match(['put', 'patch'], '{schedule}', [TripScheduleController::class, 'update'])->whereNumber('schedule');
             Route::delete('{schedule}', [TripScheduleController::class, 'destroy'])->whereNumber('schedule');
+        });
+
+        // Project management timeline (manufacturing / construction): a business
+        // plans projects as dated, dependent tasks and tracks build progress with
+        // camera-captured evidence. Internal to the business — see ProjectService.
+        Route::prefix('business/projects')->middleware('business')->group(function () {
+            Route::get('/', [BusinessProjectController::class, 'index']);
+            Route::post('/', [BusinessProjectController::class, 'store']);
+            Route::get('{project}', [BusinessProjectController::class, 'show'])->whereNumber('project');
+            Route::match(['put', 'patch'], '{project}', [BusinessProjectController::class, 'update'])->whereNumber('project');
+            Route::delete('{project}', [BusinessProjectController::class, 'destroy'])->whereNumber('project');
+
+            // Tasks (timeline bars) + their dependencies, progress, and evidence.
+            Route::post('{project}/tasks', [BusinessProjectTaskController::class, 'store'])->whereNumber('project');
+            Route::match(['put', 'patch'], '{project}/tasks/{task}', [BusinessProjectTaskController::class, 'update'])->whereNumber('project')->whereNumber('task');
+            Route::patch('{project}/tasks/{task}/progress', [BusinessProjectTaskController::class, 'progress'])->whereNumber('project')->whereNumber('task');
+            Route::post('{project}/tasks/{task}/photo', [BusinessProjectTaskController::class, 'photo'])->whereNumber('project')->whereNumber('task');
+            Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');
         });
 
         Route::prefix('business/offers')->middleware('business')->group(function () {

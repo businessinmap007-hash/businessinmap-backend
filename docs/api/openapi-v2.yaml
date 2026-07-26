@@ -53,6 +53,11 @@ tags:
   - name: Orders (Customer)
   - name: Orders (Business)
   - name: Business Hours
+  - name: Projects
+    description: >-
+      A business's internal project-management timeline for manufacturing and
+      construction — dated, dependent tasks with a computed critical path, and
+      camera-captured progress evidence per stage.
   - name: Business Menu
   - name: Business Offers
   - name: Business Prices
@@ -1372,6 +1377,173 @@ paths:
                       close: { type: string, example: '22:00' }
       responses:
         '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/projects:
+    get:
+      tags: [Projects]
+      summary: My projects (project-management timeline), newest first
+      description: >-
+        A business's internal project timeline for manufacturing/construction —
+        a furniture factory tracking a shipment through build stages, a
+        contractor finishing residential units.
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [planning, active, on_hold, completed, cancelled] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 200 }
+                description: { type: string }
+                reference: { type: string, description: 'Shipment/unit/contract reference the business recognises' }
+                status: { type: string, enum: [planning, active, on_hold, completed, cancelled] }
+                starts_on: { type: string, format: date }
+                due_on: { type: string, format: date }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/projects/{project}:
+    get:
+      tags: [Projects]
+      summary: Project detail + computed timeline
+      description: >-
+        Returns the project plus the timeline — each task's earliest
+        start/finish (day offsets and, when a start date is set, real dates),
+        slack, whether it is on the critical path, and whether it is overdue.
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    put:
+      tags: [Projects]
+      summary: Update a project
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                reference: { type: string }
+                status: { type: string, enum: [planning, active, on_hold, completed, cancelled] }
+                starts_on: { type: string, format: date }
+                due_on: { type: string, format: date }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    patch:
+      tags: [Projects]
+      summary: Update a project (alias of PUT)
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Projects]
+      summary: Delete a project and its tasks
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/projects/{project}/tasks:
+    post:
+      tags: [Projects]
+      summary: Add a task (timeline bar) to a project
+      description: >-
+        depends_on lists the finish-to-start predecessors (must be tasks in the
+        same project; a cycle is refused). requires_photo (default true) gates
+        the stage's completion on camera evidence.
+      parameters: [{ name: project, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, maxLength: 200 }
+                notes: { type: string }
+                parent_id: { type: integer, nullable: true }
+                status: { type: string, enum: [pending, in_progress, blocked, done] }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+                progress: { type: integer, minimum: 0, maximum: 100 }
+                requires_photo: { type: boolean, default: true }
+                sort_order: { type: integer }
+                depends_on: { type: array, items: { type: integer } }
+      responses:
+        '201': { description: Created }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/projects/{project}/tasks/{task}:
+    put:
+      tags: [Projects]
+      summary: Update a task
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+    patch:
+      tags: [Projects]
+      summary: Update a task (alias of PUT)
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Projects]
+      summary: Delete a task
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/projects/{project}/tasks/{task}/progress:
+    patch:
+      tags: [Projects]
+      summary: Advance a task's progress/status
+      description: >-
+        A stage with requires_photo=true cannot be set to done (or 100%) until
+        it carries at least one camera-captured photo — a 422 otherwise.
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                progress: { type: integer, minimum: 0, maximum: 100 }
+                status: { type: string, enum: [pending, in_progress, blocked, done] }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/projects/{project}/tasks/{task}/photo:
+    post:
+      tags: [Projects]
+      summary: Attach a camera-captured progress photo (evidence)
+      description: >-
+        Evidence must be captured live by the camera — source must be `camera`
+        or the request is refused (422). The mobile app only offers the live
+        camera for this surface; the recorded source flag distinguishes it from
+        an uploaded/gallery image.
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo, source]
+              properties:
+                photo: { type: string, format: binary }
+                source: { type: string, enum: [camera, upload] }
+      responses:
+        '201': { description: Created }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
   /business/orders:
     get:

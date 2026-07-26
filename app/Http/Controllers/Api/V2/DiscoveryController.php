@@ -29,14 +29,18 @@ final class DiscoveryController extends Controller
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
             'service_id' => ['nullable', 'integer', 'min:1'],
+            'open_now' => ['nullable', 'boolean'],
         ]);
 
         $childId = (int) $data['child_id'];
+        $openNow = $request->boolean('open_now');
+        $hours = app(\App\Services\BusinessHoursService::class);
 
         $services = DB::table('business_service_prices as p')
             ->join('platform_services as s', 's.id', '=', 'p.service_id')
             ->where('p.child_id', $childId)
             ->where('p.is_active', 1)
+            ->when($openNow, fn ($q) => $hours->applyOpenNow($q, 'p.business_id'))
             ->groupBy('s.id', 's.key', 's.name_ar', 's.name_en')
             ->selectRaw('s.id, s.key, s.name_ar, s.name_en, COUNT(DISTINCT p.business_id) AS businesses')
             ->orderByDesc('businesses')
@@ -57,6 +61,7 @@ final class DiscoveryController extends Controller
             ->where('child_id', $childId)
             ->where('service_id', $serviceId)
             ->where('is_active', 1)
+            ->when($openNow, fn ($q) => $hours->applyOpenNow($q, 'business_service_prices.business_id'))
             ->groupBy('bookable_item_type')
             ->selectRaw('bookable_item_type AS type_key, COUNT(DISTINCT business_id) AS businesses')
             ->get()
@@ -128,6 +133,7 @@ final class DiscoveryController extends Controller
     {
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
+            'open_now' => ['nullable', 'boolean'],
         ]);
 
         $childId = (int) $data['child_id'];
@@ -140,6 +146,10 @@ final class DiscoveryController extends Controller
             ->where('u.type', 'business')
             ->where('u.category_child_id', $childId)
             ->whereIn('ou.option_id', $options->pluck('id'))
+            ->when(
+                $request->boolean('open_now'),
+                fn ($q) => app(\App\Services\BusinessHoursService::class)->applyOpenNow($q, 'u.id')
+            )
             ->groupBy('ou.option_id')
             ->selectRaw('ou.option_id, COUNT(DISTINCT ou.user_id) AS businesses')
             ->pluck('businesses', 'option_id');

@@ -108,6 +108,21 @@ class BusinessHoursTest extends TestCase
         $this->getJson('/api/v2/search/offers?open_now=1')->assertOk();
     }
 
+    public function test_open_now_is_accepted_across_all_discovery_screens(): void
+    {
+        $shop = $this->makeBusiness();
+
+        $this->getJson('/api/v2/offers?open_now=1')->assertOk();
+        $this->getJson('/api/v2/discovery/retail/filters?open_now=1')->assertOk();
+        $this->getJson('/api/v2/discovery/filters?child_id=1&open_now=1')->assertOk();
+        $this->getJson('/api/v2/discovery/attributes?child_id=1&open_now=1')->assertOk();
+
+        // The single-shop menu view carries is_open_now (no hours ⇒ available).
+        $this->getJson('/api/v2/discovery/menu/' . $shop->id)
+            ->assertOk()
+            ->assertJsonPath('data.business.is_open_now', true);
+    }
+
     public function test_a_business_sets_and_reads_its_own_hours(): void
     {
         $shop = $this->makeBusiness();

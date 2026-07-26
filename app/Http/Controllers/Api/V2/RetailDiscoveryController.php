@@ -22,12 +22,18 @@ final class RetailDiscoveryController extends Controller
     /** Product categories and brands that actually have active listings. */
     public function filters(Request $request)
     {
+        // Narrow every facet count to shops open right now, when asked.
+        $openNow = $request->boolean('open_now');
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $openScope = fn ($q) => $openNow ? $hours->applyOpenNow($q, 'l.business_id') : $q;
+
         // Branch-level (product_categories == retail branches) rollup.
         $branches = DB::table('business_catalog_listings as l')
             ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
             ->join('product_categories as pc', 'pc.id', '=', 'p.product_category_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($openScope)
             ->groupBy('pc.id', 'pc.name_ar', 'pc.name_en')
             ->selectRaw('pc.id, pc.name_ar, pc.name_en, COUNT(DISTINCT p.id) AS products')
             ->orderByDesc('products')
@@ -43,6 +49,7 @@ final class RetailDiscoveryController extends Controller
             ->join('product_category_children as c', 'c.id', '=', 'p.product_category_child_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($openScope)
             ->groupBy('c.id', 'c.name_ar', 'c.name_en')
             ->selectRaw('c.id, c.name_ar, c.name_en, COUNT(DISTINCT p.id) AS products')
             ->orderByDesc('products')
@@ -58,6 +65,7 @@ final class RetailDiscoveryController extends Controller
             ->join('catalog_brands as b', 'b.id', '=', 'p.brand_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($openScope)
             ->groupBy('b.id', 'b.name_ar', 'b.name_en')
             ->selectRaw('b.id, b.name_ar, b.name_en, COUNT(DISTINCT p.id) AS products')
             ->orderByDesc('products')

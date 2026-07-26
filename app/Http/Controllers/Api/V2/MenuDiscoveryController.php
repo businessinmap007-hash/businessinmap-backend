@@ -82,6 +82,8 @@ final class MenuDiscoveryController extends Controller
                     'id' => (int) $biz->id,
                     'name' => (string) $biz->name,
                     'logo' => $biz->logo,
+                    // So the order screen can show "closed now" and gate ordering.
+                    'is_open_now' => app(\App\Services\BusinessHoursService::class)->isOpenNow((int) $biz->id),
                 ],
                 'sections' => $out,
             ],

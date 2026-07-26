@@ -24,6 +24,7 @@ final class OfferDiscoveryController extends Controller
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'sort' => ['nullable', Rule::in(['latest', 'lowest_price', 'highest_price', 'ranking', 'boosted'])],
+            'open_now' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -34,6 +35,15 @@ final class OfferDiscoveryController extends Controller
 
         $this->applyAudience($query, $request, $data);
         $this->applyFilters($query, $data);
+
+        // Skip offers whose selling shop is closed right now, when asked.
+        if ($request->boolean('open_now')) {
+            app(\App\Services\BusinessHoursService::class)->applyOpenNow(
+                $query,
+                'COALESCE(commercial_offers.seller_business_id, commercial_offers.owner_business_id)'
+            );
+        }
+
         $this->applySort($query, (string) ($data['sort'] ?? 'boosted'));
 
         $offers = $query->paginate((int) ($data['per_page'] ?? 20))->withQueryString();

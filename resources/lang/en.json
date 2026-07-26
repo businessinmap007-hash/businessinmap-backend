@@ -2263,5 +2263,7 @@
     "المهمة التابعة يجب أن تكون في نفس المشروع.": "A dependency must be a task in the same project.",
     "هذا الربط يُنشئ حلقة مغلقة في التبعيات.": "This link would create a dependency cycle.",
     "يجب إرفاق صورة ملتقطة بالكاميرا قبل إنهاء هذه المرحلة.": "Attach a camera-captured photo before completing this stage.",
-    "صور الإثبات يجب أن تكون ملتقطة بالكاميرا مباشرة.": "Evidence photos must be captured live with the camera."
+    "صور الإثبات يجب أن تكون ملتقطة بالكاميرا مباشرة.": "Evidence photos must be captured live with the camera.",
+    "يمكنك ربط المشروع بعملية تخصّ نشاطك فقط.": "You can only link a project to an operation that belongs to your business.",
+    "لا توجد خطة تقدّم لهذه العملية بعد.": "There is no progress plan for this operation yet."
 }

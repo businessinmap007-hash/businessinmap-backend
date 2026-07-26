@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -275,6 +276,12 @@ Route::prefix('v2')->group(function () {
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
         // A party deletes an expired, undisputed chat (or lets the sweep do it).
         Route::delete('operation-chats/{type}/{id}', [OperationChatController::class, 'destroy'])
+            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+
+        // The contracted customer follows the build/manufacturing progress the
+        // business linked to this operation — read-only project timeline + the
+        // camera evidence per stage. Only a party to the operation may read it.
+        Route::get('operations/{type}/{id}/project', [CustomerProjectController::class, 'show'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
 
         // General person-to-person chat (direct messages). A conversation about

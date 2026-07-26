@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Services\OperationChatService;
 use App\Services\Projects\ProjectService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * A business's project management timeline. The `business` middleware guarantees
@@ -15,8 +17,10 @@ use Illuminate\Validation\Rule;
  */
 class BusinessProjectController extends Controller
 {
-    public function __construct(private readonly ProjectService $projects)
-    {
+    public function __construct(
+        private readonly ProjectService $projects,
+        private readonly OperationChatService $operations,
+    ) {
     }
 
     /** GET /api/v2/business/projects — my projects, newest first. */
@@ -43,12 +47,27 @@ class BusinessProjectController extends Controller
             'status' => ['nullable', Rule::in(Project::STATUSES)],
             'starts_on' => ['nullable', 'date'],
             'due_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
+            'operation_type' => ['nullable', Rule::in(array_keys(OperationChatService::TYPES)), 'required_with:operation_id'],
+            'operation_id' => ['nullable', 'integer', 'required_with:operation_type'],
         ]);
 
-        $data['business_id'] = (int) $request->user()->id;
-        $data['status'] = $data['status'] ?? Project::STATUS_PLANNING;
+        $project = new Project([
+            'business_id' => (int) $request->user()->id,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'reference' => $data['reference'] ?? null,
+            'status' => $data['status'] ?? Project::STATUS_PLANNING,
+            'starts_on' => $data['starts_on'] ?? null,
+            'due_on' => $data['due_on'] ?? null,
+        ]);
+        $project->save();
 
-        $project = Project::create($data);
+        if (! empty($data['operation_type'])) {
+            $this->projects->linkOperation(
+                $project,
+                $this->ownedOperationOrFail($request, $data['operation_type'], (int) $data['operation_id']),
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -82,9 +101,21 @@ class BusinessProjectController extends Controller
             'status' => ['nullable', Rule::in(Project::STATUSES)],
             'starts_on' => ['nullable', 'date'],
             'due_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
+            'operation_type' => ['nullable', Rule::in(array_keys(OperationChatService::TYPES)), 'required_with:operation_id'],
+            'operation_id' => ['nullable', 'integer', 'required_with:operation_type'],
         ]);
 
-        $row->update($data);
+        // Linking is handled separately so we never mass-assign the morph pair.
+        if ($request->has('operation_type')) {
+            $operation = empty($data['operation_type'])
+                ? null
+                : $this->ownedOperationOrFail($request, $data['operation_type'], (int) $data['operation_id']);
+            $this->projects->linkOperation($row, $operation);
+        }
+
+        $row->update(array_intersect_key($data, array_flip([
+            'title', 'description', 'reference', 'status', 'starts_on', 'due_on',
+        ])));
 
         return response()->json([
             'success' => true,
@@ -119,6 +150,29 @@ class BusinessProjectController extends Controller
             ->firstOrFail();
     }
 
+    /**
+     * Resolve an operation the caller may link — it must be the business's own
+     * order/booking, so a project can't be pinned to someone else's operation.
+     */
+    private function ownedOperationOrFail(Request $request, string $type, int $id)
+    {
+        $operation = $this->operations->resolve($type, $id); // 404 if the type/id is unknown
+
+        if ((int) $operation->business_id !== (int) $request->user()->id) {
+            throw ValidationException::withMessages([
+                'operation_id' => __('يمكنك ربط المشروع بعملية تخصّ نشاطك فقط.'),
+            ]);
+        }
+
+        return $operation;
+    }
+
+    /** Map a stored morph class back to the API token (order|booking), or null. */
+    private function operationToken(?string $morphClass): ?string
+    {
+        return array_flip(OperationChatService::TYPES)[$morphClass] ?? null;
+    }
+
     private function serialize(Project $p): array
     {
         return [
@@ -131,6 +185,10 @@ class BusinessProjectController extends Controller
             'starts_on' => optional($p->starts_on)->toDateString(),
             'due_on' => optional($p->due_on)->toDateString(),
             'is_overdue' => $p->isOverdue(),
+            'operation' => $p->operation_type && $p->operation_id ? [
+                'type' => $this->operationToken($p->operation_type),
+                'id' => (int) $p->operation_id,
+            ] : null,
             'tasks_count' => $p->tasks_count !== null ? (int) $p->tasks_count : null,
             'created_at' => optional($p->created_at)->toIso8601String(),
         ];

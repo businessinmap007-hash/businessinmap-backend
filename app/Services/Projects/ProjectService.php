@@ -6,6 +6,7 @@ use App\Models\Image;
 use App\Models\Project;
 use App\Models\ProjectTask;
 use App\Services\Media\ImageUploadService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -127,6 +128,56 @@ class ProjectService
             'image' => $path,
             'source' => Image::SOURCE_CAMERA,
         ]);
+    }
+
+    /**
+     * Link (or unlink) a project to the operation it fulfils, so the contracted
+     * customer can follow its progress. Passing null clears the link.
+     */
+    public function linkOperation(Project $project, ?Model $operation): void
+    {
+        $project->operation_type = $operation?->getMorphClass();
+        $project->operation_id = $operation?->getKey();
+        $project->save();
+    }
+
+    /**
+     * The read-only progress view for the customer following an operation: the
+     * project header, the computed timeline, and each stage's camera evidence.
+     * Internal notes are deliberately omitted — the customer sees progress, not
+     * the business's private planning.
+     */
+    public function customerView(Project $project): array
+    {
+        $tasks = $project->tasks()->with('photos')->get()->map(fn (ProjectTask $t) => [
+            'id' => (int) $t->id,
+            'title' => (string) $t->title,
+            'status' => (string) $t->status,
+            'progress' => (int) $t->progress,
+            'starts_on' => optional($t->starts_on)->toDateString(),
+            'ends_on' => optional($t->ends_on)->toDateString(),
+            'photos' => $t->photos->map(fn (Image $i) => [
+                'url' => asset($i->image),
+                'source' => (string) $i->source,
+                'is_camera' => $i->isCamera(),
+                'captured_at' => optional($i->created_at)->toIso8601String(),
+            ])->all(),
+        ])->all();
+
+        return [
+            'project' => [
+                'id' => (int) $project->id,
+                'title' => (string) $project->title,
+                'reference' => $project->reference,
+                'status' => (string) $project->status,
+                'progress' => (int) $project->progress,
+                'starts_on' => optional($project->starts_on)->toDateString(),
+                'due_on' => optional($project->due_on)->toDateString(),
+                'is_overdue' => $project->isOverdue(),
+            ],
+            'timeline' => $this->timeline($project),
+            'tasks' => $tasks,
+        ];
     }
 
     /* ------------------------------------------------------------ timeline */

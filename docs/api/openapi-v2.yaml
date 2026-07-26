@@ -1407,6 +1407,8 @@ paths:
                 status: { type: string, enum: [planning, active, on_hold, completed, cancelled] }
                 starts_on: { type: string, format: date }
                 due_on: { type: string, format: date }
+                operation_type: { type: string, enum: [order, booking], description: 'Link the project to an operation you own so the customer can follow progress (send with operation_id)' }
+                operation_id: { type: integer }
       responses:
         '201': { description: Created }
         '422': { $ref: '#/components/responses/Validation' }
@@ -1436,6 +1438,8 @@ paths:
                 status: { type: string, enum: [planning, active, on_hold, completed, cancelled] }
                 starts_on: { type: string, format: date }
                 due_on: { type: string, format: date }
+                operation_type: { type: string, enum: [order, booking], nullable: true, description: 'Send an empty value to unlink' }
+                operation_id: { type: integer, nullable: true }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
     patch:
       tags: [Projects]
@@ -2749,6 +2753,21 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
 
   # ──────────────────── Operation chats ────────────────────
+  /operations/{type}/{id}/project:
+    get:
+      tags: [Projects]
+      summary: Follow the build/manufacturing progress linked to my operation
+      description: >-
+        The contracted customer's read-only view of the project the business
+        linked to this order/booking — the timeline, which stage it reached, and
+        the camera evidence per stage. Only a party to the operation may read it
+        (a stranger gets 404); `data.project` is null when nothing is linked yet.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
   /operation-chats/{type}/{id}:
     get:
       tags: [Operation Chats]

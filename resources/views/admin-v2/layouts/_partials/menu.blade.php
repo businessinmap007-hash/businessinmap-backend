@@ -83,7 +83,7 @@
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.'], 'children' => [
+        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.', 'admin.projects.'], 'children' => [
             ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
                 ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
                 ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
@@ -95,6 +95,9 @@
             ['label' => 'المنيو', 'type' => 'section', 'children' => [
                 ['label' => 'عناصر المنيو', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
                 ['label' => 'إنشاء عنصر منيو', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+            ]],
+            ['label' => 'المشاريع', 'type' => 'section', 'children' => [
+                ['label' => 'مشاريع الأعمال (إشراف)', 'route' => 'admin.projects.index', 'active' => 'admin.projects.'],
             ]],
             ['label' => 'المحادثات', 'type' => 'section', 'children' => [
                 ['label' => 'المحادثات (إشراف)', 'route' => 'admin.chats.index', 'active' => 'admin.chats.'],

@@ -41,6 +41,7 @@ use App\Http\Controllers\AdminV2\{
     ChatAttachmentController,
     HeldDeletionController,
     OperationChatController,
+    ProjectAdminController,
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
@@ -372,6 +373,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::prefix('operation-chats')->name('operation-chats.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
                 Route::get('/', [OperationChatController::class, 'index'])->name('index');
                 Route::delete('{thread}', [OperationChatController::class, 'destroy'])->whereNumber('thread')->name('destroy');
+            });
+
+            // Read-only oversight of every business's project timeline (build /
+            // manufacturing progress). Gated OPERATIONS; no edits, view only.
+            Route::prefix('projects')->name('projects.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+                Route::get('/', [ProjectAdminController::class, 'index'])->name('index');
+                Route::get('{project}', [ProjectAdminController::class, 'show'])->whereNumber('project')->name('show');
             });
 
             // Every conversation on the platform, merged for moderation. Text is

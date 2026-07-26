@@ -176,6 +176,51 @@ class DirectChatService
         $this->threads->system($thread, 'غادر ' . ($actor->name ?: 'عضو') . ' المجموعة.');
     }
 
+    /** Rename a group — owner only. */
+    public function renameGroup(Thread $thread, User $actor, string $title): Thread
+    {
+        $this->assertGroupOwner($thread, (int) $actor->id);
+
+        $title = trim($title);
+
+        if ($title === '') {
+            throw ValidationException::withMessages(['title' => __('اسم المجموعة مطلوب.')]);
+        }
+
+        $thread->update(['title' => mb_substr($title, 0, 120)]);
+        $this->threads->system($thread, 'غيّر ' . ($actor->name ?: 'العضو') . ' اسم المجموعة إلى «' . $thread->title . '».');
+
+        return $thread->fresh('participants');
+    }
+
+    /** Remove a member from a group — owner only; the owner cannot be removed. */
+    public function removeMember(Thread $thread, User $actor, int $userId): void
+    {
+        $this->assertGroupOwner($thread, (int) $actor->id);
+
+        if ($userId === (int) $thread->created_by) {
+            throw ValidationException::withMessages(['user_id' => __('لا يمكن إزالة منشئ المجموعة.')]);
+        }
+
+        $seat = $thread->participants()->where('user_id', $userId)->first();
+
+        if (! $seat) {
+            abort(404);
+        }
+
+        $name = User::query()->whereKey($userId)->value('name');
+        $seat->delete();
+        $this->threads->system($thread, 'أُزيل ' . ($name ?: 'عضو') . ' من المجموعة.');
+    }
+
+    /** Delete a whole group and its conversation — owner only. */
+    public function deleteGroup(Thread $thread, User $actor): void
+    {
+        $this->assertGroupOwner($thread, (int) $actor->id);
+
+        $this->threads->purge($thread);
+    }
+
     private function assertGroupOwner(Thread $thread, int $userId): void
     {
         abort_if(! $thread->isGroup(), 404);

@@ -84,6 +84,44 @@ class ChatController extends Controller
         ], 201);
     }
 
+    /** PATCH /api/v2/chats/{thread} — rename a group (owner only). */
+    public function rename(Request $request, Thread $thread)
+    {
+        $this->assertDirect($thread);
+
+        $data = $request->validate(['title' => ['required', 'string', 'max:120']]);
+
+        $thread = $this->chats->renameGroup($thread, $request->user(), (string) $data['title']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->threadMeta($thread, (int) $request->user()->id),
+        ]);
+    }
+
+    /** DELETE /api/v2/chats/{thread}/members/{user} — remove a member (owner). */
+    public function removeMember(Request $request, Thread $thread, int $user)
+    {
+        $this->assertDirect($thread);
+
+        $this->chats->removeMember($thread, $request->user(), $user);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->threadMeta($thread->fresh('participants'), (int) $request->user()->id),
+        ]);
+    }
+
+    /** DELETE /api/v2/chats/{thread} — delete a whole group (owner only). */
+    public function destroy(Request $request, Thread $thread)
+    {
+        $this->assertDirect($thread);
+
+        $this->chats->deleteGroup($thread, $request->user());
+
+        return response()->json(['success' => true]);
+    }
+
     /** POST /api/v2/chats/{thread}/leave — leave a group (empty group is deleted). */
     public function leave(Request $request, Thread $thread)
     {
@@ -127,7 +165,7 @@ class ChatController extends Controller
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:5000'],
             'attachments' => ['nullable', 'array', 'max:' . ThreadService::MAX_ATTACHMENTS],
-            'attachments.*' => ImageUploadService::validationRules(),
+            'attachments.*' => \App\Services\Media\ThreadAttachmentStorage::validationRules(),
         ]);
 
         $files = array_values(array_filter(

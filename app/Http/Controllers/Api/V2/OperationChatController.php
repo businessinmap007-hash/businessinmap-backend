@@ -97,7 +97,7 @@ class OperationChatController extends Controller
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:5000'],
             'attachments' => ['nullable', 'array', 'max:' . ThreadService::MAX_ATTACHMENTS],
-            'attachments.*' => ImageUploadService::validationRules(),
+            'attachments.*' => \App\Services\Media\ThreadAttachmentStorage::validationRules(),
         ]);
 
         $files = array_values(array_filter(

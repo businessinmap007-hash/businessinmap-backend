@@ -285,7 +285,11 @@ Route::prefix('v2')->group(function () {
         Route::get('chats/{thread}', [ChatController::class, 'show'])->whereNumber('thread');
         Route::post('chats/{thread}/messages', [ChatController::class, 'postMessage'])->whereNumber('thread');
         Route::post('chats/{thread}/members', [ChatController::class, 'addMember'])->whereNumber('thread');
+        Route::delete('chats/{thread}/members/{user}', [ChatController::class, 'removeMember'])->whereNumber('thread')->whereNumber('user');
         Route::post('chats/{thread}/leave', [ChatController::class, 'leave'])->whereNumber('thread');
+        // Group owner: rename / delete the whole group.
+        Route::patch('chats/{thread}', [ChatController::class, 'rename'])->whereNumber('thread');
+        Route::delete('chats/{thread}', [ChatController::class, 'destroy'])->whereNumber('thread');
 
         // Private conversation evidence files — served only to a party of the
         // thread (the files live outside the web root).

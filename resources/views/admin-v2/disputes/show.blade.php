@@ -359,10 +359,17 @@
                         @if($message->attachments->isNotEmpty())
                             <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
                                 @foreach($message->attachments as $att)
-                                    <a href="{{ $att->adminUrl() }}" target="_blank" rel="noopener" title="{{ $att->original_name }}">
-                                        <img src="{{ $att->adminUrl() }}" alt="{{ $att->original_name }}"
-                                             style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid var(--a2-border,#e5e7eb);">
-                                    </a>
+                                    @if(\Illuminate\Support\Str::startsWith((string) $att->mime, 'image/'))
+                                        <a href="{{ $att->adminUrl() }}" target="_blank" rel="noopener" title="{{ $att->original_name }}">
+                                            <img src="{{ $att->adminUrl() }}" alt="{{ $att->original_name }}"
+                                                 style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid var(--a2-border,#e5e7eb);">
+                                        </a>
+                                    @else
+                                        <a href="{{ $att->adminUrl() }}" target="_blank" rel="noopener"
+                                           style="display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--a2-border,#e5e7eb);border-radius:6px;background:#fff;">
+                                            📄 <span>{{ $att->original_name ?: __('مستند') }}</span>
+                                        </a>
+                                    @endif
                                 @endforeach
                             </div>
                         @endif

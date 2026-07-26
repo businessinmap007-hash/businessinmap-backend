@@ -38,6 +38,7 @@ class BusinessHoursController extends Controller
             'success' => true,
             'data' => [
                 'is_open_now' => $this->hours->isOpenNow($businessId),
+                'timezone' => $this->hours->timezoneFor($businessId),
                 'days' => $week,
             ],
         ]);
@@ -67,7 +68,14 @@ class BusinessHoursController extends Controller
             'bulk.is_closed' => ['nullable', 'boolean'],
             'bulk.open' => ['nullable', 'date_format:H:i'],
             'bulk.close' => ['nullable', 'date_format:H:i'],
+
+            'timezone' => ['nullable', 'timezone'],
         ]);
+
+        // The shop's own timezone, so its hours are judged where it is.
+        if ($request->has('timezone')) {
+            $request->user()->forceFill(['timezone' => $data['timezone'] ?? null])->save();
+        }
 
         $entries = [];
 
@@ -92,14 +100,16 @@ class BusinessHoursController extends Controller
             $entries[] = $entry;
         }
 
-        if ($entries === []) {
+        if ($entries === [] && ! $request->has('timezone')) {
             return response()->json([
                 'success' => false,
                 'message' => __('حدّد المواعيد عبر days أو bulk.'),
             ], 422);
         }
 
-        $this->hours->save((int) $request->user()->id, $entries);
+        if ($entries !== []) {
+            $this->hours->save((int) $request->user()->id, $entries);
+        }
 
         return $this->show($request);
     }

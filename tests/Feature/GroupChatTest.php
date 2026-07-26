@@ -126,4 +126,52 @@ class GroupChatTest extends TestCase
 
         $this->postJson("/api/v2/chats/{$dmId}/leave")->assertStatus(422);
     }
+
+    public function test_owner_can_rename_the_group_others_cannot(): void
+    {
+        $id = $this->createGroup();
+
+        Sanctum::actingAs($this->bob);
+        $this->patchJson("/api/v2/chats/{$id}", ['title' => 'Hijack'])->assertStatus(422);
+
+        Sanctum::actingAs($this->owner);
+        $this->patchJson("/api/v2/chats/{$id}", ['title' => 'Renamed'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Renamed');
+    }
+
+    public function test_owner_removes_a_member_but_not_the_owner(): void
+    {
+        $id = $this->createGroup();
+
+        Sanctum::actingAs($this->owner);
+        // Cannot remove the owner (self / creator).
+        $this->deleteJson("/api/v2/chats/{$id}/members/{$this->owner->id}")->assertStatus(422);
+
+        // Remove bob → he loses access.
+        $this->deleteJson("/api/v2/chats/{$id}/members/{$this->bob->id}")->assertOk();
+        Sanctum::actingAs($this->bob);
+        $this->getJson("/api/v2/chats/{$id}")->assertNotFound();
+    }
+
+    public function test_a_non_owner_cannot_remove_a_member(): void
+    {
+        $id = $this->createGroup();
+
+        Sanctum::actingAs($this->bob);
+        $this->deleteJson("/api/v2/chats/{$id}/members/{$this->carol->id}")->assertStatus(422);
+        $this->assertDatabaseHas('threads', ['id' => $id]);
+    }
+
+    public function test_owner_deletes_the_whole_group(): void
+    {
+        $id = $this->createGroup();
+
+        Sanctum::actingAs($this->bob);
+        $this->deleteJson("/api/v2/chats/{$id}")->assertStatus(422); // not the owner
+
+        Sanctum::actingAs($this->owner);
+        $this->deleteJson("/api/v2/chats/{$id}")->assertOk();
+        $this->assertDatabaseMissing('threads', ['id' => $id]);
+    }
 }

@@ -19,6 +19,26 @@ final class ThreadAttachmentStorage
     /** Relative to storage/app — outside the web root. */
     public const DIR = 'thread-attachments';
 
+    /** Evidence can be a photo OR a document (a receipt, a contract). */
+    public const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'];
+
+    public const MAX_KILOBYTES = 8192;
+
+    /**
+     * Validation for an attachments field. `file` (not `image`) so a PDF is
+     * allowed, constrained to the vetted list of image + document types.
+     *
+     * @return list<string>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'file',
+            'mimes:' . implode(',', self::ALLOWED_EXTENSIONS),
+            'max:' . self::MAX_KILOBYTES,
+        ];
+    }
+
     public function store(UploadedFile $file): string
     {
         $dir = storage_path('app/' . self::DIR);
@@ -29,7 +49,7 @@ final class ThreadAttachmentStorage
 
         $ext = strtolower((string) ($file->guessExtension() ?: $file->getClientOriginalExtension()));
 
-        if (! in_array($ext, ImageUploadService::ALLOWED_EXTENSIONS, true)) {
+        if (! in_array($ext, self::ALLOWED_EXTENSIONS, true)) {
             $ext = 'jpg';
         }
 

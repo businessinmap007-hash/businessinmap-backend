@@ -2703,6 +2703,29 @@ paths:
       responses:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a participant' }
+    patch:
+      tags: [Chats]
+      summary: Rename a group (owner only)
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [title], properties: { title: { type: string, maxLength: 120 } } }
+      responses:
+        '200': { description: 'Renamed; returns the group.' }
+        '404': { description: 'Not a group, or not found' }
+        '422': { $ref: '#/components/responses/Validation' }
+    delete:
+      tags: [Chats]
+      summary: Delete a whole group (owner only)
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Deleted }
+        '404': { description: 'Not a group, or not found' }
+        '422': { $ref: '#/components/responses/Validation' }
   /chats/{thread}/messages:
     post:
       tags: [Chats]
@@ -2752,6 +2775,17 @@ paths:
       responses:
         '201': { description: 'Added; returns the group.' }
         '404': { description: 'Not a group, or not found' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /chats/{thread}/members/{user}:
+    delete:
+      tags: [Chats]
+      summary: Remove a member from a group (owner only; the owner cannot be removed)
+      parameters:
+        - { in: path, name: thread, required: true, schema: { type: integer } }
+        - { in: path, name: user, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'Removed; returns the group.' }
+        '404': { description: 'Not a group / member not found' }
         '422': { $ref: '#/components/responses/Validation' }
   /chats/{thread}/leave:
     post:

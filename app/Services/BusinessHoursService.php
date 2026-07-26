@@ -56,10 +56,21 @@ class BusinessHoursService
         }
     }
 
-    /** Is the business open at the given moment (now by default)? */
+    /** The business's own timezone, or the platform default. */
+    public function timezoneFor(int $businessId): string
+    {
+        $tz = \App\Models\User::query()->whereKey($businessId)->value('timezone');
+
+        return $tz ?: (string) config('app.timezone');
+    }
+
+    /**
+     * Is the business open at the given moment? With no explicit $at, "now" is
+     * read in the BUSINESS's own timezone, so a shop is judged where it is.
+     */
     public function isOpenNow(int $businessId, ?Carbon $at = null): bool
     {
-        $at = $at ?: Carbon::now();
+        $at = $at ?: Carbon::now($this->timezoneFor($businessId));
         $row = $this->hoursFor($businessId)->get($at->dayOfWeek);
 
         // No configuration for today → hours unknown → available.
@@ -88,23 +99,27 @@ class BusinessHoursService
      */
     public function openNowMap(array $businessIds, ?Carbon $at = null): array
     {
-        $at = $at ?: Carbon::now();
-        $now = $at->format('H:i:s');
-
+        // All of a business's rows (all weekdays), so each can be judged at its
+        // OWN local "now" when no fixed $at is supplied.
         $rows = BusinessWorkingHour::query()
             ->whereIn('business_id', $businessIds)
-            ->where('day_of_week', $at->dayOfWeek)
             ->get()
-            ->keyBy('business_id');
+            ->groupBy('business_id');
+
+        // Per-business timezone, only when we must compute "now" ourselves.
+        $zones = $at
+            ? []
+            : \App\Models\User::query()->whereIn('id', $businessIds)->pluck('timezone', 'id');
 
         $map = [];
         foreach ($businessIds as $id) {
-            $row = $rows->get($id);
+            $moment = $at ?: Carbon::now($zones[$id] ?? config('app.timezone'));
+            $row = ($rows->get($id) ?? collect())->firstWhere('day_of_week', $moment->dayOfWeek);
 
             $map[$id] = ! $row
                 ? true
                 : (! $row->is_closed && $row->open_time && $row->close_time
-                    && $this->withinWindow($now, (string) $row->open_time, (string) $row->close_time));
+                    && $this->withinWindow($moment->format('H:i:s'), (string) $row->open_time, (string) $row->close_time));
         }
 
         return $map;

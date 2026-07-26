@@ -9,6 +9,7 @@
     "عدد الأعضاء يتجاوز الحد المسموح.": "The number of members exceeds the allowed limit.",
     "لا يمكن مغادرة هذه المحادثة.": "You cannot leave this chat.",
     "لا يملك هذا الإجراء إلا منشئ المجموعة.": "Only the group creator can do this.",
+    "لا يمكن إزالة منشئ المجموعة.": "The group creator cannot be removed.",
     "موقع على الخريطة": "Map location",
     "كلمة المرور غير صحيحة.": "Incorrect password.",
     "تم استلام طلب حذف الحساب. يمكنك استعادته خلال ": "Account deletion request received. You can restore it within ",

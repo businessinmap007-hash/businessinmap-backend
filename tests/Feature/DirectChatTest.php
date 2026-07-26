@@ -100,6 +100,23 @@ class DirectChatTest extends TestCase
             ->assertJsonCount(1, 'data.0.attachments');
     }
 
+    public function test_a_pdf_document_can_be_attached_as_evidence(): void
+    {
+        Sanctum::actingAs($this->alice);
+        $threadId = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
+
+        $this->postJson("/api/v2/chats/{$threadId}/messages", [
+            'body' => 'the receipt',
+            'attachments' => [UploadedFile::fake()->create('receipt.pdf', 80, 'application/pdf')],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.attachments.0.mime', 'application/pdf');
+
+        $att = ThreadMessageAttachment::query()->latest('id')->firstOrFail();
+        $this->assertStringEndsWith('.pdf', (string) $att->path);
+        $this->assertFileExists(storage_path('app/' . $att->path));
+    }
+
     public function test_an_attachment_is_private_and_served_only_to_a_participant(): void
     {
         Sanctum::actingAs($this->alice);

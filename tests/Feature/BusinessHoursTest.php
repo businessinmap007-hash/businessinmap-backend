@@ -143,6 +143,31 @@ class BusinessHoursTest extends TestCase
         $this->assertTrue($days[1]['is_closed']);
     }
 
+    public function test_a_business_sets_its_timezone_and_hours_are_judged_in_it(): void
+    {
+        $shop = $this->makeBusiness();
+
+        // Default is the platform timezone until one is set.
+        $this->assertSame((string) config('app.timezone'), $this->hours->timezoneFor($shop->id));
+
+        Sanctum::actingAs($shop);
+        $this->putJson('/api/v2/business/working-hours', [
+            'timezone' => 'Asia/Tokyo',
+            'bulk' => ['all' => true, 'open' => '00:00', 'close' => '23:59'],
+        ])->assertOk()->assertJsonPath('data.timezone', 'Asia/Tokyo');
+
+        $this->assertSame('Asia/Tokyo', $this->hours->timezoneFor($shop->id));
+
+        // isOpenNow with no $at now reads "now" in the shop's timezone (open all
+        // day here ⇒ open) — and it must not error on the per-tz path.
+        $this->assertTrue($this->hours->isOpenNow($shop->id));
+
+        // An invalid timezone is rejected.
+        $this->putJson('/api/v2/business/working-hours', ['timezone' => 'Not/AZone'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('timezone');
+    }
+
     public function test_bulk_sets_all_days_at_once_and_per_day_overrides_it(): void
     {
         $shop = $this->makeBusiness();

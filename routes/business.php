@@ -11,6 +11,7 @@ use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
 use App\Http\Controllers\Business\ShareStoreController;
+use App\Http\Controllers\Business\StaffController;
 use App\Http\Controllers\Business\TableController;
 use App\Http\Controllers\Business\TripReservationController;
 use App\Http\Controllers\Business\TripScheduleController;
@@ -54,6 +55,12 @@ Route::prefix('business')->name('business.')->group(function () {
 
         Route::get('menu-settings', [MenuSettingsController::class, 'edit'])->name('menu-settings.edit');
         Route::put('menu-settings', [MenuSettingsController::class, 'update'])->name('menu-settings.update');
+
+        // Delegated staff: grant an employee scoped management of the page.
+        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::put('staff/{user}', [StaffController::class, 'update'])->whereNumber('user')->name('staff.update');
+        Route::delete('staff/{user}', [StaffController::class, 'destroy'])->whereNumber('user')->name('staff.destroy');
 
         // Restaurant tables + their permanent QR stickers (BIM-13.3).
         // Storefront QR — "share your store" (BIM-13.4).

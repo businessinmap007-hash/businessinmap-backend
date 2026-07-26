@@ -30,6 +30,7 @@
                 <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">خطوط التشغيل</a>
                 <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">حجوزاتي</a>
                 <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الطلبات</a>
+                <a href="{{ route('business.staff.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الموظفون</a>
                 @auth
                     <form method="POST" action="{{ route('business.logout') }}">
                         @csrf

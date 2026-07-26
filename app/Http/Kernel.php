@@ -74,6 +74,8 @@ class Kernel extends HttpKernel
         'locale' => \App\Http\Middleware\changeLanguageForApi::class,
         'localeControlPanel' => \App\Http\Middleware\changeLanguageForControlPanel::class,
         'business' => \App\Http\Middleware\BusinessOnly::class,
+        // Owner OR a capable delegated staff member: `business.member:orders`.
+        'business.member' => \App\Http\Middleware\BusinessMember::class,
         'check.pin' => \App\Http\Middleware\CheckWalletPin::class,
         // Owe a ruling, start no new business until it is met.
         'dispute.settled' => \App\Http\Middleware\BlockUnpaidDisputeObligations::class,

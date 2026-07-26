@@ -8,6 +8,7 @@ use App\Models\AppNotification;
 use App\Models\Order;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OrderFeeSettlementService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -133,7 +134,7 @@ final class OrderController extends Controller
         $data = $this->filters($request);
 
         $orders = Order::query()
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->whereNull('booking_id')
             ->where('status', '!=', 'cart')
             ->when($data['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
@@ -151,7 +152,7 @@ final class OrderController extends Controller
     public function businessShow(Request $request, int $order)
     {
         $model = Order::query()
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->whereNull('booking_id')
             ->where('status', '!=', 'cart')
             ->with(['user:id,name,phone', 'items.menuItem:id,name_ar,name_en'])
@@ -163,7 +164,7 @@ final class OrderController extends Controller
     /** POST /api/v2/business/orders/{order}/reject — business rejects a pending order. */
     public function businessReject(Request $request, int $order)
     {
-        $businessId = (int) $request->user()->id;
+        $businessId = BusinessContext::id($request);
         $reason = $this->reason($request);
 
         $model = $this->cancelPendingOrder(
@@ -192,7 +193,7 @@ final class OrderController extends Controller
      */
     public function businessAccept(Request $request, int $order)
     {
-        $businessId = (int) $request->user()->id;
+        $businessId = BusinessContext::id($request);
 
         $model = DB::transaction(function () use ($businessId, $order) {
             /** @var Order|null $m */
@@ -231,7 +232,7 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
 
-        $this->notifyCustomer($model, 'menu_order_preparing', (int) $request->user()->id, [
+        $this->notifyCustomer($model, 'menu_order_preparing', BusinessContext::id($request), [
             'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن.',
             'body_en' => 'Your order #' . $model->id . ' is now being prepared.',
         ]);
@@ -244,7 +245,7 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
-        $this->notifyCustomer($model, 'menu_order_ready', (int) $request->user()->id, [
+        $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
             'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز.',
             'body_en' => 'Your order #' . $model->id . ' is ready.',
         ]);
@@ -255,7 +256,7 @@ final class OrderController extends Controller
     /** Advance a business's order from one prep_status to the next under a lock. */
     private function transitionPrep(Request $request, int $order, string $from, string $to): Order
     {
-        $businessId = (int) $request->user()->id;
+        $businessId = BusinessContext::id($request);
 
         return DB::transaction(function () use ($businessId, $order, $from, $to) {
             /** @var Order|null $m */

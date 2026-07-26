@@ -2282,5 +2282,14 @@
     "جارٍ تجهيز الوصفة.": "Preparing the prescription.",
     "الوصفة جاهزة.": "The prescription is ready.",
     "تم صرف الوصفة.": "Prescription dispensed.",
-    "تم رفض الوصفة وإعادتها للمريض.": "Prescription rejected and returned to the patient."
+    "تم رفض الوصفة وإعادتها للمريض.": "Prescription rejected and returned to the patient.",
+    "يجب تسجيل الدخول أولاً.": "Please sign in first.",
+    "حدّد النشاط الذي تديره عبر business_id.": "Specify which business you manage via business_id.",
+    "لا تملك صلاحية إدارة هذا النشاط.": "You are not allowed to manage this business.",
+    "لا تملك صلاحية تنفيذ هذا الإجراء.": "You do not have permission for this action.",
+    "تم منح الموظف صلاحيات إدارة النشاط.": "Staff member granted management access.",
+    "تم تحديث صلاحيات الموظف.": "Staff permissions updated.",
+    "تمت إزالة الموظف.": "Staff member removed.",
+    "لم يُعثر على المستخدم.": "User not found.",
+    "لا يمكن للنشاط تعيين نفسه موظفًا.": "A business cannot add itself as staff."
 }

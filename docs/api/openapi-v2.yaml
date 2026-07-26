@@ -53,6 +53,11 @@ tags:
   - name: Orders (Customer)
   - name: Orders (Business)
   - name: Business Hours
+  - name: Business Staff
+    description: >-
+      Delegated staff on a business account — a clinic secretary, a shop/
+      restaurant employee — each granted a set of capabilities from the one
+      shared services registry. They then act AS the business on those surfaces.
   - name: Prescriptions
     description: >-
       Medical prescriptions (روشتة): a doctor (clinic business) issues one for a
@@ -1383,6 +1388,71 @@ paths:
       responses:
         '200': { description: OK }
         '422': { $ref: '#/components/responses/Validation' }
+  /business/capabilities:
+    get:
+      tags: [Business Staff]
+      summary: The one place — every manageable service a business can delegate
+      description: >-
+        The canonical capability registry (orders, menu, working_hours,
+        projects, prescriptions, …). A business grants staff from this list.
+      responses: { '200': { description: OK } }
+  /business/staff:
+    get:
+      tags: [Business Staff]
+      summary: My delegated staff (owner only)
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Business Staff]
+      summary: Grant a staff member a set of capabilities (owner only)
+      description: Identify the person by user_id or phone. Capabilities are validated against the registry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capabilities]
+              properties:
+                user_id: { type: integer, description: 'user_id or phone is required' }
+                phone: { type: string }
+                title: { type: string, example: 'سكرتيرة' }
+                capabilities:
+                  type: array
+                  minItems: 1
+                  items: { type: string, enum: [orders, menu, bookings, offers, retail, prices, working_hours, projects, prescriptions, schedules] }
+                is_active: { type: boolean, default: true }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/staff/{user}:
+    patch:
+      tags: [Business Staff]
+      summary: Update a staff member's grant (owner only)
+      parameters: [{ name: user, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                capabilities: { type: array, items: { type: string } }
+                is_active: { type: boolean }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Business Staff]
+      summary: Revoke a staff member (owner only)
+      parameters: [{ name: user, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/memberships:
+    get:
+      tags: [Business Staff]
+      summary: The businesses I may manage as staff, with my capabilities
+      description: >-
+        For a delegate (who may be a plain client). When acting on a business
+        surface as staff of several businesses, name the one via the
+        `X-Business-Id` header (or a business_id field); with one it is inferred.
+      responses: { '200': { description: OK } }
   /business/projects:
     get:
       tags: [Projects]

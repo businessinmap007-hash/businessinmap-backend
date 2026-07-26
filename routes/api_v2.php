@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
 use App\Http\Controllers\Api\V2\BusinessHoursController;
 use App\Http\Controllers\Api\V2\BusinessProjectController;
+use App\Http\Controllers\Api\V2\BusinessStaffController;
 use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
@@ -56,6 +57,7 @@ use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
 use App\Http\Controllers\Api\V2\MerchantPaymentController;
 use App\Http\Controllers\Api\V2\MerchantAccountController;
+use App\Support\BusinessCapability;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v2')->group(function () {
@@ -449,8 +451,8 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
-        // Business-only, gated centrally by the `business` middleware.
-        Route::middleware('business')->group(function () {
+        // Owner OR a delegated staff member granted the `orders` capability.
+        Route::middleware('business.member:' . BusinessCapability::ORDERS)->group(function () {
             Route::get('business/orders', [OrderController::class, 'businessIndex']);
             Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
             Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
@@ -459,11 +461,25 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+        });
 
-            // Weekly opening hours — so search can show the business as open now.
+        // Weekly opening hours — owner OR staff with the `working_hours` capability.
+        Route::middleware('business.member:' . BusinessCapability::WORKING_HOURS)->group(function () {
             Route::get('business/working-hours', [BusinessHoursController::class, 'show']);
             Route::put('business/working-hours', [BusinessHoursController::class, 'update']);
         });
+
+        // Delegated staff management (owner only) + the one shared services
+        // registry a business grants from, and each delegate's memberships.
+        Route::middleware('business')->group(function () {
+            Route::get('business/capabilities', [BusinessStaffController::class, 'capabilities']);
+            Route::get('business/staff', [BusinessStaffController::class, 'index']);
+            Route::post('business/staff', [BusinessStaffController::class, 'store']);
+            Route::patch('business/staff/{user}', [BusinessStaffController::class, 'update'])->whereNumber('user');
+            Route::delete('business/staff/{user}', [BusinessStaffController::class, 'destroy'])->whereNumber('user');
+        });
+        // A delegate (who may be a plain client) lists what they may manage.
+        Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);
 
         // Business menu management: sections + items (+ variants/extras).
         Route::prefix('business/menu')->middleware('business')->group(function () {

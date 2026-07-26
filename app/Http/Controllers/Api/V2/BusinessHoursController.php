@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Services\BusinessHoursService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 /**
@@ -20,7 +21,7 @@ class BusinessHoursController extends Controller
     /** GET /api/v2/business/working-hours — my week + whether I'm open now. */
     public function show(Request $request)
     {
-        $businessId = (int) $request->user()->id;
+        $businessId = BusinessContext::id($request);
         $rows = $this->hours->hoursFor($businessId);
 
         $week = collect(BusinessHoursService::DAYS)->map(function (int $day) use ($rows) {
@@ -72,9 +73,10 @@ class BusinessHoursController extends Controller
             'timezone' => ['nullable', 'timezone'],
         ]);
 
-        // The shop's own timezone, so its hours are judged where it is.
+        // The shop's own timezone, so its hours are judged where it is. Acts on
+        // the business being managed (which, for a delegate, is the employer).
         if ($request->has('timezone')) {
-            $request->user()->forceFill(['timezone' => $data['timezone'] ?? null])->save();
+            BusinessContext::business($request)->forceFill(['timezone' => $data['timezone'] ?? null])->save();
         }
 
         $entries = [];
@@ -108,7 +110,7 @@ class BusinessHoursController extends Controller
         }
 
         if ($entries !== []) {
-            $this->hours->save((int) $request->user()->id, $entries);
+            $this->hours->save(BusinessContext::id($request), $entries);
         }
 
         return $this->show($request);

@@ -183,6 +183,7 @@ final class DiscoveryController extends Controller
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
+            'open_now' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -219,6 +220,12 @@ final class DiscoveryController extends Controller
 
         $offerExists($query);
 
+        // Skip shops that are closed right now, when asked. A shop with no
+        // hours configured is treated as available and is not hidden.
+        if ($request->boolean('open_now')) {
+            app(\App\Services\BusinessHoursService::class)->filterOpenNow($query);
+        }
+
         // A business must carry EVERY selected attribute — narrowing, not
         // widening, is what a filter is for.
         foreach ($optionIds as $optionId) {
@@ -241,9 +248,13 @@ final class DiscoveryController extends Controller
             $itemTypes
         );
 
-        $businesses->getCollection()->transform(function (User $b) use ($matched) {
+        $openNow = app(\App\Services\BusinessHoursService::class)
+            ->openNowMap($businesses->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
+
+        $businesses->getCollection()->transform(function (User $b) use ($matched, $openNow) {
             $arr = $b->only(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
             $arr['offered_types'] = $matched[$b->id] ?? [];
+            $arr['is_open_now'] = $openNow[(int) $b->id] ?? true;
 
             return $arr;
         });

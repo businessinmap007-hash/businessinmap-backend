@@ -52,6 +52,7 @@ tags:
   - name: Shared Cart
   - name: Orders (Customer)
   - name: Orders (Business)
+  - name: Business Hours
   - name: Business Menu
   - name: Business Offers
   - name: Business Prices
@@ -1337,6 +1338,41 @@ paths:
       responses: { '200': { description: OK } }
 
   # ─────────────────────── Orders (Business) ───────────────────────
+  /business/working-hours:
+    get:
+      tags: [Business Hours]
+      summary: My weekly opening hours + whether I'm open now
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Business Hours]
+      summary: Replace my weekly opening hours
+      description: >-
+        Each day (0=Sunday…6=Saturday) is open with a window or explicitly
+        closed. open/close are "HH:MM"; open > close means past midnight. Used
+        by discovery's open_now filter so customers can reach shops open now.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [days]
+              properties:
+                days:
+                  type: array
+                  minItems: 1
+                  maxItems: 7
+                  items:
+                    type: object
+                    required: [day]
+                    properties:
+                      day: { type: integer, minimum: 0, maximum: 6 }
+                      is_closed: { type: boolean }
+                      open: { type: string, example: '09:00' }
+                      close: { type: string, example: '22:00' }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /business/orders:
     get:
       tags: [Orders (Business)]
@@ -2139,7 +2175,7 @@ paths:
   /discovery/attributes:
     get: { tags: [Discovery], summary: Attribute (option) filters for a category child, with business counts (public), security: [], responses: { '200': { description: OK } } }
   /discovery/businesses:
-    get: { tags: [Discovery], summary: Discover businesses — filterable by service/item types and by option_ids[] (all must match) (public), security: [], responses: { '200': { description: OK } } }
+    get: { tags: [Discovery], summary: 'Discover businesses — filterable by service/item types, option_ids[] (all must match), and open_now (skip shops currently closed; a shop with no hours set is kept). Each row carries is_open_now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /discovery/menu/{business}:
     get: { tags: [Discovery], summary: A business's menu grouped by sections (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /discovery/retail/filters:

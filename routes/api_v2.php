@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
+use App\Http\Controllers\Api\V2\BusinessHoursController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
@@ -417,6 +418,10 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+
+            // Weekly opening hours — so search can show the business as open now.
+            Route::get('business/working-hours', [BusinessHoursController::class, 'show']);
+            Route::put('business/working-hours', [BusinessHoursController::class, 'update']);
         });
 
         // Business menu management: sections + items (+ variants/extras).

@@ -703,6 +703,8 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/training-plans')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
             Route::get('/', [TrainingPlanController::class, 'index']);
             Route::post('/', [TrainingPlanController::class, 'store']);
+            // Weekly adherence across ALL my clients (before the {plan} route).
+            Route::get('weekly-summary', [TrainingPlanController::class, 'clientsWeeklySummary']);
             Route::get('{plan}', [TrainingPlanController::class, 'show'])->whereNumber('plan');
             Route::match(['put', 'patch'], '{plan}', [TrainingPlanController::class, 'update'])->whereNumber('plan');
             Route::post('{plan}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('plan');

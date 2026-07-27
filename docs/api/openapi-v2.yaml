@@ -2941,6 +2941,15 @@ paths:
         check-ins.
       parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: from, in: query, schema: { type: string, format: date } }]
       responses: { '200': { description: OK }, '404': { description: 'Not yours' } }
+  /business/training-plans/weekly-summary:
+    get:
+      tags: [Training]
+      summary: Weekly adherence across ALL my clients (trainer)
+      description: >-
+        One-pass overview: per-client adherence for the 7-day window (defaults to
+        active plans; ?status= to override), plus the average adherence.
+      parameters: [{ name: from, in: query, schema: { type: string, format: date } }, { name: status, in: query, schema: { type: string, enum: [active, paused, completed, cancelled] } }]
+      responses: { '200': { description: OK } }
   /business/training-plans/{plan}/weekly-summary:
     get:
       tags: [Training]

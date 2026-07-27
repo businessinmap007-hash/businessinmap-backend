@@ -128,6 +128,27 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/v2/business/training-plans/weekly-summary — weekly adherence for
+     * ALL my clients at once (defaults to active plans; ?status= to override).
+     */
+    public function clientsWeeklySummary(Request $request)
+    {
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'status' => ['nullable', Rule::in(TrainingPlan::STATUSES)],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['summary' => $this->service->weeklySummaryForTrainer(
+                BusinessContext::id($request),
+                $data['from'] ?? null,
+                $data['status'] ?? TrainingPlan::STATUS_ACTIVE,
+            )],
+        ]);
+    }
+
     /** GET /api/v2/business/training-plans/{plan}/weekly-summary?from=YYYY-MM-DD */
     public function weeklySummary(Request $request, int $plan)
     {

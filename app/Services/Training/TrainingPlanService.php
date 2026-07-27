@@ -206,6 +206,83 @@ class TrainingPlanService
         ];
     }
 
+    /**
+     * A trainer's weekly adherence overview across ALL their clients' plans, in
+     * one pass (bulk queries, no N+1). Same 7-day window as weeklySummary().
+     * Defaults to active plans.
+     *
+     * @return array<string,mixed>
+     */
+    public function weeklySummaryForTrainer(int $trainerId, ?string $from = null, ?string $status = TrainingPlan::STATUS_ACTIVE): array
+    {
+        $start = ($from ? Carbon::parse($from) : Carbon::now()->startOfWeek(Carbon::SATURDAY))->startOfDay();
+        $end = $start->copy()->addDays(6);
+
+        $plans = TrainingPlan::query()
+            ->where('trainer_id', $trainerId)
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->with('client:id,name')
+            ->latest('id')
+            ->get(['id', 'client_id', 'title', 'status']);
+
+        $planIds = $plans->pluck('id')->all();
+
+        if ($planIds === []) {
+            return ['from' => $start->toDateString(), 'to' => $end->toDateString(), 'plans' => 0, 'average_adherence' => null, 'clients' => []];
+        }
+
+        $targets = PlanExercise::query()
+            ->whereIn('training_plan_id', $planIds)
+            ->groupBy('training_plan_id')
+            ->selectRaw('training_plan_id, COALESCE(SUM(sets),0) AS target')
+            ->pluck('target', 'training_plan_id');
+
+        $rounds = PlanExerciseRound::query()
+            ->whereIn('training_plan_id', $planIds)
+            ->whereBetween('for_date', [$start->toDateString(), $end->toDateString()])
+            ->groupBy('training_plan_id')
+            ->selectRaw('training_plan_id, COUNT(*) AS rounds, COUNT(DISTINCT for_date) AS active_days')
+            ->get()
+            ->keyBy('training_plan_id');
+
+        $checkIns = PlanProgressLog::query()
+            ->whereIn('training_plan_id', $planIds)
+            ->whereBetween('logged_on', [$start->toDateString(), $end->toDateString()])
+            ->groupBy('training_plan_id')
+            ->selectRaw('training_plan_id, COUNT(*) AS check_ins')
+            ->pluck('check_ins', 'training_plan_id');
+
+        $adherences = [];
+        $clients = $plans->map(function (TrainingPlan $p) use ($targets, $rounds, $checkIns, &$adherences) {
+            $target = (int) ($targets[$p->id] ?? 0);
+            $completed = (int) ($rounds[$p->id]->rounds ?? 0);
+            $adherence = $target > 0 ? min(100, (int) round($completed / $target * 100)) : null;
+            if ($adherence !== null) {
+                $adherences[] = $adherence;
+            }
+
+            return [
+                'plan_id' => (int) $p->id,
+                'status' => (string) $p->status,
+                'title' => (string) $p->title,
+                'client' => $p->client ? ['id' => (int) $p->client->id, 'name' => $p->client->name] : ['id' => (int) $p->client_id],
+                'weekly_target_rounds' => $target,
+                'completed_rounds' => $completed,
+                'adherence_percent' => $adherence,
+                'active_days' => (int) ($rounds[$p->id]->active_days ?? 0),
+                'check_ins' => (int) ($checkIns[$p->id] ?? 0),
+            ];
+        })->values()->all();
+
+        return [
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'plans' => count($clients),
+            'average_adherence' => $adherences === [] ? null : (int) round(array_sum($adherences) / count($adherences)),
+            'clients' => $clients,
+        ];
+    }
+
     /** Tell the client a plan was assigned to them. Best-effort. */
     private function notifyAssigned(TrainingPlan $plan): void
     {

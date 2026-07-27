@@ -59,6 +59,28 @@
         </div>
     </div>
 
+    @can(\App\Support\AdminAbility::MONEY)
+    <div class="a2-card a2-card--tight a2-mb-16">
+        <div class="a2-page-subtitle" style="margin-bottom:8px;">
+            {{ __('منح ضمان لبزنس دون دفع — يُنشأ مغلقًا وغير قابل للإعادة إلى الرصيد.') }}
+        </div>
+        <form method="POST" action="{{ route('admin.guarantees.grant') }}" class="a2-filterbar">
+            @csrf
+            <input class="a2-input a2-filter-md" type="number" name="user_id" min="1"
+                   placeholder="{{ __('رقم حساب البزنس') }}" required>
+            <select class="a2-select a2-filter-md" name="level_id" required>
+                <option value="">{{ __('اختر مستوى الضمان') }}</option>
+                @foreach($levels->where('target_type', \App\Models\GuaranteeLevel::TARGET_BUSINESS) as $lvl)
+                    <option value="{{ $lvl->id }}">{{ $lvl->name_ar ?? $lvl->code }} ({{ $lvl->code }})</option>
+                @endforeach
+            </select>
+            <input class="a2-input a2-filter-search" type="text" name="note" maxlength="500"
+                   placeholder="{{ __('ملاحظة (اختياري)') }}">
+            <button type="submit" class="a2-btn a2-btn-primary">{{ __('منح الضمان') }}</button>
+        </form>
+    </div>
+    @endcan
+
     <div class="a2-card a2-card--tight">
         <form method="GET" action="{{ route('admin.guarantees.index') }}" class="a2-filterbar">
             <input class="a2-input a2-filter-search" type="search" name="q" value="{{ $q }}" placeholder="{{ __('بحث بالاسم / الهاتف / البريد / رقم الضمان / المستوى') }}">

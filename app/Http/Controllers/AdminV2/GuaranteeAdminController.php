@@ -94,6 +94,29 @@ final class GuaranteeAdminController extends Controller
         ]);
     }
 
+    /**
+     * Grant a business a guarantee for free (no payment, no wallet lock). The
+     * result is a closed guarantee: it can never be unlocked back to balance.
+     */
+    public function grant(Request $request, \App\Services\Guarantees\GuaranteeGrantService $service)
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'level_id' => ['required', 'integer', 'exists:guarantee_levels,id'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ], [], [
+            'user_id' => __('البزنس'),
+            'level_id' => __('مستوى الضمان'),
+        ]);
+
+        $business = \App\Models\User::query()->findOrFail((int) $data['user_id']);
+        $level = GuaranteeLevel::query()->findOrFail((int) $data['level_id']);
+
+        $service->grant($business, $level, (int) auth()->id(), $data['note'] ?? null);
+
+        return back()->with('success', __('تم منح الضمان للبزنس دون دفع (مغلق وغير قابل للإعادة إلى الرصيد).'));
+    }
+
     public function syncCoverage(UserGuarantee $guarantee, GuaranteeAutoDowngradeService $service)
     {
         $result = $service->syncEffectiveLevel(

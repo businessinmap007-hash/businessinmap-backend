@@ -2342,5 +2342,11 @@
     "تم سداد مستحقات النزاع.": "Dispute obligations settled.",
     "سُدِّد ما أمكن؛ رصيدك لا يكفي باقي المستحقات.": "Paid what was possible; your balance does not cover the rest.",
     "تمت إضافة الدواء.": "Medicine added.",
-    "إضافة الأدوية متاحة للأطباء فقط.": "Adding medicines is available to doctors only."
+    "إضافة الأدوية متاحة للأطباء فقط.": "Adding medicines is available to doctors only.",
+    "المنحة متاحة لحسابات الأعمال فقط.": "Granting is available to business accounts only.",
+    "لدى هذا البزنس ضمان مدفوع بالفعل؛ لا يمكن استبداله بمنحة.": "This business already has a paid guarantee; it cannot be replaced by a grant.",
+    "الضمان الممنوح مغلق ولا يمكن إعادته إلى الرصيد.": "A granted guarantee is closed and cannot be returned to balance.",
+    "تم منح الضمان للبزنس دون دفع (مغلق وغير قابل للإعادة إلى الرصيد).": "The guarantee was granted to the business for free (closed, non-refundable to balance).",
+    "منح ضمان لبزنس دون دفع — يُنشأ مغلقًا وغير قابل للإعادة إلى الرصيد.": "Grant a business a guarantee for free — created closed and non-refundable to balance.",
+    "منح ضمان من الإدارة": "Admin guarantee grant"
 }

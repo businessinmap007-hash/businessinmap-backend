@@ -455,6 +455,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::prefix('guarantees')->name('guarantees.')->middleware('can:' . AdminAbility::TRUST)->group(function () {
             Route::get('/', [GuaranteeAdminController::class, 'index'])->name('index');
+            // Grant a business a guarantee for free — commits the platform to
+            // backing coverage it never got paid for, so MONEY on top of TRUST.
+            Route::post('grant', [GuaranteeAdminController::class, 'grant'])->middleware('can:' . AdminAbility::MONEY)->name('grant');
             Route::post('{guarantee}/sync-coverage', [GuaranteeAdminController::class, 'syncCoverage'])->whereNumber('guarantee')->name('sync');
             Route::post('{guarantee}/process-grace-now', [GuaranteeAdminController::class, 'processGraceNow'])->whereNumber('guarantee')->name('process-grace');
             Route::post('{guarantee}/expire-if-due', [GuaranteeAdminController::class, 'expireIfDue'])->whereNumber('guarantee')->name('expire-if-due');

@@ -45,6 +45,14 @@ class GuaranteeUnlockService
                 throw ValidationException::withMessages(['guarantee' => __('لا يوجد ضمان نشط قابل للفكّ.')]);
             }
 
+            // A granted guarantee is closed: it was never backed by wallet money,
+            // so there is nothing to return, and it must never mint any.
+            if ((bool) $guarantee->is_granted) {
+                throw ValidationException::withMessages([
+                    'guarantee' => __('الضمان الممنوح مغلق ولا يمكن إعادته إلى الرصيد.'),
+                ]);
+            }
+
             // Any coverage frozen for an active operation blocks the unlock.
             if (round((float) $guarantee->used_coverage_amount, 2) > 0) {
                 throw ValidationException::withMessages([

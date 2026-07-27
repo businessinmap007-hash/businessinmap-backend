@@ -35,6 +35,18 @@ final class GuaranteeAutoDowngradeService
                 ];
             }
 
+            // A granted guarantee's coverage is set by the admin, not by funding.
+            // The funding-based check below would downgrade it to whatever a
+            // locked_amount of 0 can afford (nothing), wiping the gift.
+            if ((bool) $lockedGuarantee->is_granted) {
+                return [
+                    'changed' => false,
+                    'reason' => 'granted_exempt',
+                    'guarantee' => $lockedGuarantee,
+                    'level' => $lockedGuarantee->effectiveLevel,
+                ];
+            }
+
             if (in_array((string) $lockedGuarantee->status, [
                 UserGuarantee::STATUS_CANCELLED,
                 UserGuarantee::STATUS_SUSPENDED,

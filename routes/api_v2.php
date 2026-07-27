@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\AgendaController;
+use App\Http\Controllers\Api\V2\MealTimeController;
 use App\Http\Controllers\Api\V2\BusinessClinicAppointmentController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
@@ -313,6 +315,16 @@ Route::prefix('v2')->group(function () {
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
+
+        // Personal agenda: my unified day + my own tasks.
+        Route::get('agenda', [AgendaController::class, 'index']);
+        Route::post('agenda', [AgendaController::class, 'store']);
+        Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');
+
+        // Meal times (feed medication reminders).
+        Route::get('me/meal-times', [MealTimeController::class, 'show']);
+        Route::put('me/meal-times', [MealTimeController::class, 'update']);
 
         // Training plans — the client's side: read the plans a trainer assigned
         // me and log my progress. Party-only.
@@ -738,6 +750,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/reject', [BusinessClinicAppointmentController::class, 'reject'])->whereNumber('appointment');
             Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
             Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
+            Route::post('{appointment}/reschedule', [BusinessClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
         });
 
         // Clinic's published open slots (a delegate = the secretary manages these).

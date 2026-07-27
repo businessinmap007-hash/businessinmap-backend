@@ -2,9 +2,11 @@
 
 namespace App\Services\Clinics;
 
+use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\User;
+use App\Services\Agenda\AgendaService;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ClinicAppointmentService
 {
-    public function __construct(private readonly NotificationDispatcherService $notifications)
-    {
+    public function __construct(
+        private readonly NotificationDispatcherService $notifications,
+        private readonly AgendaService $agenda,
+    ) {
     }
 
     /** Patient requests an appointment at a time; the clinic will confirm it. */
@@ -46,18 +50,21 @@ class ClinicAppointmentService
     public function bookByClinic(User $clinic, User $patient, array $data): ClinicAppointment
     {
         $start = Carbon::parse($data['scheduled_at']);
-        $this->assertNoConflict((int) $clinic->id, $start, (int) ($data['duration_minutes'] ?? 30), null);
+        $duration = (int) ($data['duration_minutes'] ?? 30);
+        $this->assertNoConflict((int) $clinic->id, $start, $duration, null);
+        $this->agenda->assertFree((int) $patient->id, $start, $start->copy()->addMinutes($duration));
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'created_by' => (int) $clinic->id,
             'scheduled_at' => $start,
-            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_CONFIRMED,
             'reason' => $data['reason'] ?? null,
         ]);
 
+        $this->syncAgenda($appointment);
         $this->notifyConfirmed($appointment);
 
         return $appointment;
@@ -76,8 +83,14 @@ class ClinicAppointmentService
             (int) $appointment->duration_minutes,
             (int) $appointment->id,
         );
+        $this->agenda->assertFree(
+            (int) $appointment->patient_id,
+            $appointment->scheduled_at,
+            $appointment->scheduled_at->copy()->addMinutes((int) $appointment->duration_minutes),
+        );
 
         $appointment->update(['status' => ClinicAppointment::STATUS_CONFIRMED]);
+        $this->syncAgenda($appointment);
         $this->notifyConfirmed($appointment);
 
         return $appointment;
@@ -85,17 +98,26 @@ class ClinicAppointmentService
 
     public function reject(ClinicAppointment $appointment): ClinicAppointment
     {
-        return $this->transition($appointment, [ClinicAppointment::STATUS_REQUESTED, ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_CANCELLED);
+        $this->transition($appointment, [ClinicAppointment::STATUS_REQUESTED, ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_CANCELLED);
+        $this->agenda->closeForSource($appointment, AgendaItem::STATUS_CANCELLED);
+
+        return $appointment;
     }
 
     public function complete(ClinicAppointment $appointment): ClinicAppointment
     {
-        return $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_COMPLETED);
+        $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_COMPLETED);
+        $this->agenda->closeForSource($appointment, AgendaItem::STATUS_DONE);
+
+        return $appointment;
     }
 
     public function noShow(ClinicAppointment $appointment): ClinicAppointment
     {
-        return $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_NO_SHOW);
+        $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_NO_SHOW);
+        $this->agenda->closeForSource($appointment, AgendaItem::STATUS_DONE);
+
+        return $appointment;
     }
 
     /** Patient cancels, as long as it has not already happened/closed. */
@@ -106,6 +128,7 @@ class ClinicAppointmentService
         }
 
         $appointment->update(['status' => ClinicAppointment::STATUS_CANCELLED]);
+        $this->agenda->closeForSource($appointment, AgendaItem::STATUS_CANCELLED);
 
         return $appointment;
     }
@@ -150,6 +173,7 @@ class ClinicAppointmentService
             }
 
             $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null);
+            $this->agenda->assertFree((int) $patient->id, $slot->starts_at, $slot->starts_at->copy()->addMinutes((int) $slot->duration_minutes));
 
             $appointment = ClinicAppointment::create([
                 'clinic_id' => (int) $slot->clinic_id,
@@ -162,6 +186,7 @@ class ClinicAppointmentService
             ]);
 
             $slot->update(['appointment_id' => (int) $appointment->id]);
+            $this->syncAgenda($appointment);
 
             // The patient chose an offered slot → tell the clinic it's now booked.
             $this->notify('appointment_requested', (int) $slot->clinic_id, $appointment,
@@ -238,19 +263,53 @@ class ClinicAppointmentService
      */
     public function rescheduleByPatient(ClinicAppointment $appointment, Carbon $newStart, ?int $duration = null): ClinicAppointment
     {
+        $this->move($appointment, $newStart, $duration);
+
+        // Tell the clinic the patient changed it.
+        $this->notify('appointment_rescheduled', (int) $appointment->clinic_id, $appointment,
+            'إعادة جدولة موعد', 'Appointment rescheduled',
+            'غيّر المريض موعده إلى ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+            'The patient moved their appointment to ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
+
+        return $appointment;
+    }
+
+    /** Clinic moves the appointment to a new time and tells the patient. */
+    public function rescheduleByClinic(ClinicAppointment $appointment, Carbon $newStart, ?int $duration = null): ClinicAppointment
+    {
+        $this->move($appointment, $newStart, $duration);
+
+        $this->notify('appointment_rescheduled', (int) $appointment->patient_id, $appointment,
+            'تغيير موعدك', 'Your appointment moved',
+            'غيّرت العيادة موعدك إلى ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+            'The clinic moved your appointment to ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
+
+        return $appointment;
+    }
+
+    /**
+     * Shared reschedule core: guard the new time on both the clinic calendar and
+     * (for a confirmed appointment) the patient's agenda — each ignoring this
+     * appointment itself — then move it, free any linked slot, reset reminders,
+     * and re-sync the agenda entry.
+     */
+    private function move(ClinicAppointment $appointment, Carbon $newStart, ?int $duration): void
+    {
         if (! in_array($appointment->status, ClinicAppointment::ACTIVE_STATUSES, true)) {
             throw ValidationException::withMessages(['status' => __('لا يمكن إعادة جدولة هذا الموعد.')]);
         }
 
         $duration = $duration ?? (int) $appointment->duration_minutes;
 
-        // A confirmed appointment must land on a free slot (ignoring itself).
         if ($appointment->status === ClinicAppointment::STATUS_CONFIRMED) {
             $this->assertNoConflict((int) $appointment->clinic_id, $newStart, $duration, (int) $appointment->id);
+            $this->agenda->assertFree(
+                (int) $appointment->patient_id, $newStart, $newStart->copy()->addMinutes($duration),
+                [$appointment->getMorphClass(), $appointment->getKey()],
+            );
         }
 
-        return DB::transaction(function () use ($appointment, $newStart, $duration) {
-            // Free any published slot that was pointing at this appointment.
+        DB::transaction(function () use ($appointment, $newStart, $duration) {
             ClinicAppointmentSlot::query()
                 ->where('appointment_id', $appointment->id)
                 ->update(['appointment_id' => null]);
@@ -262,13 +321,26 @@ class ClinicAppointmentService
                 'reminded_soon_at' => null,
             ]);
 
-            $this->notify('appointment_rescheduled', (int) $appointment->clinic_id, $appointment,
-                'إعادة جدولة موعد', 'Appointment rescheduled',
-                'غيّر المريض موعده إلى ' . $newStart->format('Y-m-d H:i') . '.',
-                'The patient moved their appointment to ' . $newStart->format('Y-m-d H:i') . '.');
-
-            return $appointment;
+            if ($appointment->status === ClinicAppointment::STATUS_CONFIRMED) {
+                $this->syncAgenda($appointment);
+            }
         });
+    }
+
+    /** Mirror a confirmed appointment onto the patient's agenda. */
+    private function syncAgenda(ClinicAppointment $appointment): void
+    {
+        $appointment->loadMissing('clinic:id,name');
+        $title = trim(__('موعد') . ' - ' . (string) ($appointment->clinic?->name ?? ''));
+
+        $this->agenda->syncCommitment(
+            (int) $appointment->patient_id,
+            AgendaItem::KIND_APPOINTMENT,
+            $appointment,
+            $title,
+            $appointment->scheduled_at,
+            $appointment->scheduled_at->copy()->addMinutes((int) $appointment->duration_minutes),
+        );
     }
 
     /** True if a confirmed appointment already overlaps the given window. */

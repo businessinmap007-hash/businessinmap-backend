@@ -13,7 +13,20 @@ class PrescriptionItem extends Model
         'dosage',
         'quantity',
         'instructions',
+        'frequency_per_day',
+        'food_timing',
+        'time_slots',
+        'duration_days',
     ];
+
+    protected $casts = [
+        'frequency_per_day' => 'integer',
+        'time_slots' => 'array',
+        'duration_days' => 'integer',
+    ];
+
+    public const FOOD_TIMINGS = ['before', 'with', 'after'];
+    public const SLOTS = ['breakfast', 'lunch', 'dinner', 'morning', 'evening'];
 
     public function prescription(): BelongsTo
     {

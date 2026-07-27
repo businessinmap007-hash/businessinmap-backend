@@ -43,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRouteBindings();
         $this->shareAdminV2Data();
         $this->registerAdminV2ExtraRoutes();
+
+        // Service bookings mirror themselves onto the customer's personal agenda.
+        \App\Models\Booking::observe(\App\Observers\BookingAgendaObserver::class);
     }
 
     private function configureLocale(): void

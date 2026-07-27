@@ -82,6 +82,26 @@ class BusinessClinicAppointmentController extends Controller
         return $this->act($request, $appointment, fn ($a) => $this->service->noShow($a), __('تم تسجيل عدم الحضور.'));
     }
 
+    /** POST business/clinic-appointments/{appointment}/reschedule — clinic moves it. */
+    public function reschedule(Request $request, int $appointment)
+    {
+        $data = $request->validate([
+            'scheduled_at' => ['required', 'date', 'after:now'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+        ]);
+
+        return $this->act(
+            $request,
+            $appointment,
+            fn ($a) => $this->service->rescheduleByClinic(
+                $a,
+                Carbon::parse($data['scheduled_at']),
+                isset($data['duration_minutes']) ? (int) $data['duration_minutes'] : null,
+            ),
+            __('تم تغيير الموعد.'),
+        );
+    }
+
     /** GET /api/v2/business/clinic-slots — the clinic's published slots (open by default). */
     public function slotsIndex(Request $request)
     {

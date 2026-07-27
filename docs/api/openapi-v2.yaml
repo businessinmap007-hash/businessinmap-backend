@@ -74,6 +74,12 @@ tags:
       the clinic confirms/completes it without double-booking, or the clinic
       books directly. Readable only by the two parties. Delegable via the
       `clinic` capability (e.g. a clinic secretary).
+  - name: Agenda
+    description: >-
+      A user's personal agenda: one unified day of appointments, service
+      bookings, medication doses and self-added tasks. Blocking items can't
+      overlap, so nothing double-books the same person across services. Includes
+      meal times (which time food-tied medication doses).
   - name: Projects
     description: >-
       A business's internal project-management timeline for manufacturing and
@@ -3282,6 +3288,22 @@ paths:
       summary: Mark a no-show (clinic)
       parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/reschedule:
+    post:
+      tags: [Clinic Appointments]
+      summary: Reschedule an appointment to a new time (clinic; notifies the patient)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduled_at]
+              properties:
+                scheduled_at: { type: string, format: date-time }
+                duration_minutes: { type: integer }
+      responses: { '200': { description: Rescheduled }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /clinics/{clinic}/slots:
     get:
       tags: [Clinic Appointments]
@@ -3402,6 +3424,62 @@ paths:
         '200': { description: Cancelled }
         '404': { description: 'Not found, or you are not a party' }
         '422': { $ref: '#/components/responses/Validation' }
+  /prescriptions/{prescription}/schedule-reminders:
+    post:
+      tags: [Prescriptions]
+      summary: Schedule this prescription's doses onto my agenda (patient)
+      description: Turns each medicine's structured dosage into agenda medication reminders, timed off the patient's meal times. Re-running rebuilds the schedule.
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 'Scheduled (returns reminders count)' }, '404': { description: 'Not yours' } }
+  /agenda:
+    get:
+      tags: [Agenda]
+      summary: My agenda for a day (default today)
+      parameters: [{ name: date, in: query, schema: { type: string, format: date } }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Agenda]
+      summary: Add a personal task (blocks time; may remind)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, starts_at]
+              properties:
+                title: { type: string }
+                starts_at: { type: string, format: date-time }
+                ends_at: { type: string, format: date-time }
+                notes: { type: string }
+                remind: { type: boolean }
+      responses: { '201': { description: Added }, '422': { $ref: '#/components/responses/Validation' } }
+  /agenda/{item}:
+    delete:
+      tags: [Agenda]
+      summary: Remove a personal task I added
+      parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Removed }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /me/meal-times:
+    get:
+      tags: [Agenda]
+      summary: My meal times (defaults if unset)
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Agenda]
+      summary: Set my meal times (feed food-tied medication reminders)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [breakfast_at, lunch_at, dinner_at]
+              properties:
+                breakfast_at: { type: string, example: '08:00' }
+                lunch_at: { type: string, example: '14:00' }
+                dinner_at: { type: string, example: '20:00' }
+      responses: { '200': { description: Saved }, '422': { $ref: '#/components/responses/Validation' } }
   /pharmacy/prescriptions:
     get:
       tags: [Prescriptions]

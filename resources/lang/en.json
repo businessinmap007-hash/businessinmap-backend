@@ -2323,5 +2323,14 @@
     "هذه الفتحة لم تعد متاحة.": "This slot is no longer available.",
     "الموعد لا يخص هذه العيادة أو هذا المريض.": "The appointment does not belong to this clinic or patient.",
     "تم تغيير موعدك.": "Your appointment has been rescheduled.",
-    "لا يمكن إعادة جدولة هذا الموعد.": "This appointment cannot be rescheduled."
+    "لا يمكن إعادة جدولة هذا الموعد.": "This appointment cannot be rescheduled.",
+    "لديك حجز آخر في هذا الوقت.": "You already have another booking at this time.",
+    "تمت إضافة المهمة.": "Task added.",
+    "تم حذف المهمة.": "Task removed.",
+    "لا يمكن حذف هذا العنصر من هنا.": "This item cannot be removed here.",
+    "تم حفظ مواعيد الوجبات.": "Meal times saved.",
+    "تمت جدولة تذكيرات الدواء.": "Medication reminders scheduled.",
+    "تم تغيير الموعد.": "Appointment rescheduled.",
+    "حجز": "Booking",
+    "موعد": "Appointment"
 }

@@ -12,6 +12,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\DetectUnusedModels::class,
         \App\Console\Commands\SendDueBookingReminders::class,
         \App\Console\Commands\SendClinicAppointmentReminders::class,
+        \App\Console\Commands\SendAgendaReminders::class,
         \App\Console\Commands\DeleteExpiredSponsors::class,
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
         \App\Console\Commands\ProcessExpiredGuarantees::class,
@@ -28,6 +29,12 @@ class Kernel extends ConsoleKernel
         // lands close to 2h out rather than drifting up to an hour.
         $schedule->command('clinic:appointment-reminders --limit=200')
             ->everyFifteenMinutes()
+            ->withoutOverlapping();
+
+        // Due agenda reminders (medication doses, personal tasks). Every five
+        // minutes so a dose fires close to its meal-anchored time.
+        $schedule->command('agenda:send-reminders --limit=300')
+            ->everyFiveMinutes()
             ->withoutOverlapping();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();

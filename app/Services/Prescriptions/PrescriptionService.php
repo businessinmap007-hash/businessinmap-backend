@@ -44,6 +44,10 @@ class PrescriptionService
                     'dosage' => $item['dosage'] ?? null,
                     'quantity' => $item['quantity'] ?? null,
                     'instructions' => $item['instructions'] ?? null,
+                    'frequency_per_day' => $item['frequency_per_day'] ?? null,
+                    'food_timing' => $item['food_timing'] ?? null,
+                    'time_slots' => $item['time_slots'] ?? null,
+                    'duration_days' => $item['duration_days'] ?? null,
                 ]);
             }
 

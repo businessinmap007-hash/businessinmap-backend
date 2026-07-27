@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
 use App\Models\Prescription;
+use App\Models\PrescriptionItem;
 use App\Models\User;
+use App\Services\Agenda\MedicationScheduleService;
 use App\Services\Prescriptions\PrescriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,12 @@ class PrescriptionController extends Controller
             'items.*.dosage' => ['nullable', 'string', 'max:120'],
             'items.*.quantity' => ['nullable', 'string', 'max:120'],
             'items.*.instructions' => ['nullable', 'string', 'max:255'],
+            // Structured dosage → feeds the patient's medication reminders.
+            'items.*.frequency_per_day' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'items.*.food_timing' => ['nullable', Rule::in(PrescriptionItem::FOOD_TIMINGS)],
+            'items.*.time_slots' => ['nullable', 'array'],
+            'items.*.time_slots.*' => [Rule::in(PrescriptionItem::SLOTS)],
+            'items.*.duration_days' => ['nullable', 'integer', 'min:1', 'max:30'],
         ]);
 
         $patient = User::query()->findOrFail((int) $data['patient_id']);
@@ -134,6 +142,25 @@ class PrescriptionController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/v2/prescriptions/{prescription}/schedule-reminders — the patient
+     * turns their prescription's doses into agenda reminders, timed off their
+     * meal times. Re-running rebuilds the schedule.
+     */
+    public function scheduleReminders(Request $request, int $prescription, MedicationScheduleService $medications)
+    {
+        $row = Prescription::query()->with('items')->findOrFail($prescription);
+        abort_if((int) $row->patient_id !== (int) $request->user()->id, 404);
+
+        $placed = $medications->schedule($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تمت جدولة تذكيرات الدواء.'),
+            'data' => ['reminders' => $placed],
+        ]);
+    }
+
     /** POST /api/v2/prescriptions/{prescription}/cancel — doctor or patient. */
     public function cancel(Request $request, int $prescription)
     {
@@ -191,10 +218,15 @@ class PrescriptionController extends Controller
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
             'items' => $p->relationLoaded('items')
                 ? $p->items->map(fn ($i) => [
+                    'id' => (int) $i->id,
                     'name' => $i->name,
                     'dosage' => $i->dosage,
                     'quantity' => $i->quantity,
                     'instructions' => $i->instructions,
+                    'frequency_per_day' => $i->frequency_per_day,
+                    'food_timing' => $i->food_timing,
+                    'time_slots' => $i->time_slots,
+                    'duration_days' => $i->duration_days,
                 ])->all()
                 : [],
             'issued_at' => optional($p->issued_at)->toIso8601String(),

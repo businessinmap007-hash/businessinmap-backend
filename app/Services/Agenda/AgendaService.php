@@ -3,6 +3,7 @@
 namespace App\Services\Agenda;
 
 use App\Models\AgendaItem;
+use App\Models\ReminderPreference;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -203,15 +204,27 @@ class AgendaService
     {
         $now = Carbon::now();
 
-        $due = AgendaItem::query()
+        // Candidates: due within the largest possible lead, not long-missed.
+        $candidates = AgendaItem::query()
             ->where('status', AgendaItem::STATUS_ACTIVE)
             ->where('remind', true)
             ->whereNull('reminded_at')
-            ->where('starts_at', '<=', $now)
+            ->where('starts_at', '<=', $now->copy()->addMinutes(ReminderPreference::MAX_AGENDA_LEAD))
             ->where('starts_at', '>', $now->copy()->subHours(6)) // don't shout about long-missed ones
             ->orderBy('starts_at')
             ->limit($limit)
             ->get();
+
+        $leads = ReminderPreference::query()
+            ->whereIn('user_id', $candidates->pluck('user_id')->unique()->all())
+            ->get()->keyBy('user_id');
+
+        // Each user's item is due once now is within their lead of its time.
+        $due = $candidates->filter(function (AgendaItem $item) use ($now, $leads) {
+            $lead = ($leads->get((int) $item->user_id) ?? new ReminderPreference())->agendaLead();
+
+            return $now->gte($item->starts_at->copy()->subMinutes($lead));
+        });
 
         $sent = 0;
         foreach ($due as $item) {

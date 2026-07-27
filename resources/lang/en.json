@@ -2334,5 +2334,7 @@
     "حجز": "Booking",
     "موعد": "Appointment",
     "تمت إضافة المهام المتكررة.": "Recurring tasks added.",
-    "حدّد الأوقات.": "Specify the times."
+    "حدّد الأوقات.": "Specify the times.",
+    "يجب أن يكون التذكير الثاني أقرب من الأول.": "The second reminder must be closer than the first.",
+    "تم حفظ تفضيلات التذكير.": "Reminder preferences saved."
 }

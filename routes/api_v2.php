@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\AgendaController;
 use App\Http\Controllers\Api\V2\MealTimeController;
+use App\Http\Controllers\Api\V2\ReminderPreferenceController;
 use App\Http\Controllers\Api\V2\BusinessClinicAppointmentController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
@@ -326,6 +327,10 @@ Route::prefix('v2')->group(function () {
         // Meal times (feed medication reminders).
         Route::get('me/meal-times', [MealTimeController::class, 'show']);
         Route::put('me/meal-times', [MealTimeController::class, 'update']);
+
+        // Per-user reminder lead times.
+        Route::get('me/reminder-preferences', [ReminderPreferenceController::class, 'show']);
+        Route::put('me/reminder-preferences', [ReminderPreferenceController::class, 'update']);
 
         // Training plans — the client's side: read the plans a trainer assigned
         // me and log my progress. Party-only.

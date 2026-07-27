@@ -5,6 +5,7 @@ namespace App\Services\Clinics;
 use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
+use App\Models\ReminderPreference;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
 use App\Services\Notifications\NotificationDispatcherService;
@@ -232,48 +233,55 @@ class ClinicAppointmentService
     /**
      * Pre-visit reminders to the **patient only** (the clinic already has the
      * appointment on its calendar). Two fire per confirmed appointment, each
-     * exactly once: a day-before reminder (between 2h and 24h out) and a
-     * 2-hours-before reminder (within the last 2h). Returns how many were sent.
+     * exactly once, at the patient's own configured lead times (defaults 24h and
+     * 2h — see [[ReminderPreference]]). `reminded_day_at`/`reminded_soon_at` mark
+     * the first/second reminder as sent. Returns how many were sent.
      */
     public function sendDueReminders(int $limit = 200): int
     {
         $now = Carbon::now();
-        $sent = 0;
 
-        // Day-before: 2h–24h away, not yet day-reminded.
-        $dayDue = ClinicAppointment::query()
+        $due = ClinicAppointment::query()
             ->where('status', ClinicAppointment::STATUS_CONFIRMED)
-            ->whereNull('reminded_day_at')
-            ->where('scheduled_at', '>', $now->copy()->addHours(2))
-            ->where('scheduled_at', '<=', $now->copy()->addHours(24))
-            ->orderBy('scheduled_at')
-            ->limit($limit)
-            ->get();
-
-        foreach ($dayDue as $appointment) {
-            $this->remindPatient($appointment,
-                'تذكير: لديك موعد غدًا في ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
-                'Reminder: you have an appointment tomorrow at ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
-            $appointment->update(['reminded_day_at' => $now]);
-            $sent++;
-        }
-
-        // 2-hours-before: within the next 2h, not yet soon-reminded.
-        $soonDue = ClinicAppointment::query()
-            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
-            ->whereNull('reminded_soon_at')
             ->where('scheduled_at', '>', $now)
-            ->where('scheduled_at', '<=', $now->copy()->addHours(2))
+            ->where('scheduled_at', '<=', $now->copy()->addMinutes(ReminderPreference::MAX_FIRST_LEAD))
+            ->where(fn ($q) => $q->whereNull('reminded_day_at')->orWhereNull('reminded_soon_at'))
             ->orderBy('scheduled_at')
             ->limit($limit)
             ->get();
 
-        foreach ($soonDue as $appointment) {
-            $this->remindPatient($appointment,
-                'تذكير: موعدك بعد ساعتين، في ' . $appointment->scheduled_at->format('H:i') . '.',
-                'Reminder: your appointment is in 2 hours, at ' . $appointment->scheduled_at->format('H:i') . '.');
-            $appointment->update(['reminded_soon_at' => $now]);
-            $sent++;
+        $prefs = ReminderPreference::query()
+            ->whereIn('user_id', $due->pluck('patient_id')->unique()->all())
+            ->get()->keyBy('user_id');
+
+        $sent = 0;
+        foreach ($due as $appointment) {
+            $pref = $prefs->get((int) $appointment->patient_id) ?? new ReminderPreference();
+            $first = $pref->firstLead();
+            $second = $pref->secondLead();
+            $when = $appointment->scheduled_at;
+
+            $secondDue = $second !== null && $now->gte($when->copy()->subMinutes($second));
+            $firstDue = $now->gte($when->copy()->subMinutes($first));
+
+            // Send at most one per run: the closer reminder wins, and it also
+            // supersedes an unsent first reminder (a last-minute booking).
+            if ($appointment->reminded_soon_at === null && $secondDue) {
+                $this->remindPatient($appointment,
+                    'تذكير: موعدك قريبًا، في ' . $when->format('Y-m-d H:i') . '.',
+                    'Reminder: your appointment is soon, at ' . $when->format('Y-m-d H:i') . '.');
+                $appointment->reminded_soon_at = $now;
+                $appointment->reminded_day_at = $appointment->reminded_day_at ?? $now;
+                $appointment->save();
+                $sent++;
+            } elseif ($appointment->reminded_day_at === null && $firstDue) {
+                $this->remindPatient($appointment,
+                    'تذكير: لديك موعد قادم في ' . $when->format('Y-m-d H:i') . '.',
+                    'Reminder: you have an upcoming appointment on ' . $when->format('Y-m-d H:i') . '.');
+                $appointment->reminded_day_at = $now;
+                $appointment->save();
+                $sent++;
+            }
         }
 
         return $sent;

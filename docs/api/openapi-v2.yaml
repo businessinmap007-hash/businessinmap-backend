@@ -3521,6 +3521,27 @@ paths:
                 lunch_at: { type: string, example: '14:00' }
                 dinner_at: { type: string, example: '20:00' }
       responses: { '200': { description: Saved }, '422': { $ref: '#/components/responses/Validation' } }
+  /me/reminder-preferences:
+    get:
+      tags: [Agenda]
+      summary: My reminder lead times (defaults if unset)
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Agenda]
+      summary: Set my reminder lead times
+      description: Minutes before an appointment (two reminders; second nullable = disabled, must be closer than the first) and before an agenda item (dose/task).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointment_first_lead_minutes, agenda_lead_minutes]
+              properties:
+                appointment_first_lead_minutes: { type: integer, example: 1440 }
+                appointment_second_lead_minutes: { type: integer, nullable: true, example: 120 }
+                agenda_lead_minutes: { type: integer, example: 0 }
+      responses: { '200': { description: Saved }, '422': { $ref: '#/components/responses/Validation' } }
   /pharmacy/prescriptions:
     get:
       tags: [Prescriptions]

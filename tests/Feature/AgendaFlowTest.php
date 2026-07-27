@@ -7,8 +7,10 @@ use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\MealSchedule;
 use App\Models\Prescription;
+use App\Models\ReminderPreference;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
+use App\Services\Clinics\ClinicAppointmentService;
 use App\Services\Agenda\MedicationScheduleService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -264,6 +266,76 @@ class AgendaFlowTest extends TestCase
                 $this->assertContains($s->starts_at->dayOfWeek, [Carbon::SUNDAY, Carbon::TUESDAY]);
                 $this->assertContains($s->starts_at->format('H:i'), ['10:00', '10:30']);
             });
+    }
+
+    public function test_a_custom_lead_delays_the_appointment_reminder(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $service = app(ClinicAppointmentService::class);
+
+        // The patient wants only a 60-minutes-before reminder (second disabled).
+        ReminderPreference::create([
+            'user_id' => $patient->id, 'appointment_first_lead_minutes' => 60,
+            'appointment_second_lead_minutes' => null, 'agenda_lead_minutes' => 0,
+        ]);
+
+        // 3h out: with the default 24h lead this would fire, but not with 60 min.
+        $appt = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addHours(3), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+        $this->assertSame(0, $service->sendDueReminders());
+        $this->assertNull($appt->fresh()->reminded_day_at);
+
+        // Move it to 30 min out → now within the 60-minute lead → fires once.
+        $appt->update(['scheduled_at' => Carbon::now()->addMinutes(30)]);
+        $this->assertSame(1, $service->sendDueReminders());
+        $this->assertNotNull($appt->fresh()->reminded_day_at);
+        // Second is disabled → soon marker stays null even though it's close.
+        $this->assertNull($appt->fresh()->reminded_soon_at);
+        $this->assertSame(0, $service->sendDueReminders());
+    }
+
+    public function test_an_agenda_lead_reminds_before_the_item_time(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        $service = app(AgendaService::class);
+
+        // Remind 15 minutes before an agenda item.
+        ReminderPreference::create(['user_id' => $user->id, 'agenda_lead_minutes' => 15]);
+
+        // A dose 10 minutes from now is already within the 15-minute lead → due.
+        AgendaItem::create([
+            'user_id' => $user->id, 'kind' => AgendaItem::KIND_MEDICATION, 'title' => 'Dose',
+            'starts_at' => Carbon::now()->addMinutes(10), 'blocking' => false,
+            'status' => AgendaItem::STATUS_ACTIVE, 'remind' => true,
+        ]);
+
+        $this->assertSame(1, $service->sendDueReminders());
+    }
+
+    public function test_reminder_preferences_are_saved_and_validated(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/v2/me/reminder-preferences', [
+            'appointment_first_lead_minutes' => 720,
+            'appointment_second_lead_minutes' => 30,
+            'agenda_lead_minutes' => 10,
+        ])->assertOk()->assertJsonPath('data.reminder_preferences.appointment_first_lead_minutes', 720);
+
+        // The second reminder can't be as far out as the first.
+        $this->putJson('/api/v2/me/reminder-preferences', [
+            'appointment_first_lead_minutes' => 60,
+            'appointment_second_lead_minutes' => 120,
+            'agenda_lead_minutes' => 0,
+        ])->assertStatus(422);
+
+        $this->getJson('/api/v2/me/reminder-preferences')
+            ->assertOk()->assertJsonPath('data.reminder_preferences.appointment_second_lead_minutes', 30);
     }
 
     public function test_a_service_booking_is_refused_over_a_clinic_appointment(): void

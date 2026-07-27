@@ -622,6 +622,63 @@ class CustomerCartService
         $cart->tax = $bill['tax'];
         $cart->final_total = round($bill['menu_payable'] + $bill['retail_subtotal'] + $delivery - $discount, 2);
         $cart->save();
+
+        // Alert the business a new order just landed. Covers every checkout path
+        // that funnels through here — personal delivery/pickup, a shared cart, and
+        // a dine-in table scan — so a scanned table order reaches the restaurant.
+        $this->notifyBusinessOfNewOrder($cart);
+    }
+
+    /**
+     * Best-effort `menu_order_created` alert to the business that owns the order
+     * (orders.business_id IS the business user id). For a dine-in table order the
+     * table label is folded into the body + meta so staff know which table needs
+     * service. A notification failure must never break checkout.
+     */
+    private function notifyBusinessOfNewOrder(Order $cart): void
+    {
+        $businessId = (int) $cart->business_id;
+        if ($businessId <= 0) {
+            return;
+        }
+
+        try {
+            $tableLabel = null;
+            if ($cart->business_table_id) {
+                $tableLabel = BusinessTable::query()
+                    ->whereKey($cart->business_table_id)
+                    ->value('label');
+            }
+
+            $tableLabel = $tableLabel !== null ? trim((string) $tableLabel) : null;
+            $bodyAr = $tableLabel
+                ? 'طلب جديد من طاولة ' . $tableLabel . '.'
+                : 'وصلك طلب جديد.';
+            $bodyEn = $tableLabel
+                ? 'New order from table ' . $tableLabel . '.'
+                : 'You have a new order.';
+
+            $this->notifications->dispatch('menu_order_created', $businessId, [
+                'type' => AppNotification::TYPE_OFFER,
+                'actor_id' => (int) $cart->user_id,
+                'body_ar' => $bodyAr,
+                'body_en' => $bodyEn,
+                'action_type' => 'open_business_order',
+                'action_url' => '/business/orders/' . $cart->id,
+                'notifiable_type' => Order::class,
+                'notifiable_id' => (int) $cart->id,
+                'source_id' => (int) $cart->id,
+                'meta' => [
+                    'order_id' => (int) $cart->id,
+                    'business_id' => $businessId,
+                    'business_table_id' => $cart->business_table_id ? (int) $cart->business_table_id : null,
+                    'table_label' => $tableLabel,
+                    'fulfillment_type' => $cart->fulfillment_type,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

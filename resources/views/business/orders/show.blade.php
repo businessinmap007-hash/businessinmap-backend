@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $typeLabels = ['delivery' => 'توصيل', 'pickup' => 'استلام'];
+    $typeLabels = ['delivery' => 'توصيل', 'pickup' => 'استلام', 'dine_in' => 'في المكان'];
 @endphp
 
 <div class="a2-page-head">
@@ -12,6 +12,9 @@
         <h1 class="a2-page-title">طلب #{{ $order->id }}</h1>
         <div class="a2-page-subtitle">
             <span class="a2-pill a2-pill-sub">{{ $typeLabels[$order->fulfillment_type] ?? $order->fulfillment_type }}</span>
+            @if($order->businessTable)
+                <span class="a2-pill a2-pill-info">طاولة {{ $order->businessTable->label }}</span>
+            @endif
             @if($order->fulfillment_type === 'delivery' && $order->address)
                 — {{ $order->address }}
             @endif

@@ -45,6 +45,7 @@
                 <tr>
                     <th>#</th>
                     <th>النوع</th>
+                    <th>الطاولة</th>
                     <th>الأصناف</th>
                     <th>الإجمالي</th>
                     <th>الحالة</th>
@@ -56,6 +57,7 @@
                     <tr>
                         <td>{{ $row->id }}</td>
                         <td><span class="a2-pill a2-pill-sub">{{ $typeLabels[$row->fulfillment_type] ?? $row->fulfillment_type }}</span></td>
+                        <td>@if($row->businessTable)<span class="a2-pill a2-pill-info">طاولة {{ $row->businessTable->label }}</span>@else<span class="a2-muted">—</span>@endif</td>
                         <td>{{ (int) $row->items_count }}</td>
                         <td class="a2-fw-900">{{ number_format((float) $row->final_total, 2) }}</td>
                         <td>{{ $row->status }}</td>
@@ -71,7 +73,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="a2-empty">لا توجد طلبات بعد.</td></tr>
+                    <tr><td colspan="7" class="a2-empty">لا توجد طلبات بعد.</td></tr>
                 @endforelse
             </tbody>
         </table>

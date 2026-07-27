@@ -48,6 +48,7 @@ class OrderController extends Controller
             ->where('business_id', $this->businessId())
             ->whereNull('booking_id')
             ->when($type !== '', fn ($query) => $query->where('fulfillment_type', $type))
+            ->with('businessTable:id,label')
             ->withCount('items')
             ->orderByDesc('id')
             ->paginate(50)
@@ -91,7 +92,7 @@ class OrderController extends Controller
     public function show(int $id): View
     {
         $order = $this->scopedOrder($id);
-        $order->load('items');
+        $order->load('items', 'businessTable:id,label');
 
         $menuItems = MenuItem::query()
             ->where('business_id', $this->businessId())

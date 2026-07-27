@@ -329,6 +329,8 @@ components:
         payment_method: { type: string }
         address: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        business_table_id: { type: integer, nullable: true, description: "Dine-in table id (BIM-13.3) when the order came from a table scan." }
+        table_label: { type: string, nullable: true, description: "The dine-in table label; present when the businessTable relation is loaded." }
         business: { type: object, nullable: true }
         customer: { type: object, nullable: true }
         items_count: { type: integer }

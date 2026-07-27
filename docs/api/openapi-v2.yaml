@@ -3219,6 +3219,23 @@ paths:
       summary: Cancel my appointment (patient)
       parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: Cancelled }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /clinic-appointments/{appointment}/reschedule:
+    post:
+      tags: [Clinic Appointments]
+      summary: Reschedule my appointment to a new time (patient)
+      description: A confirmed appointment stays confirmed if the new time is free (overlap-guarded); a requested one just moves. The clinic is notified and any linked slot is freed.
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduled_at]
+              properties:
+                scheduled_at: { type: string, format: date-time }
+                duration_minutes: { type: integer }
+      responses: { '200': { description: Rescheduled }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-appointments:
     get:
       tags: [Clinic Appointments]

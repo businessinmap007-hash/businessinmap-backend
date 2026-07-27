@@ -83,6 +83,30 @@ class ClinicAppointmentController extends Controller
         ]);
     }
 
+    /** POST /api/v2/clinic-appointments/{appointment}/reschedule — patient moves it. */
+    public function reschedule(Request $request, int $appointment)
+    {
+        $row = ClinicAppointment::query()->findOrFail($appointment);
+        abort_if((int) $row->patient_id !== (int) $request->user()->id, 404);
+
+        $data = $request->validate([
+            'scheduled_at' => ['required', 'date', 'after:now'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+        ]);
+
+        $row = $this->service->rescheduleByPatient(
+            $row,
+            \Illuminate\Support\Carbon::parse($data['scheduled_at']),
+            isset($data['duration_minutes']) ? (int) $data['duration_minutes'] : null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تغيير موعدك.'),
+            'data' => ['appointment' => $this->serialize($row->fresh(['clinic:id,name,logo', 'prescription:id,appointment_id']))],
+        ]);
+    }
+
     /** GET /api/v2/clinics/{clinic}/slots — a clinic's open, still-future slots. */
     public function slots(Request $request, int $clinic)
     {

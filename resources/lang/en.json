@@ -2321,5 +2321,7 @@
     "تم حذف الفتحة.": "Slot removed.",
     "لا يمكن حذف فتحة محجوزة.": "A booked slot cannot be removed.",
     "هذه الفتحة لم تعد متاحة.": "This slot is no longer available.",
-    "الموعد لا يخص هذه العيادة أو هذا المريض.": "The appointment does not belong to this clinic or patient."
+    "الموعد لا يخص هذه العيادة أو هذا المريض.": "The appointment does not belong to this clinic or patient.",
+    "تم تغيير موعدك.": "Your appointment has been rescheduled.",
+    "لا يمكن إعادة جدولة هذا الموعد.": "This appointment cannot be rescheduled."
 }

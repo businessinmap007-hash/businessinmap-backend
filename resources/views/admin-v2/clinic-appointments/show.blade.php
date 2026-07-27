@@ -26,7 +26,8 @@
           <tr><th>{{ __('السبب') }}</th><td>{{ $appointment->reason ?: '—' }}</td></tr>
           <tr><th>{{ __('ملاحظات') }}</th><td>{{ $appointment->notes ?: '—' }}</td></tr>
           <tr><th>{{ __('هاتف المريض') }}</th><td>{{ optional($appointment->patient)->phone ?: '—' }}</td></tr>
-          <tr><th>{{ __('ذُكّر في') }}</th><td>{{ optional($appointment->reminded_at)->format('Y-m-d H:i') ?? '—' }}</td></tr>
+          <tr><th>{{ __('تذكير قبل يوم') }}</th><td>{{ optional($appointment->reminded_day_at)->format('Y-m-d H:i') ?? '—' }}</td></tr>
+          <tr><th>{{ __('تذكير قبل ساعتين') }}</th><td>{{ optional($appointment->reminded_soon_at)->format('Y-m-d H:i') ?? '—' }}</td></tr>
         </tbody>
       </table>
     </div>

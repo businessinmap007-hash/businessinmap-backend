@@ -38,13 +38,15 @@ class ClinicAppointment extends Model
         'status',
         'reason',
         'notes',
-        'reminded_at',
+        'reminded_day_at',
+        'reminded_soon_at',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'duration_minutes' => 'integer',
-        'reminded_at' => 'datetime',
+        'reminded_day_at' => 'datetime',
+        'reminded_soon_at' => 'datetime',
     ];
 
     public function clinic(): BelongsTo

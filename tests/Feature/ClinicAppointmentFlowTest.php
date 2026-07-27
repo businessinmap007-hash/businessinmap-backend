@@ -180,24 +180,91 @@ class ClinicAppointmentFlowTest extends TestCase
         $this->postJson("/api/v2/clinic-slots/{$slotId}/book")->assertStatus(422);
     }
 
-    public function test_due_reminders_are_sent_once(): void
+    public function test_the_patient_gets_a_day_and_a_two_hour_reminder_each_once(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $service = app(ClinicAppointmentService::class);
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addHours(6), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        // 6h out → only the day-before reminder fires, once.
+        $this->assertSame(1, $service->sendDueReminders());
+        $this->assertNotNull($appointment->fresh()->reminded_day_at);
+        $this->assertNull($appointment->fresh()->reminded_soon_at);
+        $this->assertSame(0, $service->sendDueReminders());
+
+        // Only the patient is reminded — never the clinic.
+        $this->assertTrue(AppNotification::query()->where('user_id', $patient->id)
+            ->where('title_ar', 'تذكير بالموعد')->exists());
+        $this->assertFalse(AppNotification::query()->where('user_id', $clinic->id)
+            ->where('title_ar', 'تذكير بالموعد')->exists());
+
+        // Move the appointment to 1h out → now the 2h reminder is due (once).
+        $appointment->update(['scheduled_at' => Carbon::now()->addHour()]);
+        $this->assertSame(1, $service->sendDueReminders());
+        $this->assertNotNull($appointment->fresh()->reminded_soon_at);
+        $this->assertSame(0, $service->sendDueReminders());
+    }
+
+    public function test_a_patient_reschedules_a_confirmed_appointment(): void
     {
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
         $patient = $this->user(User::TYPE_CLIENT, 'Patient');
 
+        // A slot-booked confirmed appointment, already reminded.
+        $slot = ClinicAppointmentSlot::create([
+            'clinic_id' => $clinic->id, 'starts_at' => $this->soon('+2 days 09:00'), 'duration_minutes' => 30,
+        ]);
         $appointment = ClinicAppointment::create([
-            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
-            'scheduled_at' => Carbon::now()->addHours(3), 'duration_minutes' => 30,
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $patient->id,
+            'scheduled_at' => Carbon::parse($this->soon('+2 days 09:00')), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED, 'reminded_day_at' => Carbon::now(),
+        ]);
+        $slot->update(['appointment_id' => $appointment->id]);
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => $this->soon('+3 days 14:00'),
+        ])->assertOk()->assertJsonPath('data.appointment.status', 'confirmed');
+
+        $fresh = $appointment->fresh();
+        $this->assertEquals(Carbon::parse($this->soon('+3 days 14:00')), $fresh->scheduled_at);
+        $this->assertNull($fresh->reminded_day_at);            // reminders reset for the new time
+        $this->assertNull($slot->fresh()->appointment_id);     // old published slot freed
+        // The clinic is told the patient moved it.
+        $this->assertTrue(AppNotification::query()->where('user_id', $clinic->id)
+            ->where('title_ar', 'إعادة جدولة موعد')->exists());
+    }
+
+    public function test_rescheduling_onto_a_confirmed_slot_is_refused(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $p1 = $this->user(User::TYPE_CLIENT, 'P1');
+        $p2 = $this->user(User::TYPE_CLIENT, 'P2');
+        $taken = $this->soon('+2 days 10:00');
+
+        // P1 holds a confirmed slot at $taken.
+        ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $p1->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::parse($taken), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+        // P2 has a confirmed appointment elsewhere and tries to move onto $taken.
+        $p2Appt = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $p2->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::parse($this->soon('+2 days 12:00')), 'duration_minutes' => 30,
             'status' => ClinicAppointment::STATUS_CONFIRMED,
         ]);
 
-        $service = app(ClinicAppointmentService::class);
-        $this->assertSame(1, $service->sendDueReminders());
-        // Both parties reminded, and it's marked so a second run does nothing.
-        $this->assertTrue(AppNotification::query()->where('user_id', $patient->id)
-            ->where('title_ar', 'تذكير بالموعد')->exists());
-        $this->assertNotNull($appointment->fresh()->reminded_at);
-        $this->assertSame(0, $service->sendDueReminders());
+        Sanctum::actingAs($p2);
+        $this->postJson("/api/v2/clinic-appointments/{$p2Appt->id}/reschedule", [
+            'scheduled_at' => Carbon::parse($taken)->addMinutes(10)->format('Y-m-d H:i:s'),
+        ])->assertStatus(422)->assertJsonValidationErrors('scheduled_at');
     }
 
     public function test_a_prescription_can_be_linked_to_the_visit(): void

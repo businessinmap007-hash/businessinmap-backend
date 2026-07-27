@@ -174,40 +174,101 @@ class ClinicAppointmentService
     }
 
     /**
-     * Send a one-time pre-visit reminder to both parties for every confirmed
-     * appointment starting within the next `$withinHours` and not yet reminded.
-     * Returns how many were reminded. Idempotent via `reminded_at`.
+     * Pre-visit reminders to the **patient only** (the clinic already has the
+     * appointment on its calendar). Two fire per confirmed appointment, each
+     * exactly once: a day-before reminder (between 2h and 24h out) and a
+     * 2-hours-before reminder (within the last 2h). Returns how many were sent.
      */
-    public function sendDueReminders(int $limit = 200, int $withinHours = 24): int
+    public function sendDueReminders(int $limit = 200): int
     {
         $now = Carbon::now();
-        $until = $now->copy()->addHours($withinHours);
+        $sent = 0;
 
-        $due = ClinicAppointment::query()
+        // Day-before: 2h–24h away, not yet day-reminded.
+        $dayDue = ClinicAppointment::query()
             ->where('status', ClinicAppointment::STATUS_CONFIRMED)
-            ->whereNull('reminded_at')
-            ->where('scheduled_at', '>', $now)
-            ->where('scheduled_at', '<=', $until)
+            ->whereNull('reminded_day_at')
+            ->where('scheduled_at', '>', $now->copy()->addHours(2))
+            ->where('scheduled_at', '<=', $now->copy()->addHours(24))
             ->orderBy('scheduled_at')
             ->limit($limit)
             ->get();
 
-        $sent = 0;
-        foreach ($due as $appointment) {
-            $when = $appointment->scheduled_at->format('Y-m-d H:i');
+        foreach ($dayDue as $appointment) {
+            $this->remindPatient($appointment,
+                'تذكير: لديك موعد غدًا في ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+                'Reminder: you have an appointment tomorrow at ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
+            $appointment->update(['reminded_day_at' => $now]);
+            $sent++;
+        }
 
-            foreach ([(int) $appointment->patient_id, (int) $appointment->clinic_id] as $userId) {
-                $this->notify('appointment_reminder', $userId, $appointment,
-                    'تذكير بالموعد', 'Appointment reminder',
-                    'لديك موعد قادم في ' . $when . '.',
-                    'You have an upcoming appointment on ' . $when . '.');
-            }
+        // 2-hours-before: within the next 2h, not yet soon-reminded.
+        $soonDue = ClinicAppointment::query()
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereNull('reminded_soon_at')
+            ->where('scheduled_at', '>', $now)
+            ->where('scheduled_at', '<=', $now->copy()->addHours(2))
+            ->orderBy('scheduled_at')
+            ->limit($limit)
+            ->get();
 
-            $appointment->update(['reminded_at' => $now]);
+        foreach ($soonDue as $appointment) {
+            $this->remindPatient($appointment,
+                'تذكير: موعدك بعد ساعتين، في ' . $appointment->scheduled_at->format('H:i') . '.',
+                'Reminder: your appointment is in 2 hours, at ' . $appointment->scheduled_at->format('H:i') . '.');
+            $appointment->update(['reminded_soon_at' => $now]);
             $sent++;
         }
 
         return $sent;
+    }
+
+    private function remindPatient(ClinicAppointment $appointment, string $bodyAr, string $bodyEn): void
+    {
+        $this->notify('appointment_reminder', (int) $appointment->patient_id, $appointment,
+            'تذكير بالموعد', 'Appointment reminder', $bodyAr, $bodyEn);
+    }
+
+    /**
+     * Patient moves their own appointment to a new time while it is still active.
+     * A confirmed appointment keeps its confirmation if the new time is free
+     * (overlap-guarded, ignoring itself); a requested one just moves. The clinic
+     * is notified, any linked published slot is freed, and both reminder markers
+     * reset so the new time is reminded afresh.
+     */
+    public function rescheduleByPatient(ClinicAppointment $appointment, Carbon $newStart, ?int $duration = null): ClinicAppointment
+    {
+        if (! in_array($appointment->status, ClinicAppointment::ACTIVE_STATUSES, true)) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن إعادة جدولة هذا الموعد.')]);
+        }
+
+        $duration = $duration ?? (int) $appointment->duration_minutes;
+
+        // A confirmed appointment must land on a free slot (ignoring itself).
+        if ($appointment->status === ClinicAppointment::STATUS_CONFIRMED) {
+            $this->assertNoConflict((int) $appointment->clinic_id, $newStart, $duration, (int) $appointment->id);
+        }
+
+        return DB::transaction(function () use ($appointment, $newStart, $duration) {
+            // Free any published slot that was pointing at this appointment.
+            ClinicAppointmentSlot::query()
+                ->where('appointment_id', $appointment->id)
+                ->update(['appointment_id' => null]);
+
+            $appointment->update([
+                'scheduled_at' => $newStart,
+                'duration_minutes' => $duration,
+                'reminded_day_at' => null,
+                'reminded_soon_at' => null,
+            ]);
+
+            $this->notify('appointment_rescheduled', (int) $appointment->clinic_id, $appointment,
+                'إعادة جدولة موعد', 'Appointment rescheduled',
+                'غيّر المريض موعده إلى ' . $newStart->format('Y-m-d H:i') . '.',
+                'The patient moved their appointment to ' . $newStart->format('Y-m-d H:i') . '.');
+
+            return $appointment;
+        });
     }
 
     /** True if a confirmed appointment already overlaps the given window. */

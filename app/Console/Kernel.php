@@ -23,10 +23,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('sponsors:delete-expired')->everyTenMinutes();
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
 
-        // Pre-visit reminders for confirmed clinic appointments. The window is 24h
-        // and each appointment is reminded once, so hourly comfortably catches it.
+        // Patient reminders for confirmed clinic appointments (a day before, and
+        // 2 hours before — each once). Every fifteen minutes so the 2h reminder
+        // lands close to 2h out rather than drifting up to an hour.
         $schedule->command('clinic:appointment-reminders --limit=200')
-            ->hourly()
+            ->everyFifteenMinutes()
             ->withoutOverlapping();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();

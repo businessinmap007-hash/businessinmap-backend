@@ -332,6 +332,7 @@ Route::prefix('v2')->group(function () {
         Route::post('clinic-appointments', [ClinicAppointmentController::class, 'store']);
         Route::get('clinic-appointments/{appointment}', [ClinicAppointmentController::class, 'show'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/cancel', [ClinicAppointmentController::class, 'cancel'])->whereNumber('appointment');
+        Route::post('clinic-appointments/{appointment}/reschedule', [ClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
         Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');

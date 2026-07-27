@@ -7,16 +7,13 @@ use Illuminate\Console\Command;
 
 class SendClinicAppointmentReminders extends Command
 {
-    protected $signature = 'clinic:appointment-reminders {--limit=200} {--within-hours=24}';
+    protected $signature = 'clinic:appointment-reminders {--limit=200}';
 
-    protected $description = 'Send one-time pre-visit reminders for upcoming confirmed clinic appointments.';
+    protected $description = 'Send pre-visit reminders to patients (a day before and 2 hours before).';
 
     public function handle(ClinicAppointmentService $service): int
     {
-        $sent = $service->sendDueReminders(
-            max((int) $this->option('limit'), 1),
-            max((int) $this->option('within-hours'), 1),
-        );
+        $sent = $service->sendDueReminders(max((int) $this->option('limit'), 1));
 
         $this->info("Sent clinic appointment reminders: {$sent}");
 

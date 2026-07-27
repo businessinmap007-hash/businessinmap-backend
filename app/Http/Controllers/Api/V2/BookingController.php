@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
 use App\Models\Booking;
 use App\Models\User;
+use App\Services\Agenda\AgendaService;
 use App\Services\BookingReminderService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +24,8 @@ final class BookingController extends Controller
         protected ServiceExecutionEngine $serviceExecutionEngine,
         protected ServiceEventDispatcher $serviceEventDispatcher,
         protected BookingReminderService $bookingReminderService,
-        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration
+        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
+        protected AgendaService $agenda
     ) {
     }
 
@@ -78,6 +81,18 @@ final class BookingController extends Controller
             throw ValidationException::withMessages([
                 'business_id' => __('البزنس غير موجود أو غير صحيح.'),
             ]);
+        }
+
+        // Mutual conflict guard (before any pricing work): a timed booking can't
+        // overlap anything already on the customer's agenda — another booking, a
+        // clinic appointment, or a personal task.
+        if (! empty($data['starts_at'])) {
+            [$start, $end] = $this->agenda->blockingWindow(
+                Carbon::parse($data['starts_at']),
+                ! empty($data['ends_at']) ? Carbon::parse($data['ends_at']) : null,
+                (bool) ($data['all_day'] ?? false),
+            );
+            $this->agenda->assertFree((int) $user->id, $start, $end, null, 'starts_at');
         }
 
         $quantity = max((int) ($data['quantity'] ?? 1), 1);

@@ -208,4 +208,28 @@ class AgendaFlowTest extends TestCase
             'scheduled_at' => $at->copy()->addMinutes(30)->format('Y-m-d H:i:s'),
         ])->assertStatus(422)->assertJsonValidationErrors('scheduled_at');
     }
+
+    public function test_a_service_booking_is_refused_over_a_clinic_appointment(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $restaurant = $this->user(User::TYPE_BUSINESS, 'Restaurant');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $at = Carbon::tomorrow()->setTime(18, 0);
+
+        // A confirmed clinic appointment occupies 18:00 on the patient's agenda.
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/business/clinic-appointments', [
+            'patient_id' => $patient->id, 'scheduled_at' => $at->format('Y-m-d H:i:s'),
+        ])->assertCreated();
+
+        // Booking a service that overlaps 18:00 is now refused (mutual guard, fired
+        // before any pricing work).
+        Sanctum::actingAs($patient);
+        $this->postJson('/api/v2/bookings', [
+            'business_id' => $restaurant->id,
+            'service_id' => 1,
+            'starts_at' => $at->copy()->addMinutes(15)->format('Y-m-d H:i:s'),
+            'ends_at' => $at->copy()->addHour()->format('Y-m-d H:i:s'),
+        ])->assertStatus(422)->assertJsonValidationErrors('starts_at');
+    }
 }

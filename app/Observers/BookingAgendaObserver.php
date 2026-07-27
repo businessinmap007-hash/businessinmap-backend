@@ -37,7 +37,11 @@ class BookingAgendaObserver
                 return;
             }
 
-            [$start, $end] = $this->window($booking);
+            [$start, $end] = $this->agenda->blockingWindow(
+                Carbon::parse($booking->starts_at),
+                $booking->ends_at ? Carbon::parse($booking->ends_at) : null,
+                (bool) $booking->all_day,
+            );
 
             $this->agenda->syncCommitment(
                 (int) $booking->user_id,
@@ -59,19 +63,5 @@ class BookingAgendaObserver
         } catch (\Throwable $e) {
             report($e);
         }
-    }
-
-    /** The span a booking occupies. */
-    private function window(Booking $booking): array
-    {
-        $start = Carbon::parse($booking->starts_at);
-
-        if ($booking->all_day) {
-            return [$start->copy()->startOfDay(), $start->copy()->endOfDay()];
-        }
-
-        $end = $booking->ends_at ? Carbon::parse($booking->ends_at) : $start->copy()->addHour();
-
-        return [$start, $end];
     }
 }

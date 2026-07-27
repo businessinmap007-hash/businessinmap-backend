@@ -25,7 +25,7 @@ class AgendaService
      * `$ignoreSource` (a [type, id] pair) skips the commitment being moved so a
      * reschedule doesn't clash with its own current slot.
      */
-    public function assertFree(int $userId, Carbon $start, Carbon $end, ?array $ignoreSource = null): void
+    public function assertFree(int $userId, Carbon $start, Carbon $end, ?array $ignoreSource = null, string $field = 'scheduled_at'): void
     {
         $clash = AgendaItem::query()
             ->where('user_id', $userId)
@@ -43,9 +43,19 @@ class AgendaService
 
         if ($clash) {
             throw ValidationException::withMessages([
-                'scheduled_at' => __('لديك حجز آخر في هذا الوقت.'),
+                $field => __('لديك حجز آخر في هذا الوقت.'),
             ]);
         }
+    }
+
+    /** The [start, end] span a commitment occupies (all-day fills the whole day). */
+    public function blockingWindow(Carbon $start, ?Carbon $end, bool $allDay = false): array
+    {
+        if ($allDay) {
+            return [$start->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return [$start, $end ?? $start->copy()->addHour()];
     }
 
     /**

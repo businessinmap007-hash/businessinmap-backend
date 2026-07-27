@@ -23,6 +23,7 @@ final class BusinessCapability
     public const SCHEDULES = 'schedules';
     public const PRICES = 'prices';
     public const TRAINING = 'training';
+    public const CLINIC = 'clinic';
 
     /**
      * The registry: key => [ar, en]. Order here is the display order.
@@ -43,6 +44,7 @@ final class BusinessCapability
             self::PRESCRIPTIONS => ['الوصفات الطبية', 'Prescriptions'],
             self::SCHEDULES => ['خطوط التشغيل', 'Trip schedules'],
             self::TRAINING => ['خطط التدريب والتغذية', 'Training & nutrition plans'],
+            self::CLINIC => ['مواعيد العيادة', 'Clinic appointments'],
         ];
     }
 

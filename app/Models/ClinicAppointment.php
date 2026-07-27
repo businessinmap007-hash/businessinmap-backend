@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * A patient↔clinic appointment (see the create migration). Readable only by the
+ * clinic and the patient.
+ */
+class ClinicAppointment extends Model
+{
+    public const STATUS_REQUESTED = 'requested';
+    public const STATUS_CONFIRMED = 'confirmed';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_NO_SHOW = 'no_show';
+
+    public const STATUSES = [
+        self::STATUS_REQUESTED,
+        self::STATUS_CONFIRMED,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+        self::STATUS_NO_SHOW,
+    ];
+
+    /** Statuses that still occupy the calendar (block an overlapping slot). */
+    public const ACTIVE_STATUSES = [self::STATUS_REQUESTED, self::STATUS_CONFIRMED];
+
+    protected $fillable = [
+        'clinic_id',
+        'patient_id',
+        'created_by',
+        'scheduled_at',
+        'duration_minutes',
+        'status',
+        'reason',
+        'notes',
+    ];
+
+    protected $casts = [
+        'scheduled_at' => 'datetime',
+        'duration_minutes' => 'integer',
+    ];
+
+    public function clinic(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'clinic_id');
+    }
+
+    public function patient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'patient_id');
+    }
+
+    public function endsAt()
+    {
+        return $this->scheduled_at?->copy()->addMinutes((int) $this->duration_minutes);
+    }
+
+    public function isParty(int $userId): bool
+    {
+        return in_array($userId, [(int) $this->clinic_id, (int) $this->patient_id], true);
+    }
+}

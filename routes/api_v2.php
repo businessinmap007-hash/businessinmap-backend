@@ -23,7 +23,9 @@ use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\BusinessClinicAppointmentController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
+use App\Http\Controllers\Api\V2\ClinicAppointmentController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
@@ -324,6 +326,12 @@ Route::prefix('v2')->group(function () {
         Route::post('training-plans/{plan}/chat/messages', [TrainingChatController::class, 'clientPost'])->whereNumber('plan');
         // My weekly adherence to a plan.
         Route::get('training-plans/{plan}/weekly-summary', [ClientTrainingController::class, 'weeklySummary'])->whereNumber('plan');
+
+        // Clinic appointments — the patient's side: request, read mine, cancel.
+        Route::get('clinic-appointments', [ClinicAppointmentController::class, 'index']);
+        Route::post('clinic-appointments', [ClinicAppointmentController::class, 'store']);
+        Route::get('clinic-appointments/{appointment}', [ClinicAppointmentController::class, 'show'])->whereNumber('appointment');
+        Route::post('clinic-appointments/{appointment}/cancel', [ClinicAppointmentController::class, 'cancel'])->whereNumber('appointment');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
@@ -716,6 +724,16 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/chat/messages', [TrainingChatController::class, 'trainerPost'])->whereNumber('plan');
             // A client's weekly adherence to the plan.
             Route::get('{plan}/weekly-summary', [TrainingPlanController::class, 'weeklySummary'])->whereNumber('plan');
+        });
+
+        // Clinic appointments — the clinic's side (a delegate = the secretary).
+        Route::prefix('business/clinic-appointments')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [BusinessClinicAppointmentController::class, 'index']);
+            Route::post('/', [BusinessClinicAppointmentController::class, 'store']);
+            Route::post('{appointment}/confirm', [BusinessClinicAppointmentController::class, 'confirm'])->whereNumber('appointment');
+            Route::post('{appointment}/reject', [BusinessClinicAppointmentController::class, 'reject'])->whereNumber('appointment');
+            Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
+            Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
         });
 
         // Reusable training templates: build once, apply to many clients.

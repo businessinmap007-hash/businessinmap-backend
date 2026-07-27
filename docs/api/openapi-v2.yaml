@@ -68,6 +68,12 @@ tags:
       Training & nutrition plans: a trainer (a gym/coach business) builds a
       client's workout + meals; the client reads it and logs progress. Readable
       only by the trainer and the client. Delegable via the `training` capability.
+  - name: Clinic Appointments
+    description: >-
+      Clinic appointments: a patient requests a time at a clinic (a business),
+      the clinic confirms/completes it without double-booking, or the clinic
+      books directly. Readable only by the two parties. Delegable via the
+      `clinic` capability (e.g. a clinic secretary).
   - name: Projects
     description: >-
       A business's internal project-management timeline for manufacturing and
@@ -3179,6 +3185,86 @@ paths:
       summary: Remove a meal (trainer)
       parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: meal, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /clinic-appointments:
+    get:
+      tags: [Clinic Appointments]
+      summary: My appointments (patient)
+      parameters: [{ name: status, in: query, schema: { type: string, enum: [requested, confirmed, completed, cancelled, no_show] } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Clinic Appointments]
+      summary: Request an appointment at a clinic (patient)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clinic_id, scheduled_at]
+              properties:
+                clinic_id: { type: integer }
+                scheduled_at: { type: string, format: date-time, description: 'Must be in the future' }
+                duration_minutes: { type: integer, minimum: 5, maximum: 480, default: 30 }
+                reason: { type: string }
+      responses: { '201': { description: Requested }, '422': { $ref: '#/components/responses/Validation' } }
+  /clinic-appointments/{appointment}:
+    get:
+      tags: [Clinic Appointments]
+      summary: Read an appointment (a party only)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not found, or you are not a party' } }
+  /clinic-appointments/{appointment}/cancel:
+    post:
+      tags: [Clinic Appointments]
+      summary: Cancel my appointment (patient)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Cancelled }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments:
+    get:
+      tags: [Clinic Appointments]
+      summary: The clinic's appointment queue/calendar
+      parameters: [{ name: status, in: query, schema: { type: string } }, { name: date, in: query, schema: { type: string, format: date } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Clinic Appointments]
+      summary: Clinic books an appointment directly (confirmed; overlap-guarded)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id, scheduled_at]
+              properties:
+                patient_id: { type: integer }
+                scheduled_at: { type: string, format: date-time }
+                duration_minutes: { type: integer }
+                reason: { type: string }
+      responses: { '201': { description: Booked }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/confirm:
+    post:
+      tags: [Clinic Appointments]
+      summary: Confirm a requested appointment (overlap-guarded; notifies the patient)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/reject:
+    post:
+      tags: [Clinic Appointments]
+      summary: Reject/cancel an appointment (clinic)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/complete:
+    post:
+      tags: [Clinic Appointments]
+      summary: Mark an appointment completed (clinic)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/no-show:
+    post:
+      tags: [Clinic Appointments]
+      summary: Mark a no-show (clinic)
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /prescriptions:
     get:
       tags: [Prescriptions]

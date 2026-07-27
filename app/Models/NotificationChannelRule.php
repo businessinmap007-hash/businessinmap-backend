@@ -92,6 +92,11 @@ class NotificationChannelRule extends Model
 
             // Training: a coach assigns/updates a client's plan (→ the client).
             'training_plan_assigned' => ['خطة تدريب جديدة', 'New training plan', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+
+            // Clinic appointments: a patient requests one (→ clinic); the clinic
+            // confirms it (→ patient).
+            'appointment_requested' => ['طلب موعد جديد', 'New appointment request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'booking_new'],
+            'appointment_confirmed' => ['تأكيد الموعد', 'Appointment confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
         ];
     }
 

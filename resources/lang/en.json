@@ -2304,5 +2304,17 @@
     "تم حفظ القالب.": "Template saved.",
     "تم تحديث القالب.": "Template updated.",
     "تم حذف القالب.": "Template deleted.",
-    "تم تطبيق القالب وإنشاء خطة للعميل.": "Template applied — a plan was created for the client."
+    "تم تطبيق القالب وإنشاء خطة للعميل.": "Template applied — a plan was created for the client.",
+    "لا يمكن تأكيد هذا الموعد في حالته الحالية.": "This appointment cannot be confirmed in its current state.",
+    "هذا الموعد يتعارض مع موعد مؤكَّد آخر.": "This appointment overlaps another confirmed one.",
+    "لا يمكن إلغاء هذا الموعد.": "This appointment cannot be cancelled.",
+    "لا يمكن تنفيذ هذا الإجراء على الموعد الآن.": "This action is not allowed on the appointment right now.",
+    "تم إرسال طلب الموعد.": "Appointment request sent.",
+    "يجب اختيار عيادة صحيحة.": "Choose a valid clinic.",
+    "تم إلغاء الموعد.": "Appointment cancelled.",
+    "تم حجز الموعد.": "Appointment booked.",
+    "تم تأكيد الموعد.": "Appointment confirmed.",
+    "تم رفض/إلغاء الموعد.": "Appointment rejected/cancelled.",
+    "تم إكمال الموعد.": "Appointment completed.",
+    "تم تسجيل عدم الحضور.": "Marked as no-show."
 }

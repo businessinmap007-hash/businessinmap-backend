@@ -318,8 +318,9 @@ Route::prefix('v2')->group(function () {
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
 
-        // Personal agenda: my unified day + my own tasks.
+        // Personal agenda: my unified day + week + my own tasks.
         Route::get('agenda', [AgendaController::class, 'index']);
+        Route::get('agenda/week', [AgendaController::class, 'week']);
         Route::post('agenda', [AgendaController::class, 'store']);
         Route::post('agenda/recurring', [AgendaController::class, 'storeRecurring']);
         Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');

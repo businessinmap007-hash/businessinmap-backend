@@ -96,10 +96,16 @@ class AgendaService
     /** The user's items for one day, ordered by time. */
     public function forDay(int $userId, Carbon $date): \Illuminate\Support\Collection
     {
+        return $this->forRange($userId, $date->copy()->startOfDay(), $date->copy()->endOfDay());
+    }
+
+    /** The user's active items within a datetime range, ordered by time. */
+    public function forRange(int $userId, Carbon $from, Carbon $to): \Illuminate\Support\Collection
+    {
         return AgendaItem::query()
             ->where('user_id', $userId)
             ->where('status', AgendaItem::STATUS_ACTIVE)
-            ->whereBetween('starts_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+            ->whereBetween('starts_at', [$from, $to])
             ->orderBy('starts_at')
             ->get();
     }

@@ -36,6 +36,35 @@ class AgendaController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/v2/agenda/week?date=YYYY-MM-DD — my week (7 days from the Saturday
+     * of the week containing `date`, default this week). Every day is returned,
+     * empty ones included, so the client can render a full grid.
+     */
+    public function week(Request $request)
+    {
+        $anchor = $request->filled('date') ? Carbon::parse($request->get('date')) : Carbon::today();
+        $start = $anchor->copy()->startOfWeek(Carbon::SATURDAY);
+        $end = $start->copy()->addDays(6)->endOfDay();
+
+        $byDay = $this->agenda->forRange((int) $request->user()->id, $start, $end)
+            ->groupBy(fn (AgendaItem $i) => $i->starts_at->toDateString());
+
+        $days = [];
+        for ($d = 0; $d < 7; $d++) {
+            $date = $start->copy()->addDays($d)->toDateString();
+            $days[] = [
+                'date' => $date,
+                'items' => ($byDay->get($date) ?? collect())->map(fn (AgendaItem $i) => $this->serialize($i))->values()->all(),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['from' => $start->toDateString(), 'to' => $start->copy()->addDays(6)->toDateString(), 'days' => $days],
+        ]);
+    }
+
     /** POST /api/v2/agenda — add my own timed task (blocks time, may remind). */
     public function store(Request $request)
     {

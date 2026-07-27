@@ -57,6 +57,29 @@ class AgendaFlowTest extends TestCase
             ->assertJsonPath('data.items.0.kind', 'personal');
     }
 
+    public function test_the_week_view_returns_seven_days_with_the_task_on_its_day(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        Sanctum::actingAs($user);
+
+        // A task next Tuesday 09:00.
+        $tuesday = Carbon::today()->next(Carbon::TUESDAY)->setTime(9, 0);
+        $this->postJson('/api/v2/agenda', [
+            'title' => 'مهمة', 'starts_at' => $tuesday->format('Y-m-d H:i:s'),
+        ])->assertCreated();
+
+        // The week containing that Tuesday: 7 days from its Saturday, task on day.
+        $res = $this->getJson('/api/v2/agenda/week?date=' . $tuesday->toDateString())
+            ->assertOk()->json('data');
+
+        $this->assertCount(7, $res['days']);
+        $this->assertSame($tuesday->copy()->startOfWeek(Carbon::SATURDAY)->toDateString(), $res['from']);
+
+        $tuesdayCell = collect($res['days'])->firstWhere('date', $tuesday->toDateString());
+        $this->assertCount(1, $tuesdayCell['items']);
+        $this->assertSame('مهمة', $tuesdayCell['items'][0]['title']);
+    }
+
     public function test_a_clinic_appointment_cannot_be_booked_over_another_commitment(): void
     {
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');

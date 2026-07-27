@@ -3474,6 +3474,12 @@ paths:
                 notes: { type: string }
                 remind: { type: boolean }
       responses: { '201': { description: Added }, '422': { $ref: '#/components/responses/Validation' } }
+  /agenda/week:
+    get:
+      tags: [Agenda]
+      summary: My week — 7 days (from the Saturday of the week containing date)
+      parameters: [{ name: date, in: query, schema: { type: string, format: date } }]
+      responses: { '200': { description: 'OK (returns from/to + 7 day cells)' } }
   /agenda/recurring:
     post:
       tags: [Agenda]

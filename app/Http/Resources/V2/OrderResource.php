@@ -36,6 +36,13 @@ class OrderResource extends JsonResource
             'address' => $this->address,
             'notes' => $this->notes,
 
+            // Dine-in table (BIM-13.3): the business queue shows which table to serve.
+            'business_table_id' => $this->business_table_id ? (int) $this->business_table_id : null,
+            'table_label' => $this->whenLoaded(
+                'businessTable',
+                fn () => optional($this->businessTable)->label
+            ),
+
             'business' => $this->whenLoaded('business', fn () => [
                 'id' => (int) $this->business->id,
                 'name' => (string) $this->business->name,

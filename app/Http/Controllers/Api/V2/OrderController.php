@@ -139,7 +139,7 @@ final class OrderController extends Controller
             ->where('status', '!=', 'cart')
             ->when($data['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
             ->when($data['fulfillment_type'] ?? null, fn ($q, $t) => $q->where('fulfillment_type', $t))
-            ->with('user:id,name,phone')
+            ->with(['user:id,name,phone', 'businessTable:id,label'])
             ->withCount('items')
             ->latest('id')
             ->paginate($data['per_page'] ?? 20)
@@ -155,7 +155,7 @@ final class OrderController extends Controller
             ->where('business_id', BusinessContext::id($request))
             ->whereNull('booking_id')
             ->where('status', '!=', 'cart')
-            ->with(['user:id,name,phone', 'items.menuItem:id,name_ar,name_en'])
+            ->with(['user:id,name,phone', 'items.menuItem:id,name_ar,name_en', 'businessTable:id,label'])
             ->findOrFail($order);
 
         return (new OrderResource($model))->additional(['success' => true]);

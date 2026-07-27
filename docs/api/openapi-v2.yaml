@@ -2950,6 +2950,96 @@ paths:
               properties:
                 for_date: { type: string, format: date }
       responses: { '201': { description: Confirmed }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-templates:
+    get:
+      tags: [Training]
+      summary: My reusable training templates (trainer)
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Training]
+      summary: Create a reusable template (trainer, or a `training` delegate)
+      description: Same exercises/meals shape as a plan, but with no client. Apply it later to any client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                goal: { type: string }
+                notes: { type: string }
+                exercises: { type: array, items: { type: object, required: [name], properties: { name: { type: string }, day_of_week: { type: integer }, sets: { type: integer }, reps: { type: string }, rest_seconds: { type: integer }, notes: { type: string } } } }
+                meals: { type: array, items: { type: object, required: [meal_type, name], properties: { meal_type: { type: string, enum: [breakfast, lunch, dinner, snack] }, name: { type: string }, calories: { type: integer }, notes: { type: string } } } }
+      responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-templates/{template}:
+    get:
+      tags: [Training]
+      summary: A template in full (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    put:
+      tags: [Training]
+      summary: Update a template's header (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    patch:
+      tags: [Training]
+      summary: Update a template (alias of PUT)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    delete:
+      tags: [Training]
+      summary: Delete a template (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-templates/{template}/exercises:
+    post:
+      tags: [Training]
+      summary: Add an exercise to a template (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-templates/{template}/exercises/{exercise}:
+    delete:
+      tags: [Training]
+      summary: Remove a template exercise (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }, { name: exercise, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-templates/{template}/meals:
+    post:
+      tags: [Training]
+      summary: Add a meal to a template (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-templates/{template}/meals/{meal}:
+    delete:
+      tags: [Training]
+      summary: Remove a template meal (trainer)
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }, { name: meal, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-templates/{template}/apply:
+    post:
+      tags: [Training]
+      summary: Apply a template to a client — creates a plan from a copy (trainer)
+      description: Copies the template's exercises + meals into a fresh training plan for the client and notifies them. Header fields may be overridden.
+      parameters: [{ name: template, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id]
+              properties:
+                client_id: { type: integer }
+                title: { type: string }
+                goal: { type: string }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+                notes: { type: string }
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/training-plans:
     get:
       tags: [Training]

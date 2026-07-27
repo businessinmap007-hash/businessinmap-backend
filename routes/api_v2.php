@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
+use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
@@ -702,6 +703,20 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
             Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
             Route::delete('{plan}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber('plan')->whereNumber('meal');
+        });
+
+        // Reusable training templates: build once, apply to many clients.
+        Route::prefix('business/training-templates')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
+            Route::get('/', [TrainingTemplateController::class, 'index']);
+            Route::post('/', [TrainingTemplateController::class, 'store']);
+            Route::get('{template}', [TrainingTemplateController::class, 'show'])->whereNumber('template');
+            Route::match(['put', 'patch'], '{template}', [TrainingTemplateController::class, 'update'])->whereNumber('template');
+            Route::delete('{template}', [TrainingTemplateController::class, 'destroy'])->whereNumber('template');
+            Route::post('{template}/exercises', [TrainingTemplateController::class, 'addExercise'])->whereNumber('template');
+            Route::post('{template}/meals', [TrainingTemplateController::class, 'addMeal'])->whereNumber('template');
+            Route::delete('{template}/exercises/{exercise}', [TrainingTemplateController::class, 'removeExercise'])->whereNumber('template')->whereNumber('exercise');
+            Route::delete('{template}/meals/{meal}', [TrainingTemplateController::class, 'removeMeal'])->whereNumber('template')->whereNumber('meal');
+            Route::post('{template}/apply', [TrainingTemplateController::class, 'apply'])->whereNumber('template');
         });
 
         Route::prefix('business/offers')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {

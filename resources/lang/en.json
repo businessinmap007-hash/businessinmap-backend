@@ -2300,5 +2300,9 @@
     "تم حذف الوجبة.": "Meal removed.",
     "تم تسجيل تقدّمك.": "Your progress was logged.",
     "أكملت جميع جولات هذا التمرين لهذا اليوم.": "You have completed all rounds of this exercise for today.",
-    "تم تأكيد إتمام الجولة.": "Round confirmed."
+    "تم تأكيد إتمام الجولة.": "Round confirmed.",
+    "تم حفظ القالب.": "Template saved.",
+    "تم تحديث القالب.": "Template updated.",
+    "تم حذف القالب.": "Template deleted.",
+    "تم تطبيق القالب وإنشاء خطة للعميل.": "Template applied — a plan was created for the client."
 }

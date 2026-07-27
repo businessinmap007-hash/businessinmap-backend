@@ -2291,5 +2291,12 @@
     "تم تحديث صلاحيات الموظف.": "Staff permissions updated.",
     "تمت إزالة الموظف.": "Staff member removed.",
     "لم يُعثر على المستخدم.": "User not found.",
-    "لا يمكن للنشاط تعيين نفسه موظفًا.": "A business cannot add itself as staff."
+    "لا يمكن للنشاط تعيين نفسه موظفًا.": "A business cannot add itself as staff.",
+    "لا يمكن تعديل حالة خطة منتهية.": "A finished plan cannot change status.",
+    "لا يمكن تسجيل تقدّم على خطة غير نشطة.": "You cannot log progress on a plan that is not active.",
+    "تم إنشاء خطة التدريب.": "Training plan created.",
+    "تم تحديث خطة التدريب.": "Training plan updated.",
+    "تم حذف التمرين.": "Exercise removed.",
+    "تم حذف الوجبة.": "Meal removed.",
+    "تم تسجيل تقدّمك.": "Your progress was logged."
 }

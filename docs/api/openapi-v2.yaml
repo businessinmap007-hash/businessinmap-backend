@@ -63,6 +63,11 @@ tags:
       Medical prescriptions (روشتة): a doctor (clinic business) issues one for a
       patient, who sends it to a pharmacy (business) to dispense — delivery or
       pickup. Readable only by the three parties.
+  - name: Training
+    description: >-
+      Training & nutrition plans: a trainer (a gym/coach business) builds a
+      client's workout + meals; the client reads it and logs progress. Readable
+      only by the trainer and the client. Delegable via the `training` capability.
   - name: Projects
     description: >-
       A business's internal project-management timeline for manufacturing and
@@ -2897,6 +2902,120 @@ paths:
       summary: Stop following a project
       parameters: [{ in: path, name: project, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK } }
+  /training-plans:
+    get:
+      tags: [Training]
+      summary: My training plans as a client
+      parameters: [{ name: status, in: query, schema: { type: string, enum: [active, paused, completed, cancelled] } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+  /training-plans/{plan}:
+    get:
+      tags: [Training]
+      summary: Read one of my plans (workout + meals + my progress)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not found, or not yours' } }
+  /training-plans/{plan}/progress:
+    post:
+      tags: [Training]
+      summary: Log a progress check-in (client)
+      description: Only while the plan is active; otherwise 422.
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                logged_on: { type: string, format: date }
+                weight: { type: number }
+                notes: { type: string }
+      responses: { '201': { description: Logged }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-plans:
+    get:
+      tags: [Training]
+      summary: My clients' training plans (trainer)
+      parameters: [{ name: status, in: query, schema: { type: string } }, { name: client_id, in: query, schema: { type: integer } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Training]
+      summary: Create a plan for a client (trainer, or a `training` delegate)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, title]
+              properties:
+                client_id: { type: integer }
+                title: { type: string }
+                goal: { type: string }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+                notes: { type: string }
+                exercises:
+                  type: array
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      name: { type: string }
+                      day_of_week: { type: integer, minimum: 0, maximum: 6 }
+                      sets: { type: integer }
+                      reps: { type: string }
+                      rest_seconds: { type: integer }
+                      notes: { type: string }
+                meals:
+                  type: array
+                  items:
+                    type: object
+                    required: [meal_type, name]
+                    properties:
+                      meal_type: { type: string, enum: [breakfast, lunch, dinner, snack] }
+                      name: { type: string }
+                      calories: { type: integer }
+                      notes: { type: string }
+      responses: { '201': { description: Created }, '403': { description: 'Not a business account' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-plans/{plan}:
+    get:
+      tags: [Training]
+      summary: A plan I own, in full (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    put:
+      tags: [Training]
+      summary: Update a plan's header/status (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+    patch:
+      tags: [Training]
+      summary: Update a plan (alias of PUT)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-plans/{plan}/exercises:
+    post:
+      tags: [Training]
+      summary: Add a workout exercise (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-plans/{plan}/exercises/{exercise}:
+    delete:
+      tags: [Training]
+      summary: Remove an exercise (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: exercise, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-plans/{plan}/meals:
+    post:
+      tags: [Training]
+      summary: Add a meal (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-plans/{plan}/meals/{meal}:
+    delete:
+      tags: [Training]
+      summary: Remove a meal (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: meal, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /prescriptions:
     get:
       tags: [Prescriptions]

@@ -23,8 +23,10 @@ use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
+use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
@@ -307,6 +309,12 @@ Route::prefix('v2')->group(function () {
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
+
+        // Training plans — the client's side: read the plans a trainer assigned
+        // me and log my progress. Party-only.
+        Route::get('training-plans', [ClientTrainingController::class, 'index']);
+        Route::get('training-plans/{plan}', [ClientTrainingController::class, 'show'])->whereNumber('plan');
+        Route::post('training-plans/{plan}/progress', [ClientTrainingController::class, 'logProgress'])->whereNumber('plan');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
@@ -679,6 +687,19 @@ Route::prefix('v2')->group(function () {
             Route::get('{project}/followers', [BusinessProjectController::class, 'followers'])->whereNumber('project');
             Route::patch('{project}/followers/{user}', [BusinessProjectController::class, 'decideFollower'])->whereNumber('project')->whereNumber('user');
             Route::delete('{project}/followers/{user}', [BusinessProjectController::class, 'removeFollower'])->whereNumber('project')->whereNumber('user');
+        });
+
+        // Training & nutrition plans — the trainer's side (a gym/coach business).
+        // Owner or a delegate with the `training` capability.
+        Route::prefix('business/training-plans')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
+            Route::get('/', [TrainingPlanController::class, 'index']);
+            Route::post('/', [TrainingPlanController::class, 'store']);
+            Route::get('{plan}', [TrainingPlanController::class, 'show'])->whereNumber('plan');
+            Route::match(['put', 'patch'], '{plan}', [TrainingPlanController::class, 'update'])->whereNumber('plan');
+            Route::post('{plan}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('plan');
+            Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
+            Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
+            Route::delete('{plan}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber('plan')->whereNumber('meal');
         });
 
         Route::prefix('business/offers')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {

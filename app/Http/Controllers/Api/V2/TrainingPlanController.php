@@ -128,6 +128,18 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /** GET /api/v2/business/training-plans/{plan}/weekly-summary?from=YYYY-MM-DD */
+    public function weeklySummary(Request $request, int $plan)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $data = $request->validate(['from' => ['nullable', 'date']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['summary' => $this->service->weeklySummary($row, $data['from'] ?? null)],
+        ]);
+    }
+
     public function addExercise(Request $request, int $plan)
     {
         $row = $this->ownedOrFail($request, $plan);

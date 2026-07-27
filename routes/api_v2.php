@@ -322,6 +322,8 @@ Route::prefix('v2')->group(function () {
         // Direct (text-only) chat with my trainer, scoped to the plan.
         Route::get('training-plans/{plan}/chat', [TrainingChatController::class, 'clientShow'])->whereNumber('plan');
         Route::post('training-plans/{plan}/chat/messages', [TrainingChatController::class, 'clientPost'])->whereNumber('plan');
+        // My weekly adherence to a plan.
+        Route::get('training-plans/{plan}/weekly-summary', [ClientTrainingController::class, 'weeklySummary'])->whereNumber('plan');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
@@ -710,6 +712,8 @@ Route::prefix('v2')->group(function () {
             // Direct (text-only) chat with the trainee, scoped to the plan.
             Route::get('{plan}/chat', [TrainingChatController::class, 'trainerShow'])->whereNumber('plan');
             Route::post('{plan}/chat/messages', [TrainingChatController::class, 'trainerPost'])->whereNumber('plan');
+            // A client's weekly adherence to the plan.
+            Route::get('{plan}/weekly-summary', [TrainingPlanController::class, 'weeklySummary'])->whereNumber('plan');
         });
 
         // Reusable training templates: build once, apply to many clients.

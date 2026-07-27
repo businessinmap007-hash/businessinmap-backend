@@ -8,6 +8,7 @@ use App\Models\PlanProgressLog;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -144,6 +145,64 @@ class TrainingPlanService
             'round' => $round,
             'completed_rounds' => $done + 1,
             'total_sets' => $totalSets,
+        ];
+    }
+
+    /**
+     * A client's weekly adherence to a plan over a 7-day window: confirmed
+     * exercise rounds vs. the weekly target (sum of prescribed sets), the days
+     * they were active, and their progress check-ins. Window starts at $from (a
+     * date), else the Saturday of the current week.
+     *
+     * @return array<string,mixed>
+     */
+    public function weeklySummary(TrainingPlan $plan, ?string $from = null): array
+    {
+        $start = ($from ? Carbon::parse($from) : Carbon::now()->startOfWeek(Carbon::SATURDAY))->startOfDay();
+        $end = $start->copy()->addDays(6);
+
+        $targetRounds = (int) $plan->exercises()->sum('sets');
+
+        // Confirmed rounds per day in the window.
+        $perDay = PlanExerciseRound::query()
+            ->where('training_plan_id', (int) $plan->id)
+            ->whereBetween('for_date', [$start->toDateString(), $end->toDateString()])
+            ->selectRaw('for_date, COUNT(*) AS rounds')
+            ->groupBy('for_date')
+            ->pluck('rounds', 'for_date');
+
+        $days = [];
+        $completed = 0;
+        $activeDays = 0;
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            $key = $d->toDateString();
+            $count = (int) ($perDay[$key] ?? 0);
+            $completed += $count;
+            if ($count > 0) {
+                $activeDays++;
+            }
+            $days[] = ['date' => $key, 'completed_rounds' => $count];
+        }
+
+        $progress = $plan->progressLogs()
+            ->whereBetween('logged_on', [$start->toDateString(), $end->toDateString()])
+            ->orderByDesc('logged_on')->orderByDesc('id')
+            ->get(['weight', 'logged_on']);
+
+        return [
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'weekly_target_rounds' => $targetRounds,
+            'completed_rounds' => $completed,
+            'adherence_percent' => $targetRounds > 0 ? min(100, (int) round($completed / $targetRounds * 100)) : null,
+            'active_days' => $activeDays,
+            'days' => $days,
+            'progress' => [
+                'check_ins' => $progress->count(),
+                'latest_weight' => $progress->first() && $progress->first()->weight !== null
+                    ? (float) $progress->first()->weight
+                    : null,
+            ],
         ];
     }
 

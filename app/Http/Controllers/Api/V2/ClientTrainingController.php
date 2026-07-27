@@ -103,6 +103,18 @@ class ClientTrainingController extends Controller
         ], 201);
     }
 
+    /** GET /api/v2/training-plans/{plan}/weekly-summary?from=YYYY-MM-DD — my adherence. */
+    public function weeklySummary(Request $request, int $plan)
+    {
+        $row = $this->mineOrFail($request, $plan);
+        $data = $request->validate(['from' => ['nullable', 'date']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['summary' => $this->service->weeklySummary($row, $data['from'] ?? null)],
+        ]);
+    }
+
     private function mineOrFail(Request $request, int $planId): TrainingPlan
     {
         return TrainingPlan::query()

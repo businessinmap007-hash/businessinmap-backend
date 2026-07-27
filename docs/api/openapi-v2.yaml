@@ -2930,6 +2930,23 @@ paths:
                 weight: { type: number }
                 notes: { type: string }
       responses: { '201': { description: Logged }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /training-plans/{plan}/weekly-summary:
+    get:
+      tags: [Training]
+      summary: My weekly adherence to a plan (trainee)
+      description: >-
+        A 7-day window (from a start date, else the current week's Saturday):
+        confirmed exercise rounds vs. the weekly target (sum of prescribed sets),
+        adherence_percent, active_days, a per-day breakdown, and progress
+        check-ins.
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: from, in: query, schema: { type: string, format: date } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not yours' } }
+  /business/training-plans/{plan}/weekly-summary:
+    get:
+      tags: [Training]
+      summary: A client's weekly adherence to the plan (trainer)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: from, in: query, schema: { type: string, format: date } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /training-plans/{plan}/chat:
     get:
       tags: [Training]

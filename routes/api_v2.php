@@ -194,6 +194,12 @@ Route::prefix('v2')->group(function () {
     // the merchant's (or platform's) signed payload inside the controller.
     Route::post('merchant-payments/callback', [MerchantPaymentController::class, 'callback']);
 
+    // Personal-agenda calendar subscription (webcal/ICS). PUBLIC by design: a
+    // calendar app fetches it with no auth header — the unguessable per-user
+    // token in the path is the credential. Rotatable from the authed endpoint.
+    Route::get('agenda/feed/{token}.ics', [AgendaController::class, 'feed'])
+        ->where('token', '[A-Za-z0-9]+')->name('agenda.feed');
+
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.
         Route::prefix('auth')->group(function () {
@@ -322,6 +328,8 @@ Route::prefix('v2')->group(function () {
         Route::get('agenda', [AgendaController::class, 'index']);
         Route::get('agenda/week', [AgendaController::class, 'week']);
         Route::get('agenda/export.ics', [AgendaController::class, 'ics']);
+        Route::get('me/agenda-feed', [AgendaController::class, 'feedUrl']);
+        Route::post('me/agenda-feed/rotate', [AgendaController::class, 'rotateFeed']);
         Route::post('agenda', [AgendaController::class, 'store']);
         Route::post('agenda/recurring', [AgendaController::class, 'storeRecurring']);
         Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');

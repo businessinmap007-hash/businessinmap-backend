@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AgendaFeedToken;
 use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
@@ -105,6 +106,51 @@ class AgendaFlowTest extends TestCase
         // DTSTART is emitted in UTC (Z suffix).
         $this->assertMatchesRegularExpression('/DTSTART:\d{8}T\d{6}Z/', $body);
         $this->assertStringContainsString('END:VCALENDAR', $body);
+    }
+
+    public function test_the_public_calendar_feed_serves_the_users_agenda(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        AgendaItem::create([
+            'user_id' => $user->id, 'kind' => AgendaItem::KIND_PERSONAL, 'title' => 'FeedTask',
+            'starts_at' => Carbon::tomorrow()->setTime(9, 0), 'ends_at' => Carbon::tomorrow()->setTime(9, 30),
+            'blocking' => true, 'status' => AgendaItem::STATUS_ACTIVE,
+        ]);
+        $token = AgendaFeedToken::forUser($user->id)->token;
+
+        // No authentication — the token in the path is the only credential.
+        $body = $this->get("/api/v2/agenda/feed/{$token}.ics")
+            ->assertOk()
+            ->assertHeader('content-type', 'text/calendar; charset=utf-8')
+            ->getContent();
+        $this->assertStringContainsString('SUMMARY:FeedTask', $body);
+
+        // An unknown token returns an empty calendar (200), never an error — so a
+        // subscriber cannot probe which tokens exist.
+        $this->get('/api/v2/agenda/feed/deadbeefdeadbeef.ics')
+            ->assertOk()
+            ->assertDontSee('BEGIN:VEVENT');
+    }
+
+    public function test_rotating_the_feed_url_invalidates_the_old_one(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        AgendaItem::create([
+            'user_id' => $user->id, 'kind' => AgendaItem::KIND_PERSONAL, 'title' => 'FeedTask',
+            'starts_at' => Carbon::tomorrow()->setTime(9, 0), 'ends_at' => Carbon::tomorrow()->setTime(9, 30),
+            'blocking' => true, 'status' => AgendaItem::STATUS_ACTIVE,
+        ]);
+
+        Sanctum::actingAs($user);
+        $oldUrl = $this->getJson('/api/v2/me/agenda-feed')->assertOk()->json('data.url');
+        $oldPath = parse_url($oldUrl, PHP_URL_PATH);
+
+        $newUrl = $this->postJson('/api/v2/me/agenda-feed/rotate')->assertOk()->json('data.url');
+        $this->assertNotSame($oldUrl, $newUrl);
+
+        // The old URL no longer resolves to the agenda; the new one does.
+        $this->get($oldPath)->assertOk()->assertDontSee('BEGIN:VEVENT');
+        $this->get(parse_url($newUrl, PHP_URL_PATH))->assertOk()->assertSee('SUMMARY:FeedTask');
     }
 
     public function test_a_clinic_appointment_cannot_be_booked_over_another_commitment(): void

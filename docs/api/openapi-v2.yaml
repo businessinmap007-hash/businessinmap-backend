@@ -3491,6 +3491,28 @@ paths:
           content:
             text/calendar:
               schema: { type: string }
+  /me/agenda-feed:
+    get:
+      tags: [Agenda]
+      summary: My calendar subscription URL (webcal/ICS; created on first use)
+      responses: { '200': { description: 'OK (returns url)' } }
+  /me/agenda-feed/rotate:
+    post:
+      tags: [Agenda]
+      summary: Rotate my subscription URL (the old one stops working)
+      responses: { '200': { description: 'OK (returns the new url)' } }
+  /agenda/feed/{token}.ics:
+    get:
+      tags: [Agenda]
+      summary: PUBLIC calendar feed — a calendar app polls this (token is the credential)
+      description: No authentication; the unguessable per-user token in the path identifies the user. An unknown token returns an empty calendar (200), never an error.
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: An iCalendar document (empty for an unknown token)
+          content:
+            text/calendar:
+              schema: { type: string }
   /agenda/recurring:
     post:
       tags: [Agenda]

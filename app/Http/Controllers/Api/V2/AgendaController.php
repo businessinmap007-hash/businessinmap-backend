@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgendaFeedToken;
 use App\Models\AgendaItem;
 use App\Services\Agenda\AgendaService;
 use Illuminate\Http\Request;
@@ -81,6 +82,53 @@ class AgendaController extends Controller
             'Content-Type' => 'text/calendar; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="agenda.ics"',
         ]);
+    }
+
+    /** GET /api/v2/me/agenda-feed — my calendar subscription URL. */
+    public function feedUrl(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['url' => $this->subscriptionUrl(AgendaFeedToken::forUser((int) $request->user()->id))],
+        ]);
+    }
+
+    /** POST /api/v2/me/agenda-feed/rotate — new URL; the old one stops working. */
+    public function rotateFeed(Request $request)
+    {
+        $token = AgendaFeedToken::forUser((int) $request->user()->id)->rotate();
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تحديث رابط الاشتراك.'),
+            'data' => ['url' => $this->subscriptionUrl($token)],
+        ]);
+    }
+
+    /**
+     * GET /api/v2/agenda/feed/{token}.ics — PUBLIC. A calendar app polls this with
+     * no auth; the unguessable token identifies the user. Always 200 (an empty
+     * calendar for an unknown token) so a subscriber can't probe which tokens exist.
+     */
+    public function feed(string $token)
+    {
+        $row = AgendaFeedToken::query()->where('token', $token)->first();
+
+        $from = Carbon::today();
+        $to = $from->copy()->addDays(90)->endOfDay();
+        $body = $row
+            ? $this->agenda->icsForUser((int) $row->user_id, $from, $to)
+            : "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//BusinessInMap//Agenda//EN\r\nEND:VCALENDAR\r\n";
+
+        return response($body, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'inline; filename="agenda.ics"',
+        ]);
+    }
+
+    private function subscriptionUrl(AgendaFeedToken $token): string
+    {
+        return url('/api/v2/agenda/feed/' . $token->token . '.ics');
     }
 
     /** POST /api/v2/agenda — add my own timed task (blocks time, may remind). */

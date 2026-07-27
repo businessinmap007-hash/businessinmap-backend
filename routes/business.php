@@ -12,6 +12,7 @@ use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
 use App\Http\Controllers\Business\ShareStoreController;
 use App\Http\Controllers\Business\StaffController;
+use App\Http\Controllers\Business\TableCallController;
 use App\Http\Controllers\Business\TableController;
 use App\Http\Controllers\Business\TripReservationController;
 use App\Http\Controllers\Business\TripScheduleController;
@@ -71,6 +72,10 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('tables/print', [TableController::class, 'print'])->name('tables.print');
         Route::put('tables/{id}', [TableController::class, 'update'])->whereNumber('id')->name('tables.update');
         Route::delete('tables/{id}', [TableController::class, 'destroy'])->whereNumber('id')->name('tables.destroy');
+
+        // Live dine-in table service calls (waiter / bill) — the standing board.
+        Route::get('table-calls', [TableCallController::class, 'index'])->name('table-calls.index');
+        Route::post('table-calls/{id}/resolve', [TableCallController::class, 'resolve'])->whereNumber('id')->name('table-calls.resolve');
 
         Route::get('menu-sections', [MenuSectionController::class, 'index'])->name('menu-sections.index');
         Route::get('menu-sections/create', [MenuSectionController::class, 'create'])->name('menu-sections.create');

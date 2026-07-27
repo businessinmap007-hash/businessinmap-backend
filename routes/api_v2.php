@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
 use App\Http\Controllers\Api\V2\DisputeController;
+use App\Http\Controllers\Api\V2\DisputeObligationController;
 use App\Http\Controllers\Api\V2\BusinessHoursController;
 use App\Http\Controllers\Api\V2\BusinessProjectController;
 use App\Http\Controllers\Api\V2\BusinessStaffController;
@@ -281,6 +282,11 @@ Route::prefix('v2')->group(function () {
         // Irreversible on the second confirmation; the record is kept.
         Route::post('disputes/{dispute}/closure-confirmation', [DisputeController::class, 'confirmClosurePurge'])
             ->whereNumber('dispute');
+
+        // What a ruling decided I owe (and am owed), plus pay-to-unblock. NOT
+        // behind the block middleware: a blocked user must reach these to clear it.
+        Route::get('me/dispute-obligations', [DisputeObligationController::class, 'index']);
+        Route::post('me/dispute-obligations/settle', [DisputeObligationController::class, 'settle']);
 
         // Platform fines (fraud/abuse) the user can see and contest. Levy,
         // decide and collect are the platform's, on the admin side.

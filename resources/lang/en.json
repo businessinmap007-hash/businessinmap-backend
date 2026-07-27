@@ -2338,5 +2338,7 @@
     "يجب أن يكون التذكير الثاني أقرب من الأول.": "The second reminder must be closer than the first.",
     "تم حفظ تفضيلات التذكير.": "Reminder preferences saved.",
     "جدولي": "My Agenda",
-    "تم تحديث رابط الاشتراك.": "Subscription link updated."
+    "تم تحديث رابط الاشتراك.": "Subscription link updated.",
+    "تم سداد مستحقات النزاع.": "Dispute obligations settled.",
+    "سُدِّد ما أمكن؛ رصيدك لا يكفي باقي المستحقات.": "Paid what was possible; your balance does not cover the rest."
 }

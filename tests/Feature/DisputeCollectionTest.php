@@ -306,4 +306,71 @@ class DisputeCollectionTest extends TestCase
 
         $this->assertSame(1, DisputeObligation::query()->where('dispute_id', $dispute->id)->count());
     }
+
+    // ─────────────────── the party's view + pay-to-unblock ───────────────────
+
+    /**
+     * The blocked party can SEE what they owe and PAY it from their wallet to
+     * lift the block immediately — the top-up-within-the-window case the sweep
+     * (which only runs after due_at) leaves stuck.
+     */
+    public function test_a_party_sees_and_settles_their_obligation_to_unblock(): void
+    {
+        $dispute = $this->ruleAgainstClient();
+        $client = $this->booking->user;
+        $this->wallet((int) $client->id)->update(['balance' => 10]);
+        $this->arbitration->chargeArbitrationFee($dispute); // pending → blocked
+
+        Sanctum::actingAs($client);
+
+        // The block is now visible and itemised.
+        $this->getJson('/api/v2/me/dispute-obligations')
+            ->assertOk()
+            ->assertJsonPath('data.blocked', true)
+            ->assertJsonCount(1, 'data.owed_by_me')
+            ->assertJsonPath('data.owed_by_me.0.type', DisputeObligation::TYPE_SESSION_FEE)
+            ->assertJsonPath('data.owed_by_me.0.dispute_id', (int) $dispute->id);
+
+        // Top up, then pay to unblock — still inside the grace window.
+        $this->wallet((int) $client->id)->update(['balance' => 500]);
+        $this->postJson('/api/v2/me/dispute-obligations/settle')
+            ->assertOk()
+            ->assertJsonPath('data.blocked', false);
+
+        $this->assertSame(
+            DisputeObligation::STATUS_PAID,
+            DisputeObligation::query()->where('dispute_id', $dispute->id)->value('status')
+        );
+
+        // The operations block is genuinely gone (no dispute_obligation error now).
+        $this->postJson('/api/v2/bookings', [])
+            ->assertStatus(422)
+            ->assertJsonMissingValidationErrors('dispute_obligation');
+    }
+
+    /** Money a ruling owes TO the caller shows up as incoming, and never blocks them. */
+    public function test_incoming_compensation_shows_as_owed_to_me(): void
+    {
+        $dispute = $this->ruleAgainstClient();
+
+        // The business owes the client compensation; the business wallet is empty
+        // so the debt stays pending.
+        $this->wallet((int) $this->booking->business_id)->update(['balance' => 0]);
+        $this->collections->charge(
+            $dispute,
+            (int) $this->booking->business_id,
+            DisputeObligation::TYPE_COMPENSATION,
+            50.0,
+            (int) $this->booking->user_id
+        );
+
+        Sanctum::actingAs($this->booking->user); // the client (the payee)
+
+        $this->getJson('/api/v2/me/dispute-obligations')
+            ->assertOk()
+            ->assertJsonPath('data.blocked', false)
+            ->assertJsonCount(0, 'data.owed_by_me')
+            ->assertJsonCount(1, 'data.owed_to_me')
+            ->assertJsonPath('data.owed_to_me.0.dispute_id', (int) $dispute->id);
+    }
 }

@@ -115,6 +115,20 @@ final class DisputeController extends Controller
             // taps a button that will refuse them.
             'arbitration' => app(DisputeService::class)
                 ->arbitrationReadiness($dispute, (int) $request->user()->id),
+            // What this ruling decided the caller owes on THIS dispute (if any),
+            // so the screen can show the debt and a pay button in place.
+            'my_obligations' => \App\Models\DisputeObligation::query()
+                ->where('dispute_id', (int) $dispute->id)
+                ->where('user_id', (int) $request->user()->id)
+                ->get()
+                ->map(fn ($o) => [
+                    'id' => (int) $o->id,
+                    'type' => (string) $o->type,
+                    'amount' => (float) $o->amount,
+                    'status' => (string) $o->status,
+                    'due_at' => optional($o->due_at)->toIso8601String(),
+                    'is_due' => $o->isDue(),
+                ])->values(),
         ]);
     }
 

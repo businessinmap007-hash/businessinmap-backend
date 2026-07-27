@@ -2647,6 +2647,26 @@ paths:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
+  /me/dispute-obligations:
+    get:
+      tags: [Disputes]
+      summary: What a ruling decided I owe (and am owed), and whether I'm blocked
+      description: >-
+        `owed_by_me` are the pending debts that block me from new operations;
+        `owed_to_me` is incoming compensation still awaiting the payer. `blocked`
+        and `outstanding` summarise the block.
+      responses:
+        '200': { description: OK }
+  /me/dispute-obligations/settle:
+    post:
+      tags: [Disputes]
+      summary: Pay my pending dispute debts from my wallet now (lifts the block)
+      description: >-
+        Settles as much as the wallet covers. Needed because a top-up made inside
+        the grace window would otherwise not clear the block until the scheduled
+        sweep runs after the deadline. Not behind the block middleware.
+      responses:
+        '200': { description: 'OK (returns settled/still_pending/outstanding/blocked)' }
   /disputes/{dispute}/settlement:
     post:
       tags: [Disputes]

@@ -163,6 +163,58 @@ class DisputeCollectionService
             ->sum('amount'), 2);
     }
 
+    /** Pending debts this user owes (the ones that block them). */
+    public function pendingOwedBy(int $userId)
+    {
+        return DisputeObligation::query()
+            ->with('dispute:id,status')
+            ->where('user_id', $userId)
+            ->where('status', DisputeObligation::STATUS_PENDING)
+            ->orderBy('due_at')
+            ->get();
+    }
+
+    /** Pending money owed TO this user (compensation awaiting the payer). */
+    public function pendingOwedTo(int $userId)
+    {
+        return DisputeObligation::query()
+            ->with('dispute:id,status')
+            ->where('payee_user_id', $userId)
+            ->where('status', DisputeObligation::STATUS_PENDING)
+            ->orderBy('due_at')
+            ->get();
+    }
+
+    /**
+     * Settle a user's pending debts from their wallet now — the "pay to unblock"
+     * path. Without this a top-up made inside the grace window would not clear
+     * the block until the scheduled sweep ran after `due_at`, even with the money
+     * sitting in the wallet. Returns a fresh summary.
+     *
+     * @return array{settled: int, still_pending: int, outstanding: float, blocked: bool}
+     */
+    public function settleForUser(int $userId): array
+    {
+        $settled = 0;
+        $pending = 0;
+
+        foreach ($this->pendingOwedBy($userId) as $obligation) {
+            try {
+                $this->settle($obligation)->isPending() ? $pending++ : $settled++;
+            } catch (\Throwable $e) {
+                $pending++;
+                report($e);
+            }
+        }
+
+        return [
+            'settled' => $settled,
+            'still_pending' => $pending,
+            'outstanding' => $this->outstandingFor($userId),
+            'blocked' => $this->isBlocked($userId),
+        ];
+    }
+
     /* ============================== internals ============================== */
 
     private function payFromWallet(DisputeObligation $obligation, float $amount): DisputeObligation

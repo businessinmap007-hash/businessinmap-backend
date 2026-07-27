@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V2\MenuDiscoveryController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
+use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
@@ -318,6 +319,9 @@ Route::prefix('v2')->group(function () {
         Route::post('training-plans/{plan}/progress', [ClientTrainingController::class, 'logProgress'])->whereNumber('plan');
         // The only per-exercise action: confirm one finished round (set).
         Route::post('training-plans/{plan}/exercises/{exercise}/complete-round', [ClientTrainingController::class, 'completeRound'])->whereNumber('plan')->whereNumber('exercise');
+        // Direct (text-only) chat with my trainer, scoped to the plan.
+        Route::get('training-plans/{plan}/chat', [TrainingChatController::class, 'clientShow'])->whereNumber('plan');
+        Route::post('training-plans/{plan}/chat/messages', [TrainingChatController::class, 'clientPost'])->whereNumber('plan');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
@@ -703,6 +707,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
             Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
             Route::delete('{plan}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber('plan')->whereNumber('meal');
+            // Direct (text-only) chat with the trainee, scoped to the plan.
+            Route::get('{plan}/chat', [TrainingChatController::class, 'trainerShow'])->whereNumber('plan');
+            Route::post('{plan}/chat/messages', [TrainingChatController::class, 'trainerPost'])->whereNumber('plan');
         });
 
         // Reusable training templates: build once, apply to many clients.

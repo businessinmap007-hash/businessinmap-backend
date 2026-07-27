@@ -2930,6 +2930,33 @@ paths:
                 weight: { type: number }
                 notes: { type: string }
       responses: { '201': { description: Logged }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /training-plans/{plan}/chat:
+    get:
+      tags: [Training]
+      summary: My chat with the trainer (trainee) — text only
+      description: Direct text-only chat scoped to the plan. No attachments (meta.thread.attachments_allowed is always false).
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: per_page, in: query, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not yours' } }
+  /training-plans/{plan}/chat/messages:
+    post:
+      tags: [Training]
+      summary: Send a text message to my trainer (trainee)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 5000 } } } } } }
+      responses: { '201': { description: Sent }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/training-plans/{plan}/chat:
+    get:
+      tags: [Training]
+      summary: My chat with the trainee (trainer) — text only
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }, { name: per_page, in: query, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/training-plans/{plan}/chat/messages:
+    post:
+      tags: [Training]
+      summary: Send a text message to the trainee (trainer; a delegate posts as the business)
+      parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 5000 } } } } } }
+      responses: { '201': { description: Sent }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /training-plans/{plan}/exercises/{exercise}/complete-round:
     post:
       tags: [Training]

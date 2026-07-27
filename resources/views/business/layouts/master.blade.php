@@ -25,6 +25,7 @@
                 <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">أسعاري</a>
                 <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">المنيو</a>
                 <a href="{{ route('business.tables.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">الطاولات</a>
+                <a href="{{ route('business.table-calls.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">نداءات الطاولات</a>
                 <a href="{{ route('business.share-store') }}" class="a2-btn a2-btn-ghost a2-btn-sm">شارك متجرك</a>
                 <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">منتجاتي</a>
                 <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">خطوط التشغيل</a>

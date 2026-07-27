@@ -42,6 +42,7 @@ use App\Http\Controllers\AdminV2\{
     HeldDeletionController,
     OperationChatController,
     ProjectAdminController,
+    TrainingAdminController,
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
@@ -380,6 +381,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::prefix('projects')->name('projects.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
                 Route::get('/', [ProjectAdminController::class, 'index'])->name('index');
                 Route::get('{project}', [ProjectAdminController::class, 'show'])->whereNumber('project')->name('show');
+            });
+
+            // Read-only oversight of every trainer's plans. Gated OPERATIONS.
+            Route::prefix('training-plans')->name('training-plans.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+                Route::get('/', [TrainingAdminController::class, 'index'])->name('index');
+                Route::get('{plan}', [TrainingAdminController::class, 'show'])->whereNumber('plan')->name('show');
             });
 
             // Every conversation on the platform, merged for moderation. Text is

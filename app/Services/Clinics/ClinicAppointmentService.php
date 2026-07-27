@@ -147,6 +147,37 @@ class ClinicAppointmentService
         return $slot->wasRecentlyCreated ? $slot : null;
     }
 
+    /**
+     * Publish a recurring weekly grid of slots in one go: for each future date in
+     * the next `$days` whose weekday (Carbon 0=Sun..6=Sat) is selected, open a slot
+     * at every listed time. Duplicates are skipped. Returns [created, skipped].
+     */
+    public function generateSlots(User $clinic, array $weekdays, array $times, int $days, int $duration = 30): array
+    {
+        $created = 0;
+        $skipped = 0;
+        $today = Carbon::today();
+
+        for ($d = 0; $d <= $days; $d++) {
+            $date = $today->copy()->addDays($d);
+            if (! in_array($date->dayOfWeek, $weekdays, true)) {
+                continue;
+            }
+
+            foreach ($times as $time) {
+                [$h, $m] = array_map('intval', explode(':', $time));
+                $at = $date->copy()->setTime($h, $m, 0);
+                if ($at->isPast()) {
+                    continue;
+                }
+
+                $this->publishSlot($clinic, $at, $duration) ? $created++ : $skipped++;
+            }
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
+    }
+
     /** Clinic deletes an open (unbooked) slot; a booked one can't be removed here. */
     public function deleteSlot(ClinicAppointmentSlot $slot): void
     {

@@ -2332,5 +2332,7 @@
     "تمت جدولة تذكيرات الدواء.": "Medication reminders scheduled.",
     "تم تغيير الموعد.": "Appointment rescheduled.",
     "حجز": "Booking",
-    "موعد": "Appointment"
+    "موعد": "Appointment",
+    "تمت إضافة المهام المتكررة.": "Recurring tasks added.",
+    "حدّد الأوقات.": "Specify the times."
 }

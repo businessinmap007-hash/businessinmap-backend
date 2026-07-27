@@ -153,6 +153,68 @@ class BusinessClinicAppointmentController extends Controller
         ], 201);
     }
 
+    /**
+     * POST /api/v2/business/clinic-slots/generate — publish a recurring weekly
+     * grid at once. Give `weekdays` (0=Sun..6=Sat) plus either explicit `times`
+     * (H:i) or a `start_time`/`end_time`/`interval_minutes` range, over `weeks`.
+     */
+    public function slotsGenerate(Request $request)
+    {
+        $data = $request->validate([
+            'weekdays' => ['required', 'array', 'min:1'],
+            'weekdays.*' => ['integer', 'between:0,6'],
+            'times' => ['required_without_all:start_time,end_time', 'array'],
+            'times.*' => ['date_format:H:i'],
+            'start_time' => ['required_with:end_time', 'date_format:H:i'],
+            'end_time' => ['required_with:start_time', 'date_format:H:i', 'after:start_time'],
+            'interval_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'weeks' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+        ]);
+
+        $times = $this->resolveTimes($data);
+        abort_if($times === [], 422, __('حدّد الأوقات.'));
+
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+        $result = $this->service->generateSlots(
+            $clinic,
+            array_values(array_unique(array_map('intval', $data['weekdays']))),
+            $times,
+            (int) ($data['weeks'] ?? 4) * 7,
+            (int) ($data['duration_minutes'] ?? 30),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم نشر الفتحات.'),
+            'data' => $result,
+        ], 201);
+    }
+
+    /** Build the time list from explicit times or a start/end/interval range. */
+    private function resolveTimes(array $data): array
+    {
+        if (! empty($data['times'])) {
+            return array_values(array_unique($data['times']));
+        }
+
+        if (empty($data['start_time']) || empty($data['end_time'])) {
+            return [];
+        }
+
+        $step = max((int) ($data['interval_minutes'] ?? $data['duration_minutes'] ?? 30), 5);
+        $cursor = Carbon::createFromFormat('H:i', $data['start_time']);
+        $end = Carbon::createFromFormat('H:i', $data['end_time']);
+
+        $times = [];
+        while ($cursor->lt($end)) {
+            $times[] = $cursor->format('H:i');
+            $cursor->addMinutes($step);
+        }
+
+        return $times;
+    }
+
     /** DELETE /api/v2/business/clinic-slots/{slot} — remove an open slot. */
     public function slotsDestroy(Request $request, int $slot)
     {

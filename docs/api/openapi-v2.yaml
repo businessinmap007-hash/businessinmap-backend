@@ -3340,6 +3340,26 @@ paths:
                 slots: { type: array, items: { type: string, format: date-time }, description: 'Many slots; use instead of starts_at' }
                 duration_minutes: { type: integer }
       responses: { '201': { description: Published }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-slots/generate:
+    post:
+      tags: [Clinic Appointments]
+      summary: Publish a recurring weekly grid of slots at once (duplicates skipped)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weekdays]
+              properties:
+                weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 }, description: '0=Sun..6=Sat' }
+                times: { type: array, items: { type: string, example: '10:00' }, description: 'Explicit times; use instead of the range' }
+                start_time: { type: string, example: '09:00' }
+                end_time: { type: string, example: '13:00' }
+                interval_minutes: { type: integer }
+                weeks: { type: integer, minimum: 1, maximum: 12 }
+                duration_minutes: { type: integer }
+      responses: { '201': { description: 'Published (returns created/skipped)' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-slots/{slot}:
     delete:
       tags: [Clinic Appointments]
@@ -3454,6 +3474,27 @@ paths:
                 notes: { type: string }
                 remind: { type: boolean }
       responses: { '201': { description: Added }, '422': { $ref: '#/components/responses/Validation' } }
+  /agenda/recurring:
+    post:
+      tags: [Agenda]
+      summary: Add a repeating personal task (clashing days are skipped)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, start_time, frequency]
+              properties:
+                title: { type: string }
+                start_time: { type: string, example: '09:00' }
+                duration_minutes: { type: integer }
+                frequency: { type: string, enum: [daily, weekly] }
+                weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 }, description: '0=Sun..6=Sat (weekly only)' }
+                weeks: { type: integer, minimum: 1, maximum: 12 }
+                notes: { type: string }
+                remind: { type: boolean }
+      responses: { '201': { description: 'Added (returns created/skipped)' }, '422': { $ref: '#/components/responses/Validation' } }
   /agenda/{item}:
     delete:
       tags: [Agenda]

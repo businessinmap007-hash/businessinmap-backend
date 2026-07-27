@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentSlot;
 use App\Models\MealSchedule;
 use App\Models\Prescription;
 use App\Models\User;
@@ -207,6 +208,62 @@ class AgendaFlowTest extends TestCase
             'patient_id' => $patient->id,
             'scheduled_at' => $at->copy()->addMinutes(30)->format('Y-m-d H:i:s'),
         ])->assertStatus(422)->assertJsonValidationErrors('scheduled_at');
+    }
+
+    public function test_a_recurring_weekly_task_skips_a_clashing_day(): void
+    {
+        // Pin "now" to a Wednesday so the 3-week horizon holds exactly 3 Mondays.
+        Carbon::setTestNow(Carbon::today()->next(Carbon::WEDNESDAY)->setTime(8, 0));
+
+        try {
+            $user = $this->user(User::TYPE_CLIENT, 'User');
+            Sanctum::actingAs($user);
+
+            // Pre-block the first upcoming Monday 09:00–09:30 with a one-off task.
+            $monday = Carbon::today()->next(Carbon::MONDAY)->setTime(9, 0);
+            $this->postJson('/api/v2/agenda', [
+                'title' => 'ثابت', 'starts_at' => $monday->format('Y-m-d H:i:s'),
+            ])->assertCreated();
+
+            // Weekly 09:00 Monday for 3 weeks → 3 Mondays, but the pre-blocked one
+            // is skipped, so only 2 land.
+            $this->postJson('/api/v2/agenda/recurring', [
+                'title' => 'تمرين', 'start_time' => '09:00', 'frequency' => 'weekly',
+                'weekdays' => [Carbon::MONDAY], 'weeks' => 3,
+            ])->assertCreated()
+                ->assertJsonPath('data.created', 2)
+                ->assertJsonPath('data.skipped', 1);
+
+            $this->assertSame(3, AgendaItem::query()->where('user_id', $user->id)
+                ->where('kind', 'personal')->where('status', 'active')->count());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_a_clinic_generates_a_weekly_slot_grid(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        Sanctum::actingAs($clinic);
+
+        // Sundays & Tuesdays, two times, one week → up to 4 slots.
+        $res = $this->postJson('/api/v2/business/clinic-slots/generate', [
+            'weekdays' => [Carbon::SUNDAY, Carbon::TUESDAY],
+            'times' => ['10:00', '10:30'],
+            'weeks' => 1,
+            'duration_minutes' => 30,
+        ])->assertCreated()->json('data');
+
+        $this->assertGreaterThan(0, $res['created']);
+        $this->assertSame($res['created'], ClinicAppointmentSlot::query()
+            ->where('clinic_id', $clinic->id)->count());
+
+        // Every generated slot falls on a selected weekday at a listed time.
+        ClinicAppointmentSlot::query()->where('clinic_id', $clinic->id)->get()
+            ->each(function ($s) {
+                $this->assertContains($s->starts_at->dayOfWeek, [Carbon::SUNDAY, Carbon::TUESDAY]);
+                $this->assertContains($s->starts_at->format('H:i'), ['10:00', '10:30']);
+            });
     }
 
     public function test_a_service_booking_is_refused_over_a_clinic_appointment(): void

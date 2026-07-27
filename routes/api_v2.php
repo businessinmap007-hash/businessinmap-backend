@@ -320,6 +320,7 @@ Route::prefix('v2')->group(function () {
         // Personal agenda: my unified day + my own tasks.
         Route::get('agenda', [AgendaController::class, 'index']);
         Route::post('agenda', [AgendaController::class, 'store']);
+        Route::post('agenda/recurring', [AgendaController::class, 'storeRecurring']);
         Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');
 
         // Meal times (feed medication reminders).
@@ -757,6 +758,7 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/clinic-slots')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
             Route::get('/', [BusinessClinicAppointmentController::class, 'slotsIndex']);
             Route::post('/', [BusinessClinicAppointmentController::class, 'slotsStore']);
+            Route::post('generate', [BusinessClinicAppointmentController::class, 'slotsGenerate']);
             Route::delete('{slot}', [BusinessClinicAppointmentController::class, 'slotsDestroy'])->whereNumber('slot');
         });
 

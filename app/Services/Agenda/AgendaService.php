@@ -27,7 +27,17 @@ class AgendaService
      */
     public function assertFree(int $userId, Carbon $start, Carbon $end, ?array $ignoreSource = null, string $field = 'scheduled_at'): void
     {
-        $clash = AgendaItem::query()
+        if (! $this->isFree($userId, $start, $end, $ignoreSource)) {
+            throw ValidationException::withMessages([
+                $field => __('لديك حجز آخر في هذا الوقت.'),
+            ]);
+        }
+    }
+
+    /** True if no blocking active item overlaps the window (the non-throwing form). */
+    public function isFree(int $userId, Carbon $start, Carbon $end, ?array $ignoreSource = null): bool
+    {
+        return ! AgendaItem::query()
             ->where('user_id', $userId)
             ->where('status', AgendaItem::STATUS_ACTIVE)
             ->where('blocking', true)
@@ -40,12 +50,6 @@ class AgendaService
                     ->orWhereNull('source_id');
             }))
             ->exists();
-
-        if ($clash) {
-            throw ValidationException::withMessages([
-                $field => __('لديك حجز آخر في هذا الوقت.'),
-            ]);
-        }
     }
 
     /** The [start, end] span a commitment occupies (all-day fills the whole day). */
@@ -116,6 +120,62 @@ class AgendaService
             'status' => AgendaItem::STATUS_ACTIVE,
             'remind' => $remind,
         ]);
+    }
+
+    /**
+     * Add a repeating personal task over a horizon of days. `$weekdays` (Carbon
+     * dayOfWeek 0=Sun..6=Sat) limits weekly recurrence; empty = every day. A day
+     * whose slot clashes with an existing commitment is skipped, not failed.
+     * Returns [created, skipped].
+     */
+    public function addRecurringTasks(
+        int $userId,
+        string $title,
+        int $hour,
+        int $minute,
+        int $durationMinutes,
+        array $weekdays,
+        int $days,
+        ?string $notes,
+        bool $remind,
+    ): array {
+        $created = 0;
+        $skipped = 0;
+        $today = Carbon::today();
+
+        for ($d = 0; $d <= $days; $d++) {
+            $date = $today->copy()->addDays($d);
+
+            if ($weekdays !== [] && ! in_array($date->dayOfWeek, $weekdays, true)) {
+                continue;
+            }
+
+            $start = $date->copy()->setTime($hour, $minute, 0);
+            if ($start->isPast()) {
+                continue;
+            }
+
+            $end = $start->copy()->addMinutes($durationMinutes);
+            if (! $this->isFree($userId, $start, $end)) {
+                $skipped++;
+                continue;
+            }
+
+            AgendaItem::create([
+                'user_id' => $userId,
+                'kind' => AgendaItem::KIND_PERSONAL,
+                'title' => $title,
+                'notes' => $notes,
+                'starts_at' => $start,
+                'ends_at' => $end,
+                'blocking' => true,
+                'status' => AgendaItem::STATUS_ACTIVE,
+                'remind' => $remind,
+            ]);
+            $created++;
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
     }
 
     /** Add a non-blocking point reminder (used for medication doses). */

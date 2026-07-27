@@ -2930,6 +2930,26 @@ paths:
                 weight: { type: number }
                 notes: { type: string }
       responses: { '201': { description: Logged }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /training-plans/{plan}/exercises/{exercise}/complete-round:
+    post:
+      tags: [Training]
+      summary: Confirm one finished round of an exercise (trainee)
+      description: >-
+        The only per-exercise progress action — the trainee taps "done" after
+        each round (set); the round number is assigned server-side. No notes or
+        images by design. 422 once every prescribed set is confirmed for the day
+        or the plan is not active. Optional for_date (defaults to today).
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { name: exercise, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                for_date: { type: string, format: date }
+      responses: { '201': { description: Confirmed }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/training-plans:
     get:
       tags: [Training]

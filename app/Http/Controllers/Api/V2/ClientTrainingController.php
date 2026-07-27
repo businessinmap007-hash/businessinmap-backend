@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlanExercise;
 use App\Models\TrainingPlan;
 use App\Services\Training\TrainingPlanService;
 use Illuminate\Http\Request;
@@ -40,7 +41,10 @@ class ClientTrainingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ['plan' => $this->serialize($row->load(['exercises', 'meals', 'progressLogs', 'trainer:id,name,logo']))],
+            'data' => ['plan' => $this->serialize($row->load([
+                'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
+                'meals', 'progressLogs', 'trainer:id,name,logo',
+            ]))],
         ]);
     }
 
@@ -68,6 +72,37 @@ class ClientTrainingController extends Controller
         ], 201);
     }
 
+    /**
+     * POST /api/v2/training-plans/{plan}/exercises/{exercise}/complete-round —
+     * the trainee confirms finishing one round of an exercise. The only progress
+     * action on an exercise; no notes or images by design.
+     */
+    public function completeRound(Request $request, int $plan, int $exercise)
+    {
+        $row = $this->mineOrFail($request, $plan);
+
+        $ex = PlanExercise::query()
+            ->where('id', $exercise)
+            ->where('training_plan_id', (int) $row->id)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'for_date' => ['nullable', 'date'],
+        ]);
+
+        $result = $this->service->confirmRound($row, $ex, $request->user(), $data['for_date'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تأكيد إتمام الجولة.'),
+            'data' => [
+                'round_number' => (int) $result['round']->round_number,
+                'completed_rounds' => (int) $result['completed_rounds'],
+                'total_sets' => $result['total_sets'],
+            ],
+        ], 201);
+    }
+
     private function mineOrFail(Request $request, int $planId): TrainingPlan
     {
         return TrainingPlan::query()
@@ -92,12 +127,14 @@ class ClientTrainingController extends Controller
             'exercises_count' => $p->exercises_count !== null ? (int) $p->exercises_count : null,
             'meals_count' => $p->meals_count !== null ? (int) $p->meals_count : null,
             'exercises' => $p->relationLoaded('exercises') ? $p->exercises->map(fn ($e) => [
+                'id' => (int) $e->id,
                 'day_of_week' => $e->day_of_week !== null ? (int) $e->day_of_week : null,
                 'name' => (string) $e->name,
                 'sets' => $e->sets !== null ? (int) $e->sets : null,
                 'reps' => $e->reps,
                 'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
                 'notes' => $e->notes,
+                'completed_rounds_today' => (int) ($e->completed_rounds_today ?? 0),
             ])->all() : null,
             'meals' => $p->relationLoaded('meals') ? $p->meals->map(fn ($m) => [
                 'meal_type' => (string) $m->meal_type,

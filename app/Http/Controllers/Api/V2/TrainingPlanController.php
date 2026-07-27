@@ -95,7 +95,10 @@ class TrainingPlanController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ['plan' => $this->serialize($row->load(['exercises', 'meals', 'progressLogs', 'client:id,name']))],
+            'data' => ['plan' => $this->serialize($row->load([
+                'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
+                'meals', 'progressLogs', 'client:id,name',
+            ]))],
         ]);
     }
 
@@ -221,6 +224,7 @@ class TrainingPlanController extends Controller
             'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,
+            'completed_rounds_today' => $e->completed_rounds_today !== null ? (int) $e->completed_rounds_today : null,
         ];
     }
 

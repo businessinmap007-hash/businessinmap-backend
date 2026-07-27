@@ -2298,5 +2298,7 @@
     "تم تحديث خطة التدريب.": "Training plan updated.",
     "تم حذف التمرين.": "Exercise removed.",
     "تم حذف الوجبة.": "Meal removed.",
-    "تم تسجيل تقدّمك.": "Your progress was logged."
+    "تم تسجيل تقدّمك.": "Your progress was logged.",
+    "أكملت جميع جولات هذا التمرين لهذا اليوم.": "You have completed all rounds of this exercise for today.",
+    "تم تأكيد إتمام الجولة.": "Round confirmed."
 }

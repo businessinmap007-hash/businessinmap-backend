@@ -84,6 +84,53 @@ class TrainingPlanFlowTest extends TestCase
             ->assertOk()->assertJsonPath('data.plan.progress.0.weight', 84.5);
     }
 
+    public function test_the_trainee_confirms_exercise_rounds_one_by_one(): void
+    {
+        $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
+        $client = $this->user(User::TYPE_CLIENT, 'Trainee');
+        $id = $this->createPlan($trainer, $client);
+
+        // Grab the first exercise (Squat, 4 sets).
+        Sanctum::actingAs($client);
+        $exId = $this->getJson("/api/v2/training-plans/{$id}")->json('data.plan.exercises.0.id');
+
+        // Confirm round after round — the server assigns the round number.
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")
+            ->assertCreated()
+            ->assertJsonPath('data.round_number', 1)
+            ->assertJsonPath('data.completed_rounds', 1)
+            ->assertJsonPath('data.total_sets', 4);
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")
+            ->assertCreated()->assertJsonPath('data.round_number', 2);
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")->assertCreated();
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")
+            ->assertCreated()->assertJsonPath('data.completed_rounds', 4);
+
+        // The 5th exceeds the prescribed 4 sets → refused.
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")
+            ->assertStatus(422)->assertJsonValidationErrors('round');
+
+        // Today's tally shows on the plan view for both sides.
+        $this->getJson("/api/v2/training-plans/{$id}")
+            ->assertJsonPath('data.plan.exercises.0.completed_rounds_today', 4);
+        Sanctum::actingAs($trainer);
+        $this->getJson("/api/v2/business/training-plans/{$id}")
+            ->assertJsonPath('data.plan.exercises.0.completed_rounds_today', 4);
+    }
+
+    public function test_a_non_party_cannot_confirm_rounds(): void
+    {
+        $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
+        $client = $this->user(User::TYPE_CLIENT, 'Trainee');
+        $stranger = $this->user(User::TYPE_CLIENT, 'Stranger');
+        $id = $this->createPlan($trainer, $client);
+        Sanctum::actingAs($client);
+        $exId = $this->getJson("/api/v2/training-plans/{$id}")->json('data.plan.exercises.0.id');
+
+        Sanctum::actingAs($stranger);
+        $this->postJson("/api/v2/training-plans/{$id}/exercises/{$exId}/complete-round")->assertNotFound();
+    }
+
     public function test_a_plan_is_private_to_its_two_parties(): void
     {
         $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');

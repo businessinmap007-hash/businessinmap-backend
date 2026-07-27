@@ -2,6 +2,8 @@
 
 namespace App\Services\Training;
 
+use App\Models\PlanExercise;
+use App\Models\PlanExerciseRound;
 use App\Models\PlanProgressLog;
 use App\Models\TrainingPlan;
 use App\Models\User;
@@ -97,6 +99,52 @@ class TrainingPlanService
             'weight' => $data['weight'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
+    }
+
+    /**
+     * The trainee confirms finishing ONE round (set) of an exercise. The round
+     * number is assigned server-side (the next unconfirmed round for that day),
+     * so the trainee just taps "done" after each round. Refused once every
+     * prescribed set is already confirmed, or on a non-active plan.
+     *
+     * @return array{round:PlanExerciseRound,completed_rounds:int,total_sets:?int}
+     */
+    public function confirmRound(TrainingPlan $plan, PlanExercise $exercise, User $client, ?string $date): array
+    {
+        if ($plan->status !== TrainingPlan::STATUS_ACTIVE) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن تسجيل تقدّم على خطة غير نشطة.'),
+            ]);
+        }
+
+        $forDate = $date ?: now()->toDateString();
+        $totalSets = $exercise->sets !== null ? (int) $exercise->sets : null;
+
+        $done = PlanExerciseRound::query()
+            ->where('plan_exercise_id', (int) $exercise->id)
+            ->whereDate('for_date', $forDate)
+            ->count();
+
+        if ($totalSets !== null && $done >= $totalSets) {
+            throw ValidationException::withMessages([
+                'round' => __('أكملت جميع جولات هذا التمرين لهذا اليوم.'),
+            ]);
+        }
+
+        $round = PlanExerciseRound::create([
+            'plan_exercise_id' => (int) $exercise->id,
+            'training_plan_id' => (int) $plan->id,
+            'client_id' => (int) $client->id,
+            'for_date' => $forDate,
+            'round_number' => $done + 1,
+            'completed_at' => now(),
+        ]);
+
+        return [
+            'round' => $round,
+            'completed_rounds' => $done + 1,
+            'total_sets' => $totalSets,
+        ];
     }
 
     /** Tell the client a plan was assigned to them. Best-effort. */

@@ -46,6 +46,16 @@ class NotificationChannelRule extends Model
             'menu_order_created' => ['طلب منيو جديد', 'New menu order', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 2, 'order_new'],
             'menu_order_cancelled' => ['إلغاء طلب منيو', 'Menu order cancelled', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, true, 0, 'order_cancelled'],
             'menu_order_completed' => ['اكتمال توصيل الطلب', 'Order delivered', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
+            // Prep lifecycle updates to the customer (dispatched by the business
+            // accept/preparing/ready transitions). Without these rules the
+            // dispatcher drops the alert, so the customer never learns the status.
+            'menu_order_accepted' => ['قبول الطلب', 'Order accepted', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
+            'menu_order_preparing' => ['الطلب قيد التحضير', 'Order being prepared', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
+            'menu_order_ready' => ['الطلب جاهز', 'Order ready', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'order_new'],
+            // A dine-in customer calls staff / asks for the bill from their table
+            // (BIM-13.3). Routed to the business with the table label; escalates so
+            // an unattended call is chased.
+            'table_service_requested' => ['نداء من طاولة', 'Table service request', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, true, false, 2, 'order_new'],
             'delivery_assigned' => ['قبول موصّل للطلب', 'Driver accepted delivery', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'booking_created' => ['حجز جديد', 'New booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 3, 'booking_new'],
             'booking_confirmed' => ['تأكيد حجز', 'Booking confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],

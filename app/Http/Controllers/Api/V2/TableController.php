@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessTable;
+use App\Models\TableServiceCall;
 use App\Services\CustomerCartService;
+use App\Services\TableServiceCallService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Restaurant-table QR (BIM-13.3). Scanning a table's permanent token joins the
@@ -15,8 +18,10 @@ use Illuminate\Http\Request;
  */
 final class TableController extends Controller
 {
-    public function __construct(private readonly CustomerCartService $cart)
-    {
+    public function __construct(
+        private readonly CustomerCartService $cart,
+        private readonly TableServiceCallService $tableCalls,
+    ) {
     }
 
     /** POST /api/v2/table/{token}/scan */
@@ -38,6 +43,44 @@ final class TableController extends Controller
             'data' => [
                 'order_id' => (int) $order->id,
                 'share_token' => (string) $order->share_token,
+                'table' => ['id' => (int) $table->id, 'label' => (string) $table->label],
+            ],
+        ], 201);
+    }
+
+    /**
+     * POST /api/v2/table/{token}/call — a dine-in customer calls staff or asks
+     * for the bill. The token is physical proof of presence at the table.
+     */
+    public function call(Request $request, string $token)
+    {
+        $table = BusinessTable::query()
+            ->where('token', $token)
+            ->where('is_active', 1)
+            ->first();
+
+        if (! $table) {
+            return response()->json(['success' => false, 'message' => __('الطاولة غير موجودة أو غير مفعّلة.')], 404);
+        }
+
+        $data = $request->validate([
+            'type' => ['nullable', Rule::in(TableServiceCall::TYPES)],
+            'note' => ['nullable', 'string', 'max:300'],
+        ]);
+
+        $call = $this->tableCalls->call(
+            (int) $request->user()->id,
+            $table,
+            (string) ($data['type'] ?? TableServiceCall::TYPE_WAITER),
+            $data['note'] ?? null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'call_id' => (int) $call->id,
+                'type' => $call->type,
+                'status' => $call->status,
                 'table' => ['id' => (int) $table->id, 'label' => (string) $table->label],
             ],
         ], 201);

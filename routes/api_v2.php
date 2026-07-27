@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\TableController;
+use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
@@ -511,8 +512,9 @@ Route::prefix('v2')->group(function () {
         });
 
         // Restaurant-table QR (BIM-13.3): scan a table's permanent token to join
-        // or open its dine-in shared cart.
+        // or open its dine-in shared cart, or call staff / ask for the bill.
         Route::post('table/{token}/scan', [TableController::class, 'scan']);
+        Route::post('table/{token}/call', [TableController::class, 'call']);
 
         // Placed orders: the customer's own history + detail + cancel.
         Route::get('orders', [OrderController::class, 'index']);
@@ -532,6 +534,11 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+
+            // Dine-in table service calls (BIM-13.3): the live "waiter / bill"
+            // queue and marking one handled.
+            Route::get('business/table-calls', [TableServiceCallController::class, 'index']);
+            Route::post('business/table-calls/{call}/resolve', [TableServiceCallController::class, 'resolve'])->whereNumber('call');
         });
 
         // Weekly opening hours — owner OR staff with the `working_hours` capability.

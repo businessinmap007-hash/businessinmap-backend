@@ -1996,6 +1996,32 @@ paths:
       summary: Scan a table's permanent QR to open/join its dine-in cart
       parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
+  /table/{token}/call:
+    post:
+      tags: [Tables]
+      summary: Call staff / ask for the bill from a dine-in table
+      description: "Idempotent per (table, type): a live pending call of the same type is reused. The token is physical proof of presence at the table."
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string, enum: [waiter, bill, assistance], default: waiter }
+                note: { type: string, maxLength: 300, nullable: true }
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/table-calls:
+    get:
+      tags: [Tables]
+      summary: The business's pending dine-in table calls (newest first)
+      responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
+  /business/table-calls/{call}/resolve:
+    post:
+      tags: [Tables]
+      summary: Mark a table call handled
+      parameters: [{ name: call, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
 
   # ─────────────────────────── Ratings ───────────────────────────
   /ratings/me:

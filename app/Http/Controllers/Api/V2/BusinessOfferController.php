@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessPartnership;
 use App\Models\CommercialOffer;
+use App\Support\BusinessContext;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
 use App\Services\Commercial\OfferFollowMatchingService;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ final class BusinessOfferController extends Controller
 {
     public function index(Request $request, BusinessOffersSubscriptionService $subscriptionService)
     {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         if (! $user || (string) $user->type !== 'business') {
             return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
@@ -47,7 +48,7 @@ final class BusinessOfferController extends Controller
         BusinessOffersSubscriptionService $subscriptionService,
         OfferFollowMatchingService $matchingService
     ) {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         if (! $user || (string) $user->type !== 'business') {
             return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
@@ -76,7 +77,7 @@ final class BusinessOfferController extends Controller
         BusinessOffersSubscriptionService $subscriptionService,
         OfferFollowMatchingService $matchingService
     ) {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         if (! $user || (string) $user->type !== 'business') {
             return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
@@ -113,7 +114,7 @@ final class BusinessOfferController extends Controller
 
     public function toggle(Request $request, int $offer, BusinessOffersSubscriptionService $subscriptionService)
     {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         if (! $user || (string) $user->type !== 'business') {
             return response()->json(['success' => false, 'message' => 'Business account required.'], 403);
@@ -154,7 +155,7 @@ final class BusinessOfferController extends Controller
 
     public function destroy(Request $request, int $offer)
     {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         if (! $user || (string) $user->type !== 'business') {
             return response()->json(['success' => false, 'message' => 'Business account required.'], 403);

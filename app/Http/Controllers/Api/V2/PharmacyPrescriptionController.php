@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\Prescription;
 use App\Services\Prescriptions\PrescriptionService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 /**
@@ -22,7 +23,7 @@ class PharmacyPrescriptionController extends Controller
     public function incoming(Request $request)
     {
         $rows = Prescription::query()
-            ->where('pharmacy_id', (int) $request->user()->id)
+            ->where('pharmacy_id', BusinessContext::id($request))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
             ->with(['items', 'doctor:id,name', 'patient:id,name'])
             ->latest('id')
@@ -69,7 +70,7 @@ class PharmacyPrescriptionController extends Controller
     {
         return Prescription::query()
             ->where('id', $id)
-            ->where('pharmacy_id', (int) $request->user()->id)
+            ->where('pharmacy_id', BusinessContext::id($request))
             ->firstOrFail();
     }
 

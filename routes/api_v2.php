@@ -306,7 +306,7 @@ Route::prefix('v2')->group(function () {
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
-        Route::prefix('pharmacy/prescriptions')->middleware('business')->group(function () {
+        Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
             Route::get('/', [PharmacyPrescriptionController::class, 'incoming']);
             Route::post('{prescription}/prepare', [PharmacyPrescriptionController::class, 'prepare'])->whereNumber('prescription');
             Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');
@@ -482,7 +482,7 @@ Route::prefix('v2')->group(function () {
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);
 
         // Business menu management: sections + items (+ variants/extras).
-        Route::prefix('business/menu')->middleware('business')->group(function () {
+        Route::prefix('business/menu')->middleware('business.member:' . BusinessCapability::MENU)->group(function () {
             Route::get('sections', [BusinessMenuSectionController::class, 'index']);
             Route::post('sections', [BusinessMenuSectionController::class, 'store']);
             Route::match(['put', 'patch'], 'sections/{section}', [BusinessMenuSectionController::class, 'update'])->whereNumber('section');
@@ -506,7 +506,7 @@ Route::prefix('v2')->group(function () {
         // Business pricing: one row per (service, item type). `options` returns
         // the services + allowed item types the owner may price. Numeric-only
         // {price} so it never captures `options`.
-        Route::prefix('business/prices')->middleware('business')->group(function () {
+        Route::prefix('business/prices')->middleware('business.member:' . BusinessCapability::PRICES)->group(function () {
             Route::get('/', [BusinessServicePriceController::class, 'index']);
             Route::get('options', [BusinessServicePriceController::class, 'options']);
             Route::post('/', [BusinessServicePriceController::class, 'store']);
@@ -516,7 +516,7 @@ Route::prefix('v2')->group(function () {
         });
 
         // Business bookable items: the units customers book (booking service).
-        Route::prefix('business/bookable-items')->middleware('business')->group(function () {
+        Route::prefix('business/bookable-items')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('/', [BusinessBookableItemController::class, 'index']);
             Route::get('options', [BusinessBookableItemController::class, 'options']);
             Route::post('/', [BusinessBookableItemController::class, 'store']);
@@ -527,7 +527,7 @@ Route::prefix('v2')->group(function () {
 
         // Business retail listings: a merchant's priced listings over the shared
         // catalog master (retail service). `lookup` searches in-scope masters.
-        Route::prefix('business/retail-listings')->middleware('business')->group(function () {
+        Route::prefix('business/retail-listings')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
             Route::get('/', [BusinessRetailListingController::class, 'index']);
             Route::get('lookup', [BusinessRetailListingController::class, 'lookup']);
             Route::post('/', [BusinessRetailListingController::class, 'store']);
@@ -656,7 +656,7 @@ Route::prefix('v2')->group(function () {
         // Project management timeline (manufacturing / construction): a business
         // plans projects as dated, dependent tasks and tracks build progress with
         // camera-captured evidence. Internal to the business — see ProjectService.
-        Route::prefix('business/projects')->middleware('business')->group(function () {
+        Route::prefix('business/projects')->middleware('business.member:' . BusinessCapability::PROJECTS)->group(function () {
             Route::get('/', [BusinessProjectController::class, 'index']);
             Route::post('/', [BusinessProjectController::class, 'store']);
             Route::get('{project}', [BusinessProjectController::class, 'show'])->whereNumber('project');

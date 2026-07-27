@@ -51,10 +51,10 @@ final class BusinessMenuSectionController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /** The acting business's id. The business-only gate is the `business` middleware. */
+    /** The acting business's id (owner, or a delegate's employer via business.member). */
     private function businessId(Request $request): int
     {
-        return (int) $request->user()->id;
+        return \App\Support\BusinessContext::id($request);
     }
 
     private function owned(Request $request, int $sectionId): MenuSection

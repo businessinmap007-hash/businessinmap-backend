@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectTask;
 use App\Services\Media\ImageUploadService;
 use App\Services\Projects\ProjectService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -163,7 +164,7 @@ class BusinessProjectTaskController extends Controller
     {
         return Project::query()
             ->where('id', $projectId)
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->firstOrFail();
     }
 

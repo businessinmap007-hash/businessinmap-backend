@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Business\Concerns;
 use App\Models\CategoryPlatformService;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
+use App\Models\User;
 use App\Models\PlatformServiceItemType;
+use App\Support\BusinessContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,17 +16,28 @@ use Illuminate\Support\Facades\Auth;
  * id, their category_child, the services that child offers, and the item
  * types allowed for each (child, service). Keeps every owner screen consistent
  * and impossible to widen beyond the owner's own catalog.
+ *
+ * Everything hangs off the ACTING business — the owner, or, when a request went
+ * through the `business.member` middleware, the employer a delegated staff
+ * member is acting for. Without that middleware (the web panel, owner-only API
+ * routes) it falls back to the authenticated user, so behavior is unchanged.
  */
 trait ResolvesOwnerCatalog
 {
+    /** The business being managed (owner, or a delegate's employer). */
+    protected function actingBusiness(): ?User
+    {
+        return BusinessContext::business(request());
+    }
+
     protected function businessId(): int
     {
-        return (int) Auth::id();
+        return (int) (optional($this->actingBusiness())->id ?: Auth::id());
     }
 
     protected function childId(): int
     {
-        return (int) (Auth::user()->category_child_id ?? 0);
+        return (int) (optional($this->actingBusiness())->category_child_id ?? 0);
     }
 
     /**

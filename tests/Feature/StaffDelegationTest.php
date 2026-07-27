@@ -102,6 +102,33 @@ class StaffDelegationTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_a_menu_delegate_creates_a_section_for_the_employer(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest');
+        $cashier = $this->makeUser(User::TYPE_CLIENT, 'Cashier');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $cashier->id,
+            'capabilities' => [BusinessCapability::MENU],
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($cashier);
+        $this->postJson('/api/v2/business/menu/sections', ['name_ar' => 'مشروبات'])
+            ->assertSuccessful();
+
+        // The section belongs to the EMPLOYER, created by the delegate.
+        $this->assertDatabaseHas('menu_sections', [
+            'business_id' => (int) $owner->id,
+            'name_ar' => 'مشروبات',
+        ]);
+        $this->assertDatabaseMissing('menu_sections', ['business_id' => (int) $cashier->id]);
+
+        // But the same delegate lacks `prices`, so pricing is closed to them.
+        $this->getJson('/api/v2/business/prices')->assertForbidden();
+    }
+
     public function test_a_stranger_cannot_act_for_a_business(): void
     {
         $this->makeUser(User::TYPE_BUSINESS, 'Other');

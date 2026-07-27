@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Services\OperationChatService;
 use App\Services\Projects\ProjectService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -27,7 +28,7 @@ class BusinessProjectController extends Controller
     public function index(Request $request)
     {
         $rows = Project::query()
-            ->forBusiness((int) $request->user()->id)
+            ->forBusiness(BusinessContext::id($request))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
             ->withCount('tasks')
             ->latest('id')
@@ -53,7 +54,7 @@ class BusinessProjectController extends Controller
         ]);
 
         $project = new Project([
-            'business_id' => (int) $request->user()->id,
+            'business_id' => BusinessContext::id($request),
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'reference' => $data['reference'] ?? null,
@@ -214,7 +215,7 @@ class BusinessProjectController extends Controller
     {
         return Project::query()
             ->where('id', $projectId)
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->firstOrFail();
     }
 
@@ -226,7 +227,7 @@ class BusinessProjectController extends Controller
     {
         $operation = $this->operations->resolve($type, $id); // 404 if the type/id is unknown
 
-        if ((int) $operation->business_id !== (int) $request->user()->id) {
+        if ((int) $operation->business_id !== BusinessContext::id($request)) {
             throw ValidationException::withMessages([
                 'operation_id' => __('يمكنك ربط المشروع بعملية تخصّ نشاطك فقط.'),
             ]);

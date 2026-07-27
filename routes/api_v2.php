@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
+use App\Http\Controllers\Api\V2\MedicineController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
 use App\Http\Controllers\Api\V2\JobController;
@@ -329,6 +330,10 @@ Route::prefix('v2')->group(function () {
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
+
+        // Shared medicine dictionary: doctors search + add (name + strength).
+        Route::get('medicines', [MedicineController::class, 'index']);
+        Route::post('medicines', [MedicineController::class, 'store']);
 
         // Personal agenda: my unified day + week + my own tasks.
         Route::get('agenda', [AgendaController::class, 'index']);

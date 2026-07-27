@@ -2340,5 +2340,7 @@
     "جدولي": "My Agenda",
     "تم تحديث رابط الاشتراك.": "Subscription link updated.",
     "تم سداد مستحقات النزاع.": "Dispute obligations settled.",
-    "سُدِّد ما أمكن؛ رصيدك لا يكفي باقي المستحقات.": "Paid what was possible; your balance does not cover the rest."
+    "سُدِّد ما أمكن؛ رصيدك لا يكفي باقي المستحقات.": "Paid what was possible; your balance does not cover the rest.",
+    "تمت إضافة الدواء.": "Medicine added.",
+    "إضافة الأدوية متاحة للأطباء فقط.": "Adding medicines is available to doctors only."
 }

@@ -3464,6 +3464,31 @@ paths:
         '200': { description: Cancelled }
         '404': { description: 'Not found, or you are not a party' }
         '422': { $ref: '#/components/responses/Validation' }
+  /medicines:
+    get:
+      tags: [Prescriptions]
+      summary: Search the shared medicine dictionary (typeahead)
+      parameters:
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }
+      responses: { '200': { description: 'OK (name + strength, most-used first)' } }
+    post:
+      tags: [Prescriptions]
+      summary: Add a drug to the dictionary (doctors only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                strength: { type: string, example: '500mg' }
+      responses:
+        '201': { description: Added }
+        '403': { description: 'Doctors (clinic accounts) only' }
+        '422': { $ref: '#/components/responses/Validation' }
   /prescriptions/{prescription}/schedule-reminders:
     post:
       tags: [Prescriptions]

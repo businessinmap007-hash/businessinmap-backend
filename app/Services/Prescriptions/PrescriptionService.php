@@ -2,6 +2,7 @@
 
 namespace App\Services\Prescriptions;
 
+use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
@@ -49,6 +50,10 @@ class PrescriptionService
                     'time_slots' => $item['time_slots'] ?? null,
                     'duration_days' => $item['duration_days'] ?? null,
                 ]);
+
+                // Grow the shared dictionary from what doctors actually write, so
+                // the next doctor sees this drug in their picker (name + strength).
+                Medicine::remember((string) $item['name'], $item['dosage'] ?? null, (int) $doctor->id);
             }
 
             $this->notify('prescription_issued', (int) $patient->id, $prescription,

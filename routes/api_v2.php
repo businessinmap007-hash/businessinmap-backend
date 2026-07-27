@@ -132,6 +132,9 @@ Route::prefix('v2')->group(function () {
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {
+        // The services hub for a specialty: every service available for the
+        // child category, for the app's "services" tab.
+        Route::get('services', [DiscoveryController::class, 'services']);
         Route::get('filters', [DiscoveryController::class, 'filters']);
         // Attributes axis (options): business-level properties like «تقسيط»,
         // distinct from the offering axis above (services/item types).

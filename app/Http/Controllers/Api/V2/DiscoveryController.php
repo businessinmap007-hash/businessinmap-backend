@@ -316,6 +316,60 @@ final class DiscoveryController extends Controller
         return $out;
     }
 
+    /**
+     * The services hub for a specialty (category child): every platform service
+     * CONFIGURED as available for that child (category_platform_services), in
+     * display order, with a count of businesses that price each. This is the
+     * app's "services tab" — stable tabs even for a service no one prices yet,
+     * unlike `filters` which only lists services already offered.
+     */
+    public function services(Request $request)
+    {
+        $data = $request->validate([
+            'child_id' => ['required', 'integer', 'min:1'],
+            'open_now' => ['nullable', 'boolean'],
+        ]);
+
+        $childId = (int) $data['child_id'];
+        $openNow = $request->boolean('open_now');
+        $hours = app(\App\Services\BusinessHoursService::class);
+
+        // What services this child offers (the availability catalog).
+        $available = DB::table('category_platform_services as cps')
+            ->join('platform_services as s', 's.id', '=', 'cps.platform_service_id')
+            ->where('cps.child_id', $childId)
+            ->where('cps.is_active', 1)
+            ->where('s.is_active', 1)
+            ->orderBy('cps.sort_order')
+            ->orderBy('s.id')
+            ->get(['s.id', 's.key', 's.name_ar', 's.name_en', 's.supports_deposit', 'cps.sort_order']);
+
+        // Businesses pricing each service for this child (for a tab badge).
+        $counts = DB::table('business_service_prices as p')
+            ->where('p.child_id', $childId)
+            ->where('p.is_active', 1)
+            ->when($openNow, fn ($q) => $hours->applyOpenNow($q, 'p.business_id'))
+            ->groupBy('p.service_id')
+            ->selectRaw('p.service_id, COUNT(DISTINCT p.business_id) AS businesses')
+            ->pluck('businesses', 'p.service_id');
+
+        $services = $available->map(fn ($s) => [
+            'id' => (int) $s->id,
+            'key' => (string) $s->key,
+            'name' => $this->label($s->name_ar, $s->name_en, $s->key),
+            'supports_deposit' => (bool) $s->supports_deposit,
+            'businesses' => (int) ($counts[$s->id] ?? 0),
+        ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'child_id' => $childId,
+                'services' => $services,
+            ],
+        ]);
+    }
+
     private function label($ar, $en, $fallback): string
     {
         $ar = trim((string) $ar);

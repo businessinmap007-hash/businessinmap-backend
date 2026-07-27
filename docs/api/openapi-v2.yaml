@@ -2458,6 +2458,8 @@ paths:
     delete: { tags: [Offer Follows], summary: Unfollow, parameters: [{ name: follow, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 
   # ─────────────────────────── Discovery ───────────────────────────
+  /discovery/services:
+    get: { tags: [Discovery], summary: 'Services hub for a specialty (public): every platform service available for the child category (the app services tab), with a business count each. Stable even for a service no one prices yet. open_now=1 narrows the counts.', security: [], parameters: [{ name: child_id, in: query, required: true, schema: { type: integer } }, { name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /discovery/filters:
     get: { tags: [Discovery], summary: 'Customer discovery filters (public). open_now=1 narrows the business counts to shops open now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /discovery/attributes:

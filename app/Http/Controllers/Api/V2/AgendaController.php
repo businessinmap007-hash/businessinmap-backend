@@ -65,6 +65,24 @@ class AgendaController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/v2/agenda/export.ics — download my upcoming agenda as an iCalendar
+     * file (from today over `days`, default 90) for import into a calendar app.
+     */
+    public function ics(Request $request)
+    {
+        $days = min(max((int) $request->get('days', 90), 1), 365);
+        $from = Carbon::today();
+        $to = $from->copy()->addDays($days)->endOfDay();
+
+        $body = $this->agenda->icsForUser((int) $request->user()->id, $from, $to);
+
+        return response($body, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="agenda.ics"',
+        ]);
+    }
+
     /** POST /api/v2/agenda — add my own timed task (blocks time, may remind). */
     public function store(Request $request)
     {

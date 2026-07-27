@@ -110,6 +110,78 @@ class AgendaService
             ->get();
     }
 
+    /**
+     * Build an iCalendar (ICS) document of a user's active items in a range, one
+     * VEVENT each, for import into an external calendar. Times are emitted in UTC.
+     */
+    public function icsForUser(int $userId, Carbon $from, Carbon $to): string
+    {
+        $items = $this->forRange($userId, $from, $to);
+
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//BusinessInMap//Agenda//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'X-WR-CALNAME:' . $this->icsEscape(__('جدولي')),
+        ];
+
+        $stamp = Carbon::now('UTC')->format('Ymd\THis\Z');
+
+        foreach ($items as $item) {
+            $start = $item->starts_at->copy()->utc();
+            $end = ($item->ends_at ?? $item->starts_at->copy()->addMinutes(15))->copy()->utc();
+
+            $lines[] = 'BEGIN:VEVENT';
+            $lines[] = 'UID:agenda-' . $item->id . '@businessinmap';
+            $lines[] = 'DTSTAMP:' . $stamp;
+            $lines[] = 'DTSTART:' . $start->format('Ymd\THis\Z');
+            $lines[] = 'DTEND:' . $end->format('Ymd\THis\Z');
+            $lines[] = $this->icsFold('SUMMARY:' . $this->icsEscape((string) $item->title));
+            if ($item->notes) {
+                $lines[] = $this->icsFold('DESCRIPTION:' . $this->icsEscape((string) $item->notes));
+            }
+            $lines[] = 'CATEGORIES:' . strtoupper((string) $item->kind);
+            $lines[] = 'STATUS:CONFIRMED';
+            $lines[] = 'END:VEVENT';
+        }
+
+        $lines[] = 'END:VCALENDAR';
+
+        // RFC 5545 wants CRLF line endings.
+        return implode("\r\n", $lines) . "\r\n";
+    }
+
+    /** Escape a text value per RFC 5545 (backslash, comma, semicolon, newlines). */
+    private function icsEscape(string $value): string
+    {
+        $value = str_replace('\\', '\\\\', $value);
+        $value = str_replace([';', ','], ['\\;', '\\,'], $value);
+
+        return str_replace(["\r\n", "\n", "\r"], '\\n', $value);
+    }
+
+    /**
+     * Fold a content line to 75 octets with a leading space on continuations,
+     * cutting on UTF-8 boundaries so Arabic characters are never split.
+     */
+    private function icsFold(string $line): string
+    {
+        if (strlen($line) <= 75) {
+            return $line;
+        }
+
+        $folded = '';
+        while (strlen($line) > 75) {
+            $chunk = mb_strcut($line, 0, 75, 'UTF-8');
+            $folded .= $chunk . "\r\n ";
+            $line = substr($line, strlen($chunk));
+        }
+
+        return $folded . $line;
+    }
+
     /** A user adds their own timed task; it blocks time like any commitment. */
     public function addPersonalTask(int $userId, string $title, Carbon $start, ?Carbon $end, ?string $notes, bool $remind): AgendaItem
     {

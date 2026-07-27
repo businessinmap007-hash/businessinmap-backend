@@ -80,6 +80,33 @@ class AgendaFlowTest extends TestCase
         $this->assertSame('مهمة', $tuesdayCell['items'][0]['title']);
     }
 
+    public function test_the_agenda_exports_as_an_ics_file(): void
+    {
+        $user = $this->user(User::TYPE_CLIENT, 'User');
+        Sanctum::actingAs($user);
+
+        $at = Carbon::tomorrow()->setTime(9, 0);
+        $this->postJson('/api/v2/agenda', [
+            'title' => 'Dentist; visit',
+            'starts_at' => $at->format('Y-m-d H:i:s'),
+            'ends_at' => $at->copy()->addMinutes(30)->format('Y-m-d H:i:s'),
+        ])->assertCreated();
+
+        $res = $this->get('/api/v2/agenda/export.ics')
+            ->assertOk()
+            ->assertHeader('content-type', 'text/calendar; charset=utf-8');
+
+        $body = $res->getContent();
+        $this->assertStringContainsString('BEGIN:VCALENDAR', $body);
+        $this->assertStringContainsString('BEGIN:VEVENT', $body);
+        $this->assertStringContainsString('UID:agenda-', $body);
+        // The semicolon in the title is escaped per RFC 5545.
+        $this->assertStringContainsString('SUMMARY:Dentist\\; visit', $body);
+        // DTSTART is emitted in UTC (Z suffix).
+        $this->assertMatchesRegularExpression('/DTSTART:\d{8}T\d{6}Z/', $body);
+        $this->assertStringContainsString('END:VCALENDAR', $body);
+    }
+
     public function test_a_clinic_appointment_cannot_be_booked_over_another_commitment(): void
     {
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');

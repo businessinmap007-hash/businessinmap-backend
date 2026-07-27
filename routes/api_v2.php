@@ -321,6 +321,7 @@ Route::prefix('v2')->group(function () {
         // Personal agenda: my unified day + week + my own tasks.
         Route::get('agenda', [AgendaController::class, 'index']);
         Route::get('agenda/week', [AgendaController::class, 'week']);
+        Route::get('agenda/export.ics', [AgendaController::class, 'ics']);
         Route::post('agenda', [AgendaController::class, 'store']);
         Route::post('agenda/recurring', [AgendaController::class, 'storeRecurring']);
         Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');

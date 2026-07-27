@@ -129,6 +129,44 @@ class StaffDelegationTest extends TestCase
         $this->getJson('/api/v2/business/prices')->assertForbidden();
     }
 
+    public function test_offers_and_schedules_are_delegable_per_capability(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Carrier');
+        $agent = $this->makeUser(User::TYPE_CLIENT, 'Agent');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $agent->id,
+            'capabilities' => [BusinessCapability::SCHEDULES],
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($agent);
+        // Granted schedules → the carrier's schedule surface is open…
+        $this->getJson('/api/v2/business/schedules')->assertOk();
+        $this->getJson('/api/v2/business/schedules/reservations')->assertOk();
+        // …but offers is not (no `offers` capability).
+        $this->getJson('/api/v2/business/offers')->assertForbidden();
+    }
+
+    public function test_an_offers_delegate_reaches_the_offer_surfaces(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Seller');
+        $marketer = $this->makeUser(User::TYPE_CLIENT, 'Marketer');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $marketer->id,
+            'capabilities' => [BusinessCapability::OFFERS],
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($marketer);
+        $this->getJson('/api/v2/business/offers')->assertOk();
+        $this->getJson('/api/v2/business/offers/performance/me')->assertOk();
+        $this->getJson('/api/v2/business/offers/boost/purchases')->assertOk();
+    }
+
     public function test_a_stranger_cannot_act_for_a_business(): void
     {
         $this->makeUser(User::TYPE_BUSINESS, 'Other');

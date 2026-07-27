@@ -64,8 +64,8 @@ final class OfferTrackingController extends Controller
 
     public function myPerformance(Request $request)
     {
-        // Business-only route (gated by the `business` middleware).
-        return $this->performanceForBusiness($request, (int) $request->user()->id);
+        // Owner or a delegate with the `offers` capability (business.member).
+        return $this->performanceForBusiness($request, \App\Support\BusinessContext::id($request));
     }
 
     public function performanceForBusiness(Request $request, int $businessId)

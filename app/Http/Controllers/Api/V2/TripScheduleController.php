@@ -167,16 +167,19 @@ final class TripScheduleController extends Controller
 
     private function businessOrFail(Request $request)
     {
-        $user = $request->user();
+        // The business being managed — the owner, or the employer a delegated
+        // staff member (with the `schedules` capability) is acting for. The
+        // business.member middleware guarantees one of those resolved.
+        $business = \App\Support\BusinessContext::business($request);
 
-        if (! $user || (string) $user->type !== 'business') {
+        if (! $business || ! $business->isBusiness()) {
             abort(response()->json([
                 'success' => false,
                 'message' => __('هذه الخدمة متاحة لحسابات الأعمال فقط.'),
             ], 403));
         }
 
-        return $user;
+        return $business;
     }
 
     private function ownedOrFail(int $businessId, int $scheduleId): TripSchedule

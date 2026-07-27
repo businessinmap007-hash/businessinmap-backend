@@ -7,6 +7,7 @@ use App\Models\CommercialOffer;
 use App\Models\OfferBoostPackage;
 use App\Models\OfferBoostPurchase;
 use App\Services\Commercial\OfferBoostService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 final class OfferBoostController extends Controller
@@ -29,7 +30,7 @@ final class OfferBoostController extends Controller
 
     public function activate(Request $request, int $offer, OfferBoostService $boostService)
     {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         $data = $request->validate([
             'package_id' => ['required', 'integer', 'exists:offer_boost_packages,id'],
@@ -61,7 +62,7 @@ final class OfferBoostController extends Controller
 
     public function myPurchases(Request $request)
     {
-        $user = $request->user();
+        $user = BusinessContext::business($request);
 
         $rows = OfferBoostPurchase::query()
             ->with(['package', 'offer:id,title_ar,title_en,status,final_price,currency,audience_type'])

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TripReservation;
 use App\Models\TripSchedule;
 use App\Services\Schedules\TripReservationService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 /**
@@ -80,7 +81,7 @@ final class TripReservationController extends Controller
 
         $leg = TripSchedule::query()
             ->where('id', $schedule)
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->firstOrFail();
 
         $hold = $service->blockOffline($leg, (int) $data['units'], $data['notes'] ?? null);
@@ -97,7 +98,7 @@ final class TripReservationController extends Controller
         $status = trim((string) $request->get('status', ''));
 
         $query = TripReservation::query()
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time', 'client:id,name,logo'])
             ->latest('id');
 
@@ -138,7 +139,7 @@ final class TripReservationController extends Controller
     public function reject(Request $request, int $reservation, TripReservationService $service)
     {
         $row = $this->carrierReservationOrFail($request, $reservation);
-        $service->cancel($row, (int) $request->user()->id);
+        $service->cancel($row, BusinessContext::id($request));
 
         return response()->json(['success' => true, 'message' => __('تم رفض/إلغاء الحجز.')]);
     }
@@ -147,7 +148,7 @@ final class TripReservationController extends Controller
     {
         return TripReservation::query()
             ->where('id', $reservationId)
-            ->where('business_id', (int) $request->user()->id)
+            ->where('business_id', BusinessContext::id($request))
             ->firstOrFail();
     }
 

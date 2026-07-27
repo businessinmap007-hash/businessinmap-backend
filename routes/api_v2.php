@@ -636,7 +636,7 @@ Route::prefix('v2')->group(function () {
         // Scheduling/routes service: a business publishes + manages its own trip
         // legs (freight / passenger / limousine / distribution), incl. backhaul,
         // and handles the reservations that come in against them.
-        Route::prefix('business/schedules')->middleware('business')->group(function () {
+        Route::prefix('business/schedules')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
             Route::get('/', [TripScheduleController::class, 'index']);
             Route::post('/', [TripScheduleController::class, 'store']);
 
@@ -678,7 +678,7 @@ Route::prefix('v2')->group(function () {
             Route::delete('{project}/followers/{user}', [BusinessProjectController::class, 'removeFollower'])->whereNumber('project')->whereNumber('user');
         });
 
-        Route::prefix('business/offers')->middleware('business')->group(function () {
+        Route::prefix('business/offers')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {
             Route::get('/', [BusinessOfferController::class, 'index']);
             Route::post('/', [BusinessOfferController::class, 'store']);
             Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);

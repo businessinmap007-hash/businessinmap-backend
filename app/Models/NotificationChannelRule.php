@@ -97,6 +97,8 @@ class NotificationChannelRule extends Model
             // confirms it (→ patient).
             'appointment_requested' => ['طلب موعد جديد', 'New appointment request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'booking_new'],
             'appointment_confirmed' => ['تأكيد الموعد', 'Appointment confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            // A pre-visit reminder for a confirmed appointment (→ both parties).
+            'appointment_reminder' => ['تذكير بالموعد', 'Appointment reminder', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_reminder'],
         ];
     }
 

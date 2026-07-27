@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Models\AppNotification;
 use App\Models\BusinessStaff;
 use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentSlot;
+use App\Models\Prescription;
 use App\Models\User;
+use App\Services\Clinics\ClinicAppointmentService;
 use App\Support\BusinessCapability;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -143,5 +146,105 @@ class ClinicAppointmentFlowTest extends TestCase
         $this->assertDatabaseHas('clinic_appointments', [
             'id' => $id, 'clinic_id' => $clinic->id, 'status' => 'confirmed',
         ]);
+    }
+
+    public function test_a_clinic_publishes_open_slots_and_a_patient_books_one(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $at = $this->soon('+5 days 09:00');
+
+        // Clinic publishes two open slots (one duplicate is skipped).
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/business/clinic-slots', [
+            'slots' => [$at, $at, $this->soon('+5 days 09:30')],
+            'duration_minutes' => 30,
+        ])->assertCreated()->assertJsonPath('data.created', 2)->assertJsonPath('data.skipped', 1);
+
+        // Patient sees the open slots and books the first one.
+        Sanctum::actingAs($patient);
+        $slotId = $this->getJson("/api/v2/clinics/{$clinic->id}/slots")
+            ->assertOk()->assertJsonPath('data.data.0.starts_at', Carbon::parse($at)->toIso8601String())
+            ->json('data.data.0.id');
+
+        $apptId = $this->postJson("/api/v2/clinic-slots/{$slotId}/book")
+            ->assertCreated()->assertJsonPath('data.appointment.status', 'confirmed')
+            ->json('data.appointment.id');
+
+        // The slot is now taken and the clinic was notified.
+        $this->assertDatabaseHas('clinic_appointment_slots', ['id' => $slotId, 'appointment_id' => $apptId]);
+        $this->assertTrue(AppNotification::query()->where('user_id', $clinic->id)
+            ->where('notifiable_type', ClinicAppointment::class)->where('notifiable_id', $apptId)->exists());
+
+        // The same slot can't be booked twice.
+        $this->postJson("/api/v2/clinic-slots/{$slotId}/book")->assertStatus(422);
+    }
+
+    public function test_due_reminders_are_sent_once(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addHours(3), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        $service = app(ClinicAppointmentService::class);
+        $this->assertSame(1, $service->sendDueReminders());
+        // Both parties reminded, and it's marked so a second run does nothing.
+        $this->assertTrue(AppNotification::query()->where('user_id', $patient->id)
+            ->where('title_ar', 'تذكير بالموعد')->exists());
+        $this->assertNotNull($appointment->fresh()->reminded_at);
+        $this->assertSame(0, $service->sendDueReminders());
+    }
+
+    public function test_a_prescription_can_be_linked_to_the_visit(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        // The clinic issues a prescription linked to the appointment.
+        Sanctum::actingAs($clinic);
+        $rxId = $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'appointment_id' => $appointment->id,
+            'items' => [['name' => 'Paracetamol', 'dosage' => '500mg']],
+        ])->assertCreated()->assertJsonPath('data.prescription.appointment_id', $appointment->id)
+            ->json('data.prescription.id');
+
+        // The appointment now surfaces the linked prescription id.
+        Sanctum::actingAs($patient);
+        $this->getJson("/api/v2/clinic-appointments/{$appointment->id}")
+            ->assertOk()->assertJsonPath('data.appointment.prescription_id', (int) $rxId);
+    }
+
+    public function test_a_prescription_cannot_link_to_another_clinics_appointment(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $otherClinic = $this->user(User::TYPE_BUSINESS, 'Other');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $otherClinic->id, 'patient_id' => $patient->id, 'created_by' => $otherClinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'appointment_id' => $appointment->id,
+            'items' => [['name' => 'Paracetamol']],
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('prescriptions', ['appointment_id' => $appointment->id]);
     }
 }

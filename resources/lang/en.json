@@ -2316,5 +2316,10 @@
     "تم تأكيد الموعد.": "Appointment confirmed.",
     "تم رفض/إلغاء الموعد.": "Appointment rejected/cancelled.",
     "تم إكمال الموعد.": "Appointment completed.",
-    "تم تسجيل عدم الحضور.": "Marked as no-show."
+    "تم تسجيل عدم الحضور.": "Marked as no-show.",
+    "تم نشر الفتحات.": "Slots published.",
+    "تم حذف الفتحة.": "Slot removed.",
+    "لا يمكن حذف فتحة محجوزة.": "A booked slot cannot be removed.",
+    "هذه الفتحة لم تعد متاحة.": "This slot is no longer available.",
+    "الموعد لا يخص هذه العيادة أو هذا المريض.": "The appointment does not belong to this clinic or patient."
 }

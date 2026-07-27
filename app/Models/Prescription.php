@@ -27,6 +27,7 @@ class Prescription extends Model
     protected $fillable = [
         'doctor_id',
         'patient_id',
+        'appointment_id',
         'pharmacy_id',
         'status',
         'fulfillment_type',
@@ -60,6 +61,11 @@ class Prescription extends Model
     public function pharmacy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pharmacy_id');
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(ClinicAppointment::class, 'appointment_id');
     }
 
     /** The user ids allowed to see this prescription. */

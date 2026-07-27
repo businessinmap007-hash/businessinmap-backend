@@ -3265,6 +3265,48 @@ paths:
       summary: Mark a no-show (clinic)
       parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /clinics/{clinic}/slots:
+    get:
+      tags: [Clinic Appointments]
+      summary: A clinic's open published slots (patient browses)
+      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /clinic-slots/{slot}/book:
+    post:
+      tags: [Clinic Appointments]
+      summary: Book an open slot in one tap (confirmed at once; notifies the clinic)
+      parameters: [{ name: slot, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { reason: { type: string } } }
+      responses: { '201': { description: Booked }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-slots:
+    get:
+      tags: [Clinic Appointments]
+      summary: The clinic's published slots (open by default; include_booked=1 for all)
+      parameters: [{ name: include_booked, in: query, schema: { type: boolean } }, { $ref: '#/components/parameters/PerPage' }]
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Clinic Appointments]
+      summary: Publish one or many open slots (duplicates skipped)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                starts_at: { type: string, format: date-time, description: 'Single slot; use instead of slots' }
+                slots: { type: array, items: { type: string, format: date-time }, description: 'Many slots; use instead of starts_at' }
+                duration_minutes: { type: integer }
+      responses: { '201': { description: Published }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-slots/{slot}:
+    delete:
+      tags: [Clinic Appointments]
+      summary: Remove an open (unbooked) slot
+      parameters: [{ name: slot, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Deleted }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /prescriptions:
     get:
       tags: [Prescriptions]

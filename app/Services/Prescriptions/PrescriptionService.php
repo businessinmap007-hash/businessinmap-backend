@@ -31,6 +31,7 @@ class PrescriptionService
             $prescription = Prescription::create([
                 'doctor_id' => (int) $doctor->id,
                 'patient_id' => (int) $patient->id,
+                'appointment_id' => isset($header['appointment_id']) ? (int) $header['appointment_id'] : null,
                 'status' => Prescription::STATUS_ISSUED,
                 'diagnosis' => $header['diagnosis'] ?? null,
                 'notes' => $header['notes'] ?? null,

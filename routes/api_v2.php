@@ -332,6 +332,9 @@ Route::prefix('v2')->group(function () {
         Route::post('clinic-appointments', [ClinicAppointmentController::class, 'store']);
         Route::get('clinic-appointments/{appointment}', [ClinicAppointmentController::class, 'show'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/cancel', [ClinicAppointmentController::class, 'cancel'])->whereNumber('appointment');
+        // Published open slots: browse a clinic's, then book one in a tap.
+        Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
+        Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
@@ -734,6 +737,13 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/reject', [BusinessClinicAppointmentController::class, 'reject'])->whereNumber('appointment');
             Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
             Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
+        });
+
+        // Clinic's published open slots (a delegate = the secretary manages these).
+        Route::prefix('business/clinic-slots')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [BusinessClinicAppointmentController::class, 'slotsIndex']);
+            Route::post('/', [BusinessClinicAppointmentController::class, 'slotsStore']);
+            Route::delete('{slot}', [BusinessClinicAppointmentController::class, 'slotsDestroy'])->whereNumber('slot');
         });
 
         // Reusable training templates: build once, apply to many clients.

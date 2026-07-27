@@ -43,6 +43,7 @@ use App\Http\Controllers\AdminV2\{
     OperationChatController,
     ProjectAdminController,
     TrainingAdminController,
+    ClinicAppointmentAdminController,
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
@@ -387,6 +388,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::prefix('training-plans')->name('training-plans.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
                 Route::get('/', [TrainingAdminController::class, 'index'])->name('index');
                 Route::get('{plan}', [TrainingAdminController::class, 'show'])->whereNumber('plan')->name('show');
+            });
+
+            // Read-only oversight of every clinic's appointments. Gated OPERATIONS.
+            Route::prefix('clinic-appointments')->name('clinic-appointments.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+                Route::get('/', [ClinicAppointmentAdminController::class, 'index'])->name('index');
+                Route::get('{appointment}', [ClinicAppointmentAdminController::class, 'show'])->whereNumber('appointment')->name('show');
             });
 
             // Every conversation on the platform, merged for moderation. Text is

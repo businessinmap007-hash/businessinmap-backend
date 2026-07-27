@@ -83,7 +83,7 @@
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.', 'admin.projects.', 'admin.training-plans.'], 'children' => [
+        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.', 'admin.projects.', 'admin.training-plans.', 'admin.clinic-appointments.'], 'children' => [
             ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
                 ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
                 ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
@@ -101,6 +101,9 @@
             ]],
             ['label' => 'التدريبات', 'type' => 'section', 'children' => [
                 ['label' => 'خطط التدريب (إشراف)', 'route' => 'admin.training-plans.index', 'active' => 'admin.training-plans.'],
+            ]],
+            ['label' => 'العيادات', 'type' => 'section', 'children' => [
+                ['label' => 'مواعيد العيادات (إشراف)', 'route' => 'admin.clinic-appointments.index', 'active' => 'admin.clinic-appointments.'],
             ]],
             ['label' => 'المحادثات', 'type' => 'section', 'children' => [
                 ['label' => 'المحادثات (إشراف)', 'route' => 'admin.chats.index', 'active' => 'admin.chats.'],

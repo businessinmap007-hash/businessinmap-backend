@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A patient↔clinic appointment (see the create migration). Readable only by the
@@ -37,11 +38,13 @@ class ClinicAppointment extends Model
         'status',
         'reason',
         'notes',
+        'reminded_at',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'duration_minutes' => 'integer',
+        'reminded_at' => 'datetime',
     ];
 
     public function clinic(): BelongsTo
@@ -52,6 +55,12 @@ class ClinicAppointment extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');
+    }
+
+    /** The prescription written during this visit, if any. */
+    public function prescription(): HasOne
+    {
+        return $this->hasOne(Prescription::class, 'appointment_id');
     }
 
     public function endsAt()

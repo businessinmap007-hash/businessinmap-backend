@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentSlot;
 use App\Models\User;
 use App\Services\Clinics\ClinicAppointmentService;
 use Illuminate\Http\Request;
@@ -59,7 +60,7 @@ class ClinicAppointmentController extends Controller
     public function show(Request $request, int $appointment)
     {
         $row = ClinicAppointment::query()
-            ->with(['clinic:id,name,logo', 'patient:id,name'])
+            ->with(['clinic:id,name,logo', 'patient:id,name', 'prescription:id,appointment_id'])
             ->findOrFail($appointment);
 
         abort_unless($row->isParty((int) $request->user()->id), 404);
@@ -82,6 +83,42 @@ class ClinicAppointmentController extends Controller
         ]);
     }
 
+    /** GET /api/v2/clinics/{clinic}/slots — a clinic's open, still-future slots. */
+    public function slots(Request $request, int $clinic)
+    {
+        $clinicUser = User::query()->findOrFail($clinic);
+        abort_unless($clinicUser->isBusiness(), 404);
+
+        $rows = ClinicAppointmentSlot::query()
+            ->where('clinic_id', $clinic)
+            ->open()
+            ->orderBy('starts_at')
+            ->paginate((int) $request->get('per_page', 30));
+
+        $rows->getCollection()->transform(fn (ClinicAppointmentSlot $s) => [
+            'id' => (int) $s->id,
+            'starts_at' => optional($s->starts_at)->toIso8601String(),
+            'duration_minutes' => (int) $s->duration_minutes,
+        ]);
+
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    /** POST /api/v2/clinic-slots/{slot}/book — book an open slot (confirmed at once). */
+    public function bookSlot(Request $request, int $slot)
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+
+        $row = ClinicAppointmentSlot::query()->findOrFail($slot);
+        $appointment = $this->service->bookSlot($request->user(), $row, $data);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم حجز الموعد.'),
+            'data' => ['appointment' => $this->serialize($appointment->load('clinic:id,name,logo'))],
+        ], 201);
+    }
+
     private function serialize(ClinicAppointment $a): array
     {
         return [
@@ -90,6 +127,8 @@ class ClinicAppointmentController extends Controller
             'scheduled_at' => optional($a->scheduled_at)->toIso8601String(),
             'duration_minutes' => (int) $a->duration_minutes,
             'reason' => $a->reason,
+            'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
+                ? (int) $a->prescription->id : null,
             'clinic' => $a->relationLoaded('clinic') && $a->clinic
                 ? ['id' => (int) $a->clinic->id, 'name' => $a->clinic->name, 'logo' => $a->clinic->logo]
                 : ['id' => (int) $a->clinic_id],

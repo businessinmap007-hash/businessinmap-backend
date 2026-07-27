@@ -3,9 +3,11 @@
 namespace App\Services\Clinics;
 
 use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentSlot;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -106,6 +108,106 @@ class ClinicAppointmentService
         $appointment->update(['status' => ClinicAppointment::STATUS_CANCELLED]);
 
         return $appointment;
+    }
+
+    /**
+     * Clinic publishes one open slot. Silently skips (returns null) a duplicate
+     * start time — the (clinic_id, starts_at) unique key makes republishing safe.
+     */
+    public function publishSlot(User $clinic, Carbon $start, int $duration = 30): ?ClinicAppointmentSlot
+    {
+        $slot = ClinicAppointmentSlot::query()->firstOrCreate(
+            ['clinic_id' => (int) $clinic->id, 'starts_at' => $start],
+            ['duration_minutes' => $duration, 'created_by' => (int) $clinic->id],
+        );
+
+        return $slot->wasRecentlyCreated ? $slot : null;
+    }
+
+    /** Clinic deletes an open (unbooked) slot; a booked one can't be removed here. */
+    public function deleteSlot(ClinicAppointmentSlot $slot): void
+    {
+        if ($slot->appointment_id !== null) {
+            throw ValidationException::withMessages(['slot' => __('لا يمكن حذف فتحة محجوزة.')]);
+        }
+
+        $slot->delete();
+    }
+
+    /**
+     * Patient books an open published slot in one tap. Because the clinic offered
+     * the slot, the resulting appointment is confirmed at once (overlap-guarded),
+     * the slot is marked taken, and the clinic is notified.
+     */
+    public function bookSlot(User $patient, ClinicAppointmentSlot $slot, array $data = []): ClinicAppointment
+    {
+        return DB::transaction(function () use ($patient, $slot, $data) {
+            // Lock the row so two patients can't take the same slot at once.
+            $slot = ClinicAppointmentSlot::query()->lockForUpdate()->findOrFail($slot->id);
+
+            if (! $slot->isOpen()) {
+                throw ValidationException::withMessages(['slot' => __('هذه الفتحة لم تعد متاحة.')]);
+            }
+
+            $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null);
+
+            $appointment = ClinicAppointment::create([
+                'clinic_id' => (int) $slot->clinic_id,
+                'patient_id' => (int) $patient->id,
+                'created_by' => (int) $patient->id,
+                'scheduled_at' => $slot->starts_at,
+                'duration_minutes' => (int) $slot->duration_minutes,
+                'status' => ClinicAppointment::STATUS_CONFIRMED,
+                'reason' => $data['reason'] ?? null,
+            ]);
+
+            $slot->update(['appointment_id' => (int) $appointment->id]);
+
+            // The patient chose an offered slot → tell the clinic it's now booked.
+            $this->notify('appointment_requested', (int) $slot->clinic_id, $appointment,
+                'حجز موعد', 'Appointment booked',
+                'حجز مريض فتحة موعد في ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+                'A patient booked a slot on ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
+
+            return $appointment;
+        });
+    }
+
+    /**
+     * Send a one-time pre-visit reminder to both parties for every confirmed
+     * appointment starting within the next `$withinHours` and not yet reminded.
+     * Returns how many were reminded. Idempotent via `reminded_at`.
+     */
+    public function sendDueReminders(int $limit = 200, int $withinHours = 24): int
+    {
+        $now = Carbon::now();
+        $until = $now->copy()->addHours($withinHours);
+
+        $due = ClinicAppointment::query()
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereNull('reminded_at')
+            ->where('scheduled_at', '>', $now)
+            ->where('scheduled_at', '<=', $until)
+            ->orderBy('scheduled_at')
+            ->limit($limit)
+            ->get();
+
+        $sent = 0;
+        foreach ($due as $appointment) {
+            $when = $appointment->scheduled_at->format('Y-m-d H:i');
+
+            foreach ([(int) $appointment->patient_id, (int) $appointment->clinic_id] as $userId) {
+                $this->notify('appointment_reminder', $userId, $appointment,
+                    'تذكير بالموعد', 'Appointment reminder',
+                    'لديك موعد قادم في ' . $when . '.',
+                    'You have an upcoming appointment on ' . $when . '.');
+            }
+
+            $appointment->update(['reminded_at' => $now]);
+            $sent++;
+        }
+
+        return $sent;
     }
 
     /** True if a confirmed appointment already overlaps the given window. */

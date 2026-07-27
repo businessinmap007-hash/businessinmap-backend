@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClinicAppointment;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Services\Prescriptions\PrescriptionService;
@@ -28,6 +29,7 @@ class PrescriptionController extends Controller
 
         $data = $request->validate([
             'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $doctor->id],
+            'appointment_id' => ['nullable', 'integer', 'exists:clinic_appointments,id'],
             'diagnosis' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
@@ -39,7 +41,19 @@ class PrescriptionController extends Controller
 
         $patient = User::query()->findOrFail((int) $data['patient_id']);
 
+        // If linked to a visit, it must be this clinic's appointment for this patient.
+        if (! empty($data['appointment_id'])) {
+            $appointment = ClinicAppointment::query()->findOrFail((int) $data['appointment_id']);
+            abort_unless(
+                (int) $appointment->clinic_id === (int) $doctor->id
+                    && (int) $appointment->patient_id === (int) $patient->id,
+                422,
+                __('الموعد لا يخص هذه العيادة أو هذا المريض.'),
+            );
+        }
+
         $prescription = $this->service->issue($doctor, $patient, [
+            'appointment_id' => $data['appointment_id'] ?? null,
             'diagnosis' => $data['diagnosis'] ?? null,
             'notes' => $data['notes'] ?? null,
         ], $data['items']);
@@ -167,6 +181,7 @@ class PrescriptionController extends Controller
         return [
             'id' => (int) $p->id,
             'status' => (string) $p->status,
+            'appointment_id' => $p->appointment_id ? (int) $p->appointment_id : null,
             'fulfillment_type' => $p->fulfillment_type,
             'diagnosis' => $p->diagnosis,
             'notes' => $p->notes,

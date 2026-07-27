@@ -11,6 +11,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\DetectUnusedControllers::class,
         \App\Console\Commands\DetectUnusedModels::class,
         \App\Console\Commands\SendDueBookingReminders::class,
+        \App\Console\Commands\SendClinicAppointmentReminders::class,
         \App\Console\Commands\DeleteExpiredSponsors::class,
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
         \App\Console\Commands\ProcessExpiredGuarantees::class,
@@ -21,6 +22,12 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('sponsors:delete-expired')->everyTenMinutes();
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
+
+        // Pre-visit reminders for confirmed clinic appointments. The window is 24h
+        // and each appointment is reminded once, so hourly comfortably catches it.
+        $schedule->command('clinic:appointment-reminders --limit=200')
+            ->hourly()
+            ->withoutOverlapping();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();
 

@@ -96,6 +96,46 @@ class OperatorSessionApiTest extends TestCase
             ->assertJsonPath('data.session.screen', 'delivery');
     }
 
+    public function test_the_poll_feed_returns_notifications_after_the_cursor(): void
+    {
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/operator/session/start')->assertCreated();
+
+        // Baseline cursor (skip any pre-existing rows for this business).
+        $start = (int) ($this->getJson('/api/v2/operator/realtime/poll')->assertOk()->json('data.cursor'));
+
+        app(\App\Services\Notifications\NotificationDispatcherService::class)
+            ->dispatch('menu_order_created', (int) $this->business->id, ['body_ar' => 'طلب', 'body_en' => 'order']);
+
+        $res = $this->getJson("/api/v2/operator/realtime/poll?after={$start}")->assertOk();
+        $events = $res->json('data.events');
+        $this->assertNotEmpty($events, 'the new notification appears on the feed');
+        $this->assertGreaterThan($start, (int) $res->json('data.cursor'));
+        $this->assertSame('notification.created', $events[0]['event']);
+
+        // Polling again from the advanced cursor yields nothing new.
+        $cursor = (int) $res->json('data.cursor');
+        $this->assertSame([], $this->getJson("/api/v2/operator/realtime/poll?after={$cursor}")->assertOk()->json('data.events'));
+    }
+
+    public function test_an_online_operator_suppresses_the_redundant_firebase_push(): void
+    {
+        $dispatcher = app(\App\Services\Notifications\NotificationDispatcherService::class);
+
+        // Offline: realtime is skipped, Firebase is attempted (a fallback rule).
+        $offline = $dispatcher->dispatch('menu_order_created', (int) $this->business->id, ['body_ar' => 'a', 'body_en' => 'a']);
+        $this->assertFalse($offline['realtime']['sent'] ?? true);
+        $this->assertNotNull($offline['firebase'], 'offline → firebase is attempted');
+
+        // Online: realtime is delivered via the feed → Firebase is suppressed.
+        app(\App\Services\Notifications\BusinessOperatorSessionService::class)
+            ->start((int) $this->business->id, (int) $this->business->id);
+
+        $online = $dispatcher->dispatch('menu_order_created', (int) $this->business->id, ['body_ar' => 'b', 'body_en' => 'b']);
+        $this->assertTrue($online['realtime']['sent'] ?? false, 'online → realtime is sent');
+        $this->assertNull($online['firebase'], 'online → the redundant firebase push is suppressed');
+    }
+
     public function test_presence_is_scoped_to_the_business(): void
     {
         $realtime = app(RealtimeNotificationService::class);

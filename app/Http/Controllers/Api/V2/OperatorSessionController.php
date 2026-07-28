@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessOperatorSession;
 use App\Services\Notifications\BusinessOperatorSessionService;
+use App\Services\Notifications\RealtimeNotificationService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
@@ -15,8 +16,10 @@ use Illuminate\Http\Request;
  */
 final class OperatorSessionController extends Controller
 {
-    public function __construct(private readonly BusinessOperatorSessionService $sessions)
-    {
+    public function __construct(
+        private readonly BusinessOperatorSessionService $sessions,
+        private readonly RealtimeNotificationService $realtime,
+    ) {
     }
 
     /** POST /api/v2/operator/session/start */
@@ -89,6 +92,45 @@ final class OperatorSessionController extends Controller
             'data' => [
                 'online' => (bool) $session,
                 'session' => $session ? $this->present($session) : null,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/v2/operator/realtime/poll — the live delta feed. The client passes
+     * the last cursor it saw and gets newer notifications + the next cursor.
+     * Polling also counts as a heartbeat, so an actively-watching operator stays
+     * online without a separate heartbeat call.
+     */
+    public function poll(Request $request)
+    {
+        $data = $request->validate([
+            'after' => ['nullable', 'integer', 'min:0'],
+            'service_type' => ['nullable', 'string', 'max:40'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $businessId = BusinessContext::id($request);
+
+        // Listening keeps you online (best-effort — no session yet is fine).
+        $session = $this->sessions->heartbeat(
+            $businessId,
+            (int) $request->user()->id,
+            $data['service_type'] ?? null,
+        );
+
+        $feed = $this->realtime->feedSince(
+            $businessId,
+            (int) ($data['after'] ?? 0),
+            (int) ($data['limit'] ?? 50),
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'online' => (bool) $session,
+                'events' => $feed['events'],
+                'cursor' => $feed['cursor'],
             ],
         ]);
     }

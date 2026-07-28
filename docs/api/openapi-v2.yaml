@@ -2056,6 +2056,20 @@ paths:
       tags: [Operator Presence]
       summary: Go offline (close the operator session)
       responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
+  /operator/realtime/poll:
+    get:
+      tags: [Operator Presence]
+      summary: Live delta feed of notifications since a cursor (poll transport)
+      description: |
+        The realtime channel for an online operator. Pass the last `cursor` you
+        saw; get newer notifications + the next cursor. Polling also heartbeats
+        the session. While an operator is online, the dispatcher suppresses the
+        redundant Firebase push and delivers via this feed instead.
+      parameters:
+        - { name: after, in: query, required: false, schema: { type: integer, minimum: 0 } }
+        - { name: service_type, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
 
   # ─────────────────────────── Ratings ───────────────────────────
   /ratings/me:

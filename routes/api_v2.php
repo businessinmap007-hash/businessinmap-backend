@@ -549,6 +549,7 @@ Route::prefix('v2')->group(function () {
             Route::post('operator/session/start', [OperatorSessionController::class, 'start']);
             Route::post('operator/session/heartbeat', [OperatorSessionController::class, 'heartbeat']);
             Route::post('operator/session/end', [OperatorSessionController::class, 'end']);
+            Route::get('operator/realtime/poll', [OperatorSessionController::class, 'poll']);
         });
 
         // Weekly opening hours — owner OR staff with the `working_hours` capability.

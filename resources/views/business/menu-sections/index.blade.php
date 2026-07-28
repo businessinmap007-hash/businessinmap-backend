@@ -1,16 +1,16 @@
 @extends('business.layouts.master')
 
-@section('title', 'أقسام المنيو')
+@section('title', __('أقسام المنيو'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">أقسام المنيو</h1>
-        <div class="a2-page-subtitle">نظّم منيو نشاطك (مقبلات، أطباق رئيسية، حلويات، مشروبات…).</div>
+        <h1 class="a2-page-title">{{ __('أقسام المنيو') }}</h1>
+        <div class="a2-page-subtitle">{{ __('نظّم منيو نشاطك (مقبلات، أطباق رئيسية، حلويات، مشروبات…).') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">المنيو</a>
-        <a href="{{ route('business.menu-sections.create') }}" class="a2-btn a2-btn-primary">إضافة قسم</a>
+        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('المنيو') }}</a>
+        <a href="{{ route('business.menu-sections.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة قسم') }}</a>
     </div>
 </div>
 
@@ -24,11 +24,11 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>الاسم</th>
-                    <th>عدد الأصناف</th>
-                    <th>الترتيب</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('الاسم') }}</th>
+                    <th>{{ __('عدد الأصناف') }}</th>
+                    <th>{{ __('الترتيب') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -43,25 +43,25 @@
                         <td>{{ (int) $row->sort_order }}</td>
                         <td>
                             @if($row->is_active)
-                                <span class="a2-pill a2-pill-success">نشط</span>
+                                <span class="a2-pill a2-pill-success">{{ __('نشط') }}</span>
                             @else
-                                <span class="a2-pill a2-pill-gray">غير نشط</span>
+                                <span class="a2-pill a2-pill-gray">{{ __('غير نشط') }}</span>
                             @endif
                         </td>
                         <td class="a2-text-right">
                             <div class="a2-inline-actions">
-                                <a href="{{ route('business.menu-sections.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">تعديل</a>
-                                <form method="POST" action="{{ route('business.menu-sections.destroy', $row->id) }}" onsubmit="return confirm('حذف هذا القسم؟ ستصبح أصنافه بلا قسم.');">
+                                <a href="{{ route('business.menu-sections.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('تعديل') }}</a>
+                                <form method="POST" action="{{ route('business.menu-sections.destroy', $row->id) }}" onsubmit="return confirm('{{ __('حذف هذا القسم؟ ستصبح أصنافه بلا قسم.') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="a2-empty">لا أقسام بعد. أضف قسماً لتنظيم منيوك.</td>
+                        <td colspan="6" class="a2-empty">{{ __('لا أقسام بعد. أضف قسماً لتنظيم منيوك.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

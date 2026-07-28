@@ -1,15 +1,15 @@
 @extends('business.layouts.master')
 
-@section('title', 'إضافة قسم')
+@section('title', __('إضافة قسم'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">إضافة قسم للمنيو</h1>
-        <div class="a2-page-subtitle">قسم يجمع أصناف المنيو المتشابهة.</div>
+        <h1 class="a2-page-title">{{ __('إضافة قسم للمنيو') }}</h1>
+        <div class="a2-page-subtitle">{{ __('قسم يجمع أصناف المنيو المتشابهة.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     </div>
 </div>
 

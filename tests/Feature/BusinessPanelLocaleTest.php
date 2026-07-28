@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\SeedsMenu;
 use Tests\TestCase;
 
 /**
@@ -14,6 +15,7 @@ use Tests\TestCase;
 class BusinessPanelLocaleTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsMenu;
 
     private User $business;
 
@@ -86,5 +88,31 @@ class BusinessPanelLocaleTest extends TestCase
             'address' => '',
         ]);
         $this->get("/business/orders/{$order->id}")->assertOk()->assertSee('Order #' . $order->id)->assertSee('Invoice');
+    }
+
+    public function test_the_menu_module_screens_render_in_both_languages(): void
+    {
+        $item = $this->seedMenuItem($this->business->id, null, 25.0, 'شاورما');
+
+        // Arabic (default) — a couple of anchors.
+        $this->actingAs($this->business)->get('/business/menu')->assertOk()->assertSee('منيو نشاطي');
+
+        // English — the whole menu-management flow, incl. the variants/extras editor.
+        $this->actingAs($this->business)->withSession(['panel_locale' => 'en']);
+        $this->get('/business/menu')->assertOk()->assertSee('My business menu')->assertSee('Available');
+        $this->get('/business/menu/create')->assertOk()->assertSee('Item details');
+        $this->get("/business/menu/{$item->id}/edit")->assertOk()->assertSee('Sizes / options')->assertSee('Extras');
+        $this->get('/business/menu-sections')->assertOk()->assertSee('Menu sections');
+        $this->get('/business/menu-sections/create')->assertOk()->assertSee('Section details');
+        $this->get('/business/menu-settings')->assertOk()->assertSee('Menu settings');
+        $this->get('/business/orders/create')->assertOk()->assertSee('New menu order');
+    }
+
+    public function test_the_login_page_localizes_and_defaults_to_arabic(): void
+    {
+        $this->get('/business/login')->assertOk()->assertSee('دخول لوحة النشاط التجاري');
+
+        $this->withSession(['panel_locale' => 'en'])
+            ->get('/business/login')->assertOk()->assertSee('Business panel login')->assertSee('Password');
     }
 }

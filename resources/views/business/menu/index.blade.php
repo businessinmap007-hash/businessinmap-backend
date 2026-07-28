@@ -1,17 +1,17 @@
 @extends('business.layouts.master')
 
-@section('title', 'المنيو')
+@section('title', __('المنيو'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">منيو نشاطي</h1>
-        <div class="a2-page-subtitle">الأصناف التي يمكن للعميل طلبها — تخصّك أنت فقط.</div>
+        <h1 class="a2-page-title">{{ __('منيو نشاطي') }}</h1>
+        <div class="a2-page-subtitle">{{ __('الأصناف التي يمكن للعميل طلبها — تخصّك أنت فقط.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.menu-settings.edit') }}" class="a2-btn a2-btn-ghost">إعدادات</a>
-        <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">الأقسام</a>
-        <a href="{{ route('business.menu.create') }}" class="a2-btn a2-btn-primary">إضافة صنف</a>
+        <a href="{{ route('business.menu-settings.edit') }}" class="a2-btn a2-btn-ghost">{{ __('إعدادات') }}</a>
+        <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">{{ __('الأقسام') }}</a>
+        <a href="{{ route('business.menu.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة صنف') }}</a>
     </div>
 </div>
 
@@ -22,20 +22,20 @@
 <div class="a2-card a2-card--soft a2-mb-16">
     <form method="GET" action="{{ route('business.menu.index') }}" class="a2-filterbar">
         <div class="a2-filter-search">
-            <label class="a2-label">بحث</label>
-            <input class="a2-input" name="q" value="{{ $q }}" placeholder="اسم الصنف">
+            <label class="a2-label">{{ __('بحث') }}</label>
+            <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('اسم الصنف') }}">
         </div>
         <div class="a2-filter-sm">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
             <select class="a2-select" name="active">
-                <option value="">الكل</option>
-                <option value="1" @selected($active === '1')>متاح</option>
-                <option value="0" @selected($active === '0')>غير متاح</option>
+                <option value="">{{ __('الكل') }}</option>
+                <option value="1" @selected($active === '1')>{{ __('متاح') }}</option>
+                <option value="0" @selected($active === '0')>{{ __('غير متاح') }}</option>
             </select>
         </div>
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تصفية</button>
-            <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">إعادة</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تصفية') }}</button>
+            <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('إعادة') }}</a>
         </div>
     </form>
 </div>
@@ -46,12 +46,12 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>الاسم</th>
-                    <th>القسم</th>
-                    <th>السعر</th>
-                    <th>الترتيب</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('الاسم') }}</th>
+                    <th>{{ __('القسم') }}</th>
+                    <th>{{ __('السعر') }}</th>
+                    <th>{{ __('الترتيب') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -73,25 +73,25 @@
                         <td>{{ (int) $row->sort_order }}</td>
                         <td>
                             @if($row->is_active)
-                                <span class="a2-pill a2-pill-success">متاح</span>
+                                <span class="a2-pill a2-pill-success">{{ __('متاح') }}</span>
                             @else
-                                <span class="a2-pill a2-pill-gray">غير متاح</span>
+                                <span class="a2-pill a2-pill-gray">{{ __('غير متاح') }}</span>
                             @endif
                         </td>
                         <td class="a2-text-right">
                             <div class="a2-inline-actions">
-                                <a href="{{ route('business.menu.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">تعديل</a>
-                                <form method="POST" action="{{ route('business.menu.destroy', $row->id) }}" onsubmit="return confirm('حذف هذا الصنف؟');">
+                                <a href="{{ route('business.menu.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('تعديل') }}</a>
+                                <form method="POST" action="{{ route('business.menu.destroy', $row->id) }}" onsubmit="return confirm('{{ __('حذف هذا الصنف؟') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="a2-empty">لا توجد أصناف بعد. ابدأ بإضافة منيو نشاطك.</td>
+                        <td colspan="7" class="a2-empty">{{ __('لا توجد أصناف بعد. ابدأ بإضافة منيو نشاطك.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

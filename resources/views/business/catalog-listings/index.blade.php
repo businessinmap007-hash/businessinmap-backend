@@ -1,15 +1,15 @@
 @extends('business.layouts.master')
 
-@section('title', 'منتجاتي')
+@section('title', __('منتجاتي'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">منتجاتي للبيع</h1>
-        <div class="a2-page-subtitle">المنتجات اللي بتبيعها من كتالوج المنصة — بسعرك ومخزونك.</div>
+        <h1 class="a2-page-title">{{ __('منتجاتي للبيع') }}</h1>
+        <div class="a2-page-subtitle">{{ __('المنتجات اللي بتبيعها من كتالوج المنصة — بسعرك ومخزونك.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.products.create') }}" class="a2-btn a2-btn-primary">إضافة منتج</a>
+        <a href="{{ route('business.products.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة منتج') }}</a>
     </div>
 </div>
 
@@ -20,12 +20,12 @@
 <div class="a2-card a2-card--soft a2-mb-16">
     <form method="GET" action="{{ route('business.products.index') }}" class="a2-filterbar">
         <div class="a2-filter-search">
-            <label class="a2-label">بحث</label>
-            <input class="a2-input" name="q" value="{{ $q }}" placeholder="اسم المنتج">
+            <label class="a2-label">{{ __('بحث') }}</label>
+            <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('اسم المنتج') }}">
         </div>
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تصفية</button>
-            <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost">إعادة</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تصفية') }}</button>
+            <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost">{{ __('إعادة') }}</a>
         </div>
     </form>
 </div>
@@ -35,12 +35,12 @@
         <table class="a2-table">
             <thead>
                 <tr>
-                    <th>المنتج</th>
-                    <th>الماركة</th>
-                    <th>السعر</th>
-                    <th>المخزون</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('المنتج') }}</th>
+                    <th>{{ __('الماركة') }}</th>
+                    <th>{{ __('السعر') }}</th>
+                    <th>{{ __('المخزون') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,25 +55,25 @@
                         <td>{{ (int) $row->stock }}</td>
                         <td>
                             @if($row->is_active)
-                                <span class="a2-pill a2-pill-success">متاح</span>
+                                <span class="a2-pill a2-pill-success">{{ __('متاح') }}</span>
                             @else
-                                <span class="a2-pill a2-pill-gray">موقوف</span>
+                                <span class="a2-pill a2-pill-gray">{{ __('موقوف') }}</span>
                             @endif
                         </td>
                         <td class="a2-text-right">
                             <div class="a2-inline-actions">
-                                <a href="{{ route('business.products.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">تعديل</a>
-                                <form method="POST" action="{{ route('business.products.destroy', $row->id) }}" onsubmit="return confirm('إزالة هذا المنتج من قائمتك؟');">
+                                <a href="{{ route('business.products.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('تعديل') }}</a>
+                                <form method="POST" action="{{ route('business.products.destroy', $row->id) }}" onsubmit="return confirm('{{ __('إزالة هذا المنتج من قائمتك؟') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="a2-empty">لا توجد منتجات بعد. اضغط «إضافة منتج» واختر من كتالوج المنصة.</td>
+                        <td colspan="6" class="a2-empty">{{ __('لا توجد منتجات بعد. اضغط «إضافة منتج» واختر من كتالوج المنصة.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

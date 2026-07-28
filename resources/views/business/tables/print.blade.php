@@ -1,9 +1,14 @@
+@php
+    $__locale = session('panel_locale', 'ar');
+    if (! in_array($__locale, config('app.supported_locales', ['ar', 'en']), true)) { $__locale = 'ar'; }
+    app()->setLocale($__locale);
+@endphp
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="{{ $__locale }}" dir="{{ $__locale === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>طباعة رموز الطاولات — {{ config('app.name') }}</title>
+    <title>{{ __('طباعة رموز الطاولات') }} — {{ config('app.name') }}</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #fff; color: #111; font-family: "Segoe UI", Tahoma, system-ui, sans-serif; padding: 16px; }
@@ -19,17 +24,17 @@
     </style>
 </head>
 <body>
-    <div class="toolbar"><button onclick="window.print()">طباعة</button></div>
+    <div class="toolbar"><button onclick="window.print()">{{ __('طباعة') }}</button></div>
 
     @if($rows->isEmpty())
-        <div class="empty">لا طاولات نشطة للطباعة.</div>
+        <div class="empty">{{ __('لا طاولات نشطة للطباعة.') }}</div>
     @else
         <div class="grid">
             @foreach($rows as $row)
                 <div class="tile">
                     <img src="{{ route('table.qr', $row->token, false) }}" alt="QR {{ $row->label }}">
                     <div class="label">{{ $row->label }}</div>
-                    <div class="hint">امسح الرمز لبدء طلبك</div>
+                    <div class="hint">{{ __('امسح الرمز لبدء طلبك') }}</div>
                 </div>
             @endforeach
         </div>

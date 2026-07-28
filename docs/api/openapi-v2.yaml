@@ -92,6 +92,7 @@ tags:
   - name: Business Retail
   - name: Delivery
   - name: Order Handover
+  - name: Operator Presence
   - name: Tables
   - name: Schedules
     description: |
@@ -2022,6 +2023,39 @@ paths:
       summary: Mark a table call handled
       parameters: [{ name: call, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+
+  # ─────────────────────────── Operator presence ───────────────────────────
+  /operator/session:
+    get:
+      tags: [Operator Presence]
+      summary: The caller's current operator session (online state)
+      parameters: [{ name: service_type, in: query, required: false, schema: { type: string } }]
+      responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
+  /operator/session/start:
+    post:
+      tags: [Operator Presence]
+      summary: Mark the business online while watching a service screen
+      description: Opens the realtime delivery gate; the session self-expires and must be kept alive by heartbeat.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service_type: { type: string, nullable: true }
+                screen: { type: string, nullable: true }
+                expected_minutes: { type: integer, minimum: 1, maximum: 120 }
+      responses: { '201': { description: Created }, '401': { $ref: '#/components/responses/Unauthorized' } }
+  /operator/session/heartbeat:
+    post:
+      tags: [Operator Presence]
+      summary: Keep the operator session alive (extends expiry)
+      responses: { '200': { description: OK }, '409': { description: No live session to renew } }
+  /operator/session/end:
+    post:
+      tags: [Operator Presence]
+      summary: Go offline (close the operator session)
+      responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } }
 
   # ─────────────────────────── Ratings ───────────────────────────
   /ratings/me:

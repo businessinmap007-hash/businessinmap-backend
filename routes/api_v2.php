@@ -61,6 +61,7 @@ use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
 use App\Http\Controllers\Api\V2\SearchOffersController;
+use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripReservationController;
@@ -539,6 +540,15 @@ Route::prefix('v2')->group(function () {
             // queue and marking one handled.
             Route::get('business/table-calls', [TableServiceCallController::class, 'index']);
             Route::post('business/table-calls/{call}/resolve', [TableServiceCallController::class, 'resolve'])->whereNumber('call');
+        });
+
+        // Operator presence (realtime gate): a business marks itself online while
+        // watching a service screen so realtime pushes actually reach it.
+        Route::middleware('business')->group(function () {
+            Route::get('operator/session', [OperatorSessionController::class, 'show']);
+            Route::post('operator/session/start', [OperatorSessionController::class, 'start']);
+            Route::post('operator/session/heartbeat', [OperatorSessionController::class, 'heartbeat']);
+            Route::post('operator/session/end', [OperatorSessionController::class, 'end']);
         });
 
         // Weekly opening hours — owner OR staff with the `working_hours` capability.

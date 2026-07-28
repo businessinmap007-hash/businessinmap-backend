@@ -2666,5 +2666,6 @@
     "حدّد الطريق واليوم والسعة، وسيظهر خطك لمن يبحث عن هذا المسار.": "Set the route, day and capacity, and your line will show to whoever searches this route.",
     "تعديل خط التشغيل #:id": "Edit operating line #:id",
     "أي تعديل ينعكس مباشرة على نتائج البحث لدى العملاء.": "Any change is reflected immediately in customers' search results.",
-    "حجوزات هذا الخط": "This line's reservations"
+    "حجوزات هذا الخط": "This line's reservations",
+    "لا توجد جلسة نشطة. ابدأ جلسة أولًا.": "No active session. Start one first."
 }

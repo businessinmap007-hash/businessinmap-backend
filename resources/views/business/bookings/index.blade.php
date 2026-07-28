@@ -1,6 +1,6 @@
 @extends('business.layouts.master')
 
-@section('title', 'حجوزاتي')
+@section('title', __('حجوزاتي'))
 
 @section('content')
 @php
@@ -11,8 +11,8 @@
 
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">حجوزاتي</h1>
-        <div class="a2-page-subtitle">حجوزات نشاطك — تخصّك أنت فقط.</div>
+        <h1 class="a2-page-title">{{ __('حجوزاتي') }}</h1>
+        <div class="a2-page-subtitle">{{ __('حجوزات نشاطك — تخصّك أنت فقط.') }}</div>
     </div>
 </div>
 
@@ -23,12 +23,12 @@
 <div class="a2-card a2-card--soft a2-mb-16">
     <form method="GET" action="{{ route('business.bookings.index') }}" class="a2-filterbar">
         <div class="a2-filter-sm">
-            <label class="a2-label">الحالة</label>
+            <label class="a2-label">{{ __('الحالة') }}</label>
             <input class="a2-input" name="status" value="{{ $status }}" placeholder="pending / accepted ...">
         </div>
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تصفية</button>
-            <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost">إعادة</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تصفية') }}</button>
+            <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost">{{ __('إعادة') }}</a>
         </div>
     </form>
 </div>
@@ -39,12 +39,12 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>التاريخ</th>
-                    <th>الخدمة</th>
-                    <th>الوحدة</th>
-                    <th>الإجمالي</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('التاريخ') }}</th>
+                    <th>{{ __('الخدمة') }}</th>
+                    <th>{{ __('الوحدة') }}</th>
+                    <th>{{ __('الإجمالي') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -67,12 +67,12 @@
                         <td class="a2-fw-900">{{ number_format((float) $row->price, 2) }}</td>
                         <td><span class="a2-pill a2-pill-sub">{{ $row->status }}</span></td>
                         <td class="a2-text-right">
-                            <a href="{{ route('business.bookings.show', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">عرض</a>
+                            <a href="{{ route('business.bookings.show', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('عرض') }}</a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="a2-empty">لا توجد حجوزات بعد.</td>
+                        <td colspan="7" class="a2-empty">{{ __('لا توجد حجوزات بعد.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

@@ -1,6 +1,6 @@
 @extends('business.layouts.master')
 
-@section('title', 'خطوط التشغيل')
+@section('title', __('خطوط التشغيل'))
 
 @php
     use App\Models\TripSchedule;
@@ -14,12 +14,12 @@
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">خطوط التشغيل</h1>
-        <div class="a2-page-subtitle">انشر الطريق الذي تسير فيه ويومه، ليظهر لمن يبحث عن «من يسافر من … إلى … يوم …».</div>
+        <h1 class="a2-page-title">{{ __('خطوط التشغيل') }}</h1>
+        <div class="a2-page-subtitle">{{ __('انشر الطريق الذي تسير فيه ويومه، ليظهر لمن يبحث عن «من يسافر من … إلى … يوم …».') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.schedules.reservations.index') }}" class="a2-btn a2-btn-ghost">الحجوزات</a>
-        <a href="{{ route('business.schedules.create') }}" class="a2-btn a2-btn-primary">نشر خط جديد</a>
+        <a href="{{ route('business.schedules.reservations.index') }}" class="a2-btn a2-btn-ghost">{{ __('الحجوزات') }}</a>
+        <a href="{{ route('business.schedules.create') }}" class="a2-btn a2-btn-primary">{{ __('نشر خط جديد') }}</a>
     </div>
 </div>
 
@@ -30,22 +30,22 @@
 <div class="a2-card a2-card--tight">
     <form method="GET" action="{{ route('business.schedules.index') }}" class="a2-filterbar">
         <select class="a2-select a2-filter-sm" name="mode">
-            <option value="">كل الأنماط</option>
+            <option value="">{{ __('كل الأنماط') }}</option>
             @foreach($modeLabels as $key => $label)
                 <option value="{{ $key }}" @selected($mode === $key)>{{ $label }}</option>
             @endforeach
         </select>
 
         <select class="a2-select a2-filter-sm" name="status">
-            <option value="">كل الحالات</option>
+            <option value="">{{ __('كل الحالات') }}</option>
             @foreach($statusLabels as $key => $label)
                 <option value="{{ $key }}" @selected($status === $key)>{{ $label }}</option>
             @endforeach
         </select>
 
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('business.schedules.index') }}">إعادة ضبط</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('business.schedules.index') }}">{{ __('إعادة ضبط') }}</a>
         </div>
     </form>
 </div>
@@ -56,14 +56,14 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>النمط</th>
-                    <th>المركبة</th>
-                    <th>من → إلى</th>
-                    <th>اليوم / الموعد</th>
-                    <th>المتاح</th>
-                    <th>السعر / العربون</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('النمط') }}</th>
+                    <th>{{ __('المركبة') }}</th>
+                    <th>{{ __('من → إلى') }}</th>
+                    <th>{{ __('اليوم / الموعد') }}</th>
+                    <th>{{ __('المتاح') }}</th>
+                    <th>{{ __('السعر / العربون') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -77,7 +77,7 @@
                         <td>
                             {{ $modeLabels[$row->mode] ?? $row->mode }}
                             @if($row->is_return_leg)
-                                <span class="a2-pill a2-pill-sub" title="رحلة عودة">عودة ↩</span>
+                                <span class="a2-pill a2-pill-sub" title="{{ __('رحلة عودة') }}">{{ __('عودة ↩') }}</span>
                             @endif
                         </td>
                         <td>{{ optional($row->vehicleType)->name_ar ?: ($row->vehicle_label ?: '—') }}</td>
@@ -95,7 +95,7 @@
                             @elseif($row->schedule_pattern === TripSchedule::PATTERN_ONE_OFF)
                                 {{ optional($row->trip_date)->toDateString() ?: '—' }}
                             @else
-                                عند الطلب
+                                {{ __('عند الطلب') }}
                             @endif
                             @if($row->departure_time)
                                 <div class="a2-muted">{{ $row->departure_time }}</div>
@@ -103,7 +103,7 @@
                         </td>
                         <td>
                             @if($row->capacity === null)
-                                <span class="a2-muted">غير محدودة</span>
+                                <span class="a2-muted">{{ __('غير محدودة') }}</span>
                             @else
                                 <span class="a2-fw-900">{{ $left ?? $row->capacity }}</span>
                                 <span class="a2-muted">/ {{ $row->capacity }} {{ $row->capacity_unit }}</span>
@@ -120,27 +120,27 @@
                         </td>
                         <td class="a2-text-right">
                             <div class="a2-inline-actions" style="align-items:center;">
-                                <a href="{{ route('business.schedules.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">تعديل</a>
+                                <a href="{{ route('business.schedules.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('تعديل') }}</a>
 
                                 @if($row->capacity !== null)
-                                    <form method="POST" action="{{ route('business.schedules.block', $row->id) }}" style="display:flex;gap:6px;align-items:center;" title="حجز مقاعد بِعتها خارج التطبيق">
+                                    <form method="POST" action="{{ route('business.schedules.block', $row->id) }}" style="display:flex;gap:6px;align-items:center;" title="{{ __('حجز مقاعد بِعتها خارج التطبيق') }}">
                                         @csrf
                                         <input class="a2-input" name="units" type="number" min="1" value="1" style="width:64px;padding:7px 9px;" required>
-                                        <button class="a2-btn a2-btn-sm a2-btn-ghost" type="submit">حجز يدوي</button>
+                                        <button class="a2-btn a2-btn-sm a2-btn-ghost" type="submit">{{ __('حجز يدوي') }}</button>
                                     </form>
                                 @endif
 
-                                <form method="POST" action="{{ route('business.schedules.destroy', $row->id) }}" onsubmit="return confirm('حذف خط التشغيل؟ لن يظهر بعدها في البحث.');">
+                                <form method="POST" action="{{ route('business.schedules.destroy', $row->id) }}" onsubmit="return confirm('{{ __('حذف خط التشغيل؟ لن يظهر بعدها في البحث.') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="a2-empty">لا خطوط تشغيل بعد. انشر خطاً ليجدك العملاء في البحث.</td>
+                        <td colspan="9" class="a2-empty">{{ __('لا خطوط تشغيل بعد. انشر خطاً ليجدك العملاء في البحث.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

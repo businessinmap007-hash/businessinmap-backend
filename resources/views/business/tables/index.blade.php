@@ -1,15 +1,15 @@
 @extends('business.layouts.master')
 
-@section('title', 'طاولات المطعم')
+@section('title', __('طاولات المطعم'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">طاولات المطعم</h1>
-        <div class="a2-page-subtitle">ملصق QR لكل طاولة — مسحه يفتح طلب الطاولة (سلة جماعية) تلقائياً.</div>
+        <h1 class="a2-page-title">{{ __('طاولات المطعم') }}</h1>
+        <div class="a2-page-subtitle">{{ __('ملصق QR لكل طاولة — مسحه يفتح طلب الطاولة (سلة جماعية) تلقائياً.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.tables.print') }}" target="_blank" class="a2-btn a2-btn-ghost">طباعة الرموز</a>
+        <a href="{{ route('business.tables.print') }}" target="_blank" class="a2-btn a2-btn-ghost">{{ __('طباعة الرموز') }}</a>
     </div>
 </div>
 
@@ -20,20 +20,20 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">إضافة طاولة</div>
-            <div class="a2-card-sub">أعطِ الطاولة اسماً (مثل «طاولة 5» أو «الشرفة»).</div>
+            <div class="a2-card-title">{{ __('إضافة طاولة') }}</div>
+            <div class="a2-card-sub">{{ __('أعطِ الطاولة اسماً (مثل «طاولة 5» أو «الشرفة»).') }}</div>
         </div>
     </div>
     <form method="POST" action="{{ route('business.tables.store') }}">
         @csrf
         <div class="a2-form-grid" style="grid-template-columns:1fr auto;align-items:end;gap:12px;">
             <div class="a2-form-group">
-                <label class="a2-label" for="label">اسم الطاولة <span class="a2-danger">*</span></label>
-                <input class="a2-input @error('label') a2-input-error @enderror" id="label" name="label" value="{{ old('label') }}" placeholder="طاولة 1" required>
+                <label class="a2-label" for="label">{{ __('اسم الطاولة') }} <span class="a2-danger">*</span></label>
+                <input class="a2-input @error('label') a2-input-error @enderror" id="label" name="label" value="{{ old('label') }}" placeholder="{{ __('طاولة 1') }}" required>
                 @error('label')<div class="a2-field-error">{{ $message }}</div>@enderror
             </div>
             <div class="a2-form-group">
-                <button type="submit" class="a2-btn a2-btn-primary">إضافة</button>
+                <button type="submit" class="a2-btn a2-btn-primary">{{ __('إضافة') }}</button>
             </div>
         </div>
     </form>
@@ -45,10 +45,10 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>الطاولة</th>
-                    <th>الرمز</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('الطاولة') }}</th>
+                    <th>{{ __('الرمز') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,14 +59,14 @@
                         <td>
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <img src="{{ route('table.qr', $row->token, false) }}" alt="QR" width="56" height="56" style="border:1px solid var(--a2-line,#e6e9ef);border-radius:8px;background:#fff;">
-                                <a href="{{ route('table.scan.web', $row->token, false) }}" target="_blank" class="a2-btn a2-btn-sm a2-btn-ghost">فتح الرابط</a>
+                                <a href="{{ route('table.scan.web', $row->token, false) }}" target="_blank" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('فتح الرابط') }}</a>
                             </div>
                         </td>
                         <td>
                             @if($row->is_active)
-                                <span class="a2-pill a2-pill-success">نشطة</span>
+                                <span class="a2-pill a2-pill-success">{{ __('نشطة') }}</span>
                             @else
-                                <span class="a2-pill a2-pill-gray">غير نشطة</span>
+                                <span class="a2-pill a2-pill-gray">{{ __('غير نشطة') }}</span>
                             @endif
                         </td>
                         <td class="a2-text-right">
@@ -75,20 +75,20 @@
                                     @csrf
                                     @method('PUT')
                                     <input class="a2-input" name="label" value="{{ $row->label }}" style="width:130px;padding:7px 9px;" required>
-                                    <label class="a2-check" style="white-space:nowrap;"><input type="checkbox" name="is_active" value="1" @checked($row->is_active)> <span>نشطة</span></label>
-                                    <button class="a2-btn a2-btn-sm a2-btn-ghost" type="submit">حفظ</button>
+                                    <label class="a2-check" style="white-space:nowrap;"><input type="checkbox" name="is_active" value="1" @checked($row->is_active)> <span>{{ __('نشطة') }}</span></label>
+                                    <button class="a2-btn a2-btn-sm a2-btn-ghost" type="submit">{{ __('حفظ') }}</button>
                                 </form>
-                                <form method="POST" action="{{ route('business.tables.destroy', $row->id) }}" onsubmit="return confirm('حذف هذه الطاولة؟ سيتوقف رمزها عن العمل.');">
+                                <form method="POST" action="{{ route('business.tables.destroy', $row->id) }}" onsubmit="return confirm('{{ __('حذف هذه الطاولة؟ سيتوقف رمزها عن العمل.') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="a2-empty">لا طاولات بعد. أضف طاولة لتوليد رمز QR لها.</td>
+                        <td colspan="5" class="a2-empty">{{ __('لا طاولات بعد. أضف طاولة لتوليد رمز QR لها.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

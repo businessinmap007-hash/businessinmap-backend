@@ -6,6 +6,7 @@ use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
+use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
@@ -34,6 +35,10 @@ Route::prefix('business')->name('business.')->group(function () {
     Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('login', [LoginController::class, 'login'])->name('login.post');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+
+    // Panel language toggle (session-stored, applied by SetPanelLocale). Needs a
+    // signed-in session but no capability — changing your own display language.
+    Route::get('locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 
     Route::middleware(['business.panel'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

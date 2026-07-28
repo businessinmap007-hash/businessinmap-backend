@@ -47,6 +47,14 @@ class BusinessPanelMiddleware
                 ->withErrors(['email' => 'الحساب موقوف حاليًا.']);
         }
 
+        // The panel defaults to Arabic (its merchants are Arabic-speaking; global
+        // app.locale is 'en'), honouring the owner's own toggle when set. This
+        // overrides the web-group SetPanelLocale default for business routes.
+        $locale = $request->session()->get('panel_locale', 'ar');
+        if (is_string($locale) && in_array($locale, config('app.supported_locales', ['ar', 'en']), true)) {
+            app()->setLocale($locale);
+        }
+
         return $next($request);
     }
 }

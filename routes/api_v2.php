@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\CommentController;
+use App\Http\Controllers\Api\V2\BusinessPageController;
 use App\Http\Controllers\Api\V2\PostController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
@@ -188,6 +189,14 @@ Route::prefix('v2')->group(function () {
     });
 
     Route::get('comments/{comment}/replies', [CommentController::class, 'replies'])->whereNumber('comment');
+
+    // The public business page a search result opens: the profile aggregate +
+    // that business's own posts wall. Public to browse; reactions personalise
+    // for a bearer (PostController::viewer).
+    Route::prefix('businesses')->group(function () {
+        Route::get('{business}', [BusinessPageController::class, 'show'])->whereNumber('business');
+        Route::get('{business}/posts', [PostController::class, 'business'])->whereNumber('business');
+    });
 
     // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the
     // gateway calls it, not the app) — security is the signed-payload check.

@@ -108,6 +108,18 @@ class BusinessPanelLocaleTest extends TestCase
         $this->get('/business/orders/create')->assertOk()->assertSee('New menu order');
     }
 
+    public function test_the_commerce_screens_render_in_english(): void
+    {
+        $this->actingAs($this->business)->withSession(['panel_locale' => 'en']);
+
+        $this->get('/business/products')->assertOk()->assertSee('My products for sale');
+        $this->get('/business/products/create')->assertOk()->assertSee('Add a product for sale');
+        $this->get('/business/offerings')->assertOk()->assertSee('Everything you sell in one place', false);
+        $this->get('/business/staff')->assertOk()->assertSee('Staff and permissions');
+        $this->get('/business/share-store')->assertOk()->assertSee('Share Store');
+        $this->get('/business/tables/print')->assertOk()->assertSee('Print table codes');
+    }
+
     public function test_the_login_page_localizes_and_defaults_to_arabic(): void
     {
         $this->get('/business/login')->assertOk()->assertSee('دخول لوحة النشاط التجاري');

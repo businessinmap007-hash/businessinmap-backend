@@ -333,26 +333,46 @@ final class OrderController extends Controller
         return $data['reason'] ?? null;
     }
 
-    /** Best-effort prep-transition notification to the order's customer. */
+    /**
+     * Best-effort prep-transition notification to the order's customer(s). For a
+     * shared/table order every participant is told (each of them is eating), not
+     * just the host who owns order.user_id — otherwise a friend who joined a
+     * table cart never learns the food is ready.
+     */
     private function notifyCustomer(Order $order, string $event, int $actorId, array $bodies): void
     {
-        $customerId = (int) $order->user_id;
-        if ($customerId <= 0) {
-            return;
+        foreach ($this->orderAudience($order) as $recipientId) {
+            try {
+                $this->notifications->dispatch($event, $recipientId, array_merge([
+                    'type' => AppNotification::TYPE_OFFER,
+                    'actor_id' => $actorId,
+                    'notifiable_type' => Order::class,
+                    'notifiable_id' => (int) $order->id,
+                    'source_id' => (int) $order->id,
+                    'meta' => ['order_id' => (int) $order->id, 'prep_status' => $order->prep_status],
+                ], $bodies));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    /**
+     * The users who should hear about an order's status: the owner (order.user_id)
+     * plus, for a shared/table order, everyone who joined it. Deduped; positive
+     * ids only.
+     *
+     * @return array<int>
+     */
+    private function orderAudience(Order $order): array
+    {
+        $ids = [(int) $order->user_id];
+
+        if ($order->is_shared) {
+            $ids = array_merge($ids, $order->participants()->pluck('user_id')->all());
         }
 
-        try {
-            $this->notifications->dispatch($event, $customerId, array_merge([
-                'type' => AppNotification::TYPE_OFFER,
-                'actor_id' => $actorId,
-                'notifiable_type' => Order::class,
-                'notifiable_id' => (int) $order->id,
-                'source_id' => (int) $order->id,
-                'meta' => ['order_id' => (int) $order->id, 'prep_status' => $order->prep_status],
-            ], $bodies));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        return array_values(array_unique(array_filter(array_map('intval', $ids), fn ($id) => $id > 0)));
     }
 
     /** Best-effort cancellation notification through the full pipeline. */

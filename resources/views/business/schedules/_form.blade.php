@@ -24,16 +24,16 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">نوع الرحلة والمركبة</div>
-            <div class="a2-card-sub">اختر نمط التشغيل، ثم فئة المركبة المعتمدة — ويمكنك تسميتها باسمك الخاص.</div>
+            <div class="a2-card-title">{{ __('نوع الرحلة والمركبة') }}</div>
+            <div class="a2-card-sub">{{ __('اختر نمط التشغيل، ثم فئة المركبة المعتمدة — ويمكنك تسميتها باسمك الخاص.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="mode">نمط التشغيل <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="mode">{{ __('نمط التشغيل') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-ts-mode" id="mode" name="mode" required>
-                <option value="">اختر النمط</option>
+                <option value="">{{ __('اختر النمط') }}</option>
                 @foreach($modes as $key => $label)
                     <option value="{{ $key }}" @selected($currentMode === $key)>{{ $label }}</option>
                 @endforeach
@@ -41,16 +41,16 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="vehicle_type_id">فئة المركبة / الشحنة</label>
+            <label class="a2-label" for="vehicle_type_id">{{ __('فئة المركبة / الشحنة') }}</label>
             <select class="a2-select js-ts-vehicle" id="vehicle_type_id" name="vehicle_type_id" data-current-value="{{ $currentVehicleType ?: '' }}">
-                <option value="">اختر النمط أولًا</option>
+                <option value="">{{ __('اختر النمط أولًا') }}</option>
             </select>
-            <div class="a2-hint a2-mt-8">الفئات المعتمدة في المنصة لهذا النمط.</div>
+            <div class="a2-hint a2-mt-8">{{ __('الفئات المعتمدة في المنصة لهذا النمط.') }}</div>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="vehicle_label">اسمك للمركبة (اختياري)</label>
-            <input class="a2-input" id="vehicle_label" name="vehicle_label" value="{{ old('vehicle_label', $row->vehicle_label ?? '') }}" placeholder="ميكروباص 14 راكب">
+            <label class="a2-label" for="vehicle_label">{{ __('اسمك للمركبة (اختياري)') }}</label>
+            <input class="a2-input" id="vehicle_label" name="vehicle_label" value="{{ old('vehicle_label', $row->vehicle_label ?? '') }}" placeholder="{{ __('ميكروباص 14 راكب') }}">
         </div>
     </div>
 </div>
@@ -58,14 +58,14 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الطريق</div>
-            <div class="a2-card-sub">الرحلة المحلية تُحدَّد بالمحافظة، والدولية بالدولة.</div>
+            <div class="a2-card-title">{{ __('الطريق') }}</div>
+            <div class="a2-card-sub">{{ __('الرحلة المحلية تُحدَّد بالمحافظة، والدولية بالدولة.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="scope">نطاق الرحلة <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="scope">{{ __('نطاق الرحلة') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-ts-scope" id="scope" name="scope" required>
                 @foreach($scopeLabels as $key => $label)
                     <option value="{{ $key }}" @selected($currentScope === $key)>{{ $label }}</option>
@@ -77,9 +77,9 @@
     {{-- Domestic: governorate (+ optional city) on each end. --}}
     <div class="a2-form-grid js-ts-domestic">
         <div class="a2-form-group">
-            <label class="a2-label" for="origin_governorate_id">محافظة القيام <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="origin_governorate_id">{{ __('محافظة القيام') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-ts-origin-gov" id="origin_governorate_id" name="origin_governorate_id">
-                <option value="">اختر المحافظة</option>
+                <option value="">{{ __('اختر المحافظة') }}</option>
                 @foreach($governorates as $gov)
                     <option value="{{ $gov->id }}" @selected($currentOriginGov === (int) $gov->id)>{{ $gov->name_ar }}</option>
                 @endforeach
@@ -87,16 +87,16 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="origin_city_id">مدينة القيام (اختياري)</label>
+            <label class="a2-label" for="origin_city_id">{{ __('مدينة القيام (اختياري)') }}</label>
             <select class="a2-select js-ts-origin-city" id="origin_city_id" name="origin_city_id" data-current-value="{{ $currentOriginCity ?: '' }}">
-                <option value="">كل المدن</option>
+                <option value="">{{ __('كل المدن') }}</option>
             </select>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="destination_governorate_id">محافظة الوصول <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="destination_governorate_id">{{ __('محافظة الوصول') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-ts-dest-gov" id="destination_governorate_id" name="destination_governorate_id">
-                <option value="">اختر المحافظة</option>
+                <option value="">{{ __('اختر المحافظة') }}</option>
                 @foreach($governorates as $gov)
                     <option value="{{ $gov->id }}" @selected($currentDestGov === (int) $gov->id)>{{ $gov->name_ar }}</option>
                 @endforeach
@@ -104,9 +104,9 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="destination_city_id">مدينة الوصول (اختياري)</label>
+            <label class="a2-label" for="destination_city_id">{{ __('مدينة الوصول (اختياري)') }}</label>
             <select class="a2-select js-ts-dest-city" id="destination_city_id" name="destination_city_id" data-current-value="{{ $currentDestCity ?: '' }}">
-                <option value="">كل المدن</option>
+                <option value="">{{ __('كل المدن') }}</option>
             </select>
         </div>
     </div>
@@ -114,9 +114,9 @@
     {{-- International: country on each end. --}}
     <div class="a2-form-grid js-ts-international">
         <div class="a2-form-group">
-            <label class="a2-label" for="origin_country_id">دولة القيام <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="origin_country_id">{{ __('دولة القيام') }} <span class="a2-danger">*</span></label>
             <select class="a2-select" id="origin_country_id" name="origin_country_id">
-                <option value="">اختر الدولة</option>
+                <option value="">{{ __('اختر الدولة') }}</option>
                 @foreach($countries as $country)
                     <option value="{{ $country->id }}" @selected((int) old('origin_country_id', $row->origin_country_id ?? 0) === (int) $country->id)>{{ $country->name_ar }}</option>
                 @endforeach
@@ -124,9 +124,9 @@
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="destination_country_id">دولة الوصول <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="destination_country_id">{{ __('دولة الوصول') }} <span class="a2-danger">*</span></label>
             <select class="a2-select" id="destination_country_id" name="destination_country_id">
-                <option value="">اختر الدولة</option>
+                <option value="">{{ __('اختر الدولة') }}</option>
                 @foreach($countries as $country)
                     <option value="{{ $country->id }}" @selected((int) old('destination_country_id', $row->destination_country_id ?? 0) === (int) $country->id)>{{ $country->name_ar }}</option>
                 @endforeach
@@ -138,14 +138,14 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">الموعد</div>
-            <div class="a2-card-sub">رحلة أسبوعية متكررة، أو رحلة بتاريخ واحد، أو متاح عند الطلب.</div>
+            <div class="a2-card-title">{{ __('الموعد') }}</div>
+            <div class="a2-card-sub">{{ __('رحلة أسبوعية متكررة، أو رحلة بتاريخ واحد، أو متاح عند الطلب.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="schedule_pattern">التكرار <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="schedule_pattern">{{ __('التكرار') }} <span class="a2-danger">*</span></label>
             <select class="a2-select js-ts-pattern" id="schedule_pattern" name="schedule_pattern" required>
                 @foreach($patterns as $key => $label)
                     <option value="{{ $key }}" @selected($currentPattern === $key)>{{ $label }}</option>
@@ -154,9 +154,9 @@
         </div>
 
         <div class="a2-form-group js-ts-weekly">
-            <label class="a2-label" for="day_of_week">يوم الأسبوع <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="day_of_week">{{ __('يوم الأسبوع') }} <span class="a2-danger">*</span></label>
             <select class="a2-select" id="day_of_week" name="day_of_week">
-                <option value="">اختر اليوم</option>
+                <option value="">{{ __('اختر اليوم') }}</option>
                 @foreach($days as $value => $label)
                     <option value="{{ $value }}" @selected((string) old('day_of_week', $row->day_of_week ?? '') === (string) $value)>{{ $label }}</option>
                 @endforeach
@@ -164,17 +164,17 @@
         </div>
 
         <div class="a2-form-group js-ts-one-off">
-            <label class="a2-label" for="trip_date">تاريخ الرحلة <span class="a2-danger">*</span></label>
+            <label class="a2-label" for="trip_date">{{ __('تاريخ الرحلة') }} <span class="a2-danger">*</span></label>
             <input class="a2-input" id="trip_date" name="trip_date" type="date" value="{{ old('trip_date', optional($row->trip_date ?? null)->toDateString()) }}">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="departure_time">موعد القيام</label>
+            <label class="a2-label" for="departure_time">{{ __('موعد القيام') }}</label>
             <input class="a2-input" id="departure_time" name="departure_time" type="time" value="{{ old('departure_time', $row->departure_time ?? '') }}">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="return_time">موعد العودة (اختياري)</label>
+            <label class="a2-label" for="return_time">{{ __('موعد العودة (اختياري)') }}</label>
             <input class="a2-input" id="return_time" name="return_time" type="time" value="{{ old('return_time', $row->return_time ?? '') }}">
         </div>
     </div>
@@ -183,39 +183,39 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">السعة والسعر</div>
-            <div class="a2-card-sub">اترك السعة فارغة إذا كانت غير محدودة. العربون يُحجز من محفظة العميل ويُرد عند الإكمال أو الإلغاء.</div>
+            <div class="a2-card-title">{{ __('السعة والسعر') }}</div>
+            <div class="a2-card-sub">{{ __('اترك السعة فارغة إذا كانت غير محدودة. العربون يُحجز من محفظة العميل ويُرد عند الإكمال أو الإلغاء.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label" for="capacity">السعة</label>
+            <label class="a2-label" for="capacity">{{ __('السعة') }}</label>
             <input class="a2-input" id="capacity" name="capacity" type="number" min="0" value="{{ old('capacity', $row->capacity ?? '') }}" placeholder="14">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="capacity_unit">وحدة السعة</label>
-            <input class="a2-input js-ts-unit" id="capacity_unit" name="capacity_unit" value="{{ old('capacity_unit', $row->capacity_unit ?? '') }}" placeholder="مقعد / طرد / متر مكعب">
+            <label class="a2-label" for="capacity_unit">{{ __('وحدة السعة') }}</label>
+            <input class="a2-input js-ts-unit" id="capacity_unit" name="capacity_unit" value="{{ old('capacity_unit', $row->capacity_unit ?? '') }}" placeholder="{{ __('مقعد / طرد / متر مكعب') }}">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="price">السعر للوحدة</label>
+            <label class="a2-label" for="price">{{ __('السعر للوحدة') }}</label>
             <input class="a2-input" id="price" name="price" type="number" step="0.01" min="0" value="{{ old('price', $row->price ?? '') }}">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="deposit_per_unit">العربون للوحدة (اختياري)</label>
+            <label class="a2-label" for="deposit_per_unit">{{ __('العربون للوحدة (اختياري)') }}</label>
             <input class="a2-input" id="deposit_per_unit" name="deposit_per_unit" type="number" step="0.01" min="0" value="{{ old('deposit_per_unit', $row->deposit_per_unit ?? '') }}">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="currency">العملة</label>
+            <label class="a2-label" for="currency">{{ __('العملة') }}</label>
             <input class="a2-input" id="currency" name="currency" value="{{ old('currency', $row->currency ?? 'EGP') }}" maxlength="10">
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="status">الحالة</label>
+            <label class="a2-label" for="status">{{ __('الحالة') }}</label>
             <select class="a2-select" id="status" name="status">
                 @foreach($statuses as $key => $label)
                     <option value="{{ $key }}" @selected((string) old('status', $row->status ?? TripSchedule::STATUS_ACTIVE) === $key)>{{ $label }}</option>
@@ -228,24 +228,24 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
-            <div class="a2-card-title">رحلة عودة (اختياري)</div>
-            <div class="a2-card-sub">عائد فارغاً من رحلة سابقة؟ اربط هذا الخط بها واعرضه بسعر مخفّض ليجده من يريد نفس الاتجاه.</div>
+            <div class="a2-card-title">{{ __('رحلة عودة (اختياري)') }}</div>
+            <div class="a2-card-sub">{{ __('عائد فارغاً من رحلة سابقة؟ اربط هذا الخط بها واعرضه بسعر مخفّض ليجده من يريد نفس الاتجاه.') }}</div>
         </div>
     </div>
 
     <div class="a2-form-grid">
         <div class="a2-form-group">
-            <label class="a2-label">النوع</label>
+            <label class="a2-label">{{ __('النوع') }}</label>
             <label class="a2-check" style="margin-top:10px;">
                 <input type="checkbox" name="is_return_leg" value="1" @checked((bool) old('is_return_leg', (bool) ($row->is_return_leg ?? false)))>
-                <span>هذا الخط رحلة عودة</span>
+                <span>{{ __('هذا الخط رحلة عودة') }}</span>
             </label>
         </div>
 
         <div class="a2-form-group">
-            <label class="a2-label" for="parent_trip_id">الرحلة الأصلية</label>
+            <label class="a2-label" for="parent_trip_id">{{ __('الرحلة الأصلية') }}</label>
             <select class="a2-select" id="parent_trip_id" name="parent_trip_id">
-                <option value="">بدون</option>
+                <option value="">{{ __('بدون') }}</option>
                 @foreach($parentLegs as $leg)
                     <option value="{{ $leg->id }}" @selected((int) old('parent_trip_id', $row->parent_trip_id ?? 0) === (int) $leg->id)>
                         #{{ $leg->id }} — {{ optional($leg->originGovernorate)->name_ar ?: '—' }} → {{ optional($leg->destinationGovernorate)->name_ar ?: '—' }}
@@ -255,15 +255,15 @@
         </div>
 
         <div class="a2-form-group" style="grid-column:1/-1;">
-            <label class="a2-label" for="notes">ملاحظات</label>
-            <textarea class="a2-input" id="notes" name="notes" rows="3" placeholder="نقطة التجمع، شروط الشحن...">{{ old('notes', $row->notes ?? '') }}</textarea>
+            <label class="a2-label" for="notes">{{ __('ملاحظات') }}</label>
+            <textarea class="a2-input" id="notes" name="notes" rows="3" placeholder="{{ __('نقطة التجمع، شروط الشحن...') }}">{{ old('notes', $row->notes ?? '') }}</textarea>
         </div>
     </div>
 </div>
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
-    <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
-    <button type="submit" class="a2-btn a2-btn-primary">{{ $isEdit ? 'تحديث' : 'نشر الخط' }}</button>
+    <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
+    <button type="submit" class="a2-btn a2-btn-primary">{{ $isEdit ? __('تحديث') : __('نشر الخط') }}</button>
 </div>
 
 @push('scripts')
@@ -271,6 +271,11 @@
 document.addEventListener('DOMContentLoaded', function () {
     const vehiclesByMode = @json($vehicleTypesByMode ?? []);
     const citiesByGov = @json($citiesByGovernorate ?? []);
+    const i18n = {
+        pickCategory: @json(__('اختر الفئة')),
+        pickModeFirst: @json(__('اختر النمط أولًا')),
+        allCities: @json(__('كل المدن')),
+    };
 
     const modeSelect = document.querySelector('.js-ts-mode');
     const vehicleSelect = document.querySelector('.js-ts-vehicle');
@@ -304,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function syncVehicles() {
         const list = vehiclesByMode[String(modeSelect.value || '')] || [];
-        fill(vehicleSelect, list, list.length ? 'اختر الفئة' : 'اختر النمط أولًا');
+        fill(vehicleSelect, list, list.length ? i18n.pickCategory : i18n.pickModeFirst);
 
         // Offer the class's standard unit when the carrier hasn't named one.
         const chosen = list.find(function (v) { return String(v.id) === String(vehicleSelect.value); });
@@ -326,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function syncCities(govSelect, citySelect) {
         if (!govSelect || !citySelect) return;
         const list = citiesByGov[String(govSelect.value || '')] || [];
-        fill(citySelect, list, 'كل المدن');
+        fill(citySelect, list, i18n.allCities);
     }
 
     const originGov = document.querySelector('.js-ts-origin-gov');

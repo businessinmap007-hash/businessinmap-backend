@@ -120,6 +120,20 @@ class BusinessPanelLocaleTest extends TestCase
         $this->get('/business/tables/print')->assertOk()->assertSee('Print table codes');
     }
 
+    public function test_the_booking_scheduling_vertical_screens_render_in_english(): void
+    {
+        $this->actingAs($this->business)->withSession(['panel_locale' => 'en']);
+
+        $this->get('/business/bookable-items')->assertOk()->assertSee('My bookable units');
+        $this->get('/business/bookable-items/create')->assertOk();
+        $this->get('/business/bookings')->assertOk()->assertSee('My Bookings');
+        $this->get('/business/prices')->assertOk()->assertSee('The price of every type you offer', false);
+        $this->get('/business/prices/create')->assertOk();
+        $this->get('/business/schedules')->assertOk()->assertSee('Trip lines');
+        $this->get('/business/schedules/create')->assertOk()->assertSee('Trip type and vehicle');
+        $this->get('/business/schedules/reservations')->assertOk()->assertSee('Trip bookings');
+    }
+
     public function test_the_login_page_localizes_and_defaults_to_arabic(): void
     {
         $this->get('/business/login')->assertOk()->assertSee('دخول لوحة النشاط التجاري');

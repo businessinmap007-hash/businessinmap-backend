@@ -1,15 +1,15 @@
 @extends('business.layouts.master')
 
-@section('title', 'تعديل سعر')
+@section('title', __('تعديل سعر'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">تعديل سعر</h1>
+        <h1 class="a2-page-title">{{ __('تعديل سعر') }}</h1>
         <div class="a2-page-subtitle" dir="ltr">{{ $row->bookable_item_type }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost">رجوع</a>
+        <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     </div>
 </div>
 

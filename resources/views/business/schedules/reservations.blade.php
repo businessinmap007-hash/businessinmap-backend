@@ -1,6 +1,6 @@
 @extends('business.layouts.master')
 
-@section('title', 'حجوزات الرحلات')
+@section('title', __('حجوزات الرحلات'))
 
 @php
     use App\Models\TripReservation;
@@ -21,11 +21,11 @@
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">حجوزات الرحلات</h1>
-        <div class="a2-page-subtitle">أكّد الحجز ليحتفظ العميل بمكانه، وأكمله بعد الرحلة ليُسجَّل التقييم للطرفين ويُرد العربون.</div>
+        <h1 class="a2-page-title">{{ __('حجوزات الرحلات') }}</h1>
+        <div class="a2-page-subtitle">{{ __('أكّد الحجز ليحتفظ العميل بمكانه، وأكمله بعد الرحلة ليُسجَّل التقييم للطرفين ويُرد العربون.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost">خطوط التشغيل</a>
+        <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost">{{ __('خطوط التشغيل') }}</a>
     </div>
 </div>
 
@@ -44,14 +44,14 @@
 <div class="a2-card a2-card--tight">
     <form method="GET" action="{{ route('business.schedules.reservations.index') }}" class="a2-filterbar">
         <select class="a2-select a2-filter-sm" name="status">
-            <option value="">كل الحالات</option>
+            <option value="">{{ __('كل الحالات') }}</option>
             @foreach($statusLabels as $key => $label)
                 <option value="{{ $key }}" @selected($status === $key)>{{ $label }}</option>
             @endforeach
         </select>
 
         <select class="a2-select" name="trip_schedule_id">
-            <option value="">كل الخطوط</option>
+            <option value="">{{ __('كل الخطوط') }}</option>
             @foreach($legs as $leg)
                 <option value="{{ $leg->id }}" @selected($scheduleId === (int) $leg->id)>
                     #{{ $leg->id }} — {{ optional($leg->originGovernorate)->name_ar ?: '—' }} → {{ optional($leg->destinationGovernorate)->name_ar ?: '—' }}
@@ -60,8 +60,8 @@
         </select>
 
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تطبيق</button>
-            <a class="a2-btn a2-btn-ghost" href="{{ route('business.schedules.reservations.index') }}">إعادة ضبط</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+            <a class="a2-btn a2-btn-ghost" href="{{ route('business.schedules.reservations.index') }}">{{ __('إعادة ضبط') }}</a>
         </div>
     </form>
 </div>
@@ -72,14 +72,14 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>العميل</th>
-                    <th>الخط</th>
-                    <th>الموعد</th>
-                    <th>الوحدات</th>
-                    <th>الإجمالي / العربون</th>
-                    <th>المصدر</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('العميل') }}</th>
+                    <th>{{ __('الخط') }}</th>
+                    <th>{{ __('الموعد') }}</th>
+                    <th>{{ __('الوحدات') }}</th>
+                    <th>{{ __('الإجمالي / العربون') }}</th>
+                    <th>{{ __('المصدر') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -89,7 +89,7 @@
                         <td>{{ $row->id }}</td>
                         <td class="a2-text-right">
                             @if($row->source === TripReservation::SOURCE_OFFLINE)
-                                <span class="a2-muted">تعامل خارج التطبيق</span>
+                                <span class="a2-muted">{{ __('تعامل خارج التطبيق') }}</span>
                             @else
                                 <div class="a2-fw-900">{{ optional($row->client)->name ?: '—' }}</div>
                                 <div class="a2-muted">{{ optional($row->client)->phone }}</div>
@@ -116,12 +116,12 @@
                         <td>
                             {{ $row->total_price !== null ? number_format((float) $row->total_price, 2) : '—' }} {{ $row->currency }}
                             @if((float) $row->deposit_held > 0)
-                                <div class="a2-muted">عربون محجوز: {{ number_format((float) $row->deposit_held, 2) }}</div>
+                                <div class="a2-muted">{{ __('عربون محجوز:') }} {{ number_format((float) $row->deposit_held, 2) }}</div>
                             @endif
                         </td>
                         <td>
                             <span class="a2-pill {{ $row->source === TripReservation::SOURCE_OFFLINE ? 'a2-pill-sub' : 'a2-pill-gray' }}">
-                                {{ $row->source === TripReservation::SOURCE_OFFLINE ? 'يدوي' : 'التطبيق' }}
+                                {{ $row->source === TripReservation::SOURCE_OFFLINE ? __('يدوي') : __('التطبيق') }}
                             </span>
                         </td>
                         <td>
@@ -134,22 +134,22 @@
                                 @if($row->status === TripReservation::STATUS_PENDING)
                                     <form method="POST" action="{{ route('business.schedules.reservations.confirm', $row->id) }}">
                                         @csrf
-                                        <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">تأكيد</button>
+                                        <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">{{ __('تأكيد') }}</button>
                                     </form>
                                 @endif
 
                                 @if($row->status === TripReservation::STATUS_CONFIRMED)
-                                    <form method="POST" action="{{ route('business.schedules.reservations.complete', $row->id) }}" onsubmit="return confirm('إكمال الرحلة؟ سيُسجَّل تقييم ناجح للطرفين ويُرد العربون.');">
+                                    <form method="POST" action="{{ route('business.schedules.reservations.complete', $row->id) }}" onsubmit="return confirm('{{ __('إكمال الرحلة؟ سيُسجَّل تقييم ناجح للطرفين ويُرد العربون.') }}');">
                                         @csrf
-                                        <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">إكمال</button>
+                                        <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">{{ __('إكمال') }}</button>
                                     </form>
                                 @endif
 
                                 @if(in_array($row->status, [TripReservation::STATUS_PENDING, TripReservation::STATUS_CONFIRMED, TripReservation::STATUS_BLOCKED], true))
-                                    <form method="POST" action="{{ route('business.schedules.reservations.reject', $row->id) }}" onsubmit="return confirm('إلغاء هذا الحجز وتحرير السعة؟');">
+                                    <form method="POST" action="{{ route('business.schedules.reservations.reject', $row->id) }}" onsubmit="return confirm('{{ __('إلغاء هذا الحجز وتحرير السعة؟') }}');">
                                         @csrf
                                         <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">
-                                            {{ $row->status === TripReservation::STATUS_BLOCKED ? 'تحرير' : 'رفض' }}
+                                            {{ $row->status === TripReservation::STATUS_BLOCKED ? __('تحرير') : __('رفض') }}
                                         </button>
                                     </form>
                                 @endif
@@ -158,7 +158,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="a2-empty">لا حجوزات بعد.</td>
+                        <td colspan="9" class="a2-empty">{{ __('لا حجوزات بعد.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

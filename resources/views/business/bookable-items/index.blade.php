@@ -1,6 +1,6 @@
 @extends('business.layouts.master')
 
-@section('title', 'وحداتي')
+@section('title', __('وحداتي'))
 
 @section('content')
 @php
@@ -11,11 +11,11 @@
 
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">وحداتي القابلة للحجز</h1>
-        <div class="a2-page-subtitle">الوحدات الفعلية التي تعرضها للحجز — تخصّك أنت فقط.</div>
+        <h1 class="a2-page-title">{{ __('وحداتي القابلة للحجز') }}</h1>
+        <div class="a2-page-subtitle">{{ __('الوحدات الفعلية التي تعرضها للحجز — تخصّك أنت فقط.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.bookable-items.create') }}" class="a2-btn a2-btn-primary">إضافة وحدة</a>
+        <a href="{{ route('business.bookable-items.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة وحدة') }}</a>
     </div>
 </div>
 
@@ -25,21 +25,21 @@
 
 @if($childId <= 0)
     <div class="a2-alert a2-alert-warning">
-        حسابك غير مرتبط بقسم فرعي بعد، لذا لا يمكن تحديد الأنواع المتاحة. تواصل مع إدارة التطبيق.
+        {{ __('حسابك غير مرتبط بقسم فرعي بعد، لذا لا يمكن تحديد الأنواع المتاحة. تواصل مع إدارة التطبيق.') }}
     </div>
 @endif
 
 <div class="a2-card a2-card--soft a2-mb-16">
     <form method="GET" action="{{ route('business.bookable-items.index') }}" class="a2-filterbar">
         <div class="a2-filter-search">
-            <label class="a2-label">بحث</label>
-            <input class="a2-input" name="q" value="{{ $q }}" placeholder="كود / اسم / نوع">
+            <label class="a2-label">{{ __('بحث') }}</label>
+            <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('كود / اسم / نوع') }}">
         </div>
 
         <div class="a2-filter-md">
-            <label class="a2-label">الخدمة</label>
+            <label class="a2-label">{{ __('الخدمة') }}</label>
             <select class="a2-select" name="service_id">
-                <option value="0">كل الخدمات</option>
+                <option value="0">{{ __('كل الخدمات') }}</option>
                 @foreach($services as $service)
                     <option value="{{ $service->id }}" @selected((int) $serviceId === (int) $service->id)>
                         {{ $displayName($service) }}
@@ -49,8 +49,8 @@
         </div>
 
         <div class="a2-filter-actions">
-            <button class="a2-btn a2-btn-primary" type="submit">تصفية</button>
-            <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost">إعادة</a>
+            <button class="a2-btn a2-btn-primary" type="submit">{{ __('تصفية') }}</button>
+            <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('إعادة') }}</a>
         </div>
     </form>
 </div>
@@ -61,14 +61,14 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>الكود</th>
-                    <th>الاسم</th>
-                    <th>الخدمة</th>
-                    <th>النوع</th>
-                    <th>السعة</th>
-                    <th>الكمية</th>
-                    <th>الحالة</th>
-                    <th class="a2-text-right">إجراءات</th>
+                    <th>{{ __('الكود') }}</th>
+                    <th>{{ __('الاسم') }}</th>
+                    <th>{{ __('الخدمة') }}</th>
+                    <th>{{ __('النوع') }}</th>
+                    <th>{{ __('السعة') }}</th>
+                    <th>{{ __('الكمية') }}</th>
+                    <th>{{ __('الحالة') }}</th>
+                    <th class="a2-text-right">{{ __('إجراءات') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -83,25 +83,25 @@
                         <td>{{ (int) $row->quantity }}</td>
                         <td>
                             @if($row->is_active)
-                                <span class="a2-pill a2-pill-success">مفعّلة</span>
+                                <span class="a2-pill a2-pill-success">{{ __('مفعّلة') }}</span>
                             @else
-                                <span class="a2-pill a2-pill-gray">موقوفة</span>
+                                <span class="a2-pill a2-pill-gray">{{ __('موقوفة') }}</span>
                             @endif
                         </td>
                         <td class="a2-text-right">
                             <div class="a2-inline-actions">
-                                <a href="{{ route('business.bookable-items.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">تعديل</a>
-                                <form method="POST" action="{{ route('business.bookable-items.destroy', $row->id) }}" onsubmit="return confirm('حذف هذه الوحدة؟');">
+                                <a href="{{ route('business.bookable-items.edit', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('تعديل') }}</a>
+                                <form method="POST" action="{{ route('business.bookable-items.destroy', $row->id) }}" onsubmit="return confirm('{{ __('حذف هذه الوحدة؟') }}');">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">حذف</button>
+                                    <button class="a2-btn a2-btn-sm a2-btn-danger" type="submit">{{ __('حذف') }}</button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="a2-empty">لا توجد وحدات بعد. ابدأ بإضافة وحداتك.</td>
+                        <td colspan="9" class="a2-empty">{{ __('لا توجد وحدات بعد. ابدأ بإضافة وحداتك.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

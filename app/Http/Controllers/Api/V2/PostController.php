@@ -8,6 +8,7 @@ use App\Models\Image;
 use App\Models\Like;
 use App\Models\FeedPost;
 use App\Models\Post;
+use App\Models\User;
 use App\Services\Media\ImageUploadService;
 use App\Services\Posts\PostAudienceService;
 use App\Services\Posts\PostSubjectService;
@@ -161,6 +162,33 @@ final class PostController extends Controller
             ->appends($request->query());
 
         return PostResource::collection($this->decorate($posts, $request->user()));
+    }
+
+    /**
+     * GET /api/v2/businesses/{business}/posts — one business's own wall.
+     *
+     * A deliberate visit to a discoverable business's page, so it shows that
+     * business's live posts (active + unexpired) to anyone — unlike the personal
+     * feed, which is audience-scoped. Reactions still personalise for a bearer.
+     */
+    public function business(Request $request, int $business)
+    {
+        abort_unless(
+            User::query()->where('type', 'business')->whereKey($business)->exists(),
+            404
+        );
+
+        $perPage = max(1, min(50, (int) $request->get('per_page', 15)));
+
+        $posts = $this->baseQuery()
+            ->where('user_id', $business)
+            ->where('is_active', 1)
+            ->where(fn (Builder $w) => $w->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        return PostResource::collection($this->decorate($posts, $this->viewer($request)));
     }
 
     /** GET /api/v2/posts/{post} — one post. */

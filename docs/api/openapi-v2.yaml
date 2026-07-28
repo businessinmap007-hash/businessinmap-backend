@@ -92,6 +92,7 @@ tags:
   - name: Business Retail
   - name: Delivery
   - name: Order Handover
+  - name: Business Page
   - name: Operator Presence
   - name: Tables
   - name: Schedules
@@ -2022,6 +2023,24 @@ paths:
       tags: [Tables]
       summary: Mark a table call handled
       parameters: [{ name: call, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+
+  # ─────────────────────────── Business page ───────────────────────────
+  /businesses/{business}:
+    get:
+      tags: [Business Page]
+      summary: The public business page aggregate (profile + rating + section flags)
+      description: What a search result opens — profile header, rating summary, open-now, and which tabs exist (posts/menu/services). The heavy lists stay on their own endpoints.
+      parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /businesses/{business}/posts:
+    get:
+      tags: [Business Page]
+      summary: A business's own posts wall (its live posts, to anyone)
+      description: Unlike the audience-scoped personal feed, a business's page shows its active, unexpired posts to any viewer. Reactions personalise for a bearer.
+      parameters:
+        - { name: business, in: path, required: true, schema: { type: integer } }
+        - { name: per_page, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50 } }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
 
   # ─────────────────────────── Operator presence ───────────────────────────

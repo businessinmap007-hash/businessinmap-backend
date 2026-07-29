@@ -20,6 +20,14 @@ use Illuminate\Support\Facades\DB;
  *    «ماركات موتوسيكلات». Non-brand entries (bus, pickup, spare parts, "car
  *    with driver"…) are intentionally left out.
  *
+ * Also seeds the remaining domain parent-lists (flat, like الصحة) so every
+ * child business under a domain picks from one simple shared list:
+ *  • «منيو المطاعم» / «مشتريات سوبر ماركت» — from the menu service item types
+ *    (the clean canonical sets 55–68 and 69–86; the messy 259–293 duplicates
+ *    are left out).
+ *  • «الكورسات والتدريب» / «الحرفيون» — from category children (parents 12 / 6),
+ *    de-duplicated by name.
+ *
  * Sources: options + item types + category children. Idempotent: only the keyed
  * lists it owns are rebuilt; hand-built lists are never touched.
  */
@@ -47,6 +55,16 @@ class BuildTaxonomyLabLists extends Command
     /** Vehicle-group options that are NOT brands (types/services/parts) — excluded. */
     private const NON_BRANDS = [51, 57, 58, 60, 62, 63, 65, 184, 194, 214, 220, 248, 250, 251, 280, 281, 365];
 
+    /** Restaurant menu sections (menu item types 55–68 — the clean canonical set). */
+    private const RESTAURANT_TYPES = [55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68];
+
+    /** Supermarket product categories (menu item types 69–86 — the clean grocery set). */
+    private const SUPERMARKET_TYPES = [69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86];
+
+    /** Parent categories whose children seed the courses / craftsmen lists. */
+    private const COURSES_CATEGORY_ID = 12;   // دورات وتدريب
+    private const CRAFTSMEN_CATEGORY_ID = 6;   // مهن وحرفيين
+
     public function handle(): int
     {
         foreach (['options_new', 'platform_service_item_types_new'] as $t) {
@@ -58,10 +76,17 @@ class BuildTaxonomyLabLists extends Command
 
         DB::transaction(function () {
             // Rebuild only our own keyed lists (cascade clears items + sub-lists).
-            LabList::whereIn('key', ['health', 'cars', 'cars.car_brands', 'cars.moto_brands'])->delete();
+            LabList::whereIn('key', [
+                'health', 'cars', 'cars.car_brands', 'cars.moto_brands',
+                'restaurant', 'supermarket', 'courses', 'craftsmen',
+            ])->delete();
 
             $this->buildHealth();
             $this->buildCars();
+            $this->buildRestaurant();
+            $this->buildSupermarket();
+            $this->buildCourses();
+            $this->buildCraftsmen();
         });
 
         $this->info('Lab lists built.');
@@ -137,6 +162,74 @@ class BuildTaxonomyLabLists extends Command
             'sort_order' => 2,
         ]);
         $this->attach($motoBrands, LabListItem::SOURCE_OPTION, collect($motoIds)->sort()->values());
+    }
+
+    private function buildRestaurant(): void
+    {
+        $list = LabList::create([
+            'key' => 'restaurant',
+            'name_ar' => 'منيو المطاعم',
+            'name_en' => 'Restaurant Menu',
+            'sort_order' => 3,
+        ]);
+
+        $ids = DB::table('platform_service_item_types_new')
+            ->whereIn('id', self::RESTAURANT_TYPES)->orderBy('id')->pluck('id');
+        $this->attach($list, LabListItem::SOURCE_ITEM_TYPE, $ids);
+    }
+
+    private function buildSupermarket(): void
+    {
+        $list = LabList::create([
+            'key' => 'supermarket',
+            'name_ar' => 'مشتريات سوبر ماركت',
+            'name_en' => 'Supermarket',
+            'sort_order' => 4,
+        ]);
+
+        $ids = DB::table('platform_service_item_types_new')
+            ->whereIn('id', self::SUPERMARKET_TYPES)->orderBy('id')->pluck('id');
+        $this->attach($list, LabListItem::SOURCE_ITEM_TYPE, $ids);
+    }
+
+    private function buildCourses(): void
+    {
+        $list = LabList::create([
+            'key' => 'courses',
+            'name_ar' => 'الكورسات والتدريب',
+            'name_en' => 'Courses & Training',
+            'sort_order' => 5,
+        ]);
+
+        $this->attach($list, LabListItem::SOURCE_CATEGORY_CHILD, $this->categoryChildIds(self::COURSES_CATEGORY_ID));
+    }
+
+    private function buildCraftsmen(): void
+    {
+        $list = LabList::create([
+            'key' => 'craftsmen',
+            'name_ar' => 'الحرفيون',
+            'name_en' => 'Craftsmen',
+            'sort_order' => 6,
+        ]);
+
+        $this->attach($list, LabListItem::SOURCE_CATEGORY_CHILD, $this->categoryChildIds(self::CRAFTSMEN_CATEGORY_ID));
+    }
+
+    /**
+     * Child ids of a parent category, de-duplicated by name (some crafts, e.g.
+     * «حداد», exist as two master rows) — keeps the lowest id per name.
+     */
+    private function categoryChildIds(int $parentId): \Illuminate\Support\Collection
+    {
+        return DB::table('category_parent_child as pc')
+            ->join('category_children_master as m', 'm.id', '=', 'pc.child_id')
+            ->where('pc.parent_id', $parentId)
+            ->orderBy('m.name_ar')->orderBy('m.id')
+            ->get(['m.id', 'm.name_ar'])
+            ->unique('name_ar')
+            ->pluck('id')
+            ->values();
     }
 
     private function attach(LabList $list, string $source, iterable $ids): void

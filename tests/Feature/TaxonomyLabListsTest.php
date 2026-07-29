@@ -81,6 +81,30 @@ class TaxonomyLabListsTest extends TestCase
         $this->assertNotContains('', array_map('strval', $names));
     }
 
+    public function test_the_remaining_domain_lists_are_seeded_with_the_right_sources(): void
+    {
+        $expectations = [
+            'restaurant' => ['source' => 'item_type', 'min' => 10],
+            'supermarket' => ['source' => 'item_type', 'min' => 15],
+            'courses' => ['source' => 'category_child', 'min' => 1],
+            'craftsmen' => ['source' => 'category_child', 'min' => 10],
+        ];
+
+        foreach ($expectations as $key => $exp) {
+            $list = LabList::where('key', $key)->first();
+            if (! $list) {
+                $this->markTestSkipped("Run taxonomy-lab:build-lists first ({$key} missing).");
+            }
+            $this->assertGreaterThanOrEqual($exp['min'], $list->items()->count(), "{$key} item count");
+            $this->assertSame([$exp['source']], $list->items()->distinct()->pluck('source')->all(), "{$key} source");
+        }
+
+        // Craftsmen are de-duplicated by name (e.g. «حداد» exists twice in master).
+        $craftsmen = LabList::where('key', 'craftsmen')->first();
+        $names = collect(LabListItem::resolveNames($craftsmen->items()->get()))->values();
+        $this->assertSame($names->count(), $names->unique()->count(), 'craftsmen names must be unique');
+    }
+
     public function test_drilldown_page_shows_sublists_and_resolved_item_names(): void
     {
         $cars = LabList::where('key', 'cars')->first();

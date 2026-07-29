@@ -64,6 +64,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceItemGroupController,
     PlatformServiceItemTypeController,
     ServiceBranchBoardController,
+    TaxonomyLabController,
     PostController,
     SponsorController,
     SubscriptionController,
@@ -238,6 +239,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('branches', [ServiceBranchBoardController::class, 'storeBranch'])->name('branches.store');
             Route::post('branches/{platformServiceItemGroup}/rename', [ServiceBranchBoardController::class, 'renameBranch'])->whereNumber('platformServiceItemGroup')->name('branches.rename');
             Route::delete('branches/{platformServiceItemGroup}', [ServiceBranchBoardController::class, 'destroyBranch'])->whereNumber('platformServiceItemGroup')->name('branches.destroy');
+        });
+
+        // Taxonomy Lab — isolated rebuild sandbox for the services + options
+        // organization (works only on the `_new` clone tables; live untouched).
+        Route::prefix('taxonomy-lab')->name('taxonomy-lab.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [TaxonomyLabController::class, 'index'])->name('index');
+            Route::post('reset', [TaxonomyLabController::class, 'reset'])->name('reset');
         });
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types')->middleware('can:' . AdminAbility::CATALOG);

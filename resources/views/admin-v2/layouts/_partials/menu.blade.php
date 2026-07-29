@@ -83,6 +83,7 @@
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
+        ['label' => '🧪 مختبر تنظيم الخدمات والخيارات', 'route' => 'admin.taxonomy-lab.index', 'icon' => 'folder', 'active' => ['admin.taxonomy-lab.']],
         ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.', 'admin.projects.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.'], 'children' => [
             ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
                 ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],

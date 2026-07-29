@@ -93,7 +93,7 @@ class LabListController extends Controller
     public function addItem(Request $request, LabList $list): JsonResponse
     {
         $data = $request->validate([
-            'source' => ['required', Rule::in([LabListItem::SOURCE_OPTION, LabListItem::SOURCE_ITEM_TYPE])],
+            'source' => ['required', Rule::in(array_keys(LabListItem::SOURCES))],
             'source_id' => ['required', 'integer'],
         ]);
 
@@ -116,6 +116,7 @@ class LabListController extends Controller
                 'source' => $item->source,
                 'source_id' => $item->source_id,
                 'name' => $names["{$item->source}:{$item->source_id}"] ?? ('#' . $item->source_id),
+                'source_label' => LabListItem::label($item->source),
             ],
         ]);
     }
@@ -141,17 +142,14 @@ class LabListController extends Controller
             ->map(fn ($rows) => $rows->pluck('source_id')->all());
 
         $results = collect();
-        foreach ([
-            LabListItem::SOURCE_ITEM_TYPE => 'platform_service_item_types_new',
-            LabListItem::SOURCE_OPTION => 'options_new',
-        ] as $source => $table) {
+        foreach (LabListItem::SOURCES as $source => $table) {
             $rows = DB::table($table)
                 ->when($q !== '', fn ($qb) => $qb->where(fn ($w) => $w
                     ->where('name_ar', 'like', "%{$q}%")
                     ->orWhere('name_en', 'like', "%{$q}%")))
                 ->whereNotIn('id', $taken->get($source, []))
                 ->orderBy('name_ar')
-                ->limit(25)
+                ->limit(15)
                 ->get(['id', 'name_ar', 'name_en']);
 
             foreach ($rows as $r) {
@@ -159,12 +157,14 @@ class LabListController extends Controller
                     'source' => $source,
                     'source_id' => (int) $r->id,
                     'name' => (string) ($r->name_ar ?: $r->name_en ?: "#{$r->id}"),
-                    'source_label' => $source === LabListItem::SOURCE_ITEM_TYPE ? 'نوع عنصر' : 'خيار',
+                    'source_label' => LabListItem::label($source),
                 ]);
             }
         }
 
-        return response()->json(['ok' => true, 'results' => $results->take(40)->values()]);
+        // Grouped by source (max 15 each = 45) so every source is represented,
+        // even with an empty query — never truncate one source away.
+        return response()->json(['ok' => true, 'results' => $results->values()]);
     }
 
     /** [ ['id','source','source_id','name'], ... ] with names resolved in bulk. */
@@ -177,7 +177,7 @@ class LabListController extends Controller
             'source' => $it->source,
             'source_id' => $it->source_id,
             'name' => $names["{$it->source}:{$it->source_id}"] ?? ('#' . $it->source_id),
-            'source_label' => $it->source === LabListItem::SOURCE_ITEM_TYPE ? 'نوع عنصر' : 'خيار',
+            'source_label' => LabListItem::label($it->source),
         ])->values()->all();
     }
 

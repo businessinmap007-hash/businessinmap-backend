@@ -102,6 +102,7 @@
 .tls-chip-tag{font-size:10px;padding:1px 6px;border-radius:999px;color:#fff}
 .tls-tag-option{background:#3b5bdb}
 .tls-tag-item_type{background:#0ca678}
+.tls-tag-category_child{background:#e8590c}
 .tls-chip-name{font-weight:500}
 .tls-chip-x{border:none;background:transparent;color:#adb5bd;font-size:16px;line-height:1;cursor:pointer}
 .tls-chip-x:hover{color:#e03131}
@@ -156,10 +157,10 @@
         const el = document.createElement('span');
         el.className = 'tls-chip';
         el.dataset.itemId = item.id;
-        el.innerHTML = '<span class="tls-chip-tag tls-tag-' + item.source + '">'
-            + (item.source === 'item_type' ? @json(__('نوع عنصر')) : @json(__('خيار')))
-            + '</span><span class="tls-chip-name"></span>'
+        el.innerHTML = '<span class="tls-chip-tag tls-tag-' + item.source + '"></span>'
+            + '<span class="tls-chip-name"></span>'
             + '<button type="button" class="tls-chip-x">×</button>';
+        el.querySelector('.tls-chip-tag').textContent = item.source_label || item.source;
         el.querySelector('.tls-chip-name').textContent = item.name;
         el.querySelector('.tls-chip-x').addEventListener('click', () => tlsRemoveItem(item.id));
         wrap.appendChild(el);
@@ -198,7 +199,7 @@
         out.results.forEach(r => {
             const row = document.createElement('div');
             row.className = 'tls-res';
-            const tagColor = r.source === 'item_type' ? '#0ca678' : '#3b5bdb';
+            const tagColor = { item_type: '#0ca678', option: '#3b5bdb', category_child: '#e8590c' }[r.source] || '#868e96';
             row.innerHTML = '<span class="tls-res-tag" style="background:' + tagColor + '"></span><span class="tls-res-name"></span>';
             row.querySelector('.tls-res-tag').textContent = r.source_label;
             row.querySelector('.tls-res-name').textContent = r.name;

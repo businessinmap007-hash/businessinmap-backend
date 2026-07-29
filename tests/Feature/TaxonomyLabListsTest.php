@@ -56,16 +56,27 @@ class TaxonomyLabListsTest extends TestCase
         $this->assertSame(['option'], $car->items()->distinct()->pluck('source')->all());
     }
 
-    public function test_seeded_health_list_holds_service_item_types(): void
+    public function test_seeded_health_list_holds_service_item_types_and_specialties(): void
     {
         $health = LabList::where('key', 'health')->first();
         if (! $health) {
             $this->markTestSkipped('Run taxonomy-lab:build-lists first.');
         }
 
-        $this->assertGreaterThan(0, $health->items()->count());
-        // Health gathers SERVICE item types (not options, not category children).
-        $this->assertSame(['item_type'], $health->items()->distinct()->pluck('source')->all());
+        // Health now unifies two sources: the service item types AND the medical
+        // specialties (category children). No options.
+        $sources = $health->items()->distinct()->pluck('source')->sort()->values()->all();
+        $this->assertSame(['category_child', 'item_type'], $sources);
+
+        // The specialties come from the «الصحة» category children (parent 20).
+        $specialtyItems = $health->items()->where('source', LabListItem::SOURCE_CATEGORY_CHILD)->get();
+        $expected = DB::table('category_parent_child')->where('parent_id', 20)->count();
+        $this->assertSame($expected, $specialtyItems->count());
+
+        // …and they resolve to real names, not raw ids.
+        $names = LabListItem::resolveNames($specialtyItems);
+        $this->assertNotEmpty($names);
+        $this->assertNotContains('', array_map('strval', $names));
     }
 
     public function test_drilldown_page_shows_sublists_and_resolved_item_names(): void
@@ -113,6 +124,29 @@ class TaxonomyLabListsTest extends TestCase
             route('admin.taxonomy-lab.lists.items.remove', [$list->id, $itemId])
         )->assertOk();
         $this->assertSame(0, $list->items()->count());
+    }
+
+    public function test_a_category_child_specialty_can_be_added_via_the_controller(): void
+    {
+        $admin = $this->admin();
+        $list = LabList::create(['name_ar' => 'اختبار تخصص', 'sort_order' => 97]);
+
+        $childId = (int) DB::table('category_parent_child')->where('parent_id', 20)->value('child_id');
+
+        $add = $this->actingAs($admin)->postJson(
+            route('admin.taxonomy-lab.lists.items.add', $list->id),
+            ['source' => LabListItem::SOURCE_CATEGORY_CHILD, 'source_id' => $childId]
+        )->assertOk()->assertJsonPath('ok', true);
+
+        $this->assertSame('category_child', $add->json('item.source'));
+        $this->assertNotEmpty($add->json('item.name'));
+        $this->assertSame('تخصص', $add->json('item.source_label'));
+
+        // The pool surfaces category children as a third source too.
+        $pool = $this->actingAs($admin)
+            ->getJson(route('admin.taxonomy-lab.lists.pool', $list->id))
+            ->assertOk();
+        $this->assertContains('category_child', collect($pool->json('results'))->pluck('source')->unique()->all());
     }
 
     public function test_pool_excludes_atoms_already_in_the_list(): void

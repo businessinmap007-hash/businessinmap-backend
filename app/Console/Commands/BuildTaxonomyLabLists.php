@@ -11,15 +11,17 @@ use Illuminate\Support\Facades\DB;
  * Builds the first two demonstration lists in the Taxonomy Lab, exactly as the
  * owner specified:
  *
- *  • «الصحة» — gathers the health-related SERVICE item types into one list
- *    (the 44 medical specialties stay as category children, untouched).
+ *  • «الصحة» — gathers the health-related SERVICE item types AND copies in the
+ *    44 medical specialties (children of the «الصحة» category) as category_child
+ *    items, so the specialty layer lives in the list too (per owner: later the
+ *    specialties become the pick-list a business/customer chooses from).
  *  • «سيارات» — pulls the vehicle brands out of the options «مركبات ونقل»
  *    group and splits them into two sub-lists: «ماركات سيارات» and
  *    «ماركات موتوسيكلات». Non-brand entries (bus, pickup, spare parts, "car
  *    with driver"…) are intentionally left out.
  *
- * Sources are options + item types only (no category children). Idempotent:
- * only the keyed lists it owns are rebuilt; hand-built lists are never touched.
+ * Sources: options + item types + category children. Idempotent: only the keyed
+ * lists it owns are rebuilt; hand-built lists are never touched.
  */
 class BuildTaxonomyLabLists extends Command
 {
@@ -29,6 +31,9 @@ class BuildTaxonomyLabLists extends Command
 
     /** Health-related service item types (ids in platform_service_item_types). */
     private const HEALTH_ITEM_TYPES = [38, 39, 42, 89, 229, 232, 234, 235, 324, 383];
+
+    /** The «الصحة» parent category — its children are the medical specialties. */
+    private const HEALTH_CATEGORY_ID = 20;
 
     /** Motorcycle brands inside the options «مركبات ونقل» group (option ids). */
     private const MOTO_BRANDS = [40, 116, 215, 221, 229, 260, 354, 389];
@@ -74,13 +79,21 @@ class BuildTaxonomyLabLists extends Command
             'sort_order' => 1,
         ]);
 
-        // Keep only ids that actually exist in the sandbox, in a stable order.
-        $ids = DB::table('platform_service_item_types_new')
+        // The health SERVICE item types (كيانات الخدمة: عيادة/مستشفى/أشعة…).
+        $typeIds = DB::table('platform_service_item_types_new')
             ->whereIn('id', self::HEALTH_ITEM_TYPES)
             ->orderBy('id')
             ->pluck('id');
+        $this->attach($health, LabListItem::SOURCE_ITEM_TYPE, $typeIds);
 
-        $this->attach($health, LabListItem::SOURCE_ITEM_TYPE, $ids);
+        // The 44 medical specialties — copied from the «الصحة» category children
+        // (they STAY as category children too; this list becomes their pool, from
+        // which a clinic/hospital/center later picks the specialties it offers).
+        $specialtyIds = DB::table('category_parent_child')
+            ->where('parent_id', self::HEALTH_CATEGORY_ID)
+            ->orderBy('child_id')
+            ->pluck('child_id');
+        $this->attach($health, LabListItem::SOURCE_CATEGORY_CHILD, $specialtyIds);
     }
 
     private function buildCars(): void
@@ -120,7 +133,7 @@ class BuildTaxonomyLabLists extends Command
 
     private function attach(LabList $list, string $source, iterable $ids): void
     {
-        $sort = 0;
+        $sort = (int) $list->items()->max('sort_order');
         foreach ($ids as $id) {
             LabListItem::create([
                 'list_id' => $list->id,

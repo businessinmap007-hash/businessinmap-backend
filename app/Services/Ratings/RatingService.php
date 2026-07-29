@@ -91,10 +91,71 @@ final class RatingService
     }
 
     /**
+     * Record the RULING on a dispute: mark the side a ruling was decided against
+     * as at-fault. This is the outcome layer on top of the `disputed` mark both
+     * parties already carry from the opening — opening says "this went to
+     * dispute", the ruling says "and it was found against you".
+     *
+     * $losingSide is 'client' | 'business' | null; null (an even split, a mutual
+     * settlement, or a no-action close) names no loser and records nothing —
+     * inventing a fault where the ruling declared none would be arbitrary.
+     *
+     * Unlike recordOutcome this does NOT touch total_operations: the operation
+     * was already counted once when it was marked `disputed`, and the fault is
+     * an overlay on that same operation, not a new one.
+     */
+    public function recordDisputeRuling(
+        int $businessUserId,
+        int $clientUserId,
+        ?string $losingSide,
+        string $operationType,
+        int $operationId
+    ): bool {
+        [$rateeUserId, $role] = match ($losingSide) {
+            UserOperationRating::ROLE_CLIENT => [$clientUserId, UserOperationRating::ROLE_CLIENT],
+            UserOperationRating::ROLE_BUSINESS => [$businessUserId, UserOperationRating::ROLE_BUSINESS],
+            default => [0, null],
+        };
+
+        if ($rateeUserId <= 0 || $role === null) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($rateeUserId, $role, $operationType, $operationId) {
+            $event = RatingOutcomeEvent::query()->firstOrCreate([
+                'operation_type' => $operationType,
+                'operation_id' => $operationId,
+                'ratee_user_id' => $rateeUserId,
+                'outcome' => RatingOutcomeEvent::OUTCOME_FAULT,
+            ], [
+                'role' => $role,
+            ]);
+
+            if (! $event->wasRecentlyCreated) {
+                return false; // this operation's fault against this party is already on record
+            }
+
+            $rating = UserOperationRating::query()
+                ->where('user_id', $rateeUserId)
+                ->where('role', $role)
+                ->lockForUpdate()
+                ->first()
+                ?? new UserOperationRating(['user_id' => $rateeUserId, 'role' => $role]);
+
+            // Overlay only — total_operations was already bumped by the `disputed`
+            // event for this same operation.
+            $rating->fault_count = (int) $rating->fault_count + 1;
+            $rating->save();
+
+            return true;
+        });
+    }
+
+    /**
      * Rating summary for a user in a role. Always returns a well-formed payload,
      * even when the user has no recorded operations yet.
      *
-     * @return array{role: string, total_operations: int, success_count: int, cancelled_count: int, disputed_count: int, success_rate: float, cancel_rate: float, dispute_rate: float}
+     * @return array{role: string, total_operations: int, success_count: int, cancelled_count: int, disputed_count: int, fault_count: int, success_rate: float, cancel_rate: float, dispute_rate: float, fault_rate: float}
      */
     public function summaryFor(int $userId, string $role): array
     {
@@ -112,9 +173,12 @@ final class RatingService
             'success_count' => (int) ($rating->success_count ?? 0),
             'cancelled_count' => (int) ($rating->cancelled_count ?? 0),
             'disputed_count' => (int) ($rating->disputed_count ?? 0),
+            // How many disputes were RULED against this party (subset of disputed).
+            'fault_count' => (int) ($rating->fault_count ?? 0),
             'success_rate' => $rating ? $rating->successRate() : 0.0,
             'cancel_rate' => $rating ? $rating->cancelRate() : 0.0,
             'dispute_rate' => $rating ? $rating->disputeRate() : 0.0,
+            'fault_rate' => $rating ? $rating->faultRate() : 0.0,
             // Subjective star review aggregate.
             'review_count' => $reviewCount,
             'stars_average' => $reviewCount > 0 ? round($starsSum / $reviewCount, 2) : 0.0,

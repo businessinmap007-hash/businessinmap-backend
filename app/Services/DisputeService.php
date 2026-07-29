@@ -936,10 +936,78 @@ class DisputeService
         $session = app(ArbitrationService::class)
             ->recordSession($dispute, $resolutionType, $resolutionPayload, $actorId);
 
+        // Link the ruling to the universal rating: the side the ruling was
+        // decided against is marked at-fault. Best-effort — the money has
+        // already moved, so a rating write that fails must not undo the ruling.
+        $this->recordRulingRating($dispute, $disputeable, $session);
+
         $this->closeRoom($dispute, $resolutionType, $resolutionPayload);
         $this->notifyRuling($dispute, $session);
 
         return $dispute;
+    }
+
+    /**
+     * Mark the losing side of a ruling as at-fault in the universal rating.
+     *
+     * The loser is read from the SESSION outcome (ArbitrationService::losingSide),
+     * not from who opened the case, and mapped to the operation's REAL client and
+     * business — a business opens disputes too, so opener≠client in general. An
+     * even split / mutual settlement / no-action names no loser and records
+     * nothing. Idempotent and independent of who resolved it.
+     */
+    protected function recordRulingRating(Dispute $dispute, mixed $disputeable, ?ArbitrationSession $session): void
+    {
+        if (! $session instanceof ArbitrationSession) {
+            return;
+        }
+
+        $parties = $this->ratingPartiesFor($disputeable);
+
+        if ($parties === null) {
+            return;
+        }
+
+        [$clientId, $businessId, $operationType, $operationId] = $parties;
+
+        try {
+            app(\App\Services\Ratings\RatingService::class)->recordDisputeRuling(
+                businessUserId: $businessId,
+                clientUserId: $clientId,
+                losingSide: app(ArbitrationService::class)->losingSide($session),
+                operationType: $operationType,
+                operationId: $operationId,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * The operation's real (client, business) user ids, its rating operation
+     * type, and its id — or null if the disputed thing is not a ratable
+     * operation. Reads each model's own columns, so the client/business mapping
+     * is correct regardless of who opened the dispute.
+     *
+     * @return array{0:int,1:int,2:string,3:int}|null
+     */
+    protected function ratingPartiesFor(mixed $disputeable): ?array
+    {
+        return match (true) {
+            $disputeable instanceof Booking => [
+                (int) $disputeable->user_id, (int) $disputeable->business_id,
+                \App\Models\RatingOutcomeEvent::OP_BOOKING, (int) $disputeable->id,
+            ],
+            $disputeable instanceof \App\Models\Order => [
+                (int) $disputeable->user_id, (int) $disputeable->business_id,
+                \App\Models\RatingOutcomeEvent::OP_ORDER, (int) $disputeable->id,
+            ],
+            $disputeable instanceof \App\Models\TripReservation => [
+                (int) $disputeable->client_id, (int) $disputeable->business_id,
+                \App\Models\TripReservation::OP_TRIP, (int) $disputeable->id,
+            ],
+            default => null,
+        };
     }
 
     /**

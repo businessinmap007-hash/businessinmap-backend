@@ -516,3 +516,54 @@ deferred.)
 - Every structural change: work on the worktree branch, migrate with
   `Schema::hasColumn`/`hasTable` guards, merge to main, run `migrate` + clear
   caches, and verify before moving on.
+
+---
+
+## 8. Services-linking simplification (agreed 2026-07-29)
+
+The owner found the way services are organised and linked still too complex. An
+audit confirmed it: **seven parallel linking mechanisms**, two of them redundant
+and one internally inconsistent. Agreed target = **the 3-layer model already in
+§2–3, one path, no parallels**:
+
+1. **Classification** — `categories` (parents) → `category_parent_child` →
+   `category_children_master` (the canonical children; **`CategoryChild` model
+   binds to `category_children_master`, NOT the child rows in `categories`**).
+2. **Catalog** — `platform_services` → `platform_service_item_types` →
+   `platform_service_item_groups` (branches, organisational only).
+3. **Linking** — child → services (`category_platform_services`) → allowed types
+   (`category_service_configs`). Offering = a `business_service_price` per type.
+
+**Evidence the audit turned up (source of the complexity):**
+- `categories` holds 21 parents **plus 413 stale legacy child rows** that
+  duplicate `category_children_master` with a *different* id-space — reading a
+  `category_child_id` against `categories` resolves to the WRONG name. Service
+  linking already uses master exclusively (303/303 of `category_platform_services.child_id` resolve in master).
+- `category_child_option` (9127 rows) is the legacy options-as-classification
+  layer; per §3 it is redundant for classification (options = attributes only).
+
+**Phased plan** (each phase = own commit + test):
+- **✅ Phase A (done, `…`) — dead-scratch removal.** Dropped the two
+  migration-scratch tables `temp_category_option_mapping` +
+  `temp_unmatched_category_option_ids` (0 code refs, 217 scratch rows). Migration
+  `2026_08_16_000005`. Guarded by `TaxonomyLinkingCleanupTest`.
+- **Phase B (pending)** — purge the 413 stale child rows from `categories` once
+  confirmed nothing reads children from `categories` (master is canonical).
+- **Phase C (pending)** — retire `category_child_option` as classification.
+- **Phase D (pending)** — branch merge/rename (39 → 35): grocery keeps the 5
+  departments and drops the «سوبر ماركت» superset; delivery 6→3; schedules 4→3;
+  merge «صحة وطب»+«عيادات» ; split «خدمات ومهمات» (67 types) into 3 themed
+  branches; rename retail «تجميل وصحة». Full type-level list agreed with owner.
+
+**⚠️ LANDMINE — do NOT "clean" the «⭐» rows in `category_children_master`.**
+Ids 1–6 («1 ⭐» … «5 ⭐») look like pollution but are the **legitimate hotel-star
+classification**: all six are children of parent category #24, **67 hotel
+businesses are classified under them**, and they are referenced by
+`category_platform_services` (24), `category_service_configs` (24),
+`category_child_service_fees` (24) and `category_child_option` (156). Deleting
+them orphans 67 hotels. They were on the original Phase A list and were removed
+after this check — the fetch-before-delete rule earned its keep here.
+
+**Also deferred:** `users.legacy_category_id` / `legacy_category_child_id` have 0
+code refs but still hold 1750 populated rows (old→new classification audit).
+Drop them only in a dedicated step that backs the mapping up first.

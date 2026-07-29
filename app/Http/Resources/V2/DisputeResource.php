@@ -45,6 +45,12 @@ class DisputeResource extends JsonResource
             'booking_id' => $this->disputeable_type === \App\Models\Booking::class
                 ? (int) $this->disputeable_id
                 : null,
+            // The operation the dispute is about, whatever its kind — so the app
+            // can deep-link to the order / trip / booking, not just bookings.
+            'operation' => [
+                'kind' => $this->operationKind(),
+                'id' => $this->disputeable_id !== null ? (int) $this->disputeable_id : null,
+            ],
             'deposit_id' => $this->deposit_id !== null ? (int) $this->deposit_id : null,
 
             // Whether each side declared it is engaging with the settlement.
@@ -97,5 +103,16 @@ class DisputeResource extends JsonResource
 
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
+    }
+
+    /** A stable app-facing label for the disputed operation's kind. */
+    private function operationKind(): ?string
+    {
+        return match ($this->disputeable_type) {
+            \App\Models\Booking::class => 'booking',
+            \App\Models\Order::class => 'order',
+            \App\Models\TripReservation::class => 'trip',
+            default => null,
+        };
     }
 }

@@ -2736,6 +2736,34 @@ paths:
         '200': { description: 'Opened, or the existing live dispute' }
         '404': { description: 'Not found, or you are not a party to the order' }
         '422': { $ref: '#/components/responses/Validation' }
+  /schedules/reservations/{reservation}/disputes:
+    post:
+      tags: [Disputes]
+      summary: Open a dispute on a trip reservation
+      description: >-
+        The schedules-service dispute door, matching the booking and order ones.
+        Only the reservation's client or business may open one; anyone else gets
+        404. A trip reservation carries no escrow deposit, so it enters the
+        mutual-settlement / arbitration flow directly. Opening records an
+        OUTCOME_DISPUTED rating event against both parties (idempotent per
+        reservation) and notifies the respondent. Returns the existing live
+        dispute if one is already open.
+      parameters:
+        - { in: path, name: reservation, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              properties:
+                reason_code: { type: string, enum: [not_delivered, not_as_described, quality, late, cancelled_by_business, no_show, overcharged, damage, other] }
+                reason_text: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: 'Opened, or the existing live dispute' }
+        '404': { description: 'Not found, or you are not a party to the reservation' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/cooperate:
     post:
       tags: [Disputes]

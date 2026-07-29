@@ -176,17 +176,13 @@ final class DisputeController extends Controller
     }
 
     /**
-     * POST /api/v2/orders/{order}/disputes — open one on a menu order.
+     * POST /api/v2/orders/{order}/disputes — open one on a menu/retail/delivery
+     * order (all three ride the same Order model).
      *
      * The counterpart of storeForBooking, and the reason it exists: a booking
      * dispute records OUTCOME_DISPUTED against both parties' rating, but an
      * order had NO door to open a dispute at all, so an order dispute never
-     * reached the rating ledger. This is that door, and it records the outcome.
-     *
-     * A menu order carries no escrow deposit (checkout takes no hold), so this
-     * goes straight through DisputeService::open with type 'order' rather than
-     * the deposit-guarded BookingDepositService path — there is no hold to
-     * freeze, only the mutual-settlement / arbitration flow to enter.
+     * reached the rating ledger.
      */
     public function storeForOrder(
         Request $request,
@@ -195,42 +191,113 @@ final class DisputeController extends Controller
         RatingService $ratings,
         NotificationDispatcherService $notifications
     ) {
-        $userId = (int) $request->user()->id;
-
-        // Only a party to the order. 404 (not 403) so a stranger cannot even
-        // learn the order exists — the same rule the booking door uses.
-        abort_if(
-            (int) $order->user_id !== $userId && (int) $order->business_id !== $userId,
-            404
-        );
-
         // A draft cart is not an operation anyone can dispute.
         abort_if((string) $order->status === 'cart', 404);
+
+        return $this->openOperationDispute(
+            request: $request,
+            operation: $order,
+            clientUserId: (int) $order->user_id,
+            businessUserId: (int) $order->business_id,
+            disputeableType: Order::class,
+            disputeType: 'order',
+            serviceKey: PlatformService::KEY_MENU,
+            ratingOperationType: RatingOutcomeEvent::OP_ORDER,
+            metaKey: 'order_id',
+            disputes: $disputes,
+            ratings: $ratings,
+            notifications: $notifications,
+        );
+    }
+
+    /**
+     * POST /api/v2/schedules/reservations/{reservation}/disputes — open one on a
+     * trip reservation (the schedules service: shipping / passenger / limousine
+     * / distribution legs).
+     *
+     * A trip reservation is rated on completion/cancellation exactly like an
+     * order; before this it had no dispute door, so the same rating gap applied.
+     */
+    public function storeForTrip(
+        Request $request,
+        \App\Models\TripReservation $reservation,
+        DisputeService $disputes,
+        RatingService $ratings,
+        NotificationDispatcherService $notifications
+    ) {
+        // A `blocked` reservation is a carrier's offline seat hold, not a
+        // customer operation — it has no client to be a party to a dispute.
+        abort_if((string) $reservation->status === \App\Models\TripReservation::STATUS_BLOCKED, 404);
+
+        return $this->openOperationDispute(
+            request: $request,
+            operation: $reservation,
+            clientUserId: (int) $reservation->client_id,
+            businessUserId: (int) $reservation->business_id,
+            disputeableType: \App\Models\TripReservation::class,
+            disputeType: 'trip',
+            serviceKey: PlatformService::KEY_SCHEDULES,
+            ratingOperationType: \App\Models\TripReservation::OP_TRIP,
+            metaKey: 'reservation_id',
+            disputes: $disputes,
+            ratings: $ratings,
+            notifications: $notifications,
+        );
+    }
+
+    /**
+     * The shared body for a dispute on a "simple" operation — one with a client
+     * side and a business side but NO escrow deposit to freeze (menu / retail /
+     * delivery orders, trip reservations).
+     *
+     * Bookings deliberately do NOT use this: they carry a deposit and go through
+     * BookingDepositService::openDisputeForBooking so the hold is checked and
+     * frozen. A simple operation has no hold, so it enters the mutual-settlement
+     * / off-app-settlement / arbitration flow directly — the money side of a
+     * ruling is a no-op because there is nothing escrowed, which is correct.
+     *
+     * @param class-string $disputeableType
+     */
+    private function openOperationDispute(
+        Request $request,
+        \Illuminate\Database\Eloquent\Model $operation,
+        int $clientUserId,
+        int $businessUserId,
+        string $disputeableType,
+        string $disputeType,
+        string $serviceKey,
+        string $ratingOperationType,
+        string $metaKey,
+        DisputeService $disputes,
+        RatingService $ratings,
+        NotificationDispatcherService $notifications
+    ) {
+        $userId = (int) $request->user()->id;
+
+        // Only a party to the operation. 404 (not 403) so a stranger cannot even
+        // learn it exists — the same rule the booking door uses.
+        abort_if($clientUserId !== $userId && $businessUserId !== $userId, 404);
 
         $data = $request->validate([
             'reason_code' => ['required', 'string', Rule::in(self::REASON_CODES)],
             'reason_text' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $against = (int) $order->user_id === $userId
-            ? (int) $order->business_id
-            : (int) $order->user_id;
+        $against = $clientUserId === $userId ? $businessUserId : $clientUserId;
 
-        $menuServiceId = (int) (PlatformService::query()
-            ->key(PlatformService::KEY_MENU)
-            ->value('id') ?? 0);
+        $serviceId = (int) (PlatformService::query()->key($serviceKey)->value('id') ?? 0);
 
         $dispute = $disputes->open(
-            platformServiceId: $menuServiceId,
-            disputeableType: Order::class,
-            disputeableId: (int) $order->id,
+            platformServiceId: $serviceId,
+            disputeableType: $disputeableType,
+            disputeableId: (int) $operation->getKey(),
             openedByUserId: $userId,
             againstUserId: $against,
             actorId: $userId,
             payload: [
                 'reason_code' => $data['reason_code'],
                 'reason_text' => $data['reason_text'] ?? null,
-                'type' => 'order',
+                'type' => $disputeType,
                 'source' => 'api_v2',
             ]
         );
@@ -239,11 +306,11 @@ final class DisputeController extends Controller
         // firstOrCreate, so returning an existing dispute records nothing twice
         // — and a prior open that somehow missed it is self-healed here.
         $ratings->recordForBothParties(
-            businessUserId: (int) $order->business_id,
-            clientUserId: (int) $order->user_id,
+            businessUserId: $businessUserId,
+            clientUserId: $clientUserId,
             outcome: RatingOutcomeEvent::OUTCOME_DISPUTED,
-            operationType: RatingOutcomeEvent::OP_ORDER,
-            operationId: (int) $order->id,
+            operationType: $ratingOperationType,
+            operationId: (int) $operation->getKey(),
         );
 
         // Tell the respondent — but only on a genuinely new dispute, so a retry
@@ -257,7 +324,7 @@ final class DisputeController extends Controller
                     'notifiable_type' => Dispute::class,
                     'notifiable_id' => (int) $dispute->id,
                     'source_id' => (int) $dispute->id,
-                    'meta' => ['dispute_id' => (int) $dispute->id, 'order_id' => (int) $order->id],
+                    'meta' => ['dispute_id' => (int) $dispute->id, $metaKey => (int) $operation->getKey()],
                 ]);
             } catch (\Throwable $e) {
                 report($e);

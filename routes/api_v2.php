@@ -734,6 +734,10 @@ Route::prefix('v2')->group(function () {
             Route::get('my-reservations', [TripReservationController::class, 'myReservations']);
             Route::post('{schedule}/reserve', [TripReservationController::class, 'reserve'])->whereNumber('schedule');
             Route::post('reservations/{reservation}/cancel', [TripReservationController::class, 'cancel'])->whereNumber('reservation');
+            // The dispute door for a trip reservation — same rating-feeding path
+            // as bookings and orders, for the schedules service.
+            Route::post('reservations/{reservation}/disputes', [DisputeController::class, 'storeForTrip'])
+                ->whereNumber('reservation');
         });
 
         // Scheduling/routes service: a business publishes + manages its own trip

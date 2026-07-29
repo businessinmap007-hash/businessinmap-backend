@@ -11,9 +11,12 @@ use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\DisputeObligation;
 use App\Models\DisputeFee;
+use App\Models\RatingOutcomeEvent;
 use App\Models\Thread;
+use App\Models\TripReservation;
 use App\Models\User;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Ratings\RatingService;
 use App\Services\Wallet\PlatformTreasuryService;
 use App\Support\AdminAbility;
 use Illuminate\Support\Facades\DB;
@@ -624,7 +627,36 @@ class ArbitrationService
             }
         }
 
+        // Link the compensation to the rating: the PAYER is the side found at
+        // fault (they were ordered to compensate), the payee vindicated. This is
+        // the ruling signal for a dispute the primary resolution left as
+        // no_action — and it is idempotent with (and guarded against
+        // contradicting) whatever the resolution already recorded.
+        $this->recordCompensationRating($dispute, $payerSide);
+
         return $session->fresh();
+    }
+
+    /** Mark the compensation payer at-fault (payee vindicated) in the rating. */
+    private function recordCompensationRating(Dispute $dispute, string $payerSide): void
+    {
+        $ctx = $this->ratingContext($dispute);
+
+        if ($ctx === null) {
+            return;
+        }
+
+        try {
+            app(RatingService::class)->recordDisputeRuling(
+                businessUserId: $ctx['businessId'],
+                clientUserId: $ctx['clientId'],
+                losingSide: $payerSide, // the payer is the losing/at-fault side
+                operationType: $ctx['opType'],
+                operationId: $ctx['opId'],
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -773,19 +805,58 @@ class ArbitrationService
         }
     }
 
+    /**
+     * The real user id on a side of the disputed operation. Works for every
+     * ratable operation, not just bookings — previously booking-only, which
+     * silently no-op'd fine collection, arbitration-fee charging, compensation
+     * charging and party notifications on order and trip disputes.
+     */
     private function partyId(Dispute $dispute, string $side): ?int
     {
-        if ((string) $dispute->disputeable_type !== Booking::class) {
+        $subject = $dispute->disputeable_type && class_exists($dispute->disputeable_type)
+            ? $dispute->disputeable_type::find($dispute->disputeable_id)
+            : null;
+
+        return match (true) {
+            $subject instanceof Booking,
+            $subject instanceof Order => $side === 'client' ? (int) $subject->user_id : (int) $subject->business_id,
+            $subject instanceof TripReservation => $side === 'client' ? (int) $subject->client_id : (int) $subject->business_id,
+            default => null,
+        };
+    }
+
+    /**
+     * The operation's rating identity — its two parties, rating operation type
+     * and id — or null if it is not a ratable operation.
+     *
+     * @return array{clientId:int,businessId:int,opType:string,opId:int}|null
+     */
+    private function ratingContext(Dispute $dispute): ?array
+    {
+        $clientId = $this->partyId($dispute, 'client');
+        $businessId = $this->partyId($dispute, 'business');
+
+        if (! $clientId || ! $businessId) {
             return null;
         }
 
-        $booking = Booking::query()->find((int) $dispute->disputeable_id);
+        $opType = match ((string) $dispute->disputeable_type) {
+            Booking::class => RatingOutcomeEvent::OP_BOOKING,
+            Order::class => RatingOutcomeEvent::OP_ORDER,
+            TripReservation::class => TripReservation::OP_TRIP,
+            default => null,
+        };
 
-        if (! $booking) {
+        if ($opType === null) {
             return null;
         }
 
-        return $side === 'client' ? (int) $booking->user_id : (int) $booking->business_id;
+        return [
+            'clientId' => $clientId,
+            'businessId' => $businessId,
+            'opType' => $opType,
+            'opId' => (int) $dispute->disputeable_id,
+        ];
     }
 
     /* =========================== the stats =========================== */

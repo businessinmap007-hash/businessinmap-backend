@@ -18,11 +18,14 @@ class RatingOutcomeEvent extends Model
     public const OUTCOME_SUCCESS = 'success';
     public const OUTCOME_CANCELLED = 'cancelled';
     public const OUTCOME_DISPUTED = 'disputed';
-    // The ruling outcome: a dispute was decided against this party. Deliberately
-    // NOT in outcomes() — it overlays an operation already counted as `disputed`
-    // and is written only by RatingService::recordDisputeRuling, which must not
-    // bump total_operations the way recordOutcome() does for the three above.
+    // The ruling outcomes: a dispute was decided AGAINST this party (fault) or
+    // IN THEIR FAVOUR (vindicated). Deliberately NOT in outcomes() — they overlay
+    // an operation already counted as `disputed` and are written only by
+    // RatingService::recordDisputeRuling, which must not bump total_operations
+    // the way recordOutcome() does for the three above. Mutually exclusive per
+    // party per operation (a party is never both at fault and vindicated on one).
     public const OUTCOME_FAULT = 'fault';
+    public const OUTCOME_VINDICATED = 'vindicated';
 
     protected $table = 'rating_outcome_events';
 

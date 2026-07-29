@@ -155,4 +155,79 @@ class DisputeRulingRatingTest extends TestCase
         $this->assertSame(1, $summary['fault_count']);
         $this->assertGreaterThan(0.0, $summary['fault_rate']);
     }
+
+    /** The winning side is recorded as vindicated, not left with a bare disputed mark. */
+    public function test_the_winning_side_is_vindicated(): void
+    {
+        $order = $this->makeOrder();
+        $dispute = $this->openDisputeOn($order);
+
+        // refund_client → the client won.
+        app(DisputeService::class)->resolve($dispute, 'refund_client', [], (int) $this->business->id);
+
+        $cli = $this->rating((int) $this->client->id, UserOperationRating::ROLE_CLIENT);
+        $this->assertSame(1, (int) $cli->vindicated_count, 'the client the ruling favoured is vindicated');
+        $this->assertSame(0, (int) $cli->fault_count, 'and carries no fault');
+
+        // The winner is never counted twice, either.
+        $this->assertDatabaseHas('rating_outcome_events', [
+            'operation_type' => RatingOutcomeEvent::OP_ORDER,
+            'operation_id' => $order->id,
+            'ratee_user_id' => $this->client->id,
+            'outcome' => RatingOutcomeEvent::OUTCOME_VINDICATED,
+        ]);
+
+        $summary = app(\App\Services\Ratings\RatingService::class)
+            ->summaryFor((int) $this->client->id, UserOperationRating::ROLE_CLIENT);
+        $this->assertSame(1, $summary['vindicated_count']);
+        $this->assertGreaterThan(0.0, $summary['vindication_rate']);
+    }
+
+    /**
+     * A no-action resolution names no loser, but a compensation award does — the
+     * payer. This is the ruling signal that was previously lost.
+     */
+    public function test_a_compensation_award_marks_the_payer_at_fault(): void
+    {
+        $order = $this->makeOrder();
+        $dispute = $this->openDisputeOn($order);
+
+        // Close with no financial resolution — no fault/vindication yet.
+        app(DisputeService::class)->resolve($dispute, 'no_action', [], (int) $this->business->id);
+
+        $this->assertSame(0, (int) ($this->rating((int) $this->business->id, UserOperationRating::ROLE_BUSINESS)?->fault_count ?? 0));
+
+        // Then award the client the order's value — the business pays, so it is at fault.
+        app(\App\Services\ArbitrationService::class)
+            ->awardCompensation($dispute, 'client', ['goods'], 'refund for undelivered goods');
+
+        $this->assertSame(1, (int) $this->rating((int) $this->business->id, UserOperationRating::ROLE_BUSINESS)->fault_count);
+        $this->assertSame(1, (int) $this->rating((int) $this->client->id, UserOperationRating::ROLE_CLIENT)->vindicated_count);
+    }
+
+    /**
+     * The primary ruling wins: a compensation ordered the OTHER way cannot flip a
+     * fault already decided into a vindication, or vice versa.
+     */
+    public function test_a_later_compensation_cannot_contradict_the_primary_ruling(): void
+    {
+        $order = $this->makeOrder();
+        $dispute = $this->openDisputeOn($order);
+
+        // Client won the resolution → business at fault, client vindicated.
+        app(DisputeService::class)->resolve($dispute, 'refund_client', [], (int) $this->business->id);
+
+        // Now a (contradictory) compensation to the BUSINESS would name the client
+        // as payer/at-fault — the guard must refuse to overwrite the decided marks.
+        app(\App\Services\ArbitrationService::class)
+            ->awardCompensation($dispute, 'business', ['goods'], 'contradictory award');
+
+        $biz = $this->rating((int) $this->business->id, UserOperationRating::ROLE_BUSINESS);
+        $cli = $this->rating((int) $this->client->id, UserOperationRating::ROLE_CLIENT);
+
+        $this->assertSame(1, (int) $biz->fault_count, 'business stays at fault');
+        $this->assertSame(0, (int) $biz->vindicated_count, 'business is not also vindicated');
+        $this->assertSame(1, (int) $cli->vindicated_count, 'client stays vindicated');
+        $this->assertSame(0, (int) $cli->fault_count, 'client is not also at fault');
+    }
 }

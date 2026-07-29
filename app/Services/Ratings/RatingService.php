@@ -91,18 +91,22 @@ final class RatingService
     }
 
     /**
-     * Record the RULING on a dispute: mark the side a ruling was decided against
-     * as at-fault. This is the outcome layer on top of the `disputed` mark both
-     * parties already carry from the opening — opening says "this went to
-     * dispute", the ruling says "and it was found against you".
+     * Record the RULING on a dispute: mark the side it was decided against as
+     * at-fault, and the other side as vindicated. This is the outcome layer on
+     * top of the `disputed` mark both parties already carry from the opening —
+     * opening says "this went to dispute", the ruling says "and it was found
+     * against you" / "and you were cleared".
      *
      * $losingSide is 'client' | 'business' | null; null (an even split, a mutual
-     * settlement, or a no-action close) names no loser and records nothing —
-     * inventing a fault where the ruling declared none would be arbitrary.
+     * settlement, or a no-action close) names no loser, so NEITHER a fault nor a
+     * vindication is recorded — inventing either where the ruling declared none
+     * would be arbitrary.
      *
-     * Unlike recordOutcome this does NOT touch total_operations: the operation
-     * was already counted once when it was marked `disputed`, and the fault is
-     * an overlay on that same operation, not a new one.
+     * Called for both the primary resolution (loser = the resolution_type's
+     * losing side) and a compensation award (loser = the payer). It is safe to
+     * call more than once per operation: each mark is idempotent per party, and
+     * a party already carrying the OPPOSITE ruling mark is left untouched, so a
+     * later signal can never flip a decided fault into a vindication or back.
      */
     public function recordDisputeRuling(
         int $businessUserId,
@@ -111,28 +115,83 @@ final class RatingService
         string $operationType,
         int $operationId
     ): bool {
-        [$rateeUserId, $role] = match ($losingSide) {
-            UserOperationRating::ROLE_CLIENT => [$clientUserId, UserOperationRating::ROLE_CLIENT],
-            UserOperationRating::ROLE_BUSINESS => [$businessUserId, UserOperationRating::ROLE_BUSINESS],
-            default => [0, null],
+        $sides = match ($losingSide) {
+            UserOperationRating::ROLE_CLIENT => [
+                'loser' => [$clientUserId, UserOperationRating::ROLE_CLIENT],
+                'winner' => [$businessUserId, UserOperationRating::ROLE_BUSINESS],
+            ],
+            UserOperationRating::ROLE_BUSINESS => [
+                'loser' => [$businessUserId, UserOperationRating::ROLE_BUSINESS],
+                'winner' => [$clientUserId, UserOperationRating::ROLE_CLIENT],
+            ],
+            default => null,
         };
 
-        if ($rateeUserId <= 0 || $role === null) {
+        if ($sides === null) {
             return false;
         }
 
-        return DB::transaction(function () use ($rateeUserId, $role, $operationType, $operationId) {
+        $faulted = $this->recordRulingOverlay(
+            $sides['loser'][0], $sides['loser'][1],
+            RatingOutcomeEvent::OUTCOME_FAULT, $operationType, $operationId
+        );
+
+        $this->recordRulingOverlay(
+            $sides['winner'][0], $sides['winner'][1],
+            RatingOutcomeEvent::OUTCOME_VINDICATED, $operationType, $operationId
+        );
+
+        return $faulted;
+    }
+
+    /**
+     * Write one ruling overlay (`fault` or `vindicated`) for a party on an
+     * operation. Idempotent per party+operation, never bumps total_operations
+     * (the `disputed` event already counted the operation), and — the guard —
+     * refuses to record a mark when the party already carries its OPPOSITE on
+     * this operation, so fault and vindication stay mutually exclusive per party.
+     */
+    private function recordRulingOverlay(
+        int $rateeUserId,
+        string $role,
+        string $outcome,
+        string $operationType,
+        int $operationId
+    ): bool {
+        if ($rateeUserId <= 0) {
+            return false;
+        }
+
+        $opposite = $outcome === RatingOutcomeEvent::OUTCOME_FAULT
+            ? RatingOutcomeEvent::OUTCOME_VINDICATED
+            : RatingOutcomeEvent::OUTCOME_FAULT;
+
+        $column = $outcome === RatingOutcomeEvent::OUTCOME_FAULT ? 'fault_count' : 'vindicated_count';
+
+        return DB::transaction(function () use ($rateeUserId, $role, $outcome, $opposite, $column, $operationType, $operationId) {
+            // Do not contradict a mark already decided the other way.
+            $hasOpposite = RatingOutcomeEvent::query()
+                ->where('operation_type', $operationType)
+                ->where('operation_id', $operationId)
+                ->where('ratee_user_id', $rateeUserId)
+                ->where('outcome', $opposite)
+                ->exists();
+
+            if ($hasOpposite) {
+                return false;
+            }
+
             $event = RatingOutcomeEvent::query()->firstOrCreate([
                 'operation_type' => $operationType,
                 'operation_id' => $operationId,
                 'ratee_user_id' => $rateeUserId,
-                'outcome' => RatingOutcomeEvent::OUTCOME_FAULT,
+                'outcome' => $outcome,
             ], [
                 'role' => $role,
             ]);
 
             if (! $event->wasRecentlyCreated) {
-                return false; // this operation's fault against this party is already on record
+                return false; // already on record for this party+operation
             }
 
             $rating = UserOperationRating::query()
@@ -142,9 +201,7 @@ final class RatingService
                 ->first()
                 ?? new UserOperationRating(['user_id' => $rateeUserId, 'role' => $role]);
 
-            // Overlay only — total_operations was already bumped by the `disputed`
-            // event for this same operation.
-            $rating->fault_count = (int) $rating->fault_count + 1;
+            $rating->{$column} = (int) $rating->{$column} + 1;
             $rating->save();
 
             return true;
@@ -155,7 +212,7 @@ final class RatingService
      * Rating summary for a user in a role. Always returns a well-formed payload,
      * even when the user has no recorded operations yet.
      *
-     * @return array{role: string, total_operations: int, success_count: int, cancelled_count: int, disputed_count: int, fault_count: int, success_rate: float, cancel_rate: float, dispute_rate: float, fault_rate: float}
+     * @return array{role: string, total_operations: int, success_count: int, cancelled_count: int, disputed_count: int, fault_count: int, vindicated_count: int, success_rate: float, cancel_rate: float, dispute_rate: float, fault_rate: float, vindication_rate: float}
      */
     public function summaryFor(int $userId, string $role): array
     {
@@ -173,12 +230,14 @@ final class RatingService
             'success_count' => (int) ($rating->success_count ?? 0),
             'cancelled_count' => (int) ($rating->cancelled_count ?? 0),
             'disputed_count' => (int) ($rating->disputed_count ?? 0),
-            // How many disputes were RULED against this party (subset of disputed).
+            // Of the disputes, how many a ruling decided AGAINST vs FOR this party.
             'fault_count' => (int) ($rating->fault_count ?? 0),
+            'vindicated_count' => (int) ($rating->vindicated_count ?? 0),
             'success_rate' => $rating ? $rating->successRate() : 0.0,
             'cancel_rate' => $rating ? $rating->cancelRate() : 0.0,
             'dispute_rate' => $rating ? $rating->disputeRate() : 0.0,
             'fault_rate' => $rating ? $rating->faultRate() : 0.0,
+            'vindication_rate' => $rating ? $rating->vindicationRate() : 0.0,
             // Subjective star review aggregate.
             'review_count' => $reviewCount,
             'stars_average' => $reviewCount > 0 ? round($starsSum / $reviewCount, 2) : 0.0,

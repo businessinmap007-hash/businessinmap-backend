@@ -24,6 +24,7 @@ class UserOperationRating extends Model
         'cancelled_count',
         'disputed_count',
         'fault_count',
+        'vindicated_count',
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class UserOperationRating extends Model
         'cancelled_count' => 'integer',
         'disputed_count' => 'integer',
         'fault_count' => 'integer',
+        'vindicated_count' => 'integer',
     ];
 
     public static function roles(): array
@@ -59,6 +61,12 @@ class UserOperationRating extends Model
     public function faultRate(): float
     {
         return $this->rate((int) $this->fault_count);
+    }
+
+    /** How often a ruling was decided in this party's favour, out of all operations. */
+    public function vindicationRate(): float
+    {
+        return $this->rate((int) $this->vindicated_count);
     }
 
     private function rate(int $count): float

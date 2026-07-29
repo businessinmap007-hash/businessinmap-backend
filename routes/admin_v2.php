@@ -65,6 +65,7 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceItemTypeController,
     ServiceBranchBoardController,
     TaxonomyLabController,
+    LabListController,
     PostController,
     SponsorController,
     SubscriptionController,
@@ -246,6 +247,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('taxonomy-lab')->name('taxonomy-lab.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [TaxonomyLabController::class, 'index'])->name('index');
             Route::post('reset', [TaxonomyLabController::class, 'reset'])->name('reset');
+
+            // Hierarchical unified lists (sections → sub-sections → items).
+            Route::get('lists', [LabListController::class, 'index'])->name('lists.index');
+            Route::post('lists', [LabListController::class, 'store'])->name('lists.store');
+            Route::get('lists/{list}', [LabListController::class, 'show'])->whereNumber('list')->name('lists.show');
+            Route::post('lists/{list}/rename', [LabListController::class, 'rename'])->whereNumber('list')->name('lists.rename');
+            Route::delete('lists/{list}', [LabListController::class, 'destroy'])->whereNumber('list')->name('lists.destroy');
+            Route::get('lists/{list}/pool', [LabListController::class, 'pool'])->whereNumber('list')->name('lists.pool');
+            Route::post('lists/{list}/items', [LabListController::class, 'addItem'])->whereNumber('list')->name('lists.items.add');
+            Route::delete('lists/{list}/items/{item}', [LabListController::class, 'removeItem'])->whereNumber('list')->whereNumber('item')->name('lists.items.remove');
         });
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types')->middleware('can:' . AdminAbility::CATALOG);

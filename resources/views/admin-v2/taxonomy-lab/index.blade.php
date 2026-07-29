@@ -13,6 +13,7 @@
             </div>
         </div>
         <div class="a2-page-actions">
+            <a href="{{ route('admin.taxonomy-lab.lists.index') }}" class="a2-btn a2-btn-primary">{{ __('القوائم الموحّدة ←') }}</a>
             <form method="POST" action="{{ route('admin.taxonomy-lab.reset') }}"
                   onsubmit="return confirm('{{ __('سيُعاد نسخ الذرّات من الجداول الحيّة وتُفرَّغ كل التجميعات المبنية يدويًا. متابعة؟') }}');">
                 @csrf
@@ -58,7 +59,7 @@
                 </div>
             </div>
             <div class="tlab-card-foot">
-                <span class="tlab-soon">{{ __('باني الفروع لكل خدمة — الخطوة التالية') }}</span>
+                <a class="tlab-cta" href="{{ route('admin.taxonomy-lab.lists.index') }}">{{ __('نظّمها في القوائم الموحّدة') }} <span aria-hidden="true">←</span></a>
             </div>
         </section>
 
@@ -86,7 +87,7 @@
                 </div>
             </div>
             <div class="tlab-card-foot">
-                <span class="tlab-soon">{{ __('باني مجموعات الخيارات — الخطوة التالية') }}</span>
+                <a class="tlab-cta" href="{{ route('admin.taxonomy-lab.lists.index') }}">{{ __('نظّمها في القوائم الموحّدة') }} <span aria-hidden="true">←</span></a>
             </div>
         </section>
     </div>
@@ -118,6 +119,7 @@
 .tlab-progress-lbl{font-size:12px;color:#868e96}
 .tlab-card-foot{margin-top:auto}
 .tlab-soon{display:inline-block;font-size:12px;padding:5px 10px;border-radius:8px;border:1px dashed #ced4da;color:#adb5bd}
+.tlab-cta{display:inline-block;font-size:13px;font-weight:500;color:var(--a2-primary,#3b5bdb);text-decoration:none}
 .tlab-hint{margin-top:16px;font-size:12px;color:#adb5bd}
 .a2-alert-ok{padding:10px 14px;border-radius:10px;background:#e6fcf5;color:#0ca678;border:1px solid #c3fae8}
 </style>

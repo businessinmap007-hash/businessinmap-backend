@@ -22,7 +22,7 @@
         </div>
         <div class="a2-page-actions">
             <button type="button" class="a2-btn a2-btn-ghost" onclick="tlsAddSubList()">{{ __('+ قسم فرعي') }}</button>
-            <button type="button" class="a2-btn a2-btn-primary" onclick="tlsOpenPicker()">{{ __('+ إضافة عنصر') }}</button>
+            <button type="button" class="a2-btn a2-btn-primary" id="tls-add-btn" onclick="tlsTogglePicker()">{{ __('+ إضافة عنصر') }}</button>
         </div>
     </div>
 
@@ -53,6 +53,16 @@
     {{-- Direct items of this list. --}}
     <section class="tls-block">
         <h2 class="tls-h">{{ __('عناصر هذه القائمة') }} <span class="tls-h-count" id="tls-count">{{ count($directItems) }}</span></h2>
+
+        {{-- Inline add-item panel: expands in place, never blocks the page. --}}
+        <div class="tls-picker" id="tls-picker" hidden>
+            <div class="tls-picker-head">
+                <input type="search" id="tls-q" class="tls-search" placeholder="{{ __('ابحث في الخيارات وأنواع العناصر والتخصصات…') }}" autocomplete="off">
+                <button type="button" class="tls-picker-close" onclick="tlsClosePicker()" title="{{ __('إغلاق') }}">×</button>
+            </div>
+            <div class="tls-results" id="tls-results"></div>
+        </div>
+
         <div class="tls-chips" id="tls-items">
             @forelse($directItems as $it)
                 <span class="tls-chip" data-item-id="{{ $it['id'] }}">
@@ -67,17 +77,6 @@
     </section>
 </div>
 
-{{-- Add-item picker --}}
-<div class="tls-modal" id="tls-picker" hidden>
-    <div class="tls-modal-box">
-        <div class="tls-modal-head">
-            <strong>{{ __('إضافة عنصر') }}</strong>
-            <button type="button" class="tls-modal-x" onclick="tlsClosePicker()">×</button>
-        </div>
-        <input type="search" id="tls-q" class="tls-search" placeholder="{{ __('ابحث في الخيارات وأنواع العناصر…') }}" autocomplete="off">
-        <div class="tls-results" id="tls-results"></div>
-    </div>
-</div>
 
 <style>
 .tls-crumb{font-size:13px;color:#868e96;margin-bottom:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
@@ -107,12 +106,12 @@
 .tls-chip-x{border:none;background:transparent;color:#adb5bd;font-size:16px;line-height:1;cursor:pointer}
 .tls-chip-x:hover{color:#e03131}
 .tls-empty{color:#adb5bd;padding:16px;border:1px dashed #dee2e6;border-radius:10px;width:100%}
-.tls-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-start;justify-content:center;padding-top:8vh;z-index:1000}
-.tls-modal-box{width:min(520px,92vw);background:var(--a2-surface,#fff);border-radius:14px;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.2)}
-.tls-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.tls-modal-x{border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:#adb5bd}
-.tls-search{width:100%;padding:10px 12px;border:1px solid var(--a2-border,#e3e6ea);border-radius:10px;font-size:14px;box-sizing:border-box}
-.tls-results{margin-top:10px;max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.tls-picker{border:1px solid var(--a2-border,#e3e6ea);border-radius:12px;background:var(--a2-surface,#fff);padding:12px;margin-bottom:14px}
+.tls-picker-head{display:flex;align-items:center;gap:8px}
+.tls-picker-close{border:none;background:#f1f3f5;color:#868e96;width:34px;height:34px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;flex:0 0 auto}
+.tls-picker-close:hover{background:#fff0f0;color:#e03131}
+.tls-search{flex:1;width:100%;padding:9px 12px;border:1px solid var(--a2-border,#e3e6ea);border-radius:10px;font-size:14px;box-sizing:border-box}
+.tls-results{margin-top:10px;max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:4px}
 .tls-res{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
 .tls-res:hover{background:#f8f9fa;border-color:#e9ecef}
 .tls-res-tag{font-size:10px;padding:1px 6px;border-radius:999px;color:#fff}
@@ -167,14 +166,19 @@
         bumpCount(1);
     }
 
-    // ---- picker ----
+    // ---- picker (inline, non-blocking) ----
     let searchTimer = null;
-    window.tlsOpenPicker = function () {
-        document.getElementById('tls-picker').hidden = false;
-        const q = document.getElementById('tls-q');
-        q.value = '';
-        q.focus();
-        loadPool('');
+    window.tlsTogglePicker = function () {
+        const p = document.getElementById('tls-picker');
+        if (p.hidden) {
+            p.hidden = false;
+            const q = document.getElementById('tls-q');
+            q.value = '';
+            q.focus();
+            loadPool('');
+        } else {
+            tlsClosePicker();
+        }
     };
     window.tlsClosePicker = function () { document.getElementById('tls-picker').hidden = true; };
 
@@ -183,8 +187,8 @@
         const v = this.value;
         searchTimer = setTimeout(() => loadPool(v), 180);
     });
-    document.getElementById('tls-picker').addEventListener('click', function (e) {
-        if (e.target === this) tlsClosePicker();
+    document.getElementById('tls-q').addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') tlsClosePicker();
     });
 
     async function loadPool(q) {

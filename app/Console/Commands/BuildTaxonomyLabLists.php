@@ -35,8 +35,14 @@ class BuildTaxonomyLabLists extends Command
     /** The «الصحة» parent category — its children are the medical specialties. */
     private const HEALTH_CATEGORY_ID = 20;
 
-    /** Motorcycle brands inside the options «مركبات ونقل» group (option ids). */
+    /** Motorcycle-only brands inside the options «مركبات ونقل» group (option ids). */
     private const MOTO_BRANDS = [40, 116, 215, 221, 229, 260, 354, 389];
+
+    /**
+     * Brands that make BOTH cars and motorcycles — they appear in each sub-list.
+     * BMW (44), Honda (185), Suzuki (351).
+     */
+    private const DUAL_BRANDS = [44, 185, 351];
 
     /** Vehicle-group options that are NOT brands (types/services/parts) — excluded. */
     private const NON_BRANDS = [51, 57, 58, 60, 62, 63, 65, 184, 194, 214, 220, 248, 250, 251, 280, 281, 365];
@@ -109,7 +115,9 @@ class BuildTaxonomyLabLists extends Command
         // is cleared); the ids are identical in options_new.
         $vehicleIds = DB::table('options')->where('group_id', 1)->pluck('id')->all();
 
-        $motoIds = array_values(array_intersect($vehicleIds, self::MOTO_BRANDS));
+        // Motorcycle list = pure moto brands + the dual makers; car list keeps the
+        // dual makers too (they build cars as well), so dual brands live in both.
+        $motoIds = array_values(array_intersect($vehicleIds, array_merge(self::MOTO_BRANDS, self::DUAL_BRANDS)));
         $carIds = array_values(array_diff($vehicleIds, self::MOTO_BRANDS, self::NON_BRANDS));
 
         $carBrands = LabList::create([

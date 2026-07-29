@@ -41,18 +41,20 @@ class TaxonomyLabListsTest extends TestCase
         $this->assertContains('cars.car_brands', $childKeys);
         $this->assertContains('cars.moto_brands', $childKeys);
 
-        // Brands are options; both sub-lists are non-empty and disjoint.
+        // Brands are options; both sub-lists are non-empty.
         $car = LabList::where('key', 'cars.car_brands')->first();
         $moto = LabList::where('key', 'cars.moto_brands')->first();
         $this->assertGreaterThan(0, $car->items()->count());
         $this->assertGreaterThan(0, $moto->items()->count());
-        $this->assertEmpty(
-            array_intersect(
-                $car->items()->pluck('source_id')->all(),
-                $moto->items()->pluck('source_id')->all()
-            ),
-            'a brand cannot be in both sub-lists'
-        );
+
+        // The only brands allowed in BOTH lists are the dual makers (BMW/Honda/
+        // Suzuki) — everything else is exclusive to one side.
+        $overlap = array_values(array_intersect(
+            $car->items()->pluck('source_id')->all(),
+            $moto->items()->pluck('source_id')->all()
+        ));
+        sort($overlap);
+        $this->assertSame([44, 185, 351], $overlap, 'only dual makers may appear in both sub-lists');
         $this->assertSame(['option'], $car->items()->distinct()->pluck('source')->all());
     }
 

@@ -24,64 +24,86 @@ use Illuminate\Validation\ValidationException;
  */
 class ServiceBranchBoardController extends Controller
 {
+    /**
+     * Two screens behind one route:
+     *   - no `service_id` → the SERVICE PICKER (one card per service). The old
+     *     all-services matrix is retired: you pick a single service first.
+     *   - with `service_id` → that service's own branches ONLY, each with the
+     *     item types it holds. Never shows another service's branches.
+     */
     public function index(Request $request)
     {
         $services = $this->services();
 
         $serviceId = (int) $request->get('service_id', 0);
 
+        // Landing: choose one service.
         if ($serviceId <= 0 || ! $services->firstWhere('id', $serviceId)) {
-            $serviceId = (int) ($services->firstWhere('is_active', true)->id
-                ?? $services->first()->id
-                ?? 0);
+            return view('admin-v2.service-branches.picker', [
+                'cards' => $this->serviceCards($services),
+            ]);
         }
 
+        $service = $services->firstWhere('id', $serviceId);
+
+        // The pool of item types that can be placed into this service's branches.
         $types = PlatformServiceItemType::query()
             ->where('platform_service_id', $serviceId)
-            ->with('groups:id')
             ->ordered()
-            ->get(['id', 'platform_service_id', 'key', 'name_ar', 'name_en', 'is_active'])
+            ->get(['id', 'key', 'name_ar', 'name_en', 'is_active'])
             ->map(fn (PlatformServiceItemType $t) => [
                 'id' => (int) $t->id,
                 'key' => (string) $t->key,
                 'name' => $t->displayName('ar'),
-                'group_ids' => $t->groups->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
                 'is_active' => (bool) $t->is_active,
-            ]);
+            ])->values();
 
+        // ONLY this service's branches, each with the members that belong to this
+        // same service (a shared type from another service is never listed here).
         $branches = PlatformServiceItemGroup::query()
+            ->forService($serviceId)
             ->ordered()
-            ->get(['id', 'key', 'name_ar', 'name_en', 'platform_service_id']);
-
-        $usage = $this->usageByBranch();
-        $serviceNames = $services->keyBy('id');
-
-        $branchData = $branches->map(function (PlatformServiceItemGroup $b) use ($serviceId, $usage, $serviceNames) {
-            $rows = $usage->get($b->id, collect());
-
-            $countHere = (int) (optional($rows->firstWhere('platform_service_id', $serviceId))->n ?? 0);
-
-            $cross = $rows
-                ->where('platform_service_id', '!=', $serviceId)
-                ->map(fn ($r) => $this->serviceLabel($serviceNames->get((int) $r->platform_service_id)))
-                ->filter()
-                ->values()
-                ->all();
-
-            return [
+            ->with(['itemTypes' => fn ($q) => $q->where('platform_service_item_types.platform_service_id', $serviceId)])
+            ->get(['id', 'key', 'name_ar', 'name_en', 'platform_service_id'])
+            ->map(fn (PlatformServiceItemGroup $b) => [
                 'id' => (int) $b->id,
                 'name' => $b->displayName('ar'),
-                'count_here' => $countHere,
-                'cross' => $cross,
-            ];
-        })->values();
+                'type_ids' => $b->itemTypes->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            ])->values();
 
-        return view('admin-v2.service-branches.index', [
+        return view('admin-v2.service-branches.service', [
             'services' => $services,
+            'service' => $service,
             'serviceId' => $serviceId,
             'types' => $types,
-            'branches' => $branchData,
+            'branches' => $branches,
         ]);
+    }
+
+    /**
+     * One summary card per service: how many branches it owns and how many item
+     * types it defines — the picker's at-a-glance counts.
+     */
+    protected function serviceCards($services): array
+    {
+        $branchCounts = DB::table('platform_service_item_groups')
+            ->whereNotNull('platform_service_id')
+            ->selectRaw('platform_service_id, COUNT(*) AS n')
+            ->groupBy('platform_service_id')
+            ->pluck('n', 'platform_service_id');
+
+        $typeCounts = DB::table('platform_service_item_types')
+            ->selectRaw('platform_service_id, COUNT(*) AS n')
+            ->groupBy('platform_service_id')
+            ->pluck('n', 'platform_service_id');
+
+        return $services->map(fn (PlatformService $s) => [
+            'id' => (int) $s->id,
+            'name' => $this->serviceLabel($s),
+            'is_active' => (bool) $s->is_active,
+            'branches' => (int) ($branchCounts[$s->id] ?? 0),
+            'types' => (int) ($typeCounts[$s->id] ?? 0),
+        ])->values()->all();
     }
 
     public function toggle(Request $request): JsonResponse
@@ -171,13 +193,16 @@ class ServiceBranchBoardController extends Controller
         $data = $request->validate([
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
+            // Set when the branch is created from a service's own page, so it
+            // belongs to that service and shows only there — not the global pool.
+            'service_id' => ['nullable', 'integer', 'exists:platform_services,id'],
         ], [], [
             'name_ar' => __('اسم الفرع'),
             'name_en' => __('الاسم الإنجليزي'),
         ]);
 
         $branch = PlatformServiceItemGroup::create([
-            'platform_service_id' => null,
+            'platform_service_id' => isset($data['service_id']) ? (int) $data['service_id'] : null,
             'key' => $this->uniqueKey($data['name_en'] ?? $data['name_ar']),
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,

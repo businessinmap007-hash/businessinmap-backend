@@ -77,16 +77,20 @@ class AdminUiStickyAndMenuTest extends TestCase
         }
     }
 
-    public function test_service_branch_matrix_pins_its_header_row(): void
+    public function test_service_branches_landing_is_a_service_picker(): void
     {
-        // The matrix is a JS-built table with inline styles; the fix lives in
-        // the view's script. Assert the scroll box + a sticky header row.
-        $this->actingAs($this->admin())->get('/admin/service-branches')->assertOk();
+        // The all-services matrix was retired for a per-service flow: the landing
+        // is a picker, and there is no big scrolling matrix table to pin anymore.
+        $this->actingAs($this->admin())->get('/admin/service-branches')
+            ->assertOk()
+            ->assertSee('service_id=', false);
 
-        $blade = file_get_contents(resource_path('views/admin-v2/service-branches/index.blade.php'));
-        $this->assertStringContainsString('max-height:calc(100vh - 220px)', $blade);
-        $this->assertStringContainsString("position:sticky; top:0", $blade);   // header row
-        $this->assertStringContainsString("position:sticky; top:0; right:0", $blade); // corner
+        $this->assertFalse(
+            file_exists(resource_path('views/admin-v2/service-branches/index.blade.php')),
+            'the retired matrix view should be gone'
+        );
+        $this->assertTrue(file_exists(resource_path('views/admin-v2/service-branches/picker.blade.php')));
+        $this->assertTrue(file_exists(resource_path('views/admin-v2/service-branches/service.blade.php')));
     }
 
     public function test_sticky_header_css_covers_both_wrapper_classes(): void

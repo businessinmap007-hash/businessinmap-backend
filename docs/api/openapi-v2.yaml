@@ -2709,6 +2709,33 @@ paths:
         '200': { description: 'Opened, or the existing live dispute' }
         '404': { description: 'Not found, or you are not a party to the booking' }
         '422': { $ref: '#/components/responses/Validation' }
+  /orders/{order}/disputes:
+    post:
+      tags: [Disputes]
+      summary: Open a dispute on a menu order
+      description: >-
+        The order counterpart of the booking dispute door. Only the order's
+        customer or business may open one; anyone else gets 404. A menu order
+        carries no escrow deposit, so it enters the mutual-settlement /
+        arbitration flow directly. Opening records an OUTCOME_DISPUTED rating
+        event against both parties (idempotent per order) and notifies the
+        respondent. Returns the existing live dispute if one is already open.
+      parameters:
+        - { in: path, name: order, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              properties:
+                reason_code: { type: string, enum: [not_delivered, not_as_described, quality, late, cancelled_by_business, no_show, overcharged, damage, other] }
+                reason_text: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: 'Opened, or the existing live dispute' }
+        '404': { description: 'Not found, or you are not a party to the order' }
+        '422': { $ref: '#/components/responses/Validation' }
   /disputes/{dispute}/cooperate:
     post:
       tags: [Disputes]

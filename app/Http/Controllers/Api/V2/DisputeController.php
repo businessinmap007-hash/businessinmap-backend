@@ -6,13 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\DisputeResource;
 use App\Http\Resources\V2\DisputeSettlementResource;
 use App\Http\Resources\V2\ThreadMessageResource;
+use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Dispute;
 use App\Models\DisputeSettlement;
+use App\Models\Order;
+use App\Models\PlatformService;
+use App\Models\RatingOutcomeEvent;
 use App\Services\BookingDepositService;
 use App\Services\DisputeService;
 use App\Services\DisputeSettlementService;
 use App\Services\Media\ImageUploadService;
+use App\Services\Notifications\NotificationDispatcherService;
+use App\Services\Ratings\RatingService;
 use App\Services\ThreadService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
@@ -166,6 +172,100 @@ final class DisputeController extends Controller
 
         // 200, not 201: an existing live dispute is returned rather than a
         // second one created, so the caller has not always created anything.
+        return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
+    }
+
+    /**
+     * POST /api/v2/orders/{order}/disputes — open one on a menu order.
+     *
+     * The counterpart of storeForBooking, and the reason it exists: a booking
+     * dispute records OUTCOME_DISPUTED against both parties' rating, but an
+     * order had NO door to open a dispute at all, so an order dispute never
+     * reached the rating ledger. This is that door, and it records the outcome.
+     *
+     * A menu order carries no escrow deposit (checkout takes no hold), so this
+     * goes straight through DisputeService::open with type 'order' rather than
+     * the deposit-guarded BookingDepositService path — there is no hold to
+     * freeze, only the mutual-settlement / arbitration flow to enter.
+     */
+    public function storeForOrder(
+        Request $request,
+        Order $order,
+        DisputeService $disputes,
+        RatingService $ratings,
+        NotificationDispatcherService $notifications
+    ) {
+        $userId = (int) $request->user()->id;
+
+        // Only a party to the order. 404 (not 403) so a stranger cannot even
+        // learn the order exists — the same rule the booking door uses.
+        abort_if(
+            (int) $order->user_id !== $userId && (int) $order->business_id !== $userId,
+            404
+        );
+
+        // A draft cart is not an operation anyone can dispute.
+        abort_if((string) $order->status === 'cart', 404);
+
+        $data = $request->validate([
+            'reason_code' => ['required', 'string', Rule::in(self::REASON_CODES)],
+            'reason_text' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $against = (int) $order->user_id === $userId
+            ? (int) $order->business_id
+            : (int) $order->user_id;
+
+        $menuServiceId = (int) (PlatformService::query()
+            ->key(PlatformService::KEY_MENU)
+            ->value('id') ?? 0);
+
+        $dispute = $disputes->open(
+            platformServiceId: $menuServiceId,
+            disputeableType: Order::class,
+            disputeableId: (int) $order->id,
+            openedByUserId: $userId,
+            againstUserId: $against,
+            actorId: $userId,
+            payload: [
+                'reason_code' => $data['reason_code'],
+                'reason_text' => $data['reason_text'] ?? null,
+                'type' => 'order',
+                'source' => 'api_v2',
+            ]
+        );
+
+        // The gap this closes. Idempotent per operation via the rating ledger's
+        // firstOrCreate, so returning an existing dispute records nothing twice
+        // — and a prior open that somehow missed it is self-healed here.
+        $ratings->recordForBothParties(
+            businessUserId: (int) $order->business_id,
+            clientUserId: (int) $order->user_id,
+            outcome: RatingOutcomeEvent::OUTCOME_DISPUTED,
+            operationType: RatingOutcomeEvent::OP_ORDER,
+            operationId: (int) $order->id,
+        );
+
+        // Tell the respondent — but only on a genuinely new dispute, so a retry
+        // does not re-alarm them. Best-effort; a failed push never blocks the
+        // open (the dispute and its rating impact are already committed).
+        if ($dispute->wasRecentlyCreated) {
+            try {
+                $notifications->dispatch('dispute_opened', $against, [
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'actor_id' => $userId,
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                    'source_id' => (int) $dispute->id,
+                    'meta' => ['dispute_id' => (int) $dispute->id, 'order_id' => (int) $order->id],
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        $dispute->loadMissing(['openedBy:id,name', 'againstUser:id,name']);
+
         return response()->json(['success' => true, 'data' => new DisputeResource($dispute)]);
     }
 

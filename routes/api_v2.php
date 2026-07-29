@@ -283,6 +283,11 @@ Route::prefix('v2')->group(function () {
         Route::get('disputes/{dispute}', [DisputeController::class, 'show'])->whereNumber('dispute');
         Route::post('bookings/{booking}/disputes', [DisputeController::class, 'storeForBooking'])
             ->whereNumber('booking');
+        // The same door for a menu order. A booking dispute already feeds the
+        // rating (OUTCOME_DISPUTED); before this an order had no way to open one
+        // at all, so an order dispute never reached the rating ledger.
+        Route::post('orders/{order}/disputes', [DisputeController::class, 'storeForOrder'])
+            ->whereNumber('order');
 
         // Declaring you are engaging with the settlement. Its ABSENCE is what
         // gets recorded when the window expires — a mark the arbitrator reads,

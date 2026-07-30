@@ -1226,12 +1226,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    function toggleBranchTypes(branchEl) {
+        const types = branchEl?.querySelector('.a2-branch-types');
+        if (!types) return;
+        types.hidden = !types.hidden;
+        branchEl.classList.toggle('is-open', !types.hidden);
+    }
+
     document.querySelectorAll('.js-branch-toggle').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            const types = btn.closest('.a2-branch').querySelector('.a2-branch-types');
-            if (types) {
-                types.hidden = !types.hidden;
+            toggleBranchTypes(btn.closest('.a2-branch'));
+        });
+    });
+
+    // The whole branch head is clickable to open its types (collapsed by default),
+    // except when interacting with the branch checkbox itself.
+    document.querySelectorAll('.a2-branch-head').forEach(function (head) {
+        head.style.cursor = 'pointer';
+        head.addEventListener('click', function (e) {
+            if (e.target.closest('label') || e.target.closest('input') || e.target.closest('.js-branch-toggle')) {
+                return;
             }
+            toggleBranchTypes(head.closest('.a2-branch'));
         });
     });
 

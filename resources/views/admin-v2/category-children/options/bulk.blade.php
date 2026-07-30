@@ -169,15 +169,15 @@
             <div class="a2-section-head">
                 <div>
                     <h2 class="a2-section-title">{{ __('جروبات الخيارات') }}</h2>
-                    <div class="a2-section-subtitle">{{ __('اضغط على الجروب لعرض الخيارات الخاصة به فقط') }}</div>
+                    <div class="a2-section-subtitle">{{ __('الجروبات مغلقة — اضغط أي جروب لفتحه وعرض خياراته') }}</div>
                 </div>
 
                 <div class="a2-page-actions">
                     <button type="button" class="a2-btn a2-btn-ghost" id="checkVisibleOptions">
-                        {{ __('تحديد خيارات الجروب') }}
+                        {{ __('تحديد خيارات الجروب المفتوح') }}
                     </button>
                     <button type="button" class="a2-btn a2-btn-ghost" id="uncheckVisibleOptions">
-                        {{ __('إلغاء تحديد الجروب') }}
+                        {{ __('إلغاء تحديد الجروب المفتوح') }}
                     </button>
                 </div>
             </div>
@@ -185,52 +185,21 @@
             @if($optionGroupsSafe->isEmpty() && !$hasUngrouped)
                 <div class="a2-muted">{{ __('لا توجد خيارات متاحة.') }}</div>
             @else
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-                    @foreach($optionGroupsSafe as $group)
-                        @php
-                            $groupId = (int) $group->id;
-                            $isActiveGroup = $loop->first;
-                            $optionsCount = collect($group->options ?? [])->count();
-                        @endphp
-
-                        <button
-                            type="button"
-                            class="a2-btn {{ $isActiveGroup ? 'a2-btn-primary' : 'a2-btn-ghost' }} js-option-group-tab"
-                            data-group-id="group-{{ $groupId }}"
-                        >
-                            {{ $nameOf($group) }}
-                            <span class="a2-badge" style="margin-inline-start:6px;">{{ $optionsCount }}</span>
-                        </button>
-                    @endforeach
-
-                    @if($hasUngrouped)
-                        <button
-                            type="button"
-                            class="a2-btn {{ $optionGroupsSafe->isEmpty() ? 'a2-btn-primary' : 'a2-btn-ghost' }} js-option-group-tab"
-                            data-group-id="ungrouped"
-                        >
-                            {{ __('بدون جروب') }}
-                            <span class="a2-badge" style="margin-inline-start:6px;">{{ $ungroupedSafe->count() }}</span>
-                        </button>
-                    @endif
-                </div>
-
                 @foreach($optionGroupsSafe as $group)
                     @php
-                        $groupId = (int) $group->id;
-                        $isActiveGroup = $loop->first;
                         $groupOptions = collect($group->options ?? []);
                     @endphp
 
-                    <div
-                        class="js-option-group-panel"
-                        data-group-id="group-{{ $groupId }}"
-                        style="{{ $isActiveGroup ? '' : 'display:none;' }}"
-                    >
+                    <details class="a2-card a2-card--section js-option-group-panel" style="margin-bottom:10px;">
+                        <summary class="a2-card-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;">
+                            <span class="a2-section-title a2-mb-0">{{ $nameOf($group) }}</span>
+                            <span class="a2-badge">{{ $groupOptions->count() }}</span>
+                        </summary>
+
                         @if($groupOptions->isEmpty())
-                            <div class="a2-muted">{{ __('لا توجد خيارات داخل هذا الجروب.') }}</div>
+                            <div class="a2-muted a2-mt-12">{{ __('لا توجد خيارات داخل هذا الجروب.') }}</div>
                         @else
-                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
+                            <div class="a2-mt-12" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
                                 @foreach($groupOptions as $option)
                                     <label class="a2-check-card">
                                         <input
@@ -244,16 +213,16 @@
                                 @endforeach
                             </div>
                         @endif
-                    </div>
+                    </details>
                 @endforeach
 
                 @if($hasUngrouped)
-                    <div
-                        class="js-option-group-panel"
-                        data-group-id="ungrouped"
-                        style="{{ $optionGroupsSafe->isEmpty() ? '' : 'display:none;' }}"
-                    >
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
+                    <details class="a2-card a2-card--section js-option-group-panel" style="margin-bottom:10px;">
+                        <summary class="a2-card-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;">
+                            <span class="a2-section-title a2-mb-0">{{ __('بدون جروب') }}</span>
+                            <span class="a2-badge">{{ $ungroupedSafe->count() }}</span>
+                        </summary>
+                        <div class="a2-mt-12" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
                             @foreach($ungroupedSafe as $option)
                                 <label class="a2-check-card">
                                     <input
@@ -266,7 +235,7 @@
                                 </label>
                             @endforeach
                         </div>
-                    </div>
+                    </details>
                 @endif
             @endif
         </div>
@@ -354,55 +323,30 @@ document.addEventListener('DOMContentLoaded', function () {
     | Option Group Tabs
     |--------------------------------------------------------------------------
     */
-    const optionTabs = document.querySelectorAll('.js-option-group-tab');
-    const optionPanels = document.querySelectorAll('.js-option-group-panel');
-
-    function activateOptionGroup(groupId) {
-        optionTabs.forEach(function (tab) {
-            const active = tab.dataset.groupId === groupId;
-            tab.classList.toggle('a2-btn-primary', active);
-            tab.classList.toggle('a2-btn-ghost', !active);
-        });
-
-        optionPanels.forEach(function (panel) {
-            panel.style.display = panel.dataset.groupId === groupId ? '' : 'none';
-        });
-    }
-
-    optionTabs.forEach(function (tab) {
-        tab.addEventListener('click', function () {
-            activateOptionGroup(tab.dataset.groupId);
-        });
-    });
-
+    // Option groups are collapsible <details> (start closed). The group
+    // check/uncheck buttons act on the OPEN groups' options.
     const checkVisibleOptions = document.getElementById('checkVisibleOptions');
     const uncheckVisibleOptions = document.getElementById('uncheckVisibleOptions');
 
-    function visibleOptions() {
-        const activePanel = Array.from(optionPanels).find(function (panel) {
-            return panel.style.display !== 'none';
+    function openGroupOptions() {
+        const inputs = [];
+        document.querySelectorAll('.js-option-group-panel[open]').forEach(function (panel) {
+            panel.querySelectorAll('.js-option-checkbox').forEach(function (input) {
+                inputs.push(input);
+            });
         });
-
-        if (!activePanel) {
-            return [];
-        }
-
-        return activePanel.querySelectorAll('.js-option-checkbox');
+        return inputs;
     }
 
     if (checkVisibleOptions) {
         checkVisibleOptions.addEventListener('click', function () {
-            visibleOptions().forEach(function (input) {
-                input.checked = true;
-            });
+            openGroupOptions().forEach(function (input) { input.checked = true; });
         });
     }
 
     if (uncheckVisibleOptions) {
         uncheckVisibleOptions.addEventListener('click', function () {
-            visibleOptions().forEach(function (input) {
-                input.checked = false;
-            });
+            openGroupOptions().forEach(function (input) { input.checked = false; });
         });
     }
 });

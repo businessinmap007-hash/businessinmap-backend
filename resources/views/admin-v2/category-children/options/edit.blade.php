@@ -192,7 +192,6 @@
             @endphp
 
             <details class="a2-card a2-card--section a2-mb-16 js-group-card"
-                     open
                      data-group-name="{{ Str::lower($groupName) }}">
                 <summary class="a2-card-head" style="cursor:pointer;list-style:none;">
                     <div>
@@ -260,7 +259,6 @@
 
         @if($ungroupedOptionsSafe->isNotEmpty())
             <details class="a2-card a2-card--section a2-mb-16 js-group-card"
-                     open
                      data-group-name="ungrouped بدون group">
                 <summary class="a2-card-head" style="cursor:pointer;list-style:none;">
                     <div>

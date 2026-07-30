@@ -105,6 +105,29 @@ class TaxonomyLabListsTest extends TestCase
         $this->assertSame($names->count(), $names->unique()->count(), 'craftsmen names must be unique');
     }
 
+    public function test_courses_pulls_languages_subjects_and_professional_from_booking(): void
+    {
+        $courses = LabList::where('key', 'courses')->first();
+        if (! $courses) {
+            $this->markTestSkipped('Run taxonomy-lab:build-lists first.');
+        }
+
+        $subKeys = $courses->children->pluck('key')->all();
+        foreach (['courses.languages', 'courses.subjects', 'courses.professional'] as $k) {
+            $this->assertContains($k, $subKeys, "courses is missing sub-group {$k}");
+        }
+
+        $languages = LabList::where('key', 'courses.languages')->first();
+        // The moved atoms are booking service item types, not category children.
+        $this->assertSame(['item_type'], $languages->items()->distinct()->pluck('source')->all());
+        $this->assertGreaterThanOrEqual(10, $languages->items()->count());
+        // «إنجليزي» (item type 103) is a language that moved out of booking.
+        $this->assertTrue($languages->items()->where('source_id', 103)->exists());
+
+        $this->assertSame(4, LabList::where('key', 'courses.subjects')->first()->items()->count());
+        $this->assertGreaterThan(0, LabList::where('key', 'courses.professional')->first()->items()->count());
+    }
+
     public function test_drilldown_page_shows_sublists_and_resolved_item_names(): void
     {
         $cars = LabList::where('key', 'cars')->first();

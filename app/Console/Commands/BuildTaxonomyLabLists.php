@@ -65,6 +65,14 @@ class BuildTaxonomyLabLists extends Command
     private const COURSES_CATEGORY_ID = 12;   // دورات وتدريب
     private const CRAFTSMEN_CATEGORY_ID = 6;   // مهن وحرفيين
 
+    /**
+     * Course content currently mis-filed under the booking service (svc1 item
+     * types 93–124) — moved into the Courses list as sub-groups.
+     */
+    private const COURSE_LANGUAGES = [95, 96, 98, 100, 103, 104, 105, 106, 108, 109, 110, 117, 119, 122, 123];
+    private const COURSE_SUBJECTS = [97, 112, 113, 121];
+    private const COURSE_PROFESSIONAL = [93, 94, 101, 102, 107, 111, 114, 115, 116, 118, 120, 124];
+
     public function handle(): int
     {
         foreach (['options_new', 'platform_service_item_types_new'] as $t) {
@@ -78,7 +86,8 @@ class BuildTaxonomyLabLists extends Command
             // Rebuild only our own keyed lists (cascade clears items + sub-lists).
             LabList::whereIn('key', [
                 'health', 'cars', 'cars.car_brands', 'cars.moto_brands',
-                'restaurant', 'supermarket', 'courses', 'craftsmen',
+                'restaurant', 'supermarket', 'craftsmen',
+                'courses', 'courses.languages', 'courses.subjects', 'courses.professional',
             ])->delete();
 
             $this->buildHealth();
@@ -201,7 +210,32 @@ class BuildTaxonomyLabLists extends Command
             'sort_order' => 5,
         ]);
 
+        // The center/academy types from category 12 stay as direct items.
         $this->attach($list, LabListItem::SOURCE_CATEGORY_CHILD, $this->categoryChildIds(self::COURSES_CATEGORY_ID));
+
+        // Course content moved out of the booking service into themed sub-groups.
+        $subs = [
+            ['courses.languages', 'لغات', 'Languages', self::COURSE_LANGUAGES],
+            ['courses.subjects', 'مواد دراسية', 'Study Subjects', self::COURSE_SUBJECTS],
+            ['courses.professional', 'دورات وتدريب مهني', 'Professional Training', self::COURSE_PROFESSIONAL],
+        ];
+        foreach ($subs as $i => [$key, $ar, $en, $ids]) {
+            $sub = LabList::create([
+                'key' => $key,
+                'parent_id' => $list->id,
+                'name_ar' => $ar,
+                'name_en' => $en,
+                'sort_order' => $i + 1,
+            ]);
+            $this->attach($sub, LabListItem::SOURCE_ITEM_TYPE, $this->existingTypeIds($ids));
+        }
+    }
+
+    /** Filters an id list to those that actually exist in the sandbox, ordered. */
+    private function existingTypeIds(array $ids): \Illuminate\Support\Collection
+    {
+        return DB::table('platform_service_item_types_new')
+            ->whereIn('id', $ids)->orderBy('id')->pluck('id');
     }
 
     private function buildCraftsmen(): void

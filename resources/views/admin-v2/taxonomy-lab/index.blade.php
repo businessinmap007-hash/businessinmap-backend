@@ -13,7 +13,8 @@
             </div>
         </div>
         <div class="a2-page-actions">
-            <a href="{{ route('admin.taxonomy-lab.lists.index') }}" class="a2-btn a2-btn-primary">{{ __('القوائم الموحّدة ←') }}</a>
+            <a href="{{ route('admin.taxonomy-lab.lists.index') }}" class="a2-btn a2-btn-primary">{{ __('الخدمات (فروع) ←') }}</a>
+            <a href="{{ route('admin.taxonomy-lab.options.index') }}" class="a2-btn a2-btn-primary">{{ __('الخيارات (حسب الابن) ←') }}</a>
             <form method="POST" action="{{ route('admin.taxonomy-lab.reset') }}"
                   onsubmit="return confirm('{{ __('سيُعاد نسخ الذرّات من الجداول الحيّة وتُفرَّغ كل التجميعات المبنية يدويًا. متابعة؟') }}');">
                 @csrf

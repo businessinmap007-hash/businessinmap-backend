@@ -36,15 +36,28 @@ class LabListController extends Controller
         return view('admin-v2.taxonomy-lab.lists', ['lists' => $lists]);
     }
 
-    /** The internal drill-down page for one list: its sub-lists and its items. */
+    /** The internal drill-down page for one list: its sub-lists + a two-column
+     *  transfer that assigns SERVICES (item types) to this branch. */
     public function show(LabList $list)
     {
         $list->load(['children.items', 'items', 'parent']);
 
+        // The transfer manages item-type items only; other sources (options /
+        // specialties) are shown read-only so nothing looks lost.
+        $selected = $list->items->where('source', LabListItem::SOURCE_ITEM_TYPE)
+            ->pluck('source_id')->map(fn ($v) => (int) $v)->values();
+        $allTypes = DB::table('platform_service_item_types_new')
+            ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en'])
+            ->map(fn ($t) => ['id' => (int) $t->id, 'name' => (string) ($t->name_ar ?: $t->name_en ?: "#{$t->id}")])
+            ->values();
+        $other = $this->itemsPayload($list->items->where('source', '!=', LabListItem::SOURCE_ITEM_TYPE)->values());
+
         return view('admin-v2.taxonomy-lab.list-show', [
             'list' => $list,
             'breadcrumb' => $this->breadcrumb($list),
-            'directItems' => $this->itemsPayload($list->items),
+            'allTypes' => $allTypes,
+            'selectedTypes' => $selected,
+            'otherItems' => $other,
             'subLists' => $list->children->map(fn (LabList $c) => [
                 'id' => $c->id,
                 'name' => $c->displayName('ar'),
@@ -127,6 +140,41 @@ class LabListController extends Controller
         $item->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Batch-save the two-column transfer: sync the list's items OF ONE SOURCE to
+     * exactly the submitted set. Items of other sources are left untouched, so
+     * syncing item types never disturbs a list's options/specialties.
+     */
+    public function syncItems(Request $request, LabList $list): JsonResponse
+    {
+        $data = $request->validate([
+            'source' => ['required', Rule::in(array_keys(LabListItem::SOURCES))],
+            'ids' => ['present', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $source = $data['source'];
+        $table = LabListItem::sourceTable($source);
+        $wanted = collect($data['ids'])->map(fn ($v) => (int) $v)->unique();
+        $valid = DB::table($table)->whereIn('id', $wanted)->pluck('id')->map(fn ($v) => (int) $v);
+
+        DB::transaction(function () use ($list, $source, $valid) {
+            $existing = $list->items()->where('source', $source)->pluck('source_id')->map(fn ($v) => (int) $v);
+            $toRemove = $existing->diff($valid);
+            $toAdd = $valid->diff($existing);
+
+            if ($toRemove->isNotEmpty()) {
+                $list->items()->where('source', $source)->whereIn('source_id', $toRemove->all())->delete();
+            }
+            $sort = (int) $list->items()->max('sort_order');
+            foreach ($toAdd as $sid) {
+                LabListItem::create(['list_id' => $list->id, 'source' => $source, 'source_id' => $sid, 'sort_order' => ++$sort]);
+            }
+        });
+
+        return response()->json(['ok' => true, 'count' => $valid->count()]);
     }
 
     /**

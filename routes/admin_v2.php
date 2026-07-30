@@ -66,6 +66,7 @@ use App\Http\Controllers\AdminV2\{
     ServiceBranchBoardController,
     TaxonomyLabController,
     LabListController,
+    LabOptionsController,
     PostController,
     SponsorController,
     SubscriptionController,
@@ -256,7 +257,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('lists/{list}', [LabListController::class, 'destroy'])->whereNumber('list')->name('lists.destroy');
             Route::get('lists/{list}/pool', [LabListController::class, 'pool'])->whereNumber('list')->name('lists.pool');
             Route::post('lists/{list}/items', [LabListController::class, 'addItem'])->whereNumber('list')->name('lists.items.add');
+            Route::post('lists/{list}/sync', [LabListController::class, 'syncItems'])->whereNumber('list')->name('lists.items.sync');
             Route::delete('lists/{list}/items/{item}', [LabListController::class, 'removeItem'])->whereNumber('list')->whereNumber('item')->name('lists.items.remove');
+
+            // Child ↔ options builder (two-column transfer over category_child_option_new).
+            Route::get('options-builder', [LabOptionsController::class, 'index'])->name('options.index');
+            Route::get('options-builder/{child}', [LabOptionsController::class, 'child'])->whereNumber('child')->name('options.child');
+            Route::post('options-builder/{child}/save', [LabOptionsController::class, 'save'])->whereNumber('child')->name('options.save');
         });
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types')->middleware('can:' . AdminAbility::CATALOG);

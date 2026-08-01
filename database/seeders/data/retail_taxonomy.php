@@ -125,4 +125,40 @@ return [
             'household_cleaners' => ['منظفات منزلية', 'Household Cleaners'],
         ],
     ],
+
+    // Deliberately keyed 'grocery_retail', NOT 'supermarket' — the key
+    // 'supermarket' is already a LIVE platform_service_item_groups.key under
+    // the Menu service (16 businesses use it there). PlatformServiceItemGroup
+    // is matched by key alone, so reusing 'supermarket' here would have
+    // reassigned that live Menu branch to Retail. This branch is the shared
+    // master-catalog + price/stock listing path (business_catalog_listings),
+    // separate from Menu's free-form items — a business can opt into both.
+    'grocery_retail' => [
+        'name_ar' => 'بقالة وسوبر ماركت',
+        'name_en' => 'Grocery & Supermarket',
+        'types' => [
+            'dairy_milk' => ['ألبان', 'Milk'],
+            'juice' => ['عصائر', 'Juices'],
+            'yoghurt' => ['زبادي وروب', 'Yoghurt'],
+            'cheese' => ['أجبان', 'Cheese'],
+            'water' => ['مياه', 'Water'],
+            'soft_drinks' => ['مشروبات غازية', 'Soft Drinks'],
+            'tea_coffee' => ['شاي وقهوة', 'Tea & Coffee'],
+            'oils_ghee' => ['زيوت وسمن', 'Oils & Ghee'],
+            'rice_pasta' => ['أرز ومكرونة', 'Rice & Pasta'],
+            'canned' => ['معلبات', 'Canned Food'],
+            'sauces' => ['صلصات وكاتشب', 'Sauces & Ketchup'],
+            'detergents' => ['منظفات', 'Detergents'],
+            'personal_care' => ['عناية شخصية', 'Personal Care'],
+            'biscuits_snacks' => ['بسكويت وسناكس', 'Biscuits & Snacks'],
+            'chocolate' => ['شوكولاتة', 'Chocolate'],
+            'paper_products' => ['منتجات ورقية', 'Paper Products'],
+            'legumes_grains' => ['بقوليات وحبوب', 'Legumes & Grains'],
+            'spices' => ['بهارات وتوابل', 'Spices'],
+            'breakfast' => ['إفطار وحبوب', 'Breakfast'],
+            'frozen' => ['مجمدات', 'Frozen'],
+            'cleaning_tools' => ['أدوات نظافة', 'Cleaning Supplies'],
+            'baby_care' => ['عناية بالطفل', 'Baby Care'],
+        ],
+    ],
 ];

@@ -13,6 +13,12 @@
  *     مجمدات، مني ماركت، هايبر ماركت) and استوديوهات are intentionally omitted —
  *     they stay on Menu. منظفات is included (household_cleaners) and keeps its
  *     Menu link too.
+ *   - سوبر ماركت (2026-08-01) is the one exception to the food exclusion above:
+ *     it now ALSO gets 'grocery_retail' (additive — its existing Menu link is
+ *     untouched) so it can list SKUs from the shared catalog_products master
+ *     with price+stock via business_catalog_listings, alongside its free-form
+ *     Menu items. See [[retail-service-build]] / the grocery_retail branch in
+ *     retail_taxonomy.php for why this uses a distinct key, not 'supermarket'.
  *
  * Duplicate-named children (e.g. أجهزة رياضية appears twice under exhibitions)
  * are listed once; the seeder matches every id carrying that name.
@@ -85,6 +91,7 @@ return [
         'مفاتيح' => ['building_hardware'],
         'رخام' => ['building_hardware'],
         'مراتب' => ['home_furnishings'],
+        'سوبر ماركت' => ['grocery_retail'],
         'مستلزمات طبية' => ['beauty_health_retail'],
         'موبيلات و اكسسوار' => ['electronics_tech'],
         'حدايد وبويات' => ['building_hardware'],

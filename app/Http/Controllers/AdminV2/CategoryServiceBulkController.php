@@ -119,12 +119,18 @@ class CategoryServiceBulkController extends Controller
         ], true) ? $type : null;
     }
 
-    private function bookingConfigPayload(Request $request): array
+    private function bookingConfigPayload(Request $request, array $stored = []): array
     {
         return [
             'booking_modes' => $this->normalizeArray($request->input('booking_modes')),
             'item_family' => trim((string) $request->input('item_family', '')) ?: null,
-            'requires_bookable_item' => $this->toBool($request->input('requires_bookable_item'), true),
+            // Falls back to the STORED value, not a blanket true: the
+            // direct-booking classification turns this off per child, and a
+            // default of true would silently re-arm the unit list on any save.
+            'requires_bookable_item' => $this->toBool(
+                $request->input('requires_bookable_item'),
+                (bool) ($stored['requires_bookable_item'] ?? true)
+            ),
             'requires_start_end' => $this->toBool($request->input('requires_start_end'), true),
             'supports_quantity' => $this->toBool($request->input('supports_quantity')),
             'supports_guest_count' => $this->toBool($request->input('supports_guest_count')),
@@ -163,10 +169,25 @@ class CategoryServiceBulkController extends Controller
         ];
     }
 
-    private function serviceConfigPayload(Request $request, PlatformService $service): array
+    private function serviceConfigPayload(Request $request, PlatformService $service, ?int $rootId = null, ?int $childId = null): array
     {
+        // What is stored now, so a flag the admin did not submit keeps its
+        // value instead of snapping back to a blanket default — see
+        // bookingConfigPayload's requires_bookable_item.
+        $stored = [];
+
+        if ($rootId && $childId) {
+            $existing = CategoryServiceConfig::query()
+                ->where('category_id', $rootId)
+                ->where('child_id', $childId)
+                ->where('platform_service_id', $service->id)
+                ->value('config');
+
+            $stored = is_array($existing) ? $existing : (json_decode((string) $existing, true) ?: []);
+        }
+
         $config = match ((string) $service->key) {
-            PlatformService::KEY_BOOKING => $this->bookingConfigPayload($request),
+            PlatformService::KEY_BOOKING => $this->bookingConfigPayload($request, $stored),
             PlatformService::KEY_MENU => $this->menuConfigPayload($request),
             PlatformService::KEY_DELIVERY => $this->deliveryConfigPayload($request),
             PlatformService::KEY_RETAIL => $this->retailConfigPayload($request),
@@ -765,7 +786,7 @@ class CategoryServiceBulkController extends Controller
                     'platform_service_id' => $serviceId,
                 ],
                 [
-                    'config' => $this->serviceConfigPayload($request, $service),
+                    'config' => $this->serviceConfigPayload($request, $service, $rootId, $childId),
                     'is_active' => 1,
                     'sort_order' => $sortOrder,
                     'updated_at' => now(),
@@ -849,7 +870,7 @@ class CategoryServiceBulkController extends Controller
                     'platform_service_id' => $serviceId,
                 ],
                 [
-                    'config' => $this->serviceConfigPayload($request, $service),
+                    'config' => $this->serviceConfigPayload($request, $service, $rootId, $childId),
                     'is_active' => 1,
                     'sort_order' => $sortOrder,
                     'updated_at' => now(),

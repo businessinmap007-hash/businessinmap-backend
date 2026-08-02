@@ -307,7 +307,14 @@ class ServiceCatalogMatrixController extends Controller
     protected function mergeServiceConfig(array $current, array $itemTypes, Request $request, PlatformService $service): array
     {
         $current['allowed_item_types'] = array_values($itemTypes);
-        $current['requires_bookable_item'] = $request->boolean('requires_bookable_item', (string) $service->key === PlatformService::KEY_BOOKING);
+        // Default to what is ALREADY stored, not to true-for-booking: the
+        // direct-booking classification sets this false per child, and a blanket
+        // true here would silently re-arm the unit list on the next admin save.
+        // Only a child with no stored value at all falls back to the old rule.
+        $current['requires_bookable_item'] = $request->boolean(
+            'requires_bookable_item',
+            $current['requires_bookable_item'] ?? ((string) $service->key === PlatformService::KEY_BOOKING)
+        );
         $current['supports_quantity'] = $request->boolean('supports_quantity', true);
         $current['supports_guest_count'] = $request->boolean('supports_guest_count', false);
         $current['supports_extras'] = $request->boolean('supports_extras', false);

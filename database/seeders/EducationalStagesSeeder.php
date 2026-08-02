@@ -79,7 +79,19 @@ class EducationalStagesSeeder extends Seeder
             'فندقة وسياحة', 'تمريض ورعاية صحية', 'زراعة',
             'لغة عربية', 'لغة إنجليزية', 'رياضيات', 'حاسب آلي وتكنولوجيا معلومات',
         ],
+        // حضانات is the pre-school stage in practice (3 live accounts), so it
+        // carries the same foundation set as رياض أطفال.
+        'حضانات' => [
+            'تأسيس قراءة وكتابة', 'لغة عربية', 'لغة إنجليزية', 'رياضيات', 'تحفيظ قرآن',
+        ],
     ];
+
+    /**
+     * Children that teach FIELDS, not school subjects. Any المواد الدراسية link
+     * on them is a leak — «تحفيظ قرآن» had drifted onto مركز تدريب, which would
+     * have offered a training centre a school subject it never teaches.
+     */
+    private const SUBJECT_FREE_CHILDREN = ['مركز تدريب'];
 
     public function run(): void
     {
@@ -136,6 +148,7 @@ class EducationalStagesSeeder extends Seeder
             }
 
             $tutoring = $this->syncTutoringCentre($subjectGroupId, $stageGroupId);
+            $unlinked = $this->clearLeakedSubjects($subjectGroupId);
 
             $this->command?->info('Educational stages matrix applied:');
             $this->command?->line('  - subjects added : ' . $addedSubjects);
@@ -143,8 +156,31 @@ class EducationalStagesSeeder extends Seeder
                 $this->command?->line("  - «{$stage}» ← {$n} مادة");
             }
             $this->command?->line('  - سنتر دروس : ' . $tutoring['stages'] . ' مرحلة + ' . $tutoring['subjects'] . ' مادة');
+            $this->command?->line('  - leaked subject links cleared : ' . $unlinked);
             $this->command?->line('  NEXT: php artisan db:seed --class=NewChildrenBranchesSeeder');
         });
+    }
+
+    /** Strip school subjects off children that teach fields instead. */
+    private function clearLeakedSubjects(int $subjectGroupId): int
+    {
+        $subjectIds = DB::table('options')->where('group_id', $subjectGroupId)->pluck('id');
+        $cleared = 0;
+
+        foreach (self::SUBJECT_FREE_CHILDREN as $name) {
+            $childId = DB::table('category_children_master')->where('name_ar', $name)->value('id');
+
+            if (! $childId) {
+                continue;
+            }
+
+            $cleared += DB::table('category_child_option')
+                ->where('child_id', (int) $childId)
+                ->whereIn('option_id', $subjectIds)
+                ->delete();
+        }
+
+        return $cleared;
     }
 
     /** Azhari + technical subjects the base pool did not carry. */

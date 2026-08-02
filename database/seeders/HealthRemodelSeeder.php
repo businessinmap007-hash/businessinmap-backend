@@ -50,6 +50,7 @@ class HealthRemodelSeeder extends Seeder
             $universal = $this->attachUniversalOptions($childIds);
             $this->attachSpecialtyPool($data['children'], $childIds, $optionIds);
             $imaging = $this->attachImagingModalities($data, $childIds);
+            $labs = $this->attachLabTests($data, $childIds);
             $moved = $this->migrateBusinesses($data, $childIds, $optionIds);
             $detached = $this->detachSpecialtyChildren($data, $childIds);
 
@@ -58,6 +59,7 @@ class HealthRemodelSeeder extends Seeder
             $this->command?->line('  - business-type children : ' . count($childIds));
             $this->command?->line('  - universal commerce-option links added : ' . $universal);
             $this->command?->line('  - imaging modalities on مراكز أشعة : ' . $imaging);
+            $this->command?->line('  - lab tests on معمل تحاليل/مستشفى : ' . $labs);
             $this->command?->line('  - specialties detached from the Health root : ' . $detached);
             $this->command?->line('  - businesses re-pointed : ' . count($moved));
 
@@ -236,6 +238,37 @@ class HealthRemodelSeeder extends Seeder
                 ['child_id' => $childId, 'option_id' => $optionId],
                 ['reorder' => ++$order]
             );
+        }
+
+        return count($optionIds);
+    }
+
+    /**
+     * The lab-test pool — same axis logic as imaging: what a lab PERFORMS is
+     * descriptive/multi-select; the priced offering stays «تحليل / اختبار».
+     * Attached to معمل تحاليل and مستشفى (hospitals run their own labs).
+     */
+    private function attachLabTests(array $data, array $childIds): int
+    {
+        $groupId = $this->upsertSpecialtyGroup($data['lab_group']);
+        $optionIds = $this->upsertSpecialties($data['lab_tests'], $groupId);
+
+        foreach ($data['lab_children'] as $childName) {
+            $childId = $childIds[$childName]
+                ?? DB::table('category_children_master')->where('name_ar', $childName)->value('id');
+
+            if (! $childId) {
+                continue;
+            }
+
+            $order = 0;
+
+            foreach ($optionIds as $optionId) {
+                DB::table('category_child_option')->updateOrInsert(
+                    ['child_id' => (int) $childId, 'option_id' => $optionId],
+                    ['reorder' => ++$order]
+                );
+            }
         }
 
         return count($optionIds);

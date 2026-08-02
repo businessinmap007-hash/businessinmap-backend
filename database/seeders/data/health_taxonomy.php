@@ -117,6 +117,45 @@ return [
         'طب نووي' => 'Nuclear Medicine',
     ],
 
+    // ── Third narrow pool: the lab tests a معمل تحاليل performs — same axis
+    // logic as imaging (descriptive, multi-select, filterable); the priced
+    // offering stays the clinic item type «تحليل / اختبار». Also attached to
+    // مستشفى since hospitals run their own labs.
+    'lab_group' => ['name_ar' => 'التحاليل الطبية', 'name_en' => 'Medical Lab Tests'],
+
+    'lab_children' => ['معمل تحاليل', 'مستشفى'],
+
+    'lab_tests' => [
+        'صورة دم كاملة CBC' => 'Complete Blood Count',
+        'سكر صائم وفاطر' => 'Blood Glucose',
+        'سكر تراكمي HbA1c' => 'HbA1c',
+        'وظائف كبد' => 'Liver Function',
+        'وظائف كلى' => 'Kidney Function',
+        'دهون وكوليسترول' => 'Lipid Profile',
+        'غدة درقية' => 'Thyroid Profile',
+        'فيتامين د' => 'Vitamin D',
+        'فيتامين ب12' => 'Vitamin B12',
+        'حديد ومخزون الحديد' => 'Iron & Ferritin',
+        'إنزيمات القلب' => 'Cardiac Enzymes',
+        'سرعة الترسيب ESR' => 'ESR',
+        'بروتين سي التفاعلي CRP' => 'CRP',
+        'سيولة الدم INR' => 'Coagulation / INR',
+        'فيروسات الكبد' => 'Hepatitis Panel',
+        'هرمونات' => 'Hormone Panel',
+        'دلالات أورام' => 'Tumor Markers',
+        'تحليل حمل' => 'Pregnancy Test',
+        'بول كامل' => 'Urinalysis',
+        'براز كامل' => 'Stool Analysis',
+        'مزرعة وحساسية' => 'Culture & Sensitivity',
+        'حمض يوريك' => 'Uric Acid',
+        'كالسيوم وأملاح' => 'Calcium & Electrolytes',
+        'تحليل PCR' => 'PCR Test',
+        'فصيلة الدم' => 'Blood Typing',
+        'تحليل مخدرات' => 'Drug Screening',
+        'ما قبل الزواج' => 'Premarital Panel',
+        'باقة فحص شامل' => 'Full Checkup Panel',
+    ],
+
     // ── Where the 8 businesses currently registered under a specialty child
     // get moved. Their former specialty is preserved as a selected option in
     // `option_user`, so nothing is lost — only re-filed onto the right axis.

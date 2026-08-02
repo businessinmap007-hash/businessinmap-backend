@@ -40,6 +40,16 @@ return [
         'مركز مؤتمرات واجتماعات' => ['halls_events'],
         'قاعات تدريب' => ['halls_events'],
     ],
+    // accommodation types (HotelsRemodelSeeder) — the star children they
+    // replace stay wired until their 66 mis-filed accounts are re-classified.
+    'tourist-hotels' => [
+        'فندق' => ['hotel'],
+        'شقق فندقية' => ['hotel'],
+        'منتجع' => ['hotel'],
+        'نُزل / هوستل' => ['hotel'],
+        'بيت ضيافة' => ['hotel'],
+        'فندق عائم / بوت نيلي' => ['hotel'],
+    ],
     'training-courses' => [
         'مركز تدريب' => ['training'],
         // stage children (EducationalStagesSeeder): a centre specialising in

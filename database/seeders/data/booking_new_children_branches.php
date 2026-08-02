@@ -60,6 +60,8 @@ return [
         'تخليص جمركي' => ['business_consulting'],
         'طباعة' => ['business_consulting'],
         'خدمات منزلية' => ['services_tasks'],
-        'منطقة عمل مشتركة' => ['halls_events'],
+        // was borrowing halls_events; now has its own branch (desk, private
+        // office, meeting room) — see CoworkingAndHotelUnitsSeeder.
+        'منطقة عمل مشتركة' => ['coworking'],
     ],
 ];

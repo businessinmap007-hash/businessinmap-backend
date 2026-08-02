@@ -147,7 +147,17 @@ class TaxonomyRedistributionTest extends TestCase
 
     public function test_no_config_offers_a_retired_item_type(): void
     {
-        $dead = DB::table('platform_service_item_types')->where('is_active', 0)->pluck('key')->flip();
+        // A key is only retired WITHIN its own service: `platform_service_item_types`
+        // is unique on (platform_service_id, key), so the same key can name a
+        // retired type in one service and a live one in another — e.g. `frozen`
+        // is dead menu junk but is the live «مجمدات» type under retail. Scoping
+        // by service is what keeps this from flagging healthy configs.
+        $deadByService = DB::table('platform_service_item_types')
+            ->where('is_active', 0)
+            ->get(['platform_service_id', 'key'])
+            ->groupBy('platform_service_id')
+            ->map(fn ($rows) => $rows->pluck('key')->flip());
+
         $offenders = [];
 
         foreach (DB::table('category_service_configs')->get() as $row) {
@@ -155,6 +165,12 @@ class TaxonomyRedistributionTest extends TestCase
             $allowed = is_array($config) ? ($config['allowed_item_types'] ?? []) : [];
 
             if (! is_array($allowed)) {
+                continue;
+            }
+
+            $dead = $deadByService->get((int) $row->platform_service_id);
+
+            if (! $dead) {
                 continue;
             }
 

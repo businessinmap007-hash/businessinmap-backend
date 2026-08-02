@@ -30,10 +30,15 @@ return [
     // the existing «مكتب» child CANNOT be reused because it is shared with root
     // 5 «شحن وتوصيل», where 14 delivery companies sit on it — only the 4
     // real-estate accounts move onto the new child.
+    // مالك عقار is the owner listing their own unit with no broker in between —
+    // the «من المالك» side of the market that buyers filter for explicitly.
+    // Named to match its siblings' profession-noun pattern (مالك عقاري would be
+    // poor Arabic).
     'children' => [
         ['name_ar' => 'مكتب عقاري',  'name_en' => 'Real Estate Office',   'existing' => false],
         ['name_ar' => 'تسويق عقاري', 'name_en' => 'Real Estate Marketing','existing' => true],
         ['name_ar' => 'مطور عقاري',  'name_en' => 'Real Estate Developer','existing' => false],
+        ['name_ar' => 'مالك عقار',   'name_en' => 'Property Owner',       'existing' => false],
     ],
 
     // ── The shared child that must NOT be detached from root 18 wholesale.

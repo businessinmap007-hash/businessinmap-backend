@@ -42,6 +42,14 @@ return [
     ],
     'training-courses' => [
         'مركز تدريب' => ['training'],
+        // stage children (EducationalStagesSeeder): a centre specialising in
+        // one stage registers under it directly and books the same sessions.
+        'رياض أطفال' => ['training'],
+        'ابتدائي' => ['training'],
+        'إعدادي' => ['training'],
+        'ثانوي عام' => ['training'],
+        'ثانوي أزهري' => ['training'],
+        'دبلومات فنية' => ['training'],
     ],
     // offices review 2026-08-02: professions whose booking is a consultation /
     // site visit / online session; home services sell tasks; coworking books

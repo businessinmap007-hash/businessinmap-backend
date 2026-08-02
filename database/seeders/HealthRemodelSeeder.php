@@ -49,6 +49,7 @@ class HealthRemodelSeeder extends Seeder
             $childIds = $this->upsertChildren($data['children']);
             $universal = $this->attachUniversalOptions($childIds);
             $this->attachSpecialtyPool($data['children'], $childIds, $optionIds);
+            $imaging = $this->attachImagingModalities($data, $childIds);
             $moved = $this->migrateBusinesses($data, $childIds, $optionIds);
             $detached = $this->detachSpecialtyChildren($data, $childIds);
 
@@ -56,6 +57,7 @@ class HealthRemodelSeeder extends Seeder
             $this->command?->line('  - specialty options : ' . count($optionIds) . " (group #{$groupId})");
             $this->command?->line('  - business-type children : ' . count($childIds));
             $this->command?->line('  - universal commerce-option links added : ' . $universal);
+            $this->command?->line('  - imaging modalities on مراكز أشعة : ' . $imaging);
             $this->command?->line('  - specialties detached from the Health root : ' . $detached);
             $this->command?->line('  - businesses re-pointed : ' . count($moved));
 
@@ -209,6 +211,34 @@ class HealthRemodelSeeder extends Seeder
                 );
             }
         }
+    }
+
+    /**
+     * Build the imaging-modality pool and attach it to مراكز أشعة only. What a
+     * centre OWNS (رنين، مقطعية، سونار…) is descriptive and multi-select, so it
+     * belongs on the option axis next to the specialties; the thing that
+     * carries a price stays the `clinic` item type «أشعة / تصوير».
+     */
+    private function attachImagingModalities(array $data, array $childIds): int
+    {
+        $childId = $childIds[$data['imaging_child']] ?? null;
+
+        if (! $childId) {
+            return 0;
+        }
+
+        $groupId = $this->upsertSpecialtyGroup($data['imaging_group']);
+        $optionIds = $this->upsertSpecialties($data['imaging_modalities'], $groupId);
+        $order = 0;
+
+        foreach ($optionIds as $optionId) {
+            DB::table('category_child_option')->updateOrInsert(
+                ['child_id' => $childId, 'option_id' => $optionId],
+                ['reorder' => ++$order]
+            );
+        }
+
+        return count($optionIds);
     }
 
     /**

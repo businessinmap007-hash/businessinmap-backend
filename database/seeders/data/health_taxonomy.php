@@ -92,6 +92,31 @@ return [
         'نطق وتخاطب' => 'Speech Therapy',
     ],
 
+    // ── A second, narrower option pool: the imaging modalities a radiology
+    // centre actually owns. Same axis as the specialties (descriptive,
+    // multi-select, filterable) — «هذا المركز عنده رنين» — while the priced
+    // offering stays the existing `clinic` item type «أشعة / تصوير».
+    // Attached only to مراكز أشعة, so مستشفى/عيادة don't get imaging noise.
+    'imaging_group' => ['name_ar' => 'أنواع الأشعة', 'name_en' => 'Imaging Modalities'],
+
+    'imaging_child' => 'مراكز أشعة',
+
+    'imaging_modalities' => [
+        'أشعة سينية عادية' => 'X-Ray',
+        'أشعة بالصبغة' => 'Contrast Radiography',
+        'أشعة مقطعية' => 'CT Scan',
+        'رنين مغناطيسي' => 'MRI',
+        'موجات صوتية / سونار' => 'Ultrasound',
+        'سونار رباعي الأبعاد' => '4D Ultrasound',
+        'دوبلر' => 'Doppler',
+        'أشعة الثدي / ماموجرام' => 'Mammography',
+        'قياس كثافة العظام' => 'Bone Densitometry (DEXA)',
+        'تصوير الأوعية' => 'Angiography',
+        'أشعة تداخلية' => 'Interventional Radiology',
+        'أشعة أسنان بانورامية' => 'Panoramic Dental X-Ray',
+        'طب نووي' => 'Nuclear Medicine',
+    ],
+
     // ── Where the 8 businesses currently registered under a specialty child
     // get moved. Their former specialty is preserved as a selected option in
     // `option_user`, so nothing is lost — only re-filed onto the right axis.

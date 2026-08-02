@@ -65,7 +65,10 @@ class TaxonomyRedistributionTest extends TestCase
             'the halls branch is filling up with non-bookables again: ' . $types->implode(' · ')
         );
 
-        $this->assertContains('قاعة أفراح', $types->all(), 'the branch must still hold the halls themselves');
+        // قاعة أفراح/خطوبة retired 2026-08-02 (ServicesReformSeeder): the EVENT
+        // moved to the «أنواع المناسبات» option group, so the branch now holds
+        // hall CLASSES only — the plain hall is the sentinel that must survive.
+        $this->assertContains('قاعة عادية', $types->all(), 'the branch must still hold the halls themselves');
     }
 
     public function test_amenities_are_an_option_but_capacity_and_class_are_not(): void

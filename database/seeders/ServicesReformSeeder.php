@@ -70,6 +70,16 @@ class ServicesReformSeeder extends Seeder
         'business_consulting' => ['customer_service'],
     ];
 
+    /**
+     * Stray ACTIVE types with no branch at all (found by the owner's duplicate
+     * audit): descriptors now covered by option pools, zero prices. `category`
+     * («افتراضي») is deliberately ungrouped and must NEVER appear here — it is
+     * BusinessServicePrice::DEFAULT_ITEM_TYPE, the direct-booking price slot.
+     */
+    private const RETIRE_UNGROUPED = [
+        'architectural', 'exterior_designing', 'fire_fighting_system', 'manufacture_all_type_of_models',
+    ];
+
     /** Branch => shared keys to UNLINK ONLY (alive elsewhere — see class doc). */
     private const UNLINK_ONLY = [
         'training' => ['apartment'],
@@ -117,10 +127,21 @@ class ServicesReformSeeder extends Seeder
             $retired = $this->retire($serviceId, $groups, self::RETIRE, true);
             $unlinked = $this->retire($serviceId, $groups, self::UNLINK_ONLY, false);
 
-            // the branch is now empty of purpose — close it
-            DB::table('platform_service_item_groups')
-                ->where('id', (int) $groups['health_medical'])
-                ->update(['is_active' => 0, 'updated_at' => now()]);
+            $strays = 0;
+            foreach (self::RETIRE_UNGROUPED as $key) {
+                $strays += DB::table('platform_service_item_types')
+                    ->where('platform_service_id', $serviceId)->where('key', $key)
+                    ->where('is_active', 1)->update(['is_active' => 0, 'updated_at' => now()]);
+                $this->stripKeyFromConfigs($serviceId, $key);
+            }
+
+            // the branch is now empty of purpose — close it (tolerate the row
+            // having been hand-deleted from the admin panel since)
+            if ($groups->has('health_medical')) {
+                DB::table('platform_service_item_groups')
+                    ->where('id', (int) $groups['health_medical'])
+                    ->update(['is_active' => 0, 'updated_at' => now()]);
+            }
 
             $fields = $this->addTrainingFields();
 
@@ -128,6 +149,7 @@ class ServicesReformSeeder extends Seeder
             $this->command?->line("  - types added : {$added}");
             $this->command?->line("  - types retired : {$retired}");
             $this->command?->line("  - shared keys unlinked only : {$unlinked}");
+            $this->command?->line("  - stray ungrouped types retired : {$strays}");
             $this->command?->line("  - training-field options added : {$fields}");
             $this->command?->line('  - health_medical branch closed');
             $this->command?->line('  NEXT: php artisan db:seed --class=BookingChildBranchesSeeder');
@@ -174,7 +196,7 @@ class ServicesReformSeeder extends Seeder
         $count = 0;
 
         foreach ($map as $branch => $keys) {
-            $groupId = (int) $groups[$branch];
+            $groupId = (int) $groups->get($branch, 0); // branch may have been hand-deleted since
 
             foreach ($keys as $key) {
                 $typeId = DB::table('platform_service_item_types')

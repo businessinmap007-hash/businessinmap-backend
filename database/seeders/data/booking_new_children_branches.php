@@ -43,4 +43,15 @@ return [
     'training-courses' => [
         'مركز تدريب' => ['training'],
     ],
+    // offices review 2026-08-02: professions whose booking is a consultation /
+    // site visit / online session; home services sell tasks; coworking books
+    // rooms like the halls do.
+    'offices' => [
+        'هندسية' => ['business_consulting'],
+        'ديكور' => ['business_consulting'],
+        'تخليص جمركي' => ['business_consulting'],
+        'طباعة' => ['business_consulting'],
+        'خدمات منزلية' => ['services_tasks'],
+        'منطقة عمل مشتركة' => ['halls_events'],
+    ],
 ];

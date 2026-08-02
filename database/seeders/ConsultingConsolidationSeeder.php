@@ -67,6 +67,22 @@ class ConsultingConsolidationSeeder extends Seeder
                 }
                 DB::table('platform_service_item_group_type')->where('group_id', $groupId)->where('item_type_id', $typeId)->delete();
                 DB::table('platform_service_item_types')->where('id', $typeId)->update(['is_active' => 0, 'updated_at' => now()]);
+
+                // strip from EVERY config — matrix-authored ones aren't covered
+                // by the child-branch data files' re-derivation
+                foreach (DB::table('category_service_configs')->where('platform_service_id', $serviceId)->get(['id', 'config']) as $row) {
+                    $config = json_decode((string) $row->config, true);
+                    $allowed = is_array($config) ? ($config['allowed_item_types'] ?? null) : null;
+
+                    if (! is_array($allowed) || ! in_array($key, $allowed, true)) {
+                        continue;
+                    }
+
+                    $config['allowed_item_types'] = array_values(array_diff($allowed, [$key]));
+                    DB::table('category_service_configs')->where('id', $row->id)
+                        ->update(['config' => json_encode($config, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
+                }
+
                 $retired++;
             }
 

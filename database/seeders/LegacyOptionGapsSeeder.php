@@ -85,7 +85,11 @@ class LegacyOptionGapsSeeder extends Seeder
         }
 
         foreach (self::ENGINEERING_FIELDS as [$ar, $en]) {
-            $optionId = DB::table('options')->where('group_id', $groupId)->where('name_ar', $ar)->value('id');
+            // Resolve by NAME, not by group: the 2026-08-02 consolidation folded
+            // «تخصصات استشارية» into «تخصصات الهندسة», so these rows now live in
+            // the engineering group. Scoping to $groupId here would miss them and
+            // re-insert, which the global options.name_en unique index rejects.
+            $optionId = DB::table('options')->where('name_ar', $ar)->value('id');
 
             if (! $optionId) {
                 $optionId = DB::table('options')->insertGetId([

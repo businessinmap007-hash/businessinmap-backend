@@ -23,9 +23,20 @@ class LegacyOptionGapsTest extends TestCase
 
     public function test_engineering_fields_are_options_linked_to_the_engineering_child(): void
     {
+        // Since the 2026-08-02 merge these live in «تخصصات الهندسة» — group #25
+        // «تخصصات استشارية» was folded into it and deactivated, and كهرباء's
+        // links were re-pointed onto the engineering copy. So resolve the field
+        // through the ACTIVE group rather than by bare name, which would still
+        // find the emptied legacy row.
+        $engineeringGroupId = DB::table('option_groups')->where('name_ar', 'تخصصات الهندسة')->value('id');
+        $this->assertNotNull($engineeringGroupId, 'the engineering specialty group must exist');
+
         foreach (['كهرباء', 'بترول', 'غزل ونسيج'] as $field) {
-            $option = DB::table('options')->where('name_ar', $field)->first();
-            $this->assertNotNull($option, "«{$field}» must exist as an option");
+            $option = DB::table('options')
+                ->where('group_id', $engineeringGroupId)
+                ->where('name_ar', $field)
+                ->first();
+            $this->assertNotNull($option, "«{$field}» must exist as an engineering specialty option");
 
             $this->assertDatabaseHas('category_child_option', [
                 'child_id' => self::ENGINEERING_CHILD_ID,
@@ -55,8 +66,10 @@ class LegacyOptionGapsTest extends TestCase
             'is_active' => 1,
         ]);
 
+        // engineering_consultation retired 2026-08-02 (ConsultingConsolidationSeeder):
+        // the field lives on the child+options now, the booked form is generic.
         $this->assertDatabaseHas('platform_service_item_types', [
-            'key' => 'engineering_consultation',
+            'key' => 'in_person_consultation',
             'platform_service_id' => 1,
             'is_active' => 1,
         ]);

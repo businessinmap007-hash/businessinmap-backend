@@ -66,4 +66,22 @@ return [
             'منطقة عمل مشتركة' => 'units',
         ],
     ],
+
+    /*
+    | Phase 3 — narrowing the lists the 'units' children keep.
+    |
+    | A units child still inherits its whole BRANCH, which is right for a
+    | multi-sport club but wrong for a venue that rents one kind of thing: a
+    | swimming pool was being offered eight football and tennis pitches, and a
+    | football ground was offered swimming lanes. Only children that genuinely
+    | need a narrower slice are listed; everything else keeps its branch, which
+    | is already correct (hotels→rooms, restaurants→tables, halls→hall classes,
+    | property brokers→every property type).
+    */
+    'type_overrides' => [
+        'sports' => [
+            'ملاعب كرة' => ['five_side_field', 'football_7_field', 'football_11_field', 'full_field'],
+            'حمام سباحة' => ['swimming_lane'],
+        ],
+    ],
 ];

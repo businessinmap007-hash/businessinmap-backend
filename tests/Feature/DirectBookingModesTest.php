@@ -74,6 +74,24 @@ class DirectBookingModesTest extends TestCase
         $this->assertContains('inspection_visit', $carpenter['types'], 'craft children price the generic tasks');
     }
 
+    /**
+     * A units child that rents ONE kind of thing keeps only its slice of the
+     * branch — the pool was being offered eight football and tennis pitches.
+     */
+    public function test_single_purpose_venues_keep_only_their_own_units(): void
+    {
+        $pool = $this->configFor('sports', 'حمام سباحة');
+        $this->assertSame(['swimming_lane'], $pool['types'], 'a pool rents lanes, nothing else');
+
+        $pitches = $this->configFor('sports', 'ملاعب كرة');
+        $this->assertNotContains('swimming_lane', $pitches['types'], 'a football ground has no swimming lane');
+        $this->assertNotContains('tennis_court', $pitches['types'], 'nor a tennis court');
+        $this->assertContains('five_side_field', $pitches['types']);
+
+        // a multi-sport club legitimately keeps the whole branch
+        $this->assertGreaterThan(5, count($this->configFor('sports', 'نادي رياضي')['types']));
+    }
+
     /** A child detached from its root must not linger as bookable. */
     public function test_detached_children_have_no_live_booking_config(): void
     {

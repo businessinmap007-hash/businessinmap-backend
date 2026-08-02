@@ -34,6 +34,7 @@ class BookingChildModesSeeder extends Seeder
 
             $orphans = $this->deactivateOrphanConfigs($serviceId);
             $counts = ['units' => 0, 'direct' => 0, 'direct_typed' => 0];
+            $narrowed = 0;
 
             $rows = DB::table('category_service_configs as c')
                 ->join('categories as r', 'r.id', '=', 'c.category_id')
@@ -53,13 +54,31 @@ class BookingChildModesSeeder extends Seeder
                 }
 
                 $counts[$mode]++;
+                $override = $data['type_overrides'][$row->root][$row->child] ?? null;
 
-                if ($mode === 'units') {
+                if ($mode === 'units' && ! $override) {
                     continue; // already the stored behaviour
                 }
 
                 $config = json_decode((string) $row->config, true);
                 $config = is_array($config) ? $config : [];
+
+                // A units child that rents one kind of thing keeps only its
+                // slice of the branch (a pool is not offered football pitches).
+                if ($override) {
+                    $config['allowed_item_types'] = array_values($override);
+                    $narrowed++;
+                }
+
+                if ($mode === 'units') {
+                    DB::table('category_service_configs')->where('id', $row->id)->update([
+                        'config' => json_encode($config, JSON_UNESCAPED_UNICODE),
+                        'updated_at' => now(),
+                    ]);
+
+                    continue;
+                }
+
                 $config['requires_bookable_item'] = false;
 
                 if ($mode === 'direct') {
@@ -77,6 +96,7 @@ class BookingChildModesSeeder extends Seeder
             $this->command?->line("  - units (instances reserved) : {$counts['units']}");
             $this->command?->line("  - direct_typed (types priced, no units) : {$counts['direct_typed']}");
             $this->command?->line("  - direct (appointment only) : {$counts['direct']}");
+            $this->command?->line("  - unit lists narrowed to their own slice : {$narrowed}");
         });
     }
 

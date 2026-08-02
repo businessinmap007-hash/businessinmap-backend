@@ -114,6 +114,12 @@ class ServicesReformSeeder extends Seeder
         'ياباني' => 'Japanese', 'روسي' => 'Russian',
         'تحضير اختبارات دولية' => 'International Test Prep',
         'مهارات بيع' => 'Sales Skills', 'إدارة مشاريع' => 'Project Management',
+        // owner correction 2026-08-02: these are COURSE fields under مركز
+        // تدريب, not consulting forms — the item types stayed retired, the
+        // fields live here.
+        'إدارة الجودة' => 'Quality Management',
+        'التخطيط الاستراتيجي' => 'Strategic Planning',
+        'إدارة المخازن' => 'Warehouse Management',
     ];
 
     public function run(): void

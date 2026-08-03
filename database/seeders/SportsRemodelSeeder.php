@@ -150,25 +150,63 @@ class SportsRemodelSeeder extends Seeder
         return $added;
     }
 
-    /** The pool a venue picks its sports FROM at signup. */
+    /**
+     * The pool a venue picks its sports FROM at signup.
+     *
+     * A venue that can only host part of the pool gets only that part
+     * (`child_activity_pools`); the rest is withdrawn, because handing all 45 to
+     * every child had a gym declaring water polo. Withdrawal stops at anything a
+     * merchant has already ticked — their answer outranks the map.
+     */
     private function attachActivityPool(array $data, array $childIds, array $optionIds): void
     {
         $skip = $data['skip_activity_pool'] ?? [];
+        $pools = $data['child_activity_pools'] ?? [];
+
+        // option id => activity name, so a pool can be written in Arabic names
+        $names = DB::table('options')->whereIn('id', $optionIds)->pluck('name_ar', 'id');
 
         foreach ($childIds as $name => $childId) {
             if (in_array($name, $skip, true)) {
                 continue;
             }
 
+            $wanted = isset($pools[$name])
+                ? $names->filter(fn ($activity) => in_array($activity, $pools[$name], true))->keys()->all()
+                : $optionIds;
+
             $order = 0;
 
-            foreach ($optionIds as $optionId) {
+            foreach ($wanted as $optionId) {
                 DB::table('category_child_option')->updateOrInsert(
                     ['child_id' => $childId, 'option_id' => $optionId],
                     ['reorder' => ++$order]
                 );
             }
+
+            $this->withdrawUnusedActivities($childId, array_diff($optionIds, $wanted));
         }
+    }
+
+    /** Remove pool entries this venue cannot host, unless a merchant chose one. */
+    private function withdrawUnusedActivities(int $childId, array $optionIds): void
+    {
+        if (! $optionIds) {
+            return;
+        }
+
+        $chosen = DB::table('option_user as ou')
+            ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->where('u.category_child_id', $childId)
+            ->whereIn('ou.option_id', $optionIds)
+            ->pluck('ou.option_id')
+            ->unique()
+            ->all();
+
+        DB::table('category_child_option')
+            ->where('child_id', $childId)
+            ->whereIn('option_id', array_diff($optionIds, $chosen))
+            ->delete();
     }
 
     /**

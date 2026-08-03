@@ -102,6 +102,27 @@ return [
     // except the supplements shop, which sells product and plays no sport.
     'skip_activity_pool' => ['مكملات غذائية'],
 
+    // …and except the three venues that can only host part of it. Handing all
+    // 45 to every child made a gym declare water polo and a swimming pool
+    // declare parkour. A club and an academy genuinely may host anything, so
+    // they are absent here and keep the whole pool.
+    'child_activity_pools' => [
+        'جيم' => [
+            'كمال أجسام / حديد', 'كارديو', 'كروس فيت', 'يوجا', 'بيلاتس', 'زومبا',
+            'سبينينج', 'آيروبكس', 'رفع أثقال', 'جمباز',
+            'ملاكمة', 'كيك بوكسينج', 'فنون الدفاع عن النفس', 'كاراتيه', 'تايكوندو',
+            'جودو', 'كونغ فو', 'جوجيتسو / فنون قتالية مختلطة', 'مواي تاي',
+            'مصارعة حرة ورومانية',
+        ],
+        'حمام سباحة' => [
+            'سباحة', 'سباحة إيقاعية', 'كرة ماء', 'غوص / غطس', 'رياضات مائية', 'تجديف',
+        ],
+        'ملاعب كرة' => [
+            'كرة قدم', 'كرة سلة', 'كرة طائرة', 'كرة يد', 'هوكي', 'رجبي',
+            'تنس', 'اسكواش', 'بادل', 'تنس طاولة', 'بادمنتون',
+        ],
+    ],
+
     // ── The sport children detached from root 7. Master rows are kept, so the
     // move is reversible; a child that still carries an account is skipped.
     'detach_children' => [

@@ -55,21 +55,39 @@ class CategoryChildOptionLinkingTest extends TestCase
         $this->assertSame(0, $leaked, 'a vehicle-brand option has no business being offered on a restaurant/pharmacy/law-firm specialty');
     }
 
+    /**
+     * The owner hand-linked the real-estate children to the real-estate options
+     * through the bulk editor while this seeder was being written, and the point
+     * was that a seeder must never overwrite that. It used to be pinned to «شقة»
+     * — but «شقة» is no longer a child at all: the real-estate remodel turned
+     * the property types into booking ITEM types, and the rows left behind
+     * belong to no root, so their links were cleared as unreachable.
+     *
+     * The invariant survives on the children that are still children: a real
+     * estate office describes itself with the property group.
+     */
     public function test_the_owners_manual_real_estate_linking_survived_untouched(): void
     {
-        // The owner hand-linked all 12 real-estate children to all 18
-        // real-estate options via the bulk editor concurrently with this
-        // seeder's design — proof the seeder must never overwrite that.
-        $shqa = DB::table('category_children_master')->where('name_ar', 'شقة')->first();
+        $office = DB::table('category_parent_child as pc')
+            ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
+            ->join('categories as r', 'r.id', '=', 'pc.parent_id')
+            ->where('r.slug', 'property-and-land')
+            ->where('ch.name_ar', 'مكتب عقاري')
+            ->value('ch.id');
 
-        if (! $shqa) {
-            $this->markTestSkipped('The شقة real-estate child is gone.');
+        if (! $office) {
+            $this->markTestSkipped('The مكتب عقاري child is gone.');
         }
 
-        $group9Count = DB::table('options')->where('group_id', 9)->count();
-        $linked = DB::table('category_child_option')->where('child_id', $shqa->id)->count();
+        $propertyOptions = DB::table('options')->where('group_id', 9)->count();
 
-        $this->assertGreaterThanOrEqual($group9Count, $linked, 'شقة must still carry every real-estate option the owner linked by hand');
+        $linked = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->where('co.child_id', $office)
+            ->where('o.group_id', 9)
+            ->count();
+
+        $this->assertSame($propertyOptions, $linked, 'مكتب عقاري must still carry every real-estate option');
     }
 
     public function test_seeder_is_idempotent(): void

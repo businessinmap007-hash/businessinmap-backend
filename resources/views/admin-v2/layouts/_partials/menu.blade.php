@@ -38,11 +38,12 @@
     $menu = [
         ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
         ['label' => 'المستخدمون', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
-        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.child-workbench.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
             ['label' => 'التصنيفات', 'type' => 'section', 'children' => [
                 ['label' => 'التصنيفات الرئيسية', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
                 ['label' => 'التصنيفات الفرعية', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
                 ['label' => 'خيارات التصنيفات الفرعية', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+                ['label' => 'طاولة عمل الابن', 'route' => 'admin.child-workbench.index', 'active' => 'admin.child-workbench.'],
                 ['label' => 'الخيارات', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
                 ['label' => 'مجموعات الخيارات', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
             ]],

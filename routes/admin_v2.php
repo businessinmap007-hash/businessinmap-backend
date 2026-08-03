@@ -25,6 +25,7 @@ use App\Http\Controllers\AdminV2\{
     CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
+    ChildWorkbenchController,
     BusinessTableAdminController,
     CommercialOfferController,
     DashboardController,
@@ -165,6 +166,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [CategoryServiceBulkController::class, 'index'])->name('index');
             Route::get('apply', fn () => redirect()->route('admin.categories.index'))->name('apply.get');
             Route::post('apply', [CategoryServiceBulkController::class, 'apply'])->name('apply');
+        });
+
+        // One child, both axes. The attributes screen and the services screen
+        // each answer half the question «ما الذي يُسمح لهذا الابن أن يكونه وأن
+        // يبيعه؟»; this puts the halves next to each other.
+        Route::prefix('child-workbench')->name('child-workbench.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [ChildWorkbenchController::class, 'index'])->name('index');
+            Route::post('options', [ChildWorkbenchController::class, 'saveOptions'])->name('options');
+            Route::post('services', [ChildWorkbenchController::class, 'saveServices'])->name('services');
         });
 
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {

@@ -71,7 +71,14 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
 
     public function run(): void
     {
-        $children = DB::table('category_children_master')->get(['id', 'name_ar']);
+        // Only children that hang off a root. 80 master rows belong to no root
+        // — retired stars, unlinked duplicates, and the real-estate rows that
+        // became booking item types — and linking options onto those is how a
+        // stale answer sheet gets waiting for whoever re-attaches the child.
+        // OrphanChildLinksCleanupSeeder clears them; this must not refill them.
+        $children = DB::table('category_children_master as ch')
+            ->whereExists(fn ($q) => $q->from('category_parent_child as pc')->whereColumn('pc.child_id', 'ch.id'))
+            ->get(['ch.id', 'ch.name_ar']);
 
         $existingPairs = DB::table('category_child_option')
             ->get(['child_id', 'option_id'])

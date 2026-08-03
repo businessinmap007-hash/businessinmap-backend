@@ -74,20 +74,39 @@ class SportsRemodelSeeder extends Seeder
         $ids = [];
 
         foreach ($activities as $ar => $en) {
-            $id = DB::table('options')->where('group_id', $groupId)->where('name_ar', $ar)->value('id');
-
-            if (! $id) {
-                $id = DB::table('options')->insertGetId([
-                    'group_id' => $groupId,
-                    'name_ar' => $ar,
-                    'name_en' => $en,
-                ]);
-            }
-
-            $ids[$ar] = (int) $id;
+            $ids[$ar] = $this->findOrCreateOption($ar, $en, $groupId);
         }
 
         return $ids;
+    }
+
+    /**
+     * Find the option by its NAME, wherever it currently lives, and only create
+     * it when no row exists at all.
+     *
+     * This used to scope the lookup to `group_id`, which meant that the moment
+     * an option was re-filed into a narrower group — as the split into families
+     * did — the seeder stopped seeing it and INSERTED A DUPLICATE on the next
+     * run. `name_en` is globally unique, so it is the natural key; `name_ar` is
+     * the fallback for rows that predate that column being filled.
+     *
+     * A found row keeps the group it is in. This seeder says what must EXIST,
+     * not where it must be filed.
+     */
+    private function findOrCreateOption(string $ar, string $en, int $groupId): int
+    {
+        $id = DB::table('options')->where('name_en', $en)->value('id')
+            ?: DB::table('options')->where('name_ar', $ar)->value('id');
+
+        if ($id) {
+            return (int) $id;
+        }
+
+        return (int) DB::table('options')->insertGetId([
+            'group_id' => $groupId,
+            'name_ar' => $ar,
+            'name_en' => $en,
+        ]);
     }
 
     /** @return array<string, int> name_ar => child id */

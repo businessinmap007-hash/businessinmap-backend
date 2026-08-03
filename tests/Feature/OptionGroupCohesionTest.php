@@ -68,17 +68,71 @@ class OptionGroupCohesionTest extends TestCase
     }
 
     /**
-     * The long groups that are deliberately NOT split, so a later cleanup does
-     * not "tidy" a coherent list into headings for no reason.
+     * A marque list has no families to cut it into, so it stays whole. Guarded
+     * so a later cleanup does not "tidy" a coherent list into headings.
      */
-    public function test_the_single_question_groups_are_left_whole(): void
+    public function test_the_marque_list_is_left_whole(): void
     {
-        foreach (['ماركات السيارات' => 20, 'تخصصات طبية' => 30, 'الأنشطة الرياضية' => 30] as $group => $atLeast) {
-            $this->assertGreaterThanOrEqual(
-                $atLeast,
-                count($this->namesIn($group)),
-                "«{$group}» asks one question; splitting it would only add headings"
+        $this->assertGreaterThanOrEqual(
+            20,
+            count($this->namesIn('ماركات السيارات')),
+            'a list of car marques asks one question and has no natural families'
+        );
+    }
+
+    /** 45 sports and 41 specialties are now read as families. */
+    public function test_the_long_lists_are_read_as_families(): void
+    {
+        foreach ([
+            'رياضات جماعية' => 'كرة قدم',
+            'رياضات قتالية' => 'ملاكمة',
+            'لياقة وصالات' => 'كارديو',
+            'تخصصات جراحية' => 'جراحة عامة',
+            'تخصصات باطنية' => 'باطنه',
+            'عيون وأنف وأذن' => 'عيون',
+            'تحاليل الدم والكيمياء' => 'صورة دم كاملة CBC',
+        ] as $group => $member) {
+            $this->assertContains($member, $this->namesIn($group), "«{$member}» belongs in «{$group}»");
+        }
+
+        // the parents keep only what belongs to no family
+        $this->assertContains('باركور', $this->namesIn('الأنشطة الرياضية'));
+        $this->assertNotContains('كرة قدم', $this->namesIn('الأنشطة الرياضية'));
+
+        $this->assertContains('أسنان', $this->namesIn('تخصصات طبية'));
+        $this->assertNotContains('جراحة عامة', $this->namesIn('تخصصات طبية'));
+    }
+
+    /**
+     * The reason the split was unsafe before.
+     *
+     * Both remodel seeders looked an option up by (group_id, name_ar). Once a
+     * row was re-filed into a family the lookup missed it and INSERTED it again,
+     * so a single re-run would have duplicated 45 sports and 41 specialties.
+     * They now key on the globally unique `name_en`, falling back to `name_ar`,
+     * and leave a found row in whatever group it is in.
+     */
+    public function test_re_running_the_remodel_seeders_creates_no_duplicates(): void
+    {
+        $before = DB::table('options')->count();
+
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\SportsRemodelSeeder)->run();
+            (new \Database\Seeders\HealthRemodelSeeder)->run();
+
+            $this->assertSame(
+                $before,
+                DB::table('options')->count(),
+                'a re-filed option must be found where it now lives, not created again'
             );
+
+            // and it must not be dragged back to the parent group either
+            $this->assertContains('كرة قدم', $this->namesIn('رياضات جماعية'));
+            $this->assertContains('جراحة عامة', $this->namesIn('تخصصات جراحية'));
+        } finally {
+            DB::rollBack();
         }
     }
 
@@ -92,11 +146,17 @@ class OptionGroupCohesionTest extends TestCase
             $this->markTestSkipped('The sports taxonomy is absent.');
         }
 
+        // the pool now spans the parent group AND its five families
+        $families = [
+            'الأنشطة الرياضية', 'رياضات جماعية', 'رياضات المضرب',
+            'رياضات مائية', 'رياضات قتالية', 'لياقة وصالات',
+        ];
+
         $offered = fn ($childId) => DB::table('category_child_option as co')
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('co.child_id', $childId)
-            ->where('g.name_ar', 'الأنشطة الرياضية')
+            ->whereIn('g.name_ar', $families)
             ->pluck('o.name_ar')
             ->all();
 

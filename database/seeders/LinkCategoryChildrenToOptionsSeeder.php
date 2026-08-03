@@ -18,11 +18,13 @@ use Illuminate\Support\Facades\DB;
  *    child can sit under more than one root, and a root can mix unrelated
  *    themes (e.g. «المحلات أو أونلاين» holds both فواكه and قطع غيار سيارات),
  *    so matching the child's own name is the more precise signal.
- *  - Group 12 «أنماط خدمة وتجارية» (commerce/payment modes — تقسيط, أونلاين,
- *    دفع مسبق...) is UNIVERSAL: every child gets it. Being linked only makes
- *    an attribute AVAILABLE to pick from (via /profile/options); the business
- *    still opts in per-attribute itself. A vascular surgeon being ABLE to see
- *    a «جملة» option costs nothing — they simply never select it.
+ *  - Group 12 «أنماط خدمة وتجارية» USED to be universal here: every child got
+ *    all 24, on the reasoning that an unusable option costs nothing. It cost
+ *    more than nothing — 7,634 links, three quarters of the platform's total,
+ *    and a filter list where a painter was asked about «تصدير». That group is
+ *    now split into eight single-question groups and assigned per child by
+ *    ChildOptionGroupsSeeder, which OWNS those eight. Its rule is gone from
+ *    here so a re-run can never spray them back.
  *
  * If the owner moves more service items into an EXISTING option group later,
  * re-run this seeder — it re-derives the option list from the group each
@@ -37,14 +39,15 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
      * means universal (every child).
      */
     private const RULES = [
-        12 => ['include' => null, 'exclude' => null],
         1 => [
             'include' => 'سيار|موتوسيكل|دراج[ةه]|توك ?توك|نقل ركاب|ليموزين|تاكسي|جراج|ونش|كوتش(?!ي)|مقطور[ةه]|ميكروباص|مني ?باص|مني ?فان|ربع نقل',
             'exclude' => null,
         ],
         9 => [
             'include' => 'عقار|ارض|شق[ةه]|فيلا|ڤيلا|عمار[ةه]|مصنع|مزرع[ةه]|مكتب(?!ي)|محل|ورش[ةه]|استراح|^معرض$',
-            'exclude' => 'سيار|موتوسيكل',
+            // a bare «مكتب» is the courier desk under شحن وتوصيل, not a property
+            // office — «مكتب عقاري» still matches
+            'exclude' => 'سيار|موتوسيكل|^مكتب$',
         ],
         10 => [
             'include' => 'ملابس|ازياء|اقمش[ةه]|احذي[ةه]|شنط|جلود|زفاف|اكسسوار',
@@ -60,7 +63,9 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
         ],
         23 => [
             'include' => 'قاع[ةه]|فندق|مؤتمر|اجتماع|ندو[ةه]|حفل|كافي[ةه]|مطعم|منتجع|تدريب|⭐',
-            'exclude' => 'مستلزمات|تنسيق',
+            // hospitality answers wifi through «مرافق الإقامة» («واي فاي مجاني»);
+            // adding the generic «واي فاي» here would ask the same question twice
+            'exclude' => 'مستلزمات|تنسيق|فندق|منتجع|نزل|هوستل|بيت ضياف',
         ],
     ];
 

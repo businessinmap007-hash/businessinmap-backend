@@ -114,9 +114,19 @@ class TaxonomyRedistributionTest extends TestCase
         // that plain name was legitimately recategorized into option group 9
         // «عقارات وممتلكات» by an admin using the bulk-editor this session
         // fixed (a real-estate installment term, not the commercial-mode one).
-        $this->assertDatabaseHas('options', ['name_ar' => 'تقسيط بدون فوائد', 'group_id' => 12]);
-        $this->assertDatabaseHas('options', ['name_ar' => 'دفع مسبق', 'group_id' => 12]);
-        $this->assertDatabaseHas('options', ['name_ar' => 'جملة', 'group_id' => 12]);
+        // Group 12 is no longer the answer: the grab-bag was split into eight
+        // single-question groups, so what matters is that each of these still
+        // sits in a LIVE group rather than which id that group happens to be.
+        foreach ([
+            'تقسيط بدون فوائد' => 'الدفع والسداد',
+            'دفع مسبق' => 'الدفع والسداد',
+            'جملة' => 'نطاق التعامل',
+        ] as $option => $group) {
+            $groupId = DB::table('option_groups')->where('name_ar', $group)->value('id');
+
+            $this->assertNotNull($groupId, "the «{$group}» group must exist");
+            $this->assertDatabaseHas('options', ['name_ar' => $option, 'group_id' => $groupId]);
+        }
     }
 
     public function test_no_specialty_sits_in_the_attributes_group(): void

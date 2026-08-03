@@ -57,7 +57,9 @@ class AdminOptionsScreensTest extends TestCase
         // تقسيط is the whole reason the attributes axis exists. A screen that
         // renders without it is not managing attributes.
         $response->assertSee('تقسيط', false);
-        $response->assertSee('أنماط خدمة وتجارية', false);
+        // «أنماط خدمة وتجارية» held it until the grab-bag was split into eight
+        // single-question groups; the payment question now has its own heading.
+        $response->assertSee('الدفع والسداد', false);
         // Amenities are a real attribute; capacity/class are NOT (they moved to
         // bookable_items), so the options screen must not offer them.
         $response->assertSee('مرافق ومعدات', false);

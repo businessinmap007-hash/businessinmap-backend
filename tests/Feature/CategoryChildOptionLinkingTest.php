@@ -19,22 +19,28 @@ class CategoryChildOptionLinkingTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_every_child_carries_the_universal_commerce_mode_options(): void
+    /**
+     * This used to assert the opposite: that EVERY child carried ALL 24 options
+     * of the commerce grab-bag. That blanket is what ChildOptionGroupsSeeder
+     * undid — the group was split into eight single-question groups, each given
+     * only to the children whose trade can answer it. What still must hold is
+     * that no LIVE child was left mute: a child under a root has at least one
+     * question to answer about itself.
+     */
+    public function test_no_live_child_was_left_without_a_single_option(): void
     {
-        $group12Count = DB::table('options')->where('group_id', 12)->count();
-        $totalChildren = DB::table('category_children_master')->count();
+        $mute = DB::table('category_parent_child as pc')
+            ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
+            ->whereNotExists(function ($q) {
+                $q->from('category_child_option as co')->whereColumn('co.child_id', 'pc.child_id');
+            })
+            ->distinct()
+            ->pluck('ch.name_ar');
 
-        $short = DB::table('category_children_master as c')
-            ->selectRaw('c.id, (
-                select count(*) from category_child_option cco
-                inner join options o on o.id = cco.option_id
-                where cco.child_id = c.id and o.group_id = 12
-            ) as linked')
-            ->get()
-            ->where('linked', '<', $group12Count)
-            ->count();
-
-        $this->assertSame(0, $short, 'every one of the '.$totalChildren.' children must carry all '.$group12Count.' universal commerce-mode options');
+        $this->assertEmpty(
+            $mute->all(),
+            'a child linked to a root must offer something to describe itself: ' . $mute->implode('، ')
+        );
     }
 
     public function test_vehicle_options_never_leaked_onto_an_unrelated_specialty(): void

@@ -43,12 +43,22 @@ return [
         'hair-dresser' => 'direct_typed',
         'arts-entertainment' => 'direct_typed',
         'companies' => 'direct',
+        // A showroom books a VIEWING. There is no inventory of appointments to
+        // reserve, so the price sits on the default slot — see ExhibitionServicesSeeder.
+        'exhibitions' => 'direct',
         'technology' => 'direct',
         'property-and-land' => 'units',
         'sports' => 'direct_typed',
+        // A trip, a wash, a tow: the customer books the business for a slot, not
+        // vehicle #3 out of its fleet — see ChildServiceScopeSeeder.
+        'cars' => 'direct',
     ],
 
     'children' => [
+        // The one shop that sells time rather than stock: a studio hour.
+        'shops-online' => [
+            'استوديوهات' => 'direct',
+        ],
         // A pitch, a lane and a pool lane are booked by the hour as specific
         // instances; a gym subscription and an academy course are not.
         'sports' => [

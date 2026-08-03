@@ -148,20 +148,60 @@ class ChildWorkbenchController extends Controller
                     'item_groups' => $this->groupsOf((int) $service->id, $valid),
                 ] + $this->bookingFlags($service->key, $input));
 
+                $enabled = ! empty($input['enabled']);
+
                 DB::table('category_service_configs')
                     ->where('category_id', $rootId)
                     ->where('child_id', $childId)
                     ->where('platform_service_id', $service->id)
                     ->update([
-                        'is_active' => ! empty($input['enabled']) ? 1 : 0,
+                        'is_active' => $enabled ? 1 : 0,
                         'updated_at' => now(),
                     ]);
+
+                $this->linkService($rootId, $childId, (int) $service->id, $enabled);
             }
         });
 
         return redirect()
             ->to(route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $childId], false))
             ->with('status', __('تم حفظ الخدمات.'));
+    }
+
+    /**
+     * `category_service_configs` says what MAY be listed; this table decides
+     * whether the service is offered to the merchant at all — the owner panel
+     * reads it (ResolvesOwnerCatalog) and so does discovery. Enabling a service
+     * here without it produces a config nobody can reach.
+     */
+    private function linkService(int $rootId, int $childId, int $serviceId, bool $enabled): void
+    {
+        $existing = DB::table('category_platform_services')
+            ->where('category_id', $rootId)
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $serviceId)
+            ->value('id');
+
+        if ($existing) {
+            DB::table('category_platform_services')->where('id', $existing)
+                ->update(['is_active' => $enabled ? 1 : 0, 'updated_at' => now()]);
+
+            return;
+        }
+
+        if (! $enabled) {
+            return; // nothing to switch off
+        }
+
+        DB::table('category_platform_services')->insert([
+            'category_id' => $rootId,
+            'child_id' => $childId,
+            'platform_service_id' => $serviceId,
+            'is_active' => 1,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**

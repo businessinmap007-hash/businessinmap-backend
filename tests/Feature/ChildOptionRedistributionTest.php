@@ -126,6 +126,63 @@ class ChildOptionRedistributionTest extends TestCase
         $this->assertSame(0, $stranded, 'a price on a rootless child is money the customer can never reach');
     }
 
+    /**
+     * A child under a root must be able to list something. `exhibitions` failed
+     * this on all 28 of its children — they were wired to `retail` alone, which
+     * is switched off — and `cars` on all seven of its own.
+     */
+    public function test_every_live_child_has_a_service_it_can_sell_under(): void
+    {
+        $mute = DB::table('category_parent_child as pc')
+            ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
+            ->join('categories as r', 'r.id', '=', 'pc.parent_id')
+            ->whereNotExists(function ($q) {
+                $q->from('category_service_configs as c')
+                    ->join('platform_services as s', 's.id', '=', 'c.platform_service_id')
+                    ->whereColumn('c.category_id', 'pc.parent_id')
+                    ->whereColumn('c.child_id', 'pc.child_id')
+                    ->where('c.is_active', 1)
+                    ->where('s.is_active', 1);
+            })
+            ->distinct()
+            ->pluck('ch.name_ar', 'r.slug');
+
+        $this->assertEmpty($mute->all(), 'these children can list nothing: ' . $mute->implode('، '));
+    }
+
+    /**
+     * The config says what MAY be listed; the service link is what the owner
+     * panel and discovery actually read. A config without its link is a screen
+     * no merchant can reach.
+     */
+    public function test_every_live_service_config_has_its_availability_link(): void
+    {
+        $unlinked = DB::table('category_service_configs as c')
+            ->join('platform_services as s', 's.id', '=', 'c.platform_service_id')
+            ->join('category_children_master as ch', 'ch.id', '=', 'c.child_id')
+            ->where('c.is_active', 1)
+            ->where('s.is_active', 1)
+            ->whereExists(function ($q) {
+                $q->from('category_parent_child as pc')
+                    ->whereColumn('pc.parent_id', 'c.category_id')
+                    ->whereColumn('pc.child_id', 'c.child_id');
+            })
+            ->whereNotExists(function ($q) {
+                $q->from('category_platform_services as cps')
+                    ->whereColumn('cps.category_id', 'c.category_id')
+                    ->whereColumn('cps.child_id', 'c.child_id')
+                    ->whereColumn('cps.platform_service_id', 'c.platform_service_id')
+                    ->where('cps.is_active', 1);
+            })
+            ->count();
+
+        $this->assertSame(
+            0,
+            $unlinked,
+            'a live service config must be reachable through category_platform_services'
+        );
+    }
+
     /** The root that held 638 businesses and sold nothing. */
     public function test_the_limousine_child_can_sell_something(): void
     {

@@ -102,6 +102,8 @@ class ChildServiceScopeSeeder extends Seeder
                 'allowed_item_types' => $types->all(),
             ]);
 
+            $this->linkService($rootId, $childId, $serviceId);
+
             $set++;
         }
 
@@ -150,10 +152,44 @@ class ChildServiceScopeSeeder extends Seeder
                 'allowed_item_types' => [$defaultType],
             ]);
 
+            $this->linkService($rootId, $childId, $serviceId);
+
             $existed ? $updated++ : $created++;
         }
 
         return ['created' => $created, 'updated' => $updated];
+    }
+
+    /**
+     * `category_service_configs` says what MAY be listed; this table is what the
+     * owner panel and discovery read to decide which services a business is
+     * offered at all (ResolvesOwnerCatalog, DiscoveryController::filters).
+     * Writing the config alone leaves a screen no merchant can reach.
+     */
+    private function linkService(int $rootId, int $childId, int $serviceId): void
+    {
+        $existing = DB::table('category_platform_services')
+            ->where('category_id', $rootId)
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $serviceId)
+            ->value('id');
+
+        if ($existing) {
+            DB::table('category_platform_services')->where('id', $existing)
+                ->update(['is_active' => 1, 'updated_at' => now()]);
+
+            return;
+        }
+
+        DB::table('category_platform_services')->insert([
+            'category_id' => $rootId,
+            'child_id' => $childId,
+            'platform_service_id' => $serviceId,
+            'is_active' => 1,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /** Merge into the stored config so unrelated keys survive. */

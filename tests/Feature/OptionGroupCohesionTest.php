@@ -80,27 +80,31 @@ class OptionGroupCohesionTest extends TestCase
         );
     }
 
-    /** 45 sports and 41 specialties are now read as families. */
-    public function test_the_long_lists_are_read_as_families(): void
+    /**
+     * Sports, specialties and lab tests are ONE list each.
+     *
+     * They were briefly cut into families. The screen showed why not: the parent
+     * kept whatever belonged to no family, so it sat BESIDE its own children,
+     * and a gym ended up with a fold called «الأنشطة الرياضية» holding only
+     * جمباز. Folded back on the owner's call.
+     */
+    public function test_the_three_domain_lists_are_each_one_group(): void
     {
-        foreach ([
-            'رياضات جماعية' => 'كرة قدم',
-            'رياضات قتالية' => 'ملاكمة',
-            'لياقة وصالات' => 'كارديو',
-            'تخصصات جراحية' => 'جراحة عامة',
-            'تخصصات باطنية' => 'باطنه',
-            'عيون وأنف وأذن' => 'عيون',
-            'تحاليل الدم والكيمياء' => 'صورة دم كاملة CBC',
-        ] as $group => $member) {
-            $this->assertContains($member, $this->namesIn($group), "«{$member}» belongs in «{$group}»");
+        foreach (['الأنشطة الرياضية' => 40, 'تخصصات طبية' => 40, 'التحاليل الطبية' => 25] as $group => $atLeast) {
+            $this->assertGreaterThanOrEqual(
+                $atLeast,
+                count($this->namesIn($group)),
+                "«{$group}» is read as one list; its members must not be scattered across families"
+            );
         }
 
-        // the parents keep only what belongs to no family
-        $this->assertContains('باركور', $this->namesIn('الأنشطة الرياضية'));
-        $this->assertNotContains('كرة قدم', $this->namesIn('الأنشطة الرياضية'));
-
-        $this->assertContains('أسنان', $this->namesIn('تخصصات طبية'));
-        $this->assertNotContains('جراحة عامة', $this->namesIn('تخصصات طبية'));
+        // the families are gone, not merely emptied
+        foreach (['رياضات قتالية', 'تخصصات جراحية', 'تحاليل الدم والكيمياء'] as $family) {
+            $this->assertNull(
+                DB::table('option_groups')->where('name_ar', $family)->value('id'),
+                "«{$family}» was folded back; an empty leftover group clutters every picker"
+            );
+        }
     }
 
     /**
@@ -128,9 +132,9 @@ class OptionGroupCohesionTest extends TestCase
                 'a re-filed option must be found where it now lives, not created again'
             );
 
-            // and it must not be dragged back to the parent group either
-            $this->assertContains('كرة قدم', $this->namesIn('رياضات جماعية'));
-            $this->assertContains('جراحة عامة', $this->namesIn('تخصصات جراحية'));
+            // and a re-run must not scatter them back out of their one group
+            $this->assertContains('كرة قدم', $this->namesIn('الأنشطة الرياضية'));
+            $this->assertContains('جراحة عامة', $this->namesIn('تخصصات طبية'));
         } finally {
             DB::rollBack();
         }
@@ -146,17 +150,13 @@ class OptionGroupCohesionTest extends TestCase
             $this->markTestSkipped('The sports taxonomy is absent.');
         }
 
-        // the pool now spans the parent group AND its five families
-        $families = [
-            'الأنشطة الرياضية', 'رياضات جماعية', 'رياضات المضرب',
-            'رياضات مائية', 'رياضات قتالية', 'لياقة وصالات',
-        ];
-
+        // Scoping is per CHILD, not per group — folding the families back did
+        // not widen anyone's pool, and this is what proves it.
         $offered = fn ($childId) => DB::table('category_child_option as co')
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('co.child_id', $childId)
-            ->whereIn('g.name_ar', $families)
+            ->where('g.name_ar', 'الأنشطة الرياضية')
             ->pluck('o.name_ar')
             ->all();
 

@@ -200,13 +200,10 @@ return [
         // A lab runs tests; it has no surgeons and no MRI. health_taxonomy.php
         // already says `carries_specialties => false` for it and hands imaging
         // to مراكز أشعة alone — these links predate that decision.
-        // Every specialty family is named: stripping only the parent group would
-        // leave the five sub-groups behind after OptionGroupSplitSeeder ran.
-        163 => [
-            'تخصصات طبية', 'أنواع الأشعة',
-            'تخصصات جراحية', 'تخصصات باطنية', 'أطفال ونساء',
-            'عيون وأنف وأذن', 'عظام وتأهيل',
-        ],
+        // One name each is enough again now that specialties are a single group;
+        // while they were split into families this list had to name all five,
+        // because a strip keyed on a group name misses everything that moved out.
+        163 => ['تخصصات طبية', 'أنواع الأشعة'],
     ],
 
     'domain_adds' => [

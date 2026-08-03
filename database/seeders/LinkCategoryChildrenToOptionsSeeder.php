@@ -69,8 +69,13 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
         ],
     ];
 
+    /** group name_ar => [child id => allowed option ids] */
+    private array $scopes = [];
+
     public function run(): void
     {
+        $this->scopes = require database_path('seeders/data/child_option_scopes.php');
+
         // Only children that hang off a root. 80 master rows belong to no root
         // — retired stars, unlinked duplicates, and the real-estate rows that
         // became booking item types — and linking options onto those is how a
@@ -98,8 +103,14 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
                 ? $children
                 : $children->filter(fn ($c) => $this->matches($c->name_ar, $rule['include'], $rule['exclude']));
 
+            $allowedFor = $this->scopeFor($groupId);
+
             foreach ($matched as $child) {
-                foreach ($optionIds as $i => $optionId) {
+                $childOptions = isset($allowedFor[$child->id])
+                    ? $optionIds->intersect($allowedFor[$child->id])->values()
+                    : $optionIds;
+
+                foreach ($childOptions as $i => $optionId) {
                     $key = $child->id.':'.$optionId;
 
                     if ($existingPairs->has($key)) {
@@ -115,6 +126,23 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('category_child_option')->insert($chunk);
         }
+    }
+
+
+    /**
+     * The per-child slice for this group, if one is declared.
+     *
+     * A keyword rule adds a WHOLE group, which is how «نجف و تحف» ended up
+     * offered غرفة نوم. `child_option_scopes.php` is the single place that says
+     * a child only answers part of a list, and this seeder must not undo it.
+     *
+     * @return array<int, array<int,int>>
+     */
+    private function scopeFor(int $groupId): array
+    {
+        $name = DB::table('option_groups')->where('id', $groupId)->value('name_ar');
+
+        return $this->scopes[$name] ?? [];
     }
 
     private function matches(string $name, string $include, ?string $exclude): bool

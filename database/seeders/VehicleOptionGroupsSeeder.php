@@ -195,6 +195,11 @@ class VehicleOptionGroupsSeeder extends Seeder
             }
         }
 
+        // A child that can only answer part of a list says so in one place; this
+        // seeder assigns groups wholesale and must not undo that narrowing —
+        // a car wash takes a van, not a trailer.
+        $targets = $this->applyScopes($targets, $map['groups']);
+
         // with-driver / without-driver moved groups but stayed on all 20 vehicle
         // children, which would ask a car wash whether it comes with a driver
         foreach ($map['driver_children'] as $childId) {
@@ -256,6 +261,37 @@ class VehicleOptionGroupsSeeder extends Seeder
         }
 
         return [$added, $removed, $kept];
+    }
+
+
+    /**
+     * Intersect each child's target list with its declared slice.
+     *
+     * @param  array<int,int[]>  $targets
+     * @return array<int,int[]>
+     */
+    private function applyScopes(array $targets, array $groups): array
+    {
+        $scopes = require database_path('seeders/data/child_option_scopes.php');
+
+        foreach ($groups as $group) {
+            $slice = $scopes[$group['name_ar']] ?? null;
+
+            if (! $slice) {
+                continue;
+            }
+
+            foreach ($slice as $childId => $allowed) {
+                if (! isset($targets[$childId])) {
+                    continue;
+                }
+
+                $outside = array_diff($group['options'], $allowed);
+                $targets[$childId] = array_values(array_diff($targets[$childId], $outside));
+            }
+        }
+
+        return $targets;
     }
 
     /** @return array<int,int> */

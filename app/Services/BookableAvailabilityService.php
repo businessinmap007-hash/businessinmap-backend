@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BookableItem;
 use App\Models\BookableItemBlockedSlot;
+use App\Models\Booking;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -60,6 +61,25 @@ class BookableAvailabilityService
                 start: $start,
                 end: $end,
                 conflicts: $conflicts
+            );
+        }
+
+        // Blocked slots are what the BUSINESS closed by hand. They said nothing
+        // about what CUSTOMERS have already taken, so a room sold for these
+        // nights still read as available and could be sold again.
+        $taken = $this->countLiveBookings($item, $start, $end);
+        $capacity = max((int) ($item->quantity ?? 1), 1);
+
+        if ($taken >= $capacity) {
+            return $this->result(
+                ok: true,
+                available: false,
+                reason: __('هذه الوحدة محجوزة بالفعل في هذه الفترة'),
+                code: 'booking_conflict',
+                item: $item,
+                start: $start,
+                end: $end,
+                conflicts: collect()
             );
         }
 
@@ -144,6 +164,32 @@ class BookableAvailabilityService
             ->overlapping($start, $end)
             ->ordered()
             ->get();
+    }
+
+    /**
+     * How many live bookings already overlap this window.
+     *
+     * A cancelled or rejected booking releases the unit; a completed one is in
+     * the past and cannot overlap a future window anyway, but is excluded for
+     * the same reason — it no longer holds anything. Everything else does.
+     *
+     * `quantity` on the item is the number of identical units behind one row
+     * («٣ غرف مزدوجة»), so the comparison is a count, not a boolean.
+     */
+    protected function countLiveBookings(BookableItem $item, CarbonInterface $start, CarbonInterface $end): int
+    {
+        return Booking::query()
+            ->where('bookable_id', $item->id)
+            ->whereNotIn('status', [
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_REJECTED,
+                Booking::STATUS_COMPLETED,
+            ])
+            ->whereNotNull('starts_at')
+            ->whereNotNull('ends_at')
+            ->where('starts_at', '<', $end)
+            ->where('ends_at', '>', $start)
+            ->count();
     }
 
     /**

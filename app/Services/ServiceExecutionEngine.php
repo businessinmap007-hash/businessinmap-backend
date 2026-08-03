@@ -84,6 +84,8 @@ class ServiceExecutionEngine
             $bookable = $this->resolveBookableItem($businessId, $serviceId, $bookableId);
         }
 
+        $this->assertBookableItemChosen($service, $categoryId, $childId, $bookable);
+
         $itemType = $bookable
             ? trim((string) ($bookable->item_type ?? ''))
             : null;
@@ -992,6 +994,64 @@ class ServiceExecutionEngine
             childId: $childId,
             itemType: $itemType
         );
+    }
+
+    /**
+     * `requires_bookable_item` was written by the admin screens and read by
+     * nothing: a hotel whose config demanded a specific room accepted a booking
+     * with no room at all and priced it off the generic «افتراضي» slot. The
+     * flag means the customer reserves a NAMED instance, so refuse without one.
+     *
+     * Only booking uses it, and only when the child's own config sets it —
+     * 23 of the 140 live booking configs do.
+     */
+    protected function assertBookableItemChosen(
+        PlatformService $service,
+        ?int $categoryId,
+        ?int $childId,
+        ?BookableItem $bookable
+    ): void {
+        if ($bookable || (string) $service->key !== PlatformService::KEY_BOOKING || ! $categoryId || ! $childId) {
+            return;
+        }
+
+        $config = DB::table('category_service_configs')
+            ->where('category_id', $categoryId)
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $service->id)
+            ->where('is_active', 1)
+            ->value('config');
+
+        $requires = (bool) data_get(json_decode((string) $config, true) ?: [], 'requires_bookable_item', false);
+
+        if ($requires) {
+            throw ValidationException::withMessages([
+                'bookable_id' => __('هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.'),
+            ]);
+        }
+    }
+
+    /**
+     * The availability check existed but only ran inside preview(), so nothing
+     * stopped a second customer booking the same room for the same nights. The
+     * booking endpoints call this before writing.
+     */
+    public function assertBookableAvailable(?BookableItem $bookable, mixed $startsAt, mixed $endsAt): void
+    {
+        if (! $bookable || ! $startsAt || ! $endsAt) {
+            return; // nothing to check, or no window to check it against
+        }
+
+        $availability = $this->bookableAvailabilityService->check($bookable, $startsAt, $endsAt);
+
+        if ((bool) ($availability['available'] ?? true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'bookable_id' => $availability['reason']
+                ?: __('هذه الوحدة محجوزة بالفعل في هذا الوقت.'),
+        ]);
     }
 
     protected function resolveBookableItem(int $businessId, int $serviceId, int $bookableId): ?BookableItem

@@ -108,6 +108,13 @@ final class BookingController extends Controller
 
         $bookable = $calc['bookable'] ?? null;
 
+        // A room already taken for these nights must not be sold twice.
+        $this->serviceExecutionEngine->assertBookableAvailable(
+            $bookable,
+            $data['starts_at'] ?? null,
+            $data['ends_at'] ?? null
+        );
+
         $payload = [
             'user_id' => (int) $user->id,
             'business_id' => (int) $data['business_id'],

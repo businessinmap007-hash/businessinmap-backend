@@ -2667,5 +2667,8 @@
     "تعديل خط التشغيل #:id": "Edit operating line #:id",
     "أي تعديل ينعكس مباشرة على نتائج البحث لدى العملاء.": "Any change is reflected immediately in customers' search results.",
     "حجوزات هذا الخط": "This line's reservations",
-    "لا توجد جلسة نشطة. ابدأ جلسة أولًا.": "No active session. Start one first."
+    "لا توجد جلسة نشطة. ابدأ جلسة أولًا.": "No active session. Start one first.",
+    "هذه الوحدة محجوزة بالفعل في هذه الفترة": "This unit is already booked for these dates",
+    "هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.": "This business reserves a specific unit — choose the one you want first.",
+    "هذه الوحدة محجوزة بالفعل في هذا الوقت.": "This unit is already booked at that time."
 }

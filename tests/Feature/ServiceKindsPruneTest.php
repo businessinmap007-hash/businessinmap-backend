@@ -254,6 +254,7 @@ class ServiceKindsPruneTest extends TestCase
             'booking_follow_up',
             'booking_procedure',
             'booking_online_consultation',
+            'booking_home_sample',
         ] as $key) {
             $this->assertArrayHasKey($key, $mapped, "«{$key}» must be in service_kinds.php or the prune deletes it");
 
@@ -306,11 +307,17 @@ class ServiceKindsPruneTest extends TestCase
 
                 $this->assertSame($expected, $kinds, "«{$name}» does not carry exactly what it was given");
 
-                $this->assertNotContains(
-                    'booking_appointment',
-                    $kinds,
-                    "«{$name}» kept the bare appointment the specialised kinds replaced"
-                );
+                // Only where the assignment actually dropped it. «معمل تحاليل»
+                // keeps the plain appointment on purpose — coming in to give a
+                // sample is still the ordinary case, and the home visit sits
+                // beside it rather than replacing it.
+                if (! in_array('booking_appointment', $expected, true)) {
+                    $this->assertNotContains(
+                        'booking_appointment',
+                        $kinds,
+                        "«{$name}» kept the bare appointment the specialised kinds replaced"
+                    );
+                }
             }
         }
     }

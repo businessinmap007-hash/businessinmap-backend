@@ -217,7 +217,9 @@ return [
     'health' => [
         'صيدلية' => ['delivery', 'delivery_coldchain'],
         'مراكز أشعة' => ['delivery_courier_ondemand'],
-        'معمل تحاليل' => ['delivery_coldchain', 'delivery_courier_ondemand'],
+        // + delivery_documents (2026-08-05): a lab's other outbound thing is
+        // the printed result, which is a document, not a cold-chain sample.
+        'معمل تحاليل' => ['delivery_coldchain', 'delivery_courier_ondemand', 'delivery_documents'],
     ],
 
     // ── شركات ──

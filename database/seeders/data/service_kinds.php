@@ -72,6 +72,7 @@ return [
             'booking_follow_up' => ['حجز متابعة', 'Follow-up'],
             'booking_procedure' => ['حجز إجراء طبي', 'Medical Procedure'],
             'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
+            'booking_home_sample' => ['حجز سحب عينة بالمنزل', 'Home Sample Collection'],
         ],
 
         /*
@@ -121,8 +122,20 @@ return [
         'children' => [
             // طبي
             514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation'],           // عيادة
-            513 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation'], // مستشفى
-            515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation'], // مركز طبي
+            513 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مستشفى
+            515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مركز طبي
+
+            /*
+             * A lab keeps the plain appointment — coming in to give a sample is
+             * still the ordinary case — and gains the home visit beside it.
+             *
+             * The home draw is a booking KIND and not a modifier on the 28
+             * tests: it is priced once as a visit, where a modifier would have
+             * doubled every test into «بالمعمل» and «بالمنزل», 28 rows becoming
+             * 56 to say one thing. The customer picks the visit, then picks the
+             * tests from the options he was always going to pick from.
+             */
+            163 => ['booking_appointment', 'booking_home_sample'], // معمل تحاليل
 
             // مهني
             11 => ['booking_consultation', 'booking_online_consultation'],  // دعاية وإعلان

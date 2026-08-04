@@ -1585,6 +1585,10 @@ select.ts-hidden-accessible{
   height: 1px !important;
   padding: 0 !important;
   border: 0 !important;
+  /* .a2-select also gives it `transition: .15s ease`, which animates that
+     full-width → 1px collapse on every page load: a horizontal scrollbar that
+     flashes and goes. Nothing about an invisible field is worth animating. */
+  transition: none !important;
 }
 
 .ts-wrapper.single .ts-control,

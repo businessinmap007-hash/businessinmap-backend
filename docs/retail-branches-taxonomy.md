@@ -120,6 +120,46 @@ Purely additive, no structural change:
 4. Import products for the new section (`bim:catalog-import <section>`) with the
    branch/type keys as `product_category_slug` / `product_category_child_slug`.
 
+## 6b. The stocked catalogue (2026-08-04)
+
+Eight of the nine branches had **zero** products — a working «منتجاتي» screen
+onto an empty picker, which reads as broken rather than unstocked. Filled with
+**407 products across 43 departments and 120 brands** (`BIM-RT-*`), bringing
+`catalog_products` to 986.
+
+The source CSV is kept in the repo at
+**`database/seeders/data/catalog/retail_core_products.csv`** — the grocery batch
+kept its generator in a scratchpad only, so it cannot be replayed. To restore
+this one after a catalog wipe:
+
+```
+cp database/seeders/data/catalog/retail_core_products.csv \
+   storage/app/catalog_data/retail_core/raw/products_raw.csv
+php artisan bim:catalog-collect retail_core
+php artisan bim:catalog-import retail_core
+```
+
+**Delete the exported `attributes.csv` between the two commands.** The collector
+derives `volume`/`weight` attributes from `package_value` + unit and would
+rewrite the units of the two SHARED attributes that already carry the grocery
+batch's values — changing what 507 stored numbers mean. Held by
+`RetailCatalogStockedTest::test_the_shared_attribute_units_were_not_rewritten`.
+
+**Ten item types are deliberately empty**, and no child is stranded by it —
+each still reaches stock through its branch's other types:
+
+| type | why not |
+|---|---|
+| `furniture`, `antiques_artifacts`, `curtains_supplies`, `chandeliers_lighting`, `wood_decor` | bespoke — they sell through `menu_items` (see `listing_service_children.php`), not a shared master |
+| `fabrics`, `wool_yarn` | sold by the metre; no SKU to share |
+| `bridal_supplies` | made to order |
+| `books` | a real book master is ISBN-keyed; inventing titles would be fabrication |
+| `household_cleaners` | the same products already exist under `grocery_retail`/`detergents`; a second copy would be caught as a content duplicate |
+
+Products land as `approval_status = 'pending'`. That does **not** hide them —
+`CatalogProduct::scopeActive()` filters `is_active` only — so the picker works
+immediately and approval stays a curation step.
+
 ## 7. Seeders (run order in `DatabaseSeeder`)
 
 `PlatformServiceSeeder` (retail row) → … → `RetailBranchesSeeder` →

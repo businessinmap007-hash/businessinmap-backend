@@ -150,7 +150,7 @@ class RetailChildLinkTest extends TestCase
     {
         $serviceId = $this->serviceId();
 
-        $services = ['مندوب', 'شركة', 'شحن بري وبحري وجوى', 'نقل دولي', 'استيراد وتصدير', 'التاكسي الأبيض', 'إدارة صفحات'];
+        $services = ['مندوب', 'شركة', 'شحن بري وبحري وجوى', 'نقل دولي', 'استيراد وتصدير', 'إدارة صفحات'];
 
         foreach ($services as $name) {
             $ids = DB::table('category_children_master')->where('name_ar', $name)->pluck('id');

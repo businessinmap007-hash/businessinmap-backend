@@ -5517,20 +5517,6 @@ return array (
     'created_at' => '2020-11-01 00:16:51',
     'updated_at' => '2020-11-01 00:16:51',
   ),
-  394 => 
-  array (
-    'id' => 457,
-    'parent_id' => 13,
-    'image' => NULL,
-    'is_active' => 1,
-    'per_month' => NULL,
-    'per_year' => NULL,
-    'reorder' => 3,
-    'name_ar' => 'التاكسي الأبيض',
-    'name_en' => 'White Taxi',
-    'created_at' => '2020-11-10 21:10:41',
-    'updated_at' => '2022-03-15 16:02:35',
-  ),
   395 => 
   array (
     'id' => 458,

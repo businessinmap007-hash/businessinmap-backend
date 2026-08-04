@@ -25,7 +25,6 @@ return [
     'schedules' => [
         'cars:169' => ['mode_limousine', 'mode_passenger'], // خدمة ليموزين
         'cars:278' => ['mode_passenger'],                   // نقل ركاب
-        'cars:298' => ['mode_passenger'],                   // التاكسي الأبيض
         'cars:284' => ['mode_freight', 'mode_distribution'], // سيارات نقل
         'cars:46' => 'off',                                 // مغسلة سيارات
         'cars:119' => 'off',                                // جراج
@@ -51,7 +50,6 @@ return [
     'booking_direct' => [
         'cars:169',  // خدمة ليموزين
         'cars:278',  // نقل ركاب
-        'cars:298',  // التاكسي الأبيض
         'cars:284',  // سيارات نقل
         'cars:46',   // مغسلة سيارات
         'cars:119',  // جراج

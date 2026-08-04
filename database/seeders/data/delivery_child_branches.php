@@ -97,7 +97,6 @@ return [
 
     // ── سيارات ──
     'cars' => [
-        'التاكسي الأبيض' => ['delivery_freight'],
         'جراج' => ['delivery_freight'],
         'خدمة ليموزين' => ['delivery_freight'],
         'سيارات نقل' => ['delivery_freight'],

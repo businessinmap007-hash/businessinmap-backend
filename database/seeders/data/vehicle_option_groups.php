@@ -57,7 +57,7 @@ return [
     'move_to_service_mode' => [62, 63],
 
     /** Only the trades that actually supply a car either way face that choice. */
-    'driver_children' => [169, 278, 298, 284],
+    'driver_children' => [169, 278, 284],
 
     /**
      * - «سيارة» and «سيارات» say nothing inside a group already called vehicles.
@@ -100,7 +100,6 @@ return [
             244, // ونش إنقاذ
             278, // نقل ركاب
             284, // سيارات نقل
-            298, // التاكسي الأبيض
             68,  // شركة شحن
             198, // مكتب شحن
             243, // مندوب

@@ -99,6 +99,49 @@ return [
         ],
 
         /*
+         * Per-child assignment of the specialised kinds (owner-approved
+         * 2026-08-05). Highest precedence, and it REPLACES rather than adds:
+         * a clinic that offers كشف and متابعة should not also show a bare
+         * «حجز موعد» beside them, which says nothing the other two don't.
+         *
+         * Safe to switch outright — all thirteen children carry ZERO priced
+         * rows today, so nothing was left pointing at «حجز موعد».
+         *
+         * What a child is NOT given is as deliberate as what it is: «إجراء
+         * طبي» goes to the hospital and the medical centre but not the clinic,
+         * which examines and follows up; «متابعة» goes to law and accounting,
+         * where following a case or a month is a real second price, but not to
+         * the one-off trades. معمل تحاليل and مراكز أشعة are absent on purpose
+         * — what they sell is «تحليل» and «أشعة», already line options, and the
+         * booking is a plain appointment.
+         *
+         * Keyed by child_id, so a child sitting under two roots (11 «دعاية
+         * وإعلان» is under both companies and offices) is answered once.
+         */
+        'children' => [
+            // طبي
+            514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation'],           // عيادة
+            513 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation'], // مستشفى
+            515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation'], // مركز طبي
+
+            // مهني
+            11 => ['booking_consultation', 'booking_online_consultation'],  // دعاية وإعلان
+            123 => ['booking_consultation', 'booking_online_consultation'], // هندسية
+            78 => ['booking_consultation', 'booking_online_consultation'],  // ديكور
+            167 => ['booking_consultation', 'booking_follow_up', 'booking_online_consultation'], // محاماه
+            10 => ['booking_consultation', 'booking_follow_up', 'booking_online_consultation'],  // محاسبة
+            177 => ['booking_consultation', 'booking_online_consultation'], // تسويق
+            233 => ['booking_consultation', 'booking_online_consultation'], // برمجة
+            261 => ['booking_consultation', 'booking_online_consultation'], // برمجيات
+            153 => ['booking_consultation', 'booking_online_consultation'], // شركات تأمين
+
+            // A contractor gives advice, then executes — the owner's call, and
+            // the largest child on this list at 71 businesses. Consultation
+            // only: there is no online version of walking a site.
+            72 => ['booking_consultation'], // مقاولات
+        ],
+
+        /*
          * Root-level fallback for a child the branch file does not name — and
          * it does not name many: the file was generated 2026-07-12 and 80 of
          * its child names have since been renamed, merged or retired, so a

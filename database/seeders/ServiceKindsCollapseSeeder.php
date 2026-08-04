@@ -225,18 +225,31 @@ class ServiceKindsCollapseSeeder extends Seeder
         ) {
             $config = json_decode((string) $row->config, true) ?: [];
 
-            $kinds = collect($approved[(int) $row->child_id] ?? [])
-                ->merge(
-                    collect($config['item_groups'] ?? [])
-                        ->map(fn ($id) => $spec['map'][$branchKeyOf[$id] ?? ''] ?? null)
-                )
-                ->merge(
-                    collect($config['allowed_item_types'] ?? [])
-                        ->map(fn ($t) => $spec['by_type'][$t] ?? null)
-                )
-                ->filter()
-                ->unique()
-                ->values();
+            /*
+             * An explicit per-child assignment wins outright and is not merged
+             * with anything. Merging would union it with the root fallback, so
+             * a clinic given كشف and متابعة would keep a bare «حجز موعد» beside
+             * them — the branch and root sources answer «appointment» for every
+             * one of these children, which is exactly what the owner replaced.
+             */
+            $explicit = $spec['children'][(int) $row->child_id] ?? null;
+
+            if ($explicit) {
+                $kinds = collect($explicit);
+            } else {
+                $kinds = collect($approved[(int) $row->child_id] ?? [])
+                    ->merge(
+                        collect($config['item_groups'] ?? [])
+                            ->map(fn ($id) => $spec['map'][$branchKeyOf[$id] ?? ''] ?? null)
+                    )
+                    ->merge(
+                        collect($config['allowed_item_types'] ?? [])
+                            ->map(fn ($t) => $spec['by_type'][$t] ?? null)
+                    )
+                    ->filter()
+                    ->unique()
+                    ->values();
+            }
 
             if ($kinds->isEmpty()) {
                 /*

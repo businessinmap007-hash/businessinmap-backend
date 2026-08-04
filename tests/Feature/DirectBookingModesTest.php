@@ -82,7 +82,10 @@ class DirectBookingModesTest extends TestCase
             ['sports', 'جيم', 'booking_time'],
             ['professions', 'نجار موبيليا', 'booking_appointment'],
             ['restaurants-cafes', 'مطعم', 'booking_table'],
-            ['health', 'عيادة', 'booking_appointment'],
+            // A clinic no longer takes a bare appointment: it was given كشف،
+            // متابعة، استشارة أونلاين on 2026-08-05, and the plain «حجز موعد»
+            // was replaced rather than kept beside them.
+            ['health', 'عيادة', 'booking_examination'],
         ] as [$root, $child, $expected]) {
             $types = $this->configFor($root, $child)['types'];
 

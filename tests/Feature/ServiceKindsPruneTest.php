@@ -272,6 +272,49 @@ class ServiceKindsPruneTest extends TestCase
         }
     }
 
+    /**
+     * The owner-approved assignment of the specialised kinds, exactly.
+     *
+     * Asserted as an EQUALITY rather than a contains: the whole point of the
+     * assignment is that «حجز موعد» goes away for these children, and a bare
+     * appointment sitting beside كشف and متابعة says nothing the other two do
+     * not. That is also the failure this would actually see — the branch and
+     * root sources answer «appointment» for all thirteen, so a resolution
+     * chain that merged instead of replacing would quietly put it back.
+     *
+     * Covers every root a child sits under: «دعاية وإعلان» has a config under
+     * both companies and offices, and the map is keyed by child so both get it.
+     */
+    public function test_each_child_carries_exactly_the_kinds_it_was_given(): void
+    {
+        $assigned = (require database_path('seeders/data/service_kinds.php'))['booking']['children'];
+
+        $this->assertNotEmpty($assigned, 'the per-child assignment must not be empty');
+
+        foreach ($assigned as $childId => $expected) {
+            $configs = DB::table('category_service_configs')
+                ->where('child_id', (int) $childId)
+                ->where('platform_service_id', 1)
+                ->pluck('config');
+
+            $name = DB::table('category_children_master')->where('id', (int) $childId)->value('name_ar');
+
+            $this->assertNotEmpty($configs, "«{$name}» must still have a booking config");
+
+            foreach ($configs as $json) {
+                $kinds = json_decode((string) $json, true)['allowed_item_types'] ?? [];
+
+                $this->assertSame($expected, $kinds, "«{$name}» does not carry exactly what it was given");
+
+                $this->assertNotContains(
+                    'booking_appointment',
+                    $kinds,
+                    "«{$name}» kept the bare appointment the specialised kinds replaced"
+                );
+            }
+        }
+    }
+
     public function test_no_group_type_row_points_at_a_type_that_is_gone(): void
     {
         $orphans = DB::table('platform_service_item_group_type as gt')

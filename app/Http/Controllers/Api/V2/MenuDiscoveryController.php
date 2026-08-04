@@ -34,6 +34,7 @@ final class MenuDiscoveryController extends Controller
                 'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
                 'offeringOptions.option',
+                'section',
             ])
             ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
@@ -57,24 +58,25 @@ final class MenuDiscoveryController extends Controller
                 $out[] = [
                     'id' => (int) $section->id,
                     'name' => $this->label($section->name_ar, $section->name_en, __('قسم #') . $section->id),
+                    'source' => 'section',
                     'items' => $group->map(fn ($i) => $this->itemPayload($i))->values(),
                 ];
             }
         }
 
-        // Items with no (or an inactive) section fall into an "أخرى" bucket.
+        // Anything the merchant did not file by hand still gets a heading, from
+        // the taxonomy instead: the item type («مشويات») for a restaurant, the
+        // line option («غرفة نوم») for a showroom whose item type is the
+        // useless «قطعة أثاث». Only what has neither falls into «أخرى» — and
+        // that bucket exists so nothing is ever hidden, not as the default.
         $activeSectionIds = $sections->pluck('id')->map(fn ($id) => (int) $id)->all();
         $ungrouped = $items->filter(function (MenuItem $i) use ($activeSectionIds) {
             $sid = (int) ($i->menu_section_id ?? 0);
             return $sid === 0 || ! in_array($sid, $activeSectionIds, true);
         });
 
-        if ($ungrouped->isNotEmpty()) {
-            $out[] = [
-                'id' => null,
-                'name' => __('أخرى'),
-                'items' => $ungrouped->map(fn ($i) => $this->itemPayload($i))->values(),
-            ];
+        foreach ($this->headingsOf($ungrouped) as $heading) {
+            $out[] = $heading;
         }
 
         return response()->json([
@@ -90,6 +92,51 @@ final class MenuDiscoveryController extends Controller
                 'sections' => $out,
             ],
         ]);
+    }
+
+    /**
+     * Group items that carry no hand-written section under their taxonomy
+     * heading, keeping the order the items already came in so a featured item
+     * still pulls its heading up the page.
+     *
+     * @param  \Illuminate\Support\Collection<int,MenuItem>  $items
+     * @return array<int,array<string,mixed>>
+     */
+    private function headingsOf($items): array
+    {
+        $groups = [];
+        $loose = [];
+
+        foreach ($items as $item) {
+            $heading = $item->heading();
+
+            if (! $heading) {
+                $loose[] = $item;
+                continue;
+            }
+
+            $groups[$heading['key']] ??= [
+                'id' => null,
+                'name' => $heading['label'],
+                'source' => $heading['source'],
+                'items' => [],
+            ];
+
+            $groups[$heading['key']]['items'][] = $this->itemPayload($item);
+        }
+
+        $out = array_values($groups);
+
+        if (! empty($loose)) {
+            $out[] = [
+                'id' => null,
+                'name' => __('أخرى'),
+                'source' => 'none',
+                'items' => array_map(fn (MenuItem $i) => $this->itemPayload($i), $loose),
+            ];
+        }
+
+        return $out;
     }
 
     private function itemPayload(MenuItem $item): array

@@ -6,6 +6,7 @@ use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
+use App\Models\PlatformService;
 use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,10 +85,31 @@ class MenuItemController extends Controller
         return view('business.menu.create', [
             'row' => new MenuItem(['is_active' => 1, 'sort_order' => 0, 'base_price' => 0]),
             'sections' => $this->sections(),
+            'itemTypes' => $this->itemTypes(),
             'vocabulary' => $this->vocabulary(),
             'lineId' => null,
             'modifierIds' => collect(),
         ]);
+    }
+
+    /**
+     * The kinds of thing this merchant's child may put on a menu — «مشويات»،
+     * «ساندوتشات» for a restaurant, «قطعة أثاث» for a showroom. Comes straight
+     * from the taxonomy (`config.allowed_item_types`), so it needs no typing
+     * and cannot drift from what the platform says the child sells.
+     *
+     * @return array<int,array{key:string,label:string}>
+     */
+    private function itemTypes(): array
+    {
+        $services = $this->servicesForChild();
+        $menu = $services->firstWhere('key', PlatformService::KEY_MENU);
+
+        if (! $menu) {
+            return [];
+        }
+
+        return $this->allowedTypesByService($services)[(int) $menu->id] ?? [];
     }
 
     /** The owner's sections for the item form dropdown. */
@@ -118,6 +140,7 @@ class MenuItemController extends Controller
         return view('business.menu.edit', [
             'row' => $row,
             'sections' => $this->sections(),
+            'itemTypes' => $this->itemTypes(),
             'vocabulary' => $this->vocabulary(),
             'lineId' => $row->lineOption()?->id,
             'modifierIds' => $row->modifierOptions()->pluck('id'),
@@ -172,6 +195,7 @@ class MenuItemController extends Controller
                 'nullable', 'integer',
                 Rule::exists('menu_sections', 'id')->where('business_id', $this->businessId()),
             ],
+            'item_type' => ['nullable', 'string', 'max:60'],
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -181,12 +205,19 @@ class MenuItemController extends Controller
             'name_ar' => 'الاسم العربي',
             'base_price' => 'السعر',
             'menu_section_id' => 'القسم',
+            'item_type' => 'النوع',
         ]);
+
+        // Never trust the posted key: a merchant may only file an item under a
+        // kind his own child is allowed to list.
+        $type = trim((string) ($data['item_type'] ?? ''));
+        $allowed = array_column($this->itemTypes(), 'key');
 
         return [
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'menu_section_id' => ($data['menu_section_id'] ?? null) ?: null,
+            'item_type' => in_array($type, $allowed, true) ? $type : null,
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),

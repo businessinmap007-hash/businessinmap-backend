@@ -40,6 +40,22 @@
             @endif
         </div>
 
+        @if(! empty($itemTypes ?? []))
+            {{-- The heading, straight from the taxonomy: the merchant picks
+                 «مشويات» and every grill he adds files itself under it. No
+                 typing, and it cannot drift from what his activity may sell. --}}
+            <div class="a2-form-group">
+                <label class="a2-label" for="item_type">{{ __('النوع') }}</label>
+                <select class="a2-select" id="item_type" name="item_type">
+                    <option value="">{{ __('— بدون نوع —') }}</option>
+                    @foreach($itemTypes as $type)
+                        <option value="{{ $type['key'] }}" @selected((string) old('item_type', $row->item_type ?? '') === (string) $type['key'])>{{ $type['label'] }}</option>
+                    @endforeach
+                </select>
+                <small class="a2-help">{{ __('يجمع أصنافك تحت بند واحد في المنيو — كل المشويات تحت «مشويات».') }}</small>
+            </div>
+        @endif
+
         <div class="a2-form-group">
             <label class="a2-label" for="base_price">{{ __('السعر') }} <span class="a2-danger">*</span></label>
             <input class="a2-input" id="base_price" name="base_price" value="{{ old('base_price', $row->base_price ?? 0) }}" inputmode="decimal" placeholder="0.00" required>

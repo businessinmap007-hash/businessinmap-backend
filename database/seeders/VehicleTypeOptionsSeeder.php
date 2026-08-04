@@ -27,10 +27,22 @@ use Illuminate\Support\Facades\DB;
  * هاتشباك/كروس أوفر/كوبيه/ميني فان without asking; they were proposed once and
  * deliberately not approved.
  *
- * Linked SHARED (category_id = 0) to the two children that sell by LISTING a
- * car. The other eleven carrying «ماركات السيارات» are workshops, parts shops
- * and a limousine service — they service or fit vehicles, they do not put one
- * on a shelf, so a body type is not their heading.
+ * Linked SHARED (category_id = 0) to the children that sell the VEHICLE
+ * itself — two showrooms that list one, plus **خدمة ليموزين** (560 businesses,
+ * the platform's largest child), which sells the ride.
+ *
+ * The limousine case is not a showroom's, and it closes a real hole. Its own
+ * line group «مركبات النقل والركاب» reaches it with three options only —
+ * كوتش، ميكروباص ١٥، ميني ڤان ٧ — all of them big vehicles. **A customer asking
+ * for a sedan with a driver could not be answered at all.** The two groups are
+ * complementary, not competing: g60 carries the fleet, this one the cars, and
+ * with the modifiers the child already has, an offering reads
+ *
+ *     سيدان — مرسيدس — سيارة بسائق
+ *
+ * The remaining ten children carrying «ماركات السيارات» are workshops and
+ * parts shops. They fit and service vehicles, they never sell one, so a body
+ * type is not their heading.
  */
 class VehicleTypeOptionsSeeder extends Seeder
 {
@@ -45,8 +57,8 @@ class VehicleTypeOptionsSeeder extends Seeder
         ['بيك أب', 'Pickup'],
     ];
 
-    /** Children that sell a vehicle by listing it. */
-    private const CHILDREN = ['سيارات', 'معرض سيارات'];
+    /** Children that sell the vehicle itself — two list it, one drives it. */
+    private const CHILDREN = ['سيارات', 'معرض سيارات', 'خدمة ليموزين'];
 
     public function run(): void
     {

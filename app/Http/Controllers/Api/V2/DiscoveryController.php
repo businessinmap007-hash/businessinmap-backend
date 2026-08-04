@@ -133,18 +133,25 @@ final class DiscoveryController extends Controller
     {
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
+            'category_id' => ['nullable', 'integer', 'min:1'],
             'open_now' => ['nullable', 'boolean'],
         ]);
 
         $childId = (int) $data['child_id'];
 
-        $options = CategoryChild::query()->find($childId)?->activeOptions()->with('group')->get()
+        // A shared child answers a different question under each root, so the
+        // browsing root narrows the filter list. Without one the answer is the
+        // union over every root — right for a search that spans them.
+        $rootId = (int) ($data['category_id'] ?? 0);
+
+        $options = CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get()
             ?? collect();
 
         $counts = DB::table('option_user as ou')
             ->join('users as u', 'u.id', '=', 'ou.user_id')
             ->where('u.type', 'business')
             ->where('u.category_child_id', $childId)
+            ->when($rootId > 0, fn ($q) => $q->where('u.category_id', $rootId))
             ->whereIn('ou.option_id', $options->pluck('id'))
             ->when(
                 $request->boolean('open_now'),
@@ -173,6 +180,7 @@ final class DiscoveryController extends Controller
             'success' => true,
             'data' => [
                 'child_id' => $childId,
+                'category_id' => $rootId ?: null,
                 'groups' => array_values($groups),
             ],
         ]);

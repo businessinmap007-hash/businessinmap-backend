@@ -78,8 +78,16 @@ final class ProfileController extends Controller
 
         $optionIds = array_values(array_unique(array_map('intval', $data['option_ids'])));
 
+        // Scoped to the business's ROOT as well as its child: the same child
+        // carries a different attribute set under a different root (a furniture
+        // factory is not asked what a furniture showroom is asked), and
+        // category_child_option.category_id = 0 means "under every root".
         $allowed = DB::table('category_child_option')
             ->where('child_id', (int) $user->category_child_id)
+            ->when(
+                (int) ($user->category_id ?? 0) > 0,
+                fn ($q) => $q->whereIn('category_id', [0, (int) $user->category_id])
+            )
             ->pluck('option_id')
             ->all();
 
@@ -100,10 +108,11 @@ final class ProfileController extends Controller
     private function optionsPayload($user): array
     {
         $childId = (int) ($user->category_child_id ?? 0);
+        $rootId = (int) ($user->category_id ?? 0);
         $selected = $user->options()->pluck('options.id')->all();
 
         $options = $childId
-            ? (CategoryChild::query()->find($childId)?->activeOptions()->with('group')->get() ?? collect())
+            ? (CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get() ?? collect())
             : collect();
 
         $groups = [];

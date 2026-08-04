@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Services\CategoryChildOptionScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +19,24 @@ use Illuminate\View\View;
  * pages in your head. Every seeder written this session had to reason about the
  * pair together; the admin had no way to.
  *
- * The pair is also why the two panels are not symmetrical in what they key on.
- * `category_child_option` is keyed by CHILD alone, so an option granted here
- * appears under EVERY root the child sits beneath — «آثاث» is one row shared by
- * ورش، معارض، شركات، مصانع. `category_service_configs` carries `category_id`,
- * so a service edit applies to the chosen root only. The view says so on the
- * screen rather than leaving it to be discovered.
+ * Both panels are now keyed the same way: on the (root, child) PAIR. A shared
+ * child answers a different question under a different root — a furniture
+ * factory is asked about materials and output, a furniture showroom about
+ * instalments and delivery — and until `category_child_option.category_id`
+ * existed there was one option set for all four roots of «آثاث» at once.
+ *
+ * The one asymmetry left is deliberate and invisible here: a service config is
+ * always written per root, while an option row may still be SHARED
+ * (`category_id = 0`) and cover every root at once. That is what almost every
+ * row is, and what a seeder writing a keyword rule means. A per-root row is
+ * only ever created when a root actually diverges — see `saveOptions`.
  */
 class ChildWorkbenchController extends Controller
 {
+    public function __construct(private readonly CategoryChildOptionScope $scope)
+    {
+    }
+
     public function index(Request $request): View
     {
         $roots = DB::table('categories as c')
@@ -56,12 +66,23 @@ class ChildWorkbenchController extends Controller
             'rootId' => $rootId,
             'childId' => $childId,
             'child' => $childId ? $children->firstWhere('id', $childId) : null,
-            'optionPanel' => $childId ? $this->optionPanel($childId) : null,
+            'optionPanel' => $childId ? $this->optionPanel($rootId, $childId) : null,
             'servicePanel' => $childId ? $this->servicePanel($rootId, $childId) : null,
             'sharedRoots' => $childId ? $this->sharedRoots($rootId, $childId) : collect(),
         ]);
     }
 
+    /**
+     * Save the option set for THIS root only.
+     *
+     * The interesting case is withdrawing an option that is currently shared
+     * across every root. Deleting the shared row would silently strip it from
+     * the other roots too — the very bug this screen exists to end. So the row
+     * is SPLIT instead: the shared row goes, and the option is re-granted as an
+     * explicit row under each of the child's other roots. Nothing is
+     * materialised until a root actually disagrees, so the table stays as small
+     * as the disagreements are.
+     */
     public function saveOptions(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -71,42 +92,31 @@ class ChildWorkbenchController extends Controller
             'option_ids.*' => ['integer', 'exists:options,id'],
         ]);
 
+        $rootId = (int) $data['root_id'];
         $childId = (int) $data['child_id'];
         $wanted = collect($data['option_ids'] ?? [])->map(fn ($id) => (int) $id)->unique();
 
-        $existing = DB::table('category_child_option')->where('child_id', $childId)->pluck('option_id');
-
-        $removing = $existing->diff($wanted);
+        $existing = $this->scope->idsFor($childId, $rootId);
 
         // A merchant's own answer outranks the catalogue: refuse to withdraw an
-        // option some business under this child has already ticked.
+        // option a business under THIS root and child has already ticked. Scoped
+        // to the root, so a showroom's answer no longer pins a factory's list.
         $chosen = DB::table('option_user as ou')
             ->join('users as u', 'u.id', '=', 'ou.user_id')
             ->where('u.category_child_id', $childId)
-            ->whereIn('ou.option_id', $removing)
+            ->where('u.category_id', $rootId)
+            ->whereIn('ou.option_id', $existing->diff($wanted))
             ->pluck('ou.option_id')
+            ->map(fn ($id) => (int) $id)
             ->unique();
 
-        DB::transaction(function () use ($childId, $wanted, $existing, $removing, $chosen) {
-            $drop = $removing->diff($chosen);
+        $result = $this->scope->syncFor($childId, $rootId, $wanted->all(), $chosen->all());
 
-            if ($drop->isNotEmpty()) {
-                DB::table('category_child_option')
-                    ->where('child_id', $childId)
-                    ->whereIn('option_id', $drop)
-                    ->delete();
-            }
+        $message = __('تم حفظ الخيارات لهذا القسم الرئيسي وحده.');
 
-            $add = $wanted->diff($existing);
-
-            foreach ($add->chunk(200) as $chunk) {
-                DB::table('category_child_option')->insert(
-                    $chunk->map(fn ($id) => ['child_id' => $childId, 'option_id' => $id])->values()->all()
-                );
-            }
-        });
-
-        $message = __('تم حفظ الخيارات.');
+        if ($result['split'] > 0) {
+            $message .= ' ' . __(':count خيارًا كانت مشتركة، فأُبقيت كما هي تحت الأقسام الأخرى.', ['count' => $result['split']]);
+        }
 
         if ($chosen->isNotEmpty()) {
             $message .= ' ' . __('أُبقي :count خيارًا لأن تاجرًا اختارها بالفعل.', ['count' => $chosen->count()]);
@@ -115,7 +125,7 @@ class ChildWorkbenchController extends Controller
         // route(..., false) for the relative URL; redirect()->route()'s third
         // argument is the HTTP STATUS, not the absolute flag.
         return redirect()
-            ->to(route('admin.child-workbench.index', ['root_id' => $data['root_id'], 'child_id' => $childId], false))
+            ->to(route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $childId], false))
             ->with('status', $message);
     }
 
@@ -273,13 +283,20 @@ class ChildWorkbenchController extends Controller
     }
 
     /**
-     * Selected options first, then every other option folded into its group.
+     * Selected options first, then every other option folded into its group —
+     * all of it read for THIS root: the child's shared rows plus its own.
      *
-     * @return array{selected:\Illuminate\Support\Collection,groups:\Illuminate\Support\Collection,locked:\Illuminate\Support\Collection}
+     * @return array{selected:\Illuminate\Support\Collection,groups:\Illuminate\Support\Collection,locked:\Illuminate\Support\Collection,shared:\Illuminate\Support\Collection}
      */
-    private function optionPanel(int $childId): array
+    private function optionPanel(int $rootId, int $childId): array
     {
-        $selectedIds = DB::table('category_child_option')->where('child_id', $childId)->pluck('option_id');
+        $rows = DB::table('category_child_option')
+            ->where('child_id', $childId)
+            ->whereIn('category_id', [0, $rootId])
+            ->get(['option_id', 'category_id']);
+
+        $selectedIds = $rows->pluck('option_id')->unique();
+        $shared = $rows->where('category_id', 0)->pluck('option_id')->unique();
 
         $all = DB::table('options as o')
             ->leftJoin('option_groups as g', 'g.id', '=', 'o.group_id')
@@ -288,10 +305,11 @@ class ChildWorkbenchController extends Controller
             ->orderBy('o.id')
             ->get(['o.id', 'o.name_ar', 'o.group_id', 'g.name_ar as group_name']);
 
-        // options a merchant already ticked cannot be withdrawn here
+        // options a merchant under this root already ticked cannot be withdrawn
         $locked = DB::table('option_user as ou')
             ->join('users as u', 'u.id', '=', 'ou.user_id')
             ->where('u.category_child_id', $childId)
+            ->where('u.category_id', $rootId)
             ->pluck('ou.option_id')
             ->unique();
 
@@ -301,6 +319,7 @@ class ChildWorkbenchController extends Controller
             'selected' => $selected->groupBy(fn ($o) => $o->group_name ?: __('بلا مجموعة')),
             'groups' => $rest->groupBy(fn ($o) => $o->group_name ?: __('بلا مجموعة')),
             'locked' => $locked,
+            'shared' => $shared,
         ];
     }
 

@@ -19,6 +19,11 @@
  * Read by ChildOptionScopeSeeder, and honoured by the two seeders that would
  * otherwise hand the whole group back: LinkCategoryChildrenToOptionsSeeder and
  * VehicleOptionGroupsSeeder.
+ *
+ * This narrows a child's list under EVERY root at once — it answers "this child
+ * cannot use that option at all". The other, finer question — "this child
+ * answers differently under مصانع than under معارض" — is per-root and lives on
+ * `category_child_option.category_id`; see App\Services\CategoryChildOptionScope.
  */
 return [
 

@@ -22,11 +22,16 @@ use Illuminate\Support\Facades\DB;
  *
  * Two things worth knowing about the shape of the data:
  *
- * 1. `category_child_option` is keyed by CHILD, not by (root, child), while a
- *    child row is shared by several roots — «آثاث» is a workshop under ورش and
- *    a showroom under معارض. So a child's target set is the UNION over every
- *    root it belongs to. That is the honest reading of the pivot: the child MAY
- *    carry the option, and the business chooses.
+ * 1. This map is written per CHILD, so it grants SHARED links
+ *    (`category_child_option.category_id = 0`) — the option applies under every
+ *    root the child sits beneath. A child row IS shared: «آثاث» is a workshop
+ *    under ورش and a showroom under معارض, and a keyword-level rule genuinely
+ *    has nothing to say about which of them is meant.
+ *
+ *    Per-root divergence is possible now (App\Services\CategoryChildOptionScope)
+ *    but it is a hand edit, not something a bulk map should guess. Note this
+ *    seeder removes by (child, option) regardless of root: an option it says a
+ *    child must not carry is withdrawn from every root at once, by design.
  *
  * 2. A link is never removed if a business under that child has already chosen
  *    it (`option_user`). Merchant answers outrank this map.

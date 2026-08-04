@@ -51,9 +51,9 @@
         </div>
     @else
         @if($sharedRoots->isNotEmpty())
-            <div class="a2-alert a2-alert-warning a2-mb-16">
+            <div class="a2-alert a2-alert-info a2-mb-16">
                 {{ __('هذا الابن مشترك أيضًا مع:') }} <strong>{{ $sharedRoots->implode('، ') }}</strong>.
-                {{ __('تعديل الخيارات يظهر تحت كل هذه الأقسام، أما الخدمات فتخص هذا الأب وحده.') }}
+                {{ __('كل ما تحفظه هنا — الخيارات والخدمات — يخص هذا القسم الرئيسي وحده. الخيار المعلَّم «مشترك» ما زال يعمل تحت كل الأقسام؛ إن أزلته من هنا يبقى كما هو عندها.') }}
             </div>
         @endif
 
@@ -81,12 +81,18 @@
                             <div class="cw-block-head">{{ $groupName }}</div>
                             <div class="cw-chips">
                                 @foreach($options as $option)
-                                    @php $isLocked = $optionPanel['locked']->contains($option->id); @endphp
+                                    @php
+                                        $isLocked = $optionPanel['locked']->contains($option->id);
+                                        $isShared = $sharedRoots->isNotEmpty() && $optionPanel['shared']->contains($option->id);
+                                    @endphp
                                     <label class="cw-chip @if($isLocked) is-locked @endif"
                                            @if($isLocked) title="{{ __('اختاره تاجر بالفعل — لا يمكن سحبه') }}" @endif>
                                         <input type="checkbox" name="option_ids[]" value="{{ $option->id }}" checked
                                                @disabled($isLocked)>
                                         <span>{{ $option->name_ar }}</span>
+                                        @if($isShared)
+                                            <em class="cw-tag" title="{{ __('ممنوح تحت كل الأقسام التي يقع تحتها هذا الابن') }}">{{ __('مشترك') }}</em>
+                                        @endif
                                     </label>
                                     @if($isLocked)
                                         <input type="hidden" name="option_ids[]" value="{{ $option->id }}">
@@ -228,6 +234,8 @@
                border: 1px solid rgba(128,128,128,.35); border-radius: 999px; font-size: 13px; cursor: pointer; }
     .cw-chip:has(input:checked) { border-color: currentColor; font-weight: 600; }
     .cw-chip.is-locked { opacity: .6; cursor: not-allowed; }
+    .cw-tag { font-size: 10px; font-style: normal; opacity: .65; border: 1px solid currentColor;
+              border-radius: 4px; padding: 0 4px; }
 
     .cw-fold { border: 1px solid rgba(128,128,128,.25); border-radius: 8px; margin-bottom: 6px; }
     .cw-fold > summary { cursor: pointer; padding: 8px 12px; font-size: 13px; user-select: none; }

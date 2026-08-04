@@ -50,6 +50,7 @@ class CategoryChild extends Model
             'child_id',
             'option_id'
         )
+            ->withPivot('category_id')
             ->orderBy('category_child_option.reorder')
             ->orderBy('options.id');
     }
@@ -62,11 +63,41 @@ class CategoryChild extends Model
             'child_id',
             'option_id'
         )
+            ->withPivot('category_id')
             ->when(\Illuminate\Support\Facades\Schema::hasColumn('options', 'is_active'), function ($q) {
                 $q->where('options.is_active', 1);
             })
             ->orderBy('category_child_option.reorder')
             ->orderBy('options.id');
+    }
+
+    /**
+     * The same child answers a different question under a different root: a
+     * furniture FACTORY is asked about materials and output, a furniture
+     * SHOWROOM about instalments and delivery. `category_child_option.category_id`
+     * carries that — 0 meaning "under every root", a real id meaning that root
+     * alone — so the option set for a root is the shared rows plus its own.
+     *
+     * Passing no root keeps the old behaviour, the UNION over every root, which
+     * is the right answer wherever the caller genuinely has no root in hand.
+     */
+    public function optionsForParent(?int $parentId): BelongsToMany
+    {
+        return $this->scopeToParent($this->options(), $parentId);
+    }
+
+    public function activeOptionsForParent(?int $parentId): BelongsToMany
+    {
+        return $this->scopeToParent($this->activeOptions(), $parentId);
+    }
+
+    private function scopeToParent(BelongsToMany $relation, ?int $parentId): BelongsToMany
+    {
+        if ($parentId && $parentId > 0) {
+            $relation->whereIn('category_child_option.category_id', [0, $parentId]);
+        }
+
+        return $relation;
     }
 
     public function optionLinks(): HasMany

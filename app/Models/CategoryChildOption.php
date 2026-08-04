@@ -11,16 +11,21 @@ class CategoryChildOption extends Model
 
     public $timestamps = false;
 
+    /** 0 = granted under every root the child sits under; a real id = that root alone. */
+    public const ALL_ROOTS = 0;
+
     protected $fillable = [
         'child_id',
+        'category_id',
         'option_id',
         'reorder',
     ];
 
     protected $casts = [
-        'child_id'  => 'integer',
-        'option_id' => 'integer',
-        'reorder'   => 'integer',
+        'child_id'    => 'integer',
+        'category_id' => 'integer',
+        'option_id'   => 'integer',
+        'reorder'     => 'integer',
     ];
 
     public function child(): BelongsTo

@@ -8,14 +8,18 @@ use App\Models\CategoryChild;
 use App\Models\CategoryChildOption;
 use App\Models\Option;
 use App\Models\OptionGroup;
+use App\Services\CategoryChildOptionScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class CategoryChildOptionController extends Controller
 {
+    public function __construct(private readonly CategoryChildOptionScope $scope)
+    {
+    }
+
     public function edit(Request $request, CategoryChild $categoryChild): View
     {
         $parentId = (int) $request->get('parent_id', 0);
@@ -52,12 +56,16 @@ class CategoryChildOptionController extends Controller
         // =========================
         // SELECTED OPTIONS
         // =========================
+        // Scoped to the root when the screen was opened from one: the same child
+        // carries a different set under each root it sits beneath.
         $selectedOptionIds = CategoryChildOption::query()
             ->where('child_id', $categoryChild->id)
+            ->when($parentId > 0, fn ($q) => $q->whereIn('category_id', [CategoryChildOption::ALL_ROOTS, $parentId]))
             ->orderBy('reorder')
             ->orderBy('id')
             ->pluck('option_id')
             ->map(fn ($id) => (int) $id)
+            ->unique()
             ->values()
             ->all();
 
@@ -113,34 +121,22 @@ class CategoryChildOptionController extends Controller
             'parent_id' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $rows = collect($data['rows'] ?? [])
-            ->map(function ($row, $index) use ($categoryChild) {
-                $optionId = (int) ($row['option_id'] ?? 0);
-                $reorder = (int) ($row['reorder'] ?? $index);
+        $parentId = (int) ($data['parent_id'] ?? 0);
 
-                if ($optionId <= 0) {
-                    return null;
-                }
+        $optionIds = collect($data['rows'] ?? [])
+            ->sortBy(fn ($row, $index) => (int) ($row['reorder'] ?? $index))
+            ->map(fn ($row) => (int) ($row['option_id'] ?? 0))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
-                return [
-                    'child_id' => $categoryChild->id,
-                    'option_id' => $optionId,
-                    'reorder' => max(0, $reorder),
-                ];
-            })
-            ->filter()
-            ->unique('option_id')
-            ->values();
-
-        DB::transaction(function () use ($categoryChild, $rows) {
-            CategoryChildOption::query()
-                ->where('child_id', $categoryChild->id)
-                ->delete();
-
-            if ($rows->isNotEmpty()) {
-                CategoryChildOption::query()->insert($rows->all());
-            }
-        });
+        // Saves the set for THIS root when one is in hand. It used to delete
+        // every row of the child and rewrite it, which — now that a child may
+        // answer differently under each root — would flatten the other roots'
+        // work on every save. With no root the whole child is replaced, exactly
+        // as before.
+        $this->scope->syncFor($categoryChild->id, $parentId, $optionIds, [], true);
 
         $routeParams = [
             'categoryChild' => $categoryChild->id,
@@ -263,60 +259,32 @@ class CategoryChildOptionController extends Controller
             ->values()
             ->all();
 
+        // The bulk edit is launched from a root, and every write below is scoped
+        // to it: appending under معارض must not also grant the option under
+        // مصانع, and replacing under one root must not wipe the others.
+        $parentId = (int) ($data['parent_id'] ?? 0);
+
         $children = CategoryChild::query()
             ->whereIn('id', $childIds)
             ->get(['id']);
 
         foreach ($children as $child) {
-            $currentLinks = CategoryChildOption::query()
-                ->where('child_id', $child->id)
-                ->get(['option_id', 'reorder']);
-
-            $currentIds = $currentLinks
-                ->pluck('option_id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
+            $childId = (int) $child->id;
 
             if ($data['mode'] === 'replace') {
-                CategoryChildOption::query()
-                    ->where('child_id', $child->id)
-                    ->delete();
-
-                foreach ($optionIds as $index => $optionId) {
-                    CategoryChildOption::query()->create([
-                        'child_id' => $child->id,
-                        'option_id' => (int) $optionId,
-                        'reorder' => $index,
-                    ]);
-                }
+                $this->scope->syncFor($childId, $parentId, $optionIds, [], true);
 
                 continue;
             }
 
             if ($data['mode'] === 'append') {
-                $toAdd = collect($optionIds)
-                    ->reject(fn ($id) => in_array((int) $id, $currentIds, true))
-                    ->values()
-                    ->all();
-
-                $start = ((int) $currentLinks->max('reorder')) + 1;
-
-                foreach ($toAdd as $i => $optionId) {
-                    CategoryChildOption::query()->create([
-                        'child_id' => $child->id,
-                        'option_id' => (int) $optionId,
-                        'reorder' => $start + $i,
-                    ]);
-                }
+                $this->scope->grantFor($childId, $parentId, $optionIds);
 
                 continue;
             }
 
-            if ($data['mode'] === 'remove' && !empty($optionIds)) {
-                CategoryChildOption::query()
-                    ->where('child_id', $child->id)
-                    ->whereIn('option_id', $optionIds)
-                    ->delete();
+            if ($data['mode'] === 'remove' && ! empty($optionIds)) {
+                $this->scope->revokeFor($childId, $parentId, $optionIds);
             }
         }
 

@@ -391,6 +391,7 @@ class CategoryChildController extends Controller
             ]);
 
             $categoryChild->parents()->sync($parentIds);
+            $this->forgetOptionsOfDetachedRoots($categoryChild->id, $parentIds);
             $this->syncChildServices($categoryChild, $parentIds, $serviceIds);
         });
 
@@ -398,6 +399,23 @@ class CategoryChildController extends Controller
 
         return $this->redirectToCategories($firstParentId)
             ->with('success', __('تم تحديث القسم الفرعي بنجاح.'));
+    }
+
+    /**
+     * A per-root option row only means anything while the child sits under that
+     * root. Once it is unlinked the row is unreachable — and would come back to
+     * life, still answering the old root's questions, if the pair were ever
+     * re-linked. Shared rows (category_id = 0) are untouched.
+     *
+     * @param  array<int,int>  $parentIds
+     */
+    private function forgetOptionsOfDetachedRoots(int $childId, array $parentIds): void
+    {
+        DB::table('category_child_option')
+            ->where('child_id', $childId)
+            ->where('category_id', '!=', 0)
+            ->when(! empty($parentIds), fn ($q) => $q->whereNotIn('category_id', $parentIds))
+            ->delete();
     }
 
     public function destroy(Request $request, CategoryChild $categoryChild): RedirectResponse
@@ -431,6 +449,13 @@ class CategoryChildController extends Controller
         DB::table('category_parent_child')
             ->where('child_id', $categoryChild->id)
             ->where('parent_id', $parent->id)
+            ->delete();
+
+        // options the child answered under THAT root only have nowhere left to
+        // be asked; the shared rows (category_id = 0) stay for the other roots
+        DB::table('category_child_option')
+            ->where('child_id', $categoryChild->id)
+            ->where('category_id', $parent->id)
             ->delete();
 
         $hasParents = DB::table('category_parent_child')

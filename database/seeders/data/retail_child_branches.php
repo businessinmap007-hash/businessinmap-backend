@@ -20,8 +20,23 @@
  *     Menu items. See [[retail-service-build]] / the grocery_retail branch in
  *     retail_taxonomy.php for why this uses a distinct key, not 'supermarket'.
  *
+ *   - cloth-accessories / companies / factories (2026-08-04): the roots that
+ *     were never given a selling surface at all. Most of their children are the
+ *     SAME category_children_master rows already classified above — the map is
+ *     keyed per ROOT, so «أقمشة» under معارض was wired while «أقمشة» under
+ *     مصانع was not, and admin/discovery read per root. Services (شحن،
+ *     استيراد وتصدير، طباعة، نقل دولي، مصاعد) are deliberately excluded: they
+ *     are booked, not stocked.
+ *
  * Duplicate-named children (e.g. أجهزة رياضية appears twice under exhibitions)
  * are listed once; the seeder matches every id carrying that name.
+ *
+ * A child may only be given a branch that actually HAS a matching item type —
+ * the branch's whole type list becomes the child's allowed_item_types, so a
+ * branch with nothing relevant in it hands the merchant an empty product
+ * picker. «حلويات» is the standing example: it is mapped to hobbies_general
+ * above, which carries toys, books and stationery and no sweets type at all,
+ * so it was NOT propagated to the new roots.
  */
 
 return [
@@ -111,5 +126,122 @@ return [
         'لعب أطفال' => ['hobbies_general'],
         'مصنوعات خشبية ومستلزمات ديكور' => ['home_furnishings'],
         'أصواف' => ['fashion_textiles'],
+    ],
+
+    // ── ملابس و اكسسوارات (root 14) ──
+    // The whole root sells clothing off a rail. It had no selling surface at
+    // all — only delivery and offers, which move and advertise goods a
+    // merchant had no way to list in the first place.
+    'cloth-accessories' => [
+        'ملابس' => ['fashion_textiles'],
+        'ملابس كاجوال' => ['fashion_textiles'],
+        'ملابس رسمي' => ['fashion_textiles'],
+        'ملابس النوم' => ['fashion_textiles'],
+        'ملابس رياضية' => ['fashion_textiles'],
+        'ملابس زفاف' => ['fashion_textiles'],
+        'كوتشي' => ['fashion_textiles'],
+        'اكسسوار' => ['fashion_textiles'],
+        'جلود وشنط وأحذية' => ['fashion_textiles'],
+    ],
+
+    // ── شركات (root 22) ──
+    // A trading company sells the same standard goods a shop does; the child is
+    // usually the SAME row already classified under معارض/المحلات, and was only
+    // missed because this map was keyed per root. Services (استيراد وتصدير،
+    // نقل دولي، شحن، طباعة، مصاعد) are deliberately absent — they are booked,
+    // not stocked.
+    'companies' => [
+        'أجهزة كهربائية' => ['electronics_tech'],
+        'أجهزه كمبيوتر' => ['electronics_tech'],
+        'أجهزة رياضية' => ['electronics_tech'],
+        'تبريد وتكييف' => ['electronics_tech'],
+        'أدوات تجميل' => ['beauty_health_retail'],
+        'مستلزمات طبية' => ['beauty_health_retail'],
+        'مواد دوائية' => ['beauty_health_retail'],
+        'أقمشة' => ['fashion_textiles'],
+        'ملابس جاهزة' => ['fashion_textiles'],
+        'جلود وشنط وأحذية' => ['fashion_textiles'],
+        'أصواف' => ['fashion_textiles'],
+        'اكسسوار' => ['fashion_textiles'],
+        'ألمونتال' => ['home_furnishings'],
+        'أنتيكات وتحف' => ['home_furnishings'],
+        'سجاد' => ['home_furnishings'],
+        'زجاج' => ['home_furnishings'],
+        'صيني ومستلزمات بيت' => ['home_furnishings'],
+        'صينى وخزف' => ['home_furnishings'],
+        'مراتب' => ['home_furnishings'],
+        'إسفنج' => ['home_furnishings'],
+        'لوازم ستائر' => ['home_furnishings'],
+        'نجف' => ['home_furnishings'],
+        'اسمنت' => ['building_hardware'],
+        'حديد تسليح' => ['building_hardware'],
+        'حدايد وبويات' => ['building_hardware'],
+        'رخام' => ['building_hardware'],
+        'مفاتيح' => ['building_hardware'],
+        'كبس خراطيم' => ['building_hardware'],
+        'مستلزمات نجارة' => ['building_hardware'],
+        'سيفتى ومقاومة حرائق' => ['building_hardware'],
+        'أخشاب' => ['building_hardware'],
+        'أبواب مصفحة' => ['building_hardware'],
+        'طوب' => ['building_hardware'],
+        'أدوات صحية' => ['building_hardware'],
+        'مواد تعبئة وتغليف' => ['building_hardware'],
+        'قطع غيار' => ['vehicles_parts'],
+        'منظفات' => ['hobbies_general'],
+        'أدوات مكتبية' => ['hobbies_general'],
+        'لعب أطفال' => ['hobbies_general'],
+        'مستلزمات مطاعم' => ['hobbies_general'],
+        'مستلزمات قهاوى' => ['hobbies_general'],
+        'مواد غذائية ومنظفات' => ['grocery_retail'],
+        'عصائر' => ['grocery_retail'],
+    ],
+
+    // ── مصانع (root 23) ──
+    // A factory sells what it makes. Where the output is a standard, branded,
+    // repeatable SKU it belongs here; where it is bespoke (أثاث، مفروشات، نجف
+    // و تحف) it already has the LISTING surface instead — see
+    // listing_service_children.php. Both can be on at once.
+    'factories' => [
+        'أجهزة كهربائية' => ['electronics_tech'],
+        'أجهزه كمبيوتر' => ['electronics_tech'],
+        'اكسسوار موبيلات' => ['electronics_tech'],
+        'أدوات تجميل' => ['beauty_health_retail'],
+        'مستلزمات طبية' => ['beauty_health_retail'],
+        'مواد دوائية' => ['beauty_health_retail'],
+        'أقمشة' => ['fashion_textiles'],
+        'ملابس جاهزة' => ['fashion_textiles'],
+        'جلود وشنط وأحذية' => ['fashion_textiles'],
+        'أصواف' => ['fashion_textiles'],
+        'اكسسوار' => ['fashion_textiles'],
+        'سجاد' => ['home_furnishings'],
+        'زجاج' => ['home_furnishings'],
+        'صيني ومستلزمات بيت' => ['home_furnishings'],
+        'صينى وخزف' => ['home_furnishings'],
+        'مراتب' => ['home_furnishings'],
+        'إسفنج' => ['home_furnishings'],
+        'نجف' => ['home_furnishings'],
+        'اسمنت' => ['building_hardware'],
+        'حديد تسليح' => ['building_hardware'],
+        'حدايد وبويات' => ['building_hardware'],
+        'رخام وجرانيت' => ['building_hardware'],
+        'مفاتيح' => ['building_hardware'],
+        'كبس خراطيم' => ['building_hardware'],
+        'مستلزمات نجارة' => ['building_hardware'],
+        'سيفتى ومقاومة حرائق' => ['building_hardware'],
+        'اكياس بلاستيك' => ['building_hardware'],
+        'بي في سي' => ['building_hardware'],
+        'أخشاب' => ['building_hardware'],
+        'باب وشباك' => ['building_hardware'],
+        'طوب' => ['building_hardware'],
+        'أدوات صحية' => ['building_hardware'],
+        'مواد تعبئة وتغليف' => ['building_hardware'],
+        'طباعة مواد تعبئة وتغليف' => ['building_hardware'],
+        'اكسسوارت سيارات' => ['vehicles_parts'],
+        'قطع غيار سيارات' => ['vehicles_parts'],
+        'منظفات' => ['hobbies_general'],
+        'لعب أطفال' => ['hobbies_general'],
+        'مستلزمات مطاعم' => ['hobbies_general'],
+        'مواد غذائية' => ['grocery_retail'],
+        'عصائر' => ['grocery_retail'],
     ],
 ];

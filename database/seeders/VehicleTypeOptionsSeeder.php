@@ -28,19 +28,20 @@ use Illuminate\Support\Facades\DB;
  * deliberately not approved.
  *
  * Linked SHARED (category_id = 0) to the children that sell the VEHICLE
- * itself — two showrooms that list one, plus **خدمة ليموزين** (560 businesses,
- * the platform's largest child), which sells the ride.
+ * itself: two showrooms that LIST one, and **خدمة ليموزين** (560 businesses,
+ * the platform's largest child) and **نقل ركاب** (55), which sell the RIDE.
  *
- * The limousine case is not a showroom's, and it closes a real hole. Its own
- * line group «مركبات النقل والركاب» reaches it with three options only —
- * كوتش، ميكروباص ١٥، ميني ڤان ٧ — all of them big vehicles. **A customer asking
- * for a sedan with a driver could not be answered at all.** The two groups are
- * complementary, not competing: g60 carries the fleet, this one the cars, and
- * with the modifiers the child already has, an offering reads
+ * The two transport children are not the showroom case repeated — they close a
+ * real hole. Their own line group «مركبات النقل والركاب» (g60) reaches them
+ * with big vehicles only: كوتش، ميكروباص ١٥، ميني ڤان ٧، باص ٥٠، ميني باص ٢٥.
+ * **A customer asking for a sedan with a driver could not be answered at all**,
+ * which is the commonest request either of them gets. The two groups are
+ * complementary, not competing — g60 carries the fleet, this one the cars —
+ * and with the modifiers each child already has, an offering reads
  *
  *     سيدان — مرسيدس — سيارة بسائق
  *
- * The remaining ten children carrying «ماركات السيارات» are workshops and
+ * The children carrying «ماركات السيارات» but NOT listed here are workshops and
  * parts shops. They fit and service vehicles, they never sell one, so a body
  * type is not their heading.
  */
@@ -57,8 +58,8 @@ class VehicleTypeOptionsSeeder extends Seeder
         ['بيك أب', 'Pickup'],
     ];
 
-    /** Children that sell the vehicle itself — two list it, one drives it. */
-    private const CHILDREN = ['سيارات', 'معرض سيارات', 'خدمة ليموزين'];
+    /** Children that sell the vehicle itself — two list it, two drive it. */
+    private const CHILDREN = ['سيارات', 'معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'];
 
     public function run(): void
     {

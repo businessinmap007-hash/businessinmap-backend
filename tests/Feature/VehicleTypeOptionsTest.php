@@ -60,7 +60,7 @@ class VehicleTypeOptionsTest extends TestCase
     /** Every child that sells the vehicle itself can name which one. */
     public function test_the_vehicle_sellers_carry_them(): void
     {
-        foreach (['سيارات', 'معرض سيارات', 'خدمة ليموزين'] as $name) {
+        foreach (['سيارات', 'معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'] as $name) {
             $id = $this->childId($name);
 
             $this->assertGreaterThan(0, $id, "«{$name}» is missing");
@@ -69,29 +69,32 @@ class VehicleTypeOptionsTest extends TestCase
     }
 
     /**
-     * The hole this closed: «مركبات النقل والركاب» reaches خدمة ليموزين with
-     * كوتش، ميكروباص ١٥، ميني ڤان ٧ — all big vehicles — so a customer asking
-     * for a sedan with a driver could not be answered at all.
+     * The hole this closed: «مركبات النقل والركاب» reaches both transport
+     * children with big vehicles only — كوتش، ميكروباص، ميني ڤان، باص ٥٠ — so
+     * a customer asking for a sedan with a driver, the commonest request
+     * either of them gets, could not be answered at all.
      */
-    public function test_a_limousine_service_can_now_offer_a_car(): void
+    public function test_a_transport_service_can_now_offer_a_car(): void
     {
-        $id = $this->childId('خدمة ليموزين');
+        foreach (['خدمة ليموزين', 'نقل ركاب'] as $name) {
+            $id = $this->childId($name);
 
-        if (! $id) {
-            $this->markTestSkipped('No «خدمة ليموزين» child.');
+            if (! $id) {
+                continue;
+            }
+
+            $fleet = $this->optionsOf($id, 'مركبات النقل والركاب');
+
+            $this->assertNotEmpty($fleet, "the fleet group no longer reaches «{$name}»");
+            $this->assertNotContains('سيدان', $fleet, 'the fleet group was not the place for a body type');
+
+            // Complementary, not competing: the fleet keeps the big vehicles,
+            // this group adds the cars, and both are lines he may price.
+            $this->assertContains('سيدان', $this->optionsOf($id, 'نوع المركبة'), "«{$name}» still cannot offer a sedan");
+
+            // And the modifier it already had turns that into a whole offering.
+            $this->assertContains('سيارة بسائق', $this->optionsOf($id, 'نمط تقديم الخدمة'));
         }
-
-        $fleet = $this->optionsOf($id, 'مركبات النقل والركاب');
-
-        $this->assertNotEmpty($fleet, 'the fleet group no longer reaches the limousine service');
-        $this->assertNotContains('سيدان', $fleet, 'the fleet group was not the place for a body type');
-
-        // Complementary, not competing: the fleet keeps the big vehicles, this
-        // group adds the cars, and both are lines the merchant may price.
-        $this->assertContains('سيدان', $this->optionsOf($id, 'نوع المركبة'));
-
-        // And the modifiers it already had turn that into a whole offering.
-        $this->assertContains('سيارة بسائق', $this->optionsOf($id, 'نمط تقديم الخدمة'));
     }
 
     /** A workshop fits and services vehicles; it never sells one. */

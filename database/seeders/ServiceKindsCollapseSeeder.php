@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\BusinessServicePrice;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Collapses booking's 294 item types and menu's 45 into kinds.
@@ -20,13 +22,25 @@ use Illuminate\Support\Facades\DB;
  * selling surfaces. See data/service_kinds.php for the map and why retail is
  * excluded.
  *
- * The old types are DEACTIVATED, never deleted: `bookable_item_type` and
- * `bookable_items.item_type` are free-text strings, several seeders still name
- * the old keys, and a deleted row would take the audit trail of any historic
- * price with it. Live rows are migrated onto the new keys here.
+ * The old types are first DEACTIVATED, never deleted outright: the columns that
+ * hold a type are free-text strings with no foreign key, several seeders still
+ * name the old keys, and a deleted row would take the audit trail of any
+ * historic price with it. Live rows are migrated onto the new keys here.
+ *
+ * A retired row that nothing references at all is then PRUNED — see prune(),
+ * which re-checks every reference itself and refuses anything still in use.
+ * Deactivating alone was not enough because the branch seeders that created
+ * these types are still in DatabaseSeeder: BookingBranchesSeeder recreates 294
+ * of them on any full seed. That is why this seeder now runs there too, right
+ * after them — create, collapse, prune, and the database lands clean whichever
+ * order it is built in.
  *
  * Idempotent, and it repairs: a re-run rewrites every config to the kinds the
- * map implies, so a hand-edit that reintroduced an old key is corrected.
+ * map implies, so a hand-edit that reintroduced an old key is corrected. That
+ * idempotence was not free — the first version read the kind from a config's
+ * `item_groups` and then overwrote `item_groups`, so a second run had nothing
+ * left to read and reset all 307 booking configs to the default. A kind already
+ * stored is now honoured; see the fallback in collapse().
  */
 class ServiceKindsCollapseSeeder extends Seeder
 {
@@ -38,7 +52,142 @@ class ServiceKindsCollapseSeeder extends Seeder
             foreach ($map as $serviceKey => $spec) {
                 $this->collapse((string) $serviceKey, $spec);
             }
+
+            $this->prune();
         });
+    }
+
+    /**
+     * Free columns holding an item type as a plain string, with no foreign key
+     * to declare the relationship.
+     *
+     * Listed by hand on purpose. Matching on column NAME across the schema is
+     * what made the parallel options sweep refuse seven healthy rows: the
+     * paused taxonomy-lab clone carries `*_new` tables whose ids belong to
+     * their own clone, and a name match cannot tell the two apart. Add a column
+     * here when one is introduced; the tests will not know about it otherwise.
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    private const TYPE_KEY_COLUMNS = [
+        ['business_service_prices', 'bookable_item_type'],
+        ['bookable_items', 'item_type'],
+        ['menu_items', 'item_type'],
+    ];
+
+    /**
+     * Deletes the retired types and the branches they emptied — but only those
+     * nothing can still reach.
+     *
+     * The collapse left 366 deactivated types under 20 branches with no live
+     * type in them. Invisible in a picker, but not harmless: every admin branch
+     * board lists those 20 as categories a merchant has simply not filled in
+     * yet, and `platform_service_item_group_type` keeps 366 pivot rows alive
+     * behind them.
+     *
+     * Three things are protected and will never be deleted:
+     *
+     *   1. `BusinessServicePrice::DEFAULT_ITEM_TYPE` — id 1, key `category`,
+     *      which the collapse deactivated along with the rest. It is the string
+     *      the price resolver falls back to when a price names no type at all,
+     *      named in PHP rather than by a foreign key, so nothing in the
+     *      database would have stopped the delete. It survives with no branch,
+     *      which is correct: it is a sentinel, not something a merchant picks.
+     *      (`is_default` is NOT a protection — it is an admin-panel flag with
+     *      no runtime meaning, and eighteen retired rows still carried it.)
+     *   2. Any key still stored in a price, a bookable unit or a menu item, or
+     *      still offered by a config's allowed_item_types — the latter matched
+     *      WITHIN ITS OWN SERVICE. `platform_service_item_types` is unique on
+     *      (platform_service_id, key), so `frozen` is dead menu junk and at the
+     *      same time the live «مجمدات» under retail; an unscoped match let four
+     *      retail keys shield four dead menu rows.
+     *   3. Any type a trip schedule points at (that FK is ON DELETE SET NULL,
+     *      so the schedule would lose its vehicle silently rather than fail).
+     *
+     * A branch is DEACTIVATED, not deleted, once it holds no type at all and no
+     * config names it in `item_groups`. Deleting was tried and is wrong: eight
+     * pre-collapse seeders still resolve a branch by key and file types into it,
+     * and LegacyOptionGapsSeeder died on a foreign key the moment «استشارات
+     * وأعمال» went missing. The row is cheap; the crash is not. `is_active = 0`
+     * takes it out of every picker, which was the whole point.
+     *
+     * (An empty branch a config still points at is left alone either way — that
+     * is a merchant staring at an empty picker, a bug to fix, not junk.)
+     */
+    private function prune(): void
+    {
+        $usedKeys = collect();
+
+        foreach (self::TYPE_KEY_COLUMNS as [$table, $column]) {
+            if (Schema::hasTable($table)) {
+                $usedKeys = $usedKeys->merge(
+                    DB::table($table)->whereNotNull($column)->where($column, '!=', '')->pluck($column)
+                );
+            }
+        }
+
+        $usedKeys = $usedKeys->map(fn ($k) => (string) $k)->unique();
+
+        // Offered keys, kept per service — see point 2 in the docblock.
+        $offered = [];
+
+        foreach (DB::table('category_service_configs')->get(['platform_service_id', 'config']) as $row) {
+            $config = json_decode((string) $row->config, true);
+            $allowed = is_array($config) ? ($config['allowed_item_types'] ?? []) : [];
+
+            if (! is_array($allowed)) {
+                continue;
+            }
+
+            foreach ($allowed as $key) {
+                $offered[(int) $row->platform_service_id][(string) $key] = true;
+            }
+        }
+
+        $scheduled = Schema::hasTable('trip_schedules')
+            ? DB::table('trip_schedules')->whereNotNull('vehicle_type_id')->pluck('vehicle_type_id')->map(fn ($i) => (int) $i)
+            : collect();
+
+        $doomed = DB::table('platform_service_item_types')
+            ->where('is_active', 0)
+            ->get(['id', 'platform_service_id', 'key'])
+            ->reject(fn ($t) => (string) $t->key === BusinessServicePrice::DEFAULT_ITEM_TYPE
+                || $usedKeys->contains((string) $t->key)
+                || isset($offered[(int) $t->platform_service_id][(string) $t->key])
+                || $scheduled->contains((int) $t->id));
+
+        // CASCADE clears platform_service_item_group_type for us.
+        $typesDropped = $doomed->isEmpty() ? 0
+            : DB::table('platform_service_item_types')->whereIn('id', $doomed->pluck('id'))->delete();
+
+        $named = collect();
+
+        foreach (DB::table('category_service_configs')->pluck('config') as $json) {
+            $config = json_decode((string) $json, true);
+            $groups = is_array($config) ? ($config['item_groups'] ?? []) : [];
+
+            if (is_array($groups)) {
+                $named = $named->merge(array_map('intval', $groups));
+            }
+        }
+
+        $emptyBranches = DB::table('platform_service_item_groups')
+            ->where('is_active', 1)
+            ->whereNotExists(fn ($q) => $q->from('platform_service_item_group_type')
+                ->whereColumn('platform_service_item_group_type.group_id', 'platform_service_item_groups.id'))
+            ->pluck('name_ar', 'id')
+            ->reject(fn ($name, $id) => $named->contains((int) $id));
+
+        $branchesDropped = $emptyBranches->isEmpty() ? 0
+            : DB::table('platform_service_item_groups')->whereIn('id', $emptyBranches->keys())
+                ->update(['is_active' => 0, 'updated_at' => now()]);
+
+        $kept = DB::table('platform_service_item_types')->where('is_active', 0)->count();
+
+        $this->command?->info('تنظيف:');
+        $this->command?->line("  - أنواع متقاعدة حُذفت : {$typesDropped}  (بقيت محميّة: {$kept})");
+        $this->command?->line("  - فروع فارغة أُخملت : {$branchesDropped}"
+            . ($emptyBranches->isEmpty() ? '' : ' → ' . $emptyBranches->values()->implode('، ')));
     }
 
     private function collapse(string $serviceKey, array $spec): void
@@ -67,16 +216,20 @@ class ServiceKindsCollapseSeeder extends Seeder
             ->pluck('key', 'id');
 
         $rewritten = 0;
+        $approved = $this->kindsFromDataFile($spec);
 
         foreach (
             DB::table('category_service_configs')
                 ->where('platform_service_id', $serviceId)
-                ->get(['id', 'config']) as $row
+                ->get(['id', 'child_id', 'config']) as $row
         ) {
             $config = json_decode((string) $row->config, true) ?: [];
 
-            $kinds = collect($config['item_groups'] ?? [])
-                ->map(fn ($id) => $spec['map'][$branchKeyOf[$id] ?? ''] ?? null)
+            $kinds = collect($approved[(int) $row->child_id] ?? [])
+                ->merge(
+                    collect($config['item_groups'] ?? [])
+                        ->map(fn ($id) => $spec['map'][$branchKeyOf[$id] ?? ''] ?? null)
+                )
                 ->merge(
                     collect($config['allowed_item_types'] ?? [])
                         ->map(fn ($t) => $spec['by_type'][$t] ?? null)
@@ -84,6 +237,23 @@ class ServiceKindsCollapseSeeder extends Seeder
                 ->filter()
                 ->unique()
                 ->values();
+
+            if ($kinds->isEmpty()) {
+                /*
+                 * Nothing to translate — which on a SECOND run is the normal
+                 * case, not an error: the first run replaced item_groups with
+                 * the single new branch and allowed_item_types with kinds, so
+                 * the inputs this reads from are gone. Falling straight through
+                 * to the default here is what flattened all four booking kinds
+                 * onto «حجز موعد» and all five menu surfaces onto «منيو».
+                 *
+                 * A kind already stored IS the answer; keep it.
+                 */
+                $kinds = collect($config['allowed_item_types'] ?? [])
+                    ->filter(fn ($t) => isset($spec['kinds'][$t]))
+                    ->unique()
+                    ->values();
+            }
 
             if ($kinds->isEmpty()) {
                 $kinds = collect([$spec['default']]);
@@ -120,6 +290,78 @@ class ServiceKindsCollapseSeeder extends Seeder
                 . implode('، ', array_unique($this->stranded))
             );
         }
+    }
+
+    /**
+     * child_id => kinds, resolved from the approved child→branch data file.
+     *
+     * The authoritative source, and the only one that survives a re-run: the
+     * branch rows a config used to name are deleted by prune(), and the config's
+     * own `item_groups` is overwritten with the new branch below. The file is
+     * keyed exactly as the branch seeders key it — root SLUG, then child
+     * name_ar — so the same child name under two roots stays two answers.
+     *
+     * @return array<int, list<string>>
+     */
+    private function kindsFromDataFile(array $spec): array
+    {
+        $file = __DIR__ . '/data/' . ($spec['child_branches'] ?? '');
+
+        if (! isset($spec['child_branches']) || ! is_file($file)) {
+            return [];
+        }
+
+        $kinds = [];
+
+        foreach (require $file as $rootSlug => $children) {
+            $rootId = (int) DB::table('categories')
+                ->where('parent_id', 0)->where('slug', $rootSlug)->value('id');
+
+            if (! $rootId) {
+                continue;
+            }
+
+            foreach ($children as $childName => $branchKeys) {
+                $mapped = collect($branchKeys)
+                    ->map(fn ($key) => $spec['map'][$key] ?? null)
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                if ($mapped->isEmpty()) {
+                    continue;
+                }
+
+                $childIds = DB::table('category_parent_child as pc')
+                    ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
+                    ->where('pc.parent_id', $rootId)
+                    ->where('ch.name_ar', $childName)
+                    ->pluck('ch.id');
+
+                foreach ($childIds as $childId) {
+                    $kinds[(int) $childId] = collect($kinds[(int) $childId] ?? [])
+                        ->merge($mapped)->unique()->values()->all();
+                }
+            }
+        }
+
+        // Then the root fallback, for every child the file never named.
+        foreach ($spec['roots'] ?? [] as $rootSlug => $kind) {
+            $rootId = (int) DB::table('categories')
+                ->where('parent_id', 0)->where('slug', $rootSlug)->value('id');
+
+            if (! $rootId) {
+                continue;
+            }
+
+            foreach (
+                DB::table('category_parent_child')->where('parent_id', $rootId)->pluck('child_id') as $childId
+            ) {
+                $kinds[(int) $childId] ??= [$kind];
+            }
+        }
+
+        return $kinds;
     }
 
     /**

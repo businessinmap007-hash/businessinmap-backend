@@ -18,28 +18,42 @@ use Illuminate\Support\Facades\DB;
  *   php artisan db:seed --class=RetireDuplicateOptionsSeeder
  *
  * First use (owner call 2026-08-02): the three subjects whose refined twins the
- * owner added by hand — جيولوجيا, حاسب آلي, علوم متكاملة. Add to the map for
- * future duplicates; idempotent and re-runnable.
+ * owner added by hand — جيولوجيا, حاسب آلي, علوم متكاملة. Those three have
+ * since been deleted outright (2026-08-04), so the map is empty; see it below
+ * for what parking turned out to cost. Add to the map for future duplicates;
+ * idempotent and re-runnable.
  */
 class RetireDuplicateOptionsSeeder extends Seeder
 {
     private const RETIRED_GROUP = ['name_ar' => 'خيارات متقاعدة', 'name_en' => 'Retired Options'];
 
-    /** [group holding both, superseded name, surviving name] */
-    private const DUPLICATES = [
-        ['المواد الدراسية', 'جيولوجيا', 'جيولوجيا وعلوم بيئة'],
-        ['المواد الدراسية', 'حاسب آلي', 'حاسب آلي وتكنولوجيا معلومات'],
-        ['المواد الدراسية', 'علوم متكاملة', 'علوم'],
-    ];
+    /**
+     * [group holding both, superseded name, surviving name]
+     *
+     * Empty since 2026-08-04: the first three — جيولوجيا، حاسب آلي، علوم
+     * متكاملة — were parked here, then the «خيارات متقاعدة» group was deleted
+     * from the admin panel (which set their group_id NULL, `options.group_id`
+     * being ON DELETE SET NULL), and the owner then had the groupless rows
+     * swept for good by OrphanOptionsCleanupSeeder. They are also gone from
+     * TutoringCenterPoolsSeeder, so there is no superseded twin left to park.
+     *
+     * The mechanism stays for the next duplicate: add a row and re-run.
+     */
+    private const DUPLICATES = [];
 
     public function run(): void
     {
+        if (self::DUPLICATES === []) {
+            $this->command?->info('No duplicate options to retire.');
+
+            return;
+        }
+
         DB::transaction(function () {
-            $retiredGroupId = DB::table('option_groups')->where('name_ar', self::RETIRED_GROUP['name_ar'])->value('id')
-                ?: DB::table('option_groups')->insertGetId(self::RETIRED_GROUP + [
-                    'reorder' => 1 + (int) DB::table('option_groups')->max('reorder'),
-                    'is_active' => 0,
-                ]);
+            // Resolved only once something is actually being parked — creating
+            // it up front left an empty group behind on every no-op run, and an
+            // empty group is a dead entry in every picker.
+            $retiredGroupId = $this->retiredGroupId();
 
             $retired = 0;
             $moved = 0;
@@ -85,5 +99,14 @@ class RetireDuplicateOptionsSeeder extends Seeder
     private function groupLabel(): string
     {
         return self::RETIRED_GROUP['name_ar'];
+    }
+
+    private function retiredGroupId(): int
+    {
+        return (int) (DB::table('option_groups')->where('name_ar', self::RETIRED_GROUP['name_ar'])->value('id')
+            ?: DB::table('option_groups')->insertGetId(self::RETIRED_GROUP + [
+                'reorder' => 1 + (int) DB::table('option_groups')->max('reorder'),
+                'is_active' => 0,
+            ]));
     }
 }

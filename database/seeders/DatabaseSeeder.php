@@ -32,6 +32,12 @@ class DatabaseSeeder extends Seeder
            BookingChildBranchesSeeder::class,
            MenuBranchesSeeder::class,
            MenuChildBranchesSeeder::class,
+           // Must follow the booking and menu branch seeders above: they build
+           // the 294 + 45 item types this collapses into 4 kinds + 5 selling
+           // surfaces, and its prune step then removes what nothing references.
+           // Without it a full seed rebuilds the vocabulary the types no longer
+           // own — see the class docblock for why the type says HOW, not WHAT.
+           ServiceKindsCollapseSeeder::class,
            RetailBranchesSeeder::class,
            RetailChildBranchesSeeder::class,
            RetailProductTaxonomySeeder::class,

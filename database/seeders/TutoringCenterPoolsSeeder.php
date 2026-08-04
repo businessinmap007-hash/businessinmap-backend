@@ -18,6 +18,14 @@ use Illuminate\Support\Facades\DB;
  * Language subjects carry a "… Language" English name because options.name_en
  * is globally unique and مجالات التدريب already owns English/German/French….
  * Idempotent; collision-suffixes instead of failing.
+ *
+ * Three subjects were dropped from this list on 2026-08-04 — جيولوجيا، علوم
+ * متكاملة، حاسب آلي — because the owner's own refined names supersede them
+ * (جيولوجيا وعلوم بيئة، علوم، حاسب آلي وتكنولوجيا معلومات, all seeded by
+ * SchoolSubjectsSeeder and already on سنتر دروس). They had to leave this list,
+ * not just the database: the loop below matches on group_id + name_ar, so a
+ * deleted row would be recreated on the next run, and «حاسب آلي» would take a
+ * second bite at a name_en that مجالات التدريب holds.
  */
 class TutoringCenterPoolsSeeder extends Seeder
 {
@@ -36,9 +44,7 @@ class TutoringCenterPoolsSeeder extends Seeder
             'فيزياء' => 'Physics',
             'كيمياء' => 'Chemistry',
             'أحياء' => 'Biology',
-            'جيولوجيا' => 'Geology',
             'علوم' => 'Science',
-            'علوم متكاملة' => 'Integrated Science',
             'دراسات اجتماعية' => 'Social Studies',
             'تاريخ' => 'History',
             'جغرافيا' => 'Geography',
@@ -46,7 +52,6 @@ class TutoringCenterPoolsSeeder extends Seeder
             'علم نفس واجتماع' => 'Psychology & Sociology',
             'اقتصاد وإحصاء' => 'Economics & Statistics',
             'تربية دينية' => 'Religious Education',
-            'حاسب آلي' => 'Computer Studies',
         ]],
         ['المراحل التعليمية', 'Educational Stages', [
             'رياض أطفال' => 'Kindergarten',

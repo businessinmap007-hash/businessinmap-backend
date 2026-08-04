@@ -45,30 +45,45 @@ class TaxonomyRedistributionTest extends TestCase
         );
     }
 
-    public function test_the_halls_branch_only_holds_things_you_can_book(): void
+    /**
+     * The halls, at the end of the road this file has been tracking.
+     *
+     * «قاعات ومناسبات» started as 39 item types of which 30 were a capacity, a
+     * class or a meaningless «مقاس». The redistribution moved the dimensions
+     * out; ServicesReformSeeder (2026-08-02) moved the EVENT into the «أنواع
+     * المناسبات» option group; and the kinds collapse left the branch holding
+     * hall classes that said nothing an option did not say better, so the prune
+     * removed the branch itself on 2026-08-04.
+     *
+     * Which is the answer this test always wanted: a hall RENTS A PERIOD OF
+     * TIME, and what happens in that period is an option. Nothing about it
+     * belongs in an item type — so the assertion is no longer «the branch holds
+     * only bookables», it is that the branch is gone and its vocabulary landed
+     * where a merchant can price against it.
+     */
+    public function test_the_halls_vocabulary_lives_in_options_and_the_hall_books_time(): void
     {
-        $group = DB::table('platform_service_item_groups')->where('name_ar', 'like', '%قاعات%')->first();
+        $events = DB::table('option_groups')->where('name_ar', 'أنواع المناسبات')->first();
 
-        if (! $group) {
-            $this->markTestSkipped('The halls branch is absent.');
-        }
+        $this->assertNotNull($events, 'the events option group must exist');
+        $this->assertSame('line', $events->price_role, 'an event is what the customer books — it prices');
 
-        $types = DB::table('platform_service_item_group_type as gt')
-            ->join('platform_service_item_types as t', 't.id', '=', 'gt.item_type_id')
-            ->where('gt.group_id', $group->id)
-            ->pluck('t.name_ar');
+        $options = DB::table('options')->where('group_id', $events->id)->pluck('name_ar');
 
-        // 39 before the redistribution, of which 30 were dimensions.
-        $this->assertLessThanOrEqual(
-            12,
-            $types->count(),
-            'the halls branch is filling up with non-bookables again: ' . $types->implode(' · ')
-        );
+        $this->assertGreaterThanOrEqual(10, $options->count());
+        $this->assertContains('أفراح', $options->all());
+        $this->assertContains('مؤتمرات', $options->all());
 
-        // قاعة أفراح/خطوبة retired 2026-08-02 (ServicesReformSeeder): the EVENT
-        // moved to the «أنواع المناسبات» option group, so the branch now holds
-        // hall CLASSES only — the plain hall is the sentinel that must survive.
-        $this->assertContains('قاعة عادية', $types->all(), 'the branch must still hold the halls themselves');
+        $config = DB::table('category_service_configs as c')
+            ->join('categories as r', 'r.id', '=', 'c.category_id')
+            ->join('category_children_master as ch', 'ch.id', '=', 'c.child_id')
+            ->where('r.slug', 'halls')
+            ->where('ch.name_ar', 'قاعة مناسبات')
+            ->where('c.platform_service_id', 1)
+            ->value('c.config');
+
+        $this->assertNotNull($config, '«قاعة مناسبات» must still have a booking config');
+        $this->assertContains('booking_time', json_decode((string) $config, true)['allowed_item_types'] ?? []);
     }
 
     public function test_amenities_are_an_option_but_capacity_and_class_are_not(): void
@@ -250,6 +265,31 @@ class TaxonomyRedistributionTest extends TestCase
             ->pluck('name_ar');
 
         $this->assertEmpty($empty, 'empty option groups: ' . $empty->implode('، '));
+    }
+
+    /**
+     * An option outside every group is unreachable, not merely hidden: `options`
+     * has no is_active column, so the group is the only retirement boundary the
+     * schema offers, and a groupless row can never be shown, edited or restored
+     * through any screen. It also keeps a name_en, which is UNIQUE
+     * platform-wide, so a dead row silently costs a live one its English name.
+     *
+     * Eleven were swept on 2026-08-04 by OrphanOptionsCleanupSeeder. They get
+     * this way by accident — deleting a non-empty group from the admin panel
+     * sets its options' group_id NULL — which is why this asserts rather than
+     * trusting the sweep to have been the last word.
+     */
+    public function test_no_option_is_groupless(): void
+    {
+        $orphans = DB::table('options as o')
+            ->leftJoin('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereNull('g.id')
+            ->pluck('o.name_ar');
+
+        $this->assertEmpty(
+            $orphans->all(),
+            'options belonging to no group: ' . $orphans->implode('، ')
+        );
     }
 
     public function test_every_priced_offering_still_points_at_a_real_item_type(): void

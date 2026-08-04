@@ -86,19 +86,37 @@ class LegacyOptionGapsTest extends TestCase
         ]);
     }
 
-    public function test_new_tourism_item_types_sit_alongside_their_peers(): void
+    /**
+     * The seeder used to give tourism three booking item types — حجز طيران،
+     * حجز فنادق، سياحة داخلية — and this test asserted they sat in the «سياحة
+     * ورحلات» branch alongside their peers.
+     *
+     * They are gone. The kinds collapse ruled that an item type says HOW a
+     * thing is booked, never what it is, and all three are booked the same
+     * way: by appointment. Keeping them meant this seeder wrote rows that
+     * ServiceKindsCollapseSeeder retired and its prune deleted on every run.
+     *
+     * What the test can still assert is the half that matters — «سياحة» can
+     * be booked at all. What it sells is an open gap: no travel option group
+     * exists yet, and inventing one is the owner's call, not a test's.
+     */
+    public function test_tourism_can_still_be_booked_by_appointment(): void
     {
-        $groupId = DB::table('platform_service_item_groups')->where('name_ar', 'سياحة ورحلات')->value('id');
-        $this->assertNotNull($groupId);
+        $config = DB::table('category_service_configs')
+            ->where('child_id', 279)
+            ->where('platform_service_id', 1)
+            ->value('config');
+
+        $this->assertNotNull($config, '«سياحة» must still have a booking config');
+
+        $this->assertContains(
+            'booking_appointment',
+            json_decode((string) $config, true)['allowed_item_types'] ?? [],
+            'a travel agency takes appointments — that is the kind, whatever it sells'
+        );
 
         foreach (['flight_booking', 'hotel_booking_service', 'domestic_tourism'] as $key) {
-            $typeId = DB::table('platform_service_item_types')->where('key', $key)->value('id');
-            $this->assertNotNull($typeId, "{$key} must exist");
-
-            $this->assertDatabaseHas('platform_service_item_group_type', [
-                'group_id' => $groupId,
-                'item_type_id' => $typeId,
-            ]);
+            $this->assertDatabaseMissing('platform_service_item_types', ['key' => $key]);
         }
     }
 

@@ -70,10 +70,10 @@ class MenuHeadingTest extends TestCase
     {
         $business = $this->business();
 
-        $type = DB::table('platform_service_item_types as t')
-            ->join('platform_services as s', 's.id', '=', 't.platform_service_id')
-            ->where('s.key', PlatformService::KEY_MENU)
-            ->first(['t.key', 't.name_ar']);
+        $type = \App\Models\PlatformServiceItemType::query()
+            ->whereHas('service', fn ($q) => $q->where('key', PlatformService::KEY_MENU))
+            ->orderBy('id')
+            ->first();
 
         $this->assertNotNull($type, 'the menu service has no item types');
 
@@ -81,9 +81,14 @@ class MenuHeadingTest extends TestCase
             $this->item($business, $name, ['item_type' => $type->key]);
         }
 
-        $sections = collect($this->menu($business))->firstWhere('name', $type->name_ar);
+        // Compared through displayName(), which is what the API returns —
+        // matching on name_ar passed only by accident, on a row whose English
+        // name was blank so the locale fallback landed back on Arabic.
+        $label = $type->displayName();
 
-        $this->assertNotNull($sections, "«{$type->name_ar}» is not a heading");
+        $sections = collect($this->menu($business))->firstWhere('name', $label);
+
+        $this->assertNotNull($sections, "«{$label}» is not a heading");
         $this->assertSame('item_type', $sections['source']);
         $this->assertCount(5, $sections['items']);
     }

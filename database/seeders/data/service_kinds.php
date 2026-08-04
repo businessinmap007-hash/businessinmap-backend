@@ -20,14 +20,22 @@
  * describe the mechanism already.
  *
  * Shape: service key => [branch, kinds[key => [name_ar, name_en]],
- *                        map[old branch key => new kind key]].
+ *                        map[old branch key => new kind key], child_branches].
  * Consumed by \Database\Seeders\ServiceKindsCollapseSeeder.
+ *
+ * `child_branches` names the approved child→branch file the branch seeders
+ * apply. The collapse reads it FIRST, and reads it for a specific reason: the
+ * branch rows it used to derive a kind from are exactly what the collapse then
+ * deletes, so deriving from the database alone worked once and reset every
+ * config to `default` on the next run. The file cannot be consumed by its own
+ * output, so this is the only source that stays true across re-runs.
  */
 
 return [
 
     'booking' => [
         'branch' => ['key' => 'booking_kinds', 'name_ar' => 'أنواع الحجز', 'name_en' => 'Booking Kinds'],
+        'child_branches' => 'booking_child_branches.php',
 
         'kinds' => [
             'booking_appointment' => ['حجز موعد', 'Appointment'],
@@ -61,6 +69,41 @@ return [
         ],
 
         /*
+         * Root-level fallback for a child the branch file does not name — and
+         * it does not name many: the file was generated 2026-07-12 and 80 of
+         * its child names have since been renamed, merged or retired, so a
+         * child-name lookup alone leaves two thirds of the configs to `default`.
+         *
+         * Not a new classification. Each root here is the branch its own listed
+         * children already agree on — professions 30/31 services_tasks, sports
+         * 14/14 sports, halls 4/4 halls_events, tourist-hotels 6/6 hotel — read
+         * through the same `map` above. A per-child entry still wins over it.
+         *
+         * `shops-online` and `arts-entertainment` are deliberately absent: their
+         * children genuinely disagree (five market branches against two food
+         * ones), and guessing a root there would be inventing an answer rather
+         * than reading one.
+         */
+        'roots' => [
+            'professions' => 'booking_appointment',
+            'workshops' => 'booking_appointment',
+            'training-courses' => 'booking_appointment',
+            'technology' => 'booking_appointment',
+            'offices' => 'booking_appointment',
+            'companies' => 'booking_appointment',
+            'health' => 'booking_appointment',
+            'hair-dresser' => 'booking_appointment',
+
+            'sports' => 'booking_time',
+            'halls' => 'booking_time',
+
+            'restaurants-cafes' => 'booking_table',
+
+            'property-and-land' => 'booking_stay',
+            'tourist-hotels' => 'booking_stay',
+        ],
+
+        /*
          * 34 children (761 businesses — showrooms, transport offices, workshops)
          * sit on booking with no branch at all. What they take a booking FOR is
          * an appointment: a viewing, a quote, a car with a driver.
@@ -70,6 +113,7 @@ return [
 
     'menu' => [
         'branch' => ['key' => 'menu_kinds', 'name_ar' => 'أنواع القائمة', 'name_en' => 'Menu Kinds'],
+        'child_branches' => 'menu_child_branches.php',
 
         'kinds' => [
             'menu_food' => ['منيو', 'Food Menu'],

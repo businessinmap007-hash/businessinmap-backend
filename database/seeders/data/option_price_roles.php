@@ -28,6 +28,7 @@ return [
     */
     'line' => [
         'بنود المنيو',            // مشويات، ساندوتشات — the heading a customer pays under
+        'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي

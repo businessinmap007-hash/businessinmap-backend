@@ -68,16 +68,25 @@ class MenuLineOptionsSeeder extends Seeder
             $skipped = [];
 
             foreach ($this->menuChildren($menu) as $childId => $name) {
-                if ($this->hasOtherLineGroup((int) $childId, $groupId)) {
+                $ownVocabulary = $this->hasOtherLineGroup((int) $childId, $groupId);
+
+                if ($ownVocabulary) {
                     $skipped[] = $name;
-                    continue;
                 }
 
-                $wanted = collect($this->allowedTypes((int) $childId, $menu))
-                    ->map(fn ($key) => $optionOf[$key] ?? null)
-                    ->filter()
-                    ->unique()
-                    ->values();
+                // A child with a vocabulary of its own wants NONE of these:
+                // «سيدان» says what a customer is looking for and «مركبة
+                // معروضة» only says the thing is a vehicle. Two headings, one
+                // of them saying less, is the duplication this whole change
+                // exists to remove — so the mirrored bands are dropped, not
+                // merely left unextended.
+                $wanted = $ownVocabulary
+                    ? collect()
+                    : collect($this->allowedTypes((int) $childId, $menu))
+                        ->map(fn ($key) => $optionOf[$key] ?? null)
+                        ->filter()
+                        ->unique()
+                        ->values();
 
                 $held = DB::table('category_child_option')
                     ->where('child_id', $childId)
@@ -106,7 +115,7 @@ class MenuLineOptionsSeeder extends Seeder
                         ->delete();
                 }
 
-                if ($add->isNotEmpty() || $drop->isNotEmpty()) {
+                if (($add->isNotEmpty() || $drop->isNotEmpty()) && ! $ownVocabulary) {
                     $touched[] = $name . ' (+' . $add->count() . ' −' . $drop->count() . ')';
                 }
             }

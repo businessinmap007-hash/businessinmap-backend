@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CategoryChild;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
+use App\Services\OfferingDiscovery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -245,12 +246,30 @@ final class DiscoveryController extends Controller
         }
 
         // A business must carry EVERY selected attribute — narrowing, not
-        // widening, is what a filter is for.
+        // widening, is what a filter is for. Two things count as carrying it:
+        // the business said so about itself (option_user), OR it has a priced
+        // offering that sells it. A hospital that priced «كشف عظام» does عظام
+        // whether or not it also ticked the box.
         foreach ($optionIds as $optionId) {
-            $query->whereExists(function ($sub) use ($optionId) {
-                $sub->from('option_user')
-                    ->whereColumn('option_user.user_id', 'users.id')
-                    ->where('option_user.option_id', $optionId);
+            $query->where(function (Builder $w) use ($optionId) {
+                $w->whereExists(function ($sub) use ($optionId) {
+                    $sub->from('option_user')
+                        ->whereColumn('option_user.user_id', 'users.id')
+                        ->where('option_user.option_id', $optionId);
+                })->orWhereExists(function ($sub) use ($optionId) {
+                    $sub->from('offering_options as oo')
+                        ->leftJoin('business_service_prices as p', function ($join) {
+                            $join->on('p.id', '=', 'oo.offering_id')
+                                ->where('oo.offering_type', '=', \App\Models\BusinessServicePrice::class);
+                        })
+                        ->leftJoin('menu_items as m', function ($join) {
+                            $join->on('m.id', '=', 'oo.offering_id')
+                                ->where('oo.offering_type', '=', \App\Models\MenuItem::class);
+                        })
+                        ->where('oo.option_id', $optionId)
+                        ->whereRaw('COALESCE(p.is_active, m.is_active, 0) = 1')
+                        ->whereRaw('COALESCE(p.business_id, m.business_id) = users.id');
+                });
             });
         }
 
@@ -290,6 +309,89 @@ final class DiscoveryController extends Controller
                 'businesses' => $businesses,
             ],
         ]);
+    }
+
+    /**
+     * The priced OFFERINGS behind a filter, not just the businesses holding
+     * them: «كشف عظام — 300 — مستشفى BIM».
+     *
+     * Filtering on «عظام» used to answer with a list of hospitals and stop.
+     * The customer opened one and met a price list that never mentioned عظام
+     * again, because a price row could not say what it sold. It can now.
+     */
+    public function offerings(Request $request, OfferingDiscovery $offerings)
+    {
+        $data = $request->validate([
+            'child_id' => ['required', 'integer', 'min:1'],
+            'service_id' => ['nullable', 'integer', 'min:1'],
+            'item_types' => ['nullable', 'array'],
+            'item_types.*' => ['string', 'max:100'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $optionIds = $this->cleanIds($data['option_ids'] ?? []);
+        $itemTypes = array_values(array_filter((array) ($data['item_types'] ?? []), fn ($t) => trim((string) $t) !== ''));
+
+        $results = $offerings->search(
+            (int) $data['child_id'],
+            $optionIds,
+            (int) ($data['service_id'] ?? 0),
+            $itemTypes,
+            (int) ($data['per_page'] ?? 20)
+        );
+
+        $results->setCollection($results->getCollection()->map(fn ($row) => $this->offeringPayload($row)));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'query' => [
+                    'child_id' => (int) $data['child_id'],
+                    'service_id' => (int) ($data['service_id'] ?? 0) ?: null,
+                    'item_types' => $itemTypes,
+                    'option_ids' => $optionIds,
+                ],
+                'offerings' => $results,
+            ],
+        ]);
+    }
+
+    private function offeringPayload($row): array
+    {
+        $name = fn ($o) => $o ? $this->label($o->name_ar, $o->name_en, '') : null;
+
+        $parts = collect([$row->line])->merge($row->modifiers)->filter()
+            ->map($name)->filter()->values();
+
+        return [
+            'id' => (int) $row->offering_id,
+            'source' => $row->source,
+            'label' => $parts->implode(' — '),
+            'line' => $row->line ? ['id' => (int) $row->line->id, 'name' => $name($row->line)] : null,
+            'modifiers' => $row->modifiers->map(fn ($m) => ['id' => (int) $m->id, 'name' => $name($m)])->values(),
+            'price' => (float) $row->price,
+            'currency' => $row->currency ?: 'EGP',
+            'service_id' => $row->service_id ? (int) $row->service_id : null,
+            'item_type' => $row->bookable_item_type,
+            'image' => $row->image,
+            'own_name' => $this->label($row->menu_name_ar, $row->menu_name_en, ''),
+            'business' => [
+                'id' => (int) $row->business_id,
+                'name' => (string) $row->business_name,
+                'logo' => $row->business_logo,
+            ],
+        ];
+    }
+
+    /** @return array<int,int> */
+    private function cleanIds($ids): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map('intval', (array) $ids),
+            fn ($id) => $id > 0
+        )));
     }
 
     /**

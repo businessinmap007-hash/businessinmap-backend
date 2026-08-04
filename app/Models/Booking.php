@@ -30,6 +30,7 @@ class Booking extends Model
         'user_id',
         'business_id',
         'service_id',
+        'business_service_price_id',
         'date',
         'time',
         'price',
@@ -155,6 +156,51 @@ class Booking extends Model
     public function bookable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** The priced row this booking was made from, when the customer named one. */
+    public function offering(): BelongsTo
+    {
+        return $this->belongsTo(BusinessServicePrice::class, 'business_service_price_id');
+    }
+
+    /**
+     * What this booking is, in words: «كشف — عظام», «غرفة نوم — مودرن».
+     *
+     * A booking used to be able to say only its service and, at best, the unit
+     * reserved — «حجز #4127». It now falls back through what it knows: the
+     * offering it came from, then the named unit, then the service.
+     */
+    public function title(): string
+    {
+        $label = $this->offering?->offeringLabel();
+
+        if ($label) {
+            return $label;
+        }
+
+        if ($this->bookable && ! empty($this->bookable->title)) {
+            return (string) $this->bookable->title;
+        }
+
+        $service = $this->service;
+
+        if ($service) {
+            $primary = app()->getLocale() === 'en' ? $service->name_en : $service->name_ar;
+
+            if ($primary !== null && $primary !== '') {
+                return (string) $primary;
+            }
+
+            return (string) ($service->name_ar ?: $service->name_en ?: __('حجز'));
+        }
+
+        return __('حجز');
+    }
+
+    public function getTitleAttribute(): string
+    {
+        return $this->title();
     }
 
     public function walletTransactions(): HasMany

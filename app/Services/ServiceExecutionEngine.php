@@ -47,7 +47,8 @@ class ServiceExecutionEngine
         int $serviceId,
         ?int $bookableId = null,
         int $quantity = 1,
-        mixed $pricingDate = null
+        mixed $pricingDate = null,
+        ?int $offeringId = null
     ): array {
         $quantity = max($quantity, 1);
 
@@ -94,7 +95,8 @@ class ServiceExecutionEngine
             businessId: $businessId,
             serviceId: $serviceId,
             childId: $childId,
-            itemType: $itemType
+            itemType: $itemType,
+            offeringId: $offeringId
         );
 
         if (! $businessPrice) {
@@ -986,13 +988,15 @@ class ServiceExecutionEngine
         int $businessId,
         int $serviceId,
         int $childId = 0,
-        ?string $itemType = null
+        ?string $itemType = null,
+        ?int $offeringId = null
     ): ?BusinessServicePrice {
         return $this->businessServicePriceResolver->resolve(
             businessId: $businessId,
             serviceId: $serviceId,
             childId: $childId,
-            itemType: $itemType
+            itemType: $itemType,
+            offeringId: $offeringId
         );
     }
 

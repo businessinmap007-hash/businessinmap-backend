@@ -26,15 +26,34 @@ class BusinessServicePriceResolver
      *   4) no child + same item type
      *   5) no child + category default type
      *   6) no child + any legacy price
+     *
+     * `$offeringId` skips all six: the customer chose that row on screen.
      */
     public function resolve(
         int $businessId,
         int $serviceId,
         int $childId = 0,
-        ?string $itemType = null
+        ?string $itemType = null,
+        ?int $offeringId = null
     ): ?BusinessServicePrice {
         if ($businessId <= 0 || $serviceId <= 0) {
             return null;
+        }
+
+        // A named offering wins outright. One item type can now hold several
+        // priced lines — «كشف عظام» beside «كشف باطنة» — and the ladder below
+        // would quietly take whichever was created last.
+        if ($offeringId) {
+            $named = BusinessServicePrice::query()
+                ->where('id', $offeringId)
+                ->where('business_id', $businessId)
+                ->where('service_id', $serviceId)
+                ->where('is_active', 1)
+                ->first();
+
+            if ($named) {
+                return $named;
+            }
         }
 
         $itemType = trim((string) $itemType);

@@ -97,13 +97,15 @@ final class BookingController extends Controller
 
         $quantity = max((int) ($data['quantity'] ?? 1), 1);
         $bookableId = ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null;
+        $offeringId = ! empty($data['offering_id']) ? (int) $data['offering_id'] : null;
 
         $calc = $this->serviceExecutionEngine->prepare(
             businessId: (int) $data['business_id'],
             serviceId: (int) $data['service_id'],
             bookableId: $bookableId,
             quantity: $quantity,
-            pricingDate: $data['starts_at'] ?? $data['date'] ?? now()
+            pricingDate: $data['starts_at'] ?? $data['date'] ?? now(),
+            offeringId: $offeringId
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -132,6 +134,9 @@ final class BookingController extends Controller
             'notes' => $data['notes'] ?? null,
             'status' => Booking::STATUS_PENDING,
             'price' => (float) data_get($calc, 'price_breakdown.final_price', 0),
+            // keep the row the price came from: it is what lets the booking
+            // call itself «كشف — عظام» rather than «حجز #4127»
+            'business_service_price_id' => optional($calc['business_price'] ?? null)->id,
         ];
 
         if ($bookable instanceof BookableItem) {
@@ -427,6 +432,9 @@ final class BookingController extends Controller
             'business:id,name,type,phone,email,logo,image,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
+            // the booking names itself from these; loading them here keeps
+            // Booking::title() from costing a query per row
+            'offering.offeringOptions.option',
         ];
 
         if ($details) {
@@ -443,6 +451,9 @@ final class BookingController extends Controller
             'business_id' => ['required', 'integer', 'min:1'],
             'service_id' => ['required', 'integer', 'min:1'],
             'bookable_id' => ['nullable', 'integer', 'min:1'],
+            // which priced row the customer was looking at — «كشف عظام», not
+            // just «كشف». Optional: most businesses hold one price per type.
+            'offering_id' => ['nullable', 'integer', 'min:1'],
             'date' => ['nullable', 'date'],
             'time' => ['nullable', 'date_format:H:i'],
             'starts_at' => ['nullable', 'date'],

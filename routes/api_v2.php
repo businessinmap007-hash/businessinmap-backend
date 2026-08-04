@@ -154,6 +154,9 @@ Route::prefix('v2')->group(function () {
         // distinct from the offering axis above (services/item types).
         Route::get('attributes', [DiscoveryController::class, 'attributes']);
         Route::get('businesses', [DiscoveryController::class, 'businesses']);
+        // The priced offerings themselves — «كشف عظام — 300 — مستشفى BIM» —
+        // so a search on an option reaches the row, not only the shop.
+        Route::get('offerings', [DiscoveryController::class, 'offerings']);
 
         // Retail: browse catalog products businesses sell -> product -> offers.
         Route::prefix('retail')->group(function () {

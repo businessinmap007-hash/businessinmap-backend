@@ -231,6 +231,27 @@ class TaxonomyRedistributionTest extends TestCase
         );
     }
 
+    /**
+     * An option group with nothing in it is a dead entry in every picker and
+     * every admin screen, and it reads as a category the merchant simply has
+     * not filled in yet.
+     *
+     * Two were dropped on 2026-08-04 — «مركبات ونقل», split into car marques /
+     * motorcycle marques / transport vehicles, and «أنماط خدمة وتجارية», the
+     * grab-bag broken into eight per-child groups. Both handed everything over
+     * and kept nothing. Deleting them was safe precisely because they were
+     * empty: `options.group_id` is ON DELETE SET NULL, so a group holding even
+     * one option would have orphaned it instead.
+     */
+    public function test_no_option_group_is_empty(): void
+    {
+        $empty = DB::table('option_groups as g')
+            ->whereNotExists(fn ($q) => $q->from('options')->whereColumn('options.group_id', 'g.id'))
+            ->pluck('name_ar');
+
+        $this->assertEmpty($empty, 'empty option groups: ' . $empty->implode('، '));
+    }
+
     public function test_every_priced_offering_still_points_at_a_real_item_type(): void
     {
         $known = DB::table('platform_service_item_types')->pluck('key')->flip();

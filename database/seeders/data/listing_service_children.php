@@ -15,9 +15,14 @@
  * anything that reads the catalogue to decide what a business may sell saw
  * nothing at all.
  *
- * Each family gets its own item type rather than sharing one «listing», because
+ * Each family gets its own kind rather than sharing one «listing», because
  * `allowed_item_types` is how a child says what it may put up, and a car
- * showroom offering «وحدة عقارية» would be nonsense on the merchant's screen.
+ * showroom offering «عقارات» would be nonsense on the merchant's screen.
+ *
+ * Renamed 2026-08-04 from property_listing/vehicle_listing/furniture_piece to
+ * the collapsed menu kinds — the type says which SURFACE now, and what is
+ * actually on offer («غرفة نوم — مودرن»، «سيدان — BMW») comes from the options.
+ * See data/service_kinds.php.
  *
  * Shape: item type key => [name_ar, name_en, [child ids]].
  * Applied by \Database\Seeders\ListingServiceLinkSeeder to EVERY root each
@@ -26,13 +31,13 @@
  */
 return [
 
-    'branch' => ['key' => 'listings', 'name_ar' => 'المعروضات', 'name_en' => 'Listings'],
+    'branch' => ['key' => 'menu_kinds', 'name_ar' => 'أنواع القائمة', 'name_en' => 'Menu Kinds'],
 
     'types' => [
         // عقارات و أراضي — the family that started this
-        'property_listing' => [
-            'name_ar' => 'وحدة معروضة',
-            'name_en' => 'Property Listing',
+        'menu_properties' => [
+            'name_ar' => 'عقارات',
+            'name_en' => 'Properties',
             'children' => [
                 517,  // مكتب عقاري
                 518,  // مطور عقاري
@@ -43,9 +48,9 @@ return [
 
         // معارض — a car is never two of a kind, so it is a listing, not a
         // catalogue product
-        'vehicle_listing' => [
-            'name_ar' => 'مركبة معروضة',
-            'name_en' => 'Vehicle Listing',
+        'menu_vehicles' => [
+            'name_ar' => 'سيارات',
+            'name_en' => 'Vehicles',
             'children' => [
                 53,   // سيارات
                 188,  // معرض سيارات
@@ -55,9 +60,9 @@ return [
 
         // أثاث — 93 businesses on «آثاث» alone, the largest single child on the
         // platform, and bespoke work by nature
-        'furniture_piece' => [
-            'name_ar' => 'قطعة أثاث',
-            'name_en' => 'Furniture Piece',
+        'menu_furniture' => [
+            'name_ar' => 'موبليات',
+            'name_en' => 'Furniture',
             'children' => [
                 116,  // آثاث
                 115,  // مفروشات

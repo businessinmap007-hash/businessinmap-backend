@@ -66,10 +66,12 @@ class LegacyOptionGapsTest extends TestCase
             'is_active' => 1,
         ]);
 
-        // engineering_consultation retired 2026-08-02 (ConsultingConsolidationSeeder):
-        // the field lives on the child+options now, the booked form is generic.
+        // engineering_consultation retired 2026-08-02 (ConsultingConsolidationSeeder)
+        // and in_person_consultation with it on 2026-08-04
+        // (ServiceKindsCollapseSeeder): the field lives on the child + its
+        // options, and what the customer books is simply an appointment.
         $this->assertDatabaseHas('platform_service_item_types', [
-            'key' => 'in_person_consultation',
+            'key' => 'booking_appointment',
             'platform_service_id' => 1,
             'is_active' => 1,
         ]);

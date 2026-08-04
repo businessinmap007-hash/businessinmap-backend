@@ -199,13 +199,36 @@ class TaxonomyRedistributionTest extends TestCase
         $this->assertEmpty($offenders, 'configs still offer retired item types: ' . implode(', ', array_slice($offenders, 0, 10)));
     }
 
-    public function test_the_hotels_real_room_types_were_not_swept_away(): void
+    /**
+     * Business 212 («فندق الاندلس», a real 2020 account) prices six room kinds.
+     *
+     * ServiceKindsCollapseSeeder retired those keys on 2026-08-04 — a room kind
+     * is vocabulary, and vocabulary belongs in `offering_options` — but the
+     * prices themselves are the one thing a merchant notices missing. The rows
+     * must survive the collapse whole, keys and amounts intact, whether or not
+     * the key is still offered in a picker.
+     */
+    public function test_the_hotels_prices_survived_the_collapse(): void
     {
-        // Business 212 («فندق الاندلس», a real 2020 account) prices these. The
-        // cleanup deactivated 71 types around them; these had to survive.
-        foreach (['single_room', 'double_room', 'suite', 'family_room', 'villa', 'apartment'] as $key) {
-            $this->assertDatabaseHas('platform_service_item_types', ['key' => $key, 'is_active' => 1]);
+        $rows = DB::table('business_service_prices')->where('business_id', 212)->get(['bookable_item_type', 'price']);
+
+        $this->assertGreaterThanOrEqual(6, $rows->count(), 'the hotel lost priced rows');
+
+        foreach ($rows as $row) {
+            $this->assertGreaterThan(0, (float) $row->price, 'a price was zeroed by the collapse');
+
+            $this->assertDatabaseHas('platform_service_item_types', ['key' => $row->bookable_item_type]);
         }
+
+        // Five of them still sit on retired keys, because six room kinds all
+        // collapse onto «حجز فندق» and the unique key allows one row per
+        // (business, child, service, kind, line option). They are waiting on a
+        // room-kind option group to tell them apart — merging them would have
+        // destroyed five prices.
+        $this->assertTrue(
+            $rows->pluck('bookable_item_type')->unique()->count() > 1,
+            'the rows were merged onto one key — five prices would have been lost'
+        );
     }
 
     public function test_every_priced_offering_still_points_at_a_real_item_type(): void

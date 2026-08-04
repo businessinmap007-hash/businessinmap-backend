@@ -40,6 +40,23 @@ class ListingServiceLinkTest extends TestCase
         return array_values(array_unique($types));
     }
 
+    /** Item types stored for a child, active or not — the merge is what matters. */
+    private function storedTypes(int $childId): array
+    {
+        $types = [];
+
+        foreach (
+            DB::table('category_service_configs')
+                ->where('child_id', $childId)
+                ->where('platform_service_id', $this->menuServiceId())
+                ->pluck('config') as $config
+        ) {
+            $types = array_merge($types, (json_decode((string) $config, true) ?: [])['allowed_item_types'] ?? []);
+        }
+
+        return array_values(array_unique($types));
+    }
+
     private function isOffered(int $childId): bool
     {
         return DB::table('category_platform_services')
@@ -134,7 +151,13 @@ class ListingServiceLinkTest extends TestCase
         }
     }
 
-    /** A restaurant's food types must survive the seeder untouched. */
+    /**
+     * A restaurant's food kinds must survive the seeder untouched — it merges
+     * into a stored config, it never replaces one.
+     *
+     * Read regardless of `is_active`: whether the owner has the restaurant's
+     * menu switched on is his business, and this test is about the merge.
+     */
     public function test_a_food_child_keeps_its_menu(): void
     {
         $restaurant = (int) DB::table('category_children_master')->where('name_ar', 'مطعم')->value('id');
@@ -143,16 +166,16 @@ class ListingServiceLinkTest extends TestCase
             $this->markTestSkipped('No «مطعم» child.');
         }
 
-        $before = $this->allowed($restaurant);
+        $before = $this->storedTypes($restaurant);
 
-        $this->assertNotEmpty($before);
+        $this->assertNotEmpty($before, 'the restaurant has no stored menu config at all');
 
         DB::beginTransaction();
 
         try {
             (new \Database\Seeders\ListingServiceLinkSeeder)->run();
 
-            $this->assertSame($before, $this->allowed($restaurant), 'the seeder replaced a menu instead of merging');
+            $this->assertSame($before, $this->storedTypes($restaurant), 'the seeder replaced a menu instead of merging');
         } finally {
             DB::rollBack();
         }

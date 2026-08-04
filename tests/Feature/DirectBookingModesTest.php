@@ -63,33 +63,70 @@ class DirectBookingModesTest extends TestCase
         }
     }
 
-    /** direct_typed keeps its price list; only the unit requirement goes. */
-    public function test_typed_direct_children_keep_their_priced_types(): void
+    /**
+     * Every child still names a KIND of booking. The type used to carry the
+     * vocabulary too — «زيارة معاينة»، «حارة سباحة» — and 294 of them piled up
+     * saying what `offering_options` says better. It now says only how the
+     * thing is booked.
+     *
+     * @see \Database\Seeders\ServiceKindsCollapseSeeder
+     */
+    public function test_every_booking_child_names_a_kind(): void
     {
-        $gym = $this->configFor('sports', 'جيم');
-        $this->assertFalse($gym['requires']);
-        $this->assertNotEmpty($gym['types'], 'a gym still prices its offerings');
+        $kinds = ['booking_appointment', 'booking_time', 'booking_stay', 'booking_table'];
 
-        $carpenter = $this->configFor('professions', 'نجار موبيليا');
-        $this->assertContains('inspection_visit', $carpenter['types'], 'craft children price the generic tasks');
+        foreach ([
+            ['sports', 'جيم', 'booking_time'],
+            ['professions', 'نجار موبيليا', 'booking_appointment'],
+            ['restaurants-cafes', 'مطعم', 'booking_table'],
+            ['health', 'عيادة', 'booking_appointment'],
+        ] as [$root, $child, $expected]) {
+            $types = $this->configFor($root, $child)['types'];
+
+            $this->assertNotEmpty($types, "«{$child}» must still name a booking kind");
+            $this->assertContains($expected, $types, "«{$child}» should book by {$expected}");
+
+            foreach ($types as $t) {
+                $this->assertContains($t, $kinds, "«{$child}» still carries the retired type «{$t}»");
+            }
+        }
     }
 
     /**
-     * A units child that rents ONE kind of thing keeps only its slice of the
-     * branch — the pool was being offered eight football and tennis pitches.
+     * A single-purpose venue is still offered only its own thing — the pool was
+     * once handed eight football and tennis pitches. That slice moved from the
+     * item types into the OPTIONS, where it is sharper than it ever was in the
+     * types: the pool gets swimming and diving, the pitches get football and
+     * squash, and neither sees the other's.
      */
-    public function test_single_purpose_venues_keep_only_their_own_units(): void
+    public function test_single_purpose_venues_are_offered_only_their_own(): void
     {
-        $pool = $this->configFor('sports', 'حمام سباحة');
-        $this->assertSame(['swimming_lane'], $pool['types'], 'a pool rents lanes, nothing else');
+        $pool = $this->lineOptionsOf('حمام سباحة');
+        $pitches = $this->lineOptionsOf('ملاعب كرة');
 
-        $pitches = $this->configFor('sports', 'ملاعب كرة');
-        $this->assertNotContains('swimming_lane', $pitches['types'], 'a football ground has no swimming lane');
-        $this->assertNotContains('tennis_court', $pitches['types'], 'nor a tennis court');
-        $this->assertContains('five_side_field', $pitches['types']);
+        $this->assertNotEmpty($pool, 'a pool must still say what it rents');
+        $this->assertContains('سباحة', $pool);
+        $this->assertNotContains('كرة قدم', $pool, 'a swimming pool has no football pitch');
 
-        // a multi-sport club legitimately keeps the whole branch
-        $this->assertGreaterThan(5, count($this->configFor('sports', 'نادي رياضي')['types']));
+        $this->assertContains('كرة قدم', $pitches);
+        $this->assertNotContains('سباحة', $pitches, 'nor a football ground a swimming lane');
+
+        // A multi-sport club legitimately carries a wider list than either.
+        $this->assertGreaterThan(count($pool), count($this->lineOptionsOf('نادي رياضي')));
+    }
+
+    /** @return array<int,string> what this child may say it sells */
+    private function lineOptionsOf(string $childName): array
+    {
+        $id = (int) DB::table('category_children_master')->where('name_ar', $childName)->value('id');
+
+        return DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $id)
+            ->where('g.price_role', 'line')
+            ->pluck('o.name_ar')
+            ->all();
     }
 
     /** A child detached from its root must not linger as bookable. */

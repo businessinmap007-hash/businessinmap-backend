@@ -41,38 +41,20 @@ class MenuLineOptionsTest extends TestCase
     }
 
     /**
-     * The option ids that mirror the item types a child may list.
+     * The bands a child is meant to carry, from the frozen map.
      *
-     * Matched the way the seeder matches — by the type's names, not by the
-     * option's label. `options.name_en` is uniquely indexed platform-wide, and
-     * two menu types are both called "Seafood" in English (`seafood` and
-     * `seafood_grocery`), so ONE option necessarily serves both. Comparing
-     * Arabic labels would call that a violation; it is the schema's answer to
-     * a name the taxonomy reused.
+     * They used to be derived from the live item types. Those have since
+     * collapsed to five coarse kinds that say which SURFACE a child sells on,
+     * so data/menu_line_bands.php is the source of truth now — deriving them
+     * from the types again would wipe all 44 and leave five.
      *
-     * @return array<int,int>
+     * @return array<int,string>
      */
-    private function allowedOptionIds(int $childId): array
+    private function expectedBands(string $childName): array
     {
-        $keys = DB::table('category_service_configs')
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $this->menuServiceId())
-            ->where('is_active', 1)
-            ->pluck('config')
-            ->flatMap(fn ($c) => (json_decode((string) $c, true) ?: [])['allowed_item_types'] ?? [])
-            ->unique();
+        $map = require database_path('seeders/data/menu_line_bands.php');
 
-        $types = DB::table('platform_service_item_types')
-            ->where('platform_service_id', $this->menuServiceId())
-            ->whereIn('key', $keys)
-            ->get(['name_ar', 'name_en']);
-
-        return DB::table('options')
-            ->whereIn('name_en', $types->pluck('name_en'))
-            ->orWhereIn('name_ar', $types->pluck('name_ar'))
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        return $map['children'][$childName] ?? [];
     }
 
     /** The group must be a line group, or none of it is a heading at all. */
@@ -113,10 +95,16 @@ class MenuLineOptionsTest extends TestCase
      * The bug. A supermarket allows three of the fourteen restaurant bands, and
      * must carry three — not fourteen.
      */
-    public function test_a_child_carries_only_the_bands_its_config_allows(): void
+    public function test_a_child_carries_only_the_bands_the_map_allows(): void
     {
-        $children = DB::table('category_child_option as co')
+        // Only the children the seeder actually manages: it reconciles those
+        // OFFERED the menu service, so a child whose link the owner switched
+        // off is out of its reach and may hold whatever he put there by hand.
+        $children = DB::table('category_platform_services as l')
+            ->join('category_child_option as co', 'co.child_id', '=', 'l.child_id')
             ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->where('l.platform_service_id', $this->menuServiceId())
+            ->where('l.is_active', 1)
             ->where('o.group_id', $this->groupId())
             ->distinct()
             ->pluck('co.child_id');
@@ -125,21 +113,10 @@ class MenuLineOptionsTest extends TestCase
 
         foreach ($children as $childId) {
             $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
-            $allowed = $this->allowedOptionIds((int) $childId);
+            $allowed = $this->expectedBands((string) $name);
 
-            $held = DB::table('category_child_option')
-                ->where('child_id', $childId)
-                ->whereIn('option_id', DB::table('options')->where('group_id', $this->groupId())->select('id'))
-                ->pluck('option_id');
-
-            foreach ($held as $optionId) {
-                $band = DB::table('options')->where('id', $optionId)->value('name_ar');
-
-                $this->assertContains(
-                    (int) $optionId,
-                    $allowed,
-                    "«{$name}» carries «{$band}», which its activity may not list"
-                );
+            foreach ($this->bandsOf((int) $childId) as $band) {
+                $this->assertContains($band, $allowed, "«{$name}» carries «{$band}», which its activity does not sell");
             }
         }
     }

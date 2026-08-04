@@ -7,31 +7,31 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Moves every menu heading into the OPTIONS vocabulary.
+ * The menu's headings, as options.
  *
  *   php artisan db:seed --class=MenuLineOptionsSeeder
  *
  * «مشويات» was a platform ITEM TYPE — a permission on
- * `config.allowed_item_types` — and food children carried **zero** line
- * options, so a merchant had no priced vocabulary of his own. That forced the
- * customer down two separate narrowing steps (options, then the service's item
- * types) to ask one question: محافظة، تصنيف، ابن، خيارات، خدمات.
+ * `config.allowed_item_types` — and food children carried zero line options,
+ * so a merchant had no priced vocabulary of his own. That forced the customer
+ * down two separate narrowing steps (options, then the service's item types)
+ * to ask one question: محافظة، تصنيف، ابن، خيارات، خدمات.
  *
- * Every menu item type now has a line option of the same name in
- * **«بنود المنيو»**, and a child is linked to exactly the ones **its own
- * config allows** — per TYPE, never per branch. Branch-level linking is what
- * put «مشويات» and «وجبات أطفال» on a supermarket, which allows only
- * ساندوتشات and the two drink bands; this seeder removes such strays as well
- * as adding what is missing, so re-running repairs rather than accumulates.
+ * The bands live in **«بنود المنيو»** and are read from
+ * **data/menu_line_bands.php** — NOT from the live item types any more. They
+ * were mirrored from those types once and are now the source of truth in their
+ * own right: the types have since collapsed to five coarse kinds that say
+ * which SURFACE a child sells on, so deriving the bands from them again would
+ * wipe all 44 and leave five.
  *
- * A child that already carries a DIFFERENT line group is left completely
- * alone: «آثاث» sells غرفة نوم، ركنة، أنتريه, and replacing that with the item
- * type «قطعة أثاث» would be a worse heading, not a better one. Same for the
- * four real-estate children on «عقارات وممتلكات».
+ * The map is per CHILD, never per branch. Branch-level linking is what put
+ * «مشويات» and «وجبات أطفال» on a supermarket, which sells neither; this
+ * seeder removes such strays as well as adding what is missing, so re-running
+ * repairs rather than accumulates.
  *
- * The item types themselves are untouched — `allowed_item_types` still gates
- * what a child may LIST, and retail's whole catalog scoping rides on it. Only
- * the HEADING moved. Idempotent.
+ * A child that carries a DIFFERENT line group is left with none of these:
+ * «آثاث» sells غرفة نوم، ركنة، أنتريه and «معرض سيارات» sells سيدان، SUV —
+ * both better headings than anything here. Idempotent.
  */
 class MenuLineOptionsSeeder extends Seeder
 {
@@ -42,24 +42,17 @@ class MenuLineOptionsSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function () {
-            $menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
-
-            if (! $menu) {
-                $this->command?->warn('  ! خدمة «القائمة» غير موجودة — لم يُضف شيء.');
-
-                return;
-            }
+            $map = require __DIR__ . '/data/menu_line_bands.php';
 
             $groupId = $this->group();
             $created = 0;
-
-            // type key => option id, in the platform's own order
             $optionOf = [];
             $order = [];
+            $i = 0;
 
-            foreach ($this->itemTypes($menu) as $i => $type) {
-                $optionOf[$type->key] = $this->option((string) $type->name_ar, (string) $type->name_en, $groupId, $created);
-                $order[$type->key] = $i;
+            foreach ($map['bands'] as $ar => $en) {
+                $optionOf[$ar] = $this->option((string) $ar, (string) $en, $groupId, $created);
+                $order[$ar] = $i++;
             }
 
             $ownIds = array_values($optionOf);
@@ -67,23 +60,17 @@ class MenuLineOptionsSeeder extends Seeder
             $touched = [];
             $skipped = [];
 
-            foreach ($this->menuChildren($menu) as $childId => $name) {
+            foreach ($this->menuChildren() as $childId => $name) {
                 $ownVocabulary = $this->hasOtherLineGroup((int) $childId, $groupId);
 
                 if ($ownVocabulary) {
                     $skipped[] = $name;
                 }
 
-                // A child with a vocabulary of its own wants NONE of these:
-                // «سيدان» says what a customer is looking for and «مركبة
-                // معروضة» only says the thing is a vehicle. Two headings, one
-                // of them saying less, is the duplication this whole change
-                // exists to remove — so the mirrored bands are dropped, not
-                // merely left unextended.
                 $wanted = $ownVocabulary
                     ? collect()
-                    : collect($this->allowedTypes((int) $childId, $menu))
-                        ->map(fn ($key) => $optionOf[$key] ?? null)
+                    : collect($map['children'][$name] ?? [])
+                        ->map(fn ($band) => $optionOf[$band] ?? null)
                         ->filter()
                         ->unique()
                         ->values();
@@ -98,13 +85,13 @@ class MenuLineOptionsSeeder extends Seeder
                 $drop = $held->diff($wanted);
 
                 foreach ($add as $optionId) {
-                    $key = array_search($optionId, $optionOf, true);
+                    $band = array_search($optionId, $optionOf, true);
 
                     $added += DB::table('category_child_option')->insertOrIgnore([[
                         'child_id' => (int) $childId,
                         'category_id' => 0,   // shared: follows the child under every root
                         'option_id' => (int) $optionId,
-                        'reorder' => $order[$key] ?? 0,
+                        'reorder' => $order[$band] ?? 0,
                     ]]);
                 }
 
@@ -116,7 +103,7 @@ class MenuLineOptionsSeeder extends Seeder
                 }
 
                 if (($add->isNotEmpty() || $drop->isNotEmpty()) && ! $ownVocabulary) {
-                    $touched[] = $name . ' (+' . $add->count() . ' −' . $drop->count() . ')';
+                    $touched[] = $name . ' (+' . $add->count() . ' -' . $drop->count() . ')';
                 }
             }
 
@@ -128,21 +115,11 @@ class MenuLineOptionsSeeder extends Seeder
         });
     }
 
-    /** @return \Illuminate\Support\Collection<int,object> */
-    private function itemTypes(int $menu)
-    {
-        return DB::table('platform_service_item_types')
-            ->where('platform_service_id', $menu)
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get(['key', 'name_ar', 'name_en'])
-            ->values();
-    }
-
     /** @return \Illuminate\Support\Collection<int,string> child id => name */
-    private function menuChildren(int $menu)
+    private function menuChildren()
     {
+        $menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
+
         return DB::table('category_platform_services as l')
             ->join('category_children_master as m', 'm.id', '=', 'l.child_id')
             ->where('l.platform_service_id', $menu)
@@ -164,20 +141,6 @@ class MenuLineOptionsSeeder extends Seeder
             ->where('g.price_role', OptionGroup::ROLE_LINE)
             ->where('g.id', '!=', $groupId)
             ->exists();
-    }
-
-    /** @return array<int,string> */
-    private function allowedTypes(int $childId, int $menu): array
-    {
-        return DB::table('category_service_configs')
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $menu)
-            ->where('is_active', 1)
-            ->pluck('config')
-            ->flatMap(fn ($c) => (json_decode((string) $c, true) ?: [])['allowed_item_types'] ?? [])
-            ->unique()
-            ->values()
-            ->all();
     }
 
     private function group(): int
@@ -206,12 +169,10 @@ class MenuLineOptionsSeeder extends Seeder
      * Matched on the globally-unique name_en; a found option keeps its group.
      *
      * `options.name_en` carries a UNIQUE index platform-wide, so where the
-     * taxonomy reuses an English name across two item types — `seafood`
-     * («مأكولات بحرية») and `seafood_grocery` («أسماك ومأكولات بحرية») are both
-     * "Seafood" — ONE option necessarily serves both keys, under whichever
-     * Arabic name reached the table first. That is the schema's answer, not a
-     * defect here: fix it by renaming the item type, never by trying to insert
-     * a second option with the same name_en.
+     * taxonomy reused an English name across two item types — `seafood`
+     * («مأكولات بحرية») and `seafood_grocery` («أسماك ومأكولات بحرية») were
+     * both "Seafood" — ONE option serves both, under whichever Arabic name
+     * reached the table first. That is why there are 44 bands and not 45.
      */
     private function option(string $ar, string $en, int $groupId, int &$created): int
     {

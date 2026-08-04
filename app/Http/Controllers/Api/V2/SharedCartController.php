@@ -160,8 +160,11 @@ final class SharedCartController extends Controller
             'id' => (int) $line->id,
             'kind' => $line->offering_type === BusinessCatalogListing::class ? 'retail' : 'menu',
             'offering_id' => (int) $line->offering_id,
-            'name' => $names[(string) $line->offering_type][(int) $line->offering_id]
-                ?? ('#' . ($line->offering_id ?: $line->menu_id)),
+            // the label frozen when the line was added wins: it says what the
+            // customer picked («غرفة نوم — مودرن»), not what the item is called today
+            'name' => $line->offering_label
+                ?: ($names[(string) $line->offering_type][(int) $line->offering_id]
+                    ?? ('#' . ($line->offering_id ?: $line->menu_id))),
             'options' => [
                 'size' => $line->size_id ? ($sizeNames[(int) $line->size_id] ?? null) : null,
                 'extras' => collect(is_array($line->addons) ? $line->addons : [])

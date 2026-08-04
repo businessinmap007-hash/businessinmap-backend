@@ -15,7 +15,7 @@ class OrderItemResource extends JsonResource
             'id' => (int) $this->id,
             'offering_type' => $this->shortType((string) $this->offering_type),
             'offering_id' => $this->offering_id !== null ? (int) $this->offering_id : null,
-            'name' => $this->displayName(),
+            'name' => $this->resource->displayName(),
             'qty' => (int) $this->qty,
             'price' => (float) $this->price,
             'total_price' => (float) $this->total_price,
@@ -30,17 +30,5 @@ class OrderItemResource extends JsonResource
             BusinessCatalogListing::class => 'catalog_listing',
             default => $type !== '' ? class_basename($type) : 'item',
         };
-    }
-
-    private function displayName(): string
-    {
-        $item = $this->menuItem;
-        if ($item) {
-            return (string) ($item->loc('name') ?: ('#' . $this->menu_id));
-        }
-
-        return (string) $this->offering_type === BusinessCatalogListing::class
-            ? __('منتج #') . $this->offering_id
-            : '#' . ($this->menu_id ?: $this->offering_id);
     }
 }

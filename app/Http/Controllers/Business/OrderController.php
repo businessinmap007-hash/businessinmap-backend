@@ -113,7 +113,9 @@ class OrderController extends Controller
         $listingNames = $listings->pluck('product_name', 'id');
 
         foreach ($order->items as $line) {
-            $line->display_name = match ((string) $line->offering_type) {
+            // what the line froze at order time wins: the item may have been
+            // renamed or re-tagged since, and an order is a record of the day
+            $line->display_name = $line->offering_label ?: match ((string) $line->offering_type) {
                 MenuItem::class => $menuNames[$line->offering_id] ?? ($line->menuItem?->name_ar ?: '#' . $line->menu_id),
                 BusinessCatalogListing::class => $listingNames[$line->offering_id] ?? ('منتج #' . $line->offering_id),
                 default => $line->menuItem?->name_ar ?: ('#' . $line->menu_id),

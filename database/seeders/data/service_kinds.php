@@ -69,6 +69,7 @@ return [
 
             'booking_consultation' => ['حجز استشارة', 'Consultation'],
             'booking_examination' => ['حجز كشف', 'Examination'],
+            'booking_follow_up' => ['حجز متابعة', 'Follow-up'],
             'booking_procedure' => ['حجز إجراء طبي', 'Medical Procedure'],
             'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
         ],

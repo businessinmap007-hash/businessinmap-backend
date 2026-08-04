@@ -251,6 +251,7 @@ class ServiceKindsPruneTest extends TestCase
         foreach ([
             'booking_consultation',
             'booking_examination',
+            'booking_follow_up',
             'booking_procedure',
             'booking_online_consultation',
         ] as $key) {

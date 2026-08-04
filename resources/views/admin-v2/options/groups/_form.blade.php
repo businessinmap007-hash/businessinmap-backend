@@ -73,6 +73,22 @@
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>
+
+        <div class="a2-form-group">
+            <label class="a2-label">{{ __('دورها في التسعير') }}</label>
+            @php $role = (string) old('price_role', $groupSafe->price_role ?? 'descriptive'); @endphp
+            <select class="a2-select" name="price_role">
+                <option value="line" @selected($role === 'line')>{{ __('سطر مُسعَّر — العميل يشتري الخيار نفسه') }}</option>
+                <option value="modifier" @selected($role === 'modifier')>{{ __('مُعدِّل — يغيّر سعر سطر ولا يُباع وحده') }}</option>
+                <option value="descriptive" @selected($role === 'descriptive')>{{ __('وصفي — لا يُسعَّر أبدًا') }}</option>
+            </select>
+            <div class="a2-card-sub">
+                {{ __('«كشف عظام» سطر، «مودرن» مُعدِّل، «كاش» وصفي. الوصفي لا يظهر في شاشات التسعير.') }}
+            </div>
+            @error('price_role')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+        </div>
     </div>
 </div>
 

@@ -24,6 +24,8 @@ class OptionGroupController extends Controller
     {
         $q = trim((string) $request->get('q', ''));
         $active = (string) $request->get('active', '');
+        $role = (string) $request->get('price_role', '');
+        $role = in_array($role, OptionGroup::ROLES, true) ? $role : '';
         $perPage = $this->normalizePerPage($request->get('per_page', 50));
 
         $rows = OptionGroup::query()
@@ -37,6 +39,9 @@ class OptionGroupController extends Controller
             ->when($active !== '', function ($query) use ($active) {
                 $query->where('is_active', (int) $active);
             })
+            ->when($role !== '', function ($query) use ($role) {
+                $query->where('price_role', $role);
+            })
             ->orderBy('reorder')
             ->orderBy('id')
             ->paginate($perPage)
@@ -46,6 +51,13 @@ class OptionGroupController extends Controller
             'rows' => $rows,
             'q' => $q,
             'active' => $active,
+            'priceRole' => $role,
+            'priceRoleOptions' => [
+                '' => __('كل الأدوار'),
+                OptionGroup::ROLE_LINE => __('سطر مُسعَّر'),
+                OptionGroup::ROLE_MODIFIER => __('مُعدِّل للسعر'),
+                OptionGroup::ROLE_DESCRIPTIVE => __('وصفي'),
+            ],
             'perPage' => $perPage,
             'perPageOptions' => self::PER_PAGE_ALLOWED,
             'activeOptions' => [
@@ -86,6 +98,7 @@ class OptionGroupController extends Controller
             'name_en' => ['nullable', 'string', 'max:191'],
             'reorder' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
+            'price_role' => ['nullable', 'in:line,modifier,descriptive'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer', 'exists:options,id'],
         ]);
@@ -95,6 +108,7 @@ class OptionGroupController extends Controller
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'reorder' => (int) ($data['reorder'] ?? 0),
             'is_active' => (int) ($data['is_active'] ?? 0),
+            'price_role' => $data['price_role'] ?? OptionGroup::ROLE_DESCRIPTIVE,
         ]);
 
         $optionIds = collect($data['option_ids'] ?? [])
@@ -149,6 +163,7 @@ class OptionGroupController extends Controller
             'name_en' => ['nullable', 'string', 'max:191'],
             'reorder' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
+            'price_role' => ['nullable', 'in:line,modifier,descriptive'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer', 'exists:options,id'],
         ]);
@@ -158,6 +173,7 @@ class OptionGroupController extends Controller
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'reorder' => (int) ($data['reorder'] ?? 0),
             'is_active' => (int) ($data['is_active'] ?? 0),
+            'price_role' => $data['price_role'] ?? OptionGroup::ROLE_DESCRIPTIVE,
         ]);
 
         $newOptionIds = collect($data['option_ids'] ?? [])

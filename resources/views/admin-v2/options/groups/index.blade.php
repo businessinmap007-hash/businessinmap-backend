@@ -52,6 +52,15 @@
                        placeholder="{{ __('اسم المجموعة') }}">
             </div>
 
+            <div class="a2-form-group">
+                <label class="a2-label">{{ __('دورها في التسعير') }}</label>
+                <select class="a2-select" name="price_role">
+                    @foreach(($priceRoleOptions ?? []) as $value => $label)
+                        <option value="{{ $value }}" @selected((string) ($priceRole ?? '') === (string) $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="a2-page-actions" style="align-items:flex-end;">
                 <button type="submit" class="a2-btn a2-btn-primary">{{ __('تطبيق') }}</button>
 
@@ -74,6 +83,7 @@
                     <th>{{ __('الاسم (EN)') }}</th>
                     <th style="width:120px;">{{ __('الترتيب') }}</th>
                     <th style="width:120px;">{{ __('الحالة') }}</th>
+                    <th style="width:150px;">{{ __('دورها في التسعير') }}</th>
                     <th style="width:140px;">{{ __('عدد الخيارات') }}</th>
                     <th style="width:260px;">{{ __('الإجراءات') }}</th>
                 </tr>
@@ -104,6 +114,18 @@
                             <span class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }}">
                                 {{ $isActive ? 'Active' : 'Inactive' }}
                             </span>
+                        </td>
+
+                        <td>
+                            @php
+                                $roleValue = (string) ($row->price_role ?? 'descriptive');
+                                $rolePill = match ($roleValue) {
+                                    'line' => 'a2-pill-success',
+                                    'modifier' => 'a2-pill-warning',
+                                    default => 'a2-pill-inactive',
+                                };
+                            @endphp
+                            <span class="a2-pill {{ $rolePill }}">{{ $row->roleLabel() }}</span>
                         </td>
 
                         <td>

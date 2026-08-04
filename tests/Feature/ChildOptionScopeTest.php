@@ -101,7 +101,15 @@ class ChildOptionScopeTest extends TestCase
         $pyjamas = $this->offered($this->childId('ملابس النوم'), 'موضة وعناية شخصية');
 
         $this->assertNotContains('فساتين زفاف', $pyjamas);
-        $this->assertContains('حريمي', $pyjamas, 'the audience rows fit every clothing shop');
+        $this->assertContains('ملابس', $pyjamas);
+
+        // the audience left this group for «الجمهور المستهدف» — it says WHO the
+        // shop dresses, which qualifies a line rather than being one
+        $this->assertContains(
+            'حريمي',
+            $this->offered($this->childId('ملابس النوم'), 'الجمهور المستهدف'),
+            'the audience rows fit every clothing shop'
+        );
 
         $this->assertContains('فساتين زفاف', $this->offered($this->childId('ملابس زفاف'), 'موضة وعناية شخصية'));
     }

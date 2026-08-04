@@ -223,6 +223,54 @@ class ServiceKindsPruneTest extends TestCase
         $this->assertContains('booking_stay', json_decode((string) $hotel, true)['allowed_item_types'] ?? []);
     }
 
+    /**
+     * The four specialised appointment kinds (owner call 2026-08-04).
+     *
+     * They are the sanctioned exception to «the type says HOW»: all four are
+     * appointments, and they name which kind of appointment — a dentist takes a
+     * كشف, an engineer an استشارة, and the price differs by that alone. They do
+     * not multiply per trade the way the old 294 did, because one kind serves
+     * many specialties.
+     *
+     * The risk they carry is the prune itself: anything not named in
+     * `service_kinds.php` is deactivated and then deleted, so a kind added
+     * through the admin panel or a one-off seeder would vanish on the next run
+     * with nothing to say it had. This asserts they are in the map's care.
+     */
+    public function test_the_specialised_booking_kinds_survive_the_prune(): void
+    {
+        $branchId = (int) DB::table('platform_service_item_groups')
+            ->where('platform_service_id', 1)
+            ->where('key', 'booking_kinds')
+            ->value('id');
+
+        $this->assertNotSame(0, $branchId, 'the booking kinds branch must exist');
+
+        $mapped = (require database_path('seeders/data/service_kinds.php'))['booking']['kinds'];
+
+        foreach ([
+            'booking_consultation',
+            'booking_examination',
+            'booking_procedure',
+            'booking_online_consultation',
+        ] as $key) {
+            $this->assertArrayHasKey($key, $mapped, "«{$key}» must be in service_kinds.php or the prune deletes it");
+
+            $type = DB::table('platform_service_item_types')
+                ->where('platform_service_id', 1)
+                ->where('key', $key)
+                ->first(['id', 'is_active']);
+
+            $this->assertNotNull($type, "«{$key}» must exist");
+            $this->assertSame(1, (int) $type->is_active, "«{$key}» must be offerable");
+
+            $this->assertDatabaseHas('platform_service_item_group_type', [
+                'group_id' => $branchId,
+                'item_type_id' => (int) $type->id,
+            ]);
+        }
+    }
+
     public function test_no_group_type_row_points_at_a_type_that_is_gone(): void
     {
         $orphans = DB::table('platform_service_item_group_type as gt')

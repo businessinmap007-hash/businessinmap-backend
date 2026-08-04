@@ -73,7 +73,10 @@ class DirectBookingModesTest extends TestCase
      */
     public function test_every_booking_child_names_a_kind(): void
     {
-        $kinds = ['booking_appointment', 'booking_time', 'booking_stay', 'booking_table'];
+        // Read from the map rather than repeated here: booking grew four
+        // specialised appointment kinds on 2026-08-04 (حجز كشف، حجز استشارة…),
+        // and a hardcoded list would have called each one a retired type.
+        $kinds = array_keys((require database_path('seeders/data/service_kinds.php'))['booking']['kinds']);
 
         foreach ([
             ['sports', 'جيم', 'booking_time'],

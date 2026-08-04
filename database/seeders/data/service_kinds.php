@@ -13,6 +13,10 @@
  * So the type stops saying WHAT and says only HOW: which kind of booking, or
  * which selling surface. The what comes from the options the child carries.
  *
+ * Booking then took four SPECIALISED appointment kinds on top (2026-08-04) —
+ * see the note above its `kinds`. They are the one sanctioned exception, and
+ * they survive only because one of them serves many trades at once.
+ *
  * Retail is deliberately absent. Its `allowed_item_types` is not a vocabulary
  * at all — it is the 1:1 mirror onto `product_category_children.slug` that
  * scopes the shared catalog, and collapsing it would unplug 986 products from
@@ -37,11 +41,36 @@ return [
         'branch' => ['key' => 'booking_kinds', 'name_ar' => 'أنواع الحجز', 'name_en' => 'Booking Kinds'],
         'child_branches' => 'booking_child_branches.php',
 
+        /*
+         * The four mechanisms, then the specialised appointments (owner call
+         * 2026-08-04).
+         *
+         * The first four answer HOW a thing is booked and nothing else. The
+         * four below are narrower: they are all appointments, and they name
+         * WHICH KIND of appointment — a dentist takes a كشف, an engineer takes
+         * an استشارة, and the price differs by that alone.
+         *
+         * This is a deliberate exception to the rule the collapse drew, made by
+         * the owner: one kind serves many specialties, so «استشارة» does not
+         * multiply per trade the way the old 294 did, and it is the axis a
+         * merchant prices on. NOTHING is auto-assigned — a child gets one only
+         * when the owner ticks it, so a clinic can offer كشف and متابعة while
+         * an engineering office offers استشارة alone.
+         *
+         * ⚠ Every booking type absent from this array is DEACTIVATED on the
+         * next run and deleted by prune(). A kind added anywhere else — the
+         * admin panel, a one-off seeder — does not survive. Add it here.
+         */
         'kinds' => [
             'booking_appointment' => ['حجز موعد', 'Appointment'],
             'booking_time' => ['حجز وقت', 'Time Slot'],
             'booking_stay' => ['حجز فندق', 'Stay'],
             'booking_table' => ['حجز طاولة', 'Table'],
+
+            'booking_consultation' => ['حجز استشارة', 'Consultation'],
+            'booking_examination' => ['حجز كشف', 'Examination'],
+            'booking_procedure' => ['حجز إجراء طبي', 'Medical Procedure'],
+            'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
         ],
 
         /*

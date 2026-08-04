@@ -54,7 +54,13 @@ class OfferingDiscovery
         }
 
         $rows = $query
+            // Price first, and deliberately so: a merchant's own sequence must
+            // not lift him above a cheaper competitor, or «مميّز» gets ticked
+            // on everything and stops meaning anything. It only decides among
+            // rows that are otherwise equal.
             ->orderByRaw('COALESCE(p.price, m.base_price) ASC')
+            ->orderByRaw('COALESCE(p.is_featured, m.is_featured, 0) DESC')
+            ->orderByRaw('COALESCE(p.sort_order, m.sort_order, 0) ASC')
             ->orderBy('oo.id')
             ->paginate($perPage, ['*'], 'page');
 

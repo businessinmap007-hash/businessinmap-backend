@@ -35,6 +35,7 @@ final class MenuDiscoveryController extends Controller
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
                 'offeringOptions.option',
             ])
+            ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderBy('id')
             ->get();

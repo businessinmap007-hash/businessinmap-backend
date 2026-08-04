@@ -40,6 +40,8 @@ class BusinessServicePrice extends Model
         'charge_amount',
         'currency',
         'is_active',
+        'sort_order',
+        'is_featured',
         'discount_enabled',
         'discount_percent',
     ];
@@ -55,6 +57,8 @@ class BusinessServicePrice extends Model
         'charge_amount'      => 'decimal:2',
         'currency'           => 'string',
         'is_active'          => 'boolean',
+        'sort_order'         => 'integer',
+        'is_featured'        => 'boolean',
         'discount_enabled'   => 'boolean',
         'discount_percent'   => 'integer',
     ];

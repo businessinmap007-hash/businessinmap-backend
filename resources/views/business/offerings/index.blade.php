@@ -35,11 +35,26 @@
     </div>
 </div>
 
+<form method="POST" action="{{ route('business.offerings.reorder', [], false) }}" id="offerings-form">
+@csrf
 <div class="a2-card">
+    <div class="a2-card-head">
+        <div>
+            <div class="a2-card-title">{{ __('ترتيب العروض') }}</div>
+            <div class="a2-card-sub">
+                {{ __('اسحب الصف لتغيير ترتيبه، وعلّم «مميّز» لما يتصدّر. الترتيب يخص قائمتك أنت — لا يرفعك فوق نشاط آخر في نتائج البحث.') }}
+            </div>
+        </div>
+        <div class="a2-page-actions">
+            <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ الترتيب') }}</button>
+        </div>
+    </div>
     <div class="a2-table-wrap">
         <table class="a2-table" id="offerings-table">
             <thead>
                 <tr>
+                    <th style="width:36px;"></th>
+                    <th style="width:70px;">{{ __('مميّز') }}</th>
                     <th>{{ __('المصدر') }}</th>
                     <th>{{ __('الاسم') }}</th>
                     <th>{{ __('التفاصيل') }}</th>
@@ -50,7 +65,15 @@
             </thead>
             <tbody>
                 @forelse($offerings as $o)
-                    <tr data-source="{{ $o['source'] }}">
+                    <tr data-source="{{ $o['source'] }}" data-id="{{ $o['id'] }}" draggable="true" class="of-row">
+                        <td class="of-handle" title="{{ __('اسحب لإعادة الترتيب') }}">⠿</td>
+                        <td>
+                            <input type="hidden" name="order[{{ $o['source'] }}][]" value="{{ $o['id'] }}">
+                            <label class="a2-check">
+                                <input type="checkbox" name="featured[{{ $o['source'] }}][]" value="{{ $o['id'] }}"
+                                       @checked($o['is_featured'])>
+                            </label>
+                        </td>
                         <td><span class="a2-pill {{ $sourcePill[$o['source']] ?? 'a2-pill-gray' }}">{{ __($o['source_label']) }}</span></td>
                         <td>{{ $o['name'] }}</td>
                         <td class="a2-muted">{{ $o['detail'] }}</td>
@@ -67,14 +90,23 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="a2-empty">{{ __('لا توجد عروض بعد. أضف سعر خدمة، صنف منيو، أو منتج تجزئة.') }}</td></tr>
+                    <tr><td colspan="8" class="a2-empty">{{ __('لا توجد عروض بعد. أضف سعر خدمة، صنف منيو، أو منتج تجزئة.') }}</td></tr>
                 @endforelse
-                <tr id="offerings-empty-filter" style="display:none;"><td colspan="6" class="a2-empty">{{ __('لا عروض في هذا المصدر.') }}</td></tr>
+                <tr id="offerings-empty-filter" style="display:none;"><td colspan="8" class="a2-empty">{{ __('لا عروض في هذا المصدر.') }}</td></tr>
             </tbody>
         </table>
     </div>
 </div>
+</form>
 @endsection
+
+@push('styles')
+<style>
+    .of-handle { cursor: grab; user-select: none; opacity: .5; font-size: 18px; text-align: center; }
+    .of-row.is-dragging { opacity: .4; }
+    .of-row.is-over { outline: 2px dashed currentColor; outline-offset: -2px; }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -100,6 +132,56 @@
 
         buttons.forEach(function (b) {
             b.addEventListener('click', function () { apply(b.getAttribute('data-src-filter')); });
+        });
+    })();
+
+    /* Drag a row to say what leads the list. A row may only move among rows of
+       its own source: the form posts one ordered list per source, and position
+       in that list is the order. */
+    (function () {
+        var tbody = document.querySelector('#offerings-table tbody');
+        if (!tbody) return;
+
+        var dragged = null;
+
+        tbody.addEventListener('dragstart', function (e) {
+            var row = e.target.closest('.of-row');
+            if (!row) return;
+            dragged = row;
+            row.classList.add('is-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        tbody.addEventListener('dragend', function () {
+            if (dragged) dragged.classList.remove('is-dragging');
+            tbody.querySelectorAll('.is-over').forEach(function (r) { r.classList.remove('is-over'); });
+            dragged = null;
+        });
+
+        tbody.addEventListener('dragover', function (e) {
+            var row = e.target.closest('.of-row');
+            if (!row || !dragged || row === dragged) return;
+            if (row.dataset.source !== dragged.dataset.source) return;
+
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            tbody.querySelectorAll('.is-over').forEach(function (r) { r.classList.remove('is-over'); });
+            row.classList.add('is-over');
+        });
+
+        tbody.addEventListener('drop', function (e) {
+            var row = e.target.closest('.of-row');
+            if (!row || !dragged || row === dragged) return;
+            if (row.dataset.source !== dragged.dataset.source) return;
+
+            e.preventDefault();
+            row.classList.remove('is-over');
+
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll('.of-row'));
+            var before = rows.indexOf(dragged) < rows.indexOf(row);
+
+            row.parentNode.insertBefore(dragged, before ? row.nextSibling : row);
         });
     })();
 </script>

@@ -66,6 +66,7 @@ class MenuItemController extends Controller
                 });
             })
             ->with('section:id,name_ar')
+            ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderByDesc('id')
             ->paginate(50)

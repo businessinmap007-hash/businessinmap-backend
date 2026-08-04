@@ -29,6 +29,7 @@ class MenuItem extends Model
         'base_price',
         'is_active',
         'sort_order',
+        'is_featured',
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class MenuItem extends Model
         'base_price' => 'decimal:2',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'is_featured' => 'boolean',
     ];
 
     public function business(): BelongsTo

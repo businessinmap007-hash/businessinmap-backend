@@ -44,6 +44,8 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('offerings', [OfferingController::class, 'index'])->name('offerings.index');
+        // The owner's own sequence: which offering leads his list.
+        Route::post('offerings/reorder', [OfferingController::class, 'reorder'])->name('offerings.reorder');
 
         Route::get('bookable-items', [BookableItemController::class, 'index'])->name('bookable-items.index');
         Route::get('bookable-items/create', [BookableItemController::class, 'create'])->name('bookable-items.create');

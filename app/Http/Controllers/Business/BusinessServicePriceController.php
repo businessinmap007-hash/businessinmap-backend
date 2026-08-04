@@ -52,6 +52,8 @@ class BusinessServicePriceController extends Controller
             ->with(['service:id,key,name_ar,name_en'])
             ->where('business_id', $this->businessId())
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
+            ->orderByDesc('is_featured')
+            ->orderBy('sort_order')
             ->orderByDesc('id')
             ->paginate(50)
             ->withQueryString();

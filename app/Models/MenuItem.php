@@ -97,25 +97,58 @@ class MenuItem extends Model
     /**
      * The heading this item belongs under, and where it comes from.
      *
+     * **The heading is the whole option COMBINATION, not just the line.** A
+     * furniture merchant ticks غرفة نوم، ركنة and مودرن، كلاسيك، ألترا مودرن
+     * once at registration; his menu then reads
+     *
+     *     غرفة نوم — مودرن        (3 items)
+     *     غرفة نوم — كلاسيك       (5 items)
+     *     ركنة — ألترا مودرن      (7 items)
+     *
+     * so a customer picks ONE thing instead of narrowing by option and then
+     * again by service. That extra step was the whole complaint: محافظة →
+     * تصنيف → ابن → خيارات → خدمات is too long a road to a bedroom.
+     *
      * Precedence, most specific first:
      *   1. the section the merchant wrote himself — he asked for it by name
-     *   2. the platform item type («مشويات») — a restaurant's food headings
-     *   3. the line option («غرفة نوم») — a showroom's, whose item type is the
-     *      useless «قطعة أثاث»
+     *   2. the option combination — one vocabulary, the same one he is
+     *      searched by
+     *   3. the platform item type, for a child that has no line options yet
      *
-     * Two families, two vocabularies, one heading: a restaurant's kinds of food
-     * live in the item types while its options describe the venue (توصيل، واي
-     * فاي، عائلي); a furniture child is the exact reverse. Neither can be
-     * folded into the other without breaking the family it does not fit.
+     * The item types are NOT dead: `allowed_item_types` still gates what a
+     * child may list, and retail's entire catalog scoping rides on it. Only
+     * the heading moved.
      *
-     * @return array{key:string,label:string,source:string}|null
+     * @return array{key:string,label:string,source:string,option_ids:array<int,int>}|null
      */
     public function heading(): ?array
     {
         $section = $this->section;
 
         if ($section && $section->is_active) {
-            return ['key' => 'section:' . $section->id, 'label' => (string) $section->loc('name'), 'source' => 'section'];
+            return [
+                'key' => 'section:' . $section->id,
+                'label' => (string) $section->loc('name'),
+                'source' => 'section',
+                'option_ids' => [],
+            ];
+        }
+
+        $line = $this->lineOption();
+
+        if ($line) {
+            $modifiers = $this->modifierOptions();
+
+            // Sorted, so two items that carry the same options in a different
+            // order land under one heading instead of two identical ones.
+            $ids = $modifiers->pluck('id')->map(fn ($id) => (int) $id)->sort()->values();
+
+            return [
+                'key' => 'combo:' . $line->id . ($ids->isEmpty() ? '' : ':' . $ids->implode(',')),
+                'label' => collect([$line])->merge($modifiers)->map(fn (Option $o) => $o->displayName())->implode(' — '),
+                'source' => 'option_combo',
+                'option_ids' => $ids->prepend((int) $line->id)->all(),
+            ];
         }
 
         if ($this->item_type) {
@@ -123,13 +156,8 @@ class MenuItem extends Model
                 'key' => 'type:' . $this->item_type,
                 'label' => static::itemTypeLabel($this->item_type),
                 'source' => 'item_type',
+                'option_ids' => [],
             ];
-        }
-
-        $line = $this->lineOption();
-
-        if ($line) {
-            return ['key' => 'option:' . $line->id, 'label' => $line->displayName(), 'source' => 'line_option'];
         }
 
         return null;

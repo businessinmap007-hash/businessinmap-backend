@@ -59,15 +59,16 @@ final class MenuDiscoveryController extends Controller
                     'id' => (int) $section->id,
                     'name' => $this->label($section->name_ar, $section->name_en, __('قسم #') . $section->id),
                     'source' => 'section',
+                    'option_ids' => [],
                     'items' => $group->map(fn ($i) => $this->itemPayload($i))->values(),
                 ];
             }
         }
 
         // Anything the merchant did not file by hand still gets a heading, from
-        // the taxonomy instead: the item type («مشويات») for a restaurant, the
-        // line option («غرفة نوم») for a showroom whose item type is the
-        // useless «قطعة أثاث». Only what has neither falls into «أخرى» — and
+        // the option combination he ticked at registration — «غرفة نوم —
+        // مودرن», «مشويات» — falling back to the item type only for a child
+        // with no line options yet. Only what has neither lands in «أخرى», and
         // that bucket exists so nothing is ever hidden, not as the default.
         $activeSectionIds = $sections->pluck('id')->map(fn ($id) => (int) $id)->all();
         $ungrouped = $items->filter(function (MenuItem $i) use ($activeSectionIds) {
@@ -119,6 +120,9 @@ final class MenuDiscoveryController extends Controller
                 'id' => null,
                 'name' => $heading['label'],
                 'source' => $heading['source'],
+                // The exact filter that reproduces this heading, so tapping it
+                // in the app is one call and not a guess.
+                'option_ids' => $heading['option_ids'],
                 'items' => [],
             ];
 
@@ -132,6 +136,7 @@ final class MenuDiscoveryController extends Controller
                 'id' => null,
                 'name' => __('أخرى'),
                 'source' => 'none',
+                'option_ids' => [],
                 'items' => array_map(fn (MenuItem $i) => $this->itemPayload($i), $loose),
             ];
         }

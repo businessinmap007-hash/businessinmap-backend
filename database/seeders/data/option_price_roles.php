@@ -27,6 +27,7 @@ return [
     | price on its own, which is why merging the two vocabularies was wrong.
     */
     'line' => [
+        'بنود المنيو',            // مشويات، ساندوتشات — the heading a customer pays under
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
@@ -68,6 +69,16 @@ return [
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
         'حالة المنتج',            // جديد ≠ مستعمل
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة
+
+        /*
+         * These two were created as modifiers by PropertyModifierOptionsSeeder
+         * and then silently reset to descriptive on the next run of THIS
+         * seeder, because anything unlisted here is pushed back to descriptive.
+         * A group that is not named in this file does not keep its role —
+         * add it here whenever a seeder creates one.
+         */
+        'عدد الغرف',              // شقة غرفتين ≠ ثلاث غرف
+        'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
     ],
 
     /*

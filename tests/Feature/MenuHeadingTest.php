@@ -108,7 +108,7 @@ class MenuHeadingTest extends TestCase
             $this->item($business, $name)->syncOfferingOptions((int) $line->id);
         }
 
-        $group = collect($this->menu($business))->firstWhere('source', 'line_option');
+        $group = collect($this->menu($business))->firstWhere('source', 'option_combo');
 
         $this->assertNotNull($group, 'the line option produced no heading');
         $this->assertSame($line->displayName(), $group['name']);

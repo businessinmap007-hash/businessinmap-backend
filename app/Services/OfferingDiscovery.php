@@ -88,6 +88,79 @@ class OfferingDiscovery
     }
 
     /**
+     * The COMBINATIONS on offer, each with how many offerings carry it.
+     *
+     *     غرفة نوم — مودرن        12
+     *     غرفة نوم — كلاسيك        8
+     *     ركنة — ألترا مودرن       7
+     *
+     * `facets()` above answers "which options exist", which makes the customer
+     * assemble the combination himself and then narrow again by service —
+     * محافظة، تصنيف، ابن، خيارات، خدمات, five steps to a bedroom. This answers
+     * "which things are actually sold", so one tap does the whole job: the
+     * returned `option_ids` are exactly what `search()` wants back.
+     *
+     * @return Collection<int,array{key:string,label:string,option_ids:array<int,int>,offerings:int}>
+     */
+    public function combinations(int $childId, int $serviceId = 0, array $itemTypes = [], int $limit = 60): Collection
+    {
+        $anchors = $this->base($childId, $serviceId, $itemTypes)
+            ->reorder()
+            ->select(['oo.offering_type', 'oo.offering_id'])
+            ->get();
+
+        if ($anchors->isEmpty()) {
+            return collect();
+        }
+
+        $links = DB::table('offering_options as oo')
+            ->join('options as o', 'o.id', '=', 'oo.option_id')
+            ->whereIn(
+                DB::raw("CONCAT(oo.offering_type, ':', oo.offering_id)"),
+                $anchors->map(fn ($a) => $a->offering_type . ':' . $a->offering_id)
+            )
+            ->orderBy('oo.sort_order')
+            ->orderBy('oo.id')
+            ->get(['oo.offering_type', 'oo.offering_id', 'oo.role', 'o.id', 'o.name_ar', 'o.name_en'])
+            ->groupBy(fn ($l) => $l->offering_type . ':' . $l->offering_id);
+
+        $out = [];
+
+        foreach ($anchors as $anchor) {
+            $own = $links->get($anchor->offering_type . ':' . $anchor->offering_id, collect());
+            $line = $own->firstWhere('role', 'line');
+
+            if (! $line) {
+                continue;
+            }
+
+            // Sorted, so the same combination entered in a different order is
+            // one heading and not two identical ones.
+            $modifiers = $own->where('role', 'modifier')->sortBy('id')->values();
+            $ids = $modifiers->pluck('id')->map(fn ($id) => (int) $id);
+            $key = (int) $line->id . ($ids->isEmpty() ? '' : ':' . $ids->implode(','));
+
+            if (! isset($out[$key])) {
+                $out[$key] = [
+                    'key' => $key,
+                    'label' => collect([$line])->merge($modifiers)
+                        ->map(fn ($o) => app()->getLocale() === 'en' ? ($o->name_en ?: $o->name_ar) : ($o->name_ar ?: $o->name_en))
+                        ->implode(' — '),
+                    'option_ids' => $ids->prepend((int) $line->id)->all(),
+                    'offerings' => 0,
+                ];
+            }
+
+            $out[$key]['offerings']++;
+        }
+
+        return collect($out)
+            ->sortByDesc('offerings')
+            ->values()
+            ->take($limit);
+    }
+
+    /**
      * Every offering whose line is named, joined to whichever table owns it.
      *
      * The line row is the anchor — one per offering — so an offering appears

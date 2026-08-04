@@ -102,6 +102,14 @@ class MenuItemController extends Controller
      */
     private function itemTypes(): array
     {
+        // One vocabulary, not two. Where the merchant has line options, THEY
+        // are the heading — «مشويات»، «غرفة نوم — مودرن» — and offering him a
+        // parallel list of item types saying the same thing is exactly the
+        // duplication that made the customer's road too long.
+        if (! empty($this->vocabulary()['lines'] ?? [])) {
+            return [];
+        }
+
         $services = $this->servicesForChild();
         $menu = $services->firstWhere('key', PlatformService::KEY_MENU);
 

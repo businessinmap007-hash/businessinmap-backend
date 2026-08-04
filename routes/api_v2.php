@@ -157,6 +157,7 @@ Route::prefix('v2')->group(function () {
         // The priced offerings themselves — «كشف عظام — 300 — مستشفى BIM» —
         // so a search on an option reaches the row, not only the shop.
         Route::get('offerings', [DiscoveryController::class, 'offerings']);
+        Route::get('offering-lines', [DiscoveryController::class, 'offeringLines']);
 
         // Retail: browse catalog products businesses sell -> product -> offers.
         Route::prefix('retail')->group(function () {

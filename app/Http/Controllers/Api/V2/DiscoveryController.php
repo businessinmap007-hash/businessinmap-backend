@@ -358,6 +358,46 @@ final class DiscoveryController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/v2/discovery/offering-lines — the «بنود» a child actually sells,
+     * each one a whole combination the customer can tap in ONE step:
+     *
+     *     غرفة نوم — مودرن   12
+     *     غرفة نوم — كلاسيك   8
+     *
+     * The road used to be محافظة → تصنيف → ابن → خيارات → خدمات: the customer
+     * assembled the combination out of loose options and then narrowed a second
+     * time by service, for one question. Each row here carries the exact
+     * `option_ids` to hand straight back to /discovery/offerings.
+     */
+    public function offeringLines(Request $request, OfferingDiscovery $offerings)
+    {
+        $data = $request->validate([
+            'child_id' => ['required', 'integer', 'min:1'],
+            'service_id' => ['nullable', 'integer', 'min:1'],
+            'item_types' => ['nullable', 'array'],
+            'item_types.*' => ['string', 'max:100'],
+        ]);
+
+        $itemTypes = array_values(array_filter((array) ($data['item_types'] ?? []), fn ($t) => trim((string) $t) !== ''));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'query' => [
+                    'child_id' => (int) $data['child_id'],
+                    'service_id' => (int) ($data['service_id'] ?? 0) ?: null,
+                    'item_types' => $itemTypes,
+                ],
+                'lines' => $offerings->combinations(
+                    (int) $data['child_id'],
+                    (int) ($data['service_id'] ?? 0),
+                    $itemTypes
+                )->values(),
+            ],
+        ]);
+    }
+
     private function offeringPayload($row): array
     {
         $name = fn ($o) => $o ? $this->label($o->name_ar, $o->name_en, '') : null;

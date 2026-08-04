@@ -30,7 +30,8 @@ class Booking extends Model
         'user_id',
         'business_id',
         'service_id',
-        'business_service_price_id',
+        'offering_type',
+        'offering_id',
         'date',
         'time',
         'price',
@@ -158,10 +159,18 @@ class Booking extends Model
         return $this->morphTo();
     }
 
-    /** The priced row this booking was made from, when the customer named one. */
-    public function offering(): BelongsTo
+    /**
+     * What this booking is ABOUT: the price row it came from
+     * (BusinessServicePrice) or the listing it was made on (MenuItem — a
+     * showroom's «غرفة نوم — مودرن», an agent's «شقة — غرفتين — سوبر لوكس»).
+     *
+     * A listing's price is NOT the booking's price. Two million pounds is what
+     * the flat costs, not what the viewing costs, so this reference never feeds
+     * the amount — that still comes from the service's own price row.
+     */
+    public function offering(): MorphTo
     {
-        return $this->belongsTo(BusinessServicePrice::class, 'business_service_price_id');
+        return $this->morphTo();
     }
 
     /**
@@ -173,7 +182,11 @@ class Booking extends Model
      */
     public function title(): string
     {
-        $label = $this->offering?->offeringLabel();
+        $offering = $this->offering;
+
+        $label = $offering && method_exists($offering, 'offeringLabel')
+            ? $offering->offeringLabel($this->offeringOwnName($offering))
+            : null;
 
         if ($label) {
             return $label;
@@ -201,6 +214,16 @@ class Booking extends Model
     public function getTitleAttribute(): string
     {
         return $this->title();
+    }
+
+    /** A listing has a name of its own; a price row has only its vocabulary. */
+    private function offeringOwnName($offering): ?string
+    {
+        if (! method_exists($offering, 'loc')) {
+            return null;
+        }
+
+        return (string) $offering->loc('name') ?: null;
     }
 
     public function walletTransactions(): HasMany

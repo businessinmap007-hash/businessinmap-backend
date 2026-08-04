@@ -2445,7 +2445,7 @@ paths:
   # ─────────────────────────── Bookings ───────────────────────────
   /bookings:
     get: { tags: [Bookings], summary: My bookings, responses: { '200': { description: OK } } }
-    post: { tags: [Bookings], summary: Create a booking, responses: { '201': { description: Created } } }
+    post: { tags: [Bookings], summary: 'Create a booking. offering_id + offering_type say what the booking is about — a price row (service_price, the default) names «كشف عظام» rather than «كشف» and decides the amount; a listing (menu_item) is what a showroom or estate agent is booked ON and never sets the price, since a flat''s asking price is not what a viewing costs.', responses: { '201': { description: Created }, '422': { description: 'The offering does not belong to this business, or is switched off.' } } }
   /bookings/{booking}:
     get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/financial-preview:

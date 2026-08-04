@@ -73,7 +73,8 @@ class BookingTitleTest extends TestCase
             'business_id' => $business->id,
             'service_id' => $offering?->service_id
                 ?? (int) DB::table('platform_services')->where('is_active', 1)->value('id'),
-            'business_service_price_id' => $offering?->id,
+            'offering_type' => $offering?->getMorphClass(),
+            'offering_id' => $offering?->id,
             'date' => now()->toDateString(),
             'time' => '10:00',
             'price' => $offering?->price ?? 0,

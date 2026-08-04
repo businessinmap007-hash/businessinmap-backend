@@ -97,7 +97,7 @@ final class BookingController extends Controller
 
         $quantity = max((int) ($data['quantity'] ?? 1), 1);
         $bookableId = ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null;
-        $offeringId = ! empty($data['offering_id']) ? (int) $data['offering_id'] : null;
+        $offering = $this->resolveOffering($data, (int) $data['business_id']);
 
         $calc = $this->serviceExecutionEngine->prepare(
             businessId: (int) $data['business_id'],
@@ -105,7 +105,10 @@ final class BookingController extends Controller
             bookableId: $bookableId,
             quantity: $quantity,
             pricingDate: $data['starts_at'] ?? $data['date'] ?? now(),
-            offeringId: $offeringId
+            // Only a price row can decide an amount. A listing says what the
+            // booking is about — a flat's asking price is not what a viewing
+            // costs — so it never reaches the pricing ladder.
+            offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -134,9 +137,14 @@ final class BookingController extends Controller
             'notes' => $data['notes'] ?? null,
             'status' => Booking::STATUS_PENDING,
             'price' => (float) data_get($calc, 'price_breakdown.final_price', 0),
-            // keep the row the price came from: it is what lets the booking
-            // call itself «كشف — عظام» rather than «حجز #4127»
-            'business_service_price_id' => optional($calc['business_price'] ?? null)->id,
+            // keep what the booking is about: it is what lets it call itself
+            // «كشف — عظام» rather than «حجز #4127»
+            'offering_type' => $offering
+                ? $offering->getMorphClass()
+                : optional($calc['business_price'] ?? null)?->getMorphClass(),
+            'offering_id' => $offering
+                ? (int) $offering->id
+                : optional($calc['business_price'] ?? null)?->id,
         ];
 
         if ($bookable instanceof BookableItem) {
@@ -425,6 +433,47 @@ final class BookingController extends Controller
         ];
     }
 
+    /**
+     * What the customer was looking at when they booked, checked against the
+     * business that is being booked.
+     *
+     * A listing may only be booked when the business actually offers booking —
+     * a menu item is otherwise something you ORDER, and letting it be booked
+     * would create appointments no merchant expects.
+     */
+    private function resolveOffering(array $data, int $businessId)
+    {
+        $id = (int) ($data['offering_id'] ?? 0);
+
+        if ($id <= 0) {
+            return null;
+        }
+
+        $type = (string) ($data['offering_type'] ?? 'service_price');
+
+        if ($type === 'menu_item') {
+            $item = \App\Models\MenuItem::query()
+                ->where('id', $id)
+                ->where('business_id', $businessId)
+                ->where('is_active', 1)
+                ->first();
+
+            if (! $item) {
+                throw ValidationException::withMessages([
+                    'offering_id' => __('هذا العرض غير موجود لدى هذا النشاط.'),
+                ]);
+            }
+
+            return $item;
+        }
+
+        return \App\Models\BusinessServicePrice::query()
+            ->where('id', $id)
+            ->where('business_id', $businessId)
+            ->where('is_active', 1)
+            ->first();
+    }
+
     private function relations(bool $details = false): array
     {
         $relations = [
@@ -434,7 +483,7 @@ final class BookingController extends Controller
             'bookable',
             // the booking names itself from these; loading them here keeps
             // Booking::title() from costing a query per row
-            'offering.offeringOptions.option',
+            'offering',
         ];
 
         if ($details) {
@@ -451,9 +500,11 @@ final class BookingController extends Controller
             'business_id' => ['required', 'integer', 'min:1'],
             'service_id' => ['required', 'integer', 'min:1'],
             'bookable_id' => ['nullable', 'integer', 'min:1'],
-            // which priced row the customer was looking at — «كشف عظام», not
-            // just «كشف». Optional: most businesses hold one price per type.
+            // What the customer was looking at. A price row names «كشف عظام»
+            // rather than «كشف»; a listing is what a showroom or an estate
+            // agent is booked ON. Optional either way.
             'offering_id' => ['nullable', 'integer', 'min:1'],
+            'offering_type' => ['nullable', Rule::in(['service_price', 'menu_item'])],
             'date' => ['nullable', 'date'],
             'time' => ['nullable', 'date_format:H:i'],
             'starts_at' => ['nullable', 'date'],

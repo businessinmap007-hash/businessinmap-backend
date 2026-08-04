@@ -23,7 +23,7 @@
         <div class="a2-card-body cw-pickers">
             <label class="cw-field">
                 <span class="a2-muted">{{ __('الأب') }}</span>
-                <select name="root_id" class="a2-input" onchange="this.form.querySelector('[name=child_id]').value=''; this.form.submit();">
+                <select name="root_id" class="a2-select" onchange="this.form.querySelector('[name=child_id]').value=''; this.form.submit();">
                     <option value="">{{ __('— اختر —') }}</option>
                     @foreach($roots as $root)
                         <option value="{{ $root->id }}" @selected($rootId === (int) $root->id)>{{ $root->name_ar }}</option>
@@ -33,7 +33,7 @@
 
             <label class="cw-field">
                 <span class="a2-muted">{{ __('الابن') }}</span>
-                <select name="child_id" class="a2-input" @disabled($children->isEmpty()) onchange="this.form.submit();">
+                <select name="child_id" class="a2-select" @disabled($children->isEmpty()) onchange="this.form.submit();">
                     <option value="">{{ __('— اختر —') }}</option>
                     @foreach($children as $row)
                         <option value="{{ $row->id }}" @selected($childId === (int) $row->id)>{{ $row->name_ar }}</option>

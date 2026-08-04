@@ -1554,17 +1554,37 @@ body.admin-v2 .a2-toolbar{
   width: 100%;
 }
 
-/* Tom Select copies the original <select>'s classes (including .a2-select)
-   onto its wrapper div. Without this reset the wrapper renders the .a2-select
-   frame AND the inner .ts-control renders its own frame = a doubled border.
-   Strip the wrapper's frame so only .ts-control shows. */
-.ts-wrapper.a2-select{
+/* Tom Select copies the original <select>'s classes onto its wrapper div.
+   Without this reset the wrapper renders the field frame AND the inner
+   .ts-control renders its own frame = a doubled border. Strip the wrapper's
+   frame so only .ts-control shows.
+
+   Every field class a <select> is written with has to be listed: .a2-input is
+   as common on selects as .a2-select is (16 of them across 9 screens), and
+   resetting only .a2-select is what left the child-workbench pickers with two
+   boxes. */
+.ts-wrapper.a2-select,
+.ts-wrapper.a2-input,
+.ts-wrapper.a2-textarea{
   border: 0;
   background: transparent;
   border-radius: 0;
   padding: 0;
   height: auto;
   box-shadow: none;
+}
+
+/* The original <select> stays in the DOM for form submission, hidden by
+   tom-select with clip-path — but it keeps OUR .a2-select sizing (width:100%,
+   fixed height), and tom-select's own 1px reset loses on load order. It is
+   absolutely positioned, so where no ancestor is positioned it sizes against
+   the page and spills past the edge: an invisible field that puts a horizontal
+   scrollbar on the screen. Take its layout away for good. */
+select.ts-hidden-accessible{
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  border: 0 !important;
 }
 
 .ts-wrapper.single .ts-control,

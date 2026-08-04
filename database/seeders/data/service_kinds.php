@@ -73,6 +73,7 @@ return [
             'booking_procedure' => ['حجز إجراء طبي', 'Medical Procedure'],
             'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
             'booking_home_sample' => ['حجز سحب عينة بالمنزل', 'Home Sample Collection'],
+            'booking_home_visit' => ['حجز زيارة منزلية', 'Home Visit'],
         ],
 
         /*
@@ -121,7 +122,13 @@ return [
          */
         'children' => [
             // طبي
-            514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation'],           // عيادة
+            /*
+             * The clinic gets the general «زيارة منزلية», not the lab's
+             * «سحب عينة بالمنزل»: the two are not the same errand. A nurse
+             * comes, draws blood and leaves; a doctor comes and examines. Same
+             * doorstep, different thing bought, and the price says so.
+             */
+            514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // عيادة
             513 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مستشفى
             515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مركز طبي
 

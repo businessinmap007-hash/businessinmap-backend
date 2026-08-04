@@ -237,7 +237,21 @@ final class DiscoveryController extends Controller
                 ->where('name', 'like', "%{$q}%")
                 ->orWhere('phone', 'like', "%{$q}%")));
 
-        $offerExists($query);
+        /*
+         * A business appears for its child whether or not it has priced
+         * anything. Requiring a priced row unconditionally hid 1,702 of 1,704
+         * accounts: the taxonomy and the pricing screen are both built, but no
+         * merchant has used them yet, and a customer reading an empty list
+         * cannot tell an empty platform from a broken one.
+         *
+         * The requirement stays exactly where it earns its keep — when the
+         * customer NAMES what he wants. Asking for «سحب عينة بالمنزل» must not
+         * return a doctor who never said he does it; browsing the clinics
+         * should return every clinic.
+         */
+        if ($itemTypes) {
+            $offerExists($query);
+        }
 
         // Skip shops that are closed right now, when asked. A shop with no
         // hours configured is treated as available and is not hidden.
@@ -291,6 +305,9 @@ final class DiscoveryController extends Controller
         $businesses->getCollection()->transform(function (User $b) use ($matched, $openNow) {
             $arr = $b->only(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
             $arr['offered_types'] = $matched[$b->id] ?? [];
+            // So the card can say «اتصل للسعر» rather than showing nothing and
+            // leaving the customer to guess why a business has no prices.
+            $arr['has_prices'] = ($matched[$b->id] ?? []) !== [];
             $arr['is_open_now'] = $openNow[(int) $b->id] ?? true;
 
             return $arr;

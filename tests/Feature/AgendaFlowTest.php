@@ -245,10 +245,17 @@ class AgendaFlowTest extends TestCase
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
         $patient = $this->user(User::TYPE_CLIENT, 'Patient');
 
-        // A late dinner time guarantees the "after dinner" dose is still today/future.
+        // The clock is frozen rather than offset. «now + 2h» was meant to keep
+        // the "after dinner" dose in the future, but it is formatted as H:i:s
+        // and loses the date — so between 22:00 and midnight UTC it wrapped to
+        // an early-morning time TODAY, 22 hours in the past, today's dose was
+        // skipped and only 2 of the 3 appeared. The test failed for two hours a
+        // day and passed the other twenty-two.
+        Carbon::setTestNow(Carbon::today()->setTime(9, 0));
+
         MealSchedule::create([
             'user_id' => $patient->id, 'breakfast_at' => '08:00', 'lunch_at' => '14:00',
-            'dinner_at' => Carbon::now()->addHours(2)->format('H:i:s'),
+            'dinner_at' => '20:00',
         ]);
 
         // Doctor issues a once-a-day-after-dinner medicine for 3 days.

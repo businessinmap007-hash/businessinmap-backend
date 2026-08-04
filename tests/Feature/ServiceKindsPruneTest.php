@@ -255,6 +255,7 @@ class ServiceKindsPruneTest extends TestCase
             'booking_procedure',
             'booking_online_consultation',
             'booking_home_sample',
+            'booking_home_visit',
         ] as $key) {
             $this->assertArrayHasKey($key, $mapped, "«{$key}» must be in service_kinds.php or the prune deletes it");
 

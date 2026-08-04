@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
+use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +22,19 @@ use Illuminate\View\View;
 class BusinessServicePriceController extends Controller
 {
     use ResolvesOwnerCatalog;
+
+    public function __construct(private readonly MerchantOfferingVocabulary $vocabulary)
+    {
+    }
+
+    /**
+     * What this merchant may say a price IS. A hospital that practises four
+     * specialties picks from four, not from the platform's forty-one.
+     */
+    private function vocabulary(): array
+    {
+        return $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId());
+    }
 
     private function scopedRow(int $id): BusinessServicePrice
     {
@@ -64,30 +78,29 @@ class BusinessServicePriceController extends Controller
             ]),
             'services' => $services,
             'allowedTypesByService' => $this->allowedTypesByService($services),
+            'vocabulary' => $this->vocabulary(),
+            'lineId' => null,
+            'modifierIds' => collect(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateData($request);
+        [$line, $modifiers] = $this->chosenVocabulary($request);
 
-        $exists = BusinessServicePrice::query()
-            ->where('business_id', $this->businessId())
-            ->where('child_id', $this->childId())
-            ->where('service_id', $data['service_id'])
-            ->where('bookable_item_type', $data['bookable_item_type'])
-            ->exists();
-
-        if ($exists) {
+        if ($this->duplicateExists($data, $line)) {
             throw ValidationException::withMessages([
                 'bookable_item_type' => 'يوجد سعر بالفعل لهذا النوع مع هذه الخدمة. عدّله بدل إضافة سعر جديد.',
             ]);
         }
 
-        BusinessServicePrice::create($data + [
+        $row = BusinessServicePrice::create($data + [
             'business_id' => $this->businessId(),
             'child_id' => $this->childId(),
         ]);
+
+        $row->syncOfferingOptions($line, $modifiers);
 
         return redirect()
             ->route('business.prices.index', ['service_id' => $data['service_id']])
@@ -103,6 +116,9 @@ class BusinessServicePriceController extends Controller
             'row' => $row,
             'services' => $services,
             'allowedTypesByService' => $this->allowedTypesByService($services),
+            'vocabulary' => $this->vocabulary(),
+            'lineId' => $row->lineOption()?->id,
+            'modifierIds' => $row->modifierOptions()->pluck('id'),
         ]);
     }
 
@@ -111,22 +127,16 @@ class BusinessServicePriceController extends Controller
         $row = $this->scopedRow($id);
 
         $data = $this->validateData($request);
+        [$line, $modifiers] = $this->chosenVocabulary($request);
 
-        $duplicate = BusinessServicePrice::query()
-            ->where('business_id', $this->businessId())
-            ->where('child_id', $this->childId())
-            ->where('service_id', $data['service_id'])
-            ->where('bookable_item_type', $data['bookable_item_type'])
-            ->where('id', '!=', $row->id)
-            ->exists();
-
-        if ($duplicate) {
+        if ($this->duplicateExists($data, $line, $row->id)) {
             throw ValidationException::withMessages([
                 'bookable_item_type' => 'يوجد سعر آخر لنفس النوع والخدمة.',
             ]);
         }
 
         $row->update($data);
+        $row->syncOfferingOptions($line, $modifiers);
 
         return back()->with('success', 'تم تحديث السعر بنجاح.');
     }
@@ -138,6 +148,60 @@ class BusinessServicePriceController extends Controller
         return redirect()
             ->route('business.prices.index')
             ->with('success', 'تم حذف السعر بنجاح.');
+    }
+
+    /**
+     * The line and modifiers this merchant chose, filtered to what he is
+     * actually allowed to say — an option he never claimed about himself, or
+     * one from a descriptive group, is dropped rather than trusted.
+     *
+     * @return array{0:?int,1:array<int,int>}
+     */
+    private function chosenVocabulary(Request $request): array
+    {
+        $allowed = $this->vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
+
+        $line = (int) $request->input('line_option_id', 0);
+        $line = $allowed->contains($line) && $this->vocabulary->roleOf($line) === 'line' ? $line : null;
+
+        $modifiers = collect($request->input('modifier_option_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $allowed->contains($id) && $this->vocabulary->roleOf($id) === 'modifier')
+            ->values()
+            ->all();
+
+        return [$line, $modifiers];
+    }
+
+    /**
+     * A price is unique per (service, item type) AND the line it sells.
+     *
+     * Without the line this screen could hold one «كشف» and no more, so a
+     * hospital charging 300 for عظام and 250 for باطنة had nowhere to say the
+     * second — the gap that made priced options necessary at all.
+     */
+    private function duplicateExists(array $data, ?int $lineId, ?int $exceptId = null): bool
+    {
+        $candidates = BusinessServicePrice::query()
+            ->where('business_id', $this->businessId())
+            ->where('child_id', $this->childId())
+            ->where('service_id', $data['service_id'])
+            ->where('bookable_item_type', $data['bookable_item_type'])
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->pluck('id');
+
+        if ($candidates->isEmpty()) {
+            return false;
+        }
+
+        $taken = \Illuminate\Support\Facades\DB::table('offering_options')
+            ->where('offering_type', (new BusinessServicePrice)->getMorphClass())
+            ->whereIn('offering_id', $candidates)
+            ->where('role', 'line')
+            ->pluck('option_id', 'offering_id');
+
+        // rows that name no line at all collide only with another nameless row
+        return $candidates->contains(fn ($id) => (int) ($taken[$id] ?? 0) === (int) $lineId);
     }
 
     protected function validateData(Request $request): array

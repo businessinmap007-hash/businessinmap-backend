@@ -22,6 +22,11 @@ class BusinessServicePriceResource extends JsonResource
                 'name' => $service ? $this->localize($service->name_ar, $service->name_en) : null,
             ],
             'bookable_item_type' => $this->bookable_item_type,
+            // what this price actually sells: «كشف — عظام» rather than «كشف»
+            'line_option' => $this->optionPayload($this->resource->lineOption()),
+            'modifier_options' => $this->resource->modifierOptions()
+                ->map(fn ($o) => $this->optionPayload($o))->values(),
+            'label' => $this->resource->offeringLabel(),
             'price' => (float) $this->price,
             'charge_mode' => $this->charge_mode,
             'charge_amount' => (float) $this->charge_amount,
@@ -30,6 +35,14 @@ class BusinessServicePriceResource extends JsonResource
             'discount_enabled' => (bool) $this->discount_enabled,
             'discount_percent' => (int) $this->discount_percent,
         ];
+    }
+
+    private function optionPayload($option): ?array
+    {
+        return $option ? [
+            'id' => (int) $option->id,
+            'name' => $this->localize($option->name_ar, $option->name_en),
+        ] : null;
     }
 
     private function localize(?string $ar, ?string $en): ?string

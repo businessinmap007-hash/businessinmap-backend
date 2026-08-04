@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOfferingOptions;
 use App\Support\Concerns\HasLocalizedFields;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MenuItem extends Model
 {
     use HasLocalizedFields;
+    use HasOfferingOptions;
 
     protected $table = 'menu_items';
 

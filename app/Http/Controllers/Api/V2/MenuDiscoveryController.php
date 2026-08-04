@@ -33,6 +33,7 @@ final class MenuDiscoveryController extends Controller
             ->with([
                 'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
+                'offeringOptions.option',
             ])
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderBy('id')
@@ -98,6 +99,10 @@ final class MenuDiscoveryController extends Controller
             'id' => (int) $item->id,
             'name' => $this->label($item->name_ar, $item->name_en, __('صنف #') . $item->id),
             'description' => $this->label($item->description_ar, $item->description_en, ''),
+            // «غرفة نوم — مودرن»: what the item is in the platform's own words,
+            // so the option a customer searched by still shows on the result
+            'offering_label' => $item->offeringLabel() ?: null,
+            'option_ids' => $item->offeringOptions->pluck('option_id')->map(fn ($id) => (int) $id)->values(),
             'image' => $item->image,
             'base_price' => $base,
             'variants' => $item->activeVariants->map(fn ($v) => [

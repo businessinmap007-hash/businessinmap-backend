@@ -41,6 +41,16 @@ trait ResolvesOwnerCatalog
     }
 
     /**
+     * The root the business sits under. A child is shared across roots and no
+     * longer answers the same questions under each, so anything reading the
+     * option catalogue needs this too — see CategoryChildOptionScope.
+     */
+    protected function rootId(): int
+    {
+        return (int) (optional($this->actingBusiness())->category_id ?? 0);
+    }
+
+    /**
      * Services actually offered by the owner's category_child (active links).
      */
     protected function servicesForChild(): Collection

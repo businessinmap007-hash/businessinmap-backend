@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOfferingOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BusinessServicePrice extends Model
 {
+    use HasOfferingOptions;
+
     protected $table = 'business_service_prices';
 
     public const DEFAULT_CURRENCY = 'EGP';
@@ -31,6 +34,7 @@ class BusinessServicePrice extends Model
         'child_id',
         'service_id',
         'bookable_item_type',
+        'line_option_id',
         'price',
         'charge_mode',
         'charge_amount',
@@ -45,6 +49,7 @@ class BusinessServicePrice extends Model
         'child_id'           => 'integer',
         'service_id'         => 'integer',
         'bookable_item_type' => 'string',
+        'line_option_id'     => 'integer',
         'price'              => 'decimal:2',
         'charge_mode'        => 'string',
         'charge_amount'      => 'decimal:2',

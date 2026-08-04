@@ -60,6 +60,10 @@
                         <td>{{ $row->id }}</td>
                         <td>
                             <div class="a2-fw-900">{{ $row->name_ar ?: '—' }}</div>
+                            @php $offering = $row->offeringLabel(); @endphp
+                            @if($offering)
+                                <div class="a2-muted">{{ $offering }}</div>
+                            @endif
                             <div class="a2-muted" dir="ltr">{{ $row->name_en ?: '' }}</div>
                         </td>
                         <td>

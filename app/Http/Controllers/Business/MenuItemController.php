@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Business;
 
+use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
+use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,9 +20,27 @@ use Illuminate\View\View;
  */
 class MenuItemController extends Controller
 {
-    private function businessId(): int
+    use ResolvesOwnerCatalog {
+        businessId as protected ownerBusinessId;
+    }
+
+    public function __construct(private readonly MerchantOfferingVocabulary $vocabulary)
     {
-        return (int) Auth::id();
+    }
+
+    protected function businessId(): int
+    {
+        return (int) (Auth::id() ?: $this->ownerBusinessId());
+    }
+
+    /**
+     * What this merchant may say an item IS. Narrowed to the options he ticked
+     * about himself, so a furniture factory picks from its own pieces instead
+     * of the platform's twelve.
+     */
+    private function vocabulary(): array
+    {
+        return $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId());
     }
 
     private function scopedItem(int $id): MenuItem
@@ -63,6 +83,9 @@ class MenuItemController extends Controller
         return view('business.menu.create', [
             'row' => new MenuItem(['is_active' => 1, 'sort_order' => 0, 'base_price' => 0]),
             'sections' => $this->sections(),
+            'vocabulary' => $this->vocabulary(),
+            'lineId' => null,
+            'modifierIds' => collect(),
         ]);
     }
 
@@ -78,7 +101,8 @@ class MenuItemController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        MenuItem::create($this->validateData($request) + ['business_id' => $this->businessId()]);
+        $item = MenuItem::create($this->validateData($request) + ['business_id' => $this->businessId()]);
+        $this->applyVocabulary($request, $item);
 
         return redirect()
             ->route('business.menu.index')
@@ -93,12 +117,17 @@ class MenuItemController extends Controller
         return view('business.menu.edit', [
             'row' => $row,
             'sections' => $this->sections(),
+            'vocabulary' => $this->vocabulary(),
+            'lineId' => $row->lineOption()?->id,
+            'modifierIds' => $row->modifierOptions()->pluck('id'),
         ]);
     }
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $this->scopedItem($id)->update($this->validateData($request));
+        $item = $this->scopedItem($id);
+        $item->update($this->validateData($request));
+        $this->applyVocabulary($request, $item);
 
         return back()->with('success', 'تم تحديث الصنف بنجاح.');
     }
@@ -110,6 +139,27 @@ class MenuItemController extends Controller
         return redirect()
             ->route('business.menu.index')
             ->with('success', 'تم حذف الصنف بنجاح.');
+    }
+
+    /**
+     * Store what the item IS, refusing anything outside this merchant's own
+     * vocabulary — an option he never claimed, or one whose group is
+     * descriptive and has no business carrying a price.
+     */
+    private function applyVocabulary(Request $request, MenuItem $item): void
+    {
+        $allowed = $this->vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
+
+        $line = (int) $request->input('line_option_id', 0);
+        $line = $allowed->contains($line) && $this->vocabulary->roleOf($line) === 'line' ? $line : null;
+
+        $modifiers = collect($request->input('modifier_option_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $allowed->contains($id) && $this->vocabulary->roleOf($id) === 'modifier')
+            ->values()
+            ->all();
+
+        $item->syncOfferingOptions($line, $modifiers);
     }
 
     protected function validateData(Request $request): array

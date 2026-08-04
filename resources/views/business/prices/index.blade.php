@@ -66,7 +66,13 @@
                     <tr>
                         <td>{{ $row->id }}</td>
                         <td>{{ $displayName($row->service) }}</td>
-                        <td dir="ltr">{{ $row->bookable_item_type }}</td>
+                        <td>
+                            <div dir="ltr">{{ $row->bookable_item_type }}</div>
+                            @php $offering = $row->offeringLabel(); @endphp
+                            @if($offering)
+                                <div class="a2-fw-900">{{ $offering }}</div>
+                            @endif
+                        </td>
                         <td class="a2-fw-900">
                             {{ number_format((float) $row->price, 2) }} {{ $row->currency ?: 'EGP' }}
                             @php

@@ -65,6 +65,8 @@
     </div>
 </div>
 
+@include('business._partials.offering-vocabulary')
+
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
     <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
     <button type="submit" class="a2-btn a2-btn-primary">{{ $isEdit ? __('تحديث') : __('حفظ') }}</button>

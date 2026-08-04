@@ -29,6 +29,7 @@ return [
     'line' => [
         'بنود المنيو',            // مشويات، ساندوتشات — the heading a customer pays under
         'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
+        'فئات الغرف',             // جناح ≠ غرفة فردية — what a hotel is actually paid for
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي

@@ -8,6 +8,7 @@ use App\Models\PlatformServiceItemGroup;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -209,15 +210,46 @@ class PlatformServiceItemGroupController extends Controller
         return back()->with('success', __('تم تحديث الفرع بنجاح.'));
     }
 
+    /**
+     * Refuses to delete a branch anything still depends on, and says what.
+     *
+     * This used to delete unconditionally, reassured by a comment claiming the
+     * FK was nullOnDelete and the types would merely fall to «بدون فرع». That
+     * was wrong: membership lives in `platform_service_item_group_type`, whose
+     * group_id is ON DELETE **CASCADE**. Deleting a branch destroys its
+     * membership rows outright, and every `category_service_configs.item_groups`
+     * naming its id is left pointing at nothing — a plain integer in a JSON
+     * column, which no foreign key protects and nothing warns about.
+     *
+     * On 2026-08-05 that cost seventeen branches, five of them live delivery
+     * ones; 21 delivery types collapsed onto a single surviving branch and 315
+     * configs were left dangling, with a success message each time.
+     *
+     * A branch that is in use is switched off instead — the same choice
+     * ServiceKindsCollapseSeeder::prune() makes, and for the same reason.
+     */
     public function destroy(PlatformServiceItemGroup $platformServiceItemGroup)
     {
-        // The group_id FK is nullOnDelete, so any item types under this branch
-        // are simply moved to "بدون فرع" rather than deleted.
+        $groupId = (int) $platformServiceItemGroup->id;
+
+        $types = DB::table('platform_service_item_group_type')->where('group_id', $groupId)->count();
+
+        $configs = DB::table('category_service_configs')
+            ->whereRaw('JSON_CONTAINS(COALESCE(JSON_EXTRACT(config, "$.item_groups"), JSON_ARRAY()), ?)', [(string) $groupId])
+            ->count();
+
+        if ($types > 0 || $configs > 0) {
+            return back()->with('error', __(
+                'لا يمكن حذف الفرع: ما زال يحمل :types نوعًا وتشير إليه :configs من إعدادات الأقسام. عطِّله بدل حذفه.',
+                ['types' => $types, 'configs' => $configs]
+            ));
+        }
+
         $platformServiceItemGroup->delete();
 
         return redirect()
             ->route('admin.platform-service-item-groups.index')
-            ->with('success', __('تم حذف الفرع، وأصبحت أنواعه بدون فرع.'));
+            ->with('success', __('تم حذف الفرع الفارغ.'));
     }
 
     public function toggleActive(PlatformServiceItemGroup $platformServiceItemGroup)

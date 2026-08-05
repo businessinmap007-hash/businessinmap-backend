@@ -323,6 +323,56 @@ class ServiceKindsPruneTest extends TestCase
         }
     }
 
+    /**
+     * Every active item type must still sit in a branch, and every branch a
+     * seeder resolves by key must still exist.
+     *
+     * On 2026-08-05 seventeen branch rows were deleted from the database by
+     * hand, five of them live delivery branches. The cascade took their
+     * membership rows with them, all 21 delivery types collapsed onto the one
+     * surviving branch, and 315 delivery configs were left naming ids that no
+     * longer existed. Nothing failed loudly — the pickers simply went wrong.
+     *
+     * `test_every_config_points_at_a_branch_that_exists` catches the dangling
+     * half of that; this catches the other two halves.
+     */
+    public function test_every_active_type_still_sits_in_a_branch(): void
+    {
+        $loose = DB::table('platform_service_item_types as t')
+            ->join('platform_services as s', 's.id', '=', 't.platform_service_id')
+            ->where('t.is_active', 1)
+            ->where('s.is_active', 1)
+            // The price resolver's fallback is a sentinel and has no branch.
+            ->where('t.key', '!=', BusinessServicePrice::DEFAULT_ITEM_TYPE)
+            ->whereNotExists(fn ($q) => $q->from('platform_service_item_group_type as gt')
+                ->whereColumn('gt.item_type_id', 't.id'))
+            ->pluck('t.key');
+
+        $this->assertEmpty($loose->all(), 'item types that no branch can reach: ' . $loose->implode('، '));
+    }
+
+    /**
+     * The eight pre-collapse seeders resolve a branch by key and file types
+     * into it; LegacyOptionGapsSeeder died on a foreign key the day one went
+     * missing, which is why prune() switches a branch off instead of deleting
+     * it. The row has to be there whether or not it is active.
+     */
+    public function test_the_branch_keys_the_seeders_rely_on_all_exist(): void
+    {
+        $keys = DB::table('platform_service_item_groups')->pluck('key')->flip();
+
+        foreach ([
+            'delivery', 'delivery_freight', 'delivery_international',
+            'delivery_coldchain', 'delivery_courier_ondemand', 'delivery_documents',
+            'clinic', 'hotel', 'restaurant_table', 'sports', 'training',
+            'services_tasks', 'halls_events', 'tourism_travel', 'real_estate',
+            'beauty_care', 'business_consulting', 'coworking',
+            'booking_kinds', 'menu_kinds',
+        ] as $key) {
+            $this->assertTrue($keys->has($key), "the «{$key}» branch row is gone — a seeder resolves it by key");
+        }
+    }
+
     public function test_no_group_type_row_points_at_a_type_that_is_gone(): void
     {
         $orphans = DB::table('platform_service_item_group_type as gt')

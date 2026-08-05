@@ -210,16 +210,25 @@ class OfferingVocabularyTest extends TestCase
         }
     }
 
-    /** «شقة — غرفتين — سوبر لوكس» had nowhere to be written before. */
+    /**
+     * «شقة — غرفتين — سوبر لوكس» had nowhere to be written before.
+     *
+     * «عدد الغرف» was merged into «الغرف» on 2026-08-05, together with the
+     * hotel room kinds, and changed role in the process: once استوديو and
+     * غرفتين sit in the same list as جناح, that list is what the customer
+     * books and pays for, so it is a LINE and no longer a modifier on one.
+     * «مستوى التشطيب» is untouched and stays the modifier beside it — which is
+     * why the two are asserted separately now instead of in one loop.
+     */
     public function test_a_property_listing_can_say_its_rooms_and_finish(): void
     {
-        foreach (['عدد الغرف', 'مستوى التشطيب'] as $group) {
+        $office = DB::table('category_children_master')->where('name_ar', 'مكتب عقاري')->value('id');
+
+        foreach (['الغرف' => OptionGroup::ROLE_LINE, 'مستوى التشطيب' => OptionGroup::ROLE_MODIFIER] as $group => $role) {
             $row = DB::table('option_groups')->where('name_ar', $group)->first(['id', 'price_role']);
 
             $this->assertNotNull($row, "«{$group}» does not exist");
-            $this->assertSame(OptionGroup::ROLE_MODIFIER, $row->price_role);
-
-            $office = DB::table('category_children_master')->where('name_ar', 'مكتب عقاري')->value('id');
+            $this->assertSame($role, $row->price_role, "«{$group}» must stay a {$role}");
 
             $this->assertGreaterThan(
                 0,

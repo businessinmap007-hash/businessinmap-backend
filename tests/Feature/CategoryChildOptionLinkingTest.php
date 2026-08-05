@@ -81,11 +81,17 @@ class CategoryChildOptionLinkingTest extends TestCase
 
         $propertyOptions = DB::table('options')->where('group_id', 9)->count();
 
+        // DISTINCT because the same option is legitimately linked twice: once
+        // shared (category_id = 0) and once scoped to a root, which is how
+        // category_child_option.category_id lets one child diverge between the
+        // roots it sits under. Counting rows made a child carrying all 13
+        // options under two roots look like 26 and fail a coverage check.
         $linked = DB::table('category_child_option as co')
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->where('co.child_id', $office)
             ->where('o.group_id', 9)
-            ->count();
+            ->distinct()
+            ->count('co.option_id');
 
         $this->assertSame($propertyOptions, $linked, 'مكتب عقاري must still carry every real-estate option');
     }

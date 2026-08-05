@@ -33,9 +33,22 @@ use Illuminate\Support\Facades\DB;
  */
 class HotelRoomKindOptionsSeeder extends Seeder
 {
-    private const GROUP_AR = 'فئات الغرف';
+    /*
+     * Was «فئات الغرف» until the owner merged the room kinds into the existing
+     * «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين for property
+     * listings. Renaming it here was not cosmetic: this seeder resolves the
+     * group by name and CREATES it when absent, so on the next run it would
+     * have rebuilt «فئات الغرف» and pulled the six kinds back out of the merged
+     * list — undoing the merge and splitting one vocabulary in two again.
+     *
+     * The merged group is the better home anyway, and for the reason the
+     * docblock above already gives about «شقة» and «ڤيلا»: a hotel's جناح and a
+     * flat's ثلاث غرف are the same kind of answer to the same question, and one
+     * word for one thing is the point.
+     */
+    private const GROUP_AR = 'الغرف';
 
-    private const GROUP_EN = 'Room Kinds';
+    private const GROUP_EN = 'Rooms';
 
     /** retired item-type key => [name_ar, name_en] */
     private const KINDS = [

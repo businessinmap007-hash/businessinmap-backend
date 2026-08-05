@@ -37,12 +37,20 @@ class HotelRoomKindOptionsTest extends TestCase
             ->all();
     }
 
-    /** A customer books a جناح and pays the جناح's price. */
+    /**
+     * A customer books a جناح and pays the جناح's price.
+     *
+     * The kinds lived in their own «فئات الغرف» until the owner merged them
+     * into «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين for
+     * property listings — a hotel's جناح and a flat's ثلاث غرف answer the same
+     * question. What this guards is unchanged by the move: whatever group holds
+     * them must be a LINE, because it is the thing being paid for.
+     */
     public function test_the_room_kinds_are_a_line_group(): void
     {
-        $group = DB::table('option_groups')->where('name_ar', 'فئات الغرف')->first();
+        $group = DB::table('option_groups')->where('name_ar', 'الغرف')->first();
 
-        $this->assertNotNull($group, 'the «فئات الغرف» group is missing');
+        $this->assertNotNull($group, 'the «الغرف» group is missing');
         $this->assertSame(OptionGroup::ROLE_LINE, (string) $group->price_role);
         $this->assertSame(1, (int) $group->is_active);
     }
@@ -153,7 +161,7 @@ class HotelRoomKindOptionsTest extends TestCase
 
             $this->assertSame(
                 OptionGroup::ROLE_LINE,
-                (string) DB::table('option_groups')->where('name_ar', 'فئات الغرف')->value('price_role')
+                (string) DB::table('option_groups')->where('name_ar', 'الغرف')->value('price_role')
             );
         } finally {
             DB::rollBack();

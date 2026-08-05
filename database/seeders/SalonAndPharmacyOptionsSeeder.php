@@ -47,6 +47,19 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'حلاقة أطفال' => 'Kids haircut',
             'عناية بالشعر للرجال' => 'Men hair treatment',
         ],
+        /*
+         * One pharmacy group since the owner merged «خدمات الصيدلية» into it
+         * (2026-08-05). Folded here too, because a seeder still naming the old
+         * group recreates it on the next run and quietly undoes the merge —
+         * and «حقن» had already fallen out of both, left with no group at all.
+         *
+         * ⚠ The merge cost these five their price role. «أقسام الصيدلية» is
+         * `descriptive` in option_price_roles.php and must stay so — «أدوية
+         * بشرية» is a shelf, not a priced line — but قياس ضغط and حقن ARE things
+         * a pharmacy charges for, and as descriptive rows they can no longer
+         * carry a price. Splitting them back into a `line` group is an owner
+         * call, flagged rather than taken here.
+         */
         'أقسام الصيدلية' => [
             'أدوية بشرية' => 'Human medicines',
             'أدوية بيطرية' => 'Veterinary medicines',
@@ -56,8 +69,7 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'أعشاب ومكملات غذائية' => 'Herbs and supplements',
             'أجهزة قياس منزلية' => 'Home measuring devices',
             'العناية بالبشرة والشعر' => 'Skin and hair care products',
-        ],
-        'خدمات الصيدلية' => [
+
             'قياس ضغط' => 'Blood pressure measurement',
             'قياس سكر' => 'Blood sugar measurement',
             'حقن' => 'Injections',
@@ -97,8 +109,8 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'نمط تقديم الخدمة' => ['فردي', 'خاص', 'فريق عمل'],
         ],
         'صيدلية' => [
+            // Both lists live in this one group since the 2026-08-05 merge.
             'أقسام الصيدلية' => '*',
-            'خدمات الصيدلية' => '*',
             'التسليم والاستلام' => ['توصيل طلبات', 'توصيل مجانى'],
             'الدفع والسداد' => ['كاش', 'دفع مسبق'],
         ],
@@ -109,6 +121,8 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
         DB::transaction(function () {
             $created = 0;
 
+            $rehomed = 0;
+
             foreach (self::GROUPS as $groupName => $options) {
                 $groupId = $this->groupId($groupName);
 
@@ -117,6 +131,8 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
                     $this->optionId($ar, $en, $groupId);
                     $created += DB::table('options')->count() - $before;
                 }
+
+                $rehomed += $this->rehomeGroupless($groupId, array_keys($options));
             }
 
             $added = 0;
@@ -172,6 +188,7 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             $this->command?->info('Salon & pharmacy options:');
             $this->command?->line('  - مجموعات جديدة/موجودة : ' . count(self::GROUPS));
             $this->command?->line("  - خيارات أُنشئت : {$created}");
+            $this->command?->line("  - خيارات بلا مجموعة أُعيدت : {$rehomed}");
             $this->command?->line("  - روابط أُضيفت : {$added}");
 
             foreach ($missing as $name) {
@@ -196,6 +213,24 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Re-home an option that ended up in no group at all.
+     *
+     * findOrCreate() deliberately leaves a found row wherever it already sits —
+     * a seeder says what must exist, not where an admin filed it. That is right
+     * until the row sits NOWHERE: «حقن» lost its group when «خدمات الصيدلية»
+     * was merged away, and `options` has no is_active column, so a groupless
+     * row is not hidden but unreachable — invisible in every picker and beyond
+     * repair from any screen.
+     */
+    private function rehomeGroupless(int $groupId, array $names): int
+    {
+        return DB::table('options')
+            ->whereNull('group_id')
+            ->whereIn('name_ar', $names)
+            ->update(['group_id' => $groupId]);
     }
 
     private function groupNameEn(string $nameAr): string

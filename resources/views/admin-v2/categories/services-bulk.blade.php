@@ -1014,41 +1014,40 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const groupIds = (row.item_groups || []).map(String);
-        const allowedTypes = (row.allowed_item_types || []).map(String);
-        const coveredKeys = new Set();
+        const allowedTypes = new Set((row.allowed_item_types || []).map(String));
 
-        block.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
-            if (groupIds.indexOf(String(branchCb.dataset.groupId)) === -1) {
-                return;
-            }
-
-            branchCb.checked = true;
-            setBranchNestedTypes(branchCb, true);
-
-            const branchEl = branchCb.closest('.a2-branch');
-            if (branchEl) {
-                branchEl.querySelectorAll('.js-type-checkbox').forEach(function (type) {
-                    coveredKeys.add(String(type.value));
-                });
-            }
+        /*
+        | Drive the whole picker from allowed_item_types, and derive each branch
+        | from its own types rather than trusting item_groups.
+        |
+        | The old order was the reverse — tick the stored branches, expand each
+        | to ALL its nested types, then add anything left over. That was right
+        | when a branch was a coarse group, and became destructive after the
+        | kinds collapse put all 11 booking kinds in the single «أنواع الحجز»
+        | branch: a clinic storing 4 kinds also stores item_groups=[84], so the
+        | screen re-opened with all 11 ticked and saving wrote all 11 back,
+        | quietly replacing the four-kind choice made in the child workbench.
+        |
+        | A branch is now ticked only when every one of its types is allowed,
+        | which is exactly what ticking it means on save.
+        */
+        block.querySelectorAll('.js-type-checkbox').forEach(function (typeCb) {
+            typeCb.checked = allowedTypes.has(String(typeCb.value));
         });
 
-        allowedTypes.forEach(function (key) {
-            if (coveredKeys.has(String(key))) {
+        block.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
+            const branchEl = branchCb.closest('.a2-branch');
+
+            if (!branchEl) {
                 return;
             }
 
-            const typeCb = Array.prototype.find.call(
-                block.querySelectorAll('.js-type-checkbox'),
-                function (cb) {
-                    return String(cb.value) === String(key) && !cb.checked;
-                }
-            );
+            const types = branchEl.querySelectorAll('.js-type-checkbox');
+            const allTicked = types.length > 0
+                && Array.prototype.every.call(types, function (t) { return t.checked; });
 
-            if (typeCb) {
-                typeCb.checked = true;
-            }
+            branchCb.checked = allTicked;
+            branchEl.classList.toggle('is-selected', allTicked);
         });
     }
 
@@ -1199,6 +1198,40 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('input[name="mode"]').forEach(function (input) {
         input.addEventListener('change', function () {
             syncAll();
+        });
+    });
+
+    /*
+    | Typing a fee amount ticks its own enable box.
+    |
+    | serviceFeePayload() zeroes any amount whose *_fee_enabled is off, so an
+    | admin who typed 25 into a card whose toggle he never noticed saved 0.00
+    | and got the same success message as a real save — the fee simply was not
+    | there afterwards. The toggle now follows the number, visibly, so the two
+    | can no longer disagree. Clearing the amount is left alone: unticking is
+    | still how a fee is switched off.
+    */
+    document.querySelectorAll('.js-service-fee-card input[type="number"]').forEach(function (amountInput) {
+        const name = String(amountInput.name || '');
+        const match = name.match(/^service_fees\[(\d+)\]\[(business|client)_fee_amount\]$/);
+
+        if (!match) {
+            return;
+        }
+
+        const toggle = amountInput
+            .closest('.js-service-fee-card')
+            ?.querySelector('[name="service_fees[' + match[1] + '][' + match[2] + '_fee_enabled]"]');
+
+        if (!toggle) {
+            return;
+        }
+
+        amountInput.addEventListener('input', function () {
+            if (parseFloat(amountInput.value) > 0 && !toggle.checked) {
+                toggle.checked = true;
+                toggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         });
     });
 

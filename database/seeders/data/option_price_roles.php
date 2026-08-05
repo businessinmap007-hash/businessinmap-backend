@@ -29,12 +29,24 @@ return [
     'line' => [
         'بنود المنيو',            // مشويات، ساندوتشات — the heading a customer pays under
         'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
-        'فئات الغرف',             // جناح ≠ غرفة فردية — what a hotel is actually paid for
+        // Was «فئات الغرف» until the owner merged the hotel room kinds into the
+        // existing «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين
+        // for property listings. One group now answers both: جناح ≠ غرفة فردية
+        // for a hotel, ثلاث غرف ≠ أربع غرف for a flat, and both are what the
+        // merchant is actually paid for. Renaming it here was NOT optional —
+        // a group missing from this file is reset to `descriptive` on the next
+        // OptionPriceRolesSeeder run, which would have silently stopped every
+        // hotel and property line from pricing. Fourth time this has bitten.
+        'الغرف',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
         'خدمات الكوافير والتجميل', // قص شعر
-        'خدمات الصيدلية',         // قياس ضغط
+        // «خدمات الصيدلية» was here until the owner merged it into the
+        // descriptive «أقسام الصيدلية» (2026-08-05). Left listed it would be a
+        // name matching nothing; removed it is honest — but it also means قياس
+        // ضغط and حقن are now descriptive and a pharmacy cannot price them.
+        // See SalonAndPharmacyOptionsSeeder for the same note.
         'الأنشطة الرياضية',       // حصة سباحة
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة
@@ -79,7 +91,10 @@ return [
          * A group that is not named in this file does not keep its role —
          * add it here whenever a seeder creates one.
          */
-        'عدد الغرف',              // شقة غرفتين ≠ ثلاث غرف
+        // «عدد الغرف» was merged into «الغرف» (2026-08-05) and is listed above
+        // as a `line` group now: once a hotel's جناح and a flat's ثلاث غرف sit
+        // in one list, that list IS the thing being paid for, not a modifier on
+        // it. Left here it would be a third name matching no group.
         'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
     ],
 

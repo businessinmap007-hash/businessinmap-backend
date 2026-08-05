@@ -72,22 +72,34 @@ class CategoryServiceBulkController extends Controller
     private function resolveAllowedItemTypes(Request $request, int $serviceId): array
     {
         $explicit = $this->normalizeArray($request->input("allowed_item_types.{$serviceId}", []));
-        $groupIds = $this->selectedGroupIds($request, $serviceId);
 
-        $fromGroups = [];
-
-        if (! empty($groupIds)) {
-            $fromGroups = DB::table('platform_service_item_group_type as gt')
-                ->join('platform_service_item_types as t', 't.id', '=', 'gt.item_type_id')
-                ->whereIn('gt.group_id', $groupIds)
-                ->where('t.platform_service_id', $serviceId)
-                ->pluck('t.key')
-                ->map(fn ($k) => (string) $k)
-                ->all();
+        /*
+         * The ticked TYPES win, and a branch is expanded to all its types only
+         * when none inside it were ticked individually.
+         *
+         * Before the kinds collapse a branch was a coarse group and ticking it
+         * to mean "all of these" was right. Now a single branch — «أنواع
+         * الحجز» — holds 11 kinds a child chooses AMONG (a clinic takes كشف،
+         * متابعة، زيارة منزلية, not إجراء طبي or حجز طاولة). Unioning the whole
+         * branch overwrote that four-kind choice with all eleven on every save,
+         * silently undoing what was set in the child workbench.
+         */
+        if (! empty($explicit)) {
+            return $explicit;
         }
 
-        return collect($explicit)
-            ->merge($fromGroups)
+        $groupIds = $this->selectedGroupIds($request, $serviceId);
+
+        if (empty($groupIds)) {
+            return [];
+        }
+
+        return DB::table('platform_service_item_group_type as gt')
+            ->join('platform_service_item_types as t', 't.id', '=', 'gt.item_type_id')
+            ->whereIn('gt.group_id', $groupIds)
+            ->where('t.platform_service_id', $serviceId)
+            ->where('t.is_active', 1)
+            ->pluck('t.key')
             ->map(fn ($k) => trim((string) $k))
             ->filter(fn ($k) => $k !== '')
             ->unique()

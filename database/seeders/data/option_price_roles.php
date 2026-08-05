@@ -42,11 +42,12 @@ return [
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
         'خدمات الكوافير والتجميل', // قص شعر
-        // «خدمات الصيدلية» was here until the owner merged it into the
-        // descriptive «أقسام الصيدلية» (2026-08-05). Left listed it would be a
-        // name matching nothing; removed it is honest — but it also means قياس
-        // ضغط and حقن are now descriptive and a pharmacy cannot price them.
-        // See SalonAndPharmacyOptionsSeeder for the same note.
+        // Merged into the descriptive «أقسام الصيدلية» on 2026-08-05 and split
+        // out again the same day, on the owner's call: while merged, قياس ضغط
+        // and حقن were descriptive and a pharmacy could not price them at all.
+        // What the shop STOCKS stays descriptive; what the pharmacist DOES is
+        // a line. The price test separates the two lists cleanly.
+        'خدمات الصيدلية',         // قياس ضغط
         'الأنشطة الرياضية',       // حصة سباحة
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة

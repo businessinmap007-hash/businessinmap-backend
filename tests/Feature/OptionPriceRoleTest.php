@@ -30,9 +30,57 @@ class OptionPriceRoleTest extends TestCase
     public function test_the_groups_that_carry_a_price_are_lines(): void
     {
         foreach (['تخصصات طبية', 'التحاليل الطبية', 'الأنشطة الرياضية', 'أثاث وتشطيب منزلي',
-            'عقارات وممتلكات', 'خدمات الكوافير والتجميل', 'المواد الدراسية'] as $group) {
+            'عقارات وممتلكات', 'خدمات الكوافير والتجميل', 'المواد الدراسية',
+            // «الغرف» absorbed the hotel room kinds and «عدد الغرف» (2026-08-05):
+            // once جناح and ثلاث غرف share a list, that list is the thing bought.
+            'الغرف',
+            // Split back out of the descriptive «أقسام الصيدلية» the same day.
+            'خدمات الصيدلية'] as $group) {
             $this->assertSame(OptionGroup::ROLE_LINE, $this->roleOf($group), "«{$group}» is what gets bought");
         }
+    }
+
+    /**
+     * The pharmacy is the clearest case of the price test doing real work, and
+     * of what it costs to get wrong.
+     *
+     * The two lists were briefly merged into one descriptive group, which meant
+     * a pharmacist could no longer put a price on a blood-pressure check or an
+     * injection — a descriptive option can never be priced. What the shop
+     * STOCKS and what the pharmacist DOES are two different questions, and only
+     * the second is bought by the act.
+     */
+    public function test_the_pharmacy_stocks_and_services_are_told_apart(): void
+    {
+        $this->assertSame(OptionGroup::ROLE_DESCRIPTIVE, $this->roleOf('أقسام الصيدلية'));
+        $this->assertSame(OptionGroup::ROLE_LINE, $this->roleOf('خدمات الصيدلية'));
+
+        $stock = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'أقسام الصيدلية')->pluck('o.name_ar');
+
+        $services = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'خدمات الصيدلية')->pluck('o.name_ar');
+
+        $this->assertContains('أدوية بشرية', $stock->all(), 'a shelf is not a priced line');
+        $this->assertNotContains('حقن', $stock->all(), 'an injection is charged for by the act');
+
+        foreach (['قياس ضغط', 'قياس سكر', 'حقن', 'استشارة دوائية', 'صرف روشتة تأمين'] as $name) {
+            $this->assertContains($name, $services->all(), "«{$name}» must be priceable");
+        }
+
+        // Both lists must still reach صيدلية — the split moved options between
+        // groups, and a link lost in the move would silently shrink the picker.
+        $linked = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', 215)
+            ->whereIn('g.name_ar', ['أقسام الصيدلية', 'خدمات الصيدلية'])
+            ->distinct()
+            ->count('co.option_id');
+
+        $this->assertSame($stock->count() + $services->count(), $linked, 'صيدلية lost an option in the split');
     }
 
     /** Nobody buys «مودرن» — they buy «غرفة نوم مودرن», and it costs more. */

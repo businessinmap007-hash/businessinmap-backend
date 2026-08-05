@@ -48,17 +48,17 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'عناية بالشعر للرجال' => 'Men hair treatment',
         ],
         /*
-         * One pharmacy group since the owner merged «خدمات الصيدلية» into it
-         * (2026-08-05). Folded here too, because a seeder still naming the old
-         * group recreates it on the next run and quietly undoes the merge —
-         * and «حقن» had already fallen out of both, left with no group at all.
+         * The pharmacy answers TWO questions, so it gets two groups — briefly
+         * merged into one on 2026-08-05 and split again on the owner's call.
          *
-         * ⚠ The merge cost these five their price role. «أقسام الصيدلية» is
-         * `descriptive` in option_price_roles.php and must stay so — «أدوية
-         * بشرية» is a shelf, not a priced line — but قياس ضغط and حقن ARE things
-         * a pharmacy charges for, and as descriptive rows they can no longer
-         * carry a price. Splitting them back into a `line` group is an owner
-         * call, flagged rather than taken here.
+         * «أقسام الصيدلية» is what the shop STOCKS: أدوية بشرية is a shelf, and
+         * nobody buys «a shelf». Descriptive.
+         *
+         * «خدمات الصيدلية» is what the pharmacist DOES: a blood-pressure check
+         * and an injection are charged for by the act. Line. The merge had made
+         * all five descriptive, which quietly took away their ability to carry
+         * a price at all — the price test is what separates the two lists, and
+         * it separates them cleanly.
          */
         'أقسام الصيدلية' => [
             'أدوية بشرية' => 'Human medicines',
@@ -69,7 +69,8 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'أعشاب ومكملات غذائية' => 'Herbs and supplements',
             'أجهزة قياس منزلية' => 'Home measuring devices',
             'العناية بالبشرة والشعر' => 'Skin and hair care products',
-
+        ],
+        'خدمات الصيدلية' => [
             'قياس ضغط' => 'Blood pressure measurement',
             'قياس سكر' => 'Blood sugar measurement',
             'حقن' => 'Injections',
@@ -77,6 +78,19 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'صرف روشتة تأمين' => 'Insurance prescription dispensing',
         ],
     ];
+
+    /**
+     * Options this seeder OWNS the placement of, rather than merely the
+     * existence of.
+     *
+     * findOrCreate() deliberately leaves a found row in whatever group it
+     * already sits in — a seeder says what must exist, not where an admin filed
+     * it. That rule is right, and it is also why the five services stayed put
+     * in «أقسام الصيدلية» after the split was declared above: they exist, so
+     * nothing moved them. Listed here, they are moved, because the split IS the
+     * owner's instruction and the group is what carries the price role.
+     */
+    private const OWNED_PLACEMENT = ['خدمات الصيدلية'];
 
     /**
      * child name_ar => [group name_ar => option name_ar list, or '*' for all].
@@ -109,8 +123,8 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
             'نمط تقديم الخدمة' => ['فردي', 'خاص', 'فريق عمل'],
         ],
         'صيدلية' => [
-            // Both lists live in this one group since the 2026-08-05 merge.
             'أقسام الصيدلية' => '*',
+            'خدمات الصيدلية' => '*',
             'التسليم والاستلام' => ['توصيل طلبات', 'توصيل مجانى'],
             'الدفع والسداد' => ['كاش', 'دفع مسبق'],
         ],
@@ -133,6 +147,13 @@ class SalonAndPharmacyOptionsSeeder extends Seeder
                 }
 
                 $rehomed += $this->rehomeGroupless($groupId, array_keys($options));
+
+                if (in_array($groupName, self::OWNED_PLACEMENT, true)) {
+                    $rehomed += DB::table('options')
+                        ->whereIn('name_ar', array_keys($options))
+                        ->where(fn ($q) => $q->where('group_id', '!=', $groupId)->orWhereNull('group_id'))
+                        ->update(['group_id' => $groupId]);
+                }
             }
 
             $added = 0;

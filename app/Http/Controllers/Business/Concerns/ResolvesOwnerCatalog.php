@@ -129,6 +129,44 @@ trait ResolvesOwnerCatalog
     }
 
     /**
+     * The kinds this owner may say a unit IS, grouped by option group.
+     *
+     * Same source as the pricing screen — MerchantOfferingVocabulary — on
+     * purpose: a unit whose kind is not priceable could never point at a price,
+     * and two lists that drift are worse than one that is long.
+     *
+     * @return \Illuminate\Support\Collection<string,\Illuminate\Support\Collection>
+     */
+    protected function lineOptionsForUnits(): Collection
+    {
+        return app(\App\Services\MerchantOfferingVocabulary::class)
+            ->for($this->businessId(), $this->childId(), $this->rootId())['lines'];
+    }
+
+    /**
+     * Guard a posted line option the same way the pricing screen guards it: it
+     * must be in this merchant's vocabulary AND play the `line` role. Anything
+     * else becomes «no kind stated» rather than an error, because the column is
+     * nullable by design — a clinic never needs it.
+     */
+    protected function sanitizeLineOption(?int $optionId): ?int
+    {
+        $optionId = (int) $optionId;
+
+        if ($optionId <= 0) {
+            return null;
+        }
+
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+
+        $allowed = $vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
+
+        return ($allowed->contains($optionId) && $vocabulary->roleOf($optionId) === 'line')
+            ? $optionId
+            : null;
+    }
+
+    /**
      * Guard a posted (service, item_type) against the owner's own catalog.
      * Returns the validated service id, or aborts 422.
      */

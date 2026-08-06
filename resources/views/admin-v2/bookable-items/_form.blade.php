@@ -2,6 +2,7 @@
     $isEdit = isset($row) && $row->exists;
     $defaultServiceId = old('service_id', $row->service_id ?? '');
     $defaultType = old('item_type', $row->item_type ?? '');
+    $defaultLine = (string) old('line_option_id', $row->line_option_id ?? '');
     $typeOptions = $allowedItemTypes ?? [];
     $itemTypeLabels = $itemTypeLabels ?? [];
 @endphp
@@ -54,6 +55,16 @@
                 </select>
                 <div class="a2-hint a2-mt-8 js-bookable-type-hint">{{ __('يتم تحديث القائمة حسب البزنس والخدمة.') }}</div>
             </div>
+
+            {{-- The kind. «حجز إقامة» is every room in the hotel; this is what
+                 tells 101 from جناح س301 and points each at its own price. --}}
+            <div class="a2-form-group">
+                <label class="a2-label" for="line_option_id">{{ __('نوع الوحدة') }}</label>
+                <select id="line_option_id" name="line_option_id" class="a2-select js-bookable-line js-bookable-search-select" data-current-value="{{ $defaultLine }}" data-placeholder="{{ __('بدون تحديد') }}">
+                    <option value="">{{ __('بدون تحديد') }}</option>
+                </select>
+                <div class="a2-hint a2-mt-8">{{ __('اختياري. بدونه تأخذ الوحدة السعر العام لنوع العنصر.') }}</div>
+            </div>
         @endif
     </div>
 </div>
@@ -99,6 +110,7 @@
                 <thead>
                     <tr>
                         <th>{{ __('نوع العنصر') }}</th>
+                        <th>{{ __('نوع الوحدة') }}</th>
                         <th>{{ __('الكود / رقم الغرفة') }}</th>
                         <th>{{ __('السعة / عدد الغرف') }}</th>
                         <th>{{ __('الكمية') }}</th>
@@ -112,6 +124,11 @@
                             <td>
                                 <select id="item-type-{{ $i }}" name="items[{{ $i }}][item_type]" class="a2-select js-bookable-type js-bookable-row-type js-bookable-search-select" data-placeholder="{{ __('اختر النوع') }}">
                                     <option value="">{{ __('اختر البزنس والخدمة أولًا') }}</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select name="items[{{ $i }}][line_option_id]" class="a2-select js-bookable-line js-bookable-search-select" data-placeholder="{{ __('بدون تحديد') }}">
+                                    <option value="">{{ __('بدون تحديد') }}</option>
                                 </select>
                             </td>
                             <td><input name="items[{{ $i }}][code]" class="a2-input" placeholder="101 / A1 / Table-5"></td>
@@ -217,7 +234,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function fillSelect(select, options, keepValue) {
+    function fillSelect(select, options, keepValue, labels) {
+        labels = labels || {};
+
         // Rebuild from scratch instead of patching the live TomSelect instance -
         // incremental clearOptions()/addOption() calls left stale rendered rows
         // behind after repeated business/service changes.
@@ -231,8 +250,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = businessSelect?.value && serviceSelect?.value
-                ? 'لا توجد أنواع مسموحة لهذا الاختيار'
-                : 'اختر البزنس والخدمة أولًا';
+                ? (labels.none || 'لا توجد أنواع مسموحة لهذا الاختيار')
+                : (labels.pickFirst || 'اختر البزنس والخدمة أولًا');
             select.appendChild(option);
             initTom(select);
             return;
@@ -240,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const empty = document.createElement('option');
         empty.value = '';
-        empty.textContent = 'اختر النوع';
+        empty.textContent = labels.empty || 'اختر النوع';
         select.appendChild(empty);
 
         options.forEach(function (item) {
@@ -271,12 +290,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // The kind is optional everywhere, so its empty entry is a real choice
+    // («بدون تحديد») rather than a prompt — and stays selectable when the
+    // business has no priceable vocabulary at all.
+    const LINE_LABELS = {empty: 'بدون تحديد', none: 'بدون تحديد', pickFirst: 'بدون تحديد'};
+
+    function applyLineOptions(options) {
+        document.querySelectorAll('.js-bookable-line').forEach(function (select) {
+            const keepValue = String(select.dataset.currentValue || select.value || '');
+            try {
+                fillSelect(select, options, keepValue, LINE_LABELS);
+            } catch (e) {
+                console.error('fillSelect failed for', select, e);
+            }
+        });
+    }
+
     function refreshTypeOptions() {
         const businessId = String(businessSelect?.value || '');
         const serviceId = String(serviceSelect?.value || '');
 
         if (!businessId || !serviceId) {
             applyOptions([]);
+            applyLineOptions([]);
             setHint('اختر البزنس والخدمة أولًا.');
             return;
         }
@@ -299,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (seq !== requestSeq) return;
                 const options = (data && data.ok && Array.isArray(data.items)) ? data.items : [];
                 applyOptions(options);
+                applyLineOptions((data && Array.isArray(data.line_options)) ? data.line_options : []);
                 setHint(options.length
                     ? 'تم عرض أنواع العناصر المسموحة فقط لهذا category_child والخدمة.'
                     : 'لا توجد أنواع عناصر مسموحة لهذا البزنس مع هذه الخدمة. راجع Platform Service Item Types و Service Catalog Matrix.');
@@ -306,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(function () {
                 if (seq !== requestSeq) return;
                 applyOptions([]);
+                applyLineOptions([]);
                 setHint('تعذر تحميل أنواع العناصر. حاول مرة أخرى.');
             });
     }

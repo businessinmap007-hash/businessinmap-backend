@@ -2,6 +2,8 @@
     $isEdit = isset($row) && $row?->exists;
     $currentService = (int) old('service_id', $row->service_id ?? 0);
     $currentType = (string) old('item_type', $row->item_type ?? '');
+    $currentLine = (int) old('line_option_id', $row->line_option_id ?? 0);
+    $lineGroups = collect($lineOptions ?? []);
 @endphp
 
 @if($errors->any())
@@ -45,6 +47,28 @@
                 </select>
                 <div class="a2-hint a2-mt-8">{{ __('تظهر فقط الأنواع المسموحة لنشاطك.') }}</div>
             </div>
+
+            @if($lineGroups->isNotEmpty())
+                {{-- The kind, which the item type stopped carrying. «حجز إقامة» is
+                     every room in the hotel; only this says WHICH, and so only this
+                     lets room 101 and جناح س301 hold different prices. --}}
+                <div class="a2-form-group">
+                    <label class="a2-label" for="line_option_id">{{ __('نوع الوحدة') }}</label>
+                    <select class="a2-select" id="line_option_id" name="line_option_id">
+                        <option value="">{{ __('بدون تحديد — يأخذ السعر العام للنوع') }}</option>
+                        @foreach($lineGroups as $groupName => $options)
+                            <optgroup label="{{ $groupName }}">
+                                @foreach($options as $option)
+                                    <option value="{{ $option->id }}" @selected($currentLine === (int) $option->id)>
+                                        {{ $option->name_ar ?: $option->name_en }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                    <div class="a2-hint a2-mt-8">{{ __('حدّده ليأخذ سعر هذا النوع من شاشة الأسعار بدل السعر العام.') }}</div>
+                </div>
+            @endif
 
             <div class="a2-form-group">
                 <label class="a2-label" for="code">{{ __('الكود / رقم الوحدة') }} <span class="a2-danger">*</span></label>

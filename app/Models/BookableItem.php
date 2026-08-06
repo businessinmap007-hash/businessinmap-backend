@@ -18,6 +18,10 @@ class BookableItem extends Model
         'business_id',
         'service_id',
         'item_type',
+        // WHICH kind this unit is. The item type says «حجز إقامة» for every room
+        // in the hotel; only this separates room 101 from suite س301, and so
+        // only this can point the unit at its own priced row.
+        'line_option_id',
         'title',
         'code',
         'capacity',
@@ -31,6 +35,7 @@ class BookableItem extends Model
         'business_id' => 'integer',
         'service_id' => 'integer',
         'item_type' => 'string',
+        'line_option_id' => 'integer',
         'capacity' => 'integer',
         'quantity' => 'integer',
 
@@ -46,6 +51,11 @@ class BookableItem extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'service_id');
+    }
+
+    public function lineOption(): BelongsTo
+    {
+        return $this->belongsTo(Option::class, 'line_option_id');
     }
 
     public function blockedSlots(): HasMany
@@ -108,9 +118,34 @@ class BookableItem extends Model
         return $query->where('item_type', $itemType);
     }
 
+    public function scopeForLineOption(Builder $query, ?int $lineOptionId): Builder
+    {
+        if (! $lineOptionId) {
+            return $query;
+        }
+
+        return $query->where('line_option_id', $lineOptionId);
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return (string) ($this->title ?: ($this->code ?: ('Item #' . $this->id)));
+    }
+
+    /**
+     * «جناح — س301». The kind first, because the code alone («س301») says
+     * nothing to a customer and the kind alone cannot be booked.
+     */
+    public function displayLabel(): string
+    {
+        $kind = (string) (optional($this->lineOption)->name_ar ?: optional($this->lineOption)->name_en ?: '');
+        $unit = (string) ($this->code ?: $this->title);
+
+        if ($kind === '') {
+            return $unit !== '' ? $unit : ('#' . $this->id);
+        }
+
+        return $unit !== '' ? ($kind . ' — ' . $unit) : $kind;
     }
 
     /**

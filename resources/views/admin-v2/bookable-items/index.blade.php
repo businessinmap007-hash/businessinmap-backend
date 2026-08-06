@@ -94,6 +94,7 @@
                         <th>Business</th>
                         <th>Service</th>
                         <th>Item Type</th>
+                        <th>{{ __('نوع الوحدة') }}</th>
                         <th>Title</th>
                         <th>Code</th>
                         <th>Capacity</th>
@@ -117,6 +118,10 @@
 
                         <td dir="ltr">
                             {{ $row->item_type ?: '—' }}
+                        </td>
+
+                        <td>
+                            {{ optional($row->lineOption)->name_ar ?: '—' }}
                         </td>
 
                         <td class="a2-fw-700">
@@ -175,7 +180,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="a2-empty-cell">{{ __('لا توجد عناصر قابلة للحجز') }}</td>
+                        <td colspan="13" class="a2-empty-cell">{{ __('لا توجد عناصر قابلة للحجز') }}</td>
                     </tr>
                 @endforelse
                 </tbody>

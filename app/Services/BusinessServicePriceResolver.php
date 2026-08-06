@@ -28,13 +28,19 @@ class BusinessServicePriceResolver
      *   6) no child + any legacy price
      *
      * `$offeringId` skips all six: the customer chose that row on screen.
+     *
+     * `$lineOptionId` runs the six twice: once narrowed to rows selling that
+     * line, then, only if none exists, the ordinary ladder. A hotel's six stay
+     * rows differ by nothing else, so without it every room resolves to
+     * whichever the ladder reaches first — and the ladder orders by id.
      */
     public function resolve(
         int $businessId,
         int $serviceId,
         int $childId = 0,
         ?string $itemType = null,
-        ?int $offeringId = null
+        ?int $offeringId = null,
+        ?int $lineOptionId = null
     ): ?BusinessServicePrice {
         if ($businessId <= 0 || $serviceId <= 0) {
             return null;
@@ -57,9 +63,36 @@ class BusinessServicePriceResolver
         }
 
         $itemType = trim((string) $itemType);
+
+        if ($lineOptionId > 0) {
+            $named = $this->ladder($businessId, $serviceId, $childId, $itemType, $lineOptionId);
+
+            if ($named) {
+                return $named;
+            }
+        }
+
+        return $this->ladder($businessId, $serviceId, $childId, $itemType, null);
+    }
+
+    /**
+     * The six rungs, optionally narrowed to one line option.
+     *
+     * Narrowing is all-or-nothing: a hotel that has priced «جناح» must not fall
+     * to the «غرفة مزدوجة» row just because the suite has no child-scoped row —
+     * so when the line is given and nothing sells it, this returns null and the
+     * caller re-runs unnarrowed rather than mixing the two.
+     */
+    private function ladder(
+        int $businessId,
+        int $serviceId,
+        int $childId,
+        string $itemType,
+        ?int $lineOptionId
+    ): ?BusinessServicePrice {
         $defaultItemType = BusinessServicePrice::DEFAULT_ITEM_TYPE;
 
-        $find = function (?int $child, ?string $type) use ($businessId, $serviceId): ?BusinessServicePrice {
+        $find = function (?int $child, ?string $type) use ($businessId, $serviceId, $lineOptionId): ?BusinessServicePrice {
             $query = BusinessServicePrice::query()
                 ->where('business_id', $businessId)
                 ->where('service_id', $serviceId)
@@ -71,6 +104,10 @@ class BusinessServicePriceResolver
 
             if ($type !== null && $type !== '') {
                 $query->where('bookable_item_type', $type);
+            }
+
+            if ($lineOptionId) {
+                $query->where('line_option_id', $lineOptionId);
             }
 
             return $query->orderByDesc('id')->first();
@@ -123,7 +160,8 @@ class BusinessServicePriceResolver
             businessId: (int) $item->business_id,
             serviceId: (int) $item->service_id,
             childId: $childId,
-            itemType: trim((string) ($item->item_type ?? '')) ?: null
+            itemType: trim((string) ($item->item_type ?? '')) ?: null,
+            lineOptionId: (int) ($item->line_option_id ?? 0) ?: null
         );
     }
 }

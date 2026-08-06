@@ -24,6 +24,7 @@
         'row' => $row,
         'services' => $services,
         'allowedTypesByService' => $allowedTypesByService,
+        'lineOptions' => $lineOptions,
     ])
 </form>
 @endsection

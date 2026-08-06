@@ -96,7 +96,8 @@ class ServiceExecutionEngine
             serviceId: $serviceId,
             childId: $childId,
             itemType: $itemType,
-            offeringId: $offeringId
+            offeringId: $offeringId,
+            lineOptionId: $bookable ? ((int) $bookable->line_option_id ?: null) : null
         );
 
         if (! $businessPrice) {
@@ -461,6 +462,11 @@ class ServiceExecutionEngine
                 'title' => (string) $bookable->title,
                 'code' => (string) ($bookable->code ?? ''),
                 'item_type' => (string) ($bookable->item_type ?? ''),
+                // The kind, snapshotted like everything else here: the booking
+                // must still be able to say «جناح — س301» after the hotel
+                // renames or retires the option.
+                'line_option_id' => (int) ($bookable->line_option_id ?? 0) ?: null,
+                'label' => $bookable->displayLabel(),
                 // Price and deposit are sourced from BusinessServicePrice / the
                 // resolved deposit policy, not from the unit (deprecated).
                 'price' => (float) ($priceBreakdown['unit_price'] ?? 0),
@@ -848,7 +854,8 @@ class ServiceExecutionEngine
             businessId: (int) $booking->business_id,
             serviceId: (int) $booking->service_id,
             childId: $childId,
-            itemType: $itemType
+            itemType: $itemType,
+            lineOptionId: $bookable ? ((int) $bookable->line_option_id ?: null) : null
         );
 
         if (! $booking->service || ! $businessPrice) {
@@ -980,7 +987,10 @@ class ServiceExecutionEngine
             businessId: (int) $booking->business_id,
             serviceId: (int) $booking->service_id,
             childId: (int) ($booking->business?->category_child_id ?? 0),
-            itemType: $itemType !== '' ? $itemType : null
+            itemType: $itemType !== '' ? $itemType : null,
+            // The invoice must recompute the SAME row the booking was priced
+            // off, and for a hotel that row is named by the unit's kind alone.
+            lineOptionId: (int) ($booking->bookable?->line_option_id ?? 0) ?: null
         );
     }
 
@@ -989,14 +999,16 @@ class ServiceExecutionEngine
         int $serviceId,
         int $childId = 0,
         ?string $itemType = null,
-        ?int $offeringId = null
+        ?int $offeringId = null,
+        ?int $lineOptionId = null
     ): ?BusinessServicePrice {
         return $this->businessServicePriceResolver->resolve(
             businessId: $businessId,
             serviceId: $serviceId,
             childId: $childId,
             itemType: $itemType,
-            offeringId: $offeringId
+            offeringId: $offeringId,
+            lineOptionId: $lineOptionId
         );
     }
 

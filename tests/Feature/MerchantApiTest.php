@@ -57,6 +57,13 @@ class MerchantApiTest extends TestCase
     {
         Auth::setUser($owner);
 
+        // ResolvesOwnerCatalog reads the acting business off the REQUEST
+        // (BusinessContext), not off the auth guard — so calling its methods
+        // outside an HTTP request found no child and every test here skipped
+        // with «offers no (service, item type) pair» while the taxonomy was
+        // fine. Bind the same resolver the middleware would have left behind.
+        request()->setUserResolver(fn () => $owner);
+
         $ctrl = new BusinessBookableItemController();
 
         $servicesM = new ReflectionMethod($ctrl, 'servicesForChild');
@@ -187,6 +194,62 @@ class MerchantApiTest extends TestCase
 
         $this->deleteJson("/api/v2/business/retail-listings/{$id}")->assertOk();
         $this->getJson("/api/v2/business/retail-listings/{$id}")->assertNotFound();
+    }
+
+    /**
+     * A unit may name WHICH kind it is, and only from words this merchant is
+     * allowed to price in. The item type is one key for the whole hotel, so
+     * without this every room resolves to the same price row.
+     */
+    public function test_a_bookable_unit_can_name_its_kind_but_only_its_own(): void
+    {
+        $owner = $this->owner();
+        [$serviceId, $itemType] = $this->allowedPair($owner);
+
+        Sanctum::actingAs($owner);
+
+        $options = $this->getJson('/api/v2/business/bookable-items/options')->assertOk()->json('data.line_options');
+
+        $this->assertIsArray($options, 'the app cannot build a kind picker it was never sent');
+
+        $ownKind = collect($options)->flatMap(fn ($group) => $group['options'] ?? [])->first();
+
+        if (! $ownKind) {
+            $this->markTestSkipped('This owner has no priceable vocabulary to choose a kind from.');
+        }
+
+        $code = 'KIND-' . strtoupper(substr(md5(uniqid('', true)), 0, 6));
+
+        $created = $this->postJson('/api/v2/business/bookable-items', [
+            'service_id' => $serviceId,
+            'item_type' => $itemType,
+            'line_option_id' => $ownKind['id'],
+            'code' => $code,
+            'quantity' => 1,
+        ])->assertCreated();
+
+        $created->assertJsonPath('data.line_option.id', (int) $ownKind['id']);
+
+        $id = (int) $created->json('data.id');
+
+        // An option outside this merchant's vocabulary is dropped, not trusted
+        // and not fatal: the column is nullable, and refusing the whole save
+        // would block a real room over a label it may not use.
+        $foreign = (int) DB::table('options')
+            ->whereNotIn('id', collect($options)->flatMap(fn ($g) => collect($g['options'] ?? [])->pluck('id'))->all())
+            ->value('id');
+
+        if ($foreign > 0) {
+            $this->putJson("/api/v2/business/bookable-items/{$id}", [
+                'service_id' => $serviceId,
+                'item_type' => $itemType,
+                'line_option_id' => $foreign,
+                'code' => $code,
+                'quantity' => 1,
+            ])->assertOk()->assertJsonPath('data.line_option', null);
+        }
+
+        $this->deleteJson("/api/v2/business/bookable-items/{$id}")->assertOk();
     }
 
     public function test_a_non_business_user_is_refused(): void

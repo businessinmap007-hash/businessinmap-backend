@@ -65,6 +65,7 @@
                     <th>{{ __('الاسم') }}</th>
                     <th>{{ __('الخدمة') }}</th>
                     <th>{{ __('النوع') }}</th>
+                    <th>{{ __('نوع الوحدة') }}</th>
                     <th>{{ __('السعة') }}</th>
                     <th>{{ __('الكمية') }}</th>
                     <th>{{ __('الحالة') }}</th>
@@ -79,6 +80,7 @@
                         <td>{{ $row->title ?: '—' }}</td>
                         <td>{{ $displayName($row->service) }}</td>
                         <td dir="ltr">{{ $row->item_type }}</td>
+                        <td>{{ optional($row->lineOption)->name_ar ?: '—' }}</td>
                         <td>{{ $row->capacity ?: '—' }}</td>
                         <td>{{ (int) $row->quantity }}</td>
                         <td>
@@ -101,7 +103,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="a2-empty">{{ __('لا توجد وحدات بعد. ابدأ بإضافة وحداتك.') }}</td>
+                        <td colspan="10" class="a2-empty">{{ __('لا توجد وحدات بعد. ابدأ بإضافة وحداتك.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

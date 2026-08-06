@@ -20,9 +20,11 @@ use Illuminate\Support\Facades\DB;
  * sold, `modifier` groups are what may qualify it, and `descriptive` groups —
  * «كاش», «ممنوع التدخين», the widest on the platform — never appear.
  *
- * **A merchant who has ticked nothing gets his child's full priceable list.**
- * Narrowing to an empty answer sheet would leave a new business unable to price
- * anything at all, which is worse than a long list.
+ * **A merchant with no PRICEABLE ticks gets his child's full priceable list.**
+ * Narrowing to an empty answer sheet would leave a business unable to price
+ * anything at all, which is worse than a long list — and that applies just as
+ * much to a merchant who ticked only descriptive things about himself as to one
+ * who ticked nothing.
  */
 class MerchantOfferingVocabulary
 {
@@ -48,9 +50,19 @@ class MerchantOfferingVocabulary
             ->map(fn ($id) => (int) $id);
 
         $own = $ticked->intersect($allowed);
-        $narrowed = $own->isNotEmpty();
 
-        $options = $this->priceableOptions($narrowed ? $own : $allowed);
+        // Narrow only when the merchant's own ticks contain something SELLABLE.
+        // Ticking «واي فاي» is not an answer about what you sell, and treating
+        // it as one silenced the merchant completely: `narrowed` went true and
+        // the priceable list came back empty — the exact outcome the paragraph
+        // above refuses for a merchant who ticked nothing at all. A hotel that
+        // had ticked one descriptive option could not name a single room kind.
+        $options = $this->priceableOptions($own);
+        $narrowed = $options->isNotEmpty();
+
+        if (! $narrowed) {
+            $options = $this->priceableOptions($allowed);
+        }
 
         return [
             'lines' => $this->group($options->where('price_role', OptionGroup::ROLE_LINE)),

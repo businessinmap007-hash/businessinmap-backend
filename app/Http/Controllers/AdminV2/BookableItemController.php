@@ -29,7 +29,7 @@ class BookableItemController extends Controller
         $businesses = $this->businesses();
 
         $rows = BookableItem::query()
-            ->with(['service:id,key,name_ar,name_en', 'business:id,name,type,category_id,category_child_id'])
+            ->with(['service:id,key,name_ar,name_en', 'business:id,name,type,category_id,category_child_id', 'lineOption:id,name_ar,name_en'])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('title', 'like', "%{$q}%")
@@ -99,6 +99,9 @@ class BookableItemController extends Controller
                 ->map(fn (string $key) => ['key' => $key, 'label' => $labels[$key] ?? $key])
                 ->values()
                 ->all(),
+            // The kinds this business may claim a unit IS. Same source as its own
+            // pricing screen, so admin and merchant cannot offer different words.
+            'line_options' => $this->lineOptionsFor($businessId),
         ]);
     }
 
@@ -125,6 +128,34 @@ class BookableItemController extends Controller
             'ok' => true,
             'businesses' => $businesses,
         ]);
+    }
+
+    /**
+     * The line options a business may put on a unit — its own vocabulary, not
+     * the platform's. Returns flat rows shaped like the item-type list so the
+     * form's fillSelect() can build either from one function.
+     *
+     * @return array<int,array{key:string,label:string}>
+     */
+    protected function lineOptionsFor(int $businessId): array
+    {
+        $business = User::query()
+            ->select(['id', 'category_id', 'category_child_id'])
+            ->where('type', 'business')
+            ->find($businessId);
+
+        if (! $business) {
+            return [];
+        }
+
+        return app(\App\Services\MerchantOfferingVocabulary::class)
+            ->for((int) $business->id, (int) $business->category_child_id, (int) $business->category_id)['lines']
+            ->flatMap(fn ($options, $groupName) => collect($options)->map(fn ($option) => [
+                'key' => (string) $option->id,
+                'label' => ($option->name_ar ?: $option->name_en) . ' — ' . $groupName,
+            ]))
+            ->values()
+            ->all();
     }
 
     protected function businessOption(int $businessId): ?User
@@ -161,7 +192,7 @@ class BookableItemController extends Controller
 
     public function edit(BookableItem $bookableItem)
     {
-        $row = $bookableItem->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_id,category_child_id']);
+        $row = $bookableItem->load(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_id,category_child_id', 'lineOption:id,name_ar,name_en']);
         $services = $this->services();
         $allowedItemTypes = $this->allowedItemTypesFor((int) $row->business_id, (int) $row->service_id);
         $selectedBusinessId = (int) old('business_id', $row->business_id ?? 0);
@@ -249,6 +280,9 @@ class BookableItemController extends Controller
                 'business_id' => $businessId,
                 'service_id' => $serviceId,
                 'item_type' => $type,
+                // Rooms 101–109 all share one item type; the kind is what makes
+                // «جناح س301» cost something else, so it is per ROW, not per form.
+                'line_option_id' => $this->sanitizeLineOptionFor($businessId, $raw['line_option_id'] ?? null),
                 'title' => $title,
                 'code' => $code,
                 // Units are inventory only: price/deposit live in
@@ -271,6 +305,7 @@ class BookableItemController extends Controller
             'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business'))],
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
             'item_type' => ['required', 'string', 'max:100'],
+            'line_option_id' => ['nullable', 'integer'],
             'code' => ['required', 'string', 'max:100'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['nullable', 'integer', 'min:1'],
@@ -281,6 +316,7 @@ class BookableItemController extends Controller
         ]);
 
         $data['item_type'] = trim((string) ($data['item_type'] ?? ''));
+        $data['line_option_id'] = $this->sanitizeLineOptionFor((int) $data['business_id'], $data['line_option_id'] ?? null);
         $data['code'] = trim((string) ($data['code'] ?? ''));
         $data['title'] = $this->displayTitleFromCode($data['item_type'], $data['code']);
         $data['is_active'] = (int) $request->boolean('is_active');
@@ -313,6 +349,25 @@ class BookableItemController extends Controller
         $data['meta'] = $this->parseMetaJson($request->input('meta'));
 
         return $data;
+    }
+
+    /**
+     * A posted kind is only kept when the business may actually say it. An
+     * option outside its vocabulary becomes «no kind stated» rather than an
+     * error: the column is nullable by design, and refusing the save would
+     * block a room over a label.
+     */
+    protected function sanitizeLineOptionFor(int $businessId, $optionId): ?int
+    {
+        $optionId = (int) $optionId;
+
+        if ($optionId <= 0) {
+            return null;
+        }
+
+        $allowed = collect($this->lineOptionsFor($businessId))->pluck('key');
+
+        return $allowed->contains((string) $optionId) ? $optionId : null;
     }
 
     protected function displayTitleFromCode(string $type, string $code): string

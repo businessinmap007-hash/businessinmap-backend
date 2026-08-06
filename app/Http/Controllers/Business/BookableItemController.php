@@ -36,7 +36,7 @@ class BookableItemController extends Controller
         $services = $this->servicesForChild();
 
         $rows = BookableItem::query()
-            ->with(['service:id,key,name_ar,name_en'])
+            ->with(['service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en'])
             ->where('business_id', $this->businessId())
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
             ->when($q !== '', function ($query) use ($q) {
@@ -68,6 +68,7 @@ class BookableItemController extends Controller
             'row' => new BookableItem(['is_active' => 1, 'quantity' => 1]),
             'services' => $services,
             'allowedTypesByService' => $this->allowedTypesByService($services),
+            'lineOptions' => $this->lineOptionsForUnits(),
         ]);
     }
 
@@ -93,6 +94,7 @@ class BookableItemController extends Controller
             'row' => $row,
             'services' => $services,
             'allowedTypesByService' => $this->allowedTypesByService($services),
+            'lineOptions' => $this->lineOptionsForUnits(),
         ]);
     }
 
@@ -122,6 +124,7 @@ class BookableItemController extends Controller
         $data = $request->validate([
             'service_id' => ['required', 'integer'],
             'item_type' => ['required', 'string', 'max:100'],
+            'line_option_id' => ['nullable', 'integer'],
             'code' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:191'],
             'capacity' => ['nullable', 'integer', 'min:1'],
@@ -142,6 +145,9 @@ class BookableItemController extends Controller
         return [
             'service_id' => $serviceId,
             'item_type' => $itemType,
+            // Which kind this unit is — «جناح» rather than just «حجز إقامة» —
+            // and therefore which of the merchant's priced rows is its own.
+            'line_option_id' => $this->sanitizeLineOption($data['line_option_id'] ?? null),
             'code' => trim((string) $data['code']),
             'title' => trim((string) ($data['title'] ?? '')) ?: null,
             'capacity' => ! empty($data['capacity']) ? (int) $data['capacity'] : null,

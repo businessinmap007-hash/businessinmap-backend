@@ -188,6 +188,68 @@ class OfferingVocabularyTest extends TestCase
         $this->assertFalse($result['narrowed']);
     }
 
+    /**
+     * The same rule, for the case that actually bit: a merchant who ticked only
+     * DESCRIPTIVE things about himself.
+     *
+     * «واي فاي» is not an answer about what you sell, but it made `narrowed`
+     * true and the priceable list empty — so a hotel that had ticked one
+     * facility could not name a single room kind on its pricing screen or on
+     * its units. Two live businesses were in exactly that state.
+     */
+    public function test_a_merchant_who_ticked_only_descriptive_things_is_not_silenced(): void
+    {
+        $business = $this->business();
+
+        $descriptive = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_child_option as co', 'co.option_id', '=', 'o.id')
+            ->where('g.price_role', OptionGroup::ROLE_DESCRIPTIVE)
+            ->where('co.child_id', (int) $business->category_child_id)
+            ->value('o.id');
+
+        if (! $descriptive) {
+            $this->markTestSkipped('This business carries no descriptive option to tick.');
+        }
+
+        $vocabulary = app(MerchantOfferingVocabulary::class);
+
+        DB::table('option_user')->where('user_id', $business->id)->delete();
+
+        $silent = $vocabulary->for((int) $business->id, (int) $business->category_child_id, (int) $business->category_id);
+
+        DB::table('option_user')->insert(['user_id' => $business->id, 'option_id' => $descriptive]);
+
+        $result = $vocabulary->for((int) $business->id, (int) $business->category_child_id, (int) $business->category_id);
+
+        $this->assertFalse($result['narrowed'], 'a descriptive tick is not a declaration of what is sold');
+
+        // The invariant, whatever this particular child happens to carry: the
+        // descriptive tick changed nothing about what may be priced.
+        $this->assertSame(
+            $silent['lines']->flatten()->pluck('id')->map(fn ($i) => (int) $i)->sort()->values()->all(),
+            $result['lines']->flatten()->pluck('id')->map(fn ($i) => (int) $i)->sort()->values()->all()
+        );
+    }
+
+    /**
+     * The live case, named: business 212 is a hotel and had ticked exactly one
+     * option about itself. Before the fix it could not name «غرفة مزدوجة».
+     */
+    public function test_the_hotel_can_name_its_room_kinds(): void
+    {
+        $hotel = User::query()->where('type', 'business')->find(212);
+
+        if (! $hotel || ! $hotel->category_child_id) {
+            $this->markTestSkipped('The reference hotel is gone.');
+        }
+
+        $lines = app(MerchantOfferingVocabulary::class)
+            ->for((int) $hotel->id, (int) $hotel->category_child_id, (int) $hotel->category_id)['lines'];
+
+        $this->assertArrayHasKey('الغرف', $lines->all(), 'a hotel that cannot say «غرفة» cannot price a room');
+    }
+
     /** Descriptive groups are the widest on the platform and must never appear. */
     public function test_a_descriptive_option_can_never_be_priced(): void
     {

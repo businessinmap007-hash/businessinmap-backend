@@ -33,7 +33,7 @@ final class BusinessBookableItemController extends Controller
         $q = trim((string) ($data['q'] ?? ''));
 
         $rows = BookableItem::query()
-            ->with(['service:id,key,name_ar,name_en'])
+            ->with(['service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en'])
             ->where('business_id', $this->businessId())
             ->when($data['service_id'] ?? null, fn ($query, $s) => $query->where('service_id', $s))
             ->when($q !== '', function ($query) use ($q) {
@@ -70,6 +70,20 @@ final class BusinessBookableItemController extends Controller
                     'name' => $this->localizeService($s),
                     'item_types' => array_values($allowed[(int) $s->id] ?? []),
                 ])->values(),
+
+                // The kinds a unit may claim to be, grouped as the merchant sees
+                // them on the pricing screen. Without these the app can create a
+                // unit but never say which of the merchant's prices is its own.
+                'line_options' => $this->lineOptionsForUnits()
+                    ->map(fn ($options, $groupName) => [
+                        'group' => $groupName,
+                        'options' => collect($options)->map(fn ($o) => [
+                            'id' => (int) $o->id,
+                            'name' => app()->getLocale() === 'en'
+                                ? ($o->name_en ?: $o->name_ar)
+                                : ($o->name_ar ?: $o->name_en),
+                        ])->values(),
+                    ])->values(),
             ],
         ]);
     }
@@ -77,7 +91,7 @@ final class BusinessBookableItemController extends Controller
     /** GET /api/v2/business/bookable-items/{item} */
     public function show(int $item)
     {
-        $row = $this->scopedItem($item)->load('service:id,key,name_ar,name_en');
+        $row = $this->scopedItem($item)->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en');
 
         return (new BookableItemResource($row))->additional(['success' => true]);
     }
@@ -87,7 +101,7 @@ final class BusinessBookableItemController extends Controller
     {
         $row = BookableItem::create($this->validatedData($request) + ['business_id' => $this->businessId()]);
 
-        return (new BookableItemResource($row->load('service:id,key,name_ar,name_en')))
+        return (new BookableItemResource($row->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en')))
             ->additional(['success' => true])->response()->setStatusCode(201);
     }
 
@@ -97,7 +111,7 @@ final class BusinessBookableItemController extends Controller
         $row = $this->scopedItem($item);
         $row->update($this->validatedData($request));
 
-        return (new BookableItemResource($row->fresh()->load('service:id,key,name_ar,name_en')))
+        return (new BookableItemResource($row->fresh()->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en')))
             ->additional(['success' => true]);
     }
 
@@ -124,6 +138,7 @@ final class BusinessBookableItemController extends Controller
         $data = $request->validate([
             'service_id' => ['required', 'integer'],
             'item_type' => ['required', 'string', 'max:100'],
+            'line_option_id' => ['nullable', 'integer'],
             'code' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:191'],
             'capacity' => ['nullable', 'integer', 'min:1'],
@@ -140,6 +155,9 @@ final class BusinessBookableItemController extends Controller
         return [
             'service_id' => $serviceId,
             'item_type' => $itemType,
+            // Which kind the unit is; sanitised against this merchant's own
+            // vocabulary rather than trusted, exactly as the pricing screen does.
+            'line_option_id' => $this->sanitizeLineOption($data['line_option_id'] ?? null),
             'code' => trim((string) $data['code']),
             'title' => trim((string) ($data['title'] ?? '')) ?: null,
             'capacity' => ! empty($data['capacity']) ? (int) $data['capacity'] : null,

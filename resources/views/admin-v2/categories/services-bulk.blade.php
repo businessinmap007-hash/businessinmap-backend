@@ -338,9 +338,30 @@
                                             {{ __('الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار، وأي حفظ جديد سيطبّق الاختيار الحالي على كل المحدد.') }}
                                         </div>
 
+                                        @php
+                                            // Branches this root's children already use come first and are
+                                            // shown; the rest are folded away. The picker used to list all 21
+                                            // whatever root was selected, and a screen that shows everything
+                                            // invites ticking everything.
+                                            $inUseCount = (int) ($branchData['in_use_count'] ?? 0);
+                                            $hiddenCount = count($branchData['branches']) - $inUseCount;
+                                        @endphp
+
+                                        @if($inUseCount > 0 && $hiddenCount > 0)
+                                            <div class="a2-section-subtitle a2-mt-8">
+                                                {{ __('يُعرض :n فرعًا يخصّ هذا القسم.', ['n' => $inUseCount]) }}
+                                                <button type="button" class="a2-btn a2-btn-ghost a2-btn-sm js-branch-show-all"
+                                                        data-service-id="{{ $serviceId }}">
+                                                    {{ __('أظهر كل الفروع (:n)', ['n' => $hiddenCount]) }}
+                                                </button>
+                                            </div>
+                                        @endif
+
                                         <div class="a2-branch-list a2-mt-12">
                                             @foreach($branchData['branches'] as $branch)
-                                                <div class="a2-branch">
+                                                <div class="a2-branch"
+                                                     @class(['js-branch-offroot' => $inUseCount > 0 && ! ($branch['in_use'] ?? true)])
+                                                     @if($inUseCount > 0 && ! ($branch['in_use'] ?? true)) hidden @endif>
                                                     <div class="a2-branch-head">
                                                         <label class="a2-check">
                                                             <input
@@ -1281,6 +1302,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             toggleBranchTypes(head.closest('.a2-branch'));
+        });
+    });
+
+    /*
+    | «أظهر كل الفروع» — reveals the branches this root does not use yet, which
+    | is how a root starts using a new one. Nothing is filtered server-side, so
+    | a hidden branch that was already ticked still submits normally.
+    */
+    document.querySelectorAll('.js-branch-show-all').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const block = branchBlock(button.dataset.serviceId);
+
+            if (!block) {
+                return;
+            }
+
+            block.querySelectorAll('.js-branch-offroot').forEach(function (branchEl) {
+                branchEl.hidden = false;
+            });
+
+            button.hidden = true;
         });
     });
 

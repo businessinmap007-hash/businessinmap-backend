@@ -345,7 +345,10 @@ class CategoryServiceBulkController extends Controller
             childIds: $activeChildIds
         );
 
-        $serviceBranches = $this->serviceBranches($services);
+        $serviceBranches = $this->serviceBranches(
+            services: $services,
+            inUse: $this->branchesUsedByRoot($activeRootId, $activeChildIds)
+        );
 
         $configMatrix = $this->configMatrixForRootChildren(
             rootId: $activeRootId,
@@ -370,7 +373,47 @@ class CategoryServiceBulkController extends Controller
      * A type can appear under several branches (many-to-many); types with no
      * branch fall into `ungrouped` so they stay reachable.
      */
-    private function serviceBranches($services): array
+    /**
+     * The branch ids the CURRENT root's children actually use.
+     *
+     * The picker used to show every branch of a service whatever root was
+     * selected — 21 of them, most belonging to trades the root has nothing to
+     * do with. That is not merely noise: a screen that lists everything invites
+     * ticking everything, and a single save then writes that whole list over
+     * what the root had been given carefully.
+     *
+     * @param  array<int,int>  $childIds
+     * @return array<int,true>
+     */
+    private function branchesUsedByRoot(int $rootId, array $childIds): array
+    {
+        if ($rootId <= 0 || empty($childIds)) {
+            return [];
+        }
+
+        $used = [];
+
+        foreach (
+            CategoryServiceConfig::query()
+                ->where('category_id', $rootId)
+                ->whereIn('child_id', $childIds)
+                ->where('is_active', 1)
+                ->pluck('config') as $config
+        ) {
+            $config = is_array($config) ? $config : (json_decode((string) $config, true) ?: []);
+
+            foreach ($this->normalizeIntArray($config['item_groups'] ?? []) as $id) {
+                $used[$id] = true;
+            }
+        }
+
+        return $used;
+    }
+
+    /**
+     * @param  array<int,true>  $inUse  branch ids this root's children already use
+     */
+    private function serviceBranches($services, array $inUse = []): array
     {
         $serviceIds = collect($services)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
@@ -422,6 +465,11 @@ class CategoryServiceBulkController extends Controller
                         $branchMap[$groupId] = [
                             'id' => $groupId,
                             'name' => $group->displayName('ar'),
+                            // Tagged, never filtered out: a branch this root has
+                            // not used yet is exactly what you need visible to
+                            // start using it. The screen shows the relevant ones
+                            // and folds the rest behind «أظهر كل الفروع».
+                            'in_use' => isset($inUse[$groupId]),
                             'types' => [],
                         ];
                     }
@@ -430,9 +478,14 @@ class CategoryServiceBulkController extends Controller
                 }
             }
 
+            // Relevant first, so the ones this root works with are what the eye
+            // lands on; ties keep the branch ordering the seeders set.
+            uasort($branchMap, fn ($a, $b) => ($b['in_use'] <=> $a['in_use']) ?: ($a['id'] <=> $b['id']));
+
             $result[$serviceId] = [
                 'branches' => array_values($branchMap),
                 'ungrouped' => $ungrouped,
+                'in_use_count' => count(array_filter($branchMap, fn ($b) => $b['in_use'])),
             ];
         }
 

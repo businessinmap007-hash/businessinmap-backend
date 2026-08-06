@@ -50,18 +50,42 @@ class HotelRoomKindOptionsSeeder extends Seeder
 
     private const GROUP_EN = 'Rooms';
 
-    /** retired item-type key => [name_ar, name_en] */
-    private const KINDS = [
-        'single_room' => ['غرفة فردية', 'Single Room'],
-        'double_room' => ['غرفة مزدوجة', 'Double Room'],
-        'suite' => ['جناح', 'Suite'],
-        'family_room' => ['غرفة عائلية', 'Family Room'],
-        'villa' => ['ڤيلا', 'Villa'],
-        'apartment' => ['شقة', 'Apartment'],
-    ];
-
     /** The children that let a room by the night. */
     private const CHILDREN = ['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي'];
+
+    /**
+     * The six that carry the stranded-price repair — created always, LINKED
+     * only where the room makes sense.
+     *
+     * They were linked to all six children unconditionally until 2026-08-05,
+     * which meant the seeder handed «نُزل / هوستل» a suite and re-handed it one
+     * every run, undoing the owner's curation each time. A seeder that puts
+     * back what an admin deliberately removed is fighting the person using it —
+     * the same rule LinkCategoryChildrenToOptionsSeeder states for itself — so
+     * the scope lives here, in data, where it can be argued with.
+     *
+     * Creation stays unconditional because repairStrandedPrices() maps a
+     * retired item-type key onto the option id: the option must exist to be
+     * mapped even where no child is offered it.
+     *
+     * `null` means every child in CHILDREN.
+     *
+     * @var array<string, array{0: string, 1: string, 2: list<string>|null}>
+     */
+    private const KINDS = [
+        'single_room' => ['غرفة فردية', 'Single Room', null],
+        'double_room' => ['غرفة مزدوجة', 'Double Room', null],
+        'family_room' => ['غرفة عائلية', 'Family Room', null],
+
+        // A hostel has no suite: it sells a bed, or a plain private room.
+        'suite' => ['جناح', 'Suite', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+
+        // These two live in «عقارات وممتلكات», reused rather than recreated —
+        // see the class docblock. Business 212 prices both, so the hotel keeps
+        // them; a hostel letting a whole villa is not a thing.
+        'villa' => ['ڤيلا', 'Villa', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة']],
+        'apartment' => ['شقة', 'Apartment', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة']],
+    ];
 
     /**
      * The rest of the room vocabulary, owner-approved 2026-08-05, scoped to the
@@ -86,7 +110,8 @@ class HotelRoomKindOptionsSeeder extends Seeder
         'standard_room' => ['غرفة قياسية', 'Standard Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'superior_room' => ['غرفة سوبيريور', 'Superior Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
         'deluxe_room' => ['غرفة ديلوكس', 'Deluxe Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
-        'twin_room' => ['غرفة توأم', 'Twin Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        // نُزل dropped by the owner on 2026-08-05, along with its suite.
+        'twin_room' => ['غرفة توأم', 'Twin Room', ['فندق', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'triple_room' => ['غرفة ثلاثية', 'Triple Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'quad_room' => ['غرفة رباعية', 'Quad Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة']],
         'connecting_room' => ['غرفة متصلة', 'Connecting Room', ['فندق', 'منتجع']],
@@ -124,10 +149,17 @@ class HotelRoomKindOptionsSeeder extends Seeder
             $created = $linked = 0;
             $optionOf = [];
 
-            foreach (array_values(self::KINDS) as $i => [$ar, $en]) {
+            foreach (array_values(self::KINDS) as $i => [$ar, $en, $childNames]) {
                 $optionId = $this->option($ar, $en, $groupId, $created);
                 $optionOf[array_keys(self::KINDS)[$i]] = $optionId;
-                $linked += $this->link($optionId, $children, $i);
+
+                $scoped = $childNames === null
+                    ? $children
+                    : $children->filter(fn ($name) => in_array($name, $childNames, true));
+
+                if ($scoped->isNotEmpty()) {
+                    $linked += $this->link($optionId, $scoped, $i);
+                }
             }
 
             // The rest of the vocabulary, each entry only to the children that

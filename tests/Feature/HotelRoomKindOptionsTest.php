@@ -87,6 +87,11 @@ class HotelRoomKindOptionsTest extends TestCase
     /** Every child that lets a room by the night can now name which room. */
     public function test_every_hotel_child_can_name_a_room(): void
     {
+        // «غرفة مزدوجة» is the one every one of them lets, so it is the shared
+        // assertion. «جناح» is NOT — a hostel sells a bed or a plain private
+        // room, and the owner curated the suite away from it on 2026-08-05.
+        // Asserting a suite everywhere is the universal-list habit this file
+        // exists to argue against.
         foreach (['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة'] as $name) {
             $id = $this->childId($name);
 
@@ -94,10 +99,15 @@ class HotelRoomKindOptionsTest extends TestCase
                 continue;
             }
 
-            $lines = $this->lineOptionsOf($id);
+            $this->assertContains('غرفة مزدوجة', $this->lineOptionsOf($id), "«{$name}» cannot name a room at all");
+        }
 
-            $this->assertContains('جناح', $lines, "«{$name}» cannot say it sells a suite");
-            $this->assertContains('غرفة مزدوجة', $lines);
+        foreach (['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة'] as $name) {
+            $id = $this->childId($name);
+
+            if ($id) {
+                $this->assertContains('جناح', $this->lineOptionsOf($id), "«{$name}» cannot say it sells a suite");
+            }
         }
     }
 

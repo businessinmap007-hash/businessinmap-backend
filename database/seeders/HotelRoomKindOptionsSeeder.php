@@ -63,6 +63,50 @@ class HotelRoomKindOptionsSeeder extends Seeder
     /** The children that let a room by the night. */
     private const CHILDREN = ['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي'];
 
+    /**
+     * The rest of the room vocabulary, owner-approved 2026-08-05, scoped to the
+     * children that actually let each thing.
+     *
+     * KINDS above is only the six that carried the stranded-price repair. The
+     * hotel branch originally held FIFTEEN types — recovered verbatim from
+     * database/sql/bim_2_7_16_service_catalog_item_type_seeds.sql, which is why
+     * جناح ملكي and جناح تنفيذي are spelled as they were rather than reinvented
+     * — and the collapse left only six reachable. These restore the missing
+     * eight and complete the list to the international standard.
+     *
+     * Scoped, not universal: a hostel sells a bed in a shared room and never a
+     * royal suite, a resort sells a chalet and a hotel does not. Handing every
+     * child the whole list is what made «قاعات ومناسبات» hold 39 entries and a
+     * gym get offered football pitches.
+     *
+     * @var array<string, array{0: string, 1: string, 2: list<string>}>
+     */
+    private const CATALOGUE = [
+        // Rooms — anywhere that rents a private room by the night.
+        'standard_room' => ['غرفة قياسية', 'Standard Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        'superior_room' => ['غرفة سوبيريور', 'Superior Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
+        'deluxe_room' => ['غرفة ديلوكس', 'Deluxe Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
+        'twin_room' => ['غرفة توأم', 'Twin Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        'triple_room' => ['غرفة ثلاثية', 'Triple Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        'quad_room' => ['غرفة رباعية', 'Quad Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة']],
+        'connecting_room' => ['غرفة متصلة', 'Connecting Room', ['فندق', 'منتجع']],
+        'accessible_room' => ['غرفة ذوي احتياجات خاصة', 'Accessible Room', ['فندق', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+
+        // Suites — the graded ladder a hotel prices upward.
+        'junior_suite' => ['جناح جونيور', 'Junior Suite', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
+        'executive_suite' => ['جناح تنفيذي', 'Executive Suite', ['فندق', 'منتجع']],
+        'presidential_suite' => ['جناح رئاسي', 'Presidential Suite', ['فندق', 'منتجع']],
+        'royal_suite' => ['جناح ملكي', 'Royal Suite', ['فندق', 'منتجع']],
+        'penthouse' => ['بنتهاوس', 'Penthouse', ['فندق', 'منتجع']],
+
+        // Standalone units — a resort's own stock.
+        'chalet' => ['شاليه', 'Chalet', ['منتجع', 'بيت ضيافة']],
+        'bungalow' => ['بنجلو', 'Bungalow', ['منتجع']],
+
+        // What a hostel actually sells, and could not say before.
+        'dorm_bed' => ['سرير في غرفة مشتركة', 'Dorm Bed', ['نُزل / هوستل']],
+    ];
+
     public function run(): void
     {
         DB::transaction(function () {
@@ -84,6 +128,22 @@ class HotelRoomKindOptionsSeeder extends Seeder
                 $optionId = $this->option($ar, $en, $groupId, $created);
                 $optionOf[array_keys(self::KINDS)[$i]] = $optionId;
                 $linked += $this->link($optionId, $children, $i);
+            }
+
+            // The rest of the vocabulary, each entry only to the children that
+            // let that particular thing — see CATALOGUE.
+            $sort = count(self::KINDS);
+
+            foreach (self::CATALOGUE as [$ar, $en, $childNames]) {
+                $optionId = $this->option($ar, $en, $groupId, $created);
+
+                $scoped = $children->filter(fn ($name) => in_array($name, $childNames, true));
+
+                if ($scoped->isNotEmpty()) {
+                    $linked += $this->link($optionId, $scoped, $sort);
+                }
+
+                $sort++;
             }
 
             [$repaired, $stuck] = $this->repairStrandedPrices($optionOf);

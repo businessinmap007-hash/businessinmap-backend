@@ -55,6 +55,35 @@ class HotelRoomKindOptionsTest extends TestCase
         $this->assertSame(1, (int) $group->is_active);
     }
 
+    /**
+     * The full room vocabulary, restored 2026-08-05.
+     *
+     * The hotel branch originally held fifteen types and the collapse left six
+     * reachable, so a hotel could not say «جناح ملكي» at all. What matters as
+     * much as their presence is that they are SCOPED: handing every child the
+     * whole list is the habit that once offered a gym a football pitch.
+     */
+    public function test_each_child_is_offered_only_the_rooms_it_lets(): void
+    {
+        $hotel = $this->lineOptionsOf($this->childId('فندق'));
+        $hostel = $this->lineOptionsOf($this->childId('نُزل / هوستل'));
+        $resort = $this->lineOptionsOf($this->childId('منتجع'));
+
+        foreach (['جناح ملكي', 'جناح تنفيذي', 'جناح رئاسي', 'بنتهاوس', 'غرفة ديلوكس'] as $room) {
+            $this->assertContains($room, $hotel, "a hotel must be able to sell «{$room}»");
+        }
+
+        // A hostel sells a bed, which it could not say before at all.
+        $this->assertContains('سرير في غرفة مشتركة', $hostel);
+        $this->assertNotContains('جناح ملكي', $hostel, 'a hostel has no royal suite');
+        $this->assertNotContains('بنتهاوس', $hostel);
+
+        // A resort's own stock; a plain hotel has neither.
+        $this->assertContains('شاليه', $resort);
+        $this->assertContains('بنجلو', $resort);
+        $this->assertNotContains('بنجلو', $hotel, 'a city hotel does not let bungalows');
+    }
+
     /** Every child that lets a room by the night can now name which room. */
     public function test_every_hotel_child_can_name_a_room(): void
     {

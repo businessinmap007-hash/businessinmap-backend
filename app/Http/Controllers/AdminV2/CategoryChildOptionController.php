@@ -203,6 +203,11 @@ class CategoryChildOptionController extends Controller
         | Option Groups + Options
         |--------------------------------------------------------------------------
         */
+        // price_role travels with the group because it is what tells an admin
+        // WHERE the group surfaces: a line group is offered to the merchant and
+        // becomes a priced booking row, a descriptive one only ever filters a
+        // search. Ticking «الغرف» and ticking «مرافق الإقامة» look identical on
+        // this screen and mean two entirely different things downstream.
         $optionGroups = OptionGroup::query()
             ->where('is_active', 1)
             ->with([
@@ -214,7 +219,7 @@ class CategoryChildOptionController extends Controller
             ])
             ->orderByRaw('COALESCE(reorder, 999999) ASC')
             ->orderBy('id')
-            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->get(['id', 'name_ar', 'name_en', 'reorder', 'price_role'])
             ->filter(fn ($group) => $group->options->isNotEmpty())
             ->values();
 
@@ -224,6 +229,8 @@ class CategoryChildOptionController extends Controller
             ->orderBy('id')
             ->get(['id', 'name_ar', 'name_en', 'group_id']);
 
+        $childOptionMap = $this->childOptionMap($roots);
+
         return view('admin-v2.category-children.options.bulk', [
             'roots' => $roots,
             'optionGroups' => $optionGroups,
@@ -231,6 +238,8 @@ class CategoryChildOptionController extends Controller
             'parentId' => $activeRootId,
             'parent' => $parent,
             'selectedChildIds' => $childIds,
+            'optionIndex' => $this->optionIndex($optionGroups, $ungroupedOptions, $childOptionMap),
+            'childOptionMap' => $childOptionMap,
         ]);
     }
 
@@ -296,6 +305,124 @@ class CategoryChildOptionController extends Controller
         return redirect()
             ->route('admin.category-children.index', $routeParams)
             ->with('success', __('تم تحديث خيارات الأقسام الفرعية المحددة بنجاح.'));
+    }
+
+    /**
+     * option id => [name, group name, price role], for the screen to name an
+     * option it is not currently rendering.
+     *
+     * The bulk screen draws every option once, inside its group. Telling an
+     * admin what a CHILD already carries means naming options scattered across
+     * forty collapsed groups, so the names travel as a flat index and the panel
+     * is built from ids. 530 options is a few kilobytes; re-querying per child
+     * would be forty round trips.
+     *
+     * @param  \Illuminate\Support\Collection<int,\App\Models\OptionGroup>  $groups
+     * @param  \Illuminate\Support\Collection<int,\App\Models\Option>  $ungrouped
+     * @param  array{shared:array,scoped:array}  $childOptions
+     * @return array<int,array{0:string,1:string,2:string}>
+     */
+    private function optionIndex($groups, $ungrouped, array $childOptions): array
+    {
+        $index = [];
+
+        $name = fn ($row) => (string) ($row->name_ar ?: $row->name_en ?: ('#' . $row->id));
+
+        foreach ($groups as $group) {
+            foreach ($group->options as $option) {
+                $index[(int) $option->id] = [$name($option), $name($group), (string) $group->price_role];
+            }
+        }
+
+        foreach ($ungrouped as $option) {
+            $index[(int) $option->id] = [$name($option), (string) __('بدون جروب'), ''];
+        }
+
+        // The picker only draws ACTIVE groups, but deactivating a group does not
+        // withdraw it from the children already carrying its options. Those have
+        // to be nameable too, or a child's panel would count more than it lists
+        // — and the option nobody can see is exactly the one worth seeing.
+        $referenced = collect($childOptions['shared'] ?? [])
+            ->merge(collect($childOptions['scoped'] ?? [])->flatMap(fn ($byChild) => $byChild))
+            ->flatten()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->reject(fn ($id) => isset($index[$id]));
+
+        if ($referenced->isEmpty()) {
+            return $index;
+        }
+
+        foreach (
+            Option::query()
+                ->leftJoin('option_groups as g', 'g.id', '=', 'options.group_id')
+                ->whereIn('options.id', $referenced->all())
+                ->get([
+                    'options.id',
+                    'options.name_ar',
+                    'options.name_en',
+                    'g.name_ar as group_name_ar',
+                    'g.price_role as group_role',
+                ]) as $option
+        ) {
+            $index[(int) $option->id] = [
+                $name($option),
+                (string) ($option->group_name_ar ?: __('خارج الجروبات النشطة')),
+                (string) ($option->group_role ?? ''),
+            ];
+        }
+
+        return $index;
+    }
+
+    /**
+     * What each child already carries, kept split the way the table stores it.
+     *
+     * `category_child_option.category_id` is 0 for «under every root» and a root
+     * id for «under that root alone», so a child's real set is the union of the
+     * two — and it differs by root. The screen switches roots without reloading,
+     * so both halves ship and the union is taken client-side. Sending the union
+     * pre-computed would repeat the 4,619 shared rows once per root the child
+     * sits under.
+     *
+     * @param  \Illuminate\Support\Collection<int,\App\Models\Category>  $roots
+     * @return array{shared:array<int,array<int,int>>,scoped:array<int,array<int,array<int,int>>>}
+     */
+    private function childOptionMap($roots): array
+    {
+        $childIds = $roots->flatMap(fn ($root) => collect($root->children)->pluck('id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($childIds->isEmpty()) {
+            return ['shared' => [], 'scoped' => []];
+        }
+
+        $shared = [];
+        $scoped = [];
+
+        foreach (
+            CategoryChildOption::query()
+                ->whereIn('child_id', $childIds)
+                ->orderBy('reorder')
+                ->orderBy('id')
+                ->get(['child_id', 'category_id', 'option_id']) as $row
+        ) {
+            $childId = (int) $row->child_id;
+            $rootId = (int) $row->category_id;
+            $optionId = (int) $row->option_id;
+
+            if ($rootId === CategoryChildOption::ALL_ROOTS) {
+                $shared[$childId][] = $optionId;
+
+                continue;
+            }
+
+            $scoped[$rootId][$childId][] = $optionId;
+        }
+
+        return ['shared' => $shared, 'scoped' => $scoped];
     }
 
     protected function hasIsActiveColumn(): bool

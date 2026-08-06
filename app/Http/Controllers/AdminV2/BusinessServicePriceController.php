@@ -10,6 +10,7 @@ use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
+use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,7 +38,7 @@ class BusinessServicePriceController extends Controller
 
         $baseQuery = BusinessServicePrice::query()
             ->selectRaw("business_service_prices.*, CASE WHEN discount_enabled = 1 THEN ROUND(price * discount_percent / 100, 2) ELSE 0 END as discount_amount, CASE WHEN discount_enabled = 1 THEN ROUND(price - (price * discount_percent / 100), 2) ELSE ROUND(price, 2) END as final_service_price, ROUND(CASE WHEN discount_enabled = 1 THEN price - (price * discount_percent / 100) ELSE price END, 2) as cash_due_on_execution")
-            ->with(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_child_id', 'child:id,name_ar,name_en,reorder'])
+            ->with(['service:id,key,name_ar,name_en,supports_deposit', 'business:id,name,type,category_child_id', 'child:id,name_ar,name_en,reorder', 'offeringOptions.option:id,name_ar,name_en'])
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
             ->when($businessId > 0, fn ($query) => $query->where('business_id', $businessId))
             ->when($childId > 0, fn ($query) => $query->where('child_id', $childId))
@@ -91,7 +92,20 @@ class BusinessServicePriceController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
-        $lookup = ['business_id' => (int) $data['business_id'], 'child_id' => (int) $data['child_id'], 'service_id' => (int) $data['service_id'], 'bookable_item_type' => trim((string) $data['bookable_item_type'])];
+        $line = $data['line_option_id'] ?? null;
+        unset($data['line_option_id']);
+
+        // The lookup MUST carry the line. Without it this upsert matched on
+        // (business, child, service, item type) — which is one row for the whole
+        // hotel — so an admin adding «جناح 1000» silently rewrote «غرفة مزدوجة
+        // 900» and thought it had added a price.
+        $lookup = [
+            'business_id' => (int) $data['business_id'],
+            'child_id' => (int) $data['child_id'],
+            'service_id' => (int) $data['service_id'],
+            'bookable_item_type' => trim((string) $data['bookable_item_type']),
+            'line_option_id' => $line,
+        ];
         $data['bookable_item_type'] = $lookup['bookable_item_type'];
         $query = method_exists(BusinessServicePrice::class, 'withTrashed') ? BusinessServicePrice::withTrashed() : BusinessServicePrice::query();
         $row = $query->where($lookup)->first();
@@ -102,6 +116,9 @@ class BusinessServicePriceController extends Controller
         } else {
             $row = BusinessServicePrice::create(array_merge($lookup, $data));
         }
+
+        // line_option_id is a mirror of offering_options; only the sync writes it.
+        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all());
 
         return redirect()->route('admin.business_service_prices.edit', $row)->with('success', __('تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.'));
     }
@@ -178,7 +195,57 @@ class BusinessServicePriceController extends Controller
                 ->map(fn (string $key) => ['key' => $key, 'label' => $labels[$key] ?? $key])
                 ->values()
                 ->all(),
+            // What the row may say it SELLS. One item type now holds several
+            // priced lines — «جناح 1000» beside «غرفة مزدوجة 900» — and this
+            // screen had no way to say which, so it could hold one and no more.
+            'line_options' => $this->lineOptionsFor((int) $request->get('business_id', 0), $childId),
         ]);
+    }
+
+    /**
+     * The lines this business may price in — its own vocabulary, exactly as its
+     * own pricing screen computes it, so admin and merchant cannot offer
+     * different words for the same row.
+     *
+     * @return array<int,array{key:string,label:string}>
+     */
+    protected function lineOptionsFor(int $businessId, int $childId): array
+    {
+        if ($businessId <= 0 || $childId <= 0) {
+            return [];
+        }
+
+        $business = User::query()
+            ->select(['id', 'category_id', 'category_child_id'])
+            ->where('type', 'business')
+            ->find($businessId);
+
+        if (! $business) {
+            return [];
+        }
+
+        return app(MerchantOfferingVocabulary::class)
+            ->for((int) $business->id, $childId, (int) $business->category_id)['lines']
+            ->flatMap(fn ($options, $groupName) => collect($options)->map(fn ($option) => [
+                'key' => (string) $option->id,
+                'label' => ($option->name_ar ?: $option->name_en) . ' — ' . $groupName,
+            ]))
+            ->values()
+            ->all();
+    }
+
+    /** A posted line, kept only when this business may actually say it. */
+    protected function sanitizeLineOption(int $businessId, int $childId, $optionId): ?int
+    {
+        $optionId = (int) $optionId;
+
+        if ($optionId <= 0) {
+            return null;
+        }
+
+        return collect($this->lineOptionsFor($businessId, $childId))->pluck('key')->contains((string) $optionId)
+            ? $optionId
+            : null;
     }
 
     protected function businessOption(int $businessId): ?User
@@ -193,9 +260,21 @@ class BusinessServicePriceController extends Controller
     public function update(Request $request, BusinessServicePrice $row)
     {
         $data = $this->validateData($request, $row->id);
-        $duplicate = BusinessServicePrice::query()->where('business_id', $data['business_id'])->where('child_id', $data['child_id'])->where('service_id', $data['service_id'])->where('bookable_item_type', $data['bookable_item_type'])->where('id', '!=', $row->id)->exists();
-        if ($duplicate) throw ValidationException::withMessages(['bookable_item_type' => __('يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر.')]);
+        $line = $data['line_option_id'] ?? null;
+        unset($data['line_option_id']);
+
+        $duplicate = BusinessServicePrice::query()
+            ->where('business_id', $data['business_id'])
+            ->where('child_id', $data['child_id'])
+            ->where('service_id', $data['service_id'])
+            ->where('bookable_item_type', $data['bookable_item_type'])
+            ->where(fn ($query) => $line ? $query->where('line_option_id', $line) : $query->whereNull('line_option_id'))
+            ->where('id', '!=', $row->id)
+            ->exists();
+
+        if ($duplicate) throw ValidationException::withMessages(['bookable_item_type' => __('يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر ونوع الوحدة.')]);
         $row->update($data);
+        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all());
 
         return back()->with('success', __('تم تحديث السجل بنجاح.'));
     }
@@ -212,7 +291,12 @@ class BusinessServicePriceController extends Controller
             'business_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('type', 'business'))],
             'child_id' => ['nullable', 'integer', 'exists:category_children_master,id'],
             'service_id' => ['required', 'integer', 'exists:platform_services,id'],
-            'bookable_item_type' => ['required', 'string', 'max:100', Rule::unique('business_service_prices', 'bookable_item_type')->where(fn ($query) => $query->where('business_id', $request->input('business_id'))->where('child_id', $request->input('child_id'))->where('service_id', $request->input('service_id')))->ignore($ignoreId)],
+            // The uniqueness rule moved below, after the line is sanitised: a
+            // price is unique per (business, child, service, item type) AND the
+            // line it sells, so this rule alone let the screen hold one stay
+            // price for a whole hotel and refuse every other room.
+            'bookable_item_type' => ['required', 'string', 'max:100'],
+            'line_option_id' => ['nullable', 'integer'],
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable'],
@@ -249,6 +333,31 @@ class BusinessServicePriceController extends Controller
         $allowedTypes = $this->allowedItemTypesForChildService($submittedChildId, (int) $data['service_id']);
         if (! in_array((string) $data['bookable_item_type'], $allowedTypes, true)) {
             throw ValidationException::withMessages(['bookable_item_type' => __('نوع العنصر غير متاح لهذا القسم الفرعي داخل هذه الخدمة. اضبطه من Service Catalog Matrix أولًا.')]);
+        }
+
+        $data['line_option_id'] = $this->sanitizeLineOption(
+            (int) $data['business_id'],
+            $submittedChildId,
+            $data['line_option_id'] ?? null
+        );
+
+        $clash = BusinessServicePrice::query()
+            ->where('business_id', (int) $data['business_id'])
+            ->where('child_id', $submittedChildId)
+            ->where('service_id', (int) $data['service_id'])
+            ->where('bookable_item_type', (string) $data['bookable_item_type'])
+            ->where(fn ($query) => $data['line_option_id']
+                ? $query->where('line_option_id', $data['line_option_id'])
+                : $query->whereNull('line_option_id'))
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists();
+
+        // On create the store() upsert takes over from here, so a clash is only
+        // fatal when EDITING one row into another's identity.
+        if ($clash && $ignoreId) {
+            throw ValidationException::withMessages([
+                'bookable_item_type' => __('يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر ونوع الوحدة.'),
+            ]);
         }
 
         if (! $data['discount_enabled']) $data['discount_percent'] = 0;

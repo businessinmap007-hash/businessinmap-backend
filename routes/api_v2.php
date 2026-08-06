@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
 use App\Http\Controllers\Api\V2\MenuDiscoveryController;
+use App\Http\Controllers\Api\V2\UnitDiscoveryController;
 use App\Http\Controllers\Api\V2\AgendaController;
 use App\Http\Controllers\Api\V2\MealTimeController;
 use App\Http\Controllers\Api\V2\ReminderPreferenceController;
@@ -168,6 +169,11 @@ Route::prefix('v2')->group(function () {
 
         // Menu: browse a business's menu grouped by sections, with variants + extras.
         Route::get('menu/{business}', [MenuDiscoveryController::class, 'show'])->whereNumber('business');
+
+        // Units: the rooms/tables/pitches a customer may actually book, grouped
+        // by kind with each kind's price. 21 children refuse a booking without a
+        // named unit and nothing told the client what the ids were.
+        Route::get('units/{business}', [UnitDiscoveryController::class, 'show'])->whereNumber('business');
     });
 
     // Jobs: a business posts a vacancy in any field, a client applies. Public

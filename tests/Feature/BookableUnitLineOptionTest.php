@@ -253,6 +253,69 @@ class BookableUnitLineOptionTest extends TestCase
         );
     }
 
+    /**
+     * The reported blocker: «العناصر القابلة للحجز لا يمكننى تسعيرها».
+     *
+     * The admin price screen keyed on (business, child, service, item type) —
+     * one row for a whole hotel. Its unique rule refused the second stay price
+     * outright, and store()'s upsert matched the same four columns, so an admin
+     * adding «جناح 1000» would have rewritten «غرفة مزدوجة 900» and called it a
+     * save. The line is part of the row's identity, exactly as the DB key says.
+     */
+    public function test_the_admin_can_price_two_kinds_under_one_item_type(): void
+    {
+        $admin = User::query()->where('type', 'admin')->first();
+        $hotel = User::query()->where('type', 'business')->find(212);
+
+        if (! $admin || ! $hotel) {
+            $this->markTestSkipped('Needs an admin and the reference hotel.');
+        }
+
+        $service = (int) DB::table('platform_services')->where('key', 'booking')->value('id');
+
+        $allowed = new \ReflectionMethod(\App\Http\Controllers\AdminV2\BusinessServicePriceController::class, 'allowedItemTypesForChildService');
+        $allowed->setAccessible(true);
+        $itemType = $allowed->invoke(
+            app(\App\Http\Controllers\AdminV2\BusinessServicePriceController::class),
+            (int) $hotel->category_child_id,
+            $service
+        )[0] ?? null;
+
+        if (! $itemType) {
+            $this->markTestSkipped('The hotel has no allowed booking item type.');
+        }
+
+        $post = fn (int $line, float $price) => $this->actingAs($admin)
+            ->post(route('admin.business_service_prices.store', [], false), [
+                'business_id' => $hotel->id,
+                'child_id' => $hotel->category_child_id,
+                'service_id' => $service,
+                'bookable_item_type' => $itemType,
+                'line_option_id' => $line,
+                'price' => $price,
+                'currency' => 'EGP',
+                'is_active' => 1,
+            ]);
+
+        $post($this->doubleRoomId, 900)->assertRedirect()->assertSessionHasNoErrors();
+        $post($this->suiteId, 2500)->assertRedirect()->assertSessionHasNoErrors();
+
+        $rows = BusinessServicePrice::query()
+            ->where('business_id', $hotel->id)
+            ->where('service_id', $service)
+            ->where('bookable_item_type', $itemType)
+            ->whereIn('line_option_id', [$this->doubleRoomId, $this->suiteId])
+            ->get()
+            ->keyBy('line_option_id');
+
+        $this->assertCount(2, $rows, 'the second kind overwrote the first instead of standing beside it');
+        $this->assertEquals(900, $rows[$this->doubleRoomId]->price);
+        $this->assertEquals(2500, $rows[$this->suiteId]->price);
+
+        // The mirror is written through the sync, so the row can name itself.
+        $this->assertSame('جناح', $rows[$this->suiteId]->lineOption()?->name_ar);
+    }
+
     /** Retiring an option must not delete the room standing in the hotel. */
     public function test_deleting_the_option_leaves_the_unit_standing(): void
     {

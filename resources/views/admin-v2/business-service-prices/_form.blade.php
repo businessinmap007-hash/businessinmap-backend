@@ -2,6 +2,7 @@
     $isEdit = isset($row) && $row?->exists;
 
     $currentItemType = old('bookable_item_type', $row->bookable_item_type ?? '');
+    $currentLine = (string) old('line_option_id', $row->line_option_id ?? '');
     $currentServiceId = (int) old('service_id', $row->service_id ?? 0);
 @endphp
 
@@ -120,6 +121,29 @@
             </div>
 
             @error('bookable_item_type')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        {{-- WHAT this row sells. One item type carries several priced lines —
+             «جناح 1000» beside «غرفة مزدوجة 900» — and without this the screen
+             could hold one stay price for a whole hotel and refuse the rest. --}}
+        <div class="a2-form-group">
+            <label class="a2-label" for="line_option_id">{{ __('نوع الوحدة') }}</label>
+            <select
+                class="a2-select js-line-option-select"
+                id="line_option_id"
+                name="line_option_id"
+                data-current-value="{{ $currentLine }}"
+            >
+                <option value="">{{ __('بدون تحديد') }}</option>
+            </select>
+
+            <div class="a2-hint a2-mt-8">
+                {{ __('حدّده ليصير لكل نوع وحدة سعره الخاص. الوحدات التي تحمل هذا النوع تأخذ هذا السعر.') }}
+            </div>
+
+            @error('line_option_id')
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>
@@ -247,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const serviceSelect = document.querySelector('.js-service-select');
     const bookableTypeSelect = document.querySelector('.js-bookable-type-select');
+    const lineOptionSelect = document.querySelector('.js-line-option-select');
     const bookableTypeHint = document.querySelector('.js-bookable-type-hint');
 
     const discountEnabled = document.getElementById('discount_enabled');
@@ -322,6 +347,35 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(item.label || item.key || '').trim();
     }
 
+    /**
+     * «بدون تحديد» is a real choice here, not a prompt: a business with one
+     * price per item type never names a kind, and the column is nullable.
+     */
+    function fillLineOptions(options) {
+        if (!lineOptionSelect) return;
+
+        const keep = String(lineOptionSelect.dataset.currentValue || lineOptionSelect.value || '');
+
+        if (lineOptionSelect.tomselect) {
+            lineOptionSelect.tomselect.destroy();
+        }
+
+        lineOptionSelect.innerHTML = '';
+
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = 'بدون تحديد';
+        lineOptionSelect.appendChild(empty);
+
+        options.forEach(function (item) {
+            const option = document.createElement('option');
+            option.value = String(item.key || '');
+            option.textContent = optionLabel(item);
+            option.selected = keep !== '' && option.value === keep;
+            lineOptionSelect.appendChild(option);
+        });
+    }
+
     function refreshBookableTypeOptions() {
         if (!serviceSelect || !bookableTypeSelect) return;
 
@@ -335,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
             option.value = '';
             option.textContent = 'اختر البزنس والخدمة أولًا';
             bookableTypeSelect.appendChild(option);
+            fillLineOptions([]);
             setTypeHint('اختر البزنس والخدمة أولًا لعرض أنواع العناصر المتاحة لهذا القسم الفرعي.');
             return;
         }
@@ -346,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = new URL(itemTypesUrl, window.location.origin);
         url.searchParams.set('child_id', childId);
         url.searchParams.set('service_id', serviceId);
+        // The vocabulary is per MERCHANT, not per child: a hospital that
+        // practises four specialties must not be offered forty-one.
+        url.searchParams.set('business_id', String(businessSelect ? businessSelect.value : ''));
 
         setTypeHint('جاري تحميل أنواع العناصر...');
 
@@ -390,6 +448,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!selectedApplied && bookableTypeSelect.options.length > 1) {
                     bookableTypeSelect.options[1].selected = true;
                 }
+
+                fillLineOptions((data && Array.isArray(data.line_options)) ? data.line_options : []);
 
                 setTypeHint('هذه القائمة تعرض فقط الأنواع المسموحة لهذا القسم الفرعي والخدمة حسب Service Catalog Matrix.');
             })

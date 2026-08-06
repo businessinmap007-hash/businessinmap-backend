@@ -188,6 +188,7 @@
                         <th style="min-width:170px;">Category Child</th>
                         <th style="min-width:150px;">Service</th>
                         <th style="min-width:110px;">Item Type</th>
+                        <th style="min-width:150px;">{{ __('نوع الوحدة') }}</th>
                         <th style="min-width:120px;">Price</th>
                         <th style="min-width:120px;">Discount</th>
                         <th style="min-width:150px;">Final Service Price</th>
@@ -235,6 +236,8 @@
                         </td>
 
                         <td dir="ltr">{{ $row->bookable_item_type ?: 'category' }}</td>
+                        {{-- Two rows of one item type are the SAME row without this. --}}
+                        <td>{{ optional($row->lineOption())->name_ar ?: '—' }}</td>
 
                         <td>
                             <div class="a2-fw-900">
@@ -299,7 +302,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="a2-empty-cell">
+                        <td colspan="12" class="a2-empty-cell">
                             {{ __('لا توجد بيانات') }}
                         </td>
                     </tr>

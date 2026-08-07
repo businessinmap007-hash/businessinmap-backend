@@ -10,12 +10,17 @@ use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Http\RedirectResponse;
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ServiceCatalogMatrixController extends Controller
 {
+    public function __construct(private readonly ChildServiceWriter $writer)
+    {
+    }
+
     public function index(Request $request): View
     {
         $rootId = (int) $request->get('root_id', 0);
@@ -173,35 +178,19 @@ class ServiceCatalogMatrixController extends Controller
             default => $selectedItemTypes,
         };
 
-        CategoryPlatformService::query()->updateOrCreate(
-            [
-                'category_id' => $rootId,
-                'child_id' => $childId,
-                'platform_service_id' => (int) $service->id,
+        // Link and config go through the one writer, which merges rather than
+        // replaces — see App\Services\Catalog\ChildServiceWriter.
+        $this->writer->enable(
+            rootId: $rootId,
+            childId: $childId,
+            serviceId: (int) $service->id,
+            configPatch: $this->mergeServiceConfig($current, $nextTypes, $request, $service),
+            sortOrder: $sortOrder,
+            linkMeta: [
+                'source' => 'service_catalog_matrix',
+                'last_catalog_sync_at' => now()->toDateTimeString(),
             ],
-            [
-                'is_active' => 1,
-                'sort_order' => $sortOrder,
-                'meta' => [
-                    'source' => 'service_catalog_matrix',
-                    'last_catalog_sync_at' => now()->toDateTimeString(),
-                ],
-                'updated_at' => now(),
-            ]
-        );
-
-        CategoryServiceConfig::query()->updateOrCreate(
-            [
-                'category_id' => $rootId,
-                'child_id' => $childId,
-                'platform_service_id' => (int) $service->id,
-            ],
-            [
-                'config' => $this->mergeServiceConfig($current, $nextTypes, $request, $service),
-                'is_active' => 1,
-                'sort_order' => $sortOrder,
-                'updated_at' => now(),
-            ]
+            source: 'service_catalog_matrix'
         );
     }
 
@@ -327,16 +316,6 @@ class ServiceCatalogMatrixController extends Controller
 
     protected function disablePair(int $rootId, int $childId, int $serviceId): void
     {
-        CategoryPlatformService::query()
-            ->where('category_id', $rootId)
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->update(['is_active' => 0, 'updated_at' => now()]);
-
-        CategoryServiceConfig::query()
-            ->where('category_id', $rootId)
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->update(['is_active' => 0, 'updated_at' => now()]);
+        $this->writer->disable($rootId, $childId, $serviceId);
     }
 }

@@ -41,7 +41,9 @@ class ServiceBulkAllowedTypesTest extends TestCase
 
     private function apply(array $itemGroups, array $allowedTypes): array
     {
-        (new CategoryServiceBulkController)->apply(Request::create('/x', 'POST', [
+        // Resolved from the container: the controller now takes the one
+        // ChildServiceWriter every admin screen writes through.
+        app(CategoryServiceBulkController::class)->apply(Request::create('/x', 'POST', [
             'root_id' => $this->rootId(),
             'category_ids' => [self::CLINIC],
             'platform_service_ids' => [self::BOOKING],

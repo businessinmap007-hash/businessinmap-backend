@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use App\Services\Catalog\ChildServiceWriter;
 use App\Services\CategoryChildOptionScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,10 @@ use Illuminate\View\View;
  */
 class ChildWorkbenchController extends Controller
 {
-    public function __construct(private readonly CategoryChildOptionScope $scope)
+    public function __construct(
+        private readonly CategoryChildOptionScope $scope,
+        private readonly ChildServiceWriter $writer
+    )
     {
     }
 
@@ -153,23 +157,39 @@ class ChildWorkbenchController extends Controller
                     ->whereIn('key', $types)
                     ->pluck('key');
 
-                $this->writeConfig($rootId, $childId, (int) $service->id, [
-                    'allowed_item_types' => $valid->values()->all(),
-                    'item_groups' => $this->groupsOf((int) $service->id, $valid),
-                ] + $this->bookingFlags($service->key, $input));
-
                 $enabled = ! empty($input['enabled']);
 
-                DB::table('category_service_configs')
-                    ->where('category_id', $rootId)
-                    ->where('child_id', $childId)
-                    ->where('platform_service_id', $service->id)
-                    ->update([
-                        'is_active' => $enabled ? 1 : 0,
-                        'updated_at' => now(),
-                    ]);
+                $patch = [
+                    'allowed_item_types' => $valid->values()->all(),
+                    'item_groups' => $this->groupsOf((int) $service->id, $valid),
+                ] + $this->bookingFlags($service->key, $input);
 
-                $this->linkService($rootId, $childId, (int) $service->id, $enabled);
+                // One call writes the link and the config together. They used
+                // to be three statements here, and a config without an active
+                // link is a service the merchant can never reach.
+                if ($enabled) {
+                    $this->writer->enable(
+                        rootId: $rootId,
+                        childId: $childId,
+                        serviceId: (int) $service->id,
+                        configPatch: $patch,
+                        source: 'child_workbench'
+                    );
+
+                    continue;
+                }
+
+                // Turning it off still records what was chosen, so re-enabling
+                // it next week finds the item types where the admin left them.
+                $this->writer->enable(
+                    rootId: $rootId,
+                    childId: $childId,
+                    serviceId: (int) $service->id,
+                    configPatch: $patch,
+                    source: 'child_workbench'
+                );
+
+                $this->writer->disable($rootId, $childId, (int) $service->id);
             }
         });
 
@@ -178,41 +198,6 @@ class ChildWorkbenchController extends Controller
             ->with('status', __('تم حفظ الخدمات.'));
     }
 
-    /**
-     * `category_service_configs` says what MAY be listed; this table decides
-     * whether the service is offered to the merchant at all — the owner panel
-     * reads it (ResolvesOwnerCatalog) and so does discovery. Enabling a service
-     * here without it produces a config nobody can reach.
-     */
-    private function linkService(int $rootId, int $childId, int $serviceId, bool $enabled): void
-    {
-        $existing = DB::table('category_platform_services')
-            ->where('category_id', $rootId)
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->value('id');
-
-        if ($existing) {
-            DB::table('category_platform_services')->where('id', $existing)
-                ->update(['is_active' => $enabled ? 1 : 0, 'updated_at' => now()]);
-
-            return;
-        }
-
-        if (! $enabled) {
-            return; // nothing to switch off
-        }
-
-        DB::table('category_platform_services')->insert([
-            'category_id' => $rootId,
-            'child_id' => $childId,
-            'platform_service_id' => $serviceId,
-            'is_active' => 1,
-            'sort_order' => 0,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
 
     /**
      * The booking flag decides whether the merchant must register reservable
@@ -246,41 +231,6 @@ class ChildWorkbenchController extends Controller
             ->all();
     }
 
-    /**
-     * Merge into the stored JSON. Overwriting it would silently discard every
-     * key this screen does not show — delivery radius, booking modes, required
-     * fields — which is exactly how a service config gets quietly emptied.
-     */
-    private function writeConfig(int $rootId, int $childId, int $serviceId, array $config): void
-    {
-        $row = DB::table('category_service_configs')
-            ->where('category_id', $rootId)
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
-            ->first(['id', 'config']);
-
-        if (! $row) {
-            DB::table('category_service_configs')->insert([
-                'category_id' => $rootId,
-                'child_id' => $childId,
-                'platform_service_id' => $serviceId,
-                'config' => json_encode($config, JSON_UNESCAPED_UNICODE),
-                'is_active' => 0,
-                'sort_order' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            return;
-        }
-
-        $stored = json_decode($row->config ?: '{}', true) ?: [];
-
-        DB::table('category_service_configs')->where('id', $row->id)->update([
-            'config' => json_encode(array_merge($stored, $config), JSON_UNESCAPED_UNICODE),
-            'updated_at' => now(),
-        ]);
-    }
 
     /**
      * Selected options first, then every other option folded into its group —

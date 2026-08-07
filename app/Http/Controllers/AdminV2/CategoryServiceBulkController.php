@@ -12,12 +12,17 @@ use App\Models\PlatformService;
 use App\Models\PlatformServiceItemGroup;
 use App\Models\PlatformServiceItemType;
 use Illuminate\Http\RedirectResponse;
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CategoryServiceBulkController extends Controller
 {
+    public function __construct(private readonly ChildServiceWriter $writer)
+    {
+    }
+
     private function toBool($value, bool $default = false): bool
     {
         if ($value === null) {
@@ -830,32 +835,18 @@ class CategoryServiceBulkController extends Controller
                 continue;
             }
 
-            CategoryPlatformService::query()->updateOrCreate(
-                [
-                    'category_id' => $rootId,
-                    'child_id' => $childId,
-                    'platform_service_id' => $serviceId,
-                ],
-                [
-                    'is_active' => 1,
-                    'sort_order' => $sortOrder,
-                    'meta' => null,
-                    'updated_at' => now(),
-                ]
-            );
-
-            CategoryServiceConfig::query()->updateOrCreate(
-                [
-                    'category_id' => $rootId,
-                    'child_id' => $childId,
-                    'platform_service_id' => $serviceId,
-                ],
-                [
-                    'config' => $this->serviceConfigPayload($request, $service, $rootId, $childId),
-                    'is_active' => 1,
-                    'sort_order' => $sortOrder,
-                    'updated_at' => now(),
-                ]
+            // Through the one writer: the config is MERGED over what is
+            // stored, so this screen stops dropping keys it never heard of —
+            // «notes» and the matrix's provenance survived on 20 of 1,055
+            // configs because this used to rebuild the whole thing. `meta` is
+            // left alone for the same reason; passing null wiped it.
+            $this->writer->enable(
+                rootId: $rootId,
+                childId: $childId,
+                serviceId: $serviceId,
+                configPatch: $this->serviceConfigPayload($request, $service, $rootId, $childId),
+                sortOrder: $sortOrder,
+                source: 'services_bulk'
             );
 
            CategoryChildServiceFee::query()->updateOrCreate(
@@ -893,53 +884,27 @@ class CategoryServiceBulkController extends Controller
                 continue;
             }
 
-           $link = CategoryPlatformService::query()
+            // Appending keeps whatever place the service already had in the
+            // order; only a service arriving for the first time takes the next.
+            $existingSort = (int) CategoryPlatformService::query()
                 ->where('category_id', $rootId)
                 ->where('child_id', $childId)
                 ->where('platform_service_id', $serviceId)
-                ->first();
+                ->value('sort_order');
 
-            if ($link) {
-                $sortOrder = (int) ($link->sort_order ?: $nextSort);
+            $sortOrder = $existingSort ?: $nextSort;
 
-                $link->update([
-                    'category_id' => $rootId,
-                    'is_active' => 1,
-                    'sort_order' => $sortOrder,
-                    'updated_at' => now(),
-                ]);
-            } else {
-                $sortOrder = $nextSort;
-
-                CategoryPlatformService::query()->updateOrCreate(
-                    [
-                        'category_id' => $rootId,
-                        'child_id' => $childId,
-                        'platform_service_id' => $serviceId,
-                    ],
-                    [
-                        'is_active' => 1,
-                        'sort_order' => $sortOrder,
-                        'meta' => null,
-                        'updated_at' => now(),
-                    ]
-                );
-
+            if (! $existingSort) {
                 $nextSort++;
             }
 
-            CategoryServiceConfig::query()->updateOrCreate(
-                [
-                    'category_id' => $rootId,
-                    'child_id' => $childId,
-                    'platform_service_id' => $serviceId,
-                ],
-                [
-                    'config' => $this->serviceConfigPayload($request, $service, $rootId, $childId),
-                    'is_active' => 1,
-                    'sort_order' => $sortOrder,
-                    'updated_at' => now(),
-                ]
+            $this->writer->enable(
+                rootId: $rootId,
+                childId: $childId,
+                serviceId: $serviceId,
+                configPatch: $this->serviceConfigPayload($request, $service, $rootId, $childId),
+                sortOrder: $sortOrder,
+                source: 'services_bulk'
             );
 
             CategoryChildServiceFee::query()->updateOrCreate(

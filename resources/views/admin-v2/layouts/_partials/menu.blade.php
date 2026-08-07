@@ -38,12 +38,13 @@
     $menu = [
         ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
         ['label' => 'المستخدمون', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
-        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.', 'admin.category-children.', 'admin.category-child-options.', 'admin.child-workbench.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.index', 'admin.categories.create', 'admin.categories.edit', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
             ['label' => 'التصنيفات', 'type' => 'section', 'children' => [
-                ['label' => 'التصنيفات الرئيسية', 'route' => 'admin.categories.index', 'active' => 'admin.categories.'],
+                ['label' => 'التصنيفات الرئيسية', 'route' => 'admin.categories.index', 'active_routes' => ['admin.categories.index', 'admin.categories.create', 'admin.categories.edit']],
                 ['label' => 'التصنيفات الفرعية', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
-                ['label' => 'خيارات التصنيفات الفرعية', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
-                ['label' => 'طاولة عمل الابن', 'route' => 'admin.child-workbench.index', 'active' => 'admin.child-workbench.'],
+                ['label' => 'خيارات الأبناء (جماعي)', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+            ]],
+            ['label' => 'مفردات الخيارات', 'type' => 'section', 'children' => [
                 ['label' => 'الخيارات', 'route' => 'admin.options.index', 'active' => 'admin.options.'],
                 ['label' => 'مجموعات الخيارات', 'route' => 'admin.option-groups.index', 'active' => 'admin.option-groups.'],
             ]],
@@ -57,25 +58,50 @@
                 ['label' => 'الخصائص', 'route' => 'admin.catalog-attributes.index', 'active' => 'admin.catalog-attributes.'],
             ]],
         ]],
-        ['label' => 'الخدمات والتسعير', 'route' => 'admin.platform-services.index', 'icon' => 'settings', 'active' => ['admin.platform-services.', 'admin.platform-service-fee-promotions.', 'admin.service-fee-rules.', 'admin.business_service_prices.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.categories.services-bulk.', 'admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.business-offers-subscriptions.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.notification-center.'], 'children' => [
-            ['label' => 'إعداد الخدمات', 'type' => 'section', 'children' => [
+
+        /*
+        |----------------------------------------------------------------------
+        | الخدمات والتسعير — seventeen entries in four mixed sections, now 3x3
+        |----------------------------------------------------------------------
+        | It had become a drawer for anything service-shaped: partnerships,
+        | offers, boosts, follows, subscriptions and the notification centre sat
+        | beside the taxonomy configuration and have nothing to do with it. They
+        | have their own group below now.
+        |
+        | What is left is the three questions an admin actually walks, in the
+        | order they are walked: configure a child, define the service
+        | vocabulary, set what it costs. «مصفوفة كتالوج الخدمات» is gone (it
+        | duplicated the bulk screen) and «رسوم الأبناء (جماعي)» appears for the
+        | first time — the screen existed and no menu entry ever pointed at it.
+        */
+        ['label' => 'الخدمات والتسعير', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.service-fee-rules.', 'admin.platform-service-fee-promotions.'], 'children' => [
+            ['label' => 'إعداد الابن', 'type' => 'section', 'children' => [
+                ['label' => 'طاولة عمل الابن', 'route' => 'admin.child-workbench.index', 'active' => 'admin.child-workbench.'],
+                ['label' => 'ربط الخدمات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
+                ['label' => 'رسوم الأبناء (جماعي)', 'route' => 'admin.category-child-service-fees.bulk.edit', 'active' => 'admin.category-child-service-fees.'],
+            ]],
+            ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
-                ['label' => 'فروع أنواع العناصر', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
-                ['label' => 'لوحة فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
+                ['label' => 'فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => ['admin.service-branches.', 'admin.platform-service-item-groups.']],
             ]],
-            ['label' => 'الربط والتسعير', 'type' => 'section', 'children' => [
-                ['label' => 'ربط الخدمات بالتصنيفات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
+            ['label' => 'التسعير والرسوم', 'type' => 'section', 'children' => [
                 ['label' => 'أسعار خدمات الأعمال', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
                 ['label' => 'قواعد الرسوم الديناميكية', 'route' => 'admin.service-fee-rules.index', 'active' => 'admin.service-fee-rules.'],
                 ['label' => 'عروض الرسوم', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
             ]],
-            ['label' => 'العمليات التجارية', 'type' => 'section', 'children' => [
+        ]],
+
+        // Moved out of «الخدمات والتسعير»: selling BETWEEN businesses, and
+        // promoting what they sell, is a different job from deciding what a
+        // category child is allowed to offer at all.
+        ['label' => 'العروض والشراكات', 'route' => 'admin.business-partnerships.index', 'icon' => 'ticket', 'active' => ['admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
+            ['label' => 'الشراكات', 'type' => 'section', 'children' => [
                 ['label' => 'شراكات الأعمال', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
                 ['label' => 'مخصصات الحجز', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
                 ['label' => 'العروض التجارية', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
             ]],
-            ['label' => 'العروض والتسويق', 'type' => 'section', 'children' => [
+            ['label' => 'التسويق', 'type' => 'section', 'children' => [
                 ['label' => 'أداء العروض', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
                 ['label' => 'باقات تعزيز العروض', 'route' => 'admin.offer-boost-packages.index', 'active' => 'admin.offer-boost-packages.'],
                 ['label' => 'متابعات العروض', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],

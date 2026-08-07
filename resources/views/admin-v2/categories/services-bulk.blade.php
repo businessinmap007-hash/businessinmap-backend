@@ -331,11 +331,11 @@
                                     <div class="a2-branch-block a2-mt-16" data-service-id="{{ $serviceId }}">
                                         <h4 class="a2-section-title">{{ __('الفروع والأنواع المسموحة') }}</h4>
                                         <div class="a2-section-subtitle">
-                                            {{ __('اختر الفروع المناسبة لهذا التصنيف — صاحب الحساب سيختار مما تحدده هنا فقط. اترك الكل فارغًا للسماح بجميع الأنواع. تُطبّق على كل الفروع المحددة.') }}
+                                            {{ __('اختر الفروع المناسبة لهذا التصنيف — صاحب الحساب سيختار مما تحدده هنا فقط. اترك الكل فارغًا للسماح بجميع الأنواع. ما تغيّره هنا يُطبَّق على كل الفروع المحددة؛ وما لا تلمسه يبقى لكل فرع كما هو.') }}
                                         </div>
 
                                         <div class="a2-alert a2-alert-warning js-branch-mixed-warning" hidden>
-                                            {{ __('الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار، وأي حفظ جديد سيطبّق الاختيار الحالي على كل المحدد.') }}
+                                            {{ __('الأقسام الفرعية المختارة تحتوي اختيارات مختلفة لهذه الخدمة. يُعرض أول اختيار للاطّلاع فقط؛ ولن يُكتب على الباقي إلا إذا غيّرت الاختيار هنا بنفسك.') }}
                                         </div>
 
                                         @php
@@ -356,6 +356,14 @@
                                                 </button>
                                             </div>
                                         @endif
+
+                                        {{-- One picker fills from the FIRST selected child, so its
+                                             contents are a proposal until someone moves a checkbox.
+                                             Without this flag, saving wrote that one list to every
+                                             selected child — see typesTouched() in the controller. --}}
+                                        <input type="hidden" class="js-types-touched"
+                                               name="types_touched[{{ $serviceId }}]"
+                                               value="{{ old("types_touched.$serviceId") ? 1 : 0 }}">
 
                                         <div class="a2-branch-list a2-mt-12">
                                             @foreach($branchData['branches'] as $branch)
@@ -560,68 +568,10 @@
                         Root: {{ $activeRoot ? $nameOf($activeRoot) : '—' }}
                     </span>
                     <span class="a2-pill a2-pill-gray">
-                        {{ __('الفروع المختارة:') }}  435@php
-    $rootsSafe = collect($roots ?? []);
-    $servicesSafe = collect($services ?? []);
-    $rootIdInt = (int) ($rootId ?? 0);
-
-    $activeServiceCountsSafe = $activeServiceCounts ?? [];
-    $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
-    $feeMatrixSafe = $feeMatrix ?? [];
-    $serviceBranchesSafe = $serviceBranches ?? [];
-    $configMatrixSafe = $configMatrix ?? [];
-    $hasOldInput = count(old()) > 0;
-
-    $nameOf = function ($item) {
-        $ar = (string) ($item->name_ar ?? '');
-        $en = (string) ($item->name_en ?? '');
-
-        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
-    };
-
-    $activeRoot = $rootIdInt > 0
-        ? $rootsSafe->firstWhere('id', $rootIdInt)
-        : $rootsSafe->first();
-
-    if (! $activeRoot) {
-        $activeRoot = $rootsSafe->first();
-    }
-
-    $activeRootId = (int) optional($activeRoot)->id;
-    $activeChildren = collect($activeRoot->children ?? []);
-@endphp436 
+                        {{ __('الفروع المختارة:') }} <strong id="selectedChildrenCount">0</strong>
                     </span>
                     <span class="a2-pill a2-pill-gray">
-                        {{ __('الخدمات المختارة:') }}  439@php
-    $rootsSafe = collect($roots ?? []);
-    $servicesSafe = collect($services ?? []);
-    $rootIdInt = (int) ($rootId ?? 0);
-
-    $activeServiceCountsSafe = $activeServiceCounts ?? [];
-    $activeChildrenCountInt = (int) ($activeChildrenCount ?? 0);
-    $feeMatrixSafe = $feeMatrix ?? [];
-    $serviceBranchesSafe = $serviceBranches ?? [];
-    $configMatrixSafe = $configMatrix ?? [];
-    $hasOldInput = count(old()) > 0;
-
-    $nameOf = function ($item) {
-        $ar = (string) ($item->name_ar ?? '');
-        $en = (string) ($item->name_en ?? '');
-
-        return $ar !== '' ? $ar : ($en !== '' ? $en : ('#' . ($item->id ?? '')));
-    };
-
-    $activeRoot = $rootIdInt > 0
-        ? $rootsSafe->firstWhere('id', $rootIdInt)
-        : $rootsSafe->first();
-
-    if (! $activeRoot) {
-        $activeRoot = $rootsSafe->first();
-    }
-
-    $activeRootId = (int) optional($activeRoot)->id;
-    $activeChildren = collect($activeRoot->children ?? []);
-@endphp440 
+                        {{ __('الخدمات المختارة:') }} <strong id="selectedServicesCount">0</strong>
                     </span>
                     <span class="a2-pill a2-pill-gray">
                         {{ __('الوضع:') }} <strong id="selectedModeLabel">{{ __('إضافة / تحديث') }}</strong>
@@ -938,6 +888,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return document.querySelector('.a2-branch-block[data-service-id="' + serviceId + '"]');
     }
 
+    function markTypesTouched(serviceId, touched) {
+        const block = branchBlock(serviceId);
+        const flag = block ? block.querySelector('.js-types-touched') : null;
+
+        if (flag) {
+            flag.value = touched ? '1' : '0';
+        }
+    }
+
     function setBranchNestedTypes(branchCheckbox, checked) {
         const branchEl = branchCheckbox.closest('.a2-branch');
 
@@ -1014,6 +973,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             return;
         }
+
+        // The picker is about to be re-filled from whatever is selected now, so
+        // whatever was ticked before this point was not a choice about THESE
+        // children.
+        markTypesTouched(serviceId, false);
 
         block.querySelectorAll('.js-branch-checkbox, .js-type-checkbox').forEach(function (cb) {
             cb.checked = false;
@@ -1258,12 +1222,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('.js-branch-checkbox').forEach(function (branchCb) {
         branchCb.addEventListener('change', function () {
+            markTypesTouched(branchCb.dataset.serviceId, true);
             setBranchNestedTypes(branchCb, branchCb.checked);
         });
     });
 
     document.querySelectorAll('.js-type-checkbox').forEach(function (typeCb) {
         typeCb.addEventListener('change', function () {
+            markTypesTouched(typeCb.dataset.serviceId, true);
+
             /* Unticking any type of a fully-selected branch drops that branch to
                explicit fine-tuned mode (the remaining ticked types still apply). */
             if (typeCb.checked) {

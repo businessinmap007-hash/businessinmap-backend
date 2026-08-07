@@ -39,6 +39,12 @@ class ServiceBulkAllowedTypesTest extends TestCase
             ->value('category_id');
     }
 
+    /**
+     * Every case here is an admin WORKING the picker — ticking a branch, naming
+     * types — so the request carries the touched flag the blade raises on the
+     * first change event. An untouched picker is a different question, and
+     * BulkSaveKeepsChildKindsTest asks it: it must not write to anyone.
+     */
     private function apply(array $itemGroups, array $allowedTypes): array
     {
         // Resolved from the container: the controller now takes the one
@@ -50,6 +56,7 @@ class ServiceBulkAllowedTypesTest extends TestCase
             'mode' => 'append',
             'item_groups' => [self::BOOKING => $itemGroups],
             'allowed_item_types' => [self::BOOKING => $allowedTypes],
+            'types_touched' => [self::BOOKING => 1],
         ]));
 
         $config = json_decode((string) DB::table('category_service_configs')

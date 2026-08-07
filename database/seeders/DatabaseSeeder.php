@@ -38,6 +38,12 @@ class DatabaseSeeder extends Seeder
            // Without it a full seed rebuilds the vocabulary the types no longer
            // own — see the class docblock for why the type says HOW, not WHAT.
            ServiceKindsCollapseSeeder::class,
+
+           // The same per-child assignment, on its own, so drift can be undone
+           // without re-running the whole collapse. Harmless right after it —
+           // it reports «already correct» and writes nothing.
+           BookingChildKindsSeeder::class,
+
            RetailBranchesSeeder::class,
            RetailChildBranchesSeeder::class,
            RetailProductTaxonomySeeder::class,

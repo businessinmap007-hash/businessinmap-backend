@@ -69,13 +69,55 @@ class CategoryServiceBulkController extends Controller
     }
 
     /**
+     * Did the admin actually work the type picker in THIS save?
+     *
+     * The picker is filled from the first selected child, so what comes back in
+     * `allowed_item_types` is only a proposal until a human moves a checkbox.
+     * The blade raises this flag on the first change event — see the note on
+     * resolveAllowedItemTypes for what it protects.
+     */
+    private function typesTouched(Request $request, int $serviceId): bool
+    {
+        return $this->toBool($request->input("types_touched.{$serviceId}"));
+    }
+
+    /**
      * The allowed item-type KEYS for a (service) selection: the union of every
      * type reachable through the ticked branches PLUS any individually ticked
      * (ungrouped / fine-tuned) types. This is what the owner panel later filters
      * its pickable types against (CategoryServiceConfig.config.allowed_item_types).
+     *
+     * @param  array<string,mixed>  $stored  the child's own config, as it stands
      */
-    private function resolveAllowedItemTypes(Request $request, int $serviceId): array
+    private function resolveAllowedItemTypes(Request $request, int $serviceId, array $stored = []): array
     {
+        /*
+         * One picker, many children — so an untouched picker keeps its hands off.
+         *
+         * The screen shows a SINGLE type picker for the whole batch and fills it
+         * from the FIRST selected child; when the children disagree it says so in
+         * a «mixed» warning and carries on. Saving then wrote that one list to
+         * every selected child, so ticking five health children to turn a service
+         * on flattened them onto one vocabulary: on 2026-08-07 22:04 مستشفى،
+         * عيادة، مركز طبي، نادي صحي and معمل تحاليل all ended the save carrying
+         * the same five kinds — a laboratory offering إجراء طبي and a health club
+         * offering كشف, while the lab lost سحب عينة بالمنزل, the one kind it
+         * exists for.
+         *
+         * The admin had said nothing about vocabulary; they had said «these
+         * children may sell bookings». So a list is written to the batch only
+         * when it was chosen in this save. Otherwise each child keeps its own,
+         * which is the whole point of the per-child assignment in
+         * service_kinds.php and in the child workbench.
+         */
+        if (! $this->typesTouched($request, $serviceId)) {
+            $kept = $this->normalizeArray($stored['allowed_item_types'] ?? []);
+
+            if (! empty($kept)) {
+                return $kept;
+            }
+        }
+
         $explicit = $this->normalizeArray($request->input("allowed_item_types.{$serviceId}", []));
 
         /*
@@ -222,8 +264,16 @@ class CategoryServiceBulkController extends Controller
         | service, not only booking.
         |--------------------------------------------------------------------------
         */
-        $config['item_groups'] = $this->selectedGroupIds($request, (int) $service->id);
-        $config['allowed_item_types'] = $this->resolveAllowedItemTypes($request, (int) $service->id);
+        $groups = $this->selectedGroupIds($request, (int) $service->id);
+
+        // The branch ticks are the same one-picker-many-children proposal the
+        // types are, and they answer the same way.
+        if (! $this->typesTouched($request, (int) $service->id) && ! empty($stored['item_groups'])) {
+            $groups = $this->normalizeIntArray($stored['item_groups']);
+        }
+
+        $config['item_groups'] = $groups;
+        $config['allowed_item_types'] = $this->resolveAllowedItemTypes($request, (int) $service->id, $stored);
 
         return $config;
     }
@@ -651,6 +701,11 @@ class CategoryServiceBulkController extends Controller
             'allowed_item_types' => ['nullable', 'array'],
             'allowed_item_types.*' => ['nullable', 'array'],
             'allowed_item_types.*.*' => ['string', 'max:191'],
+
+            // Raised by the blade the first time a human moves a branch/type
+            // checkbox, per service — see typesTouched().
+            'types_touched' => ['nullable', 'array'],
+            'types_touched.*' => ['nullable'],
         ], [], [
             'root_id' => __('القسم الرئيسي'),
             'category_ids' => __('الأقسام الفرعية'),

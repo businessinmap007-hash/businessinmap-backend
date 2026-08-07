@@ -85,7 +85,19 @@ class ChildOptionRedistributionTest extends TestCase
         $this->assertNotContains('نطاق التعامل', $groups->all(), 'a hotel does not export');
     }
 
-    /** An active service that allows no item type lets a business sell nothing. */
+    /**
+     * An active service with an empty `allowed_item_types` is UNBOUNDED, not
+     * empty: both readers treat the missing list as «no restriction», so the
+     * child offers every type the service has.
+     *
+     * That was harmless while a branch was a coarse group and became wrong with
+     * the kinds collapse — «صيدلية» came out of a bulk save on 2026-08-07 with
+     * nothing ticked, which let a pharmacy take a hotel stay and a restaurant
+     * table. BookingChildKindsSeeder bounds these from the declared branches.
+     *
+     * @see \App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog
+     * @see \App\Support\CategoryBServiceSupport::allowsItemType()
+     */
     public function test_no_active_service_config_allows_nothing(): void
     {
         $empty = DB::table('category_service_configs as c')
@@ -103,7 +115,8 @@ class ChildOptionRedistributionTest extends TestCase
 
         $this->assertEmpty(
             $empty->all(),
-            'these children have a live service they cannot list anything under: ' . $empty->implode('، ')
+            'these children have a live service with no bound on what they may list, '
+                . 'so they offer every type it has: ' . $empty->implode('، ')
         );
     }
 

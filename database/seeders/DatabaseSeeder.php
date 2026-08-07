@@ -43,6 +43,10 @@ class DatabaseSeeder extends Seeder
            RetailProductTaxonomySeeder::class,
            BusinessOffersEnablementSeeder::class,
 
+           // Order within a price-role tier. The tiers themselves are sorted
+           // by OptionGroup::ROLE_RANK and are not stored.
+           OptionGroupDisplayOrderSeeder::class,
+
 
 
 

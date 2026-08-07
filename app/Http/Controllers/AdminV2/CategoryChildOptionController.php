@@ -43,9 +43,8 @@ class CategoryChildOptionController extends Controller
                         ->orderBy('id', 'asc');
                 }
             ])
-            ->orderBy('reorder')
-            ->orderBy('id')
-            ->get(['id', 'name_ar', 'name_en', 'reorder'])
+            ->inDisplayOrder()
+            ->get(['id', 'name_ar', 'name_en', 'reorder', 'price_role'])
             ->map(function ($group) {
                 $group->options = collect($group->options)->values();
                 return $group;
@@ -217,8 +216,9 @@ class CategoryChildOptionController extends Controller
                         ->orderBy('id');
                 },
             ])
-            ->orderByRaw('COALESCE(reorder, 999999) ASC')
-            ->orderBy('id')
+            // Same order the customer meets them in, so the screen an admin
+            // curates and the list a customer filters by cannot disagree.
+            ->inDisplayOrder()
             ->get(['id', 'name_ar', 'name_en', 'reorder', 'price_role'])
             ->filter(fn ($group) => $group->options->isNotEmpty())
             ->values();

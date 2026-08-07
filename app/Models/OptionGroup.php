@@ -20,6 +20,21 @@ class OptionGroup extends Model
 
     public const ROLES = [self::ROLE_LINE, self::ROLE_MODIFIER, self::ROLE_DESCRIPTIVE];
 
+    /**
+     * The order a customer meets the groups in: what is bought, then what
+     * changes its price, then what merely describes it.
+     *
+     * A filter list ordered by `reorder` alone put «واي فاي مجاني» above «غرفة
+     * مزدوجة» — a facility above the thing being paid for. The role already
+     * says which is which, so the sort follows it and `reorder` decides only
+     * WITHIN a tier, which is what an admin actually curates.
+     */
+    public const ROLE_RANK = [
+        self::ROLE_LINE => 0,
+        self::ROLE_MODIFIER => 1,
+        self::ROLE_DESCRIPTIVE => 2,
+    ];
+
     protected $fillable = [
         'name_ar',
         'name_en',
@@ -32,6 +47,39 @@ class OptionGroup extends Model
         'reorder'   => 'integer',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * The one ordering. Applied to a query over `option_groups` directly, or —
+     * by passing the table/alias the columns live under — to a join that
+     * carries them.
+     */
+    public function scopeInDisplayOrder($query, string $table = 'option_groups')
+    {
+        return $query
+            ->orderByRaw(self::displayOrderSql($table))
+            ->orderByRaw("COALESCE({$table}.reorder, 999999) ASC")
+            ->orderBy("{$table}.id");
+    }
+
+    /** The role-rank expression, for callers that build their own ORDER BY. */
+    public static function displayOrderSql(string $table = 'option_groups'): string
+    {
+        $whens = '';
+
+        foreach (self::ROLE_RANK as $role => $rank) {
+            $whens .= " WHEN '{$role}' THEN {$rank}";
+        }
+
+        // Anything unrecognised sorts with the descriptive tail rather than
+        // ahead of the priced groups — an unknown role is not a claim to sell.
+        return "CASE {$table}.price_role{$whens} ELSE 99 END ASC";
+    }
+
+    /** Where this group sits in the three tiers. */
+    public function roleRank(): int
+    {
+        return self::ROLE_RANK[$this->price_role] ?? 99;
+    }
 
     /** Groups a pricing screen may show: the lines and what qualifies them. */
     public function scopePriced($query)

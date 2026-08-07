@@ -120,8 +120,7 @@ class CategoryChild extends Model
                     ->where('category_child_option.child_id', $this->id)
                     ->whereNotNull('options.group_id');
             })
-            ->orderBy('reorder')
-            ->orderBy('id');
+            ->inDisplayOrder();
     }
 
     /**
@@ -139,8 +138,7 @@ class CategoryChild extends Model
                     ->where('options.is_active', 1)
                     ->whereNotNull('options.group_id');
             })
-            ->orderBy('reorder')
-            ->orderBy('id');
+            ->inDisplayOrder();
     }
 
     /*

@@ -169,6 +169,9 @@ final class DiscoveryController extends Controller
                 'id' => $gid ?: null,
                 'name' => $o->group ? $this->label($o->group->name_ar, $o->group->name_en, '') : '',
                 'options' => [],
+                // Sort keys, dropped before the response is sent.
+                '_rank' => $o->group ? $o->group->roleRank() : 99,
+                '_reorder' => (int) ($o->group->reorder ?? 999999),
             ];
             $groups[$gid]['options'][] = [
                 'id' => (int) $o->id,
@@ -176,6 +179,20 @@ final class DiscoveryController extends Controller
                 'businesses' => (int) ($counts[$o->id] ?? 0),
             ];
         }
+
+        // What is bought, then what changes its price, then what only describes
+        // it. Ordered by `reorder` alone the list opened on «واي فاي مجاني» and
+        // buried «غرفة مزدوجة» — a facility above the thing being paid for.
+        uksort($groups, function ($a, $b) use ($groups) {
+            return [$groups[$a]['_rank'], $groups[$a]['_reorder'], $a]
+                <=> [$groups[$b]['_rank'], $groups[$b]['_reorder'], $b];
+        });
+
+        $groups = array_map(function (array $group) {
+            unset($group['_rank'], $group['_reorder']);
+
+            return $group;
+        }, $groups);
 
         return response()->json([
             'success' => true,

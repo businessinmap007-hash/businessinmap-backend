@@ -109,7 +109,8 @@ class MerchantOfferingVocabulary
             ->whereIn('o.id', $ids)
             ->where('g.is_active', 1)
             ->whereIn('g.price_role', [OptionGroup::ROLE_LINE, OptionGroup::ROLE_MODIFIER])
-            ->orderBy('g.reorder')
+            ->orderByRaw(OptionGroup::displayOrderSql('g'))
+            ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
             ->orderBy('o.id')
             ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.price_role']);
     }

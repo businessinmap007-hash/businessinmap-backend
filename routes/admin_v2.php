@@ -175,6 +175,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [ChildWorkbenchController::class, 'index'])->name('index');
             Route::post('options', [ChildWorkbenchController::class, 'saveOptions'])->name('options');
             Route::post('services', [ChildWorkbenchController::class, 'saveServices'])->name('services');
+            Route::post('fees', [ChildWorkbenchController::class, 'saveFees'])->name('fees');
         });
 
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
@@ -193,7 +194,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('category-child-service-fees')->name('category-child-service-fees.')->middleware('can:' . AdminAbility::FEES)->group(function () {
             Route::get('bulk/edit', [CategoryChildServiceFeeBulkController::class, 'edit'])->name('bulk.edit');
             Route::post('bulk/update', [CategoryChildServiceFeeBulkController::class, 'update'])->name('bulk.update');
-            Route::get('{categoryChild}', [CategoryChildServiceFeeController::class, 'edit'])->whereNumber('categoryChild')->name('edit');
+            // Retired 2026-08-08: the fees for one child now sit beside its
+            // options and services on the child workbench, keyed the same way.
+            // The route stays so old links land there instead of 404 — but it
+            // needs the ROOT, which this URL never carried, so it takes the
+            // child's first root when none is given.
+            Route::get('{categoryChild}', function (int $categoryChild, \Illuminate\Http\Request $request) {
+                $rootId = (int) $request->get('parent_id', 0)
+                    ?: (int) \Illuminate\Support\Facades\DB::table('category_parent_child')
+                        ->where('child_id', $categoryChild)
+                        ->value('parent_id');
+
+                return redirect()->to(route('admin.child-workbench.index', array_filter([
+                    'root_id' => $rootId ?: null,
+                    'child_id' => $categoryChild,
+                ]), false));
+            })->whereNumber('categoryChild')->name('edit');
             Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 

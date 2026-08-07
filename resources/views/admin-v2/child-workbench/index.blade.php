@@ -213,6 +213,74 @@
                     <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ الخدمات') }}</button>
                 </div>
             </form>
+
+            {{-- ── column 3: fees ─────────────────────────────────────────
+                 The third thing decided on this same (root, child) key, and
+                 the last one that still lived on a page of its own. --}}
+            <form method="POST" action="{{ route('admin.child-workbench.fees', [], false) }}" class="a2-card a2-card--section">
+                @csrf
+                <input type="hidden" name="root_id" value="{{ $rootId }}">
+                <input type="hidden" name="child_id" value="{{ $childId }}">
+
+                <div class="a2-card-head">
+                    <h2 class="a2-card-title">{{ __('الرسوم') }}</h2>
+                    <span class="a2-muted">{{ __('ما تأخذه المنصّة على كل خدمة') }}</span>
+                </div>
+
+                <div class="a2-card-body">
+                    @foreach($feePanel as $fee)
+                        @php $offered = collect($servicePanel)->firstWhere('id', $fee->id)?->enabled; @endphp
+
+                        <div class="cw-service {{ $offered ? '' : 'cw-fee-off' }}">
+                            <div class="cw-service-head">
+                                <label class="cw-toggle">
+                                    <input type="checkbox" name="fees[{{ $fee->id }}][is_active]" value="1"
+                                           @checked($fee->is_active) @disabled(! $offered)>
+                                    <strong>{{ $fee->name }}</strong>
+                                </label>
+
+                                @unless($offered)
+                                    <span class="a2-muted" style="font-size:12px;">{{ __('غير مفعّلة لهذا القسم — فعّلها من «الخدمات» أولًا') }}</span>
+                                @endunless
+                            </div>
+
+                            @if($offered)
+                                @foreach([
+                                    'business' => __('على التاجر'),
+                                    'client' => __('على العميل'),
+                                ] as $payer => $payerLabel)
+                                    <div class="cw-fee-row">
+                                        <label class="cw-toggle">
+                                            <input type="checkbox" name="fees[{{ $fee->id }}][{{ $payer }}_fee_enabled]" value="1"
+                                                   @checked($fee->{$payer . '_enabled'})>
+                                            <span>{{ $payerLabel }}</span>
+                                        </label>
+
+                                        <select class="a2-select" name="fees[{{ $fee->id }}][{{ $payer }}_fee_type]">
+                                            <option value="fixed" @selected($fee->{$payer . '_type'} === 'fixed')>{{ __('مبلغ ثابت') }}</option>
+                                            <option value="percent" @selected($fee->{$payer . '_type'} === 'percent')>{{ __('نسبة %') }}</option>
+                                        </select>
+
+                                        <input class="a2-input" type="number" step="0.01" min="0"
+                                               name="fees[{{ $fee->id }}][{{ $payer }}_fee_amount]"
+                                               value="{{ $fee->{$payer . '_amount'} }}">
+                                    </div>
+                                @endforeach
+
+                                <div class="cw-fee-row">
+                                    <span class="a2-muted" style="font-size:12px;">{{ __('العملة') }}</span>
+                                    <input class="a2-input" name="fees[{{ $fee->id }}][currency]" maxlength="3"
+                                           value="{{ $fee->currency }}" style="max-width:90px;">
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="a2-card-foot">
+                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ الرسوم') }}</button>
+                </div>
+            </form>
         </div>
     @endif
 </div>
@@ -247,5 +315,9 @@
     .cw-service-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .cw-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
     .cw-sub { font-size: 13px; opacity: .85; margin-top: 6px; }
+
+    .cw-fee-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .cw-fee-row .a2-select, .cw-fee-row .a2-input { max-width: 150px; }
+    .cw-fee-off { opacity: .55; }
 </style>
 @endpush

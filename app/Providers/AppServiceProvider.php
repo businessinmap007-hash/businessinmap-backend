@@ -134,7 +134,20 @@ class AppServiceProvider extends ServiceProvider
                     ->middleware('can:' . AdminAbility::OPERATIONS)
                     ->name('bookings.protectionPreview');
 
-                Route::get('service-catalog-matrix', [\App\Http\Controllers\AdminV2\ServiceCatalogMatrixController::class, 'index'])
+                /*
+                 * Retired 2026-08-08. It was a bulk root+children+services
+                 * editor — which is exactly what «ربط الخدمات بالتصنيفات
+                 * (جماعي)» already is, down to picking item types directly
+                 * (CategoryServiceBulkController::resolveAllowedItemTypes takes
+                 * explicit keys and only expands a branch when none were
+                 * ticked). Two screens, one job. The name is kept so existing
+                 * links and bookmarks land somewhere useful instead of 404.
+                 */
+                Route::get('service-catalog-matrix', function (\Illuminate\Http\Request $request) {
+                    return redirect()->to(route('admin.categories.services-bulk.index', array_filter([
+                        'root_id' => (int) $request->get('root_id', 0) ?: null,
+                    ]), false));
+                })
                     ->middleware('can:' . AdminAbility::CATALOG)
                     ->name('service-catalog-matrix.index');
 

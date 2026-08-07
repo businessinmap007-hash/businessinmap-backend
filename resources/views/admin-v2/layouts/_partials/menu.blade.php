@@ -63,7 +63,6 @@
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
                 ['label' => 'فروع أنواع العناصر', 'route' => 'admin.platform-service-item-groups.index', 'active' => 'admin.platform-service-item-groups.'],
                 ['label' => 'لوحة فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => 'admin.service-branches.'],
-                ['label' => 'مصفوفة كتالوج الخدمات', 'route' => 'admin.service-catalog-matrix.index', 'active' => 'admin.service-catalog-matrix.'],
             ]],
             ['label' => 'الربط والتسعير', 'type' => 'section', 'children' => [
                 ['label' => 'ربط الخدمات بالتصنيفات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],

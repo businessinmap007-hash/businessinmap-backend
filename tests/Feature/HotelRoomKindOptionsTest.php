@@ -81,7 +81,13 @@ class HotelRoomKindOptionsTest extends TestCase
         // A resort's own stock; a plain hotel has neither.
         $this->assertContains('شاليه', $resort);
         $this->assertContains('بنجلو', $resort);
+        $this->assertContains('ڤيلا', $resort, 'a resort without a villa is not a resort');
         $this->assertNotContains('بنجلو', $hotel, 'a city hotel does not let bungalows');
+
+        // The twin private room is the commonest thing a hostel sells after
+        // the bed; what the owner removed in August was its SUITE.
+        $this->assertContains('غرفة توأم', $hostel);
+        $this->assertNotContains('جناح', $hostel, 'a hostel has no suite');
     }
 
     /** Every child that lets a room by the night can now name which room. */
@@ -92,7 +98,8 @@ class HotelRoomKindOptionsTest extends TestCase
         // room, and the owner curated the suite away from it on 2026-08-05.
         // Asserting a suite everywhere is the universal-list habit this file
         // exists to argue against.
-        foreach (['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة'] as $name) {
+        // «شقق فندقية» is deliberately absent: it sells units, not beds.
+        foreach (['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة'] as $name) {
             $id = $this->childId($name);
 
             if (! $id) {
@@ -113,8 +120,8 @@ class HotelRoomKindOptionsTest extends TestCase
 
     /**
      * «شقة» and «ڤيلا» already existed as line options under «عقارات وممتلكات».
-     * A hotel letting a whole flat sells the same thing an estate agent lists,
-     * and one word for one thing is the point of the vocabulary.
+     * A resort letting a whole villa sells the same thing an estate agent
+     * lists, and one word for one thing is the point of the vocabulary.
      */
     public function test_the_shared_words_were_not_duplicated(): void
     {
@@ -126,7 +133,60 @@ class HotelRoomKindOptionsTest extends TestCase
             );
         }
 
-        $this->assertContains('شقة', $this->lineOptionsOf($this->childId('فندق')));
+        $this->assertContains('ڤيلا', $this->lineOptionsOf($this->childId('منتجع')));
+        $this->assertContains('شقة', $this->lineOptionsOf($this->childId('شقق فندقية')));
+    }
+
+    /**
+     * The international room-type standard: a hotel sells rooms and suites.
+     * A whole apartment is the aparthotel classification and a whole villa is
+     * the resort one — which is exactly why «شقق فندقية» and «منتجع» exist as
+     * separate children rather than as notes on «فندق».
+     */
+    public function test_a_city_hotel_does_not_let_whole_homes(): void
+    {
+        $hotel = $this->lineOptionsOf($this->childId('فندق'));
+
+        foreach (['شاليه', 'بنجلو'] as $name) {
+            $this->assertNotContains($name, $hotel, "a city hotel does not let «{$name}»");
+        }
+
+        // شقة/ڤيلا are held on «فندق» only where a live business still prices
+        // them — the seeder refuses to withdraw a word a merchant has sold in.
+        foreach (['شقة', 'ڤيلا'] as $name) {
+            if (! in_array($name, $hotel, true)) {
+                continue;
+            }
+
+            $optionId = (int) DB::table('options')->where('name_ar', $name)->value('id');
+
+            $this->assertTrue(
+                DB::table('business_service_prices as p')
+                    ->join('users as u', 'u.id', '=', 'p.business_id')
+                    ->where('u.category_child_id', $this->childId('فندق'))
+                    ->where('p.line_option_id', $optionId)
+                    ->exists(),
+                "«{$name}» is on «فندق» without a priced row to justify it"
+            );
+        }
+    }
+
+    /**
+     * A serviced apartment is sold by UNIT SIZE, not by bed count. «شقق
+     * فندقية» carried four bed-count entries — «غرفة فردية» among them — which
+     * is the wrong axis for the whole classification.
+     */
+    public function test_the_aparthotel_sells_by_unit_size(): void
+    {
+        $apart = $this->lineOptionsOf($this->childId('شقق فندقية'));
+
+        foreach (['استوديو', 'شقة', 'غرفة', 'غرفتين', 'ثلاث غرف'] as $name) {
+            $this->assertContains($name, $apart, "an aparthotel must be able to sell «{$name}»");
+        }
+
+        foreach (['غرفة فردية', 'غرفة مزدوجة', 'غرفة توأم'] as $name) {
+            $this->assertNotContains($name, $apart, "«{$name}» is a bed count, not a unit size");
+        }
     }
 
     /** The repair's whole purpose: no price is left pointing at a dead key. */

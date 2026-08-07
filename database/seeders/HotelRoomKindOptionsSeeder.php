@@ -73,18 +73,24 @@ class HotelRoomKindOptionsSeeder extends Seeder
      * @var array<string, array{0: string, 1: string, 2: list<string>|null}>
      */
     private const KINDS = [
-        'single_room' => ['غرفة فردية', 'Single Room', null],
-        'double_room' => ['غرفة مزدوجة', 'Double Room', null],
+        // A serviced apartment is not sold by bed count — see APARTHOTEL below.
+        'single_room' => ['غرفة فردية', 'Single Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        'double_room' => ['غرفة مزدوجة', 'Double Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'family_room' => ['غرفة عائلية', 'Family Room', null],
 
         // A hostel has no suite: it sells a bed, or a plain private room.
         'suite' => ['جناح', 'Suite', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
 
         // These two live in «عقارات وممتلكات», reused rather than recreated —
-        // see the class docblock. Business 212 prices both, so the hotel keeps
-        // them; a hostel letting a whole villa is not a thing.
-        'villa' => ['ڤيلا', 'Villa', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة']],
-        'apartment' => ['شقة', 'Apartment', ['فندق', 'شقق فندقية', 'منتجع', 'بيت ضيافة']],
+        // see the class docblock.
+        //
+        // NOT a city hotel's stock. In the international room-type standard a
+        // hotel sells rooms and suites; whole apartments belong to the
+        // aparthotel classification and whole villas to the resort one, which
+        // is precisely why «شقق فندقية» and «منتجع» exist as separate children.
+        // A hotel with a residences wing is a resort by another name.
+        'villa' => ['ڤيلا', 'Villa', ['منتجع']],
+        'apartment' => ['شقة', 'Apartment', ['شقق فندقية', 'منتجع']],
     ];
 
     /**
@@ -107,11 +113,13 @@ class HotelRoomKindOptionsSeeder extends Seeder
      */
     private const CATALOGUE = [
         // Rooms — anywhere that rents a private room by the night.
-        'standard_room' => ['غرفة قياسية', 'Standard Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        // A hostel grades by dorm size, not by «قياسية» — that is hotel language.
+        'standard_room' => ['غرفة قياسية', 'Standard Room', ['فندق', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'superior_room' => ['غرفة سوبيريور', 'Superior Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
         'deluxe_room' => ['غرفة ديلوكس', 'Deluxe Room', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
-        // نُزل dropped by the owner on 2026-08-05, along with its suite.
-        'twin_room' => ['غرفة توأم', 'Twin Room', ['فندق', 'منتجع', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
+        // Back on نُزل: a twin private room is the commonest thing a hostel
+        // sells after the bed. What the owner removed in August was its SUITE.
+        'twin_room' => ['غرفة توأم', 'Twin Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'triple_room' => ['غرفة ثلاثية', 'Triple Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي']],
         'quad_room' => ['غرفة رباعية', 'Quad Room', ['فندق', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة']],
         'connecting_room' => ['غرفة متصلة', 'Connecting Room', ['فندق', 'منتجع']],
@@ -120,16 +128,34 @@ class HotelRoomKindOptionsSeeder extends Seeder
         // Suites — the graded ladder a hotel prices upward.
         'junior_suite' => ['جناح جونيور', 'Junior Suite', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
         'executive_suite' => ['جناح تنفيذي', 'Executive Suite', ['فندق', 'منتجع']],
-        'presidential_suite' => ['جناح رئاسي', 'Presidential Suite', ['فندق', 'منتجع']],
+        'presidential_suite' => ['جناح رئاسي', 'Presidential Suite', ['فندق', 'منتجع', 'فندق عائم / بوت نيلي']],
         'royal_suite' => ['جناح ملكي', 'Royal Suite', ['فندق', 'منتجع']],
-        'penthouse' => ['بنتهاوس', 'Penthouse', ['فندق', 'منتجع']],
+        'penthouse' => ['بنتهاوس', 'Penthouse', ['فندق', 'شقق فندقية', 'منتجع']],
 
-        // Standalone units — a resort's own stock.
-        'chalet' => ['شاليه', 'Chalet', ['منتجع', 'بيت ضيافة']],
+        // Standalone units — a resort's own stock. A city hotel does not let a
+        // chalet, and a guest house that does is running a resort.
+        'chalet' => ['شاليه', 'Chalet', ['منتجع']],
         'bungalow' => ['بنجلو', 'Bungalow', ['منتجع']],
 
         // What a hostel actually sells, and could not say before.
         'dorm_bed' => ['سرير في غرفة مشتركة', 'Dorm Bed', ['نُزل / هوستل']],
+
+        /*
+        |----------------------------------------------------------------------
+        | The aparthotel, which was selling «غرفة فردية»
+        |----------------------------------------------------------------------
+        | «شقق فندقية» carried four entries, all of them bed counts, which is
+        | the wrong axis entirely: a serviced apartment is sold by UNIT SIZE —
+        | studio, one bedroom, two bedrooms, penthouse — exactly as every
+        | aparthotel brand lists it. Those words already exist in «الغرف»,
+        | where the owner merged the hotel kinds into the property-listing
+        | vocabulary on 2026-08-05; this is the merge finally paying off.
+        */
+        'studio' => ['استوديو', 'Studio', ['فندق', 'شقق فندقية', 'منتجع']],
+        'one_bedroom' => ['غرفة', 'One Bedroom', ['شقق فندقية']],
+        'two_bedroom' => ['غرفتين', 'Two Bedrooms', ['شقق فندقية']],
+        'three_bedroom' => ['ثلاث غرف', 'Three Bedrooms', ['شقق فندقية']],
+        'four_bedroom' => ['أربع غرف', 'Four Bedrooms', ['شقق فندقية']],
     ];
 
     public function run(): void
@@ -149,6 +175,10 @@ class HotelRoomKindOptionsSeeder extends Seeder
             $created = $linked = 0;
             $optionOf = [];
 
+            // childId => option ids this file says that child may let. Built as
+            // we link, then used to withdraw everything it does NOT say.
+            $declared = [];
+
             foreach (array_values(self::KINDS) as $i => [$ar, $en, $childNames]) {
                 $optionId = $this->option($ar, $en, $groupId, $created);
                 $optionOf[array_keys(self::KINDS)[$i]] = $optionId;
@@ -159,6 +189,10 @@ class HotelRoomKindOptionsSeeder extends Seeder
 
                 if ($scoped->isNotEmpty()) {
                     $linked += $this->link($optionId, $scoped, $i);
+                }
+
+                foreach ($scoped->keys() as $childId) {
+                    $declared[(int) $childId][] = $optionId;
                 }
             }
 
@@ -175,16 +209,26 @@ class HotelRoomKindOptionsSeeder extends Seeder
                     $linked += $this->link($optionId, $scoped, $sort);
                 }
 
+                foreach ($scoped->keys() as $childId) {
+                    $declared[(int) $childId][] = $optionId;
+                }
+
                 $sort++;
             }
 
             [$repaired, $stuck] = $this->repairStrandedPrices($optionOf);
+            [$pruned, $held] = $this->prune($children, $declared);
 
             $this->command?->info('Hotel room kinds:');
             $this->command?->line("  - خيارات جديدة : {$created}");
             $this->command?->line("  - روابط أُضيفت : {$linked}");
+            $this->command?->line("  - روابط أُزيلت : {$pruned}");
             $this->command?->line("  - أسعار أُصلحت : {$repaired}");
             $this->command?->line('  - الأبناء : ' . $children->implode('، '));
+
+            if ($held !== []) {
+                $this->command?->warn('  ! أُبقيت رغم خروجها عن النطاق (مُسعَّرة فعلًا): ' . implode('، ', $held));
+            }
 
             if ($stuck !== []) {
                 $this->command?->warn('  ! أسعار مكرّرة لنفس الفئة بقيت كما هي: ' . implode('، ', $stuck));
@@ -287,6 +331,90 @@ class HotelRoomKindOptionsSeeder extends Seeder
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Withdraw the room kinds this file does NOT give a child.
+     *
+     * Until now the seeder could only add. That is why it kept handing نُزل a
+     * suite every run after the owner removed one by hand, and why «فندق» was
+     * still offering a chalet: nothing ever took a link away, so the table was
+     * the union of every version of this list that had ever existed. A seeder
+     * that can only add is not a declaration, it is an accumulation.
+     *
+     * Scope is narrow on purpose — only the option ids THIS file names, and
+     * only on the six hotel children. Nothing else in «الغرف», and nothing in
+     * any other group, is touched.
+     *
+     * One thing outranks the list: a link a merchant is actually PRICING. The
+     * vocabulary is what a merchant may choose from, so withdrawing a word it
+     * has already sold in would leave a live priced row it can no longer edit.
+     * Those are kept and reported rather than cut.
+     *
+     * @param  \Illuminate\Support\Collection<int,string>  $children
+     * @param  array<int,array<int,int>>  $declared
+     * @return array{0:int,1:array<int,string>}
+     */
+    private function prune($children, array $declared): array
+    {
+        $managed = collect($declared)->flatten()->unique()->values();
+
+        if ($managed->isEmpty()) {
+            return [0, []];
+        }
+
+        $pruned = 0;
+        $held = [];
+
+        foreach ($children as $childId => $childName) {
+            $childId = (int) $childId;
+            $keep = collect($declared[$childId] ?? []);
+            $extra = $managed->diff($keep);
+
+            if ($extra->isEmpty()) {
+                continue;
+            }
+
+            // Only what is actually linked can be withdrawn; the rest of $extra
+            // was never given to this child in the first place.
+            $linkedNow = DB::table('category_child_option')
+                ->where('child_id', $childId)
+                ->whereIn('option_id', $extra->all())
+                ->pluck('option_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique();
+
+            if ($linkedNow->isEmpty()) {
+                continue;
+            }
+
+            // Line options this child's own businesses have priced in.
+            $priced = DB::table('business_service_prices as p')
+                ->join('users as u', 'u.id', '=', 'p.business_id')
+                ->where('u.category_child_id', $childId)
+                ->whereIn('p.line_option_id', $linkedNow->all())
+                ->pluck('p.line_option_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique();
+
+            foreach ($priced as $optionId) {
+                $name = DB::table('options')->where('id', $optionId)->value('name_ar');
+                $held[] = "{$childName} / {$name}";
+            }
+
+            $removable = $linkedNow->diff($priced);
+
+            if ($removable->isEmpty()) {
+                continue;
+            }
+
+            $pruned += DB::table('category_child_option')
+                ->where('child_id', $childId)
+                ->whereIn('option_id', $removable->all())
+                ->delete();
+        }
+
+        return [$pruned, $held];
     }
 
     private function link(int $optionId, $children, int $order): int

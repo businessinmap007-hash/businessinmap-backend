@@ -47,7 +47,82 @@ class BookableGuardsTest extends TestCase
             $this->markTestSkipped('No business whose child requires a reservable unit.');
         }
 
-        return [(int) $row->business_id, $serviceId, BookableItem::findOrFail($row->bookable_id)];
+        $item = BookableItem::findOrFail($row->bookable_id);
+
+        // `quantity` is how many IDENTICAL units stand behind one row, so it is
+        // the number of simultaneous bookings the row admits. These tests are
+        // about the one-booking-closes-it rule, and they used to pick whatever
+        // live unit they found and silently assume it was 1 — the day an owner
+        // entered «غرفتان مزدوجتان» as one row with qty 2, both of them failed
+        // and blamed the engine. Pin it; the transaction rolls it back.
+        if ((int) $item->quantity !== 1) {
+            $item->forceFill(['quantity' => 1])->save();
+        }
+
+        return [(int) $row->business_id, $serviceId, $item];
+    }
+
+    /**
+     * And the rule the pin above hides: a row standing for three identical
+     * rooms sells three times before it closes.
+     */
+    public function test_a_row_of_several_identical_units_sells_that_many_times(): void
+    {
+        [$businessId, $serviceId, $item] = $this->unitBooking();
+
+        $item->forceFill(['quantity' => 3])->save();
+
+        $start = now()->addYear()->addMonths(4)->startOfDay()->addHours(14);
+        $end = (clone $start)->addDay();
+
+        $availability = app(BookableAvailabilityService::class);
+        $clientId = DB::table('users')->where('type', 'client')->value('id');
+
+        for ($sold = 1; $sold <= 3; $sold++) {
+            Booking::query()->create([
+                'user_id' => $clientId,
+                'business_id' => $businessId,
+                'service_id' => $serviceId,
+                'bookable_type' => $item->getMorphClass(),
+                'bookable_id' => $item->id,
+                'date' => $start->toDateString(),
+                'time' => $start->format('H:i:s'),
+                'starts_at' => $start,
+                'ends_at' => $end,
+                'status' => Booking::STATUS_ACCEPTED,
+                'quantity' => 1,
+                'price' => 100,
+            ]);
+
+            $this->assertSame(
+                $sold < 3,
+                $availability->isAvailable($item, $start, $end),
+                "after {$sold} of 3 sold the window is wrong"
+            );
+        }
+    }
+
+    /**
+     * `capacity` is how many PEOPLE fit, and nothing reads it: the engine never
+     * compares it with the booking, so a two-person room accepts a booking for
+     * eight. Pinned here as a known gap, not as intended behaviour — if this
+     * ever starts failing, capacity gained an enforcer and this test should
+     * become the assertion of it.
+     */
+    public function test_capacity_is_recorded_but_never_enforced(): void
+    {
+        [$businessId, $serviceId, $item] = $this->unitBooking();
+
+        $item->forceFill(['capacity' => 2])->save();
+
+        $calc = app(ServiceExecutionEngine::class)->prepare(
+            businessId: $businessId,
+            serviceId: $serviceId,
+            bookableId: (int) $item->id,
+            quantity: 8
+        );
+
+        $this->assertSame(8, (int) $calc['price_breakdown']['quantity'], 'capacity is not checked against the booking');
     }
 
     public function test_a_child_that_demands_a_unit_refuses_a_booking_without_one(): void

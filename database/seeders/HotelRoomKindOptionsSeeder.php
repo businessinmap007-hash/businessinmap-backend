@@ -142,6 +142,19 @@ class HotelRoomKindOptionsSeeder extends Seeder
 
         /*
         |----------------------------------------------------------------------
+        | The boat, which was selling «غرفة»
+        |----------------------------------------------------------------------
+        | A Nile cruiser does not let rooms, it lets CABINS — that is the word
+        | on every deck plan and every rate sheet in the trade. The graded
+        | ladder is the same shape as a hotel's (standard → deluxe → suite),
+        | which is why «جناح» and the suites stay: a cruiser's top unit is a
+        | suite, not a suite-cabin. Only the base unit needed its own word.
+        */
+        'cabin' => ['كابينة', 'Cabin', ['فندق عائم / بوت نيلي']],
+        'deluxe_cabin' => ['كابينة ديلوكس', 'Deluxe Cabin', ['فندق عائم / بوت نيلي']],
+
+        /*
+        |----------------------------------------------------------------------
         | The aparthotel, which was selling «غرفة فردية»
         |----------------------------------------------------------------------
         | «شقق فندقية» carried four entries, all of them bed counts, which is

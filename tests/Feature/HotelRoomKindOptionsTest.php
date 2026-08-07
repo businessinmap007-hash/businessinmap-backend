@@ -172,6 +172,25 @@ class HotelRoomKindOptionsTest extends TestCase
     }
 
     /**
+     * A Nile cruiser lets CABINS — the word on every deck plan in the trade.
+     * It kept the suites: a cruiser's top unit is a suite, not a suite-cabin,
+     * so only the base unit needed its own word.
+     */
+    public function test_the_boat_can_say_cabin(): void
+    {
+        $boat = $this->lineOptionsOf($this->childId('فندق عائم / بوت نيلي'));
+
+        $this->assertContains('كابينة', $boat);
+        $this->assertContains('كابينة ديلوكس', $boat);
+        $this->assertContains('جناح', $boat, 'a cruiser sells suites too');
+
+        // Nowhere else. A city hotel has no cabins.
+        foreach (['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة'] as $name) {
+            $this->assertNotContains('كابينة', $this->lineOptionsOf($this->childId($name)), "«{$name}» has no cabins");
+        }
+    }
+
+    /**
      * A serviced apartment is sold by UNIT SIZE, not by bed count. «شقق
      * فندقية» carried four bed-count entries — «غرفة فردية» among them — which
      * is the wrong axis for the whole classification.

@@ -104,6 +104,34 @@ class ServiceWiringIntegrityTest extends TestCase
     }
 
     /**
+     * The same agreement, for a service that is switched off platform-wide.
+     *
+     * Nothing reads these rows while the service is off, which is exactly why
+     * they rot: `business_offers` is derived every run from «does this child
+     * have any typed service», and the seeder that derives it wrote the link
+     * table alone. Re-deriving on 2026-08-08 moved 117 links — 78 children had
+     * lost their last typed service and 39 had gained one — and left as many
+     * configs disagreeing behind them. If the service is ever switched on, that
+     * is what it switches on.
+     */
+    public function test_a_switched_off_service_is_still_wired_consistently(): void
+    {
+        $disagreeing = DB::table('category_platform_services as l')
+            ->join('platform_services as s', 's.id', '=', 'l.platform_service_id')
+            ->leftJoin('category_service_configs as c', function ($join) {
+                $join->on('c.category_id', '=', 'l.category_id')
+                    ->on('c.child_id', '=', 'l.child_id')
+                    ->on('c.platform_service_id', '=', 'l.platform_service_id');
+            })
+            ->where('s.is_active', 0)
+            ->whereNotNull('l.child_id')
+            ->whereColumn('l.is_active', '!=', DB::raw('COALESCE(c.is_active, 0)'))
+            ->count();
+
+        $this->assertSame(0, $disagreeing, 'a dormant service would wake up half-wired');
+    }
+
+    /**
      * Every type a child is allowed to list must be a live type OF THAT
      * SERVICE — a key that is gone, retired, or borrowed from another service
      * silently narrows the owner panel to nothing.

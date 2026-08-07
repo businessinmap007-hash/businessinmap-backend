@@ -129,7 +129,13 @@ return [
              * doorstep, different thing bought, and the price says so.
              */
             514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // عيادة
-            513 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مستشفى
+            /*
+             * The hospital gained «استشارة» on 2026-08-07 — the owner's own
+             * edit, kept because a hospital really does sell an opinion that is
+             * neither a كشف nor a متابعة (a second opinion, a pre-op review).
+             * It is the one child here that carries all three.
+             */
+            513 => ['booking_consultation', 'booking_examination', 'booking_procedure', 'booking_online_consultation', 'booking_follow_up', 'booking_home_sample'], // مستشفى
             515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مركز طبي
 
             /*

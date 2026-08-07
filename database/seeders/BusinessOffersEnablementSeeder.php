@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +22,11 @@ use Illuminate\Support\Facades\DB;
  * Enables the offers link where the rule holds, deactivates it where it
  * doesn't (nothing underneath to offer). Dynamic — no data file; re-running
  * after future services-bulk changes re-derives the correct set. Idempotent.
+ *
+ * Writes through ChildServiceWriter, which touches the link AND the config
+ * together. Writing the link alone is how «سيارات» ended up with a delivery
+ * configuration nothing could reach: its links were switched off when it moved
+ * root and the configs were left behind, live and unreachable, for five weeks.
  */
 class BusinessOffersEnablementSeeder extends Seeder
 {
@@ -33,6 +39,7 @@ class BusinessOffersEnablementSeeder extends Seeder
         }
 
         $offersId = (int) $offers->id;
+        $writer = app(ChildServiceWriter::class);
 
         $typedIds = PlatformService::query()
             ->whereIn('key', [
@@ -69,17 +76,29 @@ class BusinessOffersEnablementSeeder extends Seeder
                 'platform_service_id' => $offersId,
             ]);
 
+            $sort = (int) ($link->sort_order ?: 0);
+
+            if ($sort <= 0) {
+                $sort = 1 + (int) CategoryPlatformService::query()
+                    ->where('category_id', (int) $pair->category_id)
+                    ->where('child_id', (int) $pair->child_id)
+                    ->max('sort_order');
+            }
+
+            /*
+             * Written every run, not only when the link is off, so a pair whose
+             * link and config disagree converges instead of staying half-wired.
+             * The writer merges the config, so nothing already there is lost.
+             */
+            $writer->enable(
+                rootId: (int) $pair->category_id,
+                childId: (int) $pair->child_id,
+                serviceId: $offersId,
+                sortOrder: $sort,
+                source: 'business_offers_enablement'
+            );
+
             if (! $link->exists || ! $link->is_active) {
-                $sort = (int) ($link->sort_order ?: 0);
-
-                if ($sort <= 0) {
-                    $sort = 1 + (int) CategoryPlatformService::query()
-                        ->where('category_id', (int) $pair->category_id)
-                        ->where('child_id', (int) $pair->child_id)
-                        ->max('sort_order');
-                }
-
-                $link->fill(['is_active' => 1, 'sort_order' => $sort])->save();
                 $enabled++;
             }
         }
@@ -91,10 +110,8 @@ class BusinessOffersEnablementSeeder extends Seeder
             ->get(['id', 'category_id', 'child_id'])
             ->filter(fn ($l) => ! isset($eligibleKeys[((int) $l->category_id) . ':' . ((int) $l->child_id)]));
 
-        if ($stale->isNotEmpty()) {
-            CategoryPlatformService::query()
-                ->whereIn('id', $stale->pluck('id')->all())
-                ->update(['is_active' => 0, 'updated_at' => now()]);
+        foreach ($stale as $link) {
+            $writer->disable((int) $link->category_id, (int) $link->child_id, $offersId);
         }
 
         $this->command?->info(

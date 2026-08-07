@@ -49,6 +49,11 @@ class DatabaseSeeder extends Seeder
            RetailProductTaxonomySeeder::class,
            BusinessOffersEnablementSeeder::class,
 
+           // Last, so it sees the final link/config set: an active config with
+           // NO allowed_item_types reads as «every type», not «none». Bounds
+           // those from their declared branches and touches nothing else.
+           BoundUnboundedConfigsSeeder::class,
+
            // Order within a price-role tier. The tiers themselves are sorted
            // by OptionGroup::ROLE_RANK and are not stored.
            OptionGroupDisplayOrderSeeder::class,

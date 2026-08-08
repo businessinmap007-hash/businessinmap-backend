@@ -59,7 +59,12 @@ return [
             'name_ar' => 'الدفع والسداد',
             'name_en' => 'Payment Terms',
             'reorder' => 43,
-            'options' => [204, 292], // تقسيط بدون فوائد، دفع مسبق
+            // «دفع مسبق» left this list on 2026-08-08: it is not a payment term
+            // the way تقسيط is, it is what a CARRIER asks for, and granting the
+            // whole group per root had put it on 286 children. PrepaymentScopeSeeder
+            // is now its only authority — leaving it here would re-add it to every
+            // root that gets this group.
+            'options' => [204], // تقسيط بدون فوائد
         ],
         'returns_policy' => [
             'name_ar' => 'الاستبدال والإرجاع',

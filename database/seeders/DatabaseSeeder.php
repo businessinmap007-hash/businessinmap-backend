@@ -61,6 +61,11 @@ class DatabaseSeeder extends Seeder
            // those from their declared branches and touches nothing else.
            BoundUnboundedConfigsSeeder::class,
 
+           // «دفع مسبق» belongs to carriers. Last of the option seeders, so
+           // whatever else granted the payment group has already run and this
+           // has the final word.
+           PrepaymentScopeSeeder::class,
+
            // Order within a price-role tier. The tiers themselves are sorted
            // by OptionGroup::ROLE_RANK and are not stored.
            OptionGroupDisplayOrderSeeder::class,

@@ -29,6 +29,37 @@ class PlatformServiceItemType extends Model
         'meta' => 'array',
     ];
 
+    /**
+     * How long one booking of this kind is measured in.
+     *
+     * The kind says HOW a thing is booked, and the unit is part of that answer:
+     * a hotel stay is counted in days, a hall in hours, a clinic examination in
+     * minutes. It used to be decided by whichever app was calling — the API
+     * validated `duration_unit` against an enum and nothing else, so «day» on a
+     * كشف was accepted and three live bookings carry no unit at all.
+     *
+     * Written by BookingKindGranularitySeeder from
+     * `database/seeders/data/booking_kind_granularity.php`. A kind with no
+     * declaration returns null, and the caller keeps its old freedom.
+     *
+     * @return array{unit:string,slot_minutes:int,all_day:bool}|null
+     */
+    public function granularity(): ?array
+    {
+        $meta = is_array($this->meta) ? $this->meta : [];
+        $unit = trim((string) ($meta['duration_unit'] ?? ''));
+
+        if ($unit === '') {
+            return null;
+        }
+
+        return [
+            'unit' => $unit,
+            'slot_minutes' => max((int) ($meta['slot_minutes'] ?? 0), 1),
+            'all_day' => (bool) ($meta['all_day'] ?? false),
+        ];
+    }
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(PlatformService::class, 'platform_service_id');

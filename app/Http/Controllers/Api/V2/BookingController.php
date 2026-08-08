@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
 use App\Models\Booking;
+use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
 use App\Services\BookingReminderService;
@@ -120,12 +121,26 @@ final class BookingController extends Controller
             $data['ends_at'] ?? null
         );
 
+        $data = $this->applyKindGranularity($data, $business, $bookable);
+
         $payload = [
             'user_id' => (int) $user->id,
             'business_id' => (int) $data['business_id'],
             'service_id' => (int) $data['service_id'],
-            'date' => $data['date'] ?? null,
-            'time' => $data['time'] ?? null,
+            /*
+             * `date` and `time` are NOT NULL and predate the window columns, so
+             * a caller that books a RANGE — which is the only way to book a
+             * stay, a rented flat or a rented car — sent no `date` and got a
+             * 500 out of the driver. They are the start of the window when the
+             * caller did not name them separately; a whole-day booking has no
+             * meaningful clock time, so it takes midnight.
+             */
+            'date' => $data['date'] ?? (! empty($data['starts_at'])
+                ? Carbon::parse($data['starts_at'])->toDateString()
+                : now()->toDateString()),
+            'time' => $data['time'] ?? (! empty($data['starts_at']) && empty($data['all_day'])
+                ? Carbon::parse($data['starts_at'])->format('H:i:s')
+                : '00:00:00'),
             'starts_at' => $data['starts_at'] ?? null,
             'ends_at' => $data['ends_at'] ?? null,
             'duration_value' => $data['duration_value'] ?? null,
@@ -441,6 +456,94 @@ final class BookingController extends Controller
      * a menu item is otherwise something you ORDER, and letting it be booked
      * would create appointments no merchant expects.
      */
+    /**
+     * The kind decides the unit, not the caller.
+     *
+     * «يكون البوكينج باليوم والعيادات بالساعة». `duration_unit` used to arrive
+     * from the app and be checked against the enum alone, so «day» on a كشف was
+     * accepted and three live bookings were written with no unit at all. A
+     * booking kind knows what it is measured in — see
+     * PlatformServiceItemType::granularity() — so a request that contradicts it
+     * is refused and a request that omits it is completed.
+     *
+     * The kind is known when the customer names a unit (rooms and rental cars
+     * carry their own `item_type`), and otherwise only when the child offers
+     * exactly one kind — with several on offer and nothing named, there is
+     * genuinely nothing to derive from, and the caller keeps its old freedom.
+     */
+    private function applyKindGranularity(array $data, User $business, $bookable): array
+    {
+        $kindKey = $bookable
+            ? trim((string) ($bookable->item_type ?? ''))
+            : $this->soleKindOf($business, (int) $data['service_id']);
+
+        if ($kindKey === '' || $kindKey === null) {
+            return $data;
+        }
+
+        $kind = PlatformServiceItemType::query()
+            ->where('platform_service_id', (int) $data['service_id'])
+            ->where('key', $kindKey)
+            ->first();
+
+        $granularity = $kind?->granularity();
+
+        if (! $granularity) {
+            return $data;
+        }
+
+        $sent = trim((string) ($data['duration_unit'] ?? ''));
+
+        if ($sent !== '' && $sent !== $granularity['unit']) {
+            throw ValidationException::withMessages([
+                'duration_unit' => __('«:kind» يُحجز بوحدة :unit.', [
+                    'kind' => $kind->name_ar ?: $kind->key,
+                    'unit' => __($granularity['unit']),
+                ]),
+            ]);
+        }
+
+        $data['duration_unit'] = $granularity['unit'];
+
+        if (empty($data['duration_value'])) {
+            // One slot of this kind, expressed in its own unit.
+            $data['duration_value'] = $granularity['unit'] === 'minute'
+                ? $granularity['slot_minutes']
+                : ($granularity['unit'] === 'hour'
+                    ? max((int) round($granularity['slot_minutes'] / 60), 1)
+                    : 1);
+        }
+
+        // A stay occupies whole days; a clinic slot never does.
+        if (! array_key_exists('all_day', $data) || $data['all_day'] === null) {
+            $data['all_day'] = $granularity['all_day'];
+        }
+
+        return $data;
+    }
+
+    /**
+     * The one kind this business's child offers, or null when it offers several
+     * — in which case an unnamed unit tells us nothing about which was meant.
+     */
+    private function soleKindOf(User $business, int $serviceId): ?string
+    {
+        $config = json_decode((string) DB::table('category_service_configs')
+            ->where('category_id', (int) $business->category_id)
+            ->where('child_id', (int) $business->category_child_id)
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->value('config'), true) ?: [];
+
+        $kinds = collect($config['allowed_item_types'] ?? [])
+            ->map(fn ($kind) => trim((string) $kind))
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $kinds->count() === 1 ? $kinds->first() : null;
+    }
+
     private function resolveOffering(array $data, int $businessId)
     {
         $id = (int) ($data['offering_id'] ?? 0);

@@ -98,7 +98,10 @@ trait ResolvesOwnerCatalog
                 ->where('platform_service_id', $serviceId)
                 ->where('is_active', 1)
                 ->ordered()
-                ->get(['key', 'name_ar', 'name_en']);
+                // `meta` carries the kind's granularity — a stay is counted in
+                // days, a clinic slot in minutes — so the panel can draw a date
+                // range where a range is meant and a time slot where it is not.
+                ->get(['key', 'name_ar', 'name_en', 'meta']);
 
             $restricted = CategoryServiceConfig::query()
                 ->where('child_id', $childId)
@@ -117,10 +120,11 @@ trait ResolvesOwnerCatalog
 
             $map[$serviceId] = $baseTypes
                 ->when(! empty($restricted), fn ($rows) => $rows->filter(fn ($r) => in_array((string) $r->key, $restricted, true)))
-                ->map(fn (PlatformServiceItemType $r) => [
+                ->map(fn (PlatformServiceItemType $r) => array_filter([
                     'key' => (string) $r->key,
                     'label' => $r->displayName('ar'),
-                ])
+                    'granularity' => $r->granularity(),
+                ], fn ($value) => $value !== null))
                 ->values()
                 ->all();
         }

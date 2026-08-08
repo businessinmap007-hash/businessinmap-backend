@@ -44,6 +44,13 @@ class DatabaseSeeder extends Seeder
            // it reports «already correct» and writes nothing.
            BookingChildKindsSeeder::class,
 
+           // What each kind is MEASURED in — a stay in days, a clinic slot in
+           // minutes. Must follow the collapse: it writes onto the type rows.
+           BookingKindGranularitySeeder::class,
+
+           // Renting, on the same mechanism as a hotel stay.
+           RentalEnablementSeeder::class,
+
            RetailBranchesSeeder::class,
            RetailChildBranchesSeeder::class,
            RetailProductTaxonomySeeder::class,

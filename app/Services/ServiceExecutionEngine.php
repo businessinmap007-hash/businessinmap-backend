@@ -1018,8 +1018,20 @@ class ServiceExecutionEngine
      * with no room at all and priced it off the generic «افتراضي» slot. The
      * flag means the customer reserves a NAMED instance, so refuse without one.
      *
-     * Only booking uses it, and only when the child's own config sets it —
-     * 23 of the 140 live booking configs do.
+     * Only booking uses it, and only when the child's own config sets it.
+     *
+     * **The flag is per CHILD; the requirement is per KIND.** A car showroom
+     * both rents a car (a named car, for days) and takes a test drive (an
+     * appointment, no car reserved), and one boolean cannot say both — so the
+     * showroom either could not rent or could not be visited. A مكتب عقاري had
+     * the same problem in the other direction: its config demanded a unit for
+     * everything, which is why a viewing appointment was impossible for it.
+     *
+     * `bookable_item_kinds` names the kinds that reserve an instance. A booking
+     * that names no unit is refused only when EVERY kind the child offers is in
+     * that list — otherwise the customer is asking for one of the unit-free
+     * kinds, which is the only thing they can be asking for without a unit.
+     * An absent or empty list keeps the old meaning: all of them.
      */
     protected function assertBookableItemChosen(
         PlatformService $service,
@@ -1031,20 +1043,36 @@ class ServiceExecutionEngine
             return;
         }
 
-        $config = DB::table('category_service_configs')
+        $config = json_decode((string) DB::table('category_service_configs')
             ->where('category_id', $categoryId)
             ->where('child_id', $childId)
             ->where('platform_service_id', $service->id)
             ->where('is_active', 1)
-            ->value('config');
+            ->value('config'), true) ?: [];
 
-        $requires = (bool) data_get(json_decode((string) $config, true) ?: [], 'requires_bookable_item', false);
-
-        if ($requires) {
-            throw ValidationException::withMessages([
-                'bookable_id' => __('هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.'),
-            ]);
+        if (! (bool) ($config['requires_bookable_item'] ?? false)) {
+            return;
         }
+
+        $needUnit = collect($config['bookable_item_kinds'] ?? [])
+            ->map(fn ($kind) => trim((string) $kind))
+            ->filter()
+            ->values();
+
+        if ($needUnit->isNotEmpty()) {
+            $offered = collect($config['allowed_item_types'] ?? [])
+                ->map(fn ($kind) => trim((string) $kind))
+                ->filter();
+
+            // Something it offers can be booked without naming an instance.
+            if ($offered->isNotEmpty() && $offered->diff($needUnit)->isNotEmpty()) {
+                return;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'bookable_id' => __('هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.'),
+        ]);
     }
 
     /**

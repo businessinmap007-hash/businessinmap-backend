@@ -64,7 +64,14 @@ return [
         'kinds' => [
             'booking_appointment' => ['حجز موعد', 'Appointment'],
             'booking_time' => ['حجز وقت', 'Time Slot'],
-            'booking_stay' => ['حجز فندق', 'Stay'],
+            /*
+             * «حجز فندق» until 2026-08-08, and it never only meant a hotel:
+             * real estate has ridden this kind since the collapse, so a مكتب
+             * عقاري renting a flat was offering «حجز فندق». The kind says HOW —
+             * a named unit held for a period — and that is as true of a flat
+             * and a rental car as of room 101.
+             */
+            'booking_stay' => ['حجز بالمدة', 'Period Booking'],
             'booking_table' => ['حجز طاولة', 'Table'],
 
             'booking_consultation' => ['حجز استشارة', 'Consultation'],

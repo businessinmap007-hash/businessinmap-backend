@@ -201,6 +201,43 @@ class RentalBookingTest extends TestCase
         $this->assertStringContainsString('ص ب ٤٢٧', $unit->fresh()->displayLabel());
     }
 
+    /**
+     * The screen the merchant actually opens. Everything above is config; this
+     * is whether a showroom owner can, in the app, say «this car, of this kind,
+     * for rent» — the whole point of the exercise.
+     */
+    public function test_a_showroom_owner_is_offered_the_period_kind_and_the_vehicle_types(): void
+    {
+        $owner = \App\Models\User::query()
+            ->where('type', 'business')
+            ->where('category_child_id', self::SHOWROOM)
+            ->first();
+
+        if (! $owner) {
+            $this->markTestSkipped('No live car showroom to act as.');
+        }
+
+        $data = $this->actingAs($owner, 'sanctum')
+            ->getJson('/api/v2/business/bookable-items/options')
+            ->assertOk()
+            ->json('data');
+
+        $booking = collect($data['services'])->firstWhere('key', PlatformService::KEY_BOOKING);
+
+        $this->assertNotNull($booking, 'the showroom owner is not offered booking at all');
+        $this->assertContains(
+            'booking_stay',
+            collect($booking['item_types'])->pluck('key')->all(),
+            'the owner cannot register a unit for renting'
+        );
+
+        // And a unit can say WHICH kind of vehicle it is, so a sedan prices
+        // apart from a pickup — the same way room 101 prices apart from a suite.
+        $groups = collect($data['line_options'])->pluck('group');
+
+        $this->assertContains('نوع المركبة', $groups->all(), 'a car cannot say what kind of car it is');
+    }
+
     /** Re-running must not duplicate a kind or drop one. */
     public function test_the_seeder_is_idempotent(): void
     {

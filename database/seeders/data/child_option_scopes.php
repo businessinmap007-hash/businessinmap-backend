@@ -126,6 +126,47 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | تعبئة وتغليف ومستلزمات
+    |--------------------------------------------------------------------------
+    | #27 أطباق فويل · #93 أكياس قهوة · #147 أكواب فوم · #148 أطباق فوم
+    | #150 للطباعة · #246 علبة معدن · #271 مواد تعبئة وتغليف · #273 أكواب ورقية
+    | #284 أكواب بلاستيك · #293 مطبوع · #344 أدوات مكتبية
+    |
+    | The first EMPTY list in this file, and it is deliberate. Absence here means
+    | "keep the whole group", so the only way to say "this child answers none of
+    | it" is to say so out loud. Child #232 «طباعة مواد تعبئة وتغليف» was retired
+    | from the group by the owner (approved 2026-08-08); the add-only
+    | LinkCategoryChildrenToOptionsSeeder handed all 11 back on every run until
+    | this line existed.
+    |
+    | It prints packaging, it does not sell it: the sibling #204 «مواد تعبئة
+    | وتغليف» is the one that stocks cups and foil, and it keeps the whole list.
+    */
+    'تعبئة وتغليف ومستلزمات' => [
+        232 => [],  // طباعة مواد تعبئة وتغليف — a printer, not a supplier
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | ماركات السيارات — the 43 makes, a modifier group
+    |--------------------------------------------------------------------------
+    | The same retirement, one root over. Child #43 «قطع غيار سيارات» sits under
+    | #23 alongside #232, and the owner stripped it to «التسليم والاستلام» alone
+    | in the same pass. VehicleOptionGroupsSeeder is the add-only one here, and
+    | it handed all 43 makes back every run.
+    |
+    | It is NOT the spare-parts child that matters: #44, same name and same root
+    | as the rest of the vehicle trade, keeps every make and is the one a real
+    | business (1 of them) sits on. #43 is its older duplicate — «Car spare
+    | parts» vs «Car Sspare parts», created two days apart in 2020 — and carries
+    | no business at all.
+    */
+    'ماركات السيارات' => [
+        43 => [],  // قطع غيار سيارات (the empty duplicate) — #44 is the live one
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | الجمهور المستهدف — #141 حريمي · #232 رجالي · #217 أطفال
     |--------------------------------------------------------------------------
     | Fits every clothing shop, with one exception worth keeping: a wedding or

@@ -115,17 +115,34 @@ class ChildOptionScopeTest extends TestCase
     }
 
     /**
-     * Silence in the map means "no narrowing", never "narrow to nothing", so a
-     * scoped group must not leave any of its children empty-handed.
+     * Silence in the map means "no narrowing", never "narrow to nothing" — so an
+     * ACCIDENTAL empty is still forbidden: a slice of three option ids that
+     * turns out to match none of the group's rows (a typo, an option since
+     * deleted) would silently strip the child instead of narrowing it.
+     *
+     * A DECLARED empty is the one legitimate way to retire a child from a group,
+     * and it has to prove it holds — otherwise an add-only seeder is quietly
+     * handing the list back, which is the whole reason this file exists.
      */
-    public function test_no_scope_empties_a_child(): void
+    public function test_a_scope_narrows_and_only_a_declared_empty_strips(): void
     {
         $scopes = require database_path('seeders/data/child_option_scopes.php');
 
         foreach ($scopes as $group => $children) {
-            foreach (array_keys($children) as $childId) {
+            foreach ($children as $childId => $allowed) {
+                $offered = $this->offered((int) $childId, $group);
+
+                if ($allowed === []) {
+                    $this->assertEmpty(
+                        $offered,
+                        "child #{$childId} is declared out of «{$group}», yet still carries it"
+                    );
+
+                    continue;
+                }
+
                 $this->assertNotEmpty(
-                    $this->offered((int) $childId, $group),
+                    $offered,
                     "child #{$childId} was scoped out of «{$group}» entirely"
                 );
             }

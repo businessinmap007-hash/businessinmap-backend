@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\Image;
 use App\Models\PlanExercise;
 use App\Models\PlanMeal;
 use App\Models\TrainingPlan;
 use App\Models\User;
+use App\Services\Media\ImageUploadService;
 use App\Services\Training\TrainingPlanService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
@@ -19,6 +21,9 @@ use Illuminate\Validation\Rule;
  */
 class TrainingPlanController extends Controller
 {
+    /** Enough to show a machine from two angles and the movement; not an album. */
+    private const MAX_IMAGES = 6;
+
     public function __construct(private readonly TrainingPlanService $service)
     {
     }
@@ -97,7 +102,7 @@ class TrainingPlanController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
-                'meals', 'progressLogs', 'client:id,name',
+                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'client:id,name',
             ]))],
         ]);
     }
@@ -197,10 +202,18 @@ class TrainingPlanController extends Controller
         return response()->json(['success' => true, 'data' => ['meal' => $this->meal($meal)]], 201);
     }
 
+    /**
+     * Fetched, then deleted.
+     *
+     * `->where('id', $x)->delete()` is a mass delete, and a mass delete fires
+     * no model events — so the illustrative photos would keep their rows and
+     * their FILES after the exercise they belong to was gone, with nothing left
+     * that could find them.
+     */
     public function removeExercise(Request $request, int $plan, int $exercise)
     {
         $row = $this->ownedOrFail($request, $plan);
-        $row->exercises()->where('id', $exercise)->delete();
+        $row->exercises()->where('id', $exercise)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف التمرين.')]);
     }
@@ -208,9 +221,103 @@ class TrainingPlanController extends Controller
     public function removeMeal(Request $request, int $plan, int $meal)
     {
         $row = $this->ownedOrFail($request, $plan);
-        $row->meals()->where('id', $meal)->delete();
+        $row->meals()->where('id', $meal)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف الوجبة.')]);
+    }
+
+    // ─────────────────────── Illustrative photos ───────────────────────
+
+    /**
+     * POST /api/v2/business/training-plans/{plan}/exercises/{exercise}/images
+     *
+     * «الصور تكون توضيحية فقط من الكابتن — للجهاز مثلا او شكل التمرين».
+     *
+     * The plan is a private thing between two people, and the client's side of
+     * the API has no route that writes an image at all — that absence is the
+     * enforcement, not a flag anyone could flip. What a trainee sends stays
+     * text, in the plan chat.
+     */
+    public function addExerciseImages(Request $request, int $plan, int $exercise)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $target = $row->exercises()->where('id', $exercise)->firstOrFail();
+
+        return $this->attachImages($request, $target);
+    }
+
+    /** DELETE .../exercises/{exercise}/images/{image} — the row and the file. */
+    public function removeExerciseImage(Request $request, int $plan, int $exercise, int $image)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $target = $row->exercises()->where('id', $exercise)->firstOrFail();
+
+        return $this->detachImage($target, $image);
+    }
+
+    /** POST .../meals/{meal}/images — a picture of the meal, same rule. */
+    public function addMealImages(Request $request, int $plan, int $meal)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $target = $row->meals()->where('id', $meal)->firstOrFail();
+
+        return $this->attachImages($request, $target);
+    }
+
+    /** DELETE .../meals/{meal}/images/{image}. */
+    public function removeMealImage(Request $request, int $plan, int $meal, int $image)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $target = $row->meals()->where('id', $meal)->firstOrFail();
+
+        return $this->detachImage($target, $image);
+    }
+
+    /** @param  PlanExercise|PlanMeal  $target */
+    private function attachImages(Request $request, $target)
+    {
+        $request->validate([
+            'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
+            'images.*' => ImageUploadService::validationRules(),
+        ]);
+
+        if ($target->images()->count() + count($request->file('images', [])) > self::MAX_IMAGES) {
+            return response()->json([
+                'success' => false,
+                'message' => __('الحد الأقصى :max صور.', ['max' => self::MAX_IMAGES]),
+            ], 422);
+        }
+
+        $uploads = app(ImageUploadService::class);
+        $saved = [];
+
+        foreach ($request->file('images') as $file) {
+            $saved[] = $target->images()->create([
+                'image' => $uploads->store($file),
+                // Not evidence. A captain illustrates with the picture that
+                // shows the movement best, wherever he got it.
+                'source' => Image::SOURCE_UPLOAD,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['images' => array_map(
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image],
+                $saved
+            )],
+        ], 201);
+    }
+
+    /** @param  PlanExercise|PlanMeal  $target */
+    private function detachImage($target, int $imageId)
+    {
+        $image = $target->images()->findOrFail($imageId);
+
+        app(ImageUploadService::class)->delete($image->image);
+        $image->delete();
+
+        return response()->json(['success' => true]);
     }
 
     private function ownedOrFail(Request $request, int $planId): TrainingPlan
@@ -257,6 +364,7 @@ class TrainingPlanController extends Controller
             'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,
+            'images' => $e->relationLoaded('images') ? $e->imagePayload() : [],
             'completed_rounds_today' => $e->completed_rounds_today !== null ? (int) $e->completed_rounds_today : null,
         ];
     }
@@ -270,6 +378,7 @@ class TrainingPlanController extends Controller
             'calories' => $m->calories !== null ? (int) $m->calories : null,
             'notes' => $m->notes,
             'sort_order' => (int) $m->sort_order,
+            'images' => $m->relationLoaded('images') ? $m->imagePayload() : [],
         ];
     }
 }

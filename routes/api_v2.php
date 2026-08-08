@@ -818,6 +818,13 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('plan');
             Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
             Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
+            // Illustrative photos — the machine, the grip, the plated meal.
+            // TRAINER ONLY: the client's side has no route that writes one,
+            // and that absence is the rule, not a flag someone could flip.
+            Route::post('{plan}/exercises/{exercise}/images', [TrainingPlanController::class, 'addExerciseImages'])->whereNumber(['plan', 'exercise']);
+            Route::delete('{plan}/exercises/{exercise}/images/{image}', [TrainingPlanController::class, 'removeExerciseImage'])->whereNumber(['plan', 'exercise', 'image']);
+            Route::post('{plan}/meals/{meal}/images', [TrainingPlanController::class, 'addMealImages'])->whereNumber(['plan', 'meal']);
+            Route::delete('{plan}/meals/{meal}/images/{image}', [TrainingPlanController::class, 'removeMealImage'])->whereNumber(['plan', 'meal', 'image']);
             Route::delete('{plan}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber('plan')->whereNumber('meal');
             // Direct (text-only) chat with the trainee, scoped to the plan.
             Route::get('{plan}/chat', [TrainingChatController::class, 'trainerShow'])->whereNumber('plan');

@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwnedImages;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlanMeal extends Model
 {
+    /** A picture of the meal, from the captain. Same rule as the exercise. */
+    use HasOwnedImages;
+
     public const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
     protected $fillable = [

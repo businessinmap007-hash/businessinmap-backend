@@ -43,7 +43,7 @@ class ClientTrainingController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
-                'meals', 'progressLogs', 'trainer:id,name,logo',
+                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo',
             ]))],
         ]);
     }
@@ -146,6 +146,9 @@ class ClientTrainingController extends Controller
                 'reps' => $e->reps,
                 'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
                 'notes' => $e->notes,
+                // The captain's illustration: the machine, the grip, the
+                // position. Read here, never written from this side.
+                'images' => $e->relationLoaded('images') ? $e->imagePayload() : [],
                 'completed_rounds_today' => (int) ($e->completed_rounds_today ?? 0),
             ])->all() : null,
             'meals' => $p->relationLoaded('meals') ? $p->meals->map(fn ($m) => [
@@ -153,6 +156,7 @@ class ClientTrainingController extends Controller
                 'name' => (string) $m->name,
                 'calories' => $m->calories !== null ? (int) $m->calories : null,
                 'notes' => $m->notes,
+                'images' => $m->relationLoaded('images') ? $m->imagePayload() : [],
             ])->all() : null,
             'progress' => $p->relationLoaded('progressLogs') ? $p->progressLogs->map(fn ($l) => [
                 'logged_on' => optional($l->logged_on)->toDateString(),

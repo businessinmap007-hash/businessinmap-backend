@@ -41,8 +41,19 @@ return [
         // ── Real estate: a property type, a deal type, and a payment term ──
         'عقارات وممتلكات' => [
             'new' => [
-                'نوع التعامل العقاري' => [
-                    'name_en' => 'Property Deal Type',
+                // Named for property but not about property: a car showroom
+                // asks the same question, so the group was renamed «نوع
+                // التعامل» on 2026-08-08 and given to the three vehicle
+                // showrooms. It is resolved by name_ar (option_groups has no
+                // key), so this string IS the identity — changing it back would
+                // create a second group and move these two options into it.
+                //
+                // «تبديل» belongs to the group too but is listed by
+                // VehicleDealTypeSeeder, which creates it; only real estate's
+                // own pair is declared here, and only the child links decide
+                // who sees what.
+                'نوع التعامل' => [
+                    'name_en' => 'Deal Type',
                     'reorder' => 24,
                     'options' => [53, 302], // بيع وشراء، إيجار
                 ],

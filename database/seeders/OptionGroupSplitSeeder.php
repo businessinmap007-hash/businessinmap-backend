@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  *
  * The four that were mixes:
  *   مرافق الإقامة      → facilities + إطلالة الوحدة + نظام الوجبات
- *   عقارات وممتلكات    → property types + نوع التعامل العقاري, with كاش/تقسيط
+ *   عقارات وممتلكات    → property types + نوع التعامل, with كاش/تقسيط
  *                        folded into the payment group that already asks that
  *   أثاث وتشطيب منزلي → pieces + طراز الأثاث
  *   مجالات التدريب     → fields + اللغات

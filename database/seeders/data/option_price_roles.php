@@ -75,7 +75,10 @@ return [
     */
     'modifier' => [
         'طراز الأثاث',            // غرفة نوم مودرن ≠ كلاسيك
-        'نوع التعامل العقاري',    // شقة بيع ≠ شقة إيجار — the most violent one
+        // شقة بيع ≠ شقة إيجار — the most violent one, and the same question a
+        // car showroom asks. Renamed from «نوع التعامل العقاري» on 2026-08-08
+        // when the vehicle showrooms were given it; see VehicleDealTypeSeeder.
+        'نوع التعامل',
         'المراحل التعليمية',      // رياضيات ثانوي ≠ ابتدائي
         'نمط تقديم الخدمة',       // بسائق ≠ بدون · أونلاين ≠ حضوري
         'ماركات السيارات',        // ليموزين مرسيدس ≠ هيونداي

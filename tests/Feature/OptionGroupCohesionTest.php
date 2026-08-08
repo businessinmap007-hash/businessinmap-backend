@@ -46,7 +46,7 @@ class OptionGroupCohesionTest extends TestCase
         $this->assertNotContains('إيجار', $property, 'renting is a deal, not a property type');
         $this->assertNotContains('تقسيط', $property, 'instalments are a payment term');
 
-        $this->assertContains('إيجار', $this->namesIn('نوع التعامل العقاري'));
+        $this->assertContains('إيجار', $this->namesIn('نوع التعامل'));
         $this->assertContains('تقسيط', $this->namesIn('الدفع والسداد'));
     }
 

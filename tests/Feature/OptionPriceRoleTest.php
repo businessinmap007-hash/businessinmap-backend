@@ -86,7 +86,7 @@ class OptionPriceRoleTest extends TestCase
     /** Nobody buys «مودرن» — they buy «غرفة نوم مودرن», and it costs more. */
     public function test_the_groups_that_only_change_a_price_are_modifiers(): void
     {
-        foreach (['طراز الأثاث', 'نوع التعامل العقاري', 'المراحل التعليمية',
+        foreach (['طراز الأثاث', 'نوع التعامل', 'المراحل التعليمية',
             'ماركات السيارات', 'نظام الوجبات', 'حالة المنتج'] as $group) {
             $this->assertSame(OptionGroup::ROLE_MODIFIER, $this->roleOf($group), "«{$group}» qualifies a line, it is not one");
         }

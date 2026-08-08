@@ -335,7 +335,7 @@
                         <th>
                             <a href="{{ $sortUrl('id') }}">ID{!! $arrow('id') !!}</a>
                         </th>
-                        <th>{{ __('الصورة') }}</th>
+                        
                         <th>
                             <a href="{{ $sortUrl('name_ar') }}">{{ __('الاسم العربي') }}{!! $arrow('name_ar') !!}</a>
                         </th>

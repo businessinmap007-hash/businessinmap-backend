@@ -66,6 +66,11 @@ class DatabaseSeeder extends Seeder
            // has the final word.
            PrepaymentScopeSeeder::class,
 
+           // What the remodels left behind: options nothing can reach, and
+           // service wiring for children detached from every root. Runs after
+           // everything that could legitimately re-attach a child.
+           TaxonomyDeadWeightSeeder::class,
+
            // Order within a price-role tier. The tiers themselves are sorted
            // by OptionGroup::ROLE_RANK and are not stored.
            OptionGroupDisplayOrderSeeder::class,

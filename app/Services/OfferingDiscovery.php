@@ -38,18 +38,25 @@ class OfferingDiscovery
         array $optionIds = [],
         int $serviceId = 0,
         array $itemTypes = [],
-        int $perPage = 20
+        int $perPage = 20,
+        int $businessId = 0
     ): LengthAwarePaginator {
-        $query = $this->base($childId, $serviceId, $itemTypes);
+        $query = $this->base($childId, $serviceId, $itemTypes, $businessId);
 
-        // Narrowing, not widening: the offering must carry EVERY option asked
-        // for, whether as the thing sold or as something qualifying it.
-        foreach ($optionIds as $optionId) {
-            $query->whereExists(function ($sub) use ($optionId) {
+        // Narrowing, not widening: the offering must satisfy EVERY axis asked
+        // about — the thing sold AND what qualifies it.
+        //
+        // Within ONE axis the options are alternatives, and the customer means
+        // «BMW or مرسيدس», not a car that is both. Requiring every id outright
+        // answered such a tap with an empty list, which is why two brands could
+        // never be compared. With one option per axis — the ordinary case — this
+        // is exactly the old behaviour.
+        foreach ($this->byGroup($optionIds) as $inGroup) {
+            $query->whereExists(function ($sub) use ($inGroup) {
                 $sub->from('offering_options as f')
                     ->whereColumn('f.offering_type', 'oo.offering_type')
                     ->whereColumn('f.offering_id', 'oo.offering_id')
-                    ->where('f.option_id', $optionId);
+                    ->whereIn('f.option_id', $inGroup);
             });
         }
 
@@ -161,12 +168,189 @@ class OfferingDiscovery
     }
 
     /**
+     * The AXES a customer chooses along, drawn from what this set actually
+     * offers: «نوع المركبة: SUV ٤ · سيدان ٦», «الماركة: BMW ٣», «نوع التعامل:
+     * بيع ٧ · إيجار ٣». One tap per axis and the row is found.
+     *
+     * Counts are computed per axis with the OTHER axes' choices applied but not
+     * this axis's own. A customer who picked BMW must still see مرسيدس beside
+     * it — count everything under the full selection and every sibling of the
+     * chosen option reads 0, so switching brand means clearing the filter first.
+     *
+     * The whole set for one business is small enough to fold in PHP; doing it
+     * here rather than in N queries is what makes the leave-one-out counting
+     * affordable at all.
+     *
+     * @param  array<int,int>  $selected  option ids the customer has already tapped
+     * @return Collection<int,array{group_id:int,name:string,role:string,options:array<int,array{id:int,name:string,offerings:int,selected:bool}>}>
+     */
+    public function axes(
+        int $childId,
+        int $serviceId = 0,
+        array $itemTypes = [],
+        int $businessId = 0,
+        array $selected = []
+    ): Collection {
+        $anchors = $this->base($childId, $serviceId, $itemTypes, $businessId)
+            ->reorder()
+            ->select(['oo.offering_type', 'oo.offering_id'])
+            ->get();
+
+        if ($anchors->isEmpty()) {
+            return collect();
+        }
+
+        $links = DB::table('offering_options as oo')
+            ->join('options as o', 'o.id', '=', 'oo.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereIn(
+                DB::raw("CONCAT(oo.offering_type, ':', oo.offering_id)"),
+                $anchors->map(fn ($a) => $a->offering_type . ':' . $a->offering_id)
+            )
+            ->where('g.is_active', 1)
+            ->orderByRaw(\App\Models\OptionGroup::displayOrderSql('g'))
+            ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
+            ->orderBy('o.id')
+            ->get(['oo.offering_type', 'oo.offering_id', 'o.id', 'o.name_ar', 'o.name_en',
+                'g.id as group_id', 'g.name_ar as group_name_ar', 'g.name_en as group_name_en', 'g.price_role']);
+
+        if ($links->isEmpty()) {
+            return collect();
+        }
+
+        // group_id => the options of it the customer has tapped
+        $groupOf = $links->pluck('group_id', 'id');
+        $chosen = [];
+
+        foreach ($this->cleanIds($selected) as $optionId) {
+            if (isset($groupOf[$optionId])) {
+                $chosen[(int) $groupOf[$optionId]][] = $optionId;
+            }
+        }
+
+        $carried = $links->groupBy(fn ($l) => $l->offering_type . ':' . $l->offering_id)
+            ->map(fn ($own) => $own->pluck('id')->map(fn ($id) => (int) $id)->all());
+
+        $axes = [];
+
+        foreach ($links as $link) {
+            $groupId = (int) $link->group_id;
+
+            $axes[$groupId] ??= [
+                'group_id' => $groupId,
+                'name' => $this->label($link->group_name_ar, $link->group_name_en),
+                'role' => (string) $link->price_role,
+                'options' => [],
+            ];
+
+            $axes[$groupId]['options'][(int) $link->id] ??= [
+                'id' => (int) $link->id,
+                'name' => $this->label($link->name_ar, $link->name_en),
+                'offerings' => 0,
+                'selected' => in_array((int) $link->id, $chosen[$groupId] ?? [], true),
+            ];
+        }
+
+        foreach ($axes as $groupId => &$axis) {
+            foreach ($carried as $own) {
+                if (! $this->satisfies($own, $chosen, $groupId)) {
+                    continue;
+                }
+
+                foreach ($own as $optionId) {
+                    if (isset($axis['options'][$optionId])) {
+                        $axis['options'][$optionId]['offerings']++;
+                    }
+                }
+            }
+
+            $axis['options'] = array_values($axis['options']);
+        }
+
+        unset($axis);
+
+        return collect(array_values($axes));
+    }
+
+    /**
+     * Does this offering meet every choice EXCEPT the axis being counted?
+     *
+     * @param  array<int,int>  $own
+     * @param  array<int,array<int,int>>  $chosen  group id => option ids
+     */
+    private function satisfies(array $own, array $chosen, int $ignoreGroup): bool
+    {
+        foreach ($chosen as $groupId => $optionIds) {
+            if ($groupId === $ignoreGroup) {
+                continue;
+            }
+
+            // Within one axis the choices are alternatives — SUV or سيدان — so
+            // any of them will do. Across axes they narrow, and each must hold.
+            if (! array_intersect($own, $optionIds)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function label(?string $ar, ?string $en): string
+    {
+        $primary = app()->getLocale() === 'en' ? $en : $ar;
+
+        return trim((string) ($primary ?: ($ar ?: $en) ?: ''));
+    }
+
+    /**
+     * The asked-for options, bucketed by the group each belongs to.
+     *
+     * An option with no group is its own bucket: it still has to be carried,
+     * and it must not join another option's alternatives by accident.
+     *
+     * @param  array<int,int>  $optionIds
+     * @return array<int|string,array<int,int>>
+     */
+    private function byGroup(array $optionIds): array
+    {
+        $optionIds = $this->cleanIds($optionIds);
+
+        if ($optionIds === []) {
+            return [];
+        }
+
+        $groups = DB::table('options')->whereIn('id', $optionIds)->pluck('group_id', 'id');
+        $buckets = [];
+
+        foreach ($optionIds as $optionId) {
+            $groupId = (int) ($groups[$optionId] ?? 0);
+            $buckets[$groupId > 0 ? 'g' . $groupId : 'o' . $optionId][] = $optionId;
+        }
+
+        return $buckets;
+    }
+
+    /** @return array<int,int> */
+    private function cleanIds(array $ids): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            fn ($id) => $id > 0
+        )));
+    }
+
+    /**
      * Every offering whose line is named, joined to whichever table owns it.
      *
      * The line row is the anchor — one per offering — so an offering appears
      * once however many modifiers it carries.
+     *
+     * `$childId` narrows to a SPECIALTY and `$businessId` to one shop; either
+     * may stand alone. A search across a child is the first; opening one shop's
+     * window is the second, and it must not also demand the child, because a
+     * business is reached by id long before anyone knows what child it sits on.
      */
-    private function base(int $childId, int $serviceId, array $itemTypes): Builder
+    private function base(int $childId, int $serviceId, array $itemTypes, int $businessId = 0): Builder
     {
         return DB::table('offering_options as oo')
             ->where('oo.role', 'line')
@@ -182,7 +366,8 @@ class OfferingDiscovery
                 $join->on('u.id', '=', DB::raw('COALESCE(p.business_id, m.business_id)'));
             })
             ->where('u.type', 'business')
-            ->where('u.category_child_id', $childId)
+            ->when($childId > 0, fn ($q) => $q->where('u.category_child_id', $childId))
+            ->when($businessId > 0, fn ($q) => $q->where('u.id', $businessId))
             // an offering nobody switched on is not for sale
             ->whereRaw('COALESCE(p.is_active, m.is_active, 0) = 1')
             ->when($serviceId > 0, fn ($q) => $q->where('p.service_id', $serviceId))

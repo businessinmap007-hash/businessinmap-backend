@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
+use App\Http\Controllers\Api\V2\BusinessOfferingsController;
 use App\Http\Controllers\Api\V2\BusinessRetailListingController;
 use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
@@ -159,6 +160,10 @@ Route::prefix('v2')->group(function () {
         // so a search on an option reaches the row, not only the shop.
         Route::get('offerings', [DiscoveryController::class, 'offerings']);
         Route::get('offering-lines', [DiscoveryController::class, 'offeringLines']);
+        // The same reading, narrowed to ONE shop: its offerings plus the option
+        // axes they actually use, so «SUV → BMW → إيجار» is three taps inside a
+        // showroom instead of a tour through its services.
+        Route::get('offerings/{business}', [BusinessOfferingsController::class, 'show'])->whereNumber('business');
 
         // Retail: browse catalog products businesses sell -> product -> offers.
         Route::prefix('retail')->group(function () {

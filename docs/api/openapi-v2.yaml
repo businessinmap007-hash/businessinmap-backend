@@ -1778,6 +1778,10 @@ paths:
     get: { tags: [Business Menu], summary: Item detail (with variants + extras), responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
     patch: { tags: [Business Menu], summary: Update an item, responses: { '200': { description: OK } } }
     delete: { tags: [Business Menu], summary: Delete an item, responses: { '200': { description: OK } } }
+  /business/menu/items/{item}/images:
+    post: { tags: [Business Menu], summary: "Upload photos for one menu item (multipart images[], max 10 per item, jpg/png/webp/gif, 8MB each). A GALLERY, not a single photo — menu_items.image was one column no screen ever wrote. APPENDS; to replace, delete what you do not want. Paths come back RELATIVE (files/uploads/...). Deleting the item deletes every photo's row AND file.", parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { description: 'Not an image, or the 10-photo cap is reached' } } }
+  /business/menu/items/{item}/images/{image}:
+    delete: { tags: [Business Menu], summary: 'Delete one photo from a menu item. Removes the FILE as well as the row — an orphaned upload can never be found again to remove.', parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not this business item, or no such photo' } } }
   /business/menu/items/{item}/variants:
     post:
       tags: [Business Menu]

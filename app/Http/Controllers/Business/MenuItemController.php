@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
+use App\Models\Image;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\PlatformService;
+use App\Services\Media\ImageUploadService;
 use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,9 @@ class MenuItemController extends Controller
     use ResolvesOwnerCatalog {
         businessId as protected ownerBusinessId;
     }
+
+    /** Matches the API's cap — one behaviour, two doors. */
+    private const MAX_IMAGES = 10;
 
     public function __construct(private readonly MerchantOfferingVocabulary $vocabulary)
     {
@@ -143,7 +148,11 @@ class MenuItemController extends Controller
     public function edit(int $id): View
     {
         $row = $this->scopedItem($id);
-        $row->load(['variants' => fn ($q) => $q->orderBy('id'), 'extras' => fn ($q) => $q->orderBy('id')]);
+        $row->load([
+            'variants' => fn ($q) => $q->orderBy('id'),
+            'extras' => fn ($q) => $q->orderBy('id'),
+            'images',
+        ]);
 
         return view('business.menu.edit', [
             'row' => $row,
@@ -171,6 +180,53 @@ class MenuItemController extends Controller
         return redirect()
             ->route('business.menu.index')
             ->with('success', 'تم حذف الصنف بنجاح.');
+    }
+
+    /**
+     * Photos for an item, from the panel.
+     *
+     * Only on EDIT: an item has to exist before it can own a gallery, and the
+     * create form is a plain (non-multipart) POST that would silently drop the
+     * files. Same ceiling and same storage as the API — one behaviour, two
+     * doors.
+     */
+    public function storeImages(Request $request, int $id): RedirectResponse
+    {
+        $item = $this->scopedItem($id);
+
+        $request->validate([
+            'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
+            'images.*' => ImageUploadService::validationRules(),
+        ]);
+
+        $room = self::MAX_IMAGES - $item->images()->count();
+
+        if ($room <= 0) {
+            return back()->withErrors(['images' => __('الحد الأقصى :max صور للصنف الواحد.', ['max' => self::MAX_IMAGES])]);
+        }
+
+        $uploads = app(ImageUploadService::class);
+
+        foreach (array_slice($request->file('images'), 0, $room) as $file) {
+            $item->images()->create([
+                'image' => $uploads->store($file),
+                'source' => Image::SOURCE_UPLOAD,
+            ]);
+        }
+
+        return back()->with('success', 'تم رفع الصور.');
+    }
+
+    /** The row and the FILE, together — see MenuItem::booted for why. */
+    public function destroyImage(int $id, int $image): RedirectResponse
+    {
+        $item = $this->scopedItem($id);
+        $row = $item->images()->findOrFail($image);
+
+        app(ImageUploadService::class)->delete($row->image);
+        $row->delete();
+
+        return back()->with('success', 'تم حذف الصورة.');
     }
 
     /**

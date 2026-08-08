@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
+use App\Models\Image;
+use App\Models\MenuItem;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\OfferingDiscovery;
@@ -78,9 +80,10 @@ final class BusinessOfferingsController extends Controller
         $rows = collect($results->items());
         $services = $this->servicesOf($rows);
         $units = $this->unitsOf($biz, $rows);
+        $galleries = $this->galleriesOf($rows);
 
         $results->setCollection(
-            $rows->map(fn ($row) => $this->payload($row, $services, $units))->values()
+            $rows->map(fn ($row) => $this->payload($row, $services, $units, $galleries))->values()
         );
 
         return response()->json([
@@ -122,8 +125,9 @@ final class BusinessOfferingsController extends Controller
      *
      * @param  array<int,string>  $services  service id => key
      * @param  array<string,array<int,array<string,mixed>>>  $units
+     * @param  array<int,array<int,array<string,mixed>>>  $galleries  menu item id => images
      */
-    private function payload($row, array $services, array $units): array
+    private function payload($row, array $services, array $units, array $galleries = []): array
     {
         $key = $services[(int) $row->service_id] ?? null;
         $parts = collect([$row->line])->merge($row->modifiers)->filter()
@@ -142,6 +146,9 @@ final class BusinessOfferingsController extends Controller
             'service_key' => $key,
             'item_type' => $row->bookable_item_type,
             'image' => $row->image,
+            // Only a menu listing owns a gallery; a priced row is a rate, not a
+            // thing with photographs.
+            'images' => $row->source === 'menu' ? ($galleries[(int) $row->offering_id] ?? []) : [],
             'action' => $key === PlatformService::KEY_BOOKING ? 'book' : 'order',
         ];
 
@@ -158,6 +165,35 @@ final class BusinessOfferingsController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * The photos of every menu listing on this page, in one query.
+     *
+     * @return array<int,array<int,array<string,mixed>>> menu item id => images
+     */
+    private function galleriesOf($rows): array
+    {
+        $ids = $rows->where('source', 'menu')->pluck('offering_id')
+            ->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $out = [];
+
+        $images = Image::query()
+            ->where('imageable_type', MenuItem::class)
+            ->whereIn('imageable_id', $ids)
+            ->orderBy('id')
+            ->get(['id', 'image', 'imageable_id']);
+
+        foreach ($images as $image) {
+            $out[(int) $image->imageable_id][] = ['id' => (int) $image->id, 'image' => $image->image];
+        }
+
+        return $out;
     }
 
     /** @return array<int,string> service id => key */

@@ -98,6 +98,11 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::put('menu/{id}', [MenuItemController::class, 'update'])->whereNumber('id')->name('menu.update');
         Route::delete('menu/{id}', [MenuItemController::class, 'destroy'])->whereNumber('id')->name('menu.destroy');
 
+        // Photos for a menu item — the dish, the flat, the car. Edit-only:
+        // the create form is a plain POST and would drop the files silently.
+        Route::post('menu/{id}/images', [MenuItemController::class, 'storeImages'])->whereNumber('id')->name('menu.images.store');
+        Route::delete('menu/{id}/images/{image}', [MenuItemController::class, 'destroyImage'])->whereNumber(['id', 'image'])->name('menu.images.destroy');
+
         // Variants (sizes) + extras (add-ons) for a menu item.
         Route::post('menu/{menuItem}/variants', [MenuItemVariantController::class, 'store'])->whereNumber('menuItem')->name('menu.variants.store');
         Route::put('menu/{menuItem}/variants/{variant}', [MenuItemVariantController::class, 'update'])->whereNumber(['menuItem', 'variant'])->name('menu.variants.update');

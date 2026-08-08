@@ -23,6 +23,13 @@ class MenuItemResource extends JsonResource
             'sort_order' => (int) $this->sort_order,
             'is_active' => (bool) $this->is_active,
 
+            // Relative paths, as everywhere else — an absolute URL breaks the
+            // moment the host changes, which is exactly what happened before.
+            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($i) => [
+                'id' => (int) $i->id,
+                'image' => $i->image,
+            ])->values()),
+
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'type' => $v->type,

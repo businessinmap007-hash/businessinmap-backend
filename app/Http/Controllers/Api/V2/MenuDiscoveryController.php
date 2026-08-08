@@ -35,6 +35,7 @@ final class MenuDiscoveryController extends Controller
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
                 'offeringOptions.option',
                 'section',
+                'images',
             ])
             ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
@@ -156,7 +157,10 @@ final class MenuDiscoveryController extends Controller
             // so the option a customer searched by still shows on the result
             'offering_label' => $item->offeringLabel() ?: null,
             'option_ids' => $item->offeringOptions->pluck('option_id')->map(fn ($id) => (int) $id)->values(),
+            // The legacy single column stays for whatever already reads it;
+            // `images` is the gallery, and the one to draw.
             'image' => $item->image,
+            'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image])->values(),
             'base_price' => $base,
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,

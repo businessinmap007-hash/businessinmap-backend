@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasOfferingOptions;
+use App\Services\Media\ImageUploadService;
 use App\Support\Concerns\HasLocalizedFields;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class MenuItem extends Model
 {
@@ -51,6 +53,45 @@ class MenuItem extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(MenuSection::class, 'menu_section_id');
+    }
+
+    /**
+     * The item's photo gallery.
+     *
+     * `menu_items.image` is a single legacy column that nothing ever wrote, so
+     * a restaurant could not show its dish, a showroom its car, an estate agent
+     * the flat. A gallery is what those actually need — one photo of an
+     * apartment sells nothing — so the polymorphic `images` table carries it,
+     * the same one posts and albums already use.
+     */
+    public function images(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->orderBy('id');
+    }
+
+    /**
+     * Deleting the item takes its photos with it — rows AND files.
+     *
+     * On the model rather than in the controller, because an item is deleted
+     * from the app, from the business panel and from the admin panel, and a
+     * rule that lives in one of them is not a rule. Orphaned rows would keep
+     * pointing at files nobody can reach, and orphaned FILES accumulate on disk
+     * forever with no way left to find them.
+     *
+     * A mass `MenuItem::where(...)->delete()` bypasses this, as Eloquent events
+     * always do; nothing does that today, and anything that starts must delete
+     * the images itself.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (MenuItem $item) {
+            $uploads = app(ImageUploadService::class);
+
+            foreach ($item->images as $image) {
+                $uploads->delete($image->image);
+                $image->delete();
+            }
+        });
     }
 
     public function variants(): HasMany

@@ -612,6 +612,12 @@ Route::prefix('v2')->group(function () {
             Route::match(['put', 'patch'], 'items/{item}', [BusinessMenuItemController::class, 'update'])->whereNumber('item');
             Route::delete('items/{item}', [BusinessMenuItemController::class, 'destroy'])->whereNumber('item');
 
+            // A gallery per item — the dish, the flat, the car. Appends;
+            // deleting an image removes the FILE too, and deleting the item
+            // takes the whole gallery with it (MenuItem::booted).
+            Route::post('items/{item}/images', [BusinessMenuItemController::class, 'storeImages'])->whereNumber('item');
+            Route::delete('items/{item}/images/{image}', [BusinessMenuItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
+
             Route::post('items/{item}/variants', [BusinessMenuItemController::class, 'storeVariant'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'updateVariant'])->whereNumber(['item', 'variant']);
             Route::delete('items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'destroyVariant'])->whereNumber(['item', 'variant']);

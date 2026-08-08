@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\MenuItemResource;
+use App\Models\Image;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
+use App\Services\Media\ImageUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +19,9 @@ use Illuminate\Validation\Rule;
  */
 final class BusinessMenuItemController extends Controller
 {
+    /** As many as a listing can usefully carry, and few enough to stay a page. */
+    private const MAX_IMAGES = 10;
+
     /** GET /api/v2/business/menu/items */
     public function index(Request $request)
     {
@@ -37,6 +42,7 @@ final class BusinessMenuItemController extends Controller
                 $like = '%' . mb_strtolower($term) . '%';
                 $q->where(fn ($sub) => $sub->whereRaw('LOWER(name_ar) LIKE ?', [$like])->orWhereRaw('LOWER(name_en) LIKE ?', [$like]));
             })
+            ->with('images')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderByDesc('id')
             ->paginate($data['per_page'] ?? 50)
@@ -49,7 +55,11 @@ final class BusinessMenuItemController extends Controller
     public function show(Request $request, int $item)
     {
         $model = $this->ownItem($request, $item);
-        $model->load(['variants' => fn ($q) => $q->orderBy('id'), 'extras' => fn ($q) => $q->orderBy('id')]);
+        $model->load([
+            'variants' => fn ($q) => $q->orderBy('id'),
+            'extras' => fn ($q) => $q->orderBy('id'),
+            'images',
+        ]);
 
         return (new MenuItemResource($model))->additional(['success' => true]);
     }
@@ -116,6 +126,76 @@ final class BusinessMenuItemController extends Controller
     {
         $model = $this->ownItem($request, $item);
         MenuItemVariant::query()->where('menu_item_id', $model->id)->findOrFail($variant)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    // ─────────────────────────── Images ───────────────────────────
+
+    /**
+     * POST /api/v2/business/menu/items/{item}/images
+     *
+     * A gallery, not a photo. One picture sells no apartment and no car, and
+     * `menu_items.image` — the single column that was there — was never written
+     * by any screen, so every listing on the platform is text.
+     *
+     * Appends. Replacing the gallery is deleting what you do not want, which is
+     * one call away and cannot be done by accident.
+     */
+    public function storeImages(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+
+        $request->validate([
+            'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
+            'images.*' => ImageUploadService::validationRules(),
+        ]);
+
+        $already = $model->images()->count();
+        $incoming = count($request->file('images', []));
+
+        if ($already + $incoming > self::MAX_IMAGES) {
+            return response()->json([
+                'success' => false,
+                'message' => __('الحد الأقصى :max صور للصنف الواحد.', ['max' => self::MAX_IMAGES]),
+            ], 422);
+        }
+
+        $uploads = app(ImageUploadService::class);
+        $saved = [];
+
+        foreach ($request->file('images') as $file) {
+            $saved[] = $model->images()->create([
+                'image' => $uploads->store($file),
+                // Not evidence: a menu photo is a picture of the goods, and
+                // requiring a live camera would stop a merchant using the shots
+                // he already has. `camera` stays reserved for proof.
+                'source' => Image::SOURCE_UPLOAD,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['images' => array_map(
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image],
+                $saved
+            )],
+        ], 201);
+    }
+
+    /**
+     * DELETE /api/v2/business/menu/items/{item}/images/{image}
+     *
+     * The file goes with the row. A row deleted alone leaves a picture on disk
+     * that nothing can ever find again to remove.
+     */
+    public function destroyImage(Request $request, int $item, int $image)
+    {
+        $model = $this->ownItem($request, $item);
+        $row = $model->images()->findOrFail($image);
+
+        app(ImageUploadService::class)->delete($row->image);
+        $row->delete();
 
         return response()->json(['success' => true]);
     }

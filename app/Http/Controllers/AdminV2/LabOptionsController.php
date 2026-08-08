@@ -47,10 +47,27 @@ class LabOptionsController extends Controller
         $childRow = DB::table('category_children_master')->where('id', $child)->first(['id', 'name_ar']);
         abort_unless($childRow, 404);
 
+        // Group by the live option_groups (sandbox options_new.group_id is nulled).
+        $liveGroups = DB::table('options as o')
+            ->leftJoin('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->get(['o.id', 'o.group_id', 'g.name_ar as group_name'])
+            ->keyBy('id');
+
         $all = DB::table('options_new')
             ->orderBy('name_ar')
             ->get(['id', 'name_ar', 'name_en'])
-            ->map(fn ($o) => ['id' => (int) $o->id, 'name' => (string) ($o->name_ar ?: $o->name_en ?: "#{$o->id}")])
+            ->map(function ($o) use ($liveGroups) {
+                $g = $liveGroups->get($o->id);
+                return [
+                    'id' => (int) $o->id,
+                    'name' => (string) ($o->name_ar ?: $o->name_en ?: "#{$o->id}"),
+                    'group' => [
+                        'id' => (int) ($g->group_id ?? 0),
+                        'name' => (string) ($g->group_name ?? 'بدون مجموعة'),
+                    ],
+                ];
+            })
+            ->sortBy([['group.id', 'asc'], ['name', 'asc']])
             ->values();
 
         $selected = DB::table('category_child_option_new')->where('child_id', $child)->pluck('option_id')

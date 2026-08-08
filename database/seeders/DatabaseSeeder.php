@@ -64,12 +64,17 @@ class DatabaseSeeder extends Seeder
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this
            // has the final word.
+           // Nine clothing children become three: what a shop SELLS moves onto
+           // the line options so one shop can carry clothes, shoes and bags.
+           // Before the scope seeder, which reads the narrowed map.
+           FashionRemodelSeeder::class,
+
            PrepaymentScopeSeeder::class,
 
-           // What the remodels left behind: options nothing can reach, and
-           // service wiring for children detached from every root. Runs after
-           // everything that could legitimately re-attach a child.
-           TaxonomyDeadWeightSeeder::class,
+           // The option links, service wiring and FEE rows held by children
+           // detached from every root. Runs after everything that could
+           // legitimately re-attach one.
+           OrphanChildLinksCleanupSeeder::class,
 
            // Order within a price-role tier. The tiers themselves are sorted
            // by OptionGroup::ROLE_RANK and are not stored.

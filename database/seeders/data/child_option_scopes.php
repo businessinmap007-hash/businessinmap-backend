@@ -112,16 +112,16 @@ return [
     | a priced line.
     */
     'موضة وعناية شخصية' => [
-        297 => [135, 349, 382],  // ملابس زفاف
-        112 => [89, 349],        // ملابس رسمي — a formal shop sells the groom's suit
-        267 => [89],             // ملابس رياضية
-        258 => [89],             // ملابس النوم
-        54 => [89],              // ملابس كاجوال
-        95 => [135],             // أقمشة
-        8 => [21, 181],          // اكسسوار
-        168 => [227, 181],       // جلود وشنط وأحذية
-        // #59 ملابس and #60 ملابس جاهزة keep the whole list — a general
-        // clothing shop or factory does carry all of it, wedding wear included
+        95 => [135],             // أقمشة — a fabric merchant is a different trade
+        // #59 ملابس، #168 جلود وشنط وأحذية and #8 اكسسوار keep the WHOLE list as of
+        // 2026-08-08: root #14 collapsed to those three, and scoping them is
+        // exactly what left «كوتشي» unable to name a single thing it sold. The
+        // shop that carries clothes AND shoes AND accessories must be able to
+        // say all three; the narrowing is the merchant's own ticks now.
+        // #54، #112، #258، #267، #297 left the root entirely — FashionRemodelSeeder.
+        //
+        // #60 ملابس جاهزة still keeps the whole list: as a factory and showroom
+        // child it does carry every piece there is, wedding wear included.
     ],
 
     /*
@@ -169,11 +169,12 @@ return [
     |--------------------------------------------------------------------------
     | الجمهور المستهدف — #141 حريمي · #232 رجالي · #217 أطفال
     |--------------------------------------------------------------------------
-    | Fits every clothing shop, with one exception worth keeping: a wedding or
-    | formal-wear shop dresses adults.
+    | Unscoped as of 2026-08-08. It used to narrow «ملابس زفاف» and «ملابس رسمي»
+    | to adults, and both left root #14 in the fashion collapse — the shop that
+    | dresses grooms now says so with a line option instead of a category, and
+    | the same shop may well dress children too.
     */
     'الجمهور المستهدف' => [
-        297 => [141, 232],  // ملابس زفاف
-        112 => [141, 232],  // ملابس رسمي
+        // every clothing child keeps all three
     ],
 ];

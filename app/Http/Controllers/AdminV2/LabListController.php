@@ -46,9 +46,18 @@ class LabListController extends Controller
         // specialties) are shown read-only so nothing looks lost.
         $selected = $list->items->where('source', LabListItem::SOURCE_ITEM_TYPE)
             ->pluck('source_id')->map(fn ($v) => (int) $v)->values();
+        $svcNames = DB::table('platform_services')->pluck('name_ar', 'id');
         $allTypes = DB::table('platform_service_item_types_new')
-            ->orderBy('name_ar')->get(['id', 'name_ar', 'name_en'])
-            ->map(fn ($t) => ['id' => (int) $t->id, 'name' => (string) ($t->name_ar ?: $t->name_en ?: "#{$t->id}")])
+            ->orderBy('platform_service_id')->orderBy('name_ar')
+            ->get(['id', 'name_ar', 'name_en', 'platform_service_id'])
+            ->map(fn ($t) => [
+                'id' => (int) $t->id,
+                'name' => (string) ($t->name_ar ?: $t->name_en ?: "#{$t->id}"),
+                'group' => [
+                    'id' => (int) $t->platform_service_id,
+                    'name' => (string) ($svcNames[$t->platform_service_id] ?? 'أخرى'),
+                ],
+            ])
             ->values();
         $other = $this->itemsPayload($list->items->where('source', '!=', LabListItem::SOURCE_ITEM_TYPE)->values());
 

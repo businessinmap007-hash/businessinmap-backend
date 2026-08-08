@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -14,6 +15,11 @@ use Tests\TestCase;
  */
 class ChildOptionRedistributionTest extends TestCase
 {
+    // Every seeder these run writes to the LIVE dev database. Without this
+    // a single test run leaves the taxonomy changed for the next one — which
+    // is exactly how «ملابس» lost all 29 of its options mid-suite.
+    use DatabaseTransactions;
+
     /** The grab-bag is emptied, not re-filled by a later screen save. */
     public function test_the_commerce_grab_bag_holds_no_options(): void
     {

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,11 @@ use Tests\TestCase;
  */
 class ChildOptionScopeTest extends TestCase
 {
+    // Every seeder these run writes to the LIVE dev database. Without this
+    // a single test run leaves the taxonomy changed for the next one — which
+    // is exactly how «ملابس» lost all 29 of its options mid-suite.
+    use DatabaseTransactions;
+
     /** @return array<int,string> option names a child is offered from one group */
     private function offered(int $childId, string $group): array
     {
@@ -95,23 +101,42 @@ class ChildOptionScopeTest extends TestCase
         $this->assertContains('وايت بورد', $this->offered($this->childId('قاعات تدريب'), 'مرافق ومعدات'));
     }
 
-    /** A pyjama shop was being offered wedding dresses. */
-    public function test_a_clothing_child_is_offered_only_its_own_lines(): void
+    /**
+     * Clothing is no longer scoped, and the reversal is the point.
+     *
+     * «A pyjama shop was being offered wedding dresses» was the complaint this
+     * group was scoped for, and the cure turned out to be worse: «كوتشي» ended
+     * up with ZERO lines and could name nothing it sold, «ملابس رسمي» with two
+     * and could not say it also sells shoes. The owner's own case settled it —
+     * «هناك محلات احذية فقط وكوتشى فقط واكسسوار فقط لكن هناك محلات بها كلهم».
+     *
+     * Root #14 collapsed to three children, each offered the WHOLE list, and the
+     * narrowing is now the merchant's own ticks. The pyjama shop is a business
+     * on «ملابس» carrying «ملابس نوم» — it is no longer OFFERED wedding dresses,
+     * it simply does not tick them, which is the same outcome by consent.
+     */
+    public function test_a_clothing_child_may_claim_the_whole_wardrobe(): void
     {
-        $pyjamas = $this->offered($this->childId('ملابس النوم'), 'موضة وعناية شخصية');
+        $lines = $this->offered($this->childId('ملابس'), 'موضة وعناية شخصية');
 
-        $this->assertNotContains('فساتين زفاف', $pyjamas);
-        $this->assertContains('ملابس', $pyjamas);
+        foreach (['ملابس', 'أحذية', 'كوتشي', 'اكسسوارات', 'ملابس نوم', 'فساتين زفاف'] as $line) {
+            $this->assertContains($line, $lines, "a clothing shop cannot say «{$line}»");
+        }
 
         // the audience left this group for «الجمهور المستهدف» — it says WHO the
         // shop dresses, which qualifies a line rather than being one
         $this->assertContains(
             'حريمي',
-            $this->offered($this->childId('ملابس النوم'), 'الجمهور المستهدف'),
+            $this->offered($this->childId('ملابس'), 'الجمهور المستهدف'),
             'the audience rows fit every clothing shop'
         );
 
-        $this->assertContains('فساتين زفاف', $this->offered($this->childId('ملابس زفاف'), 'موضة وعناية شخصية'));
+        // A fabric merchant is still a different trade, and stays scoped. The
+        // list repeats because #95 sits under three roots and the link is
+        // per-root — unique() is the assertion, not the raw row count.
+        $fabric = array_values(array_unique($this->offered($this->childId('أقمشة'), 'موضة وعناية شخصية')));
+
+        $this->assertSame(['أقمشة'], $fabric);
     }
 
     /**

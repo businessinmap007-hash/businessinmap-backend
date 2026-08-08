@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\TaxonomyDeadWeightSeeder;
+use Database\Seeders\OrphanChildLinksCleanupSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -22,7 +22,7 @@ use Tests\TestCase;
  * the undo record for those remodels (HealthRemodelSeeder is non-destructive by
  * design and restores a specialty by re-inserting one pivot row).
  */
-class TaxonomyDeadWeightTest extends TestCase
+class OrphanChildLinksTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -46,7 +46,6 @@ class TaxonomyDeadWeightTest extends TestCase
 
         foreach ([
             'category_platform_services' => 'روابط',
-            'category_service_configs' => 'إعدادات',
             'category_child_service_fees' => 'رسوم',
         ] as $table => $label) {
             $stray = DB::table($table)->whereIn('child_id', $ids)->pluck('child_id')->unique();
@@ -66,7 +65,7 @@ class TaxonomyDeadWeightTest extends TestCase
     {
         $before = DB::table('category_children_master')->count();
 
-        (new TaxonomyDeadWeightSeeder)->run();
+        (new OrphanChildLinksCleanupSeeder)->run();
 
         $this->assertSame(
             $before,
@@ -110,7 +109,7 @@ class TaxonomyDeadWeightTest extends TestCase
             $this->markTestSkipped('No menu bands are declared.');
         }
 
-        (new TaxonomyDeadWeightSeeder)->run();
+        (new OrphanChildLinksCleanupSeeder)->run();
 
         $missing = array_values(array_diff($names, DB::table('options as o')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
@@ -124,7 +123,7 @@ class TaxonomyDeadWeightTest extends TestCase
     /** Re-running writes nothing. */
     public function test_the_sweep_is_idempotent(): void
     {
-        (new TaxonomyDeadWeightSeeder)->run();
+        (new OrphanChildLinksCleanupSeeder)->run();
 
         $before = [
             DB::table('options')->count(),
@@ -133,7 +132,7 @@ class TaxonomyDeadWeightTest extends TestCase
             DB::table('category_child_service_fees')->count(),
         ];
 
-        (new TaxonomyDeadWeightSeeder)->run();
+        (new OrphanChildLinksCleanupSeeder)->run();
 
         $this->assertSame($before, [
             DB::table('options')->count(),

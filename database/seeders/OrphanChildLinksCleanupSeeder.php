@@ -31,6 +31,11 @@ use Illuminate\Support\Facades\DB;
  * 2. Service configs are deactivated, not deleted, so the admin screens can
  *    still show and revive them.
  *
+ * Service FEES are deleted outright, not deactivated: a fee row is money
+ *    config, the fee screens list it whether or not it is on, and the five
+ *    retired hotel star ratings were still being given 10 EGP booking fees in
+ *    July — months after nothing could reach them.
+ *
  * The master rows themselves are never touched; re-linking a child to a root
  * gives it a clean sheet rather than a resurrected one.
  */
@@ -58,11 +63,16 @@ class OrphanChildLinksCleanupSeeder extends Seeder
                 ->where('is_active', 1)
                 ->update(['is_active' => 0, 'updated_at' => now()]);
 
+            $fees = DB::table('category_child_service_fees')->whereIn('child_id', $safe)->delete();
+            $links = DB::table('category_platform_services')->whereIn('child_id', $safe)->delete();
+
             $this->command?->info('Orphan child links cleanup:');
             $this->command?->line("  - حسابات نُقلت إلى التوأم المرتبط : {$refiled}");
             $this->command?->line('  - أبناء بلا جذر : ' . $orphans->count() . " (نُظّف منها {$safe->count()})");
             $this->command?->line("  - روابط خيارات أُزيلت : {$options}");
             $this->command?->line("  - إعدادات خدمات عُطّلت : {$configs}");
+            $this->command?->line("  - روابط خدمات أُزيلت : {$links}");
+            $this->command?->line("  - رسوم خدمات أُزيلت : {$fees}");
 
             foreach ($held as $childId) {
                 $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');

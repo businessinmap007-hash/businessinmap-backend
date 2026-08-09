@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -16,6 +17,13 @@ use Tests\TestCase;
  */
 class OptionGroupCohesionTest extends TestCase
 {
+    /**
+     * These run seeders. Without this trait they ran them against the LIVE dev
+     * database and kept the writes — which is how «عيادة» lost eight merchants'
+     * specialties and «صيدلية» lost «حقن» during a full-suite run.
+     */
+    use DatabaseTransactions;
+
     /** @return array<int,string> option names inside a group */
     private function namesIn(string $group): array
     {

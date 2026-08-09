@@ -136,6 +136,7 @@ class ChildRootMovesTest extends TestCase
             'نادي صحي' => ['نادي صحي', 'health', 'sports'],
             'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
             'تجهيز عرائس' => ['تجهيز عرائس', 'shops-online', 'professions'],
+            'سائق' => ['سائق', 'professions', 'cars'],
         ];
     }
 
@@ -195,6 +196,69 @@ class ChildRootMovesTest extends TestCase
                 ->exists(),
             'the move stranded the training service'
         );
+    }
+
+    /**
+     * A move that changes what the business IS must change what it sells.
+     * Carrying the wiring verbatim left «مكملات غذائية» in المحلات still
+     * offering booking and training from الرياضة and unable to list one
+     * product, and «تجهيز عرائس» in مهن still a shop and unbookable.
+     *
+     * @dataProvider adoptedShapes
+     */
+    public function test_a_kind_changing_move_adopts_its_new_roots_services(string $name, string $must, string $mustNot): void
+    {
+        $childId = $this->childId($name);
+
+        $keys = DB::table('category_platform_services as l')
+            ->join('platform_services as s', 's.id', '=', 'l.platform_service_id')
+            ->join('category_parent_child as p', 'p.parent_id', '=', 'l.category_id')
+            ->where('l.child_id', $childId)->whereColumn('p.child_id', 'l.child_id')
+            ->where('l.is_active', 1)->pluck('s.key')->unique()->all();
+
+        $this->assertContains($must, $keys, "«{$name}» cannot do the thing its new root is for");
+        $this->assertNotContains($mustNot, $keys, "«{$name}» kept a service from the root it left");
+    }
+
+    /** @return array<string,array{0:string,1:string,2:string}> */
+    public static function adoptedShapes(): array
+    {
+        return [
+            'مكملات غذائية' => ['مكملات غذائية', 'retail', 'training'],
+            'تجهيز عرائس' => ['تجهيز عرائس', 'booking', 'retail'],
+            'عفشجى' => ['عفشجى', 'schedules', 'booking'],
+        ];
+    }
+
+    /** A restaurant that could not publish a menu. Thirteen accounts. */
+    public function test_a_restaurant_can_publish_a_menu(): void
+    {
+        $childId = $this->childId('مطعم');
+        $root = (int) DB::table('categories')->where('slug', 'restaurants-cafes')->value('id');
+        $menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
+
+        $this->assertTrue(
+            DB::table('category_platform_services')->where('category_id', $root)
+                ->where('child_id', $childId)->where('platform_service_id', $menu)
+                ->where('is_active', 1)->exists(),
+            'the menu link is still switched off'
+        );
+
+        $config = json_decode((string) DB::table('category_service_configs')->where('category_id', $root)
+            ->where('child_id', $childId)->where('platform_service_id', $menu)
+            ->where('is_active', 1)->value('config'), true) ?: [];
+
+        $this->assertContains('menu_food', $config['allowed_item_types'] ?? [], 'the menu allows no food');
+    }
+
+    /** Reinstating is a named list, never a heuristic. */
+    public function test_the_reinstatement_seeder_is_idempotent(): void
+    {
+        $before = DB::table('category_platform_services')->where('is_active', 1)->count();
+
+        $this->artisan('db:seed', ['--class' => 'ServiceReinstatementSeeder', '--no-interaction' => true])->run();
+
+        $this->assertSame($before, DB::table('category_platform_services')->where('is_active', 1)->count());
     }
 
     /**

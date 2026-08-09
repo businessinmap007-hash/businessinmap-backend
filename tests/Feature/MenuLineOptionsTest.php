@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\OptionGroup;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,13 @@ use Tests\TestCase;
  */
 class MenuLineOptionsTest extends TestCase
 {
+    /**
+     * These run seeders. Without this trait they ran them against the LIVE dev
+     * database and kept the writes — which is how «عيادة» lost eight merchants'
+     * specialties and «صيدلية» lost «حقن» during a full-suite run.
+     */
+    use DatabaseTransactions;
+
     private function menuServiceId(): int
     {
         return (int) DB::table('platform_services')->where('key', 'menu')->value('id');

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -72,7 +73,14 @@ class ChildRootMovesSeeder extends Seeder
             ->where('parent_id', $from)->where('child_id', $childId)->exists();
 
         if (! $hangsFromSource) {
-            $this->command?->line("  - «{$name}» ليس تحت «{$move['from_root_slug']}» — لا شيء ليُنقل.");
+            // Already moved. The SHAPE is still checked, because adopting it is
+            // a corrective step in its own right — the four moves that needed it
+            // were made before the flag existed, and a child left offering its
+            // old root's services is exactly the fault the flag was added for.
+            $adopted = ! empty($move['adopt_services']) ? $this->adoptRootShape($childId, $to) : 0;
+
+            $this->command?->line("  - «{$name}» ليس تحت «{$move['from_root_slug']}» — لا شيء ليُنقل."
+                . ($adopted > 0 ? " (خدمات صُحّحت: {$adopted})" : ''));
 
             return;
         }
@@ -86,6 +94,7 @@ class ChildRootMovesSeeder extends Seeder
             ->where('parent_id', $from)->where('child_id', $childId)->delete();
 
         $moved = $this->moveWiring($childId, $from, $to);
+        $adopted = ! empty($move['adopt_services']) ? $this->adoptRootShape($childId, $to) : 0;
 
         // Nobody may be left pointing at a root the child no longer hangs from.
         $accounts = DB::table('users')
@@ -94,8 +103,104 @@ class ChildRootMovesSeeder extends Seeder
             ->update(['category_id' => $to]);
 
         $this->command?->line("  - «{$name}» #{$childId} : {$move['from_root_slug']} → {$move['to_root_slug']}");
-        $this->command?->line("      صفوف ربط نُقلت : {$moved} · حسابات نُقلت : {$accounts}");
+        $this->command?->line("      صفوف ربط نُقلت : {$moved} · حسابات نُقلت : {$accounts} · خدمات تبنّاها : {$adopted}");
         $this->command?->line("      السبب : {$move['why']}");
+    }
+
+    /**
+     * Make the child offer what its NEW siblings offer.
+     *
+     * A move that changes what the business is must change what it sells, and
+     * carrying the old root's wiring across is how «مكملات غذائية» landed in
+     * المحلات still offering booking and training and unable to list one
+     * product. The shape is the commonest service set among the root's other
+     * children — the root's own answer, not a guess — and each config is COPIED
+     * from a sibling that already has it, so nothing here invents a setting.
+     *
+     * Services the child keeps from its old life are deactivated, never deleted:
+     * the config holds work, and a wrong call here has to be undoable.
+     */
+    private function adoptRootShape(int $childId, int $rootId): int
+    {
+        $writer = app(ChildServiceWriter::class);
+
+        $shape = $this->majorityShape($childId, $rootId);
+
+        if ($shape === []) {
+            return 0;
+        }
+
+        $changed = 0;
+
+        foreach ($shape as $serviceId => $donorChildId) {
+            $already = DB::table('category_platform_services')
+                ->where('category_id', $rootId)->where('child_id', $childId)
+                ->where('platform_service_id', $serviceId)->where('is_active', 1)->exists();
+
+            if ($already) {
+                continue;
+            }
+
+            $config = json_decode((string) DB::table('category_service_configs')
+                ->where('category_id', $rootId)->where('child_id', $donorChildId)
+                ->where('platform_service_id', $serviceId)->value('config'), true) ?: [];
+
+            $writer->enable($rootId, $childId, $serviceId, $config, null, null, 'child-root-move');
+            $changed++;
+        }
+
+        foreach (
+            DB::table('category_platform_services')
+                ->where('category_id', $rootId)->where('child_id', $childId)->where('is_active', 1)
+                ->pluck('platform_service_id') as $serviceId
+        ) {
+            if (array_key_exists((int) $serviceId, $shape)) {
+                continue;
+            }
+
+            $writer->disable($rootId, $childId, (int) $serviceId);
+            $changed++;
+        }
+
+        return $changed;
+    }
+
+    /**
+     * service id => a sibling child that carries it, for every service the
+     * majority of this root's OTHER children offer.
+     *
+     * @return array<int,int>
+     */
+    private function majorityShape(int $childId, int $rootId): array
+    {
+        $siblings = DB::table('category_parent_child')
+            ->where('parent_id', $rootId)->where('child_id', '!=', $childId)
+            ->pluck('child_id')->map(fn ($id) => (int) $id);
+
+        if ($siblings->isEmpty()) {
+            return [];
+        }
+
+        $carriers = [];
+
+        foreach (
+            DB::table('category_platform_services')
+                ->where('category_id', $rootId)->whereIn('child_id', $siblings)->where('is_active', 1)
+                ->get(['child_id', 'platform_service_id']) as $row
+        ) {
+            $carriers[(int) $row->platform_service_id][] = (int) $row->child_id;
+        }
+
+        $threshold = $siblings->count() / 2;
+        $shape = [];
+
+        foreach ($carriers as $serviceId => $children) {
+            if (count(array_unique($children)) > $threshold) {
+                $shape[$serviceId] = $children[0];
+            }
+        }
+
+        return $shape;
     }
 
     private function moveWiring(int $childId, int $from, int $to): int

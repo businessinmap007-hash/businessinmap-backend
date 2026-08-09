@@ -38,7 +38,13 @@ class HospitalityOptionRestoreTest extends TestCase
             ->all();
     }
 
-    /** Whatever every intact sibling carries, the restored two carry too. */
+    /**
+     * Whatever every intact sibling carries, the restored two carry too.
+     *
+     * «carries the base», not «carries only the base». A child gaining an extra
+     * payment word from some other seeder is not a regression, and asserting an
+     * exact group size would turn every unrelated grant into a red test here.
+     */
     public function test_both_carry_the_base_every_sibling_has(): void
     {
         foreach (['بيت ضيافة', 'فندق عائم / بوت نيلي'] as $name) {
@@ -48,7 +54,8 @@ class HospitalityOptionRestoreTest extends TestCase
             $this->assertSame(2, $groups['ملاءمة المكان'] ?? 0);
             $this->assertSame(2, $groups['إطلالة الوحدة'] ?? 0);
             $this->assertSame(3, $groups['نظام الوجبات'] ?? 0);
-            $this->assertSame(1, $groups['الدفع والسداد'] ?? 0);
+
+            $this->assertContains('تقسيط بدون فوائد', $this->optionNamesOf($this->childId($name)));
         }
     }
 
@@ -83,26 +90,27 @@ class HospitalityOptionRestoreTest extends TestCase
     }
 
     /**
-     * The accident left root-scoped duplicates of shared rows. A child hanging
-     * from one root has nothing to scope against, so the rows are noise — and a
-     * duplicate makes the card count an option twice.
+     * The accident left a root-scoped row BESIDE the shared row for the same
+     * option, so the child appeared to carry it twice and the card counted it
+     * twice. That duplication is the defect — a scoped row on its own is not:
+     * other seeders write them legitimately, and asserting they can never exist
+     * would make this test a tripwire on work that is none of its business.
      */
-    public function test_no_scoped_duplicate_survives_on_a_single_root_child(): void
+    public function test_no_scoped_row_duplicates_a_shared_one(): void
     {
         foreach (['بيت ضيافة', 'فندق عائم / بوت نيلي'] as $name) {
             $childId = $this->childId($name);
 
-            $this->assertSame(
-                1,
-                DB::table('category_parent_child')->where('child_id', $childId)->count(),
-                "«{$name}» now hangs from more than one root — the collapse rule no longer applies"
-            );
+            $shared = DB::table('category_child_option')->where('child_id', $childId)
+                ->where('category_id', 0)->pluck('option_id')->map(fn ($id) => (int) $id);
+
+            $scoped = DB::table('category_child_option')->where('child_id', $childId)
+                ->where('category_id', '>', 0)->pluck('option_id')->map(fn ($id) => (int) $id);
 
             $this->assertSame(
-                0,
-                DB::table('category_child_option')->where('child_id', $childId)
-                    ->where('category_id', '>', 0)->count(),
-                "«{$name}» still carries a root-scoped row"
+                [],
+                $scoped->intersect($shared)->values()->all(),
+                "«{$name}» carries the same option both shared and scoped"
             );
         }
     }

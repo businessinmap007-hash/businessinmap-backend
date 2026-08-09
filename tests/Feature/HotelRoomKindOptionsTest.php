@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BusinessServicePrice;
 use App\Models\OptionGroup;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,13 @@ use Tests\TestCase;
  */
 class HotelRoomKindOptionsTest extends TestCase
 {
+    /**
+     * These run seeders. Without this trait they ran them against the LIVE dev
+     * database and kept the writes — which is how «عيادة» lost eight merchants'
+     * specialties and «صيدلية» lost «حقن» during a full-suite run.
+     */
+    use DatabaseTransactions;
+
     private const RETIRED = ['single_room', 'double_room', 'suite', 'family_room', 'villa', 'apartment'];
 
     private function childId(string $name): int

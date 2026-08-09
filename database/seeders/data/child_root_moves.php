@@ -22,6 +22,15 @@
 |     config and provenance — a move must not silently rewrite an admin's work;
 |   - any account sitting on the child has its `category_id` moved too, so
 |     nobody is left pointing at a root the child no longer belongs to.
+|
+| `adopt_services` — set it when the move changes what the business IS, not just
+| where it is filed. Carrying the wiring verbatim is right for «مأذون شرعى»: he
+| took bookings under مهن and takes bookings under مكاتب. It was WRONG for
+| «مكملات غذائية», which arrived in المحلات still carrying booking and training
+| from الرياضة and unable to sell a single item, and for «تجهيز عرائس», which
+| arrived in مهن still a shop and could not be booked. With the flag on, the
+| child adopts the service shape its new siblings actually have, and each config
+| is copied from one of them rather than invented.
 */
 
 return [
@@ -64,6 +73,7 @@ return [
         // سباحة، أكاديمية، نادي. A supplements seller is a shop, and the root
         // says where the business stands.
         'child_name_ar' => 'مكملات غذائية',
+        'adopt_services' => true,
         'from_root_slug' => 'sports',
         'to_root_slug' => 'shops-online',
         'why' => 'جذر الرياضة أماكن تُحجز، وبائع المكملات محل — بجوار «عطور» و«أدوات تجميل»',
@@ -73,6 +83,7 @@ return [
         // ورش ومراكز صيانة is where something broken is repaired. A عفشجى
         // repairs nothing — he moves your furniture, which is root 5's question.
         'child_name_ar' => 'عفشجى',
+        'adopt_services' => true,
         'from_root_slug' => 'workshops',
         'to_root_slug' => 'shipping-delivery',
         'why' => 'ينقل العفش ولا يُصلح شيئًا، فهو نقل لا صيانة',
@@ -88,6 +99,7 @@ return [
         // kind of place as a جيم, and TrainingServiceSeeder already sells the
         // training service through it alongside جيم and نادي رياضي.
         'child_name_ar' => 'نادي صحي',
+        'adopt_services' => true,
         'from_root_slug' => 'health',
         'to_root_slug' => 'sports',
         'why' => 'ليس منشأة طبية بل مكان تُمارَس فيه رياضة — بجوار «جيم» و«نادي رياضي»، وخدمة التدريب تُباع من خلاله بالفعل',
@@ -109,8 +121,25 @@ return [
         // «تجهيز عرائس» is also already a priced line option inside «خدمات
         // الكوافير والتجميل», which is where the work is actually sold.
         'child_name_ar' => 'تجهيز عرائس',
+        'adopt_services' => true,
         'from_root_slug' => 'shops-online',
         'to_root_slug' => 'professions',
         'why' => 'خدمة تجميل تُؤدّى لا سلعة تُباع على كاونتر — بجوار «كوافير»',
+    ],
+
+    /*
+    | Third pass, 2026-08-09.
+    */
+
+    [
+        // The other 28 children of مهن وحرفيين are building and household
+        // crafts — نقاش، سباك، نجار، حداد، مبلط. Root 13 «سيارات» is where a
+        // car-based service stands, and it already holds نقل ركاب (55 accounts)
+        // and خدمة ليموزين, which is what hiring a driver actually is.
+        'child_name_ar' => 'سائق',
+        'adopt_services' => true,
+        'from_root_slug' => 'professions',
+        'to_root_slug' => 'cars',
+        'why' => 'خدمة تقوم على سيارة، فمكانها مع «نقل ركاب» و«خدمة ليموزين» لا بين حرف البناء',
     ],
 ];

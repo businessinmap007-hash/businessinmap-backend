@@ -75,6 +75,11 @@ class DatabaseSeeder extends Seeder
            // cannot undo curation done since.
            HospitalityOptionRestoreSeeder::class,
 
+           // A named list of services switched off where they obviously belong —
+           // «مطعم» could not publish a menu. Never a heuristic: every row was
+           // read and agreed with, so an admin's deliberate off stays off.
+           ServiceReinstatementSeeder::class,
+
            // One trade under several roots — a spare-parts FACTORY could not
            // name a car brand while the shop next door named 43. Gives the
            // survivor every axis, then takes over the empty twins' roots.

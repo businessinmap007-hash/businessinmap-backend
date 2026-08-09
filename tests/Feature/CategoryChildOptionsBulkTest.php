@@ -46,7 +46,11 @@ class CategoryChildOptionsBulkTest extends TestCase
             ->assertOk();
     }
 
-    public function test_append_saves_and_leaves_the_page(): void
+    /**
+     * «اريد عند الحفظ ان يظل فى نفس الصفحة» — owner, 2026-08-09. It used to land
+     * on the children index, which ended the session after one save.
+     */
+    public function test_saving_comes_back_to_the_same_screen(): void
     {
         [$rootId, $childId, $optionId] = $this->subject();
 
@@ -58,7 +62,26 @@ class CategoryChildOptionsBulkTest extends TestCase
                 'mode' => 'append',
             ])
             ->assertSessionHasNoErrors()
-            ->assertRedirect();
+            ->assertRedirect(route('admin.category-child-options.bulk.edit', [
+                'child_ids' => [$childId],
+                'parent_id' => $rootId,
+            ]));
+    }
+
+    /** And the child it was working on comes back ticked. */
+    public function test_the_selection_survives_the_save(): void
+    {
+        [$rootId, $childId] = $this->subject();
+
+        $selected = $this->actingAs($this->admin())
+            ->get(route('admin.category-child-options.bulk.edit', [
+                'parent_id' => $rootId,
+                'child_ids' => [$childId],
+            ]))
+            ->assertOk()
+            ->viewData('selectedChildIds');
+
+        $this->assertContains($childId, $selected);
     }
 
     /**

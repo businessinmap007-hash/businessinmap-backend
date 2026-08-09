@@ -35,7 +35,12 @@ return [
         ['name_ar' => 'مستشفى',      'name_en' => 'Hospital',        'item_type_key' => 'hospital',    'carries_specialties' => true],
         ['name_ar' => 'عيادة',       'name_en' => 'Clinic',          'item_type_key' => 'clinic',      'carries_specialties' => true],
         ['name_ar' => 'مركز طبي',    'name_en' => 'Medical Center',  'item_type_key' => null,          'carries_specialties' => true],
-        ['name_ar' => 'نادي صحي',    'name_en' => 'Health Club',     'item_type_key' => 'health_club', 'carries_specialties' => false],
+        // «نادي صحي» was here until 2026-08-09 and is now a child of «الرياضة»
+        // beside جيم and نادي رياضي — the root «الصحة» is medical FACILITIES.
+        // It is NOT re-listed here: an add-only seeder that still names a child
+        // the owner has moved re-attaches it on the next run, which is exactly
+        // what happened and what turned ChildRootMovesTest red.
+        // See [[seeder-must-withdraw]].
         // Already correct business types — kept exactly as they are.
         ['name_ar' => 'صيدلية',      'name_en' => 'Pharmacy',        'item_type_key' => null,          'carries_specialties' => false, 'existing' => true],
         ['name_ar' => 'معمل تحاليل', 'name_en' => 'Medical Lab',     'item_type_key' => null,          'carries_specialties' => false, 'existing' => true],

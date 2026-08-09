@@ -324,14 +324,19 @@ class CategoryChildOptionController extends Controller
             }
         }
 
-        $routeParams = [];
+        // «اريد عند الحفظ ان يظل فى نفس الصفحة» — owner, 2026-08-09. Curating a
+        // child's options is a walk down a list, and being thrown to the
+        // children index after each save made one save the end of the session.
+        // The root and the selection come back with it, so the next child is one
+        // click away rather than four.
+        $routeParams = ['child_ids' => $childIds];
 
         if ($parentId > 0) {
             $routeParams['parent_id'] = $parentId;
         }
 
         return redirect()
-            ->route('admin.category-children.index', $routeParams)
+            ->route('admin.category-child-options.bulk.edit', $routeParams)
             ->with('success', __('تم الحفظ: :added إضافة و :removed إزالة على :children قسمًا.', [
                 'added' => $added,
                 'removed' => $removed,

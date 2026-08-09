@@ -169,11 +169,12 @@ class CategoryChildOptionController extends Controller
         $roots = Category::query()
             ->where('parent_id', 0)
             ->with([
-                'children' => function ($q) use ($childIds) {
+                // `child_ids` PRE-SELECTS, it does not filter. It used to hide
+                // every other child, which after a save left the admin locked
+                // inside the set he had just finished with and unable to reach
+                // the next one without clearing the URL by hand.
+                'children' => function ($q) {
                     $q->select('category_children_master.id', 'name_ar', 'name_en', 'reorder')
-                        ->when(! empty($childIds), function ($sub) use ($childIds) {
-                            $sub->whereIn('category_children_master.id', $childIds);
-                        })
                         ->orderByRaw('COALESCE(category_children_master.reorder, 999999) ASC')
                         ->orderBy('category_children_master.name_ar')
                         ->orderBy('category_children_master.id');
@@ -186,7 +187,18 @@ class CategoryChildOptionController extends Controller
             ->filter(fn ($root) => $root->children->isNotEmpty())
             ->values();
 
-        $activeRootId = $parentId > 0
+        /*
+        | The active root must be one of the roots this screen actually DREW.
+        |
+        | Arriving with `?parent_id=` naming a root the screen did not draw left
+        | no panel open. Every child checkbox rendered `disabled`, the browser
+        | therefore submitted no `child_ids`, and the save could only ever answer
+        | «حقل الأقسام الفرعية مطلوب» — a page with nothing tickable on it and no
+        | way to say so.
+        */
+        $available = $roots->pluck('id')->map(fn ($id) => (int) $id);
+
+        $activeRootId = $available->contains($parentId)
             ? $parentId
             : (int) optional($roots->first())->id;
 
@@ -243,6 +255,20 @@ class CategoryChildOptionController extends Controller
         ]);
     }
 
+    /**
+     * Three ways to write, and «استبدال بالكامل» is the one that can withdraw.
+     *
+     * The screen used to open with every option unticked whatever the children
+     * already carried, so there was nothing to untick — withdrawing meant
+     * switching to «حذف المحدد» and ticking what should GO, where a tick means
+     * the opposite of a tick two modes above. The view now seeds the boxes from
+     * the child's real set when exactly one child is picked, so replace mode
+     * reads as «this is what it has» and unticking removes.
+     *
+     * An empty `option_ids` is therefore meaningful and must not be rejected:
+     * a browser sends nothing at all for a set of cleared checkboxes, and that
+     * is exactly how «withdraw everything» arrives here.
+     */
     public function bulkUpdate(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -252,59 +278,65 @@ class CategoryChildOptionController extends Controller
             'option_ids.*' => ['integer', 'exists:options,id'],
             'mode' => ['required', 'in:append,replace,remove'],
             'parent_id' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'child_ids.required' => __('اختر قسمًا فرعيًا واحدًا على الأقل قبل الحفظ.'),
         ]);
 
-        $childIds = collect($data['child_ids'])
+        $ids = fn (string $key) => collect($data[$key] ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values()
             ->all();
 
-        $optionIds = collect($data['option_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
+        $childIds = $ids('child_ids');
+        $optionIds = $ids('option_ids');
 
         // The bulk edit is launched from a root, and every write below is scoped
         // to it: appending under معارض must not also grant the option under
         // مصانع, and replacing under one root must not wipe the others.
         $parentId = (int) ($data['parent_id'] ?? 0);
 
-        $children = CategoryChild::query()
-            ->whereIn('id', $childIds)
-            ->get(['id']);
+        $children = CategoryChild::query()->whereIn('id', $childIds)->get(['id']);
+
+        $added = 0;
+        $removed = 0;
 
         foreach ($children as $child) {
             $childId = (int) $child->id;
 
             if ($data['mode'] === 'replace') {
-                $this->scope->syncFor($childId, $parentId, $optionIds, [], true);
+                $result = $this->scope->syncFor($childId, $parentId, $optionIds, [], true);
+                $added += (int) $result['added'];
+                $removed += (int) $result['removed'];
 
                 continue;
             }
 
             if ($data['mode'] === 'append') {
-                $this->scope->grantFor($childId, $parentId, $optionIds);
+                $added += $this->scope->grantFor($childId, $parentId, $optionIds);
 
                 continue;
             }
 
-            if ($data['mode'] === 'remove' && ! empty($optionIds)) {
-                $this->scope->revokeFor($childId, $parentId, $optionIds);
+            if ($data['mode'] === 'remove' && $optionIds !== []) {
+                $removed += (int) ($this->scope->revokeFor($childId, $parentId, $optionIds)['removed'] ?? 0);
             }
         }
 
         $routeParams = [];
-        if (!empty($data['parent_id'])) {
-            $routeParams['parent_id'] = (int) $data['parent_id'];
+
+        if ($parentId > 0) {
+            $routeParams['parent_id'] = $parentId;
         }
 
         return redirect()
             ->route('admin.category-children.index', $routeParams)
-            ->with('success', __('تم تحديث خيارات الأقسام الفرعية المحددة بنجاح.'));
+            ->with('success', __('تم الحفظ: :added إضافة و :removed إزالة على :children قسمًا.', [
+                'added' => $added,
+                'removed' => $removed,
+                'children' => count($childIds),
+            ]));
     }
 
     /**

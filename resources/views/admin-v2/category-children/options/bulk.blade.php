@@ -149,6 +149,9 @@
                                 {{-- The count badge and its click handler are attached in JS. Baked
                                      into the markup they cost ~180 bytes × 364 children on a page that
                                      already ships 900 checkboxes; built once on load they cost nothing. --}}
+                                {{-- Nothing is pre-ticked unless the URL asked for it. The screen
+                                     used to tick every child of the open root, so the first thing
+                                     an admin had to do was untick 68 of them to reach one. --}}
                                 @foreach($children as $child)
                                     <label class="a2-check-card js-child-card" data-child-id="{{ $child->id }}">
                                         <input
@@ -156,7 +159,7 @@
                                             name="child_ids[]"
                                             value="{{ $child->id }}"
                                             class="js-child-checkbox"
-                                            {{ $isActive ? 'checked' : '' }}
+                                            {{ $isActive && in_array((int) $child->id, $selectedChildIds, true) ? 'checked' : '' }}
                                             {{ $isActive ? '' : 'disabled' }}
                                         >
                                         <span>{{ $nameOf($child) }}</span>
@@ -168,13 +171,15 @@
                 @endforeach
             @endif
 
-            {{-- One child at a time, read-only: what is already written down for it
-                 under the open root. Bulk modes answer «what shall they all get»;
-                 this answers «what does this one have», which no screen said before. --}}
+            {{-- Everything the selection already carries, grouped, with an × on each.
+                 Removing here clears the matching box in the picker below, so the
+                 card and the picker are two views of one answer — never two lists
+                 that can disagree. --}}
             <div id="childPeek" class="a2-card a2-card--section a2-mt-12" style="display:none;">
-                <div class="a2-card-head" style="display:flex;align-items:center;gap:8px;">
+                <div class="a2-card-head" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span class="a2-section-title a2-mb-0" id="childPeekTitle"></span>
                     <span class="a2-badge" id="childPeekCount">0</span>
+                    <span class="a2-muted" id="childPeekHint" style="font-size:12px;"></span>
                     <button type="button" class="a2-btn a2-btn-ghost" id="childPeekClose"
                             style="margin-inline-start:auto;">{{ __('إغلاق') }}</button>
                 </div>
@@ -193,7 +198,7 @@
                 </label>
 
                 <label class="a2-check-card">
-                    <input type="radio" name="mode" value="replace">
+                    <input type="radio" name="mode" value="replace" id="modeReplace">
                     <span>{{ __('استبدال بالكامل') }}</span>
                 </label>
 
@@ -202,6 +207,13 @@
                     <span>{{ __('حذف المحدد') }}</span>
                 </label>
             </div>
+
+            {{-- «لا يمكننى الغاء ما هو محدد سابقا» — because nothing was ever
+                 ticked: the screen asked «what shall they all get», so the
+                 registered set was invisible and there was nothing to untick.
+                 In «استبدال بالكامل» with ONE child picked, the ticks now START
+                 as what that child already carries, and unticking removes. --}}
+            <div class="a2-muted a2-mt-12" id="modeHint" style="font-size:12px;"></div>
         </div>
 
         {{-- Option Groups --}}
@@ -365,6 +377,9 @@ document.addEventListener('DOMContentLoaded', function () {
         closePeek();
         refreshChildBadges();
         refreshRegistered();
+        // The root decides which children are in play AND which scoped options
+        // they carry, so the replace-mode seed has to be taken again.
+        seedFromRegistered();
     }
 
     rootTabs.forEach(function (tab) {
@@ -432,6 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const peek = document.getElementById('childPeek');
     const peekTitle = document.getElementById('childPeekTitle');
     const peekCount = document.getElementById('childPeekCount');
+    const peekHint = document.getElementById('childPeekHint');
     const peekBody = document.getElementById('childPeekBody');
 
     function closePeek() {
@@ -451,6 +467,20 @@ document.addEventListener('DOMContentLoaded', function () {
         peekTitle.textContent = childName;
         peekCount.textContent = String(ids.length);
         peekBody.innerHTML = '';
+
+        // «استطيع الغاء منها غير المناسب مباشرة»: each option below is a chip
+        // with an ×, and the × simply clears that option's box in the picker.
+        // The card never writes anything itself — one answer shown twice, so the
+        // two can never drift apart. Decided before the empty case so a child
+        // with nothing registered cannot be left showing the previous child's
+        // instructions.
+        const removable = removalIsLive();
+
+        if (peekHint) {
+            peekHint.textContent = removable
+                ? @json(__('اضغط × لاستبعاد ما لا يناسب هذا القسم، ثم احفظ.'))
+                : @json(__('للعرض فقط — اختر «استبدال بالكامل» وقسمًا واحدًا حتى يصبح الاستبعاد ممكنًا.'));
+        }
 
         if (!ids.length) {
             const empty = document.createElement('div');
@@ -475,20 +505,20 @@ document.addEventListener('DOMContentLoaded', function () {
             // both into one string would need a separator, and a group name has
             // spaces in it — «أثاث وتشطيب منزلي» does not survive a naive split.
             if (!byGroup.has(entry[1])) {
-                byGroup.set(entry[1], { role: entry[2] || '', names: [] });
+                byGroup.set(entry[1], { role: entry[2] || '', items: [] });
             }
 
-            byGroup.get(entry[1]).names.push(entry[0]);
+            byGroup.get(entry[1]).items.push({ id: String(id), name: entry[0] });
         });
 
         Array.from(byGroup.keys()).sort().forEach(function (name) {
             const group = byGroup.get(name);
             const row = document.createElement('div');
-            row.style.marginBottom = '8px';
+            row.style.marginBottom = '10px';
 
             const head = document.createElement('div');
             head.style.fontWeight = '600';
-            head.textContent = name + ' (' + group.names.length + ')';
+            head.textContent = name + ' (' + group.items.length + ')';
 
             if (ROLE_LABELS[group.role]) {
                 const chip = document.createElement('span');
@@ -499,13 +529,71 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const body = document.createElement('div');
-            body.className = 'a2-muted';
-            body.textContent = group.names.join('، ');
+            body.style.display = 'flex';
+            body.style.flexWrap = 'wrap';
+            body.style.gap = '6px';
+            body.style.marginTop = '4px';
+
+            group.items.forEach(function (item) {
+                const box = optionBoxById(item.id);
+                const chip = document.createElement('span');
+                chip.className = 'a2-badge';
+                chip.style.display = 'inline-flex';
+                chip.style.alignItems = 'center';
+                chip.style.gap = '6px';
+                chip.textContent = item.name;
+
+                // Already cleared in the picker this session: shown struck
+                // through rather than dropped, so «what I removed» stays
+                // readable until the save.
+                if (removable && box && !box.checked) {
+                    chip.style.textDecoration = 'line-through';
+                    chip.style.opacity = '0.55';
+                }
+
+                if (removable && box) {
+                    const cut = document.createElement('button');
+                    cut.type = 'button';
+                    cut.textContent = box.checked ? '×' : '↺';
+                    cut.title = box.checked
+                        ? @json(__('استبعاد هذا الخيار من هذا القسم'))
+                        : @json(__('التراجع عن الاستبعاد'));
+                    cut.style.border = '0';
+                    cut.style.background = 'transparent';
+                    cut.style.cursor = 'pointer';
+                    cut.style.fontWeight = '700';
+                    cut.style.lineHeight = '1';
+
+                    cut.addEventListener('click', function () {
+                        box.checked = !box.checked;
+                        refreshGroupCounts();
+                        openPeek(childId, childName);
+                    });
+
+                    chip.appendChild(cut);
+                }
+
+                body.appendChild(chip);
+            });
 
             row.appendChild(head);
             row.appendChild(body);
             peekBody.appendChild(row);
         });
+    }
+
+    /** The picker's box for an option, or null when no group draws it. */
+    function optionBoxById(optionId) {
+        return document.querySelector('.js-option-checkbox[value="' + optionId + '"]');
+    }
+
+    /**
+     * Removing from the card only means something when the ticks ARE the child's
+     * final set — one child, replace mode. In «إضافة» a cleared box says nothing,
+     * and pretending otherwise would be the same lie the screen already told.
+     */
+    function removalIsLive() {
+        return currentMode() === 'replace' && selectedChildIds().length === 1;
     }
 
     const peekClose = document.getElementById('childPeekClose');
@@ -662,6 +750,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.checked = true;
             });
             refreshRegistered();
+            // Programmatic .checked fires no change event, so the seed is taken
+            // by hand — otherwise the ticks below would describe a child that is
+            // no longer the only one selected.
+            seedFromRegistered();
         });
     }
 
@@ -671,6 +763,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.checked = false;
             });
             refreshRegistered();
+            seedFromRegistered();
         });
     }
 
@@ -708,9 +801,96 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | «استبدال بالكامل» starts from what is already registered
+    |--------------------------------------------------------------------------
+    | The owner could not untick a registered option because nothing was ever
+    | ticked: the screen only ever asked «what shall they all get». Removing one
+    | meant switching to «حذف المحدد» and ticking it — where a tick means the
+    | opposite of a tick two modes above.
+    |
+    | So in replace mode the boxes are seeded with the child's real set and the
+    | screen finally says «this is what it has»; unticking one and saving removes
+    | it, which is what «استبدال بالكامل» already meant on the server.
+    |
+    | Only with EXACTLY ONE child selected. With several the sets differ, and a
+    | box left unticked because the OTHER child lacks it would silently strip it
+    | from the one that had it. There the screen keeps its old empty start and
+    | says so.
+    */
+    // Queried inside the functions rather than held in a const up here:
+    // activateRoot() calls seedFromRegistered() and can run before this line
+    // does, and a const read before its declaration throws.
+    function optionBoxes() {
+        return document.querySelectorAll('.js-option-checkbox');
+    }
+
+    function currentMode() {
+        const picked = document.querySelector('input[name="mode"]:checked');
+        return picked ? picked.value : 'append';
+    }
+
+    function seedFromRegistered() {
+        const children = selectedChildIds();
+        const mode = currentMode();
+        const modeHint = document.getElementById('modeHint');
+
+        if (mode !== 'replace' || children.length !== 1) {
+            if (modeHint) {
+                modeHint.textContent = mode === 'replace'
+                    ? (children.length === 1
+                        ? ''
+                        : @json(__('«استبدال بالكامل» يجعل كل الأقسام المحددة تحمل ما تختاره هنا بالضبط. اختر قسمًا واحدًا لتبدأ من خياراته الحالية.')))
+                    : @json(__('التحديد هنا يعني «أضف هذه» أو «احذف هذه». للتعديل على ما هو مسجّل فعلًا، اختر «استبدال بالكامل» وقسمًا واحدًا.'));
+            }
+
+            return;
+        }
+
+        const registered = new Set(optionsOf(children[0]).map(String));
+
+        optionBoxes().forEach(function (input) {
+            input.checked = registered.has(String(input.value));
+        });
+
+        if (modeHint) {
+            modeHint.textContent = @json(__('المحدد الآن هو ما يحمله هذا القسم فعلًا — أزل ما لا تريده واحفظ.'));
+        }
+
+        refreshGroupCounts();
+
+        // «لو قمت بتحدد ابن واحد تظهر كل الخيارات له مجمعة فى كارت»: the card is
+        // the point of picking one child, so it opens itself rather than waiting
+        // for the admin to find the badge that opens it.
+        const card = document.querySelector('.js-child-card[data-child-id="' + children[0] + '"]');
+
+        openPeek(children[0], card ? (card.querySelector('span') || {}).textContent || '' : '');
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            // Leaving replace mode clears the seed, so a tick never carries the
+            // meaning it had under a different mode.
+            if (currentMode() !== 'replace') {
+                optionBoxes().forEach(function (input) { input.checked = false; });
+                refreshGroupCounts();
+            }
+
+            seedFromRegistered();
+        });
+    });
+
+    document.addEventListener('change', function (event) {
+        if (event.target.matches && event.target.matches('.js-child-checkbox')) {
+            seedFromRegistered();
+        }
+    });
+
     buildChildBadges();
     refreshChildBadges();
     refreshRegistered();
+    seedFromRegistered();
 });
 </script>
 @endsection

@@ -89,6 +89,54 @@ class ChildRootMovesTest extends TestCase
     }
 
     /**
+     * The rest of the pass over the roots. Each of these stood in a root whose
+     * own children answer a different question.
+     *
+     * @dataProvider movedChildren
+     */
+    public function test_the_misfiled_children_landed_in_the_right_root(string $name, string $fromSlug, string $toSlug): void
+    {
+        $childId = $this->childId($name);
+        $this->assertGreaterThan(0, $childId, "«{$name}» is gone");
+
+        $from = (int) DB::table('categories')->where('slug', $fromSlug)->value('id');
+        $to = (int) DB::table('categories')->where('slug', $toSlug)->value('id');
+
+        $roots = DB::table('category_parent_child')->where('child_id', $childId)
+            ->pluck('parent_id')->map(fn ($id) => (int) $id)->all();
+
+        $this->assertContains($to, $roots, "«{$name}» never reached {$toSlug}");
+        $this->assertNotContains($from, $roots, "«{$name}» is still under {$fromSlug}");
+
+        // A move that leaves the services behind puts the child in the new root
+        // able to sell nothing — the config rows are keyed on the root.
+        $this->assertGreaterThan(
+            0,
+            DB::table('category_platform_services')
+                ->where('category_id', $to)->where('child_id', $childId)->where('is_active', 1)->count(),
+            "«{$name}» arrived offering nothing"
+        );
+
+        $this->assertSame(
+            0,
+            DB::table('users')->where('category_child_id', $childId)->where('category_id', $from)->count(),
+            "an account is still pointing at {$fromSlug}"
+        );
+    }
+
+    /** @return array<string,array{0:string,1:string,2:string}> */
+    public static function movedChildren(): array
+    {
+        return [
+            'مأذون شرعى' => ['مأذون شرعى', 'professions', 'offices'],
+            'اصلاح زجاج السيارات' => ['اصلاح زجاج السيارات', 'professions', 'workshops'],
+            'استوديوهات' => ['استوديوهات', 'shops-online', 'arts-entertainment'],
+            'مكملات غذائية' => ['مكملات غذائية', 'sports', 'shops-online'],
+            'عفشجى' => ['عفشجى', 'workshops', 'shipping-delivery'],
+        ];
+    }
+
+    /**
      * «حداد» stays two rows. Under ورش it is the workshop, under مهن it is the
      * tradesman — same word, two businesses — so the earlier "duplicate" reading
      * was wrong and must not be re-applied by a future sweep.

@@ -22,6 +22,13 @@ use Illuminate\Support\Facades\DB;
  * writer would have stamped every one with this seeder's name and thrown away
  * whichever admin screen had last touched it.
  *
+ * **Anything scoped by ROOT must run after this.** A move changes who belongs to
+ * a root, so a seeder that derives its set from root membership is stale the
+ * moment a child arrives or leaves. `PrepaymentScopeSeeder` is exactly that —
+ * «دفع مسبق» belongs to the children of `shipping-delivery`, whoever they are —
+ * and moving «عفشجى» in turned its test red until it was re-run. The order in
+ * DatabaseSeeder already has this seeder first; keep it that way.
+ *
  * Idempotent: once the child hangs from the target root, a re-run does nothing.
  */
 class ChildRootMovesSeeder extends Seeder

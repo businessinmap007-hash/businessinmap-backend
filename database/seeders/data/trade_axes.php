@@ -100,5 +100,34 @@ return [
             'axis_groups' => [],
             'retire_children' => [7],
         ],
+
+        /*
+        | «سواء مصانع او شركات او محلات او ورش» — owner, 2026-08-10.
+        |
+        | The trade stood under three of the four he named (مصانع، ورش، مهن) and
+        | under NEITHER شركات nor المحلات, so a doors-and-windows company or shop
+        | had nowhere to register. What stood under شركات instead was «أبواب
+        | مصفحة» #23 — a PRODUCT, filed as a trade. It is now one of the sixteen
+        | types in «أنواع الأبواب والشبابيك», so the trade itself takes the root.
+        |
+        | Nothing is retired here. #23 holds no account and #289 «بي في سي» holds
+        | three, and folding either into «باب وشباك» is the owner's call, not a
+        | side effect of wiring a root — so both keep their rows AND get the new
+        | vocabulary. They serve only as WIRING donors: the intersection fallback
+        | would have handed a company delivery + offers and no retail, i.e. a
+        | shopfront that can sell nothing.
+        */
+        'باب وشباك' => [
+            'keep_child_id' => 50,
+            // مصانع، شركات، المحلات، ورش — the owner's four — plus مهن, where it
+            // already stood and nobody asked for it to leave.
+            'roots' => [23, 22, 17, 10, 6],
+            'axis_groups' => ['أنواع الأبواب والشبابيك'],
+            'retire_children' => [],
+            // #23 أبواب مصفحة stands under شركات, #51 مستلزمات نجارة under
+            // المحلات; both sell (delivery + offers + retail) exactly as a
+            // doors business would.
+            'donor_children' => [23, 51],
+        ],
     ],
 ];

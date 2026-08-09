@@ -73,14 +73,36 @@ class ChildRootMovesSeeder extends Seeder
             ->where('parent_id', $from)->where('child_id', $childId)->exists();
 
         if (! $hangsFromSource) {
-            // Already moved. The SHAPE is still checked, because adopting it is
-            // a corrective step in its own right — the four moves that needed it
-            // were made before the flag existed, and a child left offering its
-            // old root's services is exactly the fault the flag was added for.
+            // Not under the source root is USUALLY «already moved» — but it can
+            // also mean the child hangs from nothing at all, and this branch used
+            // to report both the same way. «نادي صحي» spent a day rootless and
+            // therefore unreachable while the seeder said «لا شيء ليُنقل» every
+            // run: a child that hangs from no root is invisible to every screen
+            // and every search. This file declares where it belongs, so put it
+            // there rather than reporting a no-op over a hole.
+            $repaired = false;
+
+            if (! DB::table('category_parent_child')->where('parent_id', $to)->where('child_id', $childId)->exists()) {
+                DB::table('category_parent_child')->insert([
+                    'parent_id' => $to,
+                    'child_id' => $childId,
+                    'updated_at' => now(),
+                ]);
+
+                $repaired = true;
+            }
+
+            // The SHAPE is still checked, because adopting it is a corrective
+            // step in its own right — the four moves that needed it were made
+            // before the flag existed, and a child left offering its old root's
+            // services is exactly the fault the flag was added for.
             $adopted = ! empty($move['adopt_services']) ? $this->adoptRootShape($childId, $to) : 0;
 
-            $this->command?->line("  - «{$name}» ليس تحت «{$move['from_root_slug']}» — لا شيء ليُنقل."
-                . ($adopted > 0 ? " (خدمات صُحّحت: {$adopted})" : ''));
+            $this->command?->line($repaired
+                ? "  - «{$name}» #{$childId} كان بلا جذر — أُعيد إلى «{$move['to_root_slug']}»."
+                    . ($adopted > 0 ? " (خدمات صُحّحت: {$adopted})" : '')
+                : "  - «{$name}» ليس تحت «{$move['from_root_slug']}» — لا شيء ليُنقل."
+                    . ($adopted > 0 ? " (خدمات صُحّحت: {$adopted})" : ''));
 
             return;
         }

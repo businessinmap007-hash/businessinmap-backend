@@ -14,6 +14,12 @@ return [
         'شركة' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
         'مكتب' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
         'مندوب' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
+        // Moved here from the workshops block on 2026-08-10, following the child
+        // itself (ChildRootMovesSeeder: ورش → شحن وتوصيل). Left where it was, an
+        // add-only seeder keyed by ROOT quietly puts the child back under the
+        // root it was moved out of — running this seeder on its own is exactly
+        // what did that, and it took ChildRootMovesSeeder to undo.
+        'عفشجى' => ['delivery_freight', 'delivery_courier_ondemand'],
     ],
 
     // ── مهن وحرفيين ──
@@ -84,7 +90,7 @@ return [
         'حداد' => ['delivery_freight', 'delivery_courier_ondemand'],
         'سروجي' => ['delivery_courier_ondemand'],
         'سمكري' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'عفشجى' => ['delivery_freight', 'delivery_courier_ondemand'],
+        // «عفشجى» left this root — see the shipping-delivery block at the top.
         'فيبر جلاس' => ['delivery_freight', 'delivery_courier_ondemand'],
         'كهربائي سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
         'كوتش' => ['delivery_freight', 'delivery_courier_ondemand'],
@@ -189,6 +195,9 @@ return [
         'مستلزمات طبية' => ['delivery'],
         'مستلزمات كافيهات' => ['delivery'],
         'مستلزمات نجارة' => ['delivery'],
+        // 2026-08-10: the doors-and-windows trade took this root; a door leaves
+        // the shop on a lorry, not in a courier bag.
+        'باب وشباك' => ['delivery_freight'],
         'مشتقات التدخين' => ['delivery'],
         'مصنوعات خشبية ومستلزمات ديكور' => ['delivery', 'delivery_freight'],
         'مفاتيح' => ['delivery'],
@@ -226,6 +235,8 @@ return [
     'companies' => [
         'آثاث' => ['delivery_freight'],
         'أبواب مصفحة' => ['delivery_freight'],
+        // 2026-08-10: and the trade itself, now that it stands here.
+        'باب وشباك' => ['delivery_freight'],
         'أجهزة رياضية' => ['delivery_freight'],
         'أجهزة كهربائية' => ['delivery_freight'],
         'أجهزه كمبيوتر' => ['delivery_freight'],

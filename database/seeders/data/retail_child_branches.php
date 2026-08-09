@@ -85,6 +85,10 @@ return [
         'زيت سيارات' => ['vehicles_parts'],
         'قطع غيار سيارات' => ['vehicles_parts'],
         'مستلزمات نجارة' => ['building_hardware'],
+        // 2026-08-10: the trade took this root (TradeAxesSeeder). Without the
+        // entry a full seed would leave the shop standing here with a retail
+        // config nothing bounds — see the note in the companies block below.
+        'باب وشباك' => ['building_hardware'],
         'سجاد' => ['home_furnishings'],
         'اسمنت' => ['building_hardware'],
         'نجف و تحف' => ['home_furnishings'],
@@ -183,6 +187,11 @@ return [
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
         'أخشاب' => ['building_hardware'],
         'أبواب مصفحة' => ['building_hardware'],
+        // 2026-08-10: «باب وشباك» #50 now stands under شركات too — the trade
+        // itself, beside the single product «أبواب مصفحة» that used to be the
+        // only way to register a doors company. This map is keyed per ROOT, so
+        // its entry under مصانع does not reach here.
+        'باب وشباك' => ['building_hardware'],
         'طوب' => ['building_hardware'],
         'أدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],

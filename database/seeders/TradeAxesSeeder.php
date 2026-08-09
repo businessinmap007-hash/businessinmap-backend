@@ -44,10 +44,18 @@ class TradeAxesSeeder extends Seeder
             foreach ($data['trades'] as $label => $trade) {
                 $keeper = (int) $trade['keep_child_id'];
 
+                $retiring = $trade['retire_children'] ?? [];
+
+                // A donor lends its WIRING and keeps its row. A retiring twin is
+                // a donor too — it is about to stop standing there — but the
+                // reverse does not hold: «أبواب مصفحة» tells the seeder what
+                // شركات means by this trade without being folded into it.
+                $donors = array_values(array_unique(array_merge($retiring, $trade['donor_children'] ?? [])));
+
                 $axes = $this->attachAxes($keeper, $trade['axis_groups'] ?? []);
-                $carried = $this->carryTwinVocabulary($keeper, $trade['retire_children'] ?? []);
-                $rooted = $this->attachRoots($keeper, $trade['roots'], $trade['retire_children'] ?? []);
-                $detached = $this->detachTwins($trade['retire_children'] ?? []);
+                $carried = $this->carryTwinVocabulary($keeper, $retiring);
+                $rooted = $this->attachRoots($keeper, $trade['roots'], $donors);
+                $detached = $this->detachTwins($retiring);
 
                 $this->command?->line("  «{$label}» → #{$keeper}");
                 $this->command?->line("      محاور أُضيفت : {$axes}");
@@ -185,9 +193,9 @@ class TradeAxesSeeder extends Seeder
      * from the survivor's own existing wiring when the root is genuinely new.
      *
      * @param  array<int,int>  $roots
-     * @param  array<int,int>  $twins
+     * @param  array<int,int>  $donors
      */
-    private function attachRoots(int $keeper, array $roots, array $twins): int
+    private function attachRoots(int $keeper, array $roots, array $donors): int
     {
         $writer = app(ChildServiceWriter::class);
         $wired = 0;
@@ -200,7 +208,7 @@ class TradeAxesSeeder extends Seeder
                 ['updated_at' => now()]
             );
 
-            foreach ($this->donorWiring($keeper, $rootId, $twins) as $serviceId => $config) {
+            foreach ($this->donorWiring($keeper, $rootId, $donors) as $serviceId => $config) {
                 $already = DB::table('category_platform_services')
                     ->where('category_id', $rootId)
                     ->where('child_id', $keeper)
@@ -223,10 +231,10 @@ class TradeAxesSeeder extends Seeder
     /**
      * Which services to offer under a root, and with what config.
      *
-     * @param  array<int,int>  $twins
+     * @param  array<int,int>  $donors
      * @return array<int,array<string,mixed>> service id => config
      */
-    private function donorWiring(int $keeper, int $rootId, array $twins): array
+    private function donorWiring(int $keeper, int $rootId, array $donors): array
     {
         // A root where the trade already stands is the admin's own work. Adding
         // to it is not "attaching a root", it is overruling him.
@@ -240,17 +248,17 @@ class TradeAxesSeeder extends Seeder
             return [];
         }
 
-        // A twin standing under this root is the most faithful donor: whatever
+        // A child standing under this root is the most faithful donor: whatever
         // it offered here is what this root already meant by this trade.
-        $donors = DB::table('category_platform_services')
+        $standingDonors = DB::table('category_platform_services')
             ->where('category_id', $rootId)
-            ->whereIn('child_id', $twins)
+            ->whereIn('child_id', $donors)
             ->where('is_active', 1)
             ->pluck('child_id', 'platform_service_id');
 
         $out = [];
 
-        foreach ($donors as $serviceId => $childId) {
+        foreach ($standingDonors as $serviceId => $childId) {
             $out[(int) $serviceId] = $this->configOf((int) $rootId, (int) $childId, (int) $serviceId);
         }
 

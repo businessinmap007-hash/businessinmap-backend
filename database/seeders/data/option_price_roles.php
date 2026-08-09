@@ -62,6 +62,10 @@ return [
         'تخصصات الدعاية والإعلان', // هوية بصرية
         'تخصصات الديكور',         // تصميم داخلي
         'أثاث وتشطيب منزلي',      // غرفة نوم
+        // شاتر كهربائي ≠ باب خشب — the same shape as «أثاث وتشطيب منزلي» above,
+        // and carried by the same family of workshops and factories. There is no
+        // catalog of door models behind it: the type IS the priced row.
+        'أنواع الأبواب والشبابيك',
         'عقارات وممتلكات',        // شقة
         'تعبئة وتغليف ومستلزمات', // أكواب فوم
         'أنواع المناسبات',        // إيجار القاعة ليوم فرح

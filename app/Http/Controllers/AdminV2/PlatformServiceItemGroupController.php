@@ -66,10 +66,12 @@ class PlatformServiceItemGroupController extends Controller
      *     branch → item types → a child's allowed_item_types → a merchant's
      *     price row / bookable unit
      *
-     * and files every branch into one of three buckets by how far it got. The
-     * screen is READ-ONLY on purpose: a branch that reaches nobody may be dead,
-     * or may be a section nobody has filled in yet, and only the owner knows
-     * which. Nothing here decides that for him.
+     * and files every branch into one of three buckets by how far it got.
+     *
+     * **Branches are never deleted** — the owner's rule, 2026-08-09: «نحن لا
+     * نحذف الفروع … ليس معنى ان الفرع لا يوجد حسابات تستخدمه انه يحذف». An empty
+     * branch is usually a section nobody has opened yet, not a dead one. So this
+     * is READ-ONLY by design: it reports where each branch reached and stops.
      */
     public function review()
     {

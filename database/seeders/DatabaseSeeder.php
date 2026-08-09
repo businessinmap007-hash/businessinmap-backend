@@ -66,6 +66,10 @@ class DatabaseSeeder extends Seeder
            // Before the scope seeder, which reads the narrowed map.
            FashionRemodelSeeder::class,
 
+           // Filing corrections: a child hanging from the root a customer would
+           // never look in. Moves the child WITH its wiring; retires nothing.
+           ChildRootMovesSeeder::class,
+
            // One trade under several roots — a spare-parts FACTORY could not
            // name a car brand while the shop next door named 43. Gives the
            // survivor every axis, then takes over the empty twins' roots.

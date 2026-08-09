@@ -241,6 +241,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
             Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');
 
+            // How far each branch actually reaches — the ones that reach no
+            // business at all, gathered for a manual read. Read-only, and
+            // registered before the resource so «review» is not read as an id.
+            Route::get('platform-service-item-groups/review', [PlatformServiceItemGroupController::class, 'review'])->name('platform-service-item-groups.review');
+
             Route::post('platform-service-item-groups/{platformServiceItemGroup}/toggle-active', [PlatformServiceItemGroupController::class, 'toggleActive'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.toggle-active');
             Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/attach', [PlatformServiceItemGroupController::class, 'attachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.attach');
             Route::post('platform-service-item-groups/{platformServiceItemGroup}/types/detach', [PlatformServiceItemGroupController::class, 'detachType'])->whereNumber('platformServiceItemGroup')->name('platform-service-item-groups.types.detach');

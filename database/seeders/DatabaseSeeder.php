@@ -66,6 +66,11 @@ class DatabaseSeeder extends Seeder
            // Before the scope seeder, which reads the narrowed map.
            FashionRemodelSeeder::class,
 
+           // One trade under several roots — a spare-parts FACTORY could not
+           // name a car brand while the shop next door named 43. Gives the
+           // survivor every axis, then takes over the empty twins' roots.
+           TradeAxesSeeder::class,
+
            // The same cure for «كوافير», which had gone further and made itself
            // a ROOT: the trade folds back under مهن وحرفيين, and رجالي/حريمي
            // stop being two children a family salon has to choose between.

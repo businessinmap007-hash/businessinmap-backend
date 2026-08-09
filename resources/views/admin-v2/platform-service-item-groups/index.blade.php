@@ -30,6 +30,10 @@
                 {{ __('أنواع العناصر') }}
             </a>
 
+            <a href="{{ route('admin.platform-service-item-groups.review') }}" class="a2-btn a2-btn-ghost">
+                {{ __('مراجعة الوصول') }}
+            </a>
+
             <a href="{{ route('admin.platform-service-item-groups.create', request()->only('service_id')) }}" class="a2-btn a2-btn-primary">
                 {{ __('إضافة فرع') }}
             </a>

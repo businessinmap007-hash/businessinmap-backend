@@ -55,6 +55,103 @@ class PlatformServiceItemGroupController extends Controller
         ));
     }
 
+    /**
+     * «قم بمراجعة فروع الخدمات وقم بتجميع الفروع الغير مرتبطة بأي بزنس فى
+     * مجموعة لمراجعتها يدويا» — owner, 2026-08-09.
+     *
+     * A branch is only a container, so "unused" has to be measured through what
+     * it contains. This walks the whole chain a branch has to survive before a
+     * customer can buy anything through it:
+     *
+     *     branch → item types → a child's allowed_item_types → a merchant's
+     *     price row / bookable unit
+     *
+     * and files every branch into one of three buckets by how far it got. The
+     * screen is READ-ONLY on purpose: a branch that reaches nobody may be dead,
+     * or may be a section nobody has filled in yet, and only the owner knows
+     * which. Nothing here decides that for him.
+     */
+    public function review()
+    {
+        $branches = PlatformServiceItemGroup::query()
+            ->with(['service:id,key,name_ar,name_en,is_active', 'itemTypes:id,key,name_ar,name_en,is_active'])
+            ->orderBy('platform_service_id')
+            ->ordered()
+            ->get();
+
+        // allowed_item_types per service, read once — the configs are the only
+        // place that says a child may actually list a type.
+        $allowedByService = [];
+
+        foreach (DB::table('category_service_configs')->where('is_active', 1)->get(['platform_service_id', 'config']) as $row) {
+            $config = json_decode((string) $row->config, true) ?: [];
+            $serviceId = (int) $row->platform_service_id;
+
+            // An EMPTY list means EVERY type, not none — the trap that has cost
+            // this project twice. Such a config reaches every type the service
+            // has, so it is recorded as a wildcard rather than skipped.
+            if (($config['allowed_item_types'] ?? []) === []) {
+                $allowedByService[$serviceId]['*'] = ($allowedByService[$serviceId]['*'] ?? 0) + 1;
+
+                continue;
+            }
+
+            foreach ($config['allowed_item_types'] as $key) {
+                $allowedByService[$serviceId][$key] = ($allowedByService[$serviceId][$key] ?? 0) + 1;
+            }
+        }
+
+        $pricedByType = DB::table('business_service_prices')
+            ->select('bookable_item_type', DB::raw('COUNT(*) as total'))
+            ->groupBy('bookable_item_type')
+            ->pluck('total', 'bookable_item_type');
+
+        $unitsByKind = DB::table('bookable_items')
+            ->whereNull('deleted_at')
+            ->whereNotNull('item_type')
+            ->select('item_type', DB::raw('COUNT(*) as total'))
+            ->groupBy('item_type')
+            ->pluck('total', 'item_type');
+
+        $buckets = ['unused' => [], 'offered' => [], 'in_use' => []];
+
+        foreach ($branches as $branch) {
+            $serviceId = (int) $branch->platform_service_id;
+            $keys = $branch->itemTypes->pluck('key')->map(fn ($key) => (string) $key)->all();
+
+            $configs = 0;
+            $priced = 0;
+            $units = 0;
+
+            foreach ($keys as $key) {
+                $configs += (int) ($allowedByService[$serviceId][$key] ?? 0);
+                $priced += (int) ($pricedByType[$key] ?? 0);
+                $units += (int) ($unitsByKind[$key] ?? 0);
+            }
+
+            if ($keys !== []) {
+                $configs += (int) ($allowedByService[$serviceId]['*'] ?? 0);
+            }
+
+            $row = [
+                'branch' => $branch,
+                'types' => count($keys),
+                'configs' => $configs,
+                'priced' => $priced,
+                'units' => $units,
+            ];
+
+            // in_use: a merchant has priced something or listed a unit here.
+            // offered: children may list it, but no merchant has yet.
+            // unused: it reaches no child at all — no merchant can ever see it.
+            $bucket = ($priced + $units) > 0 ? 'in_use' : ($configs > 0 ? 'offered' : 'unused');
+
+            $buckets[$bucket][] = $row;
+        }
+
+        return view('admin-v2.platform-service-item-groups.review', compact('buckets'));
+    }
+
     public function create(Request $request)
     {
         $services = $this->servicesForForm();

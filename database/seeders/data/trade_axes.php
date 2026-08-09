@@ -1,0 +1,104 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| One trade, several doors — and the same vocabulary behind every door
+|--------------------------------------------------------------------------
+| Owner, 2026-08-09:
+|
+|   «قطع غيار سيارات: هناك مصنع يصنع هذه القطع وهناك شركة تستورد او توزع
+|    وهناك محل يبيع، فيجب ان يكون لكل واحد منهم قائمة بماركات السيارات التى
+|    لديه قطع غيار لها وايضا اذا كانت تخص الميكانيكا او الكهرباء الخ.
+|    وكذلك اجهزة رياضية مصنع وشركة ومحل وهكذا.»
+|
+| So the duplicate rows the last sweep flagged were NOT a mistake — a factory,
+| a distributor and a shop are three different businesses and belong under
+| three different roots. What WAS a mistake is that they were three separate
+| child rows carrying three different vocabularies:
+|
+|   #44 قطع غيار سيارات (المحلات) — 43 car brands
+|   #43 قطع غيار سيارات (مصانع)   — none
+|   #7  أجهزة رياضية   (المحلات)  — no equipment axis
+|   #24 أجهزة رياضية   (شركات، معارض) — no equipment axis
+|
+| A factory that makes BMW parts could not say «BMW». And nobody at all could
+| say whether the parts are mechanical or electrical, because no such axis
+| existed on the platform.
+|
+| The platform already has the right shape for this and uses it elsewhere:
+| #38 «اكسسوارت سيارات» is ONE child row attached to both مصانع and المحلات.
+| One row, several roots, one vocabulary — and each business narrows it with
+| its own ticks. That is what this applies to the two trades named above.
+*/
+
+return [
+
+    /*
+    | The axis the owner asked for and the platform did not have. `modifier`,
+    | like «ماركات السيارات» beside it: it narrows what a merchant carries, it
+    | is not itself a priced row — the priced rows are the parts in the catalog.
+    */
+    'new_groups' => [
+        'نوع قطع الغيار' => [
+            'name_en' => 'Spare Part Domain',
+            'price_role' => 'modifier',
+            /*
+            | `options.name_en` is UNIQUE across the WHOLE table, so every name
+            | here is qualified. It is not padding: «ميكانيكا» and «كهرباء»
+            | already exist as `line` options in «تخصصات الهندسة», where they
+            | mean an engineering office's priced specialty. Same word, other
+            | trade — and reusing those rows would have priced a spare part as
+            | an engineering service.
+            */
+            'options' => [
+                'ميكانيكا' => 'Mechanical Parts',
+                'كهرباء' => 'Electrical Parts',
+                'فرامل' => 'Brake Parts',
+                'تعليق ومساعدين' => 'Suspension Parts',
+                'نقل حركة / فتيس' => 'Transmission Parts',
+                'تبريد وتكييف' => 'Cooling & A/C Parts',
+                'هيكل وصاج' => 'Body Panels',
+                'زجاج سيارات' => 'Auto Glass',
+                'إطارات وجنوط' => 'Tyres & Rims',
+                'بطاريات' => 'Batteries',
+                'زيوت وفلاتر' => 'Oils & Filters',
+                'إضاءة' => 'Auto Lighting',
+                'عوادم' => 'Exhaust Parts',
+                'مقصورة وفرش داخلي' => 'Interior Parts',
+            ],
+        ],
+    ],
+
+    /*
+    | Each trade: the child row that KEEPS the trade (the one already carrying
+    | the fullest vocabulary), every root it must be reachable from, the axes it
+    | must offer, and the redundant twins whose roots it takes over.
+    |
+    | `donor_root` on a twin is where its service wiring is copied from, so the
+    | trade arrives under a new root offering exactly what it offered there.
+    */
+    'trades' => [
+
+        'قطع غيار سيارات' => [
+            'keep_child_id' => 44,
+            // مصانع + شركات + المحلات — the owner's three, in his order.
+            'roots' => [23, 22, 17],
+            'axis_groups' => ['ماركات السيارات', 'نوع قطع الغيار'],
+            // #43 is the empty مصانع copy; it holds no account.
+            'retire_children' => [43],
+        ],
+
+        'أجهزة رياضية' => [
+            'keep_child_id' => 24,
+            // معارض and شركات it already has; المحلات and مصانع it needs.
+            'roots' => [23, 22, 21, 17],
+            // No equipment axis exists yet. «الأنشطة الرياضية» is NOT it — that
+            // group is `line`, i.e. the priced session a gym sells, and it is
+            // scoped to facilities (ملاعب، نادي، أكاديمية، حمام سباحة، جيم).
+            // Naming what a sports SHOP stocks is a separate decision and is
+            // left to the owner rather than invented here.
+            'axis_groups' => [],
+            'retire_children' => [7],
+        ],
+    ],
+];

@@ -61,13 +61,15 @@ class DatabaseSeeder extends Seeder
            // those from their declared branches and touches nothing else.
            BoundUnboundedConfigsSeeder::class,
 
-           // «دفع مسبق» belongs to carriers. Last of the option seeders, so
-           // whatever else granted the payment group has already run and this
-           // has the final word.
            // Nine clothing children become three: what a shop SELLS moves onto
            // the line options so one shop can carry clothes, shoes and bags.
            // Before the scope seeder, which reads the narrowed map.
            FashionRemodelSeeder::class,
+
+           // The same cure for «كوافير», which had gone further and made itself
+           // a ROOT: the trade folds back under مهن وحرفيين, and رجالي/حريمي
+           // stop being two children a family salon has to choose between.
+           SalonRemodelSeeder::class,
 
            // The 18 children that carried only delivery + offers and so could
            // sell nothing at all: goods write their own menu, services take a
@@ -78,6 +80,9 @@ class DatabaseSeeder extends Seeder
            // had no way to be found for one or to price it.
            TrainingServiceSeeder::class,
 
+           // «دفع مسبق» belongs to carriers. Last of the option seeders, so
+           // whatever else granted the payment group has already run and this
+           // has the final word.
            PrepaymentScopeSeeder::class,
 
            // The option links, service wiring and FEE rows held by children

@@ -15,6 +15,7 @@ use App\Http\Controllers\Business\ShareStoreController;
 use App\Http\Controllers\Business\StaffController;
 use App\Http\Controllers\Business\TableCallController;
 use App\Http\Controllers\Business\TableController;
+use App\Http\Controllers\Business\TrainingPlanController;
 use App\Http\Controllers\Business\TripReservationController;
 use App\Http\Controllers\Business\TripScheduleController;
 use App\Http\Controllers\Business\MenuSettingsController;
@@ -135,6 +136,23 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::put('schedules/{id}', [TripScheduleController::class, 'update'])->whereNumber('id')->name('schedules.update');
         Route::delete('schedules/{id}', [TripScheduleController::class, 'destroy'])->whereNumber('id')->name('schedules.destroy');
         Route::post('schedules/{schedule}/block', [TripReservationController::class, 'block'])->whereNumber('schedule')->name('schedules.block');
+
+        // Training & nutrition plans — the trainer writing at a desk. The web
+        // face of the API's own trainer side; both go through
+        // TrainingPlanService, so the client is pushed the same either way.
+        // `create` and `lookup` stay ahead of {id}, which is a plan number.
+        Route::get('training-plans', [TrainingPlanController::class, 'index'])->name('training-plans.index');
+        Route::get('training-plans/create', [TrainingPlanController::class, 'create'])->name('training-plans.create');
+        Route::get('training-plans/lookup', [TrainingPlanController::class, 'lookup'])->name('training-plans.lookup');
+        Route::post('training-plans', [TrainingPlanController::class, 'store'])->name('training-plans.store');
+        Route::get('training-plans/{id}', [TrainingPlanController::class, 'show'])->whereNumber('id')->name('training-plans.show');
+        Route::put('training-plans/{id}', [TrainingPlanController::class, 'update'])->whereNumber('id')->name('training-plans.update');
+        Route::post('training-plans/{id}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('id')->name('training-plans.exercises.store');
+        Route::delete('training-plans/{id}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber(['id', 'exercise'])->name('training-plans.exercises.destroy');
+        Route::post('training-plans/{id}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('id')->name('training-plans.meals.store');
+        Route::delete('training-plans/{id}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber(['id', 'meal'])->name('training-plans.meals.destroy');
+        Route::post('training-plans/{id}/body-reports', [TrainingPlanController::class, 'storeReport'])->whereNumber('id')->name('training-plans.body-reports.store');
+        Route::delete('training-plans/{id}/body-reports/{report}', [TrainingPlanController::class, 'destroyReport'])->whereNumber(['id', 'report'])->name('training-plans.body-reports.destroy');
 
         Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
         Route::get('bookings/{id}', [BookingController::class, 'show'])->whereNumber('id')->name('bookings.show');

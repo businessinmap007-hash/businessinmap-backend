@@ -74,6 +74,10 @@ class DatabaseSeeder extends Seeder
            // direct booking.
            UnsellableChildrenSeeder::class,
 
+           // «التدريب والتغذية» on the shelf: a gym could deliver a plan and
+           // had no way to be found for one or to price it.
+           TrainingServiceSeeder::class,
+
            PrepaymentScopeSeeder::class,
 
            // The option links, service wiring and FEE rows held by children

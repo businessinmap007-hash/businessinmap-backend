@@ -66,6 +66,18 @@ class TrainingPlan extends Model
         return $this->hasMany(PlanProgressLog::class)->latest('logged_on')->latest('id');
     }
 
+    /**
+     * The monthly body reports the trainer takes for this client.
+     *
+     * Distinct from progressLogs: that is the client's own weight check-in,
+     * whenever he adds one. This is the measurement — muscle, fat, water — and
+     * it answers the only question a plan is judged on.
+     */
+    public function bodyReports(): HasMany
+    {
+        return $this->hasMany(BodyCompositionReport::class)->orderByDesc('for_month');
+    }
+
     public function isParty(int $userId): bool
     {
         return in_array($userId, [(int) $this->trainer_id, (int) $this->client_id], true);

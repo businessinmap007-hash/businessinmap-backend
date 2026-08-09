@@ -18,6 +18,8 @@ class PlatformService extends Model
     public const KEY_RETAIL = 'retail';
     public const KEY_SCHEDULES = 'schedules';
 
+    public const KEY_TRAINING = 'training';
+
     protected $fillable = [
         'key',
         'name_ar',

@@ -55,6 +55,20 @@ class PlatformServiceSeeder extends Seeder
                 'supports_deposit' => true,
                 'max_deposit_percent' => 100,
             ],
+            [
+                // A gym or a coach sells the PLAN, and until now could only
+                // deliver one: `training` was a staff capability (who may
+                // manage it) and nothing said the business offers it at all,
+                // so no customer could find it and no price could be set.
+                'key' => 'training',
+                'name_ar' => 'التدريب والتغذية',
+                'name_en' => 'Training & Nutrition',
+                'is_active' => true,
+                'sort_order' => 6,
+                // A month is paid for before it is trained.
+                'supports_deposit' => true,
+                'max_deposit_percent' => 100,
+            ],
         ];
 
         foreach ($rows as $row) {

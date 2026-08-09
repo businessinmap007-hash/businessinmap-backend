@@ -158,7 +158,10 @@ return [
             163 => ['booking_appointment', 'booking_home_sample'], // معمل تحاليل
 
             // مهني
-            11 => ['booking_consultation', 'booking_online_consultation'],  // دعاية وإعلان
+            // The owner added the plain appointment on 2026-08-09 from the bulk
+            // screen (config_source: services_bulk): an agency is visited as well
+            // as consulted. Recorded here so the next seed does not take it back.
+            11 => ['booking_appointment', 'booking_consultation', 'booking_online_consultation'], // دعاية وإعلان
             123 => ['booking_consultation', 'booking_online_consultation'], // هندسية
             78 => ['booking_consultation', 'booking_online_consultation'],  // ديكور
             167 => ['booking_consultation', 'booking_follow_up', 'booking_online_consultation'], // محاماه

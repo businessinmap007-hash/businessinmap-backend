@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\V2\AgendaController;
 use App\Http\Controllers\Api\V2\MealTimeController;
 use App\Http\Controllers\Api\V2\ReminderPreferenceController;
 use App\Http\Controllers\Api\V2\BusinessClinicAppointmentController;
+use App\Http\Controllers\Api\V2\BodyCompositionController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
@@ -396,6 +397,8 @@ Route::prefix('v2')->group(function () {
         Route::post('training-plans/{plan}/chat/messages', [TrainingChatController::class, 'clientPost'])->whereNumber('plan');
         // My weekly adherence to a plan.
         Route::get('training-plans/{plan}/weekly-summary', [ClientTrainingController::class, 'weeklySummary'])->whereNumber('plan');
+        // My own monthly body reports, read-only: the trainer records them.
+        Route::get('training-plans/{plan}/body-reports', [BodyCompositionController::class, 'clientIndex'])->whereNumber('plan');
 
         // Clinic appointments — the patient's side: request, read mine, cancel.
         Route::get('clinic-appointments', [ClinicAppointmentController::class, 'index']);
@@ -831,6 +834,11 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/chat/messages', [TrainingChatController::class, 'trainerPost'])->whereNumber('plan');
             // A client's weekly adherence to the plan.
             Route::get('{plan}/weekly-summary', [TrainingPlanController::class, 'weeklySummary'])->whereNumber('plan');
+            // The monthly body report — muscle, fat, water. The TRAINER records
+            // it (he owns the scale); the client reads it on his own route.
+            Route::get('{plan}/body-reports', [BodyCompositionController::class, 'trainerIndex'])->whereNumber('plan');
+            Route::post('{plan}/body-reports', [BodyCompositionController::class, 'store'])->whereNumber('plan');
+            Route::delete('{plan}/body-reports/{report}', [BodyCompositionController::class, 'destroy'])->whereNumber(['plan', 'report']);
         });
 
         // Clinic appointments — the clinic's side (a delegate = the secretary).

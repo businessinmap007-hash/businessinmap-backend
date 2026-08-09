@@ -69,6 +69,11 @@ class DatabaseSeeder extends Seeder
            // Before the scope seeder, which reads the narrowed map.
            FashionRemodelSeeder::class,
 
+           // The 18 children that carried only delivery + offers and so could
+           // sell nothing at all: goods write their own menu, services take a
+           // direct booking.
+           UnsellableChildrenSeeder::class,
+
            PrepaymentScopeSeeder::class,
 
            // The option links, service wiring and FEE rows held by children

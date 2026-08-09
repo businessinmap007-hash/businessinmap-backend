@@ -70,6 +70,11 @@ class DatabaseSeeder extends Seeder
            // never look in. Moves the child WITH its wiring; retires nothing.
            ChildRootMovesSeeder::class,
 
+           // «بيت ضيافة» and «فندق عائم» after an accidental save emptied them.
+           // Additive: it hands options back and never withdraws one, so it
+           // cannot undo curation done since.
+           HospitalityOptionRestoreSeeder::class,
+
            // One trade under several roots — a spare-parts FACTORY could not
            // name a car brand while the shop next door named 43. Gives the
            // survivor every axis, then takes over the empty twins' roots.

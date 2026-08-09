@@ -102,4 +102,15 @@ return [
         'to_root_slug' => 'offices',
         'why' => 'إدارة صفحات عملٌ دعائي يُشترى من مكتب، لا منتج تقني — بجوار «دعاية وإعلان»',
     ],
+
+    [
+        // Flagged as ambiguous — a bridal-wear SHOP belongs under root 17, a
+        // bridal-prep SERVICE does not. Owner, 2026-08-09: «خدمة تجميل انقله».
+        // «تجهيز عرائس» is also already a priced line option inside «خدمات
+        // الكوافير والتجميل», which is where the work is actually sold.
+        'child_name_ar' => 'تجهيز عرائس',
+        'from_root_slug' => 'shops-online',
+        'to_root_slug' => 'professions',
+        'why' => 'خدمة تجميل تُؤدّى لا سلعة تُباع على كاونتر — بجوار «كوافير»',
+    ],
 ];

@@ -135,7 +135,33 @@ class ChildRootMovesTest extends TestCase
             'عفشجى' => ['عفشجى', 'workshops', 'shipping-delivery'],
             'نادي صحي' => ['نادي صحي', 'health', 'sports'],
             'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
+            'تجهيز عرائس' => ['تجهيز عرائس', 'shops-online', 'professions'],
         ];
+    }
+
+    /**
+     * «تجهيز عرائس» was the one I flagged rather than moved: a bridal-wear shop
+     * belongs under المحلات, a bridal-prep service does not, and the row does not
+     * say which. The owner said which — «خدمة تجميل انقله» — and it carried three
+     * accounts, so this pins that they came along.
+     */
+    public function test_the_bridal_service_kept_its_accounts(): void
+    {
+        $childId = $this->childId('تجهيز عرائس');
+        $professions = (int) DB::table('categories')->where('slug', 'professions')->value('id');
+
+        $this->assertGreaterThan(
+            0,
+            DB::table('users')->where('category_child_id', $childId)->count(),
+            'the accounts vanished with the move'
+        );
+
+        $this->assertSame(
+            0,
+            DB::table('users')->where('category_child_id', $childId)
+                ->where('category_id', '!=', $professions)->count(),
+            'an account still points at the old root'
+        );
     }
 
     /**

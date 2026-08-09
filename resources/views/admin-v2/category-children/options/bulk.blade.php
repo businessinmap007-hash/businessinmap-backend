@@ -184,6 +184,20 @@
                             style="margin-inline-start:auto;">{{ __('إغلاق') }}</button>
                 </div>
                 <div id="childPeekBody" class="a2-mt-12"></div>
+
+                {{-- «واسفل الكارت مباشرة زر حفظ». It saves THIS child and nothing
+                     else: it forces replace mode and leaves only this child
+                     ticked before submitting, so what the card shows is exactly
+                     what the child ends up with — whatever the bulk controls
+                     above happen to be set to. --}}
+                <div class="a2-mt-12" id="childPeekSaveRow" style="display:none;">
+                    <button type="button" class="a2-btn a2-btn-primary" id="childPeekSave">
+                        {{ __('حفظ خيارات هذا القسم') }}
+                    </button>
+                    <span class="a2-muted" style="margin-inline-start:8px;font-size:12px;">
+                        {{ __('يحفظ هذا القسم وحده بما هو مؤشَّر الآن.') }}
+                    </span>
+                </div>
             </div>
         </div>
 
@@ -707,18 +721,51 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Editing from the card only means something when the ticks ARE the child's
-     * final set — one child, replace mode. In «إضافة» a cleared box says nothing,
-     * and pretending otherwise would be the same lie the screen already told.
+     * The card edits a CHILD, so it is live whenever exactly one child is in
+     * hand. It does not also ask which bulk mode is selected: picking one child
+     * switches the screen to replace (see seedFromRegistered), because that is
+     * the only mode in which a cleared box means anything at all.
      */
     function removalIsLive() {
-        return currentMode() === 'replace' && selectedChildIds().length === 1;
+        return selectedChildIds().length === 1;
     }
 
     const peekClose = document.getElementById('childPeekClose');
 
     if (peekClose) {
         peekClose.addEventListener('click', closePeek);
+    }
+
+    const peekSave = document.getElementById('childPeekSave');
+
+    if (peekSave) {
+        peekSave.addEventListener('click', function () {
+            const form = document.getElementById('bulkOptionsForm');
+
+            if (!form || peekChildId === null) {
+                return;
+            }
+
+            // Save THIS child alone, exactly as the card shows it. The bulk
+            // controls above are left out of it: the button sits under a card
+            // about one child, and it would be a trap if it also wrote the other
+            // sixty-seven the admin had ticked earlier.
+            const replace = document.getElementById('modeReplace');
+
+            if (replace) {
+                replace.checked = true;
+            }
+
+            document.querySelectorAll('.js-child-checkbox').forEach(function (input) {
+                if (input.disabled) {
+                    return;
+                }
+
+                input.checked = String(input.value) === String(peekChildId);
+            });
+
+            form.submit();
+        });
     }
 
     /*
@@ -955,8 +1002,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function seedFromRegistered() {
         const children = selectedChildIds();
-        const mode = currentMode();
         const modeHint = document.getElementById('modeHint');
+        const saveRow = document.getElementById('childPeekSaveRow');
+
+        if (saveRow) {
+            saveRow.style.display = children.length === 1 ? '' : 'none';
+        }
+
+        // ONE child means the screen is editing that child, so it puts itself
+        // in the only mode where a cleared box means «withdraw this». Leaving
+        // the admin in «إضافة» while the card offered him checkboxes to clear
+        // was the original complaint in a new costume.
+        if (children.length === 1 && currentMode() !== 'replace') {
+            const replace = document.getElementById('modeReplace');
+
+            if (replace) {
+                replace.checked = true;
+            }
+        }
+
+        const mode = currentMode();
 
         if (mode !== 'replace' || children.length !== 1) {
             if (modeHint) {
@@ -964,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? (children.length === 1
                         ? ''
                         : @json(__('«استبدال بالكامل» يجعل كل الأقسام المحددة تحمل ما تختاره هنا بالضبط. اختر قسمًا واحدًا لتبدأ من خياراته الحالية.')))
-                    : @json(__('التحديد هنا يعني «أضف هذه» أو «احذف هذه». للتعديل على ما هو مسجّل فعلًا، اختر «استبدال بالكامل» وقسمًا واحدًا.'));
+                    : @json(__('التحديد هنا يعني «أضف هذه» أو «احذف هذه». للتعديل على ما هو مسجّل فعلًا، اختر قسمًا واحدًا.'));
             }
 
             return;

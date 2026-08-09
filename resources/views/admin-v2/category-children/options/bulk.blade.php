@@ -454,6 +454,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (peek) {
             peek.style.display = 'none';
         }
+
+        peekChildId = null;
+        peekChildName = '';
     }
 
     function openPeek(childId, childName) {
@@ -461,37 +464,46 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const ids = optionsOf(childId);
+        // What it carries, PLUS anything ticked in the picker since the card
+        // opened — otherwise «افتح المجموعة وحدد منها ما هو مناسب» ticks a box
+        // forty groups down and the card, still listing only what is written in
+        // the table, appears not to have noticed.
+        const ids = Array.from(new Set(
+            optionsOf(childId).map(String).concat(removalIsLive() ? checkedOptionIds() : [])
+        ));
+
+        peekChildId = childId;
+        peekChildName = childName;
 
         peek.style.display = '';
         peekTitle.textContent = childName;
-        peekCount.textContent = String(ids.length);
+        peekCount.textContent = String(removalIsLive() ? checkedOptionIds().length : ids.length);
         peekBody.innerHTML = '';
 
-        // «استطيع الغاء منها غير المناسب مباشرة»: each option below is a chip
-        // with an ×, and the × simply clears that option's box in the picker.
-        // The card never writes anything itself — one answer shown twice, so the
-        // two can never drift apart. Decided before the empty case so a child
-        // with nothing registered cannot be left showing the previous child's
-        // instructions.
+        /*
+        | «اريد الخيارت المختارة لكل ابن تظهر فى كارت وبجانبها تشيك بوكس قابل
+        |  لالغاء التحديد … وبجانبة اسم مجموعات الخيارات الخاصة به وعند الضغط
+        |  عليها تفتح المجموعة واحدد منها ما هو مناسب لهاذا الابن»
+        |
+        | Two halves, and the second is the one the picker below could never
+        | give: forty collapsed groups say nothing about WHICH of them this child
+        | answers. The card names them, and clicking one opens it in place.
+        |
+        | Every checkbox here is a VIEW of the picker's own box — clicking it
+        | toggles that box, never a second list. So the card and the picker
+        | cannot disagree, and the form still posts exactly one set.
+        */
         const removable = removalIsLive();
 
         if (peekHint) {
             peekHint.textContent = removable
-                ? @json(__('اضغط × لاستبعاد ما لا يناسب هذا القسم، ثم احفظ.'))
-                : @json(__('للعرض فقط — اختر «استبدال بالكامل» وقسمًا واحدًا حتى يصبح الاستبعاد ممكنًا.'));
+                ? @json(__('ارفع العلامة عمّا لا يناسب هذا القسم، واضغط اسم المجموعة لتفتحها وتختار منها.'))
+                : @json(__('للعرض فقط — اختر «استبدال بالكامل» وقسمًا واحدًا حتى يصبح التعديل من هنا ممكنًا.'));
         }
 
-        if (!ids.length) {
-            const empty = document.createElement('div');
-            empty.className = 'a2-muted';
-            empty.textContent = @json(__('لا توجد خيارات مسجّلة لهذا القسم تحت هذا التصنيف.'));
-            peekBody.appendChild(empty);
-            return;
-        }
-
-        // Grouped exactly as the picker below groups them, so «مسجّل» and
-        // «سأضيف» can be read against each other without hunting.
+        // The groups this child answers, named up front. A group it carries
+        // nothing from still belongs here when it is the child's own axis, but
+        // the honest list is what it actually holds — plus a door to the rest.
         const byGroup = new Map();
 
         ids.forEach(function (id) {
@@ -511,6 +523,16 @@ document.addEventListener('DOMContentLoaded', function () {
             byGroup.get(entry[1]).items.push({ id: String(id), name: entry[0] });
         });
 
+        peekBody.appendChild(groupJumpBar(Array.from(byGroup.keys()).sort()));
+
+        if (!ids.length) {
+            const empty = document.createElement('div');
+            empty.className = 'a2-muted';
+            empty.textContent = @json(__('لا توجد خيارات مسجّلة لهذا القسم تحت هذا التصنيف — افتح مجموعة من الأسفل واختر منها.'));
+            peekBody.appendChild(empty);
+            return;
+        }
+
         Array.from(byGroup.keys()).sort().forEach(function (name) {
             const group = byGroup.get(name);
             const row = document.createElement('div');
@@ -518,62 +540,74 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const head = document.createElement('div');
             head.style.fontWeight = '600';
-            head.textContent = name + ' (' + group.items.length + ')';
+            head.style.display = 'flex';
+            head.style.alignItems = 'center';
+            head.style.gap = '6px';
+            head.style.flexWrap = 'wrap';
+
+            const heading = document.createElement('button');
+            heading.type = 'button';
+            heading.textContent = name + ' (' + group.items.length + ')';
+            heading.title = @json(__('افتح هذه المجموعة بالأسفل واختر منها'));
+            heading.style.border = '0';
+            heading.style.background = 'transparent';
+            heading.style.font = 'inherit';
+            heading.style.cursor = 'pointer';
+            heading.style.textDecoration = 'underline';
+            heading.style.padding = '0';
+            heading.addEventListener('click', function () { revealGroup(name); });
+            head.appendChild(heading);
 
             if (ROLE_LABELS[group.role]) {
                 const chip = document.createElement('span');
                 chip.className = 'a2-badge';
-                chip.style.marginInlineStart = '6px';
                 chip.textContent = ROLE_LABELS[group.role];
                 head.appendChild(chip);
             }
 
             const body = document.createElement('div');
-            body.style.display = 'flex';
-            body.style.flexWrap = 'wrap';
+            body.style.display = 'grid';
+            body.style.gridTemplateColumns = 'repeat(auto-fill,minmax(200px,1fr))';
             body.style.gap = '6px';
             body.style.marginTop = '4px';
 
             group.items.forEach(function (item) {
                 const box = optionBoxById(item.id);
-                const chip = document.createElement('span');
-                chip.className = 'a2-badge';
-                chip.style.display = 'inline-flex';
-                chip.style.alignItems = 'center';
-                chip.style.gap = '6px';
-                chip.textContent = item.name;
 
-                // Already cleared in the picker this session: shown struck
-                // through rather than dropped, so «what I removed» stays
-                // readable until the save.
-                if (removable && box && !box.checked) {
-                    chip.style.textDecoration = 'line-through';
-                    chip.style.opacity = '0.55';
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '6px';
+                label.style.cursor = removable && box ? 'pointer' : 'default';
+
+                const tick = document.createElement('input');
+                tick.type = 'checkbox';
+                tick.checked = box ? box.checked : true;
+                tick.disabled = !removable || !box;
+
+                const text = document.createElement('span');
+                text.textContent = item.name;
+
+                // Cleared in this session: struck through rather than dropped,
+                // so «what I removed» stays readable until the save.
+                if (!tick.checked) {
+                    text.style.textDecoration = 'line-through';
+                    text.style.opacity = '0.55';
                 }
 
                 if (removable && box) {
-                    const cut = document.createElement('button');
-                    cut.type = 'button';
-                    cut.textContent = box.checked ? '×' : '↺';
-                    cut.title = box.checked
-                        ? @json(__('استبعاد هذا الخيار من هذا القسم'))
-                        : @json(__('التراجع عن الاستبعاد'));
-                    cut.style.border = '0';
-                    cut.style.background = 'transparent';
-                    cut.style.cursor = 'pointer';
-                    cut.style.fontWeight = '700';
-                    cut.style.lineHeight = '1';
-
-                    cut.addEventListener('click', function () {
-                        box.checked = !box.checked;
+                    tick.addEventListener('change', function () {
+                        box.checked = tick.checked;
+                        redrawing = true;
                         refreshGroupCounts();
+                        redrawing = false;
                         openPeek(childId, childName);
                     });
-
-                    chip.appendChild(cut);
                 }
 
-                body.appendChild(chip);
+                label.appendChild(tick);
+                label.appendChild(text);
+                body.appendChild(label);
             });
 
             row.appendChild(head);
@@ -582,13 +616,98 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    /**
+     * The child's groups as chips, plus every OTHER group, so «اختر منها ما هو
+     * مناسب» is reachable for an axis the child carries nothing from yet — which
+     * is exactly the case a card built only from what it already has would hide.
+     */
+    function groupJumpBar(carried) {
+        const bar = document.createElement('div');
+        bar.style.display = 'flex';
+        bar.style.flexWrap = 'wrap';
+        bar.style.gap = '6px';
+        bar.style.marginBottom = '10px';
+
+        const carriedSet = new Set(carried);
+
+        const chip = function (name, held) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = held ? 'a2-btn a2-btn-sm a2-btn-primary' : 'a2-btn a2-btn-sm a2-btn-ghost';
+            button.textContent = name;
+            button.title = @json(__('افتح المجموعة بالأسفل'));
+            button.addEventListener('click', function () { revealGroup(name); });
+            return button;
+        };
+
+        carried.forEach(function (name) { bar.appendChild(chip(name, true)); });
+
+        allGroupNames().forEach(function (name) {
+            if (!carriedSet.has(name)) {
+                bar.appendChild(chip(name, false));
+            }
+        });
+
+        return bar;
+    }
+
+    /** Every group the picker below actually draws, in its own order. */
+    function allGroupNames() {
+        return Array.from(document.querySelectorAll('.js-option-group-panel'))
+            .map(function (panel) {
+                const title = panel.querySelector('.a2-section-title');
+                return title ? title.textContent.trim() : '';
+            })
+            .filter(function (name) { return name !== ''; });
+    }
+
+    /** Open that group in the picker and scroll to it. */
+    function revealGroup(name) {
+        document.querySelectorAll('.js-option-group-panel').forEach(function (panel) {
+            const title = panel.querySelector('.a2-section-title');
+
+            if (!title || title.textContent.trim() !== name) {
+                return;
+            }
+
+            // A role filter may be hiding it — showing the group an admin just
+            // asked for beats keeping a filter he set two clicks ago.
+            panel.style.display = '';
+            panel.open = true;
+            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+
     /** The picker's box for an option, or null when no group draws it. */
     function optionBoxById(optionId) {
         return document.querySelector('.js-option-checkbox[value="' + optionId + '"]');
     }
 
+    /** What the form would post right now. */
+    function checkedOptionIds() {
+        return Array.from(document.querySelectorAll('.js-option-checkbox:checked'))
+            .map(function (input) { return String(input.value); });
+    }
+
     /**
-     * Removing from the card only means something when the ticks ARE the child's
+     * Re-draw the card for whichever child it is showing. Guarded against the
+     * card's own checkboxes, which already re-open it — without the guard a tick
+     * inside the card would rebuild the card from under the click.
+     */
+    let peekChildId = null;
+    let peekChildName = '';
+    let redrawing = false;
+
+    function refreshOpenPeek() {
+        if (redrawing || !peek || peek.style.display === 'none' || peekChildId === null) {
+            return;
+        }
+
+        openPeek(peekChildId, peekChildName);
+    }
+
+    /**
+     * Editing from the card only means something when the ticks ARE the child's
      * final set — one child, replace mode. In «إضافة» a cleared box says nothing,
      * and pretending otherwise would be the same lie the screen already told.
      */
@@ -701,6 +820,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (event.target.matches('.js-option-checkbox')) {
             refreshGroupCounts();
+            // Ticking in the picker must show up in the card, or the two views
+            // of one answer start to look like two answers.
+            refreshOpenPeek();
         }
 
         if (event.target.matches('.js-child-checkbox')) {

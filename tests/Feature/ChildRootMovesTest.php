@@ -133,7 +133,42 @@ class ChildRootMovesTest extends TestCase
             'استوديوهات' => ['استوديوهات', 'shops-online', 'arts-entertainment'],
             'مكملات غذائية' => ['مكملات غذائية', 'sports', 'shops-online'],
             'عفشجى' => ['عفشجى', 'workshops', 'shipping-delivery'],
+            'نادي صحي' => ['نادي صحي', 'health', 'sports'],
+            'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
         ];
+    }
+
+    /**
+     * «الصحة» must stay medical facilities only. The health club was the one
+     * row in it that a customer looking for a hospital would never want.
+     */
+    public function test_the_health_root_holds_only_medical_places(): void
+    {
+        $health = (int) DB::table('categories')->where('slug', 'health')->value('id');
+
+        $names = DB::table('category_parent_child as p')
+            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+            ->where('p.parent_id', $health)
+            ->pluck('c.name_ar')->all();
+
+        $this->assertNotContains('نادي صحي', $names);
+        $this->assertContains('عيادة', $names, 'the health root lost a medical child');
+    }
+
+    /** And the gym root gained it, where the training service already sells it. */
+    public function test_the_health_club_can_still_sell_training(): void
+    {
+        $childId = $this->childId('نادي صحي');
+        $training = (int) DB::table('platform_services')->where('key', 'training')->value('id');
+
+        $this->assertTrue(
+            DB::table('category_platform_services')
+                ->where('child_id', $childId)
+                ->where('platform_service_id', $training)
+                ->where('is_active', 1)
+                ->exists(),
+            'the move stranded the training service'
+        );
     }
 
     /**

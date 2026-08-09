@@ -77,4 +77,29 @@ return [
         'to_root_slug' => 'shipping-delivery',
         'why' => 'ينقل العفش ولا يُصلح شيئًا، فهو نقل لا صيانة',
     ],
+
+    /*
+    | Second pass over the roots, 2026-08-09. Both hold zero accounts.
+    */
+
+    [
+        // Root 20 «الصحة» is medical FACILITIES — مستشفى، عيادة، صيدلية، معمل
+        // تحاليل، مراكز أشعة. A health club is not one of those; it is the same
+        // kind of place as a جيم, and TrainingServiceSeeder already sells the
+        // training service through it alongside جيم and نادي رياضي.
+        'child_name_ar' => 'نادي صحي',
+        'from_root_slug' => 'health',
+        'to_root_slug' => 'sports',
+        'why' => 'ليس منشأة طبية بل مكان تُمارَس فيه رياضة — بجوار «جيم» و«نادي رياضي»، وخدمة التدريب تُباع من خلاله بالفعل',
+    ],
+
+    [
+        // Root 15 «تكنولوجيا» is what is built and run — برمجة، إتصالات. Running
+        // someone's pages is an ADVERTISING service, and root 19 already carries
+        // «دعاية وإعلان» and «محاسبة»: the offices you hire to do a thing for you.
+        'child_name_ar' => 'إدارة صفحات',
+        'from_root_slug' => 'technology',
+        'to_root_slug' => 'offices',
+        'why' => 'إدارة صفحات عملٌ دعائي يُشترى من مكتب، لا منتج تقني — بجوار «دعاية وإعلان»',
+    ],
 ];

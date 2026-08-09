@@ -80,6 +80,11 @@ class DatabaseSeeder extends Seeder
            // read and agreed with, so an admin's deliberate off stays off.
            ServiceReinstatementSeeder::class,
 
+           // «ماركات السيارات» reused three more times — what a food, appliance
+           // or sports-equipment trade deals in — plus «مركز حجامة» and its own
+           // PRICED session list. Add-only: it never withdraws a curated option.
+           TradeVocabularySeeder::class,
+
            // One trade under several roots — a spare-parts FACTORY could not
            // name a car brand while the shop next door named 43. Gives the
            // survivor every axis, then takes over the empty twins' roots.

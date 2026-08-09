@@ -42,6 +42,10 @@ return [
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
         'خدمات الكوافير والتجميل', // قص شعر
+        // «خيارات قابلة للتسعير» — the owner's own words for it. A cupping
+        // centre performs sessions; a wet cupping session has a price the way a
+        // hotel room does.
+        'خدمات الحجامة',          // حجامة رطبة
         // Merged into the descriptive «أقسام الصيدلية» on 2026-08-05 and split
         // out again the same day, on the owner's call: while merged, قياس ضغط
         // and حقن were descriptive and a pharmacy could not price them at all.
@@ -100,6 +104,21 @@ return [
         // in one list, that list IS the thing being paid for, not a modifier on
         // it. Left here it would be a third name matching no group.
         'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
+
+        /*
+         * The «ماركات السيارات» pattern, reused. Each says what a trade DEALS
+         * IN — it narrows a search and can change what a priced row is worth,
+         * but nobody buys the phrase «حبوب وبقوليات». The priced rows are the
+         * products themselves, in the catalog.
+         *
+         * Listed the same day they were created, because the note above is not
+         * a warning about the past: «نوع قطع الغيار» was created on 2026-08-09
+         * and was already one run away from being reset to descriptive.
+         */
+        'نوع قطع الغيار',          // فرامل BMW ≠ فرامل فيات
+        'أصناف المنتجات الغذائية', // زيوت وسمن ≠ أغذية أطفال
+        'أنواع الأجهزة الكهربائية', // إصلاح ثلاجة ≠ إصلاح مكيف
+        'أنواع الأجهزة الرياضية',  // مشاية ≠ دمبل
     ],
 
     /*

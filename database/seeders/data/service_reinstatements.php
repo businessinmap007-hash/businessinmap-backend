@@ -31,4 +31,26 @@ return [
         'copy_from_child_ar' => 'مطعم وكافيه',
         'why' => 'مطعم بلا منيو — الرابط والإعداد كلاهما معطّل، وكل إخوته في الجذر يحملونه بنفس الإعداد',
     ],
+
+    /*
+    | Second pass of the same comparison. Forty-four of «مصانع»'s children carry
+    | retail; these two were the exceptions, and neither is a special case — a
+    | fish factory and a sweets factory sell goods like the rest of them.
+    */
+
+    [
+        'child_name_ar' => 'أسماك',
+        'root_slug' => 'factories',
+        'service_key' => 'retail',
+        'copy_from_child_ar' => 'مواد غذائية',
+        'why' => 'مصنع أسماك لا يستطيع إدراج منتج، وكل مصنع غذائي بجواره يستطيع',
+    ],
+
+    [
+        'child_name_ar' => 'حلويات',
+        'root_slug' => 'factories',
+        'service_key' => 'retail',
+        'copy_from_child_ar' => 'مواد غذائية',
+        'why' => 'مصنع حلويات بلا تجزئة — نفس الحالة، وبنفس إعداد جاره',
+    ],
 ];

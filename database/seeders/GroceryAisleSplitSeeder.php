@@ -143,9 +143,52 @@ class GroceryAisleSplitSeeder extends Seeder
             if (isset($spec['move_from'])) {
                 $this->moveFishmongersToTheirOwnAisle($optionId, $spec['move_from']);
             }
+
+            if (isset($spec['grant_to'])) {
+                $this->grantTo($optionId, $nameAr, $spec['grant_to']);
+            }
         }
 
         return $created;
+    }
+
+    /**
+     * Hand a new aisle option to the children named for it.
+     *
+     * A SHARED row (`category_id = 0`), because a trade says the same thing
+     * under every root it stands beneath — and a withdrawal is honoured, so if
+     * the owner has already taken this word off the child by hand it stays off.
+     *
+     * @param  array<int,string>  $childNames
+     */
+    private function grantTo(int $optionId, string $optionNameAr, array $childNames): void
+    {
+        $withdrawn = app(ChildOptionDecisions::class)->blockedByChild();
+
+        $granted = 0;
+
+        $childIds = DB::table('category_children_master')
+            ->whereIn('name_ar', $childNames)
+            ->whereExists(fn ($q) => $q->from('category_parent_child as pc')->whereColumn('pc.child_id', 'category_children_master.id'))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        foreach ($childIds as $childId) {
+            if (isset($withdrawn[$childId][$optionId])) {
+                continue;
+            }
+
+            $granted += DB::table('category_child_option')->insertOrIgnore([
+                'child_id' => $childId,
+                'category_id' => 0,
+                'option_id' => $optionId,
+                'reorder' => 0,
+            ]);
+        }
+
+        if ($granted > 0) {
+            $this->command?->line("  - «{$optionNameAr}» ← منح {$granted}");
+        }
     }
 
     /**

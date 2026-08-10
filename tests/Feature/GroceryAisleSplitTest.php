@@ -90,7 +90,8 @@ class GroceryAisleSplitTest extends TestCase
         return [
             'الطازج' => ['أقسام الطازج واللحوم', 9, 'لحوم ودواجن'],
             'المخبوزات' => ['أقسام المخبوزات والحلويات', 5, 'فطائر'],
-            'البقالة' => ['أقسام البقالة الجافة', 6, 'معلبات'],
+            // Seven since «بن وشاي» was added on the owner's «بن يبيع حبوب فقط».
+            'البقالة' => ['أقسام البقالة الجافة', 7, 'بن وشاي'],
             'المشروبات' => ['أقسام المشروبات', 2, 'عصائر'],
             'المنزل' => ['أقسام المنزل والعناية', 6, 'منظفات'],
         ];
@@ -117,7 +118,47 @@ class GroceryAisleSplitTest extends TestCase
             'مخبز' => ['مخابز', 'أقسام المخبوزات والحلويات'],
             'محل منظفات' => ['منظفات', 'أقسام المنزل والعناية'],
             'مجمدات' => ['مجمدات', 'أقسام الطازج واللحوم'],
+            'محل بن' => ['بن', 'أقسام البقالة الجافة'],
         ];
+    }
+
+    /**
+     * «بن يبيع حبوب فقط، عصائر مطبخ» — owner, 2026-08-10.
+     *
+     * The two were the one case the split could not decide, because nothing in
+     * the data distinguishes a shop from a kitchen: both sat on the drinks
+     * aisle AND the menu's hot/cold bands, and both were plausible either way.
+     * The answer went opposite ways, which is why it was asked rather than
+     * guessed.
+     *
+     * A shop stocks and a kitchen prepares. «عصائر» as an aisle is a fridge of
+     * bottles; as a menu band it is a man with a blender.
+     */
+    public function test_the_coffee_shop_stocks_and_the_juice_bar_cooks(): void
+    {
+        $bandsOf = fn (string $child, string $group) => DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $this->childId($child))
+            ->where('g.name_ar', $group)
+            ->distinct()->pluck('o.name_ar')->all();
+
+        // The shop: aisles, no menu.
+        $this->assertSame([], $bandsOf('بن', 'بنود المنيو'), '«بن» is still offered a kitchen heading');
+        $this->assertSame([], $bandsOf('بن', 'أقسام المشروبات'), '«بن» still stocks bottled drinks');
+
+        // …and it can name the one thing it sells, which the aisle list had no
+        // word for until this ruling forced the question.
+        $this->assertContains('بن وشاي', $bandsOf('بن', 'أقسام البقالة الجافة'));
+
+        // The kitchen: menu, no aisle.
+        $this->assertSame([], $bandsOf('عصائر', 'أقسام المشروبات'), '«عصائر» is still stocking a shelf');
+
+        $this->assertSame(
+            ['مشروبات ساخنة', 'مشروبات باردة'],
+            $bandsOf('عصائر', 'بنود المنيو'),
+            '«عصائر» lost the bands it prepares'
+        );
     }
 
     /** …and a general market still sees all five, because it really does stock them. */

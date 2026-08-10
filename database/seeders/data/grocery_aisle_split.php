@@ -135,6 +135,28 @@ return [
     | to it. The menu row keeps its restaurants and loses the shops.
     */
     'new_options' => [
+
+        /*
+        | «بن يبيع حبوب فقط» — owner, 2026-08-10, ruling that the coffee
+        | merchant is a SHOP and not a kitchen.
+        |
+        | Acting on that leaves a hole, because there is no aisle word for what
+        | he sells. Strip the drinks off «بن» and what remains is the generic
+        | dry-grocery list — مواد غذائية، بهارات، معلبات — and not one of those
+        | words is «coffee». «شاي وقهوة» exists twice on the platform already,
+        | as a range in «أصناف المنتجات الغذائية» and as the retail item type
+        | `tea_coffee`, and neither is reachable from an aisle.
+        |
+        | So the trade gets its own aisle row. Ruling on what a shop does not
+        | sell without giving it a word for what it does is how a child ends up
+        | mute, which is the defect this taxonomy keeps producing.
+        */
+        'بن وشاي' => [
+            'name_en' => 'Coffee & Tea',
+            'group' => 'أقسام البقالة الجافة',
+            'grant_to' => ['بن'],
+        ],
+
         'أسماك ومأكولات بحرية طازجة' => [
             'name_en' => 'Fresh Fish & Seafood',
             'group' => 'أقسام الطازج واللحوم',

@@ -103,10 +103,21 @@ return [
             'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
             'مشروبات باردة', 'وجبات أطفال',
         ],
+        /*
+        | «بن يبيع حبوب فقط» — owner, 2026-08-10. It is a SHOP, so the two menu
+        | bands go: «مشروبات ساخنة» is a cup a kitchen serves, not a bag a
+        | grocer sells. The two aisle rows «عصائر» and «مشروبات» go with them,
+        | because the ruling is about the drinks and «فقط» answers it — a shop
+        | that sells beans does not also stock juice.
+        |
+        | What it sells now has a word of its own, «بن وشاي», granted from
+        | grocery_aisle_split.php. Deliberately NOT listed here: this map must
+        | not manage it, or the day someone edits this line the trade loses the
+        | only row that names it.
+        */
         'بن' => [
-            'مشروبات ساخنة', 'مشروبات باردة', 'مواد غذائية', 'عصائر',
-            'بهارات', 'مكرونات وأرز وحبوب', 'معلبات', 'زيوت وسمن',
-            'سناكس وتسالي', 'مشروبات',
+            'مواد غذائية', 'بهارات', 'مكرونات وأرز وحبوب',
+            'معلبات', 'زيوت وسمن', 'سناكس وتسالي',
         ],
         'حلويات' => [
             'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',
@@ -138,8 +149,18 @@ return [
             'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
             'مشروبات باردة', 'وجبات أطفال',
         ],
+        /*
+        | «عصائر مطبخ» — owner, same ruling, the other way. A juice bar PREPARES
+        | what it sells, so it keeps the menu bands and gives up the two aisle
+        | rows: «عصائر» as an aisle is a fridge of bottles, and that is a
+        | different trade from a man with a blender.
+        |
+        | Note the shape of the pair — بن and عصائر sat on both lists and the
+        | answer went opposite ways. That is why this was reported rather than
+        | guessed: nothing in the data distinguishes a shop from a kitchen.
+        */
         'عصائر' => [
-            'مشروبات ساخنة', 'مشروبات باردة', 'عصائر', 'مشروبات',
+            'مشروبات ساخنة', 'مشروبات باردة',
         ],
         'فواكة' => [
             'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',

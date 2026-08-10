@@ -62,31 +62,39 @@ class BoundUnboundedConfigsTest extends TestCase
     /** The seeder fills an empty list from what the child declares. */
     public function test_an_empty_list_is_bounded_from_the_declared_branches(): void
     {
-        $limousine = (int) DB::table('category_children_master')
-            ->where('name_ar', 'خدمة ليموزين')->value('id');
-
         $delivery = (int) PlatformService::query()
             ->where('key', PlatformService::KEY_DELIVERY)->value('id');
 
-        if ($limousine <= 0 || $delivery <= 0) {
-            $this->markTestSkipped('Needs the limousine child and the delivery service.');
+        if ($delivery <= 0) {
+            $this->markTestSkipped('Needs the delivery service.');
         }
 
-        $rootId = (int) DB::table('category_service_configs')
-            ->where('child_id', $limousine)
+        // Any child with a LIVE, bounded delivery config will do, and asking for
+        // one beats naming one: this used to name «خدمة ليموزين», whose delivery
+        // was switched off on 2026-08-10 by the owner's «حجز بدون توصيل» rule —
+        // a limousine is booked by the hour and delivers nothing. The test was
+        // then measuring a dormant config and failing for the right reason in
+        // the wrong place.
+        $row = DB::table('category_service_configs')
             ->where('platform_service_id', $delivery)
-            ->value('category_id');
+            ->where('is_active', 1)
+            ->whereNotNull('child_id')
+            ->whereRaw("JSON_LENGTH(JSON_EXTRACT(config, '$.allowed_item_types')) > 0")
+            ->first(['category_id', 'child_id']);
 
-        if ($rootId <= 0) {
-            $this->markTestSkipped('The limousine child has no delivery config.');
+        if ($row === null) {
+            $this->markTestSkipped('No live bounded delivery config to test with.');
         }
 
-        $before = $this->typesOf($rootId, $limousine, $delivery);
+        $rootId = (int) $row->category_id;
+        $childId = (int) $row->child_id;
 
-        app(ChildServiceWriter::class)->enable($rootId, $limousine, $delivery, ['allowed_item_types' => []]);
+        $before = $this->typesOf($rootId, $childId, $delivery);
+
+        app(ChildServiceWriter::class)->enable($rootId, $childId, $delivery, ['allowed_item_types' => []]);
         $this->bound();
 
-        $after = $this->typesOf($rootId, $limousine, $delivery);
+        $after = $this->typesOf($rootId, $childId, $delivery);
 
         $this->assertNotEmpty($after, 'the unbounded config was left unbounded');
         $this->assertSame($before, $after, 'bounding must land on the same declared set');

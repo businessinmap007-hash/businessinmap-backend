@@ -29,9 +29,15 @@ class PaymentTermsScopeTest extends TestCase
             ->value('o.id');
     }
 
+    /**
+     * DISTINCT children, not rows. A child may hold a shared row and a
+     * root-scoped one for the same option, so counting rows made كاش and تقسيط
+     * look unequal (229 vs 231) while every child carried both.
+     */
     private function childCount(string $nameAr): int
     {
-        return DB::table('category_child_option')->where('option_id', $this->optionId($nameAr))->count();
+        return DB::table('category_child_option')->where('option_id', $this->optionId($nameAr))
+            ->distinct()->count('child_id');
     }
 
     /** The two answers every trade can give, on the same children. */

@@ -95,6 +95,15 @@ class DatabaseSeeder extends Seeder
            // becomes the child. Root-scoped, so it must follow the moves above.
            WorkshopRemodelSeeder::class,
 
+           // «بنود المنيو» was four vocabularies wearing one name. Moves options
+           // between groups only — no child link is touched, so every merchant
+           // keeps every heading he had.
+           MenuBandSplitSeeder::class,
+
+           // Four accessory children become one, and what KIND of accessory
+           // becomes an option. After the remodel, before the detachments.
+           AccessoryMergeSeeder::class,
+
            // «احذف س من أبناء ص» — a child taken off a root it does not belong
            // under. After the remodel, because two of its entries only make
            // sense once the workshop domains exist to receive the merchants.
@@ -113,6 +122,11 @@ class DatabaseSeeder extends Seeder
            // «التدريب والتغذية» on the shelf: a gym could deliver a plan and
            // had no way to be found for one or to price it.
            TrainingServiceSeeder::class,
+
+           // «حجز بدون توصيل هو حجز وقت او مدة» — a rule, not a list. MUST come
+           // after DeliveryChildBranchesSeeder, whose root-keyed map would
+           // otherwise re-wire delivery onto the children this switches off.
+           BookingWithoutDeliverySeeder::class,
 
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this

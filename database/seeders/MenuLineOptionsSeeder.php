@@ -140,7 +140,27 @@ class MenuLineOptionsSeeder extends Seeder
             ->where('co.child_id', $childId)
             ->where('g.price_role', OptionGroup::ROLE_LINE)
             ->where('g.id', '!=', $groupId)
+            ->whereNotIn('g.name_ar', $this->ownFamily())
             ->exists();
+    }
+
+    /**
+     * The groups «بنود المنيو» was split into on 2026-08-10 are still THIS
+     * seeder's vocabulary — the bands only changed drawer.
+     *
+     * Without this the split is self-destructing: a supermarket carrying
+     * «أقسام السوبر ماركت» reads as a child with its own richer vocabulary, the
+     * seeder decides it must not trade down, and strips every band it owns. It
+     * took 214 links off 33 children on the first run after the split.
+     *
+     * @return array<int,string>
+     */
+    private function ownFamily(): array
+    {
+        return array_column(
+            (require __DIR__ . '/data/menu_band_split.php')['groups'],
+            'name_ar'
+        );
     }
 
     private function group(): int

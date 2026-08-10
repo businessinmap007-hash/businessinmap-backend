@@ -81,7 +81,6 @@ return [
         'كتب' => ['hobbies_general'],
         'تجهيز عرائس' => ['fashion_textiles'],
         'مستلزمات كافيهات' => ['hobbies_general'],
-        'اكسسوارت سيارات' => ['vehicles_parts'],
         'زيت سيارات' => ['vehicles_parts'],
         'قطع غيار سيارات' => ['vehicles_parts'],
         'مستلزمات نجارة' => ['building_hardware'],
@@ -130,6 +129,11 @@ return [
         'لعب أطفال' => ['hobbies_general'],
         'مصنوعات خشبية ومستلزمات ديكور' => ['home_furnishings'],
         'أصواف' => ['fashion_textiles'],
+        // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
+        // 2026-08-10 (AccessoryMergeSeeder) and became two of its options. The
+        // trade took this root in their place — it sells phone cases, car mats
+        // and watches off one counter, which is the electronics shelf here.
+        'اكسسوار' => ['electronics_tech'],
     ],
 
     // ── ملابس و اكسسوارات (root 14) ──
@@ -213,7 +217,6 @@ return [
     'factories' => [
         'أجهزة كهربائية' => ['electronics_tech'],
         'أجهزه كمبيوتر' => ['electronics_tech'],
-        'اكسسوار موبيلات' => ['electronics_tech'],
         'أدوات تجميل' => ['beauty_health_retail'],
         'مستلزمات طبية' => ['beauty_health_retail'],
         'مواد دوائية' => ['beauty_health_retail'],
@@ -245,12 +248,13 @@ return [
         'أدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],
         'طباعة مواد تعبئة وتغليف' => ['building_hardware'],
-        'اكسسوارت سيارات' => ['vehicles_parts'],
         'قطع غيار سيارات' => ['vehicles_parts'],
         'منظفات' => ['hobbies_general'],
         'لعب أطفال' => ['hobbies_general'],
         'مستلزمات مطاعم' => ['hobbies_general'],
         'مواد غذائية' => ['grocery_retail'],
         'عصائر' => ['grocery_retail'],
+        // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
+        // 2026-08-10 (AccessoryMergeSeeder) and became two of its options.
     ],
 ];

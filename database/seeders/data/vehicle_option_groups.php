@@ -76,7 +76,12 @@ return [
     */
     'children' => [
         'car_brands' => [
-            38,  // اكسسوارت سيارات
+            // #38 «اكسسوارت سيارات» folded into #8 «اكسسوار» on 2026-08-10
+            // (AccessoryMergeSeeder) and is now the option «اكسسوار سيارات».
+            // #8 is deliberately NOT put in its place: a general accessories
+            // shop saying which of 43 marques it stocks is noise, and the
+            // option already says it deals in car accessories. Left named here,
+            // this seeder would keep handing the marques to a rootless row.
             // #39 مركز سيارات · #40 ابواب سيارات · #41 كهربائي سيارات
             // #104 اصلاح زجاج السيارات · #161 كوتش — all five became BENCHES
             // inside #543 «ورشة سيارات» on 2026-08-10 (WorkshopRemodelSeeder).

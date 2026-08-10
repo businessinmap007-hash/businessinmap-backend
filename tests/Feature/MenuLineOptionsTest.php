@@ -37,13 +37,31 @@ class MenuLineOptionsTest extends TestCase
         return (int) DB::table('option_groups')->where('name_ar', 'بنود المنيو')->value('id');
     }
 
+    /**
+     * The seeder's whole vocabulary, which has lived in four groups since
+     * 2026-08-10 (MenuBandSplitSeeder). One declaration, one seeder, four
+     * drawers — a supermarket's «خضار وفاكهة» is the same band it always was.
+     *
+     * @return array<int,int>
+     */
+    private function familyGroupIds(): array
+    {
+        $names = array_merge(
+            ['بنود المنيو'],
+            array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar')
+        );
+
+        return DB::table('option_groups')->whereIn('name_ar', $names)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     /** @return array<int,string> the option names of this group a child carries */
     private function bandsOf(int $childId): array
     {
         return DB::table('category_child_option as co')
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->where('co.child_id', $childId)
-            ->where('o.group_id', $this->groupId())
+            ->whereIn('o.group_id', $this->familyGroupIds())
             ->pluck('o.name_ar')
             ->all();
     }
@@ -113,7 +131,7 @@ class MenuLineOptionsTest extends TestCase
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->where('l.platform_service_id', $this->menuServiceId())
             ->where('l.is_active', 1)
-            ->where('o.group_id', $this->groupId())
+            ->whereIn('o.group_id', $this->familyGroupIds())
             ->distinct()
             ->pluck('co.child_id');
 

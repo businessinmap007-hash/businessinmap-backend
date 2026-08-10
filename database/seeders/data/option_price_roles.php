@@ -28,6 +28,13 @@ return [
     */
     'line' => [
         'بنود المنيو',            // مشويات، ساندوتشات — the heading a customer pays under
+        // The three that came out of it on 2026-08-10 (MenuBandSplitSeeder).
+        // All still `line`: they are headings a merchant prices under, which is
+        // exactly what separates «أقسام السوبر ماركت» from the `modifier`
+        // «أصناف المنتجات الغذائية» beside it.
+        'أقسام السوبر ماركت',     // ألبان وبيض، منظفات
+        'مستلزمات المزارع',       // ماشية وطيور
+        'صفوف معروضة',            // مركبة معروضة — one row meaning «what is on display»
         'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
         // Was «فئات الغرف» until the owner merged the hotel room kinds into the
         // existing «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين

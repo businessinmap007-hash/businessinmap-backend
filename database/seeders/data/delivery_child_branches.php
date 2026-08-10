@@ -25,35 +25,14 @@ return [
 
     // ── مهن وحرفيين ──
     'professions' => [
-        'أويمجى' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'استرجي' => ['delivery_freight', 'delivery_courier_ondemand'],
         'اصلاح زجاج السيارات' => ['delivery_courier_ondemand'],
-        'باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'باركيه' => ['delivery_courier_ondemand'],
-        'بناء وواجهات حجرية' => ['delivery_courier_ondemand'],
-        'تكسير ونحت' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'جبس وديكورات' => ['delivery_courier_ondemand'],
-        'جبس وكرانيش' => ['delivery_courier_ondemand'],
-        'جبسيوم بورد' => ['delivery_courier_ondemand'],
-        'جي أر سي' => ['delivery_courier_ondemand'],
-        'حداد' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'خدمات نظافة' => ['delivery_courier_ondemand'],
-        'دش وأقمار صناعية' => ['delivery_courier_ondemand'],
-        'رخام وجرانيت' => ['delivery_freight', 'delivery_courier_ondemand'],
         'سائق' => ['delivery_courier_ondemand'],
-        'سباك' => ['delivery_courier_ondemand'],
-        'صيانة اجهزة منزلية' => ['delivery_courier_ondemand'],
-        'صيانة تكيف' => ['delivery_courier_ondemand'],
-        'عامل بناء' => ['delivery_courier_ondemand'],
-        'فني الوميتال' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'فني ستائر و تنجيد' => ['delivery_courier_ondemand'],
-        'كهربائي' => ['delivery_courier_ondemand'],
-        'مبلط' => ['delivery_courier_ondemand'],
-        'مبيض محارة' => ['delivery_courier_ondemand'],
         'منجد' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'نجار تنده' => ['delivery_freight', 'delivery_courier_ondemand'],
         'نجار موبيليا' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'نقاش' => ['delivery_courier_ondemand'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── زراعية وحيوانية ──
@@ -76,30 +55,27 @@ return [
 
     // ── ورش ومراكز صيانة ──
     'workshops' => [
-        'تبريد وتكييف' => ['delivery_courier_ondemand'],
         // «عفشجى» left this root — see the shipping-delivery block at the top.
         'نجار باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
         // The benches folded into the four workshop domains on 2026-08-10
         // (WorkshopRemodelSeeder). A cabinet leaves on a lorry; a repaired
         // kettle goes back by courier, so the appliance bench keeps only the
         // courier branch exactly as «تصليح أجهزة كهربائية» did.
-        'ورشة سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'ورشة أثاث ونجارة' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'ورشة حدادة وخراطة' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'ورشة صيانة أجهزة' => ['delivery_courier_ondemand'],
         // «آثاث» and «باب وشباك» left this root on 2026-08-10 by the owner's
         // word — see data/child_root_detachments.php. A branch map keyed by
         // ROOT that still names them re-wires a child nothing points at.
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── سيارات ──
     'cars' => [
-        'جراج' => ['delivery_freight'],
-        'خدمة ليموزين' => ['delivery_freight'],
-        'سيارات نقل' => ['delivery_freight'],
-        'مغسلة سيارات' => ['delivery_freight'],
-        'نقل ركاب' => ['delivery_freight'],
-        'ونش إنقاذ' => ['delivery_freight'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── ملابس و اكسسوارات ──
@@ -117,9 +93,11 @@ return [
 
     // ── تكنولوجيا ──
     'technology' => [
-        'أمن وسلامة' => ['delivery'],
-        'إتصالات' => ['delivery'],
         'إدارة صفحات' => ['delivery'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── مطاعم وكافيهات ──
@@ -149,7 +127,6 @@ return [
         'أنتيكات وتحف' => ['delivery'],
         'إسفنج' => ['delivery'],
         'اسمنت' => ['delivery', 'delivery_freight'],
-        'اكسسوارت سيارات' => ['delivery'],
         'اكياس بلاستيك' => ['delivery'],
         'بلاستيك' => ['delivery'],
         'بن' => ['delivery'],
@@ -200,26 +177,26 @@ return [
         'نجف و تحف' => ['delivery'],
         'نظارات' => ['delivery'],
         'هايبر ماركت' => ['delivery'],
+        // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
+        // 2026-08-10 (AccessoryMergeSeeder) and became two of its options.
     ],
 
     // ── مكاتب ──
     'offices' => [
-        'أمن' => ['delivery_courier_ondemand', 'delivery_documents'],
-        'تخليص جمركي' => ['delivery_international', 'delivery_courier_ondemand', 'delivery_documents'],
-        'خدمات منزلية' => ['delivery_courier_ondemand', 'delivery_documents'],
-        'ديكور' => ['delivery_courier_ondemand', 'delivery_documents'],
-        'طباعة' => ['delivery_courier_ondemand', 'delivery_documents'],
-        'منطقة عمل مشتركة' => ['delivery_courier_ondemand', 'delivery_documents'],
-        'هندسية' => ['delivery_courier_ondemand', 'delivery_documents'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── الصحة ──
     'health' => [
-        'صيدلية' => ['delivery', 'delivery_coldchain'],
-        'مراكز أشعة' => ['delivery_courier_ondemand'],
         // + delivery_documents (2026-08-05): a lab's other outbound thing is
         // the printed result, which is a document, not a cold-chain sample.
-        'معمل تحاليل' => ['delivery_coldchain', 'delivery_courier_ondemand', 'delivery_documents'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── شركات ──
@@ -240,7 +217,6 @@ return [
         'ألمونتال' => ['delivery_freight'],
         'أنتيكات وتحف' => ['delivery_freight'],
         'إسفنج' => ['delivery_freight'],
-        'استيراد وتصدير' => ['delivery_freight', 'delivery_international'],
         'اسمنت' => ['delivery_freight'],
         'اكسسوار' => ['delivery_freight'],
         'تبريد وتكييف' => ['delivery_freight'],
@@ -284,6 +260,10 @@ return [
         'مواشي' => ['delivery_freight', 'delivery_coldchain'],
         'نجف' => ['delivery_freight'],
         'نقل دولي' => ['delivery_freight', 'delivery_international'],
+        // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
+        // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
+        // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
+        // them here is what stops this map re-wiring delivery on its own run.
     ],
 
     // ── مصانع ──
@@ -300,8 +280,6 @@ return [
         'إسفنج' => ['delivery_freight'],
         'اسمنت' => ['delivery_freight'],
         'اكسسوار' => ['delivery_freight'],
-        'اكسسوار موبيلات' => ['delivery_freight'],
-        'اكسسوارت سيارات' => ['delivery_freight'],
         'اكياس بلاستيك' => ['delivery_freight'],
         'باب وشباك' => ['delivery_freight'],
         'بي في سي' => ['delivery_freight'],
@@ -334,5 +312,7 @@ return [
         'مواد دوائية' => ['delivery_freight', 'delivery_coldchain'],
         'مواد غذائية' => ['delivery_freight', 'delivery_coldchain'],
         'نجف' => ['delivery_freight'],
+        // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
+        // 2026-08-10 (AccessoryMergeSeeder) and became two of its options.
     ],
 ];

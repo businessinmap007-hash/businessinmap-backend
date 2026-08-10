@@ -99,6 +99,18 @@ return [
             'beauty_cosmetics' => ['أدوات تجميل', 'Cosmetics'],
             'perfumes' => ['عطور', 'Perfumes'],
             'medical_retail' => ['مستلزمات طبية', 'Medical Supplies'],
+            // Added 2026-08-10 with «مكملات غذائية» #274, which had no branch
+            // entry at all and so was handed the ROOT'S MAJORITY branch —
+            // أثاث ومفروشات — by ChildRootMovesSeeder::adoptRootShape(). A
+            // supplements shop was being offered chandeliers, antiques, carpets
+            // and mattresses, and the move's own stated reason had said «بجوار
+            // عطور وأدوات تجميل» all along.
+            //
+            // The type comes with the branch entry, not after it: this file's
+            // own rule is that a child may only be given a branch that HAS a
+            // matching item type, and «مستلزمات طبية» is not what a supplements
+            // shop sells.
+            'supplements' => ['مكملات غذائية', 'Dietary Supplements'],
         ],
     ],
 

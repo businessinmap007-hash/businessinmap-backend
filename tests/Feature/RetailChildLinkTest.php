@@ -221,6 +221,38 @@ class RetailChildLinkTest extends TestCase
         }
     }
 
+    /**
+     * A child this map does not name still gets a retail config — from
+     * `ChildRootMovesSeeder::adoptRootShape()`, which copies the ROOT'S
+     * MAJORITY branch. Under المحلات that majority is أثاث ومفروشات, so
+     * «مكملات غذائية» arrived from الرياضة and was handed furniture,
+     * chandeliers, carpets and mattresses. Twelve types, not one of them a
+     * supplement, while the move's own reason had said «بجوار عطور وأدوات
+     * تجميل».
+     *
+     * Silence in this file is not neutral. That is what this pins.
+     */
+    public function test_the_supplements_shop_is_on_the_health_branch(): void
+    {
+        $rootId = (int) DB::table('categories')->where('slug', 'shops-online')->value('id');
+        $childId = (int) DB::table('category_children_master')->where('name_ar', 'مكملات غذائية')->value('id');
+        $retailId = (int) DB::table('platform_services')->where('key', 'retail')->value('id');
+
+        $config = json_decode((string) DB::table('category_service_configs')
+            ->where('category_id', $rootId)->where('child_id', $childId)
+            ->where('platform_service_id', $retailId)->where('is_active', 1)->value('config'), true) ?: [];
+
+        $branch = (int) DB::table('platform_service_item_groups')->where('key', 'beauty_health_retail')->value('id');
+
+        $this->assertSame([$branch], $config['item_groups'] ?? [], 'the supplements shop is on the wrong branch');
+
+        // …and the branch names the trade, which is this file's own rule: a
+        // child may only be given a branch that HAS a matching item type.
+        $this->assertContains('supplements', $config['allowed_item_types'] ?? []);
+
+        $this->assertNotContains('chandeliers_lighting', $config['allowed_item_types'] ?? []);
+    }
+
     /** A child's Menu link must survive being given Retail as well. */
     public function test_the_supermarket_keeps_its_menu(): void
     {

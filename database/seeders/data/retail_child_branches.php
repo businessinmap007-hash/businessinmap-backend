@@ -110,6 +110,13 @@ return [
         'مراتب' => ['home_furnishings'],
         'سوبر ماركت' => ['grocery_retail'],
         'مستلزمات طبية' => ['beauty_health_retail'],
+        // Missing entirely until 2026-08-10, which is the whole story: a child
+        // this file does not name still gets a retail config, from
+        // ChildRootMovesSeeder::adoptRootShape() copying the ROOT'S MAJORITY.
+        // Under المحلات that majority is أثاث ومفروشات, so the supplements shop
+        // was offered furniture, chandeliers, carpets and mattresses. The move
+        // entry that brought it here already said «بجوار عطور وأدوات تجميل».
+        'مكملات غذائية' => ['beauty_health_retail'],
         'موبيلات و اكسسوار' => ['electronics_tech'],
         'حدايد وبويات' => ['building_hardware'],
         'عطور' => ['beauty_health_retail'],

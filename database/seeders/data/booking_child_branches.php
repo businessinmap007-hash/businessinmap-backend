@@ -78,30 +78,17 @@ return [
 
     // ── ورش ومراكز صيانة ──
     'workshops' => [
-        'Cnc' => ['services_tasks'],
         'آثاث' => ['services_tasks'],
-        'أويمجى' => ['services_tasks'],
-        'ابواب سيارات' => ['services_tasks'],
-        'استانلس ومعدات مطاعم' => ['services_tasks'],
-        'استورجى' => ['services_tasks'],
-        'الكريتال' => ['services_tasks'],
         'باب وشباك' => ['services_tasks'],
         'تبريد وتكييف' => ['services_tasks'],
-        'تصليح أجهزة كهربائية' => ['services_tasks'],
-        'تصليح غسالات وبتوجازات' => ['services_tasks'],
-        'تنجيد' => ['services_tasks'],
-        'حداد' => ['services_tasks'],
-        'سروجي' => ['services_tasks'],
-        'سمكري' => ['services_tasks'],
-        'عفشجى' => ['services_tasks'],
-        'فيبر جلاس' => ['services_tasks'],
-        'كهربائي سيارات' => ['services_tasks'],
-        'كوتش' => ['services_tasks'],
-        'مخرطة' => ['services_tasks'],
-        'مركز سيارات' => ['services_tasks'],
-        'مطابخ و دريسنج' => ['services_tasks'],
-        'ميكانيكي' => ['services_tasks'],
         'نجار باب وشباك' => ['services_tasks'],
+        // The twenty benches that used to be children here became options
+        // inside these four on 2026-08-10 (WorkshopRemodelSeeder). Naming a
+        // folded child would only report it missing on every run.
+        'ورشة سيارات' => ['services_tasks'],
+        'ورشة أثاث ونجارة' => ['services_tasks'],
+        'ورشة حدادة وخراطة' => ['services_tasks'],
+        'ورشة صيانة أجهزة' => ['services_tasks'],
     ],
 
     // ── قاعات ──

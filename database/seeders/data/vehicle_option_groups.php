@@ -77,15 +77,17 @@ return [
     'children' => [
         'car_brands' => [
             38,  // اكسسوارت سيارات
-            39,  // مركز سيارات
-            40,  // ابواب سيارات
-            41,  // كهربائي سيارات
+            // #39 مركز سيارات · #40 ابواب سيارات · #41 كهربائي سيارات
+            // #104 اصلاح زجاج السيارات · #161 كوتش — all five became BENCHES
+            // inside #543 «ورشة سيارات» on 2026-08-10 (WorkshopRemodelSeeder).
+            // Left named here, this seeder kept handing 43 marques to five
+            // children no root can reach: a stale answer sheet waiting for
+            // whoever re-attaches one.
+            543, // ورشة سيارات
             42,  // زيت سيارات
             43,  // قطع غيار سيارات (مصانع)
             44,  // قطع غيار سيارات (محلات)
             53,  // سيارات
-            104, // اصلاح زجاج السيارات
-            161, // كوتش
             169, // خدمة ليموزين — a Mercedes limo is not a Hyundai one
             188, // معرض سيارات
             249, // جنوط وكاوتش سيارات

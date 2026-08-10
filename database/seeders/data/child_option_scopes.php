@@ -38,7 +38,11 @@ return [
     'أثاث وتشطيب منزلي' => [
         56 => [355],           // نجف — a chandelier shop hangs a tableau, not a dining set
         57 => [355],           // نجف و تحف
-        160 => [219, 39],      // مطابخ و دريسنج — kitchen units, and the bedroom a dressing room belongs to
+        // #160 «مطابخ و دريسنج» became a bench inside #544 on 2026-08-10, and
+        // the workshop makes everything the joinery #49 makes — but weaves no
+        // carpet. Without the entry, rule 3 («اثاث|…|مطابخ») hands it the whole
+        // list back, سجاد ومفروشات and all.
+        544 => [39, 77, 113, 169, 188, 219, 266, 312, 337, 355, 398], // ورشة أثاث ونجارة
         115 => [64, 312, 337, 398, 355], // مفروشات — soft furnishing, no kitchen units
         49 => [39, 77, 113, 169, 188, 219, 266, 312, 337, 355, 398], // نجار موبيليا — makes all of it but weaves no carpet
         // #116 آثاث keeps the whole list: as a showroom, workshop, factory and
@@ -176,5 +180,27 @@ return [
     */
     'الجمهور المستهدف' => [
         // every clothing child keeps all three
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | عقارات وممتلكات
+    |--------------------------------------------------------------------------
+    | An empty list STRIPS the group — the only entry here that means «this
+    | child may answer none of it».
+    |
+    | Rule 9 in LinkCategoryChildrenToOptionsSeeder matches the word «ورش[ةه]»,
+    | and rightly so: a workshop is a PROPERTY a real-estate business lists for
+    | rent. But «ورشة سيارات» is not a unit for rent, it is the garage itself,
+    | and the day the workshop domains were created (2026-08-10) that rule was
+    | about to offer a metal shop شقة، فيلا، أرض — thirteen properties it does
+    | not sell. The name matched; the meaning did not.
+    */
+    'عقارات وممتلكات' => [
+        544 => [], // ورشة أثاث ونجارة
+        545 => [], // ورشة حدادة وخراطة
+        546 => [], // ورشة صيانة أجهزة
+        // «ورشة سيارات» #543 never reaches the rule — its exclude pattern
+        // catches «سيار» first.
     ],
 ];

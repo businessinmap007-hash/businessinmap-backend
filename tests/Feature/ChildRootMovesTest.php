@@ -129,7 +129,12 @@ class ChildRootMovesTest extends TestCase
     {
         return [
             'مأذون شرعى' => ['مأذون شرعى', 'professions', 'offices'],
-            'اصلاح زجاج السيارات' => ['اصلاح زجاج السيارات', 'professions', 'workshops'],
+            // «اصلاح زجاج السيارات» moved professions → workshops here, and on
+            // 2026-08-10 the workshop remodel folded it into «ورشة سيارات» as a
+            // bench. The move still has to happen first — the remodel only sees
+            // children standing under ورش — so the entry stays in the data file
+            // and its end state is pinned by test_a_bench_is_no_longer_a_child
+            // in WorkshopRemodelTest instead of here.
             'استوديوهات' => ['استوديوهات', 'shops-online', 'arts-entertainment'],
             'مكملات غذائية' => ['مكملات غذائية', 'sports', 'shops-online'],
             'عفشجى' => ['عفشجى', 'workshops', 'shipping-delivery'],
@@ -272,10 +277,24 @@ class ChildRootMovesTest extends TestCase
 
         $this->assertGreaterThanOrEqual(2, $rows->count(), '«حداد» was merged into one row');
 
-        $roots = DB::table('category_parent_child')->whereIn('child_id', $rows)
-            ->pluck('parent_id')->map(fn ($id) => (int) $id)->unique();
+        // The workshop side (#31) became a bench inside «ورشة حدادة وخراطة» on
+        // 2026-08-10, so the pair no longer stands under two roots — but the
+        // ruling being pinned here was never «two roots», it was «never one
+        // row»: the tradesman under مهن وحرفيين must not have been swallowed by
+        // the workshop, whichever shape the workshop takes.
+        $professions = (int) DB::table('categories')->where('slug', 'professions')->value('id');
 
-        $this->assertGreaterThanOrEqual(2, $roots->count(), '«حداد» no longer stands under two roots');
+        $this->assertTrue(
+            DB::table('category_parent_child')->whereIn('child_id', $rows)
+                ->where('parent_id', $professions)->exists(),
+            'the «حداد» tradesman lost his own row under مهن وحرفيين'
+        );
+
+        $this->assertGreaterThan(
+            0,
+            DB::table('users')->whereIn('category_child_id', $rows)->count(),
+            'the blacksmith accounts were moved off the pair'
+        );
     }
 
     /** Re-running the move does nothing at all. */

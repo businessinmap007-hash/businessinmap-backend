@@ -162,10 +162,16 @@ class TradeVocabularyTest extends TestCase
         $this->assertSame(0, $scoped, 'the appliance list is scoped to one root');
     }
 
-    /** A repair workshop can name what it repairs — that is why it is here. */
+    /**
+     * A repair workshop can name what it repairs — that is why it is here.
+     *
+     * The child asked has changed: «تصليح أجهزة كهربائية» became a bench inside
+     * «ورشة صيانة أجهزة» on 2026-08-10 and carried the list with it. What is
+     * being tested has not changed at all.
+     */
     public function test_a_repair_workshop_can_name_what_it_repairs(): void
     {
-        $this->assertContains('غسالات ملابس', $this->optionsOf('تصليح أجهزة كهربائية', 'أنواع الأجهزة الكهربائية'));
+        $this->assertContains('غسالات ملابس', $this->optionsOf('ورشة صيانة أجهزة', 'أنواع الأجهزة الكهربائية'));
     }
 
     /** Add-only: a second run writes nothing and withdraws nothing. */

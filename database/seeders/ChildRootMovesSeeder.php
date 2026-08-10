@@ -82,7 +82,12 @@ class ChildRootMovesSeeder extends Seeder
             // there rather than reporting a no-op over a hole.
             $repaired = false;
 
-            if (! DB::table('category_parent_child')->where('parent_id', $to)->where('child_id', $childId)->exists()) {
+            // ONLY when it hangs from nothing at all. Checking «is it under the
+            // destination?» is not the same question and gets it wrong the other
+            // way: a child moved on somewhere else since is standing perfectly
+            // well, and re-adding the destination gives it TWO roots — which is
+            // what this did to «عفشجى» the first time it was written.
+            if (! DB::table('category_parent_child')->where('child_id', $childId)->exists()) {
                 DB::table('category_parent_child')->insert([
                     'parent_id' => $to,
                     'child_id' => $childId,

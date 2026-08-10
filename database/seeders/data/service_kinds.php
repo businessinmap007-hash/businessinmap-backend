@@ -144,6 +144,18 @@ return [
              */
             513 => ['booking_consultation', 'booking_examination', 'booking_procedure', 'booking_online_consultation', 'booking_follow_up', 'booking_home_sample'], // مستشفى
             515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مركز طبي
+            /*
+             * «مركز حجامة» #542, added 2026-08-09 with its booking config copied
+             * whole from the clinic. The copy is not enough on its own: THIS map
+             * is what ServiceKindsCollapseSeeder rewrites configs from, and a
+             * child missing from it is handed the bare «موعد» — which is how the
+             * cupping centre silently lost the four clinic kinds the day the
+             * collapse next ran. A new booking child belongs in both places.
+             *
+             * No «سحب عينة بالمنزل»: a cupping session at home is a visit, not a
+             * sample. Same four the clinic carries.
+             */
+            542 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // مركز حجامة
 
             /*
              * A lab keeps the plain appointment — coming in to give a sample is

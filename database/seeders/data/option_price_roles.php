@@ -56,6 +56,14 @@ return [
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة
         'اللغات',                  // كورس إنجليزي
+        // The workshop benches, 2026-08-10. A garage is BOOKED and the job is
+        // what is paid for, so «سمكرة» must carry a price the way «كشف عظام»
+        // does. Declared the same day they were created — an undeclared group is
+        // pushed back to `descriptive` on this seeder's next run.
+        'تخصصات ورش السيارات',    // سمكرة، كهرباء سيارات
+        'تخصصات ورش الأثاث',      // تنجيد، مطابخ ودريسنج
+        'تخصصات ورش المعادن',     // خراطة، حدادة
+        'تخصصات ورش الأجهزة',     // تصليح غسالات وبوتاجازات
         'تخصصات المحاماة',        // استشارة جنائي
         'تخصصات الهندسة',         // تصميم معماري
         'تخصصات المحاسبة',        // إقرار ضريبي

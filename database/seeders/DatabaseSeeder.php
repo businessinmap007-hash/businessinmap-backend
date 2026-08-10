@@ -90,6 +90,11 @@ class DatabaseSeeder extends Seeder
            // survivor every axis, then takes over the empty twins' roots.
            TradeAxesSeeder::class,
 
+           // ورش ومراكز صيانة: twenty-four children, most of them one BENCH in
+           // a garage. The bench becomes a priced option and the workshop
+           // becomes the child. Root-scoped, so it must follow the moves above.
+           WorkshopRemodelSeeder::class,
+
            // The same cure for «كوافير», which had gone further and made itself
            // a ROOT: the trade folds back under مهن وحرفيين, and رجالي/حريمي
            // stop being two children a family salon has to choose between.

@@ -75,30 +75,19 @@ return [
 
     // ── ورش ومراكز صيانة ──
     'workshops' => [
-        'Cnc' => ['delivery_freight', 'delivery_courier_ondemand'],
         'آثاث' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'أويمجى' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'ابواب سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'استانلس ومعدات مطاعم' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'استورجى' => ['delivery_courier_ondemand'],
-        'الكريتال' => ['delivery_freight', 'delivery_courier_ondemand'],
         'باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
         'تبريد وتكييف' => ['delivery_courier_ondemand'],
-        'تصليح أجهزة كهربائية' => ['delivery_courier_ondemand'],
-        'تصليح غسالات وبتوجازات' => ['delivery_courier_ondemand'],
-        'تنجيد' => ['delivery_courier_ondemand'],
-        'حداد' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'سروجي' => ['delivery_courier_ondemand'],
-        'سمكري' => ['delivery_freight', 'delivery_courier_ondemand'],
         // «عفشجى» left this root — see the shipping-delivery block at the top.
-        'فيبر جلاس' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'كهربائي سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'كوتش' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'مخرطة' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'مركز سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'مطابخ و دريسنج' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'ميكانيكي' => ['delivery_freight', 'delivery_courier_ondemand'],
         'نجار باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
+        // The benches folded into the four workshop domains on 2026-08-10
+        // (WorkshopRemodelSeeder). A cabinet leaves on a lorry; a repaired
+        // kettle goes back by courier, so the appliance bench keeps only the
+        // courier branch exactly as «تصليح أجهزة كهربائية» did.
+        'ورشة سيارات' => ['delivery_freight', 'delivery_courier_ondemand'],
+        'ورشة أثاث ونجارة' => ['delivery_freight', 'delivery_courier_ondemand'],
+        'ورشة حدادة وخراطة' => ['delivery_freight', 'delivery_courier_ondemand'],
+        'ورشة صيانة أجهزة' => ['delivery_courier_ondemand'],
     ],
 
     // ── سيارات ──

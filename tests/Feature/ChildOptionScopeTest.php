@@ -56,10 +56,13 @@ class ChildOptionScopeTest extends TestCase
         $this->assertNotContains('سفرة', $chandeliers);
         $this->assertContains('تابلوه', $chandeliers);
 
-        $kitchens = $this->offered($this->childId('مطابخ و دريسنج'), 'أثاث وتشطيب منزلي');
+        // «مطابخ و دريسنج» became a bench inside «ورشة أثاث ونجارة» on
+        // 2026-08-10; the joinery makes every piece there is and weaves no
+        // carpet, which is the same shape the scope always enforced here.
+        $joinery = $this->offered($this->childId('ورشة أثاث ونجارة'), 'أثاث وتشطيب منزلي');
 
-        $this->assertContains('أدراج ووحدات مطبخ', $kitchens);
-        $this->assertNotContains('سجاد ومفروشات', $kitchens);
+        $this->assertContains('أدراج ووحدات مطبخ', $joinery);
+        $this->assertNotContains('سجاد ومفروشات', $joinery);
     }
 
     /** A wedding hall hosts no conference, a conference centre no funeral. */

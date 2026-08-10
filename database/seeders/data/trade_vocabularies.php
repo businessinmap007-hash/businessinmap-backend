@@ -131,8 +131,12 @@ return [
             'children' => [
                 'أجهزة كهربائية',
                 'أدوات كهربائية',
-                'تصليح أجهزة كهربائية',
-                'تصليح غسالات وبتوجازات',
+                // «تصليح أجهزة كهربائية» and «تصليح غسالات وبتوجازات» became
+                // benches inside this child on 2026-08-10 (WorkshopRemodelSeeder)
+                // and carried the list with them. Naming them here after that
+                // would hand eighteen appliance types to two rows no root can
+                // reach — [[seeder-must-withdraw]].
+                'ورشة صيانة أجهزة',
                 'صيانة اجهزة منزلية',
                 'قطع غيار أجهزة كهربائية',
             ],

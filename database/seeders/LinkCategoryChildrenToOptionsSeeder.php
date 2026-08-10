@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -96,7 +96,7 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
         // seeder matches on the CHILD'S NAME, which is the bluntest instrument
         // in the taxonomy and the one that kept re-arming the whole furniture
         // list on twenty-two carpenters.
-        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+        $withdrawn = app(ChildOptionDecisions::class)->blockedByChild();
 
         $rows = [];
 

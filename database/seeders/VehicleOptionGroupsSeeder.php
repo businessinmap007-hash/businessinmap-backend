@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -208,7 +208,9 @@ class VehicleOptionGroupsSeeder extends Seeder
         }
 
         $added = $removed = $kept = 0;
-        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+        $decisions = app(ChildOptionDecisions::class);
+        $withdrawn = $decisions->blockedByChild();
+        $pinned = $decisions->pinnedByChild();
 
         foreach ($this->childrenHolding($managed) as $childId) {
             $desired = $targets[$childId] ?? [];
@@ -219,7 +221,8 @@ class VehicleOptionGroupsSeeder extends Seeder
                 ->pluck('option_id')
                 ->all();
 
-            $toDrop = array_diff($existing, $desired);
+            // A pinned option was put there by hand and outranks this map.
+            $toDrop = array_diff($existing, $desired, array_keys($pinned[$childId] ?? []));
 
             if ($toDrop) {
                 $chosen = DB::table('option_user as ou')

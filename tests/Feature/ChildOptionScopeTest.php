@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
@@ -188,9 +189,10 @@ class ChildOptionScopeTest extends TestCase
                 // So the assertion is not «something is offered» but «the
                 // emptiness is accounted for».
                 $unaccounted = collect($allowed)
-                    ->reject(fn ($optionId) => DB::table('category_child_option_withdrawals')
+                    ->reject(fn ($optionId) => DB::table(ChildOptionDecisions::TABLE)
                         ->where('child_id', (int) $childId)
                         ->where('option_id', (int) $optionId)
+                        ->where('kind', ChildOptionDecisions::WITHDRAWN)
                         ->exists())
                     ->values();
 

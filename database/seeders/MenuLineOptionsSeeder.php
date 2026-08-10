@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\OptionGroup;
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -57,7 +57,9 @@ class MenuLineOptionsSeeder extends Seeder
             }
 
             $ownIds = array_values($optionOf);
-            $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+            $decisions = app(ChildOptionDecisions::class);
+            $withdrawn = $decisions->blockedByChild();
+            $pinned = $decisions->pinnedByChild();
             $added = $removed = 0;
             $touched = [];
             $skipped = [];
@@ -88,7 +90,11 @@ class MenuLineOptionsSeeder extends Seeder
                 // it every time this runs. `$drop` is untouched — the map is
                 // still authoritative about bands nobody has ruled on.
                 $add = $wanted->diff($held)->reject(fn ($id) => isset($withdrawn[(int) $childId][(int) $id]))->values();
-                $drop = $held->diff($wanted);
+
+                // A band he ticked on by hand stays on. Between them the two
+                // decisions make this seeder's declaration a DEFAULT rather than
+                // a demand: it still rules on every child nobody has touched.
+                $drop = $held->diff($wanted)->reject(fn ($id) => isset($pinned[(int) $childId][(int) $id]))->values();
 
                 foreach ($add as $optionId) {
                     $band = array_search($optionId, $optionOf, true);

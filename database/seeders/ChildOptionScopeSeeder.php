@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -33,9 +33,11 @@ class ChildOptionScopeSeeder extends Seeder
     {
         $scopes = require database_path('seeders/data/child_option_scopes.php');
 
-        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+        $decisions = app(ChildOptionDecisions::class);
+        $withdrawn = $decisions->blockedByChild();
+        $pinned = $decisions->pinnedByChild();
 
-        DB::transaction(function () use ($scopes, $withdrawn) {
+        DB::transaction(function () use ($scopes, $withdrawn, $pinned) {
             $added = $removed = $kept = 0;
 
             foreach ($scopes as $groupName => $children) {
@@ -58,7 +60,10 @@ class ChildOptionScopeSeeder extends Seeder
                         ->whereIn('option_id', $groupOptions)
                         ->pluck('option_id');
 
-                    $toDrop = $existing->diff($allowed);
+                    // A pinned option was put there by hand and outranks the
+                    // scope file, the same way a merchant's own answer does.
+                    $toDrop = $existing->diff($allowed)
+                        ->reject(fn ($id) => isset($pinned[(int) $childId][(int) $id]));
 
                     if ($toDrop->isNotEmpty()) {
                         $chosen = DB::table('option_user as ou')

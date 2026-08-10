@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -170,7 +170,10 @@ class ChildOptionGroupsSeeder extends Seeder
         $managed = array_unique(array_merge(...array_values($optionsOf)));
 
         $targets = $this->resolveTargets($map);
-        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+
+        $decisions = app(ChildOptionDecisions::class);
+        $withdrawn = $decisions->blockedByChild();
+        $pinned = $decisions->pinnedByChild();
 
         $added = $removed = $kept = 0;
 
@@ -188,7 +191,10 @@ class ChildOptionGroupsSeeder extends Seeder
                 ->all();
 
             $toAdd = array_diff($desired, $existing, array_keys($withdrawn[$childId] ?? []));
-            $toDrop = array_diff($existing, $desired);
+
+            // A pinned option was put there by hand and outranks this map, the
+            // same way a merchant's own answer does a few lines below.
+            $toDrop = array_diff($existing, $desired, array_keys($pinned[$childId] ?? []));
 
             if ($toDrop) {
                 $chosen = DB::table('option_user as ou')
@@ -269,7 +275,7 @@ class ChildOptionGroupsSeeder extends Seeder
     private function applyDomainCorrections(array $map): array
     {
         $added = $removed = 0;
-        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+        $withdrawn = app(ChildOptionDecisions::class)->blockedByChild();
 
         foreach ($map['domain_strips'] as $childId => $groupNames) {
             $optionIds = DB::table('options as o')

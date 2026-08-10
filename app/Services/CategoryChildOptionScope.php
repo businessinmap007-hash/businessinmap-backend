@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -30,12 +30,14 @@ class CategoryChildOptionScope
     public const ALL_ROOTS = 0;
 
     /**
-     * Every write here is a HAND write — this is the admin's door, and the
-     * seeders keep to their own. So every removal that passes through is a
-     * decision worth remembering and every grant is one worth forgetting:
-     * «انسحب البذرة، اتبع تنظيمي اليدوي».
+     * Every write here is a HAND write — this is the admin's door, and no seeder
+     * comes through it. So both directions are decisions worth remembering: a
+     * removal is WITHDRAWN so no add-only seeder grants it again, and a grant is
+     * PINNED so no replace-style seeder drops it.
+     *
+     * «انسحب البذرة، اتبع تنظيمي اليدوي» · «ثبّت الإضافات اليدوية أيضًا»
      */
-    public function __construct(private readonly ChildOptionWithdrawals $withdrawals = new ChildOptionWithdrawals) {}
+    public function __construct(private readonly ChildOptionDecisions $decisions = new ChildOptionDecisions) {}
 
     /** Option ids this child carries under this root: shared rows plus its own. */
     public function idsFor(int $childId, int $rootId): Collection
@@ -138,10 +140,14 @@ class CategoryChildOptionScope
             $added += DB::table('category_child_option')->insertOrIgnore($chunk);
         }
 
-        // Ticking an option back on overrules whatever earlier removal took it
-        // away, so the withdrawal must go — otherwise the next seeder run finds
-        // a stale «do not grant this» and strips what he just asked for.
-        $this->withdrawals->clear($childId, $rootId, $ids);
+        // «ثبّت الإضافات اليدوية أيضًا». Ticking an option on is a decision in
+        // its own right, not just the absence of a removal: the replace-style
+        // seeders drop whatever their file does not declare, so without a pin
+        // an option he adds by hand survives exactly until the next run.
+        //
+        // `pin()` clears the opposite decision itself — ticking and unticking
+        // are one toggle and the last one wins.
+        $this->decisions->pin($childId, $rootId, $ids);
 
         return $added;
     }
@@ -174,7 +180,7 @@ class CategoryChildOptionScope
                 ->delete();
 
             // No root in hand means the removal was meant for all of them.
-            $this->withdrawals->record($childId, self::ALL_ROOTS, $ids);
+            $this->decisions->record($childId, self::ALL_ROOTS, $ids);
 
             return ['removed' => $removed, 'split' => 0];
         }
@@ -196,7 +202,7 @@ class CategoryChildOptionScope
             return 0;
         }
 
-        $this->withdrawals->record($childId, $rootId, $optionIds);
+        $this->decisions->record($childId, $rootId, $optionIds);
 
         return DB::table('category_child_option')
             ->where('child_id', $childId)
@@ -243,7 +249,7 @@ class CategoryChildOptionScope
 
         // Only THIS root said no. The others were just handed the option
         // explicitly, so the withdrawal is theirs to escape too.
-        $this->withdrawals->record($childId, $rootId, $optionIds);
+        $this->decisions->record($childId, $rootId, $optionIds);
 
         return $optionIds->count();
     }
@@ -264,7 +270,7 @@ class CategoryChildOptionScope
 
             $removed = DB::table('category_child_option')->where('child_id', $childId)->delete();
 
-            $this->withdrawals->record($childId, self::ALL_ROOTS, $dropped);
+            $this->decisions->record($childId, self::ALL_ROOTS, $dropped);
 
             $added = $this->grantFor($childId, self::ALL_ROOTS, $wanted, $wanted);
 

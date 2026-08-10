@@ -148,7 +148,7 @@ class DatabaseSeeder extends Seeder
            // curated lists without asking. This is the backstop — whatever the
            // chain granted, a recorded withdrawal takes away again. Anything
            // added after this line can undo a hand removal unnoticed.
-           ChildOptionWithdrawalsSeeder::class,
+           ChildOptionDecisionsSeeder::class,
 
 
 

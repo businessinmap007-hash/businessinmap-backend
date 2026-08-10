@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Catalog\ChildOptionWithdrawals;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  * withdrawal record themselves, so once a divergence is captured they stop
  * proposing it and the next run finds nothing.
  */
-class CaptureChildOptionWithdrawals extends Command
+class CaptureChildOptionDecisions extends Command
 {
     protected $signature = 'taxonomy:capture-withdrawals {--dry-run : اعرض ما سيُسجَّل دون كتابة}';
 
@@ -49,7 +49,7 @@ class CaptureChildOptionWithdrawals extends Command
         \Database\Seeders\VehicleOptionGroupsSeeder::class,
     ];
 
-    public function handle(ChildOptionWithdrawals $withdrawals): int
+    public function handle(ChildOptionDecisions $withdrawals): int
     {
         $proposed = [];
 

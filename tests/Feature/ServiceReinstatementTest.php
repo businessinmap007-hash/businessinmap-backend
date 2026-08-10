@@ -188,6 +188,52 @@ class ServiceReinstatementTest extends TestCase
         $this->assertSame([], $mute, 'merchants stand on children with no way to sell: ' . implode('، ', $mute));
     }
 
+    /**
+     * The fifth pass, and a different class from the rest of this file: these
+     * children could already sell, off a menu. What they could not do was list
+     * a catalog product while the child beside them, selling the identical
+     * goods, could.
+     *
+     * The bar is deliberately higher than «the majority has it», which is noise
+     * on its own — two dozen service companies under شركات lack retail and
+     * should. The rule is the one the third pass learned: THE DONOR'S BRANCH
+     * MUST FIT THE TRADE.
+     *
+     * @dataProvider catalogPairs
+     */
+    public function test_a_shop_lists_the_same_catalog_as_the_shop_beside_it(string $rootSlug, string $child, string $donor): void
+    {
+        $rootId = $this->rootId($rootSlug);
+        $retail = (int) DB::table('platform_services')->where('key', 'retail')->value('id');
+
+        $config = fn (string $name) => json_decode((string) DB::table('category_service_configs')
+            ->where('category_id', $rootId)->where('child_id', $this->childId($name, $rootId))
+            ->where('platform_service_id', $retail)->where('is_active', 1)->value('config'), true) ?: [];
+
+        $mine = $config($child);
+
+        $this->assertNotSame([], $mine, "«{$child}» still cannot list a product");
+
+        $this->assertSame(
+            $config($donor)['item_groups'] ?? [],
+            $mine['item_groups'] ?? [],
+            "«{$child}» was given a branch «{$donor}» does not use"
+        );
+    }
+
+    /** @return array<string,array{0:string,1:string,2:string}> */
+    public static function catalogPairs(): array
+    {
+        return [
+            // The one child of 28 under معارض without retail, and 12 merchants
+            // who could not list the car they were selling.
+            'معرض سيارات' => ['exhibitions', 'سيارات', 'معرض سيارات'],
+            // One trade at three sizes; only the middle one had the catalog.
+            'هايبر' => ['shops-online', 'هايبر ماركت', 'سوبر ماركت'],
+            'مني' => ['shops-online', 'مني ماركت', 'سوبر ماركت'],
+        ];
+    }
+
     /** Re-running writes nothing. */
     public function test_the_seeder_is_idempotent(): void
     {

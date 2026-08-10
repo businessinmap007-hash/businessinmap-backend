@@ -188,4 +188,61 @@ return [
         'copy_from_child_ar' => 'شحن بري وبحري وجوى',
         'why' => 'ناقل ثقيل بلا أي سطح بيع — إعداد التوصيل عنده هو إعداد النقل الثقيل نفسه، وأخواه في الجذر ينشران الرحلات — ٣ حسابات',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fifth pass, 2026-08-10 — a surface a sibling has and this one does not
+    |--------------------------------------------------------------------------
+    | Not the «could sell nothing» class: all three of these can already sell,
+    | off a menu. What they cannot do is list a catalog product, while the child
+    | standing next to them selling the identical goods can.
+    |
+    | The bar for this pass is deliberately higher than «the majority has it»,
+    | because that test alone is noise — 24 service companies under شركات lack
+    | retail and should. The rule used here is the one the third pass learned the
+    | hard way: THE DONOR'S BRANCH MUST FIT THE TRADE. Each of these three takes
+    | a branch built for exactly what it sells.
+    |
+    | Deliberately left out, and reported instead — the donor branch is broader
+    | or narrower than the trade, which is a per-child judgement rather than a
+    | copy:
+    |   · «بن» — `tea_coffee` fits it exactly, but the other 21 types do not: a
+    |     coffee merchant would be offered nappies and detergent.
+    |   · «مخابز» — branch 47 has no bread. `breakfast` is cereal.
+    |   · «حلويات» — it has `chocolate`, and a sweets shop sells baklava.
+    |   · «أسماك»، «دواجن»، «خضروات»، «فواكة»، «مجمدات» — fresh weight goods, and
+    |     the branch is packaged groceries. Only `frozen` comes close.
+    |   · «عصائر» — ruled a KITCHEN by the owner the same day; giving it a shelf
+    |     would undo that.
+    */
+
+    // 27 of the 28 children under معارض carry retail. This is the one that does
+    // not, and «معرض سيارات» beside it is the same trade with the same six car
+    // item types. Twelve merchants who cannot list the car they are selling.
+    [
+        'child_name_ar' => 'سيارات',
+        'root_slug' => 'exhibitions',
+        'service_key' => 'retail',
+        'copy_from_child_ar' => 'معرض سيارات',
+        'why' => 'معرض سيارات لا يستطيع إدراج سيارة، و٢٧ من ٢٨ ابنًا في الجذر يستطيعون — ١٢ حسابًا',
+    ],
+
+    // The three general markets are one trade at three sizes. «سوبر ماركت» has
+    // the 22-type grocery branch and the other two have nothing but a market
+    // list, though the goods on the shelf are identical.
+    [
+        'child_name_ar' => 'هايبر ماركت',
+        'root_slug' => 'shops-online',
+        'service_key' => 'retail',
+        'copy_from_child_ar' => 'سوبر ماركت',
+        'why' => 'نفس تجارة «سوبر ماركت» بحجم أكبر ولا يستطيع إدراج منتج من الكتالوج — ٦ حسابات',
+    ],
+
+    [
+        'child_name_ar' => 'مني ماركت',
+        'root_slug' => 'shops-online',
+        'service_key' => 'retail',
+        'copy_from_child_ar' => 'سوبر ماركت',
+        'why' => 'نفس الحالة بحجم أصغر — ١٢ حسابًا',
+    ],
 ];

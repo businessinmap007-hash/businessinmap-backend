@@ -119,8 +119,8 @@ return [
         */
         'باب وشباك' => [
             'keep_child_id' => 50,
-            // مصانع، شركات، المحلات — the three the trade SELLS from — plus مهن,
-            // where it already stood and nobody asked for it to leave.
+            // مصانع، شركات، المحلات — the three the trade SELLS from, and now
+            // the only three.
             //
             // Root 10 ورش was listed here for a few hours on 2026-08-10 and the
             // owner took it off the same day: «حذف … باب وشباك من ابناء الورش».
@@ -128,7 +128,17 @@ return [
             // #84. Left in this list, the detachment would have been undone on
             // this seeder's very next run — which is exactly what
             // DoorWindowTradeTest's idempotency case caught.
-            'roots' => [23, 22, 17, 6],
+            //
+            // Root 6 مهن وحرفيين went the same way later that day, and the
+            // comment above is why it had survived: «nobody asked for it to
+            // leave» is not a reason to stand somewhere. That root holds
+            // twenty-eight one-man crafts — نقاش، سباك، كهربائي، مبلط — and
+            // every one of them stands under it ALONE, because a craft is not
+            // also a factory. This trade's other three standings all carry
+            // retail. It was a goods seller in a root of trades that are booked,
+            // with zero accounts, while «نجار باب وشباك» was the craftsman all
+            // along. Second time this list has had to give a root back.
+            'roots' => [23, 22, 17],
             'axis_groups' => ['أنواع الأبواب والشبابيك'],
             'retire_children' => [],
             // #23 أبواب مصفحة stands under شركات, #51 مستلزمات نجارة under

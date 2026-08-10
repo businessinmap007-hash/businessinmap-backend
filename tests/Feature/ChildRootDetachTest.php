@@ -214,14 +214,31 @@ class ChildRootDetachTest extends TestCase
         );
     }
 
-    /** The doors trade kept every root it actually sells from. */
+    /**
+     * The doors trade kept every root it actually SELLS from, and only those.
+     *
+     * «professions» was on this list until 2026-08-10 and is now asserted the
+     * other way. It is the second craftsmen root the trade has had to give
+     * back, for the reason ورش gave it back: that root holds twenty-eight
+     * one-man crafts, every one of which stands under it alone, and this is a
+     * goods trade whose three other standings all carry retail. The craftsman
+     * form has always been «نجار باب وشباك».
+     */
     public function test_the_doors_trade_kept_its_selling_roots(): void
     {
-        foreach (['factories', 'companies', 'shops-online', 'professions'] as $slug) {
+        foreach (['factories', 'companies', 'shops-online'] as $slug) {
             $this->assertTrue($this->standsUnder('باب وشباك', $slug), "«باب وشباك» lost «{$slug}»");
         }
 
-        // The workshop form of the trade is what stays under ورش.
+        foreach (['workshops', 'professions'] as $slug) {
+            $this->assertFalse(
+                $this->standsUnder('باب وشباك', $slug),
+                "the trade is back under «{$slug}», where the craftsman belongs"
+            );
+        }
+
+        // Both craftsmen roots are answered by the same child, which is why
+        // neither detachment left anything unsaid.
         $this->assertTrue($this->standsUnder('نجار باب وشباك', 'workshops'));
     }
 

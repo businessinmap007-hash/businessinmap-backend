@@ -52,6 +52,29 @@ return [
     ],
 
     /*
+    | The same trade, the same reasoning, the OTHER craftsmen root — found
+    | 2026-08-10 by scoring every child's vocabulary against every root's.
+    |
+    | «مهن وحرفيين» holds twenty-eight one-man crafts — نقاش، سباك، كهربائي،
+    | مبلط، حداد، منجد — and every single one of them stands under that root
+    | ALONE. Two do not. «رخام وجرانيت» is a marble craftsman who is also a
+    | marble factory, five accounts, and that pair is real. «باب وشباك» is the
+    | other, and its three other standings are مصانع، شركات، المحلات: all three
+    | selling roots, all three carrying retail. A goods trade in a root of
+    | trades that are BOOKED.
+    |
+    | Same answer as ورش, for the same reason and with the same safety: the
+    | craftsman form is «نجار باب وشباك» #84, which holds three accounts and
+    | carries all sixteen door types, and this standing holds none.
+    */
+    [
+        'child_name_ar' => 'باب وشباك',
+        'root_slug' => 'professions',
+        'reassign_to' => null, // no account stands here either
+        'why' => 'تاجر بضاعة وسط ٢٨ حرفة تُحجز؛ والحرفي هو «نجار باب وشباك» — صفر حسابات',
+    ],
+
+    /*
     | «عفشجى» came here from ورش yesterday, and the owner has since named it
     | among the one-man benches that should be words rather than rows. It stands
     | under this root only, so this retires the child: the row survives, nothing

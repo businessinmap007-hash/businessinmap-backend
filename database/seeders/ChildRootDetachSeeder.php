@@ -128,8 +128,64 @@ class ChildRootDetachSeeder extends Seeder
             return null;
         }
 
-        return DB::table('users')
+        $optionId = $this->tickableOption($entry, $targetId);
+
+        if ($optionId === null) {
+            return null; // refused; tickableOption() has already said why
+        }
+
+        $accounts = DB::table('users')
             ->where('category_child_id', $childId)->where('category_id', $rootId)
+            ->pluck('id');
+
+        foreach ($accounts as $userId) {
+            // Written BEFORE the move. A merchant who lands on «كوافير» with
+            // nothing ticked has lost the only thing «تجهيز عرائس» was saying
+            // about him, and no later step can tell that it is missing.
+            if ($optionId > 0) {
+                DB::table('option_user')->updateOrInsert(
+                    ['user_id' => (int) $userId, 'option_id' => $optionId],
+                    []
+                );
+            }
+        }
+
+        DB::table('users')->whereIn('id', $accounts)
             ->update(['category_child_id' => $targetId, 'updated_at' => now()]);
+
+        return $accounts->count();
+    }
+
+    /**
+     * The option that carries the meaning of the child being folded away.
+     *
+     * A fold is only honest when the destination can still SAY what the child
+     * said. `tick_option` names that word; the entry is refused if the word does
+     * not exist on the destination, because arriving mute is a demotion dressed
+     * as a merge.
+     *
+     * @param  array<string,mixed>  $entry
+     * @return int|null 0 when no tick was asked for, null when the entry is refused
+     */
+    private function tickableOption(array $entry, int $targetId): ?int
+    {
+        $wanted = $entry['tick_option'] ?? null;
+
+        if ($wanted === null) {
+            return 0;
+        }
+
+        $optionId = (int) DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->where('cco.child_id', $targetId)->where('o.name_ar', $wanted)
+            ->value('o.id');
+
+        if ($optionId <= 0) {
+            $this->command?->warn("  ! «{$entry['reassign_to']}» لا يحمل الخيار «{$wanted}» — لم يُحذف.");
+
+            return null;
+        }
+
+        return $optionId;
     }
 }

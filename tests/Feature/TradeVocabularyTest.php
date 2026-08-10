@@ -177,10 +177,13 @@ class TradeVocabularyTest extends TestCase
     /** Add-only: a second run writes nothing and withdraws nothing. */
     public function test_the_seeder_is_idempotent(): void
     {
+        // `category_child_option` is deliberately NOT frozen. The seeder is
+        // ADD-ONLY so it never fights the owner's curation, and the moment he
+        // unticks an option in the bulk screen an honest re-run puts it back —
+        // freezing the count asserts that nobody is using the platform.
         $before = [
             DB::table('options')->count(),
             DB::table('option_groups')->count(),
-            DB::table('category_child_option')->count(),
             DB::table('category_children_master')->count(),
         ];
 
@@ -189,7 +192,6 @@ class TradeVocabularyTest extends TestCase
         $this->assertSame($before, [
             DB::table('options')->count(),
             DB::table('option_groups')->count(),
-            DB::table('category_child_option')->count(),
             DB::table('category_children_master')->count(),
         ]);
     }

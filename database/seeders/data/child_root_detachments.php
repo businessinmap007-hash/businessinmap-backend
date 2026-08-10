@@ -133,4 +133,50 @@ return [
         'reassign_to' => null,
         'why' => 'نفس الحالة',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Two more words standing next to themselves
+    |--------------------------------------------------------------------------
+    | Found by the detector that found the school stages: a CHILD whose name is
+    | already an OPTION carried by a sibling under the same root.
+    |
+    | Both of these were made by earlier corrections of ours, which is the point
+    | worth keeping — a move or a new vocabulary can leave a duplicate behind
+    | that neither step could see on its own.
+    */
+
+    /*
+    | «تجهيز عرائس» was moved shops-online → مهن وحرفيين on 2026-08-08 on the
+    | owner's own ruling («خدمة تجميل انقله»). It landed next to «كوافير», which
+    | carries «تجهيز عرائس» as one of the fourteen priced services in «خدمات
+    | الكوافير والتجميل» — so the move was right and finished one step short.
+    |
+    | Its three merchants go to «كوافير» with that service ticked, so they say
+    | exactly what they said before and gain the thirteen beside it.
+    */
+    [
+        'child_name_ar' => 'تجهيز عرائس',
+        'root_slug' => 'professions',
+        'reassign_to' => 'كوافير',
+        'tick_option' => 'تجهيز عرائس',
+        'why' => 'هي خدمة مسعّرة على «كوافير» بالفعل — صفٌّ يقف بجوار كلمته',
+    ],
+
+    /*
+    | «أبواب مصفحة» is one of the sixteen types in «أنواع الأبواب والشبابيك»
+    | created on 2026-08-10, and «باب وشباك» took شركات the same day — so the
+    | product and the trade stood side by side under one root. Zero accounts.
+    |
+    | «بي في سي» #289 is deliberately NOT here. It is the same shape, but it
+    | holds THREE live merchants whose whole identity is UPVC, and folding them
+    | into the generic trade changes what those businesses are called. That one
+    | is the owner's to say.
+    */
+    [
+        'child_name_ar' => 'أبواب مصفحة',
+        'root_slug' => 'companies',
+        'reassign_to' => null,
+        'why' => 'منتَجٌ صار خيارًا في «أنواع الأبواب والشبابيك»، والتجارة نفسها تقف تحت شركات',
+    ],
 ];

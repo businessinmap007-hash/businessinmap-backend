@@ -192,7 +192,10 @@ return [
                 'باب وشباك',
                 'نجار باب وشباك',
                 'بي في سي',
-                'أبواب مصفحة',
+                // «أبواب مصفحة» was folded on 2026-08-10: it is one of the
+                // sixteen types below, and the trade itself took شركات the same
+                // day, so the product and the trade were standing side by side.
+                // Naming it here would hand the list to a row no root can reach.
             ],
             'options' => [
                 'بي في سي (UPVC)' => 'UPVC Doors & Windows',

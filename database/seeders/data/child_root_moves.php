@@ -116,17 +116,18 @@ return [
         'why' => 'إدارة صفحات عملٌ دعائي يُشترى من مكتب، لا منتج تقني — بجوار «دعاية وإعلان»',
     ],
 
-    [
-        // Flagged as ambiguous — a bridal-wear SHOP belongs under root 17, a
-        // bridal-prep SERVICE does not. Owner, 2026-08-09: «خدمة تجميل انقله».
-        // «تجهيز عرائس» is also already a priced line option inside «خدمات
-        // الكوافير والتجميل», which is where the work is actually sold.
-        'child_name_ar' => 'تجهيز عرائس',
-        'adopt_services' => true,
-        'from_root_slug' => 'shops-online',
-        'to_root_slug' => 'professions',
-        'why' => 'خدمة تجميل تُؤدّى لا سلعة تُباع على كاونتر — بجوار «كوافير»',
-    ],
+    /*
+    | «تجهيز عرائس» was moved shops-online → مهن وحرفيين here on 2026-08-09 on the
+    | owner's ruling «خدمة تجميل انقله», and the note in this entry already said
+    | the quiet part: it is ALSO a priced line option inside «خدمات الكوافير
+    | والتجميل». So the move landed it next to a child that could already say it,
+    | and on 2026-08-10 its three merchants were folded onto «كوافير» with that
+    | service ticked (data/child_root_detachments.php).
+    |
+    | The entry is WITHDRAWN rather than left pointing at a root the child no
+    | longer stands under — a move seeder that names a folded child re-attaches
+    | it on its next run.
+    */
 
     /*
     | Third pass, 2026-08-09.

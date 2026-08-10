@@ -79,7 +79,6 @@ return [
         'ألمونتال' => ['home_furnishings'],
         'أنتيكات وتحف' => ['home_furnishings'],
         'كتب' => ['hobbies_general'],
-        'تجهيز عرائس' => ['fashion_textiles'],
         'مستلزمات كافيهات' => ['hobbies_general'],
         'زيت سيارات' => ['vehicles_parts'],
         'قطع غيار سيارات' => ['vehicles_parts'],
@@ -134,6 +133,9 @@ return [
         // trade took this root in their place — it sells phone cases, car mats
         // and watches off one counter, which is the electronics shelf here.
         'اكسسوار' => ['electronics_tech'],
+        // «تجهيز عرائس» / «أبواب مصفحة» folded on 2026-08-10 — each was
+        // already an OPTION on a sibling under the same root. See
+        // data/child_root_detachments.php.
     ],
 
     // ── ملابس و اكسسوارات (root 14) ──
@@ -190,7 +192,6 @@ return [
         'مستلزمات نجارة' => ['building_hardware'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
         'أخشاب' => ['building_hardware'],
-        'أبواب مصفحة' => ['building_hardware'],
         // 2026-08-10: «باب وشباك» #50 now stands under شركات too — the trade
         // itself, beside the single product «أبواب مصفحة» that used to be the
         // only way to register a doors company. This map is keyed per ROOT, so
@@ -207,6 +208,9 @@ return [
         'مستلزمات قهاوى' => ['hobbies_general'],
         'مواد غذائية ومنظفات' => ['grocery_retail'],
         'عصائر' => ['grocery_retail'],
+        // «تجهيز عرائس» / «أبواب مصفحة» folded on 2026-08-10 — each was
+        // already an OPTION on a sibling under the same root. See
+        // data/child_root_detachments.php.
     ],
 
     // ── مصانع (root 23) ──

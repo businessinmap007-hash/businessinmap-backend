@@ -142,31 +142,36 @@ class ChildRootMovesTest extends TestCase
             // ChildRootDetachTest instead.
             'نادي صحي' => ['نادي صحي', 'health', 'sports'],
             'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
-            'تجهيز عرائس' => ['تجهيز عرائس', 'shops-online', 'professions'],
+            // «تجهيز عرائس» moved here on 2026-08-09 and was folded onto
+            // «كوافير» on 2026-08-10 — it was already one of that child's
+            // priced services. ChildRootDetachTest pins where it went.
             'سائق' => ['سائق', 'professions', 'cars'],
         ];
     }
 
     /**
-     * «تجهيز عرائس» was the one I flagged rather than moved: a bridal-wear shop
-     * belongs under المحلات, a bridal-prep service does not, and the row does not
-     * say which. The owner said which — «خدمة تجميل انقله» — and it carried three
-     * accounts, so this pins that they came along.
+     * The bridal service kept its three merchants across BOTH steps: the move to
+     * مهن وحرفيين and the fold onto «كوافير» that finished it. They sit on the
+     * salon now, each with «تجهيز عرائس» ticked, which is what the child row was
+     * saying about them all along.
      */
     public function test_the_bridal_service_kept_its_accounts(): void
     {
-        $childId = $this->childId('تجهيز عرائس');
+        $salon = $this->childId('كوافير');
         $professions = (int) DB::table('categories')->where('slug', 'professions')->value('id');
 
-        $this->assertGreaterThan(
-            0,
-            DB::table('users')->where('category_child_id', $childId)->count(),
-            'the accounts vanished with the move'
-        );
+        $ticked = DB::table('option_user as ou')
+            ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->join('options as o', 'o.id', '=', 'ou.option_id')
+            ->where('u.category_child_id', $salon)
+            ->where('o.name_ar', 'تجهيز عرائس')
+            ->count();
+
+        $this->assertGreaterThanOrEqual(3, $ticked, 'the bridal merchants arrived unable to say what they do');
 
         $this->assertSame(
             0,
-            DB::table('users')->where('category_child_id', $childId)
+            DB::table('users')->where('category_child_id', $salon)
                 ->where('category_id', '!=', $professions)->count(),
             'an account still points at the old root'
         );
@@ -232,7 +237,7 @@ class ChildRootMovesTest extends TestCase
     {
         return [
             'مكملات غذائية' => ['مكملات غذائية', 'retail', 'training'],
-            'تجهيز عرائس' => ['تجهيز عرائس', 'booking', 'retail'],
+            // «تجهيز عرائس» folded onto «كوافير» on 2026-08-10.
             // «عفشجى» was the third here until the owner detached it on
             // 2026-08-10 — it stands under no root now, so there is no shape to
             // have adopted.

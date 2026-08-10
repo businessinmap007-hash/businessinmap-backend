@@ -130,7 +130,6 @@ return [
         'اكياس بلاستيك' => ['delivery'],
         'بلاستيك' => ['delivery'],
         'بن' => ['delivery'],
-        'تجهيز عرائس' => ['delivery'],
         'جنوط وكاوتش سيارات' => ['delivery'],
         'حدايد وبويات' => ['delivery', 'delivery_freight'],
         'حديد تسليح' => ['delivery', 'delivery_freight'],
@@ -179,6 +178,9 @@ return [
         'هايبر ماركت' => ['delivery'],
         // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
         // 2026-08-10 (AccessoryMergeSeeder) and became two of its options.
+        // «تجهيز عرائس» / «أبواب مصفحة» folded on 2026-08-10 — each was
+        // already an OPTION on a sibling under the same root. See
+        // data/child_root_detachments.php.
     ],
 
     // ── مكاتب ──
@@ -202,7 +204,6 @@ return [
     // ── شركات ──
     'companies' => [
         'آثاث' => ['delivery_freight'],
-        'أبواب مصفحة' => ['delivery_freight'],
         // 2026-08-10: and the trade itself, now that it stands here.
         'باب وشباك' => ['delivery_freight'],
         'أجهزة رياضية' => ['delivery_freight'],
@@ -264,6 +265,9 @@ return [
         // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
         // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
         // them here is what stops this map re-wiring delivery on its own run.
+        // «تجهيز عرائس» / «أبواب مصفحة» folded on 2026-08-10 — each was
+        // already an OPTION on a sibling under the same root. See
+        // data/child_root_detachments.php.
     ],
 
     // ── مصانع ──

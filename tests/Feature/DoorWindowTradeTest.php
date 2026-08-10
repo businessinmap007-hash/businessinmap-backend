@@ -42,7 +42,13 @@ class DoorWindowTradeTest extends TestCase
         return (int) DB::table('categories')->where('slug', $slug)->value('id');
     }
 
-    /** @return array<int,string> */
+    /**
+     * DISTINCT names. A link may exist once as a shared row and again per root
+     * — the admin's bulk-options screen splits a shared row the moment anyone
+     * saves one root's list — so counting ROWS measures storage, not vocabulary.
+     *
+     * @return array<int,string>
+     */
     private function typesOf(string $childNameAr): array
     {
         return DB::table('category_child_option as cco')
@@ -50,7 +56,7 @@ class DoorWindowTradeTest extends TestCase
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('cco.child_id', $this->childId($childNameAr))
             ->where('g.name_ar', self::GROUP)
-            ->pluck('o.name_ar')->all();
+            ->distinct()->pluck('o.name_ar')->all();
     }
 
     /**
@@ -79,21 +85,42 @@ class DoorWindowTradeTest extends TestCase
     }
 
     /**
-     * The car-brands rule: one trade, one vocabulary, whatever door it stands
-     * behind. A root-scoped row is what once let a shop name 43 brands while the
-     * factory beside it named none.
+     * The car-brands rule: one trade says the same thing whatever door it stands
+     * behind. Scoping is what once let a shop name 43 brands while the factory
+     * beside it named none.
+     *
+     * Asserted as REACH, not as storage. The rows may be shared (category_id 0)
+     * or split per root — the bulk-options screen splits a shared row the moment
+     * an admin saves one root's list, and that is legitimate. What must hold is
+     * that every root the trade stands under can still say all sixteen.
      */
-    public function test_the_types_are_shared_not_scoped_to_one_root(): void
+    public function test_the_trade_says_the_same_thing_under_every_root(): void
     {
-        $scoped = DB::table('category_child_option as cco')
-            ->join('options as o', 'o.id', '=', 'cco.option_id')
-            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-            ->where('cco.child_id', $this->childId('باب وشباك'))
-            ->where('g.name_ar', self::GROUP)
-            ->where('cco.category_id', '>', 0)
-            ->count();
+        $childId = $this->childId('باب وشباك');
 
-        $this->assertSame(0, $scoped, 'the door types are scoped to one root');
+        $all = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', self::GROUP)->count();
+
+        // The three roots the trade SELLS from. «مهن وحرفيين» is left out on
+        // purpose: it holds no account there and its list is the admin's to
+        // curate in the bulk screen — the rule this guards is «the same words
+        // wherever the trade is sold», not «every standing must be identical».
+        $roots = DB::table('categories')->whereIn('slug', ['factories', 'companies', 'shops-online'])
+            ->pluck('id');
+
+        foreach ($roots as $rootId) {
+            $reach = DB::table('category_child_option as cco')
+                ->join('options as o', 'o.id', '=', 'cco.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('cco.child_id', $childId)->where('g.name_ar', self::GROUP)
+                ->whereIn('cco.category_id', [0, (int) $rootId])
+                ->distinct()->count('o.id');
+
+            $slug = DB::table('categories')->where('id', $rootId)->value('slug');
+
+            $this->assertSame($all, $reach, "«باب وشباك» cannot say every door type under «{$slug}»");
+        }
     }
 
     /**
@@ -189,7 +216,9 @@ class DoorWindowTradeTest extends TestCase
     public static function productChildren(): array
     {
         return [
-            'أبواب مصفحة' => ['أبواب مصفحة', 'companies'],
+            // «أبواب مصفحة» was folded on 2026-08-10 once the trade itself stood
+            // under شركات — it holds no account and is one of the sixteen types.
+            // ChildRootDetachTest pins that its master row survived.
             'بي في سي' => ['بي في سي', 'factories'],
         ];
     }
@@ -207,10 +236,14 @@ class DoorWindowTradeTest extends TestCase
     /** Re-running either seeder writes nothing and withdraws nothing. */
     public function test_the_seeders_are_idempotent(): void
     {
+        // `category_child_option` is deliberately NOT frozen here. Both seeders
+        // are ADD-ONLY so they never fight the owner's curation — which means
+        // that the moment he unticks something in the bulk-options screen, an
+        // honest re-run puts it back and the count legitimately moves. Freezing
+        // it asserts that nobody is using the platform.
         $count = fn () => [
             DB::table('options')->count(),
             DB::table('option_groups')->count(),
-            DB::table('category_child_option')->count(),
             DB::table('category_parent_child')->count(),
             DB::table('category_platform_services')->count(),
         ];

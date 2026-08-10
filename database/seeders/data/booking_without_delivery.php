@@ -38,5 +38,18 @@ return [
         'نجار موبيليا',
         'منجد',
         'نجار باب وشباك',
+
+        /*
+        | Added 2026-08-10 by the same reasoning, one pass later. «طباعة» under
+        | شركات was given `booking` that day (ServiceReinstatementSeeder — it had
+        | no surface at all), and gaining booking is exactly what pulled it into
+        | this rule. A printing company is commissioned by the job and then boxes
+        | of printed material leave on a lorry: the carpenters' case, wearing
+        | different overalls.
+        |
+        | Worth noting as a shape: giving a child `booking` can silently cost it
+        | `delivery` on the next run of this seeder.
+        */
+        'طباعة',
     ],
 ];

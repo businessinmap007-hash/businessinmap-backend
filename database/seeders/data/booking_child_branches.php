@@ -78,8 +78,6 @@ return [
 
     // ── ورش ومراكز صيانة ──
     'workshops' => [
-        'آثاث' => ['services_tasks'],
-        'باب وشباك' => ['services_tasks'],
         'تبريد وتكييف' => ['services_tasks'],
         'نجار باب وشباك' => ['services_tasks'],
         // The twenty benches that used to be children here became options
@@ -89,6 +87,9 @@ return [
         'ورشة أثاث ونجارة' => ['services_tasks'],
         'ورشة حدادة وخراطة' => ['services_tasks'],
         'ورشة صيانة أجهزة' => ['services_tasks'],
+        // «آثاث» and «باب وشباك» left this root on 2026-08-10 by the owner's
+        // word — see data/child_root_detachments.php. A branch map keyed by
+        // ROOT that still names them re-wires a child nothing points at.
     ],
 
     // ── قاعات ──

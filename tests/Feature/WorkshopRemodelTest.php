@@ -166,9 +166,14 @@ class WorkshopRemodelTest extends TestCase
     }
 
     /**
-     * Three rows the remodel must not have touched: the tradesman «حداد» #259
-     * the owner ruled apart from the workshop, and the two multi-root children
-     * that mean something else under another root.
+     * Rows the remodel must not have touched: the tradesman «حداد» #259 the
+     * owner ruled apart from the workshop, and the children that mean something
+     * else under another root.
+     *
+     * «آثاث» was here as `['آثاث', 'workshops']` until the owner detached it the
+     * same day — «حذف آثاث … من ابناء الورش». It is still untouched by the
+     * REMODEL; it left by a separate instruction, and ChildRootDetachTest pins
+     * where its 29 merchants went.
      *
      * @dataProvider untouched
      */
@@ -189,7 +194,7 @@ class WorkshopRemodelTest extends TestCase
     {
         return [
             'حداد التاجر' => ['حداد', 'professions'],
-            'آثاث' => ['آثاث', 'workshops'],
+            'آثاث' => ['آثاث', 'exhibitions'],
             'تبريد وتكييف' => ['تبريد وتكييف', 'companies'],
             'أويمجى' => ['أويمجى', 'professions'],
         ];

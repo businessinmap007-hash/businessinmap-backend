@@ -96,18 +96,40 @@ class DoorWindowTradeTest extends TestCase
         $this->assertSame(0, $scoped, 'the door types are scoped to one root');
     }
 
-    /** «سواء مصانع او شركات او محلات او ورش» — all four, in his words. */
-    public function test_the_trade_stands_under_all_four_roots_he_named(): void
+    /**
+     * «سواء مصانع او شركات او محلات او ورش».
+     *
+     * Three of the four are the trade itself. The fourth is served by a
+     * different row and always was: the owner detached «باب وشباك» from ورش the
+     * same day — «حذف … باب وشباك من ابناء الورش» — because «نجار باب وشباك» #84
+     * is the workshop, holds the workshop accounts, and carries the same sixteen
+     * types. So all four standings are answered; only one of them is answered by
+     * another child.
+     */
+    public function test_the_trade_stands_under_every_root_it_sells_from(): void
     {
         $childId = $this->childId('باب وشباك');
 
-        foreach (['factories', 'companies', 'shops-online', 'workshops'] as $slug) {
+        foreach (['factories', 'companies', 'shops-online'] as $slug) {
             $this->assertTrue(
                 DB::table('category_parent_child')
                     ->where('parent_id', $this->rootId($slug))->where('child_id', $childId)->exists(),
                 "«باب وشباك» does not stand under «{$slug}»"
             );
         }
+
+        $this->assertFalse(
+            DB::table('category_parent_child')
+                ->where('parent_id', $this->rootId('workshops'))->where('child_id', $childId)->exists(),
+            'the trade is back under ورش beside «نجار باب وشباك»'
+        );
+
+        $this->assertTrue(
+            DB::table('category_parent_child as p')
+                ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+                ->where('p.parent_id', $this->rootId('workshops'))->where('c.name_ar', 'نجار باب وشباك')->exists(),
+            'ورش has no doors workshop at all'
+        );
     }
 
     /**

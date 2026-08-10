@@ -119,9 +119,16 @@ return [
         */
         'باب وشباك' => [
             'keep_child_id' => 50,
-            // مصانع، شركات، المحلات، ورش — the owner's four — plus مهن, where it
-            // already stood and nobody asked for it to leave.
-            'roots' => [23, 22, 17, 10, 6],
+            // مصانع، شركات، المحلات — the three the trade SELLS from — plus مهن,
+            // where it already stood and nobody asked for it to leave.
+            //
+            // Root 10 ورش was listed here for a few hours on 2026-08-10 and the
+            // owner took it off the same day: «حذف … باب وشباك من ابناء الورش».
+            // The workshop form of the trade has its own child, «نجار باب وشباك»
+            // #84. Left in this list, the detachment would have been undone on
+            // this seeder's very next run — which is exactly what
+            // DoorWindowTradeTest's idempotency case caught.
+            'roots' => [23, 22, 17, 6],
             'axis_groups' => ['أنواع الأبواب والشبابيك'],
             'retire_children' => [],
             // #23 أبواب مصفحة stands under شركات, #51 مستلزمات نجارة under

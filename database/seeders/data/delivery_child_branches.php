@@ -19,7 +19,8 @@ return [
         // add-only seeder keyed by ROOT quietly puts the child back under the
         // root it was moved out of — running this seeder on its own is exactly
         // what did that, and it took ChildRootMovesSeeder to undo.
-        'عفشجى' => ['delivery_freight', 'delivery_courier_ondemand'],
+        // «عفشجى» was detached from this root on 2026-08-10 (owner) and its
+        // one merchant moved to «مندوب». It stands under no root now.
     ],
 
     // ── مهن وحرفيين ──
@@ -75,8 +76,6 @@ return [
 
     // ── ورش ومراكز صيانة ──
     'workshops' => [
-        'آثاث' => ['delivery_freight', 'delivery_courier_ondemand'],
-        'باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
         'تبريد وتكييف' => ['delivery_courier_ondemand'],
         // «عفشجى» left this root — see the shipping-delivery block at the top.
         'نجار باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
@@ -88,6 +87,9 @@ return [
         'ورشة أثاث ونجارة' => ['delivery_freight', 'delivery_courier_ondemand'],
         'ورشة حدادة وخراطة' => ['delivery_freight', 'delivery_courier_ondemand'],
         'ورشة صيانة أجهزة' => ['delivery_courier_ondemand'],
+        // «آثاث» and «باب وشباك» left this root on 2026-08-10 by the owner's
+        // word — see data/child_root_detachments.php. A branch map keyed by
+        // ROOT that still names them re-wires a child nothing points at.
     ],
 
     // ── سيارات ──

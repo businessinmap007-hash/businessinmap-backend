@@ -79,15 +79,16 @@ return [
         'why' => 'جذر الرياضة أماكن تُحجز، وبائع المكملات محل — بجوار «عطور» و«أدوات تجميل»',
     ],
 
-    [
-        // ورش ومراكز صيانة is where something broken is repaired. A عفشجى
-        // repairs nothing — he moves your furniture, which is root 5's question.
-        'child_name_ar' => 'عفشجى',
-        'adopt_services' => true,
-        'from_root_slug' => 'workshops',
-        'to_root_slug' => 'shipping-delivery',
-        'why' => 'ينقل العفش ولا يُصلح شيئًا، فهو نقل لا صيانة',
-    ],
+    /*
+    | «عفشجى» was moved ورش → شحن وتوصيل here on 2026-08-09, and the owner took
+    | it off شحن وتوصيل on 2026-08-10 — the trade is one of the one-man benches
+    | he wants written as words rather than rows. The entry is WITHDRAWN rather
+    | than left pointing at a root the child no longer stands under: a move
+    | seeder that names a detached child re-attaches it on its next run, which is
+    | the failure this file has already caused twice ([[seeder-must-withdraw]]).
+    | The detachment now lives in data/child_root_detachments.php, and it names
+    | ورش as well, so a fresh seed never leaves it where it started either.
+    */
 
     /*
     | Second pass over the roots, 2026-08-09. Both hold zero accounts.

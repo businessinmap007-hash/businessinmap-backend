@@ -137,7 +137,9 @@ class ChildRootMovesTest extends TestCase
             // in WorkshopRemodelTest instead of here.
             'استوديوهات' => ['استوديوهات', 'shops-online', 'arts-entertainment'],
             'مكملات غذائية' => ['مكملات غذائية', 'sports', 'shops-online'],
-            'عفشجى' => ['عفشجى', 'workshops', 'shipping-delivery'],
+            // «عفشجى» moved ورش → شحن وتوصيل here, and the owner detached it from
+            // شحن وتوصيل on 2026-08-10; its end state is pinned by
+            // ChildRootDetachTest instead.
             'نادي صحي' => ['نادي صحي', 'health', 'sports'],
             'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
             'تجهيز عرائس' => ['تجهيز عرائس', 'shops-online', 'professions'],
@@ -231,7 +233,9 @@ class ChildRootMovesTest extends TestCase
         return [
             'مكملات غذائية' => ['مكملات غذائية', 'retail', 'training'],
             'تجهيز عرائس' => ['تجهيز عرائس', 'booking', 'retail'],
-            'عفشجى' => ['عفشجى', 'schedules', 'booking'],
+            // «عفشجى» was the third here until the owner detached it on
+            // 2026-08-10 — it stands under no root now, so there is no shape to
+            // have adopted.
         ];
     }
 

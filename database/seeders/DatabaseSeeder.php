@@ -95,6 +95,11 @@ class DatabaseSeeder extends Seeder
            // becomes the child. Root-scoped, so it must follow the moves above.
            WorkshopRemodelSeeder::class,
 
+           // «احذف س من أبناء ص» — a child taken off a root it does not belong
+           // under. After the remodel, because two of its entries only make
+           // sense once the workshop domains exist to receive the merchants.
+           ChildRootDetachSeeder::class,
+
            // The same cure for «كوافير», which had gone further and made itself
            // a ROOT: the trade folds back under مهن وحرفيين, and رجالي/حريمي
            // stop being two children a family salon has to choose between.

@@ -6,22 +6,29 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The stage→subject matrix (owner design 2026-08-02): each educational stage
- * becomes a CHILD that owns exactly its own subjects, so the stage's option
- * links ARE the definition of what that stage teaches. سنتر دروس keeps the
- * stages in its own options; when a center ticks «إعدادي», the UI resolves the
- * stage child of that name, reads its subject links, and pre-ticks them —
- * "a matrix inside a matrix" — leaving the center free to untick what it does
- * not offer.
- *
- * This needs NO schema change: the mapping lives in category_child_option rows
- * the app already knows how to read (same shape the child-options screens use).
+ * The stage→subject matrix.
  *
  *   php artisan db:seed --class=EducationalStagesSeeder
  *
- * Stage children are real business types too — a center specialising in
- * ابتدائي can register under it directly — so they get the universal commerce
- * options and a booking link like any other child. Idempotent; nothing deleted.
+ * ORIGINALLY (owner design 2026-08-02) each stage was also a CHILD, so that its
+ * subject links doubled as the stage definition: a centre ticks «إعدادي», the UI
+ * resolves the stage child of that name, reads its subject links and pre-ticks
+ * them — "a matrix inside a matrix".
+ *
+ * FOLDED 2026-08-10, owner: «اطوها كالورش». The six stage children stood beside
+ * «سنتر دروس» holding zero accounts each, and «سنتر دروس» already carried the
+ * same six as options in «المراحل التعليمية» — six rows that were six words
+ * standing next to themselves, exactly the shape the workshop benches had. They
+ * are detached by ChildRootDetachSeeder; nothing here re-creates them.
+ *
+ * **The matrix below is NOT deleted, and that is the point of this note.** It is
+ * the only place that records which subjects belong to which stage, the UI that
+ * would read it was never built, and folding the rows must not take the design
+ * with them. The seeder writes it onto any stage that is STILL a child — today
+ * that is «حضانات» alone, which is a real pre-school with live accounts — and
+ * keeps the rest as a declaration waiting for the feature.
+ *
+ * Idempotent; nothing deleted.
  */
 class EducationalStagesSeeder extends Seeder
 {
@@ -109,8 +116,19 @@ class EducationalStagesSeeder extends Seeder
             $universalIds = DB::table('options')->where('group_id', self::UNIVERSAL_OPTION_GROUP_ID)->pluck('id');
             $rows = [];
 
+            $folded = [];
+
             foreach (self::STAGES as $stage => $subjects) {
-                $childId = $this->ensureChild($stage);
+                $childId = $this->standingChild($stage);
+
+                // A stage that is no longer a child is a WORD now, and its row
+                // must not be conjured back — an add-only seeder naming a folded
+                // child is how a fold gets undone on the next run.
+                if ($childId <= 0) {
+                    $folded[] = $stage;
+
+                    continue;
+                }
 
                 // the stage's own subjects — this IS the stage definition the UI reads
                 $order = 0;
@@ -155,6 +173,7 @@ class EducationalStagesSeeder extends Seeder
             foreach ($rows as $stage => $n) {
                 $this->command?->line("  - «{$stage}» ← {$n} مادة");
             }
+            $this->command?->line('  - مراحل مطويّة (كلمات لا صفوف) : ' . (implode('، ', $folded) ?: 'لا شيء'));
             $this->command?->line('  - سنتر دروس : ' . $tutoring['stages'] . ' مرحلة + ' . $tutoring['subjects'] . ' مادة');
             $this->command?->line('  - leaked subject links cleared : ' . $unlinked);
             $this->command?->line('  NEXT: php artisan db:seed --class=NewChildrenBranchesSeeder');
@@ -205,24 +224,21 @@ class EducationalStagesSeeder extends Seeder
         return $added;
     }
 
-    private function ensureChild(string $name): int
+    /**
+     * The stage's child row IF it still stands under the root — never created.
+     *
+     * This used to be `ensureChild()`, which inserted the row and attached it.
+     * After the 2026-08-10 fold that would have been the undo button: the six
+     * detached stages would come straight back under دورات وتدريب on the next
+     * run of a seeder nobody thought to look at.
+     */
+    private function standingChild(string $name): int
     {
-        $id = DB::table('category_children_master')->where('name_ar', $name)->value('id');
-
-        if (! $id) {
-            $id = DB::table('category_children_master')->insertGetId([
-                'name_ar' => $name,
-                'name_en' => $name,
-                'reorder' => 1 + (int) DB::table('category_children_master')->max('reorder'),
-            ]);
-        }
-
-        DB::table('category_parent_child')->updateOrInsert(
-            ['parent_id' => self::ROOT_ID, 'child_id' => (int) $id],
-            ['updated_at' => now()]
-        );
-
-        return (int) $id;
+        return (int) DB::table('category_parent_child as p')
+            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+            ->where('p.parent_id', self::ROOT_ID)
+            ->where('c.name_ar', $name)
+            ->value('c.id');
     }
 
     /**

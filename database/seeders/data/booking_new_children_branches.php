@@ -52,14 +52,10 @@ return [
     ],
     'training-courses' => [
         'مركز تدريب' => ['training'],
-        // stage children (EducationalStagesSeeder): a centre specialising in
-        // one stage registers under it directly and books the same sessions.
-        'رياض أطفال' => ['training'],
-        'ابتدائي' => ['training'],
-        'إعدادي' => ['training'],
-        'ثانوي عام' => ['training'],
-        'ثانوي أزهري' => ['training'],
-        'دبلومات فنية' => ['training'],
+        // The six stage children were folded into «سنتر دروس» on 2026-08-10
+        // («اطوها كالورش») and are options in «المراحل التعليمية» now. A
+        // root-keyed branch map naming a folded child re-wires a row nothing
+        // points at — see data/child_root_detachments.php.
     ],
     // offices review 2026-08-02: professions whose booking is a consultation /
     // site visit / online session; home services sell tasks; coworking books

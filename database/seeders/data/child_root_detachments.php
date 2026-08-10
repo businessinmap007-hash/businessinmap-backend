@@ -76,4 +76,61 @@ return [
         'reassign_to' => null,
         'why' => 'ولا يعود إلى الورش — نقلٌ لا صيانة',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | The six educational stages — «اطوها كالورش» (owner, 2026-08-10)
+    |--------------------------------------------------------------------------
+    | The workshop shape exactly: six children that were already six OPTIONS
+    | standing beside them. «سنتر دروس» #86 carries «المراحل التعليمية» with the
+    | same six names — رياض أطفال، ابتدائي، إعدادي، ثانوي عام، ثانوي أزهري،
+    | دبلومات فنية — so a tutoring centre teaching primary and secondary had to
+    | be two accounts or half a business, and a customer looking for one had to
+    | guess which row its owner picked. Every one holds zero accounts.
+    |
+    | «حضانات» is NOT here: a nursery is a PLACE with three live merchants, and
+    | it is the one stage in the matrix that is also a business you walk into.
+    | «مركز تدريب» is not here either — it teaches FIELDS, not school subjects.
+    |
+    | The stage→subject matrix in EducationalStagesSeeder survives untouched. It
+    | is the only record of which subjects belong to which stage, the UI that
+    | would read it was never built, and folding the rows must not take the
+    | design with them.
+    */
+    [
+        'child_name_ar' => 'رياض أطفال',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'مرحلة لا مكان — وهي خيار قائم في «المراحل التعليمية» على «سنتر دروس»',
+    ],
+    [
+        'child_name_ar' => 'ابتدائي',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'نفس الحالة',
+    ],
+    [
+        'child_name_ar' => 'إعدادي',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'نفس الحالة',
+    ],
+    [
+        'child_name_ar' => 'ثانوي عام',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'نفس الحالة',
+    ],
+    [
+        'child_name_ar' => 'ثانوي أزهري',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'نفس الحالة',
+    ],
+    [
+        'child_name_ar' => 'دبلومات فنية',
+        'root_slug' => 'training-courses',
+        'reassign_to' => null,
+        'why' => 'نفس الحالة',
+    ],
 ];

@@ -72,7 +72,89 @@ class ChildRootDetachTest extends TestCase
             'آثاث' => ['آثاث', 'workshops'],
             'باب وشباك' => ['باب وشباك', 'workshops'],
             'عفشجى' => ['عفشجى', 'shipping-delivery'],
+            'رياض أطفال' => ['رياض أطفال', 'training-courses'],
+            'ابتدائي' => ['ابتدائي', 'training-courses'],
+            'إعدادي' => ['إعدادي', 'training-courses'],
+            'ثانوي عام' => ['ثانوي عام', 'training-courses'],
+            'ثانوي أزهري' => ['ثانوي أزهري', 'training-courses'],
+            'دبلومات فنية' => ['دبلومات فنية', 'training-courses'],
         ];
+    }
+
+    /**
+     * «اطوها كالورش» — the workshop shape, applied to دورات وتدريب: six children
+     * that were already six OPTIONS standing beside them.
+     */
+    public function test_every_folded_stage_is_still_a_word_on_the_tutoring_centre(): void
+    {
+        $centre = (int) DB::table('category_parent_child as p')
+            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+            ->where('p.parent_id', $this->rootId('training-courses'))
+            ->where('c.name_ar', 'سنتر دروس')->value('c.id');
+
+        $this->assertGreaterThan(0, $centre, '«سنتر دروس» is gone — the stages folded into nothing');
+
+        $stages = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $centre)->where('g.name_ar', 'المراحل التعليمية')
+            ->pluck('o.name_ar')->all();
+
+        foreach (['رياض أطفال', 'ابتدائي', 'إعدادي', 'ثانوي عام', 'ثانوي أزهري', 'دبلومات فنية'] as $stage) {
+            $this->assertContains($stage, $stages, "«{$stage}» was folded away without becoming a word");
+        }
+
+        // And the centre can still name every subject it teaches, which is what
+        // the stage children used to hold between them.
+        $subjects = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $centre)->where('g.name_ar', 'المواد الدراسية')->count();
+
+        $this->assertGreaterThan(30, $subjects);
+    }
+
+    /**
+     * «حضانات» is a PLACE with three live merchants, not a stage — the one row
+     * in the matrix that is also a business you walk into.
+     */
+    public function test_the_nursery_is_not_a_stage_and_stays(): void
+    {
+        $this->assertTrue($this->standsUnder('حضانات', 'training-courses'));
+
+        $this->assertGreaterThan(
+            0,
+            DB::table('users')->where('category_child_id', $this->childId('حضانات'))->count()
+        );
+    }
+
+    /**
+     * The matrix that would have gone with them. It is the only record of which
+     * subjects belong to which stage and the UI that reads it was never built,
+     * so the declaration must outlive the rows.
+     */
+    public function test_the_stage_subject_matrix_was_not_deleted_with_the_rows(): void
+    {
+        $source = file_get_contents(database_path('seeders/EducationalStagesSeeder.php'));
+
+        foreach (['ثانوي أزهري', 'دبلومات فنية', 'فلسفة ومنطق', 'قرآن وتجويد'] as $needle) {
+            $this->assertStringContainsString($needle, $source, "the matrix lost «{$needle}»");
+        }
+    }
+
+    /** And nothing re-creates them: the seeder never inserts a stage row again. */
+    public function test_the_stages_seeder_does_not_conjure_the_rows_back(): void
+    {
+        $before = DB::table('category_parent_child')
+            ->where('parent_id', $this->rootId('training-courses'))->count();
+
+        $this->artisan('db:seed', ['--class' => 'EducationalStagesSeeder', '--no-interaction' => true])->run();
+
+        $this->assertSame(
+            $before,
+            DB::table('category_parent_child')->where('parent_id', $this->rootId('training-courses'))->count(),
+            'EducationalStagesSeeder put the stage children back'
+        );
     }
 
     /** The 29 furniture workshops landed on the child built for them. */

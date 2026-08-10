@@ -41,27 +41,34 @@ class MenuBandSplitTest extends TestCase
         $this->assertContains($sample, $bands);
     }
 
-    /** @return array<string,array{0:string,1:int,2:string}> */
+    /**
+     * «أقسام السوبر ماركت» is gone from this list on purpose. It was split
+     * again the same day into the five counters its own link data drew — see
+     * GroceryAisleSplitTest — and is now a standing EMPTY group, kept as the
+     * record of where the five came from. What this test still owns is that
+     * the other three came out of «بنود المنيو» and stayed out.
+     *
+     * @return array<string,array{0:string,1:int,2:string}>
+     */
     public static function splitGroups(): array
     {
         return [
             'المطعم' => ['بنود المنيو', 14, 'مشويات'],
-            'السوبر ماركت' => ['أقسام السوبر ماركت', 27, 'ألبان وبيض'],
             'المزارع' => ['مستلزمات المزارع', 3, 'ماشية وطيور'],
             'المعروضات' => ['صفوف معروضة', 3, 'مركبة معروضة'],
         ];
     }
 
-    /** The four sets do not overlap — one band, one home. */
+    /** The sets do not overlap — one band, one home. */
     public function test_no_band_is_in_two_groups(): void
     {
         $all = [];
 
-        foreach (['بنود المنيو', 'أقسام السوبر ماركت', 'مستلزمات المزارع', 'صفوف معروضة'] as $group) {
+        foreach (['بنود المنيو', 'مستلزمات المزارع', 'صفوف معروضة'] as $group) {
             $all = array_merge($all, $this->bandsOf($group));
         }
 
-        $this->assertSame(47, count($all));
+        $this->assertSame(20, count($all));
         $this->assertSame(count($all), count(array_unique($all)));
     }
 
@@ -73,11 +80,22 @@ class MenuBandSplitTest extends TestCase
     {
         $childId = (int) DB::table('category_children_master')->where('name_ar', 'سوبر ماركت')->value('id');
 
+        // The aisle drawer is now five drawers (GroceryAisleSplitSeeder), so
+        // «still reaches both» has to be counted across all of them. Same
+        // promise, wider net: neither split may lose a heading.
         $carried = DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('cco.child_id', $childId)
-            ->whereIn('g.name_ar', ['بنود المنيو', 'أقسام السوبر ماركت'])
+            ->whereIn('g.name_ar', [
+                'بنود المنيو',
+                'أقسام السوبر ماركت',
+                'أقسام الطازج واللحوم',
+                'أقسام المخبوزات والحلويات',
+                'أقسام البقالة الجافة',
+                'أقسام المشروبات',
+                'أقسام المنزل والعناية',
+            ])
             ->count();
 
         // Not a fixed 31: the owner curates this list by hand in the bulk-options
@@ -101,7 +119,8 @@ class MenuBandSplitTest extends TestCase
         $aisles = DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-            ->where('cco.child_id', $childId)->where('g.name_ar', 'أقسام السوبر ماركت')
+            ->where('cco.child_id', $childId)
+            ->where('g.name_ar', 'like', 'أقسام%')
             ->count();
 
         $this->assertSame(0, $aisles);

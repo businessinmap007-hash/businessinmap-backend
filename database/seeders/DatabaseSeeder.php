@@ -100,6 +100,11 @@ class DatabaseSeeder extends Seeder
            // keeps every heading he had.
            MenuBandSplitSeeder::class,
 
+           // …and «أقسام السوبر ماركت», which came out of that split, was five.
+           // Must run AFTER it: it takes the source group apart, so the source
+           // has to exist and be full first.
+           GroceryAisleSplitSeeder::class,
+
            // Four accessory children become one, and what KIND of accessory
            // becomes an option. After the remodel, before the detachments.
            AccessoryMergeSeeder::class,

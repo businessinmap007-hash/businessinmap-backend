@@ -46,22 +46,39 @@ class MenuLineOptionsTest extends TestCase
      */
     private function familyGroupIds(): array
     {
+        // The transitive family: «بنود المنيو», the four it split into, and the
+        // five that «أقسام السوبر ماركت» split into after that. Mirrors
+        // MenuLineOptionsSeeder::ownFamily(), and must keep mirroring it — a
+        // band that leaves the list here reads as belonging to nobody.
         $names = array_merge(
             ['بنود المنيو'],
-            array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar')
+            array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar'),
+            array_keys((require database_path('seeders/data/grocery_aisle_split.php'))['groups'])
         );
 
         return DB::table('option_groups')->whereIn('name_ar', $names)
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    /** @return array<int,string> the option names of this group a child carries */
+    /**
+     * The option names of this seeder's vocabulary that a child carries.
+     *
+     * The aisle split created words of its OWN inside the family's groups —
+     * «أسماك ومأكولات بحرية طازجة» is one — and those were never menu bands and
+     * are not in menu_line_bands.php. Counting them here would report this
+     * seeder as carrying something it has never heard of.
+     *
+     * @return array<int,string>
+     */
     private function bandsOf(int $childId): array
     {
+        $notBands = array_keys((require database_path('seeders/data/grocery_aisle_split.php'))['new_options'] ?? []);
+
         return DB::table('category_child_option as co')
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->where('co.child_id', $childId)
             ->whereIn('o.group_id', $this->familyGroupIds())
+            ->when($notBands !== [], fn ($q) => $q->whereNotIn('o.name_ar', $notBands))
             ->pluck('o.name_ar')
             ->all();
     }

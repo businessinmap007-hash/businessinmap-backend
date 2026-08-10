@@ -32,7 +32,19 @@ return [
         // All still `line`: they are headings a merchant prices under, which is
         // exactly what separates «أقسام السوبر ماركت» from the `modifier`
         // «أصناف المنتجات الغذائية» beside it.
-        'أقسام السوبر ماركت',     // ألبان وبيض، منظفات
+        // Taken apart again on 2026-08-10 (GroceryAisleSplitSeeder) into the
+        // five counters its own link data drew — a fishmonger, a bakery, a
+        // coffee merchant, a juice bar and a cleaning-supplies shop each
+        // answered a different part of the 27 and ignored the rest. The parent
+        // is left standing but EMPTY, so it stays named here rather than
+        // deleted: a group with no options has no role to reset, and removing
+        // the line would only mean a future reader wonders where it went.
+        'أقسام السوبر ماركت',
+        'أقسام الطازج واللحوم',   // لحوم ودواجن، أجبان، فسيخ
+        'أقسام المخبوزات والحلويات', // مخبوزات، فطائر — baked on the premises
+        'أقسام البقالة الجافة',   // مكرونات وأرز وحبوب، معلبات
+        'أقسام المشروبات',        // عصائر، مشروبات
+        'أقسام المنزل والعناية',  // منظفات، أدوات منزلية — the non-food half
         'مستلزمات المزارع',       // ماشية وطيور
         'صفوف معروضة',            // مركبة معروضة — one row meaning «what is on display»
         'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
@@ -109,6 +121,12 @@ return [
         'نظام الوجبات',           // إقامة كاملة ≠ شامل الإفطار
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
         'حالة المنتج',            // جديد ≠ مستعمل
+        // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
+        // sitting as `descriptive` the same day: it was never listed here, so
+        // the first run of THIS seeder reset it. Fifth time. What it says is
+        // what a shop STOCKS — nobody buys the phrase «اكسسوار موبايل», the
+        // priced rows are the catalog products.
+        'أنواع الإكسسوارات',      // اكسسوار موبايل ≠ اكسسوار سيارات
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة
 
         /*

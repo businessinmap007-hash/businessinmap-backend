@@ -165,13 +165,19 @@ class MenuLineOptionsSeeder extends Seeder
      * seeder decides it must not trade down, and strips every band it owns. It
      * took 214 links off 33 children on the first run after the split.
      *
+     * Then «أقسام السوبر ماركت» was itself split into five, and the SECOND
+     * generation has to be listed here for exactly the same reason — a
+     * fishmonger carrying «أقسام الطازج واللحوم» would read as somebody else's
+     * child. Any future split of any of these must add its offspring here too;
+     * the family is the transitive one, not the direct children.
+     *
      * @return array<int,string>
      */
     private function ownFamily(): array
     {
-        return array_column(
-            (require __DIR__ . '/data/menu_band_split.php')['groups'],
-            'name_ar'
+        return array_merge(
+            array_column((require __DIR__ . '/data/menu_band_split.php')['groups'], 'name_ar'),
+            array_keys((require __DIR__ . '/data/grocery_aisle_split.php')['groups'])
         );
     }
 

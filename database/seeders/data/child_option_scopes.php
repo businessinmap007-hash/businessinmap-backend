@@ -203,4 +203,35 @@ return [
         // «ورشة سيارات» #543 never reaches the rule — its exclude pattern
         // catches «سيار» first.
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | أصناف المنتجات الغذائية — the same question, asked twice
+    |--------------------------------------------------------------------------
+    | «راجع التكرار والتشابه بينهم» — owner, 2026-08-10.
+    |
+    | This `modifier` list of twenty food ranges and the `line` aisle list beside
+    | it are one vocabulary written twice. «زيوت وسمن» and «معلبات» are the same
+    | word in both, and thirteen of the twenty restate an aisle: «حبوب وبقوليات»
+    | + «أرز» + «مكرونة» against «مكرونات وأرز وحبوب», «ألبان وأجبان» against
+    | «ألبان وبيض» + «أجبان», and so on down the list.
+    |
+    | It is not redundant everywhere, which is why the group survives. Three of
+    | its eight children carry no market list at all — مواد غذائية،
+    | مواد غذائية ومنظفات، استيراد وتصدير — and «which ranges do you deal in» is
+    | a real question for a wholesaler with no priced heading behind it. That is
+    | what a modifier is for.
+    |
+    | The five below carry BOTH and were being asked twice, once priced and once
+    | not. They keep the priced one. An empty list is the declared way to say
+    | «this child answers none of this group», and ChildOptionScopeTest checks
+    | that it actually holds.
+    */
+    'أصناف المنتجات الغذائية' => [
+        272 => [], // سوبر ماركت — 16 accounts
+        185 => [], // مني ماركت — 12
+        149 => [], // هايبر ماركت — 6
+        113 => [], // مجمدات — 1
+        128 => [], // حبوب وغلال — 0
+    ],
 ];

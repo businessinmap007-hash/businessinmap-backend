@@ -111,13 +111,15 @@ class OrphanChildLinksTest extends TestCase
 
         (new OrphanChildLinksCleanupSeeder)->run();
 
-        // The bands live in four groups since 2026-08-10 (MenuBandSplitSeeder) —
-        // «بنود المنيو» kept the fourteen restaurant headings and the aisles,
-        // farm supplies and listing rows moved out. Still one declaration, still
-        // one seeder; only the drawer changed.
+        // The bands live in nine groups since 2026-08-10 — «بنود المنيو» kept
+        // the fourteen restaurant headings, MenuBandSplitSeeder moved the
+        // aisles, farm supplies and listing rows out, and GroceryAisleSplitSeeder
+        // took the aisle drawer apart into five counters. Still one declaration
+        // and one seeder; only the drawer changed, twice.
         $family = array_merge(
             ['بنود المنيو'],
-            array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar')
+            array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar'),
+            array_keys((require database_path('seeders/data/grocery_aisle_split.php'))['groups'])
         );
 
         $missing = array_values(array_diff($names, DB::table('options as o')

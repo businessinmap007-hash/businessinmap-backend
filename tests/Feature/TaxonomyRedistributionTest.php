@@ -260,11 +260,22 @@ class TaxonomyRedistributionTest extends TestCase
      */
     public function test_no_option_group_is_empty(): void
     {
+        // Scoped to ACTIVE groups since 2026-08-10. A third way to arrive at an
+        // empty group appeared that day: a group split into several and left
+        // standing as the record of where they came from. «أقسام السوبر ماركت»
+        // handed all 27 of its aisles to five counters and kept none.
+        //
+        // Deleting it would lose that history and nothing in this taxonomy is
+        // deleted, so GroceryAisleSplitSeeder switches it off instead. What the
+        // rule is really about is a merchant opening a live heading and finding
+        // it blank, and an inactive group is not offered to anybody — it is a
+        // tombstone, and active-and-empty is still a bug.
         $empty = DB::table('option_groups as g')
+            ->where('g.is_active', 1)
             ->whereNotExists(fn ($q) => $q->from('options')->whereColumn('options.group_id', 'g.id'))
             ->pluck('name_ar');
 
-        $this->assertEmpty($empty, 'empty option groups: ' . $empty->implode('، '));
+        $this->assertEmpty($empty, 'empty ACTIVE option groups: ' . $empty->implode('، '));
     }
 
     /**

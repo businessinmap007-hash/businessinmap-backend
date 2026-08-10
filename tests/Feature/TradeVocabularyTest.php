@@ -134,7 +134,13 @@ class TradeVocabularyTest extends TestCase
     public static function stockGroups(): array
     {
         return [
-            'غذائية' => ['أصناف المنتجات الغذائية', 'سوبر ماركت', 'زيوت وسمن'],
+            // Asked of «مواد غذائية», not «سوبر ماركت», since 2026-08-10. The
+            // supermarket prices its aisles off a market list and was being
+            // asked the same word twice — once to price it and once to tick it
+            // — so the modifier was scoped off it. What survives is the case
+            // the group was built for: a wholesaler with no market list, whose
+            // only answer to «what do you deal in» is this list.
+            'غذائية' => ['أصناف المنتجات الغذائية', 'مواد غذائية', 'زيوت وسمن'],
             'كهربائية' => ['أنواع الأجهزة الكهربائية', 'أجهزة كهربائية', 'ثلاجات'],
             'رياضية' => ['أنواع الأجهزة الرياضية', 'أجهزة رياضية', 'مشايات كهربائية'],
         ];

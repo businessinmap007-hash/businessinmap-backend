@@ -70,17 +70,27 @@ class OptionPriceRoleTest extends TestCase
             $this->assertContains($name, $services->all(), "«{$name}» must be priceable");
         }
 
-        // Both lists must still reach صيدلية — the split moved options between
-        // groups, and a link lost in the move would silently shrink the picker.
-        $linked = DB::table('category_child_option as co')
-            ->join('options as o', 'o.id', '=', 'co.option_id')
-            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-            ->where('co.child_id', 215)
-            ->whereIn('g.name_ar', ['أقسام الصيدلية', 'خدمات الصيدلية'])
-            ->distinct()
-            ->count('co.option_id');
+        // Both lists must still REACH صيدلية — the split moved options between
+        // groups, and a whole list lost in the move would silently halve the
+        // picker.
+        //
+        // Reach, not a total. This used to assert that the pharmacy carried
+        // every option of both groups, which is an assertion about the owner's
+        // curation rather than about the split: he unticked «حقن» through the
+        // admin on 2026-08-10 and the test called his decision a lost link. The
+        // withdrawal record has it stamped `admin`, so nothing will hand it
+        // back — see ChildOptionDecisionTest.
+        foreach (['أقسام الصيدلية', 'خدمات الصيدلية'] as $group) {
+            $reached = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', 215)
+                ->where('g.name_ar', $group)
+                ->distinct()
+                ->count('co.option_id');
 
-        $this->assertSame($stock->count() + $services->count(), $linked, 'صيدلية lost an option in the split');
+            $this->assertGreaterThan(0, $reached, "صيدلية lost «{$group}» entirely in the split");
+        }
     }
 
     /** Nobody buys «مودرن» — they buy «غرفة نوم مودرن», and it costs more. */

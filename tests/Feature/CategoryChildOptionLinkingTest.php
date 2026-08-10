@@ -26,11 +26,22 @@ class CategoryChildOptionLinkingTest extends TestCase
      * only to the children whose trade can answer it. What still must hold is
      * that no LIVE child was left mute: a child under a root has at least one
      * question to answer about itself.
+     *
+     * Scoped to children that HOLD ACCOUNTS, for the same reason
+     * `ServiceReinstatementTest` scopes its own rule that way. The owner builds
+     * taxonomy live in the admin, and he emptied «مأذون شرعى» — zero accounts —
+     * option by option at 13:32 on 2026-08-10, every removal stamped `admin` in
+     * the decision record. A child nobody stands on that he is clearing out is
+     * a job in progress; a merchant with nothing to say about himself is a
+     * defect, and that is what this now measures.
      */
     public function test_no_live_child_was_left_without_a_single_option(): void
     {
         $mute = DB::table('category_parent_child as pc')
             ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
+            ->whereExists(function ($q) {
+                $q->from('users')->whereColumn('users.category_child_id', 'pc.child_id');
+            })
             ->whereNotExists(function ($q) {
                 $q->from('category_child_option as co')->whereColumn('co.child_id', 'pc.child_id');
             })
@@ -39,7 +50,7 @@ class CategoryChildOptionLinkingTest extends TestCase
 
         $this->assertEmpty(
             $mute->all(),
-            'a child linked to a root must offer something to describe itself: ' . $mute->implode('، ')
+            'merchants stand on a child that can say nothing about itself: ' . $mute->implode('، ')
         );
     }
 

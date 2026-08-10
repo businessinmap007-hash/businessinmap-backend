@@ -200,6 +200,46 @@ class GroceryAisleSplitTest extends TestCase
         }
     }
 
+    /**
+     * «المخابز والحلويات مطابخ» · «البقالة تحتفظ بالمعبأ فقط» — owner,
+     * 2026-08-10, closing the last of the shop-versus-kitchen questions.
+     *
+     * The bakery counter is the one group both kinds of trade share, and the
+     * line runs THROUGH it rather than around it: two of its five are only ever
+     * made fresh and three are also sold wrapped.
+     *
+     * That is why this group is «بنود» and its four siblings are «أقسام» — it
+     * is a counter somebody works at, and the grocers keep only the part of it
+     * that comes in a packet.
+     */
+    public function test_only_a_kitchen_bakes_and_a_grocer_stocks_the_wrapped_version(): void
+    {
+        $carriersOf = fn (string $word) => DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('g.name_ar', 'بنود المخبوزات والحلويات')->where('o.name_ar', $word)
+            ->distinct()->pluck('c.name_ar')->sort()->values()->all();
+
+        // Made fresh: the two kitchens and nobody else.
+        foreach (['فطائر', 'وافل'] as $prepared) {
+            $this->assertSame(
+                ['حلويات', 'مخابز'],
+                $carriersOf($prepared),
+                "«{$prepared}» is made on the premises and a grocer is claiming it"
+            );
+        }
+
+        // Sold wrapped: the kitchens AND the three markets.
+        foreach (['مخبوزات', 'آيس كريم', 'حلويات وشوكولاتة'] as $packaged) {
+            $carriers = $carriersOf($packaged);
+
+            foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت', 'مخابز', 'حلويات'] as $expected) {
+                $this->assertContains($expected, $carriers, "«{$expected}» lost «{$packaged}»");
+            }
+        }
+    }
+
     /** …and a general market still sees all five, because it really does stock them. */
     public function test_a_supermarket_still_sees_every_counter(): void
     {

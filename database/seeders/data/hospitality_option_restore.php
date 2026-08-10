@@ -44,9 +44,18 @@ return [
         'نظام الوجبات',
     ],
 
-    /** From «الدفع والسداد», which is a big group — only this one is shared. */
+    /*
+    | From «الدفع والسداد», which is a big group — only these are shared.
+    |
+    | Was «تقسيط بدون فوائد» until 2026-08-10, when the owner made that one
+    | hand-set only («سأحددهم يدويا»). Restoring it here would have handed the
+    | two hospitality children the one option the same day's change withdrew from
+    | 297 others — a restore seeder naming a hand-set option is the seeder that
+    | quietly re-grants it.
+    */
     'base_options' => [
-        'تقسيط بدون فوائد',
+        'كاش',
+        'تقسيط',
     ],
 
     'children' => [

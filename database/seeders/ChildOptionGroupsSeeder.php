@@ -52,8 +52,11 @@ class ChildOptionGroupsSeeder extends Seeder
             $this->ensureGroups($map['groups']);
             $moved = $this->refileOptions($map['groups']);
             $retired = $this->retireOptions($map['retire_options']);
+            $handSet = $this->withdrawHandSetOptions($map['hand_set_options'] ?? []);
 
             [$added, $removed, $kept] = $this->applyChildTargets($map);
+
+            $removed += $handSet;
 
             $domain = $this->applyDomainCorrections($map);
 
@@ -112,6 +115,43 @@ class ChildOptionGroupsSeeder extends Seeder
 
         $removed = DB::table('category_child_option')->whereIn('option_id', $safe)->delete();
         DB::table('options')->whereIn('id', $safe)->update(['group_id' => null]);
+
+        return $removed;
+    }
+
+    /**
+     * Options that stay ALIVE and selectable but are never granted in bulk.
+     *
+     * Retiring is not the same thing and would be wrong here: a retired option
+     * loses its group and stops existing as an answer. «تقسيط بدون فوائد» is a
+     * real commercial claim — the owner wants it, he just wants to say WHO makes
+     * it («سأحددهم يدويا»). Dropping it from a group's `options` list is not
+     * enough either: `applyChildTargets` only ever withdraws options it still
+     * manages, so an option removed from the map becomes invisible rather than
+     * withdrawn, and its 297 wholesale links would have survived untouched.
+     *
+     * A merchant who has already ticked it keeps it. His answer outranks the map
+     * here exactly as it does everywhere else.
+     *
+     * @param  array<int,int>  $optionIds
+     */
+    private function withdrawHandSetOptions(array $optionIds): int
+    {
+        if ($optionIds === []) {
+            return 0;
+        }
+
+        $chosen = DB::table('option_user')->whereIn('option_id', $optionIds)
+            ->pluck('option_id')->unique()->all();
+
+        $removed = DB::table('category_child_option')
+            ->whereIn('option_id', $optionIds)
+            ->whereNotIn('option_id', $chosen ?: [0])
+            ->delete();
+
+        foreach ($chosen as $id) {
+            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر — تُرك على أبنائه.");
+        }
 
         return $removed;
     }

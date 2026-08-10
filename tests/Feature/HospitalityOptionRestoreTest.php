@@ -55,7 +55,13 @@ class HospitalityOptionRestoreTest extends TestCase
             $this->assertSame(2, $groups['إطلالة الوحدة'] ?? 0);
             $this->assertSame(3, $groups['نظام الوجبات'] ?? 0);
 
-            $this->assertContains('تقسيط بدون فوائد', $this->optionNamesOf($this->childId($name)));
+            // Was «تقسيط بدون فوائد» until 2026-08-10, when the owner made that
+            // one hand-set only. The base a hospitality child must carry is now
+            // the pair every trade can answer.
+            $names = $this->optionNamesOf($this->childId($name));
+
+            $this->assertContains('كاش', $names);
+            $this->assertContains('تقسيط', $names);
         }
     }
 
@@ -118,7 +124,11 @@ class HospitalityOptionRestoreTest extends TestCase
     /** The four intact siblings were not touched. */
     public function test_the_intact_siblings_are_unchanged(): void
     {
-        foreach (['فندق' => 43, 'شقق فندقية' => 27, 'منتجع' => 47, 'نُزل / هوستل' => 25] as $name => $expected) {
+        // Each gained one on 2026-08-10: the payment group's single wholesale
+        // option «تقسيط بدون فوائد» was replaced by the pair كاش + تقسيط. The
+        // restore seeder still did not touch them — the totals moved underneath
+        // it, which is what a hard-coded total costs and why it is worth it.
+        foreach (['فندق' => 44, 'شقق فندقية' => 28, 'منتجع' => 48, 'نُزل / هوستل' => 26] as $name => $expected) {
             $this->assertSame(
                 $expected,
                 DB::table('category_child_option')->where('child_id', $this->childId($name))->count(),

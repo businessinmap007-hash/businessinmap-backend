@@ -64,7 +64,18 @@ return [
             // whole group per root had put it on 286 children. PrepaymentScopeSeeder
             // is now its only authority — leaving it here would re-add it to every
             // root that gets this group.
-            'options' => [204], // تقسيط بدون فوائد
+            //
+            // Owner, 2026-08-10: «الدفع والسداد استخدم منها كاش وتقسيط اما
+            // الاخرين فسأحددهم يدويا». The list had exactly the wrong member —
+            // «تقسيط بدون فوائد» was the ONE option granted per root, which is
+            // why it reached 297 children while كاش reached 95 and تقسيط 84.
+            // Interest-free instalments are a real commercial claim and only the
+            // merchant can make it; كاش and تقسيط are the two answers every
+            // trade on the platform can give. #204 now joins «دفع مسبق» as
+            // hand-set only, and this seeder withdraws it wherever it was
+            // granted wholesale — except from a merchant who has already ticked
+            // it, whose answer outranks this map.
+            'options' => [66, 203], // كاش، تقسيط
         ],
         'returns_policy' => [
             'name_ar' => 'الاستبدال والإرجاع',
@@ -94,6 +105,25 @@ return [
 
     /** Unlinked everywhere and left groupless — «بيع» describes every business. */
     'retire_options' => [311],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Alive, selectable, and never granted in bulk
+    |--------------------------------------------------------------------------
+    | Owner, 2026-08-10: «الدفع والسداد استخدم منها كاش وتقسيط اما الاخرين
+    | فسأحددهم يدويا».
+    |
+    | Different from `retire_options` above, which unfiles the option and ends it
+    | as an answer. #204 «تقسيط بدون فوائد» stays exactly as it is — a merchant
+    | can still be given it, and one who already has it keeps it. What ends is
+    | the wholesale grant that had put it on 297 children, more than any other
+    | option in its group, purely because it was the one member of the list.
+    |
+    | «دفع مسبق» #292 is NOT here: it left this map on 2026-08-08 and
+    | PrepaymentScopeSeeder deliberately holds it on the four carrier children.
+    | Adding it would take a scope the owner asked for and call it noise.
+    */
+    'hand_set_options' => [204], // تقسيط بدون فوائد
 
     /*
     |--------------------------------------------------------------------------

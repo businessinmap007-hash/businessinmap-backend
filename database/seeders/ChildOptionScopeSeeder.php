@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Services\Catalog\ChildOptionDecisions;
+use App\Services\Catalog\MerchantOptionCommitments;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -36,8 +37,9 @@ class ChildOptionScopeSeeder extends Seeder
         $decisions = app(ChildOptionDecisions::class);
         $withdrawn = $decisions->blockedByChild();
         $pinned = $decisions->pinnedByChild();
+        $commitments = app(MerchantOptionCommitments::class);
 
-        DB::transaction(function () use ($scopes, $withdrawn, $pinned) {
+        DB::transaction(function () use ($scopes, $withdrawn, $pinned, $commitments) {
             $added = $removed = $kept = 0;
 
             foreach ($scopes as $groupName => $children) {
@@ -66,12 +68,9 @@ class ChildOptionScopeSeeder extends Seeder
                         ->reject(fn ($id) => isset($pinned[(int) $childId][(int) $id]));
 
                     if ($toDrop->isNotEmpty()) {
-                        $chosen = DB::table('option_user as ou')
-                            ->join('users as u', 'u.id', '=', 'ou.user_id')
-                            ->where('u.category_child_id', $childId)
-                            ->whereIn('ou.option_id', $toDrop)
-                            ->pluck('ou.option_id')
-                            ->unique();
+                        // Ticked OR priced. A price is the stronger commitment
+                        // and used to be the unprotected one.
+                        $chosen = collect($commitments->forChild((int) $childId, $toDrop));
 
                         $kept += $chosen->count();
                         $toDrop = $toDrop->diff($chosen);

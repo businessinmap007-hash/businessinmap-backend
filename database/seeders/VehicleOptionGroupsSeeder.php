@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Services\Catalog\ChildOptionDecisions;
+use App\Services\Catalog\MerchantOptionCommitments;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -148,13 +149,14 @@ class VehicleOptionGroupsSeeder extends Seeder
 
     private function retire(array $optionIds): int
     {
-        $inUse = DB::table('option_user')->whereIn('option_id', $optionIds)->pluck('option_id')->unique();
+        // Ticked OR priced, and anywhere at all: retiring unlinks everywhere.
+        $inUse = app(MerchantOptionCommitments::class)->anywhere($optionIds);
 
         foreach ($inUse as $id) {
-            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر — لم يُتقاعد.");
+            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر أو سعّره — لم يُتقاعد.");
         }
 
-        $safe = array_values(array_diff($optionIds, $inUse->all()));
+        $safe = array_values(array_diff($optionIds, $inUse));
 
         if (! $safe) {
             return 0;
@@ -211,6 +213,7 @@ class VehicleOptionGroupsSeeder extends Seeder
         $decisions = app(ChildOptionDecisions::class);
         $withdrawn = $decisions->blockedByChild();
         $pinned = $decisions->pinnedByChild();
+        $commitments = app(MerchantOptionCommitments::class);
 
         foreach ($this->childrenHolding($managed) as $childId) {
             $desired = $targets[$childId] ?? [];
@@ -225,13 +228,7 @@ class VehicleOptionGroupsSeeder extends Seeder
             $toDrop = array_diff($existing, $desired, array_keys($pinned[$childId] ?? []));
 
             if ($toDrop) {
-                $chosen = DB::table('option_user as ou')
-                    ->join('users as u', 'u.id', '=', 'ou.user_id')
-                    ->where('u.category_child_id', $childId)
-                    ->whereIn('ou.option_id', $toDrop)
-                    ->pluck('ou.option_id')
-                    ->unique()
-                    ->all();
+                $chosen = $commitments->forChild((int) $childId, $toDrop);
 
                 $kept += count($chosen);
                 $toDrop = array_diff($toDrop, $chosen);

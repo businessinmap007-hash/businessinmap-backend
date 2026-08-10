@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Services\Catalog\ChildOptionDecisions;
+use App\Services\Catalog\MerchantOptionCommitments;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -102,12 +103,14 @@ class ChildOptionGroupsSeeder extends Seeder
     /** Options that describe every business describe none; unlink and unfile. */
     private function retireOptions(array $optionIds): int
     {
-        $inUse = DB::table('option_user')->whereIn('option_id', $optionIds)->pluck('option_id')->unique();
+        // Retirement unlinks an option EVERYWHERE, so the question is «has
+        // anybody committed to this», not «anybody on this child».
+        $inUse = app(MerchantOptionCommitments::class)->anywhere($optionIds);
 
-        $safe = array_values(array_diff($optionIds, $inUse->all()));
+        $safe = array_values(array_diff($optionIds, $inUse));
 
         foreach ($inUse as $id) {
-            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر بالفعل — لم يُتقاعد.");
+            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر أو سعّره — لم يُتقاعد.");
         }
 
         if (! $safe) {
@@ -142,8 +145,7 @@ class ChildOptionGroupsSeeder extends Seeder
             return 0;
         }
 
-        $chosen = DB::table('option_user')->whereIn('option_id', $optionIds)
-            ->pluck('option_id')->unique()->all();
+        $chosen = app(MerchantOptionCommitments::class)->anywhere($optionIds);
 
         $removed = DB::table('category_child_option')
             ->whereIn('option_id', $optionIds)
@@ -151,7 +153,7 @@ class ChildOptionGroupsSeeder extends Seeder
             ->delete();
 
         foreach ($chosen as $id) {
-            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر — تُرك على أبنائه.");
+            $this->command?->warn("  ! الخيار #{$id} اختاره تاجر أو سعّره — تُرك على أبنائه.");
         }
 
         return $removed;
@@ -174,6 +176,7 @@ class ChildOptionGroupsSeeder extends Seeder
         $decisions = app(ChildOptionDecisions::class);
         $withdrawn = $decisions->blockedByChild();
         $pinned = $decisions->pinnedByChild();
+        $commitments = app(MerchantOptionCommitments::class);
 
         $added = $removed = $kept = 0;
 
@@ -197,13 +200,7 @@ class ChildOptionGroupsSeeder extends Seeder
             $toDrop = array_diff($existing, $desired, array_keys($pinned[$childId] ?? []));
 
             if ($toDrop) {
-                $chosen = DB::table('option_user as ou')
-                    ->join('users as u', 'u.id', '=', 'ou.user_id')
-                    ->where('u.category_child_id', $childId)
-                    ->whereIn('ou.option_id', $toDrop)
-                    ->pluck('ou.option_id')
-                    ->unique()
-                    ->all();
+                $chosen = $commitments->forChild((int) $childId, $toDrop);
 
                 $kept += count($chosen);
                 $toDrop = array_diff($toDrop, $chosen);
@@ -283,11 +280,7 @@ class ChildOptionGroupsSeeder extends Seeder
                 ->whereIn('g.name_ar', $groupNames)
                 ->pluck('o.id');
 
-            $chosen = DB::table('option_user as ou')
-                ->join('users as u', 'u.id', '=', 'ou.user_id')
-                ->where('u.category_child_id', $childId)
-                ->whereIn('ou.option_id', $optionIds)
-                ->pluck('ou.option_id');
+            $chosen = collect(app(MerchantOptionCommitments::class)->forChild((int) $childId, $optionIds));
 
             $removed += DB::table('category_child_option')
                 ->where('child_id', $childId)

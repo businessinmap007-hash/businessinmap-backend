@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\OptionGroup;
 use App\Services\Catalog\ChildOptionDecisions;
+use App\Services\Catalog\MerchantOptionCommitments;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -60,6 +61,7 @@ class MenuLineOptionsSeeder extends Seeder
             $decisions = app(ChildOptionDecisions::class);
             $withdrawn = $decisions->blockedByChild();
             $pinned = $decisions->pinnedByChild();
+            $commitments = app(MerchantOptionCommitments::class);
             $added = $removed = 0;
             $touched = [];
             $skipped = [];
@@ -94,7 +96,15 @@ class MenuLineOptionsSeeder extends Seeder
                 // A band he ticked on by hand stays on. Between them the two
                 // decisions make this seeder's declaration a DEFAULT rather than
                 // a demand: it still rules on every child nobody has touched.
-                $drop = $held->diff($wanted)->reject(fn ($id) => isset($pinned[(int) $childId][(int) $id]))->values();
+                //
+                // And so does a band a MERCHANT has committed to. This seeder
+                // had no such guard at all while every other one did — it would
+                // drop a heading somebody had priced, which is how «فندق
+                // الاندلس» ended up with 2,000 on a «شقة» nothing offers.
+                $drop = $held->diff($wanted)
+                    ->reject(fn ($id) => isset($pinned[(int) $childId][(int) $id]))
+                    ->diff($commitments->forChild((int) $childId, $held->diff($wanted)))
+                    ->values();
 
                 foreach ($add as $optionId) {
                     $band = array_search($optionId, $optionOf, true);

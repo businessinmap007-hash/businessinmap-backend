@@ -69,10 +69,8 @@ return [
     | and calling it fixed («حلويات» → hobbies_general, which has toys and books
     | and no sweets).
     |
-    | Deliberately NOT included: «معدات ثقيلة» under شركات (3 accounts). It is the
-    | one that needs a decision rather than a copy — the only retail donor under
-    | that root is «أجهزة كهربائية», whose branch is home appliances and phones,
-    | and heavy equipment is neither. Left for the owner.
+    | Deliberately NOT included in that pass: «معدات ثقيلة» under شركات (3
+    | accounts) — see the fourth pass below, which is where it was answered.
     */
 
     // فواكة، دواجن، خضروات under الزراعة: eleven of their fourteen siblings
@@ -154,5 +152,40 @@ return [
         'service_key' => 'booking',
         'copy_from_child_ar' => 'دعاية وإعلان',
         'why' => 'شركة طباعة تُحجز بموعد كجارتها «دعاية وإعلان»، ولم تكن تملك أي سطح',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fourth pass, 2026-08-10 — the last standing on the platform that could
+    | sell nothing
+    |--------------------------------------------------------------------------
+    | «معدات ثقيلة» was held back from the third pass for a decision, and the
+    | question it was held for turned out to be the wrong question: «which retail
+    | donor fits heavy equipment?» has no good answer because the trade does not
+    | sell goods at all.
+    |
+    | What it is was written down in its own configuration the whole time. Its
+    | `delivery` shape is the haulage one — bulk_reservation, crane_winch,
+    | full_truckload, partial_load — which is the first four types of «شحن بري
+    | وبحري وجوى» beside it, exactly. And the one `line` group it carries is
+    | «مركبات النقل والركاب»: معدات ثقيلة، جامبو، مقطورة. That group is a FLEET,
+    | not a shelf. Every other child carrying it is a carrier, and every carrier
+    | sells the same way — by publishing a leg with a date and a route.
+    |
+    | So the donor is its sibling, and the service is `schedules`, which is the
+    | same answer «مكتب» got in the third pass for the same reason.
+    |
+    | Note what is NOT claimed: whether a heavy-equipment company should also
+    | SELL or RENT a machine outright is a real question and still the owner's —
+    | that would be a new surface, and nothing here invents one. This entry only
+    | stops three live merchants from standing on a child that offers no way to
+    | say anything at all.
+    */
+    [
+        'child_name_ar' => 'معدات ثقيلة',
+        'root_slug' => 'companies',
+        'service_key' => 'schedules',
+        'copy_from_child_ar' => 'شحن بري وبحري وجوى',
+        'why' => 'ناقل ثقيل بلا أي سطح بيع — إعداد التوصيل عنده هو إعداد النقل الثقيل نفسه، وأخواه في الجذر ينشران الرحلات — ٣ حسابات',
     ],
 ];

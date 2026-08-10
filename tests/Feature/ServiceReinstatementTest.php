@@ -122,6 +122,72 @@ class ServiceReinstatementTest extends TestCase
         }
     }
 
+    /**
+     * The finding that closed the board: «معدات ثقيلة» is a CARRIER.
+     *
+     * It was held back from the third pass looking for a retail donor, and there
+     * is none because it sells no goods. Its own delivery shape and its one
+     * `line` group — «مركبات النقل والركاب», a fleet — both said carrier, so it
+     * publishes a leg like the two siblings beside it.
+     */
+    public function test_the_heavy_hauler_can_publish_a_trip_like_its_siblings(): void
+    {
+        $rootId = $this->rootId('companies');
+        $schedules = (int) DB::table('platform_services')->where('key', 'schedules')->value('id');
+
+        foreach (['معدات ثقيلة', 'شحن بري وبحري وجوى', 'نقل دولي'] as $name) {
+            $this->assertTrue(
+                DB::table('category_platform_services')->where('category_id', $rootId)
+                    ->where('child_id', $this->childId($name, $rootId))
+                    ->where('platform_service_id', $schedules)->where('is_active', 1)->exists(),
+                "«{$name}» cannot publish a trip leg"
+            );
+        }
+    }
+
+    /**
+     * The rule the whole file exists to serve, asserted as a rule.
+     *
+     * A standing that offers no selling surface is the defect nothing surfaces:
+     * the merchant registers, appears in search, can be delivered from, and has
+     * no way to say what he sells. `delivery` and `business_offers` do not count
+     * — the first is how goods travel and the second is how a business is found.
+     *
+     * Scoped to standings that HOLD ACCOUNTS on purpose. The owner builds
+     * taxonomy live in the admin, and a child he created ten minutes ago and has
+     * not wired yet is a job in progress, not a defect. A child with merchants
+     * already standing on it is neither ambiguous nor survivable.
+     */
+    public function test_no_merchant_stands_on_a_child_that_can_sell_nothing(): void
+    {
+        $selling = DB::table('platform_services')
+            ->whereIn('key', ['menu', 'retail', 'booking', 'schedules'])->pluck('id');
+
+        $standings = DB::table('category_parent_child as p')
+            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+            ->join('categories as r', 'r.id', '=', 'p.parent_id')
+            ->select('p.parent_id', 'p.child_id', 'c.name_ar', 'r.name_ar as root_name')
+            ->get();
+
+        $mute = [];
+
+        foreach ($standings as $s) {
+            if (DB::table('users')->where('category_child_id', $s->child_id)->doesntExist()) {
+                continue;
+            }
+
+            $canSell = DB::table('category_platform_services')
+                ->where('category_id', $s->parent_id)->where('child_id', $s->child_id)
+                ->whereIn('platform_service_id', $selling)->where('is_active', 1)->exists();
+
+            if (! $canSell) {
+                $mute[] = "«{$s->name_ar}» × {$s->root_name}";
+            }
+        }
+
+        $this->assertSame([], $mute, 'merchants stand on children with no way to sell: ' . implode('، ', $mute));
+    }
+
     /** Re-running writes nothing. */
     public function test_the_seeder_is_idempotent(): void
     {

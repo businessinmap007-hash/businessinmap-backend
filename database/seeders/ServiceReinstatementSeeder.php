@@ -33,9 +33,9 @@ class ServiceReinstatementSeeder extends Seeder
             $this->command?->info('Service reinstatements:');
 
             foreach ($rows as $row) {
-                $childId = (int) DB::table('category_children_master')->where('name_ar', $row['child_name_ar'])->value('id');
-                $donorId = (int) DB::table('category_children_master')->where('name_ar', $row['copy_from_child_ar'])->value('id');
                 $rootId = (int) DB::table('categories')->where('slug', $row['root_slug'])->value('id');
+                $childId = $this->standingChild($row['child_name_ar'], $rootId);
+                $donorId = $this->standingChild($row['copy_from_child_ar'], $rootId);
                 $serviceId = (int) DB::table('platform_services')->where('key', $row['service_key'])->value('id');
 
                 if ($childId <= 0 || $donorId <= 0 || $rootId <= 0 || $serviceId <= 0) {
@@ -73,5 +73,29 @@ class ServiceReinstatementSeeder extends Seeder
 
             $this->command?->line("  الإجمالي : {$done}");
         });
+    }
+
+    /**
+     * The child of that name STANDING UNDER THIS ROOT.
+     *
+     * Not `where(name_ar)->value('id')`, which returns the lowest id: several
+     * names have two master rows and the low one is the retired twin. No name on
+     * today's list has a twin, so this changes nothing now — it is here because
+     * the next row added to the file is one lookup away from silently reinstating
+     * a service on a child hanging from no root, and the seeder would report
+     * success. Scoping to the root also means a donor is only ever a genuine
+     * sibling, which is the whole premise of copying its shape.
+     */
+    private function standingChild(string $nameAr, int $rootId): int
+    {
+        if ($rootId <= 0) {
+            return 0;
+        }
+
+        return (int) DB::table('category_parent_child as p')
+            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
+            ->where('p.parent_id', $rootId)
+            ->where('c.name_ar', $nameAr)
+            ->value('c.id');
     }
 }

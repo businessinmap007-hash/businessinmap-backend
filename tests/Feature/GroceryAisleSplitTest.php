@@ -24,9 +24,15 @@ class GroceryAisleSplitTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const AISLES = [
+    /**
+     * The five the split produced. Four are «أقسام» — a shelf a grocer stocks —
+     * and one is «بنود», a counter somebody works at, because «المخابز
+     * والحلويات مطابخ» (owner, 2026-08-10) and those two are what that group was
+     * built around.
+     */
+    private const COUNTERS = [
         'أقسام الطازج واللحوم',
-        'أقسام المخبوزات والحلويات',
+        'بنود المخبوزات والحلويات',
         'أقسام البقالة الجافة',
         'أقسام المشروبات',
         'أقسام المنزل والعناية',
@@ -89,7 +95,7 @@ class GroceryAisleSplitTest extends TestCase
     {
         return [
             'الطازج' => ['أقسام الطازج واللحوم', 9, 'لحوم ودواجن'],
-            'المخبوزات' => ['أقسام المخبوزات والحلويات', 5, 'فطائر'],
+            'المخبوزات' => ['بنود المخبوزات والحلويات', 5, 'فطائر'],
             // Seven since «بن وشاي» was added on the owner's «بن يبيع حبوب فقط».
             'البقالة' => ['أقسام البقالة الجافة', 7, 'بن وشاي'],
             'المشروبات' => ['أقسام المشروبات', 2, 'عصائر'],
@@ -105,7 +111,7 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_a_specialist_sees_only_its_own_counter(string $childNameAr, string $expected): void
     {
-        $offered = array_intersect($this->groupsOffered($childNameAr), self::AISLES);
+        $offered = array_intersect($this->groupsOffered($childNameAr), self::COUNTERS);
 
         $this->assertSame([$expected], array_values($offered));
     }
@@ -115,7 +121,7 @@ class GroceryAisleSplitTest extends TestCase
     {
         return [
             'سمّاك' => ['أسماك', 'أقسام الطازج واللحوم'],
-            'مخبز' => ['مخابز', 'أقسام المخبوزات والحلويات'],
+            'مخبز' => ['مخابز', 'بنود المخبوزات والحلويات'],
             'محل منظفات' => ['منظفات', 'أقسام المنزل والعناية'],
             'مجمدات' => ['مجمدات', 'أقسام الطازج واللحوم'],
             'محل بن' => ['بن', 'أقسام البقالة الجافة'],
@@ -198,11 +204,11 @@ class GroceryAisleSplitTest extends TestCase
     public function test_a_supermarket_still_sees_every_counter(): void
     {
         foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $name) {
-            $offered = array_intersect($this->groupsOffered($name), self::AISLES);
+            $offered = array_intersect($this->groupsOffered($name), self::COUNTERS);
 
             $this->assertSame(
-                self::AISLES,
-                array_values(array_intersect(self::AISLES, $offered)),
+                self::COUNTERS,
+                array_values(array_intersect(self::COUNTERS, $offered)),
                 "«{$name}» lost a counter in the split"
             );
         }
@@ -281,7 +287,7 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_no_child_is_asked_the_same_word_twice(): void
     {
-        $groups = array_merge(self::AISLES, [
+        $groups = array_merge(self::COUNTERS, [
             'بنود المنيو', 'أصناف المنتجات الغذائية', 'أقسام السوبر ماركت',
         ]);
 

@@ -53,6 +53,18 @@ return [
     */
     'source_group' => 'أقسام السوبر ماركت',
 
+    /*
+    | Groups this file has renamed since it first ran, old => new.
+    |
+    | Needed because the seeder finds a group BY NAME and creates it when it is
+    | missing: rename a key without this and the next run makes a fresh empty
+    | group, finds nothing left in the source to move into it, and strands five
+    | options in a group nothing declares any more.
+    */
+    'renames' => [
+        'أقسام المخبوزات والحلويات' => 'بنود المخبوزات والحلويات',
+    ],
+
     'groups' => [
 
         /*
@@ -75,9 +87,21 @@ return [
         | Carried by: مخابز، حلويات + the three markets. The counter that BAKES
         | — which is why «فطائر» and «وافل» are here and not in the dry grocery
         | with the packaged goods: they are made on the premises.
+        |
+        | «بنود» and not «أقسام», since «المخابز والحلويات مطابخ» (owner,
+        | 2026-08-10). Every other group in this file is a shelf a grocer stocks;
+        | this one is a counter somebody works at, and the two children it was
+        | built around have now been ruled kitchens. A heading called an aisle
+        | when it is a menu is how «مأكولات بحرية» ended up on nine fishmongers.
+        |
+        | The three markets still carry it, which is the open half — they stock
+        | the PACKAGED version of all five, and since this morning they can list
+        | it through the catalog instead (`breakfast`, `biscuits_snacks`,
+        | `chocolate` in branch 47). Whether they keep the counter as well is the
+        | owner's call and not inferred here.
         */
-        'أقسام المخبوزات والحلويات' => [
-            'name_en' => 'Bakery & Confectionery Aisles',
+        'بنود المخبوزات والحلويات' => [
+            'name_en' => 'Bakery & Confectionery Headings',
             'reorder' => 61,
             'options' => [
                 'مخبوزات', 'فطائر', 'وافل', 'حلويات وشوكولاتة', 'آيس كريم',

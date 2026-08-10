@@ -44,6 +44,8 @@ class GroceryAisleSplitSeeder extends Seeder
 
             $this->command?->info('Grocery aisle split:');
 
+            $this->applyRenames($data['renames'] ?? []);
+
             $moved = 0;
 
             foreach ($data['groups'] as $nameAr => $group) {
@@ -58,6 +60,41 @@ class GroceryAisleSplitSeeder extends Seeder
             $this->command?->line("  - خيارات نُقلت : {$moved}");
             $this->command?->line("  - خيارات أُنشئت : {$created}");
         });
+    }
+
+    /**
+     * Rename a group this file has already created, before anything looks one
+     * up by name.
+     *
+     * Renaming in the data file alone is not enough: `group()` finds by name and
+     * creates when missing, so the next run would build a fresh empty group,
+     * find nothing left in the source to move into it, and strand the options in
+     * a group nothing declares. Runs first for the same reason.
+     *
+     * @param  array<string,string>  $renames
+     */
+    private function applyRenames(array $renames): void
+    {
+        foreach ($renames as $from => $to) {
+            $fromId = (int) DB::table('option_groups')->where('name_ar', $from)->value('id');
+
+            if ($fromId <= 0) {
+                continue;
+            }
+
+            // Both names present means somebody created the new one by hand.
+            // Merging them is a decision, not a rename — say so and stop.
+            if (DB::table('option_groups')->where('name_ar', $to)->exists()) {
+                $this->command?->warn("  ! «{$from}» و«{$to}» موجودتان معًا — الدمج قرار وليس إعادة تسمية.");
+
+                continue;
+            }
+
+            DB::table('option_groups')->where('id', $fromId)
+                ->update(['name_ar' => $to, 'updated_at' => now()]);
+
+            $this->command?->line("  - «{$from}» ← «{$to}»");
+        }
     }
 
     /**
@@ -97,6 +134,12 @@ class GroceryAisleSplitSeeder extends Seeder
         $id = (int) DB::table('option_groups')->where('name_ar', $nameAr)->value('id');
 
         if ($id > 0) {
+            // Keep the English in step with a rename. Only the Arabic is keyed,
+            // so without this «بنود المخبوزات والحلويات» keeps describing itself
+            // as an Aisle to every English reader of the admin.
+            DB::table('option_groups')->where('id', $id)->where('name_en', '!=', $nameEn)
+                ->update(['name_en' => $nameEn, 'updated_at' => now()]);
+
             return $id;
         }
 

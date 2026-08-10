@@ -142,6 +142,14 @@ class DatabaseSeeder extends Seeder
            // by OptionGroup::ROLE_RANK and are not stored.
            OptionGroupDisplayOrderSeeder::class,
 
+           // DEAD LAST, and it has to be: «انسحب البذرة، اتبع تنظيمي اليدوي».
+           // Five of the broad option seeders consult the withdrawal record
+           // before granting, but thirty-six others still write their own
+           // curated lists without asking. This is the backstop — whatever the
+           // chain granted, a recorded withdrawal takes away again. Anything
+           // added after this line can undo a hand removal unnoticed.
+           ChildOptionWithdrawalsSeeder::class,
+
 
 
 

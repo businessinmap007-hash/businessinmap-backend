@@ -169,9 +169,35 @@ class ChildOptionScopeTest extends TestCase
                     continue;
                 }
 
-                $this->assertNotEmpty(
-                    $offered,
-                    "child #{$childId} was scoped out of «{$group}» entirely"
+                if ($offered !== []) {
+                    continue;
+                }
+
+                // Empty, and the map did not declare it. There are now two ways
+                // to arrive here and only one of them is a bug.
+                //
+                // The bug is a slice that matches nothing — a typo, or an option
+                // deleted since — which strips the child while looking like a
+                // narrowing. The other way is the owner: «انسحب البذرة، اتبع
+                // تنظيمي اليدوي», and a withdrawal for every declared option is
+                // that decision written down. «نجار موبيليا» #49 is the live
+                // example — twenty-two carpenters who no longer answer about
+                // bedrooms and salons, because the child is booked directly by
+                // appointment and never priced a furniture line.
+                //
+                // So the assertion is not «something is offered» but «the
+                // emptiness is accounted for».
+                $unaccounted = collect($allowed)
+                    ->reject(fn ($optionId) => DB::table('category_child_option_withdrawals')
+                        ->where('child_id', (int) $childId)
+                        ->where('option_id', (int) $optionId)
+                        ->exists())
+                    ->values();
+
+                $this->assertEmpty(
+                    $unaccounted,
+                    "child #{$childId} was scoped out of «{$group}» by accident — "
+                        . $unaccounted->count() . ' of its declared options are neither offered nor withdrawn'
                 );
             }
         }

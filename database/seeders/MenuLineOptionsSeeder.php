@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\OptionGroup;
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -56,6 +57,7 @@ class MenuLineOptionsSeeder extends Seeder
             }
 
             $ownIds = array_values($optionOf);
+            $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
             $added = $removed = 0;
             $touched = [];
             $skipped = [];
@@ -81,7 +83,11 @@ class MenuLineOptionsSeeder extends Seeder
                     ->pluck('option_id')
                     ->map(fn ($id) => (int) $id);
 
-                $add = $wanted->diff($held);
+                // A band the owner unticked stays unticked: a supermarket that
+                // stopped selling «ساندوتشات» is not asking to be reminded of
+                // it every time this runs. `$drop` is untouched — the map is
+                // still authoritative about bands nobody has ruled on.
+                $add = $wanted->diff($held)->reject(fn ($id) => isset($withdrawn[(int) $childId][(int) $id]))->values();
                 $drop = $held->diff($wanted);
 
                 foreach ($add as $optionId) {

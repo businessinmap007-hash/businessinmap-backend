@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +33,9 @@ class ChildOptionScopeSeeder extends Seeder
     {
         $scopes = require database_path('seeders/data/child_option_scopes.php');
 
-        DB::transaction(function () use ($scopes) {
+        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+
+        DB::transaction(function () use ($scopes, $withdrawn) {
             $added = $removed = $kept = 0;
 
             foreach ($scopes as $groupName => $children) {
@@ -76,7 +79,12 @@ class ChildOptionScopeSeeder extends Seeder
                             ->delete();
                     }
 
-                    $toAdd = $allowed->diff($existing);
+                    // The scope file says which of the group's options MAY reach
+                    // this child; it never said they all must. Anything he took
+                    // away by hand is inside the scope and still unwanted.
+                    $toAdd = $allowed->diff($existing)
+                        ->reject(fn ($id) => isset($withdrawn[(int) $childId][(int) $id]))
+                        ->values();
 
                     foreach ($toAdd->chunk(200) as $chunk) {
                         DB::table('category_child_option')->insert(

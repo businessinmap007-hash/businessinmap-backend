@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -207,6 +208,7 @@ class VehicleOptionGroupsSeeder extends Seeder
         }
 
         $added = $removed = $kept = 0;
+        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
 
         foreach ($this->childrenHolding($managed) as $childId) {
             $desired = $targets[$childId] ?? [];
@@ -249,7 +251,7 @@ class VehicleOptionGroupsSeeder extends Seeder
                 ->pluck('option_id')
                 ->all();
 
-            $toAdd = array_values(array_diff($desired, $existing));
+            $toAdd = array_values(array_diff($desired, $existing, array_keys($withdrawn[$childId] ?? [])));
 
             foreach (array_chunk($toAdd, 200) as $chunk) {
                 DB::table('category_child_option')->insert(

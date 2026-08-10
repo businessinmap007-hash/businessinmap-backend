@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -169,6 +170,7 @@ class ChildOptionGroupsSeeder extends Seeder
         $managed = array_unique(array_merge(...array_values($optionsOf)));
 
         $targets = $this->resolveTargets($map);
+        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
 
         $added = $removed = $kept = 0;
 
@@ -185,7 +187,7 @@ class ChildOptionGroupsSeeder extends Seeder
                 ->pluck('option_id')
                 ->all();
 
-            $toAdd = array_diff($desired, $existing);
+            $toAdd = array_diff($desired, $existing, array_keys($withdrawn[$childId] ?? []));
             $toDrop = array_diff($existing, $desired);
 
             if ($toDrop) {
@@ -267,6 +269,7 @@ class ChildOptionGroupsSeeder extends Seeder
     private function applyDomainCorrections(array $map): array
     {
         $added = $removed = 0;
+        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
 
         foreach ($map['domain_strips'] as $childId => $groupNames) {
             $optionIds = DB::table('options as o')
@@ -298,6 +301,10 @@ class ChildOptionGroupsSeeder extends Seeder
 
             $rows = [];
             foreach ($optionIds->diff($existing) as $optionId) {
+                if (isset($withdrawn[$childId][(int) $optionId])) {
+                    continue;
+                }
+
                 $rows[] = ['child_id' => $childId, 'option_id' => $optionId];
             }
 

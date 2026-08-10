@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -90,6 +91,13 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
             ->map(fn ($r) => $r->child_id.':'.$r->option_id)
             ->flip();
 
+        // «انسحب البذرة، اتبع تنظيمي اليدوي». Everything the owner unticked in
+        // the admin, so a keyword rule cannot hand it straight back — this
+        // seeder matches on the CHILD'S NAME, which is the bluntest instrument
+        // in the taxonomy and the one that kept re-arming the whole furniture
+        // list on twenty-two carpenters.
+        $withdrawn = app(ChildOptionWithdrawals::class)->blockedByChild();
+
         $rows = [];
 
         foreach (self::RULES as $groupId => $rule) {
@@ -113,7 +121,7 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
                 foreach ($childOptions as $i => $optionId) {
                     $key = $child->id.':'.$optionId;
 
-                    if ($existingPairs->has($key)) {
+                    if ($existingPairs->has($key) || isset($withdrawn[$child->id][$optionId])) {
                         continue;
                     }
 

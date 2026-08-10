@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Catalog\ChildOptionWithdrawals;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,6 +28,14 @@ use Illuminate\Support\Facades\DB;
 class CategoryChildOptionScope
 {
     public const ALL_ROOTS = 0;
+
+    /**
+     * Every write here is a HAND write — this is the admin's door, and the
+     * seeders keep to their own. So every removal that passes through is a
+     * decision worth remembering and every grant is one worth forgetting:
+     * «انسحب البذرة، اتبع تنظيمي اليدوي».
+     */
+    public function __construct(private readonly ChildOptionWithdrawals $withdrawals = new ChildOptionWithdrawals) {}
 
     /** Option ids this child carries under this root: shared rows plus its own. */
     public function idsFor(int $childId, int $rootId): Collection
@@ -129,6 +138,11 @@ class CategoryChildOptionScope
             $added += DB::table('category_child_option')->insertOrIgnore($chunk);
         }
 
+        // Ticking an option back on overrules whatever earlier removal took it
+        // away, so the withdrawal must go — otherwise the next seeder run finds
+        // a stale «do not grant this» and strips what he just asked for.
+        $this->withdrawals->clear($childId, $rootId, $ids);
+
         return $added;
     }
 
@@ -159,6 +173,9 @@ class CategoryChildOptionScope
                 ->whereIn('option_id', $ids)
                 ->delete();
 
+            // No root in hand means the removal was meant for all of them.
+            $this->withdrawals->record($childId, self::ALL_ROOTS, $ids);
+
             return ['removed' => $removed, 'split' => 0];
         }
 
@@ -178,6 +195,8 @@ class CategoryChildOptionScope
         if ($optionIds->isEmpty()) {
             return 0;
         }
+
+        $this->withdrawals->record($childId, $rootId, $optionIds);
 
         return DB::table('category_child_option')
             ->where('child_id', $childId)
@@ -222,6 +241,10 @@ class CategoryChildOptionScope
             ->whereIn('option_id', $optionIds)
             ->delete();
 
+        // Only THIS root said no. The others were just handed the option
+        // explicitly, so the withdrawal is theirs to escape too.
+        $this->withdrawals->record($childId, $rootId, $optionIds);
+
         return $optionIds->count();
     }
 
@@ -229,7 +252,19 @@ class CategoryChildOptionScope
     private function replaceWholeChild(int $childId, Collection $wanted): array
     {
         return DB::transaction(function () use ($childId, $wanted) {
+            // What is about to be deleted and is NOT coming back is a removal,
+            // and has to be read before the delete. Everything in `$wanted`
+            // survives and its withdrawals are cleared by the grant below.
+            $dropped = DB::table('category_child_option')
+                ->where('child_id', $childId)
+                ->pluck('option_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->diff($wanted);
+
             $removed = DB::table('category_child_option')->where('child_id', $childId)->delete();
+
+            $this->withdrawals->record($childId, self::ALL_ROOTS, $dropped);
 
             $added = $this->grantFor($childId, self::ALL_ROOTS, $wanted, $wanted);
 

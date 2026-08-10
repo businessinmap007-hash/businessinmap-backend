@@ -161,6 +161,39 @@ class GroceryAisleSplitTest extends TestCase
         );
     }
 
+    /**
+     * «المني والهايبر بقالة مش مطاعم» — owner, 2026-08-10.
+     *
+     * The three general markets are one trade at three sizes and they had
+     * stopped agreeing: he took «ساندوتشات» and the two drink bands off «سوبر
+     * ماركت» by hand and the other two kept them, so the platform held two
+     * answers to whether a grocer runs a deli counter.
+     *
+     * They are not silent on drinks — «عصائر» and «مشروبات» are still theirs as
+     * AISLES. What went is the claim to serve a cup, which is the same
+     * distinction «بن» and «عصائر» were ruled on.
+     */
+    public function test_the_three_markets_agree_that_a_grocer_is_not_a_kitchen(): void
+    {
+        foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $name) {
+            $childId = $this->childId($name);
+
+            $bands = DB::table('category_child_option as cco')
+                ->join('options as o', 'o.id', '=', 'cco.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('cco.child_id', $childId)->where('g.name_ar', 'بنود المنيو')
+                ->distinct()->pluck('o.name_ar')->all();
+
+            $this->assertSame([], $bands, "«{$name}» is still offered a kitchen heading");
+
+            $this->assertContains(
+                'أقسام المشروبات',
+                $this->groupsOffered($name),
+                "«{$name}» lost drinks altogether instead of moving them to the aisle"
+            );
+        }
+    }
+
     /** …and a general market still sees all five, because it really does stock them. */
     public function test_a_supermarket_still_sees_every_counter(): void
     {

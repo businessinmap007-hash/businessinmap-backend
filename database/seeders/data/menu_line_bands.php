@@ -204,8 +204,21 @@ return [
             'فحم', 'منظفات', 'عناية شخصية', 'منتجات أطفال',
             'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
+        /*
+        | «المني والهايبر بقالة مش مطاعم» — owner, 2026-08-10.
+        |
+        | The three general markets are one trade at three sizes and they had
+        | stopped agreeing: he took «ساندوتشات» and the two drink bands off
+        | «سوبر ماركت» by hand and the other two kept them, so the platform held
+        | two answers to whether a grocer runs a deli counter. All three say the
+        | same thing now.
+        |
+        | They do not go silent on drinks — «عصائر» and «مشروبات» are still
+        | theirs as AISLES, three lines down. What goes is the claim to serve a
+        | cup, which is the same distinction «بن» and «عصائر» were ruled on:
+        | a shop stocks, a kitchen prepares.
+        */
         'مني ماركت' => [
-            'ساندوتشات', 'مشروبات ساخنة', 'مشروبات باردة',
             'فحم', 'خضار وفاكهة', 'مواد غذائية', 'سلطة فواكة',
             'آيس كريم', 'عصائر', 'ألبان وبيض', 'فطائر',
             'فسيخ', 'رنجة', 'بهارات', 'أجبان',
@@ -214,8 +227,8 @@ return [
             'حلويات وشوكولاتة', 'مشروبات', 'منظفات', 'عناية شخصية',
             'منتجات أطفال', 'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
+        // Same ruling, same trade. See «مني ماركت» above.
         'هايبر ماركت' => [
-            'ساندوتشات', 'مشروبات ساخنة', 'مشروبات باردة',
             'فحم', 'خضار وفاكهة', 'مواد غذائية', 'سلطة فواكة',
             'آيس كريم', 'عصائر', 'ألبان وبيض', 'فطائر',
             'فسيخ', 'رنجة', 'بهارات', 'أجبان',

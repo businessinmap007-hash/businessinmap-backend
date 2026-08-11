@@ -265,6 +265,44 @@ return [
             'property_listing' => 'menu_properties',
         ],
 
+        /*
+         * The listing children, stated outright — because an explicit
+         * assignment «wins outright and is not merged with anything», which is
+         * the only thing that keeps the default below off them.
+         *
+         * It had not been kept off them. Fifteen configs carried «منيو» beside
+         * their real kind: a furniture factory (35 businesses), a car showroom
+         * (9), an estate agent (16) could each publish a food menu. The default
+         * put it there before ListingServiceLinkSeeder ever ran, and that
+         * seeder MERGES by design, so it added «موبليات» beside the food rather
+         * than instead of it.
+         *
+         * «مالك عقار» is the proof: the one listing child with no prior menu
+         * config, so there was nothing to merge with, and it came out holding
+         * «عقارات» alone — the shape all ten should have had.
+         *
+         * This is the same trap the booking block above documents («a clinic
+         * given كشف and متابعة would keep a bare حجز موعد beside them»). The
+         * menu block never got the same answer.
+         */
+        'children' => [
+            517 => ['menu_properties'],  // مكتب عقاري
+            518 => ['menu_properties'],  // مطور عقاري
+            522 => ['menu_properties'],  // مالك عقار
+            238 => ['menu_properties'],  // تسويق عقاري
+            53 => ['menu_vehicles'],     // سيارات
+            188 => ['menu_vehicles'],    // معرض سيارات
+            189 => ['menu_vehicles'],    // معرض موتوسيكلات
+            116 => ['menu_furniture'],   // آثاث
+            115 => ['menu_furniture'],   // مفروشات
+            57 => ['menu_furniture'],    // نجف و تحف
+        ],
+
+        /*
+         * «منيو» is what a child gets when nothing said otherwise. It is the
+         * absence of an answer, not an answer — see the children block above
+         * for what that cost.
+         */
         'default' => 'menu_food',
     ],
 ];

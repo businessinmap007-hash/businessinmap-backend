@@ -146,9 +146,30 @@ class ListingServiceLinkSeeder extends Seeder
     }
 
     /**
+     * The kind the menu collapse hands a child when nothing told it better.
+     *
+     * @see \Database\Seeders\data\service_kinds
+     */
+    private function defaultKind(): string
+    {
+        return (string) ((require database_path('seeders/data/service_kinds.php'))['menu']['default'] ?? 'menu_food');
+    }
+
+    /**
      * Merge, never replace: a child may already carry menu settings this map
      * knows nothing about, and overwriting them is how a service config gets
      * quietly emptied.
+     *
+     * With one exception, and it is the bug this method used to carry. The
+     * collapse's DEFAULT kind is not a setting — it is the record that nobody
+     * knew what the child lists. Merging it forward beside a real listing kind
+     * left a furniture factory, a car showroom and an estate agent each able to
+     * publish a food menu: fifteen configs, «منيو» sitting next to «موبليات».
+     * This map IS the knowledge the default stood in for, so it withdraws it.
+     *
+     * Only the default goes. Any other kind a child holds is somebody's actual
+     * decision and is preserved, which is what the rest of this docblock is
+     * about.
      */
     private function writeConfig(int $rootId, int $childId, int $serviceId, string $typeKey, int $branchId): int
     {
@@ -160,7 +181,12 @@ class ListingServiceLinkSeeder extends Seeder
 
         $stored = $row ? (json_decode($row->config ?: '{}', true) ?: []) : [];
 
-        $allowed = collect($stored['allowed_item_types'] ?? [])->push($typeKey)->unique()->values()->all();
+        $allowed = collect($stored['allowed_item_types'] ?? [])
+            ->reject(fn ($k) => $k === $this->defaultKind())
+            ->push($typeKey)
+            ->unique()
+            ->values()
+            ->all();
         $groups = collect($stored['item_groups'] ?? [])->push($branchId)->unique()->values()->all();
 
         $config = json_encode(

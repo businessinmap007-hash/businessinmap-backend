@@ -58,6 +58,31 @@ class DeliveryChildBranchesSeeder extends Seeder
         return null;
     }
 
+    /**
+     * Last say on the type list, for a service whose branches no longer hold
+     * the types this map was written against. Identity by default.
+     *
+     * @param  array<int,string>  $branchKeys  what the data file named
+     * @param  array<int,string>  $typeKeys    what those branches carry today
+     * @return array<int,string>
+     */
+    protected function translateTypes(array $branchKeys, array $typeKeys): array
+    {
+        return $typeKeys;
+    }
+
+    /**
+     * The same last say, for the branch ids. Identity by default.
+     *
+     * @param  array<int,string>  $branchKeys
+     * @param  array<int,int>  $groupIds
+     * @return array<int,int>
+     */
+    protected function translateGroups(array $branchKeys, array $groupIds): array
+    {
+        return $groupIds;
+    }
+
     public function run(): void
     {
         $service = PlatformService::where('key', $this->serviceKey())->first();
@@ -125,6 +150,9 @@ class DeliveryChildBranchesSeeder extends Seeder
                 if (empty($groupIds)) {
                     continue;
                 }
+
+                $typeKeys = $this->translateTypes($branchKeys, $typeKeys);
+                $groupIds = $this->translateGroups($branchKeys, $groupIds);
 
                 // A branch is a shelf, not a shop. Where a trade declares which
                 // part of the shelf is its own, intersect — but never down to

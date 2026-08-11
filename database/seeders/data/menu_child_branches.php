@@ -21,7 +21,14 @@ return [
     // ── المحلات أو أونلاين ──
     'shops-online' => [
         'أسماك' => ['fresh_market'],
-        'بن' => ['beverages_drinks', 'grocery_pantry'],
+        // «بن يبيع حبوب فقط» (2026-08-10). The ruling was carried through to
+        // the option bands — بن lost its four menu bands and kept «أقسام
+        // البقالة الجافة» — but not to here, and this file is the other half:
+        // beverages_drinks maps to «منيو» in the kinds collapse, so the shop
+        // kept a drinks menu it had just been told it does not have. A ruling
+        // applied on one axis and not the other is a ruling the next seed
+        // undoes.
+        'بن' => ['grocery_pantry'],
         'حلويات' => ['bakery_sweets'],
         'خضروات' => ['fresh_market'],
         'دواجن' => ['fresh_market'],

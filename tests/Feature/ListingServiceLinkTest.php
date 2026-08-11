@@ -131,6 +131,111 @@ class ListingServiceLinkTest extends TestCase
         }
     }
 
+    /**
+     * …nor is it offered «منيو».
+     *
+     * The test above compares the three listing kinds against each other, and
+     * menu_food is not one of them, so it walked straight through: fifteen
+     * configs carried «منيو» beside their real kind, and a furniture factory
+     * (35 businesses), a car showroom (9) and an estate agent (16) could each
+     * publish a food menu.
+     *
+     * Two things put it there and neither was wrong on its own. The kinds
+     * collapse falls back to menu_food when nothing tells it better, and it was
+     * never told about these ten children. Then this seeder MERGES by design —
+     * rightly, since a child may hold settings the map knows nothing about — so
+     * it added the real kind BESIDE the food rather than instead of it.
+     *
+     * «مالك عقار» is the proof of both: the one listing child with no prior
+     * menu config, nothing to merge with, and it came out clean.
+     */
+    public function test_a_listing_child_is_not_offered_the_food_menu(): void
+    {
+        $map = require database_path('seeders/data/listing_service_children.php');
+        $default = (require database_path('seeders/data/service_kinds.php'))['menu']['default'];
+
+        foreach ($map['types'] as $spec) {
+            foreach ($spec['children'] as $childId) {
+                $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+                $this->assertNotContains(
+                    $default,
+                    $this->allowed((int) $childId),
+                    "«{$name}» lists furniture, cars or property — it must not also publish a food menu"
+                );
+            }
+        }
+    }
+
+    /**
+     * The other half, from the food side: «منيو» belongs to the trades that
+     * cook. Anyone else holding it is the default speaking, not a decision.
+     */
+    public function test_the_food_menu_belongs_to_the_kitchens(): void
+    {
+        $default = (require database_path('seeders/data/service_kinds.php'))['menu']['default'];
+
+        $kitchens = [
+            'مطعم', 'مطعم وكافيه', 'كافيه', 'مجمع مطاعم', 'أكل بيتى', 'عربية قهوة ومأكولات',
+            // «المخابز والحلويات مطابخ» and «عصائر مطبخ» — the owner's rulings
+            // of 2026-08-10. «بن» was ruled the opposite («يبيع حبوب فقط») and
+            // is deliberately absent: it held menu_food until 2026-08-11
+            // because menu_child_branches.php still called it a drinks seller.
+            'مخابز', 'حلويات', 'عصائر',
+        ];
+
+        $holders = DB::table('category_service_configs as c')
+            ->join('category_children_master as m', 'm.id', '=', 'c.child_id')
+            ->where('c.platform_service_id', $this->menuServiceId())
+            ->where('c.is_active', 1)
+            ->get(['m.name_ar', 'c.config'])
+            ->filter(fn ($r) => in_array($default, json_decode((string) $r->config, true)['allowed_item_types'] ?? [], true))
+            ->pluck('name_ar')
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->assertSame([], array_values(array_diff($holders, $kitchens)),
+            'these do not cook and hold «منيو»: ' . implode('، ', array_diff($holders, $kitchens)));
+    }
+
+    /**
+     * The collapse retired every food branch's item types onto the five kinds,
+     * which left fresh_market, bakery_sweets and supermarket carrying nothing.
+     * Run on its own, MenuChildBranchesSeeder therefore wrote an EMPTY type
+     * list onto all 19 menu children — and empty reads as EVERY kind, not none.
+     * A full seed hid it: the collapse runs six lines later and re-derives the
+     * kind from the branch.
+     */
+    public function test_the_menu_branch_seeder_does_not_blank_a_child(): void
+    {
+        $before = $this->menuTypeCounts();
+
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\MenuChildBranchesSeeder)->run();
+
+            foreach ($this->menuTypeCounts() as $id => $after) {
+                $this->assertGreaterThan(0, $after, "menu config #{$id} came out empty, which means EVERY kind");
+                $this->assertSame($before[$id] ?? $after, $after, "menu config #{$id} changed on a re-run");
+            }
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    /** @return array<int,int> config id => how many kinds it allows */
+    private function menuTypeCounts(): array
+    {
+        return DB::table('category_service_configs')
+            ->where('platform_service_id', $this->menuServiceId())
+            ->where('is_active', 1)
+            ->get(['id', 'config'])
+            ->mapWithKeys(fn ($r) => [(int) $r->id => count(json_decode((string) $r->config, true)['allowed_item_types'] ?? [])])
+            ->all();
+    }
+
     /** These are not food and must not sit among it. */
     public function test_the_new_types_sit_in_their_own_branch(): void
     {

@@ -382,4 +382,52 @@ class ServiceKindsPruneTest extends TestCase
 
         $this->assertSame(0, $orphans, 'the pivot outlived its item type');
     }
+
+    /**
+     * The collapse is in DatabaseSeeder, so anything it would change on a
+     * re-run is a change a full seed makes without anyone asking for it.
+     *
+     * It had two, both of the same shape — a weak source overwriting a real
+     * answer:
+     *
+     *  - «حلويات» × شركات, «منيو» for «ماركت». kindsFromDataFile() read a
+     *    per-ROOT file and returned a per-CHILD array, so the sweets shop's
+     *    answer under المحلات was applied to the sweets wholesaler under شركات,
+     *    which the file never names. Its own docblock promised the opposite.
+     *  - «طباعة» × شركات, losing استشارة and استشارة أونلاين. The root fallback
+     *    — «every child nobody named answers حجز موعد» — is a guess, and it was
+     *    overwriting kinds already stored.
+     *
+     * A no-op is the whole assertion. If this ever fails, read the diff before
+     * changing the expectation: it is telling you a full seed would rewrite
+     * somebody's live configuration.
+     */
+    public function test_the_collapse_changes_nothing_on_a_re_run(): void
+    {
+        $snapshot = fn () => DB::table('category_service_configs')
+            ->where('is_active', 1)
+            ->get(['id', 'config'])
+            ->mapWithKeys(fn ($r) => [(int) $r->id => implode(',', json_decode((string) $r->config, true)['allowed_item_types'] ?? [])])
+            ->all();
+
+        $before = $snapshot();
+
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\ServiceKindsCollapseSeeder)->run();
+
+            $changed = [];
+
+            foreach ($snapshot() as $id => $after) {
+                if (($before[$id] ?? null) !== $after) {
+                    $changed[] = "#{$id}: «" . ($before[$id] ?? '?') . "» → «{$after}»";
+                }
+            }
+
+            $this->assertSame([], $changed, "a full seed would rewrite:\n  " . implode("\n  ", $changed));
+        } finally {
+            DB::rollBack();
+        }
+    }
 }

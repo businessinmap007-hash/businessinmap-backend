@@ -221,9 +221,16 @@ class ServiceKindsCollapseSeeder extends Seeder
         foreach (
             DB::table('category_service_configs')
                 ->where('platform_service_id', $serviceId)
-                ->get(['id', 'child_id', 'config']) as $row
+                ->get(['id', 'category_id', 'child_id', 'config']) as $row
         ) {
             $config = json_decode((string) $row->config, true) ?: [];
+
+            $scope = (int) $row->category_id . ':' . (int) $row->child_id;
+
+            $stored = collect($config['allowed_item_types'] ?? [])
+                ->filter(fn ($t) => isset($spec['kinds'][$t]))
+                ->unique()
+                ->values();
 
             /*
              * An explicit per-child assignment wins outright and is not merged
@@ -236,8 +243,21 @@ class ServiceKindsCollapseSeeder extends Seeder
 
             if ($explicit) {
                 $kinds = collect($explicit);
+            } elseif (isset($this->fromRootFallback[$scope]) && $stored->isNotEmpty()) {
+                /*
+                 * The root fallback is «every child of this root that nobody
+                 * named answers X» — a guess, and the weakest source here. It
+                 * must not overwrite an answer already on the config.
+                 *
+                 * «طباعة» under شركات is the case: the file never names it, so
+                 * the fallback said «حجز موعد» and a re-run would have taken
+                 * back the استشارة and الاستشارة أونلاين it holds. Same shape as
+                 * the menu default that put a food menu on a car showroom —
+                 * an absence of knowledge, applied as though it were knowledge.
+                 */
+                $kinds = $stored;
             } else {
-                $kinds = collect($approved[(int) $row->child_id] ?? [])
+                $kinds = collect($approved[$scope] ?? [])
                     ->merge(
                         collect($config['item_groups'] ?? [])
                             ->map(fn ($id) => $spec['map'][$branchKeyOf[$id] ?? ''] ?? null)
@@ -262,10 +282,7 @@ class ServiceKindsCollapseSeeder extends Seeder
                  *
                  * A kind already stored IS the answer; keep it.
                  */
-                $kinds = collect($config['allowed_item_types'] ?? [])
-                    ->filter(fn ($t) => isset($spec['kinds'][$t]))
-                    ->unique()
-                    ->values();
+                $kinds = $stored;
             }
 
             if ($kinds->isEmpty()) {
@@ -314,7 +331,14 @@ class ServiceKindsCollapseSeeder extends Seeder
      * keyed exactly as the branch seeders key it — root SLUG, then child
      * name_ar — so the same child name under two roots stays two answers.
      *
-     * @return array<int, list<string>>
+     * …which is what this returned until 2026-08-11: it read a per-root file
+     * and returned a per-CHILD array, so the two answers became one and the
+     * last root read won. «حلويات» is named under المحلات as bakery_sweets and
+     * not named under شركات at all, so a sweets trading company kept being
+     * handed «منيو» — the shops' answer, on the wholesaler's config. Keyed
+     * «rootId:childId» now, the way the docblock always said.
+     *
+     * @return array<string, list<string>> "rootId:childId" => kinds
      */
     private function kindsFromDataFile(array $spec): array
     {
@@ -352,7 +376,9 @@ class ServiceKindsCollapseSeeder extends Seeder
                     ->pluck('ch.id');
 
                 foreach ($childIds as $childId) {
-                    $kinds[(int) $childId] = collect($kinds[(int) $childId] ?? [])
+                    $key = $rootId . ':' . (int) $childId;
+
+                    $kinds[$key] = collect($kinds[$key] ?? [])
                         ->merge($mapped)->unique()->values()->all();
                 }
             }
@@ -370,7 +396,8 @@ class ServiceKindsCollapseSeeder extends Seeder
             foreach (
                 DB::table('category_parent_child')->where('parent_id', $rootId)->pluck('child_id') as $childId
             ) {
-                $kinds[(int) $childId] ??= [$kind];
+                $kinds[$rootId . ':' . (int) $childId] ??= [$kind];
+                $this->fromRootFallback[$rootId . ':' . (int) $childId] = true;
             }
         }
 
@@ -459,6 +486,15 @@ class ServiceKindsCollapseSeeder extends Seeder
 
     /** @var array<int,string> old keys left in place because the kind was taken */
     private array $stranded = [];
+
+    /**
+     * "rootId:childId" scopes whose kind came from the ROOT fallback rather
+     * than from the approved file — i.e. nobody named them, so the answer is a
+     * guess and must yield to whatever the config already holds.
+     *
+     * @var array<string,bool>
+     */
+    private array $fromRootFallback = [];
 
     private function branch(int $serviceId, array $spec): int
     {

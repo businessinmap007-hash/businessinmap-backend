@@ -202,6 +202,16 @@ return [
         ],
     ],
 
+    /*
+    | «اكسسوار» #8 carries «التسليم والاستلام» and «الاستبدال والإرجاع» under
+    | شركات، مصانع and ملابس — and nothing descriptive under THIS root, which
+    | is the one a customer browses. The same per-root omission the chandelier
+    | factory had, one root over.
+    */
+    'mirror_links' => [
+        8 => ['التسليم والاستلام', 'الاستبدال والإرجاع', 'الدفع والسداد'],
+    ],
+
     'links' => [
         // The wholesaler and the shop stock the same machines.
         37 => ['مستلزمات المقاهي' => 'all'],

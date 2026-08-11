@@ -181,6 +181,13 @@ return [
          * «سياحة» #279 under شركات. A Nile boat operator runs the same safari
          * and the same sea trip; only the vessel is his own vocabulary.
          */
+        /*
+         * «انترنت كافيه» #155 was missed by the eleven because it is filed
+         * beside them and was not in the owner's list. Same shape exactly: a
+         * floor of machines hired by the hour.
+         */
+        155 => ['ألعاب ومرافق الترفيه' => ['جهاز ألعاب', 'ألعاب أركيد', 'سيميولاتور سباقات', 'غرفة خاصة']],
+
         526 => [
             'خدمات السياحة والسفر' => ['رحلات داخلية', 'رحلات بحرية', 'رحلات سفاري وبرية', 'برامج سياحية'],
         ],

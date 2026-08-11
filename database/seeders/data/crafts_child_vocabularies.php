@@ -237,5 +237,22 @@ return [
 
         // «Awnings worker».
         26 => ['أنواع الأبواب والشبابيك' => ['سواتر ومظلات', 'شيش وحصيرة']],
+
+        /*
+         * ── two that had a vocabulary on the WRONG axis ──────────────────
+         *
+         * Both were served by the goods passes and both are booking-only
+         * crafts here, so what they hold is a `modifier` describing stock
+         * where the priced row is the JOB.
+         *
+         * «صيانة اجهزة منزلية» #22 carries «أنواع الأجهزة الكهربائية» — which
+         * appliance — and needed the workshop's list of what is DONE to it.
+         * «رخام وجرانيت» #174 carries «أنواع الرخام والجرانيت», the stone,
+         * and needed the fitting work. Both keep the modifier: which appliance
+         * and which stone still qualify the price.
+         */
+        22 => ['تخصصات ورش الأجهزة' => 'all'],
+
+        174 => ['أعمال الأرضيات' => ['رخام وجرانيت', 'وزر وحوائط', 'ترميم أرضيات']],
     ],
 ];

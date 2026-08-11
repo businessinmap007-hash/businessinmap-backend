@@ -38,9 +38,16 @@ class CoworkingWorkspaceTest extends TestCase
      * الأمن والسلامة») and «ألمونتال» #17 (the aluminium rows of «أنواع
      * الأبواب والشبابيك»). Each can now name what it holds.
      *
-     * **«قاعات تدريب» #282 is the one genuine gap**: it IS units — a training
-     * centre holds room A for you — and it has no word for a room. It is the
-     * same hole this test was written for, one child over.
+     * «قاعات تدريب» #282 WAS the one genuine gap — units, and no word for a
+     * room — and it closed on 2026-08-11 by borrowing the three room rows of
+     * «مساحات العمل». A course room is a course room whether it is rented by
+     * the hour from a coworking space or by the day from a training centre.
+     *
+     * «تبريد وتكييف» #240 closed the same day and the same way: it held the
+     * supplier's `modifier` where the workshop's JOB was the priced row, and
+     * borrowed the cooling rows of «تخصصات ورش الأجهزة».
+     *
+     * What is left is entirely the «شركات» suppliers: the flag, not the words.
      *
      * The list may only SHRINK. A new entry means a child was told to register
      * units it cannot name.
@@ -49,8 +56,8 @@ class CoworkingWorkspaceTest extends TestCase
      */
     private const NAMELESS_UNITS = [
         9, 21, 23, 24, 34, 44, 51, 52, 55, 66, 69, 73, 88, 110, 126, 138,
-        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 240, 247,
-        262, 263, 266, 270, 280, 282, 301, 303,
+        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 247,
+        262, 263, 266, 270, 280, 301, 303,
     ];
 
     private function childId(string $name): int

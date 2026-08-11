@@ -34,6 +34,37 @@ return [
 
     'name_en_suffix' => 'Stray',
 
+    /*
+    | ── and the axis «الرياضة» was missing ────────────────────────────────
+    |
+    | «جيم» #130 carried «الأنشطة الرياضية» and NOTHING else — not one word
+    | about the place itself. A member choosing between two gyms could compare
+    | «كارديو» against «كارديو» and learn nothing: not whether either has a
+    | pool, a women's section, or a locker.
+    |
+    | Descriptive, because none of it is priced on its own — the same shape as
+    | «تسهيلات ومرافق طبية» under «الصحة» and «نوع العملاء» under «مكاتب».
+    */
+    'groups' => [
+        'مرافق النادي الرياضي' => [
+            'name_en' => 'Club Facilities',
+            'price_role' => 'descriptive',
+            'children' => [130, 519, 521, 516, 520],
+            'options' => [
+                'حمام سباحة' => 'Swimming Pool',
+                'ساونا' => 'Sauna',
+                'جاكوزي' => 'Jacuzzi',
+                'حمام مغربي' => 'Moroccan Bath',
+                'قسم سيدات' => 'Ladies Section',
+                'مدرب شخصي' => 'Personal Trainer',
+                'استشارة تغذية' => 'Nutrition Advice',
+                'خزائن ودش' => 'Lockers & Showers',
+                'انتظار سيارات' => 'Parking',
+                'حضانة أطفال' => 'Creche',
+            ],
+        ],
+    ],
+
     'links' => [
 
         /*

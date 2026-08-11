@@ -266,6 +266,19 @@ return [
         // #174 «رخام وجرانيت» keeps its own child row; only the words are shared.
         173 => ['أنواع الرخام والجرانيت' => 'all'],
 
+        /*
+         * «استيراد وتصدير» #150 is booking-only — a service company — and
+         * carried only «أصناف المنتجات الغذائية», which says what it TRADES
+         * IN and never what it does. The customs broker's list is the work.
+         */
+        150 => [
+            'خدمات التخليص الجمركي' => [
+                'تخليص وارد', 'تخليص صادر', 'شهادات منشأ ومطابقة',
+                'بطاقة استيرادية وتسجيل', 'تخزين وأرضيات', 'نقل من الميناء',
+                'تأمين على البضائع', 'استشارات جمركية',
+            ],
+        ],
+
         // The aluminium rows only. It fits no wooden door and no manual shutter.
         17 => [
             'أنواع الأبواب والشبابيك' => [

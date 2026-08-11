@@ -36,6 +36,9 @@ class ChildTradeVocabulariesTest extends TestCase
         'shop_child_vocabularies.php',
         'entertainment_child_vocabularies.php',
         'stray_child_vocabularies.php',
+        'health_child_vocabularies.php',
+        'hall_child_vocabularies.php',
+        'workshop_child_vocabularies.php',
     ];
 
     /**
@@ -457,6 +460,71 @@ class ChildTradeVocabulariesTest extends TestCase
         }
 
         return $mute;
+    }
+
+    /**
+     * Every child must be describable, everywhere.
+     *
+     * The trade axis says what a business SELLS; this one says what it is
+     * LIKE, and it is what a searcher narrows on. Six of «الصحة»'s seven had
+     * none — a patient could compare specialty against specialty and learn
+     * nothing about insurance, access or opening hours — and «جيم» had none
+     * either. The platform's shared descriptives are all goods-shaped, so
+     * neither root had anything to inherit.
+     *
+     * Unlike the two axes above this needs no debt list: it is at zero.
+     */
+    public function test_every_child_can_be_described(): void
+    {
+        $bare = [];
+
+        foreach (
+            DB::table('categories as r')->join('category_parent_child as pc', 'pc.parent_id', '=', 'r.id')
+                ->distinct()->get(['r.id', 'r.slug']) as $root
+        ) {
+            foreach (
+                DB::table('category_parent_child')->where('parent_id', $root->id)
+                    ->pluck('child_id') as $childId
+            ) {
+                $has = DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('co.child_id', (int) $childId)
+                    ->whereIn('co.category_id', [0, $root->id])
+                    ->where('g.price_role', 'descriptive')->exists();
+
+                if (! $has) {
+                    $bare[] = "{$root->slug}:{$childId}";
+                }
+            }
+        }
+
+        $this->assertSame([], $bare, 'these cannot be described at all: ' . implode('، ', $bare));
+    }
+
+    /**
+     * A missing MODIFIER is not a gap, and this records why.
+     *
+     * A modifier exists where the same line prices two ways. Six roots report
+     * children without one and every case is correct: a restaurant's price
+     * varies by menu item, which is the line; a clinic's by specialty, which is
+     * the line; a fertiliser wholesaler's by product, which is the catalog.
+     * Inventing an axis for them would be the noise this sweep removed.
+     *
+     * What is asserted is the RULE — that no group with fewer than two options
+     * is carried as a modifier, since one possible answer is not a question.
+     */
+    public function test_no_modifier_asks_a_question_with_one_answer(): void
+    {
+        $thin = DB::table('option_groups as g')
+            ->where('g.price_role', 'modifier')
+            ->whereRaw('(select count(*) from options o where o.group_id = g.id) = 1')
+            ->whereExists(fn ($q) => $q->from('category_child_option as co')
+                ->join('options as o2', 'o2.id', '=', 'co.option_id')
+                ->whereColumn('o2.group_id', 'g.id'))
+            ->pluck('g.name_ar')->all();
+
+        $this->assertSame([], $thin, 'these modifiers offer one answer: ' . implode('، ', $thin));
     }
 
     /** Nothing new may go mute, anywhere on the platform. */

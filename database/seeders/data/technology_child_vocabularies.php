@@ -99,6 +99,11 @@ return [
                 'تكامل وربط الأنظمة' => 'Systems Integration',
                 'أمن معلومات وحماية سيبرانية' => 'Cyber Security',
                 'صيانة وتطوير أنظمة قائمة' => 'Maintenance & Enhancement',
+                // Owner, 2026-08-12. NOT «استضافة ودومينات» above: that is
+                // reselling someone else's box by the year, this is setting one
+                // up, hardening it and running it — a priced job with a scope,
+                // and the one every other row on this list eventually needs.
+                'برمجة سيرفرات وإدارتها' => 'Server Setup & Administration',
             ],
         ],
     ],

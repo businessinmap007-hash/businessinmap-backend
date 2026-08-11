@@ -66,6 +66,59 @@ class BookingWithoutDeliveryTest extends TestCase
     }
 
     /**
+     * Delivery with nothing to deliver is a carrier or a named exception.
+     *
+     * The mirror of the rule above. That one asks «this books time, why does it
+     * deliver?»; this asks «this delivers, what exactly?» — a child with
+     * `delivery` active and neither `menu` nor `retail` has a lorry and no
+     * cargo, which is either its whole trade or a mistake.
+     *
+     * Every case on the platform today is the former, and each has a record:
+     * the three children of «شحن وتوصيل», for whom delivery IS the product,
+     * and the seven in `keep_delivery` — the owner's three carpenters
+     * («واستثنِ الثلاثة النجارين»), «طباعة», and the three freight carriers.
+     * Nothing else may join them silently.
+     */
+    public function test_delivery_without_goods_is_a_carrier_or_a_named_exception(): void
+    {
+        $s = $this->services();
+
+        $allowed = collect((require database_path('seeders/data/booking_without_delivery.php'))['keep_delivery'])
+            ->merge(
+                DB::table('category_parent_child as pc')
+                    ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
+                    ->join('categories as r', 'r.id', '=', 'pc.parent_id')
+                    ->where('r.slug', 'shipping-delivery')->pluck('c.name_ar')
+            )
+            ->all();
+
+        $orphans = [];
+
+        foreach (
+            DB::table('category_platform_services as b')
+                ->join('category_children_master as c', 'c.id', '=', 'b.child_id')
+                ->join('categories as r', 'r.id', '=', 'b.category_id')
+                ->where('b.platform_service_id', $s['delivery'])->where('b.is_active', 1)
+                ->get(['b.category_id', 'b.child_id', 'c.name_ar', 'r.slug']) as $row
+        ) {
+            if (in_array($row->name_ar, $allowed, true)) {
+                continue;
+            }
+
+            $sellsGoods = DB::table('category_platform_services')
+                ->where('category_id', $row->category_id)->where('child_id', $row->child_id)
+                ->whereIn('platform_service_id', [$s['menu'], $s['retail']])
+                ->where('is_active', 1)->exists();
+
+            if (! $sellsGoods) {
+                $orphans[] = "{$row->name_ar}@{$row->slug}";
+            }
+        }
+
+        $this->assertSame([], $orphans, 'a lorry and no cargo: ' . implode('، ', $orphans));
+    }
+
+    /**
      * The owner's exception. A commissioned wardrobe still leaves the workshop
      * on a lorry, and the service wiring cannot see that.
      *

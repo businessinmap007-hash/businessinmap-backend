@@ -672,6 +672,52 @@ class ServiceKindsPruneTest extends TestCase
      *
      * @see \Database\Seeders\ChildServiceScopeSeeder
      */
+    /**
+     * Every child must have a surface it can put a price on.
+     *
+     * The wiring guards below prove a service is wired consistently; this one
+     * proves there IS one. A child with links but none of these is reachable,
+     * describable, and unable to take a single pound.
+     *
+     * `delivery` and `schedules` count, and that is the point of listing them:
+     * the three children of «شحن وتوصيل» — 193 merchants between them, the
+     * largest being «مندوب» with 159 — carry no menu, no retail and no booking,
+     * and they are not broken. **For a carrier the delivery IS the product**,
+     * priced by its item types (ربع نقل، شحن جوي), and a trip is priced on
+     * `schedules`. A check that forgot them would report the busiest root on
+     * the platform as selling nothing.
+     */
+    public function test_every_child_has_a_surface_it_can_price_on(): void
+    {
+        $sellable = DB::table('platform_services')
+            ->whereIn('key', ['menu', 'retail', 'booking', 'delivery', 'schedules'])
+            ->pluck('id')->all();
+
+        $mute = [];
+
+        foreach (
+            DB::table('categories as r')->join('category_parent_child as pc', 'pc.parent_id', '=', 'r.id')
+                ->distinct()->get(['r.id', 'r.slug']) as $root
+        ) {
+            foreach (
+                DB::table('category_parent_child')->where('parent_id', $root->id)
+                    ->pluck('child_id') as $childId
+            ) {
+                $has = DB::table('category_platform_services')
+                    ->where('category_id', $root->id)->where('child_id', (int) $childId)
+                    ->whereIn('platform_service_id', $sellable)
+                    ->where('is_active', 1)->exists();
+
+                if (! $has) {
+                    $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+                    $mute[] = "{$name}#{$childId}@{$root->slug}";
+                }
+            }
+        }
+
+        $this->assertSame([], $mute, 'these can take no money at all: ' . implode('، ', $mute));
+    }
+
     public function test_a_service_is_never_wired_by_one_half(): void
     {
         $rows = DB::table('category_platform_services as l')

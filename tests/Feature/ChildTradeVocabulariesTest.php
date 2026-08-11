@@ -592,6 +592,70 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame([], $thin, 'these modifiers offer one answer: ' . implode('، ', $thin));
     }
 
+    /**
+     * A per-root narrowing is possible, and the owner's hand outranks it.
+     *
+     * «اكسسوار» #8 held the whole twelve-row clothing line under مصانع, so a
+     * maker of phone cases was asked whether it makes wedding dresses. It was
+     * narrowed to three rows with `prune_links` — which neither
+     * `child_option_scopes.php` nor the withdrawal record can express, since
+     * both narrow a child under EVERY root at once.
+     *
+     * **Then the owner withdrew all seventeen options by hand at 20:17**, the
+     * three kept rows included. So this no longer asserts what #8 carries —
+     * that is his answer, and it changed twice in an hour. What it asserts is
+     * that the MECHANISM still works and that a withdrawal is honoured, which
+     * is what a test can own.
+     */
+    public function test_a_root_scoped_narrowing_is_possible_and_a_withdrawal_wins(): void
+    {
+        $childId = $this->childId('اكسسوار');
+
+        $withdrawn = DB::table(ChildOptionDecisions::TABLE)
+            ->where('child_id', $childId)
+            ->where('kind', ChildOptionDecisions::WITHDRAWN)
+            ->pluck('option_id');
+
+        $this->assertNotEmpty($withdrawn, 'the owner curation of #8 on 2026-08-11 is gone from the record');
+
+        /*
+         * ⚠ Checked UNDER THE ROOT HE EDITED, and that asymmetry is the finding.
+         *
+         * He removed these from «اكسسوار» on the مصانع screen, and the
+         * withdrawal record is keyed by CHILD — so it now says «withdrawn» for
+         * options the SHOP still carries under ملابس، المحلات and شركات. The
+         * rows and the record disagree by design, and a test that asserted
+         * «withdrawn implies gone everywhere» would be asserting a bug into
+         * existence.
+         */
+        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+
+        $this->assertSame(
+            0,
+            DB::table('category_child_option')
+                ->where('child_id', $childId)->where('category_id', $factories)
+                ->whereIn('option_id', $withdrawn)->count(),
+            'an option the owner withdrew is being offered again under the root he removed it from'
+        );
+
+        // And the seeder does not hand them back on its next run.
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\ChildTradeVocabulariesSeeder)->run();
+
+            $this->assertSame(
+                0,
+                DB::table('category_child_option')
+                    ->where('child_id', $childId)->where('category_id', $factories)
+                    ->whereIn('option_id', $withdrawn)->count(),
+                'the seeder re-granted what the owner took off'
+            );
+        } finally {
+            DB::rollBack();
+        }
+    }
+
     /** Nothing new may go mute, anywhere on the platform. */
     public function test_no_new_trade_goes_mute(): void
     {

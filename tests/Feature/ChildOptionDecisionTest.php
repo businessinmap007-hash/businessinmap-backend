@@ -289,13 +289,22 @@ class ChildOptionDecisionTest extends TestCase
         $this->decisions->pin($childId, $rootId, [$optionId]);
         $this->decisions->record($childId, $rootId, [$optionId]);
 
-        $this->assertSame([], $this->decisions->idsFor($childId, $rootId, ChildOptionDecisions::PINNED)->all());
+        /*
+         * Asserted about THIS option, not about the whole list.
+         *
+         * The fixture picks a real child, and a real child may already carry
+         * the owner's own decisions — «اكسسوار» collected seventeen withdrawals
+         * in one admin save on 2026-08-11 and turned this red. What the toggle
+         * promises is that ONE option is never both at once; it never promised
+         * the child had no other decisions.
+         */
+        $this->assertNotContains($optionId, $this->decisions->idsFor($childId, $rootId, ChildOptionDecisions::PINNED)->all());
         $this->assertContains($optionId, $this->decisions->idsFor($childId, $rootId)->all());
 
         // …and back the other way, because the last decision is the one he meant.
         $this->decisions->pin($childId, $rootId, [$optionId]);
 
-        $this->assertSame([], $this->decisions->idsFor($childId, $rootId)->all());
+        $this->assertNotContains($optionId, $this->decisions->idsFor($childId, $rootId)->all());
         $this->assertContains($optionId, $this->decisions->idsFor($childId, $rootId, ChildOptionDecisions::PINNED)->all());
     }
 

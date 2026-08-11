@@ -421,23 +421,33 @@ return [
     | to the SHOWROOM minutes earlier and a furniture factory part-exchanges
     | nothing.
     */
-    'mirror_links' => [
-        /*
-         * ── one child at a time, 2026-08-11 ──────────────────────────────
-         * Owner: «ناخد ابن فى كل مرة نضيف الخيارات واذا كان هناك خيارات فى اى
-         * مجموعة يمكن استخدامها».
-         *
-         * #8 «اكسسوار». It owns five axes under cloth-accessories, شركات and
-         * المحلات and carried none of them here — payment, returns, trade
-         * scope, condition, and WHO it dresses. Nothing new was written: an
-         * accessories factory answers the same five questions its own shop
-         * answers, and the mirror keeps whatever narrowing each already has.
-         */
-        8 => [
-            'الدفع والسداد', 'الاستبدال والإرجاع', 'نطاق التعامل',
-            'حالة المنتج', 'الجمهور المستهدف',
-        ],
+    /*
+    | ── «اكسسوار» #8: WITHDRAWN BY THE OWNER, and the record stands ────────
+    |
+    | On 2026-08-11 he asked for this child («ناخد ابن فى كل مرة»), then for it
+    | to be narrowed («ضيقها له»). Both were done: five axes mirrored from the
+    | roots it already answered them under, and the twelve-row clothing line cut
+    | to three.
+    |
+    | At 20:17 he withdrew **all seventeen** by hand — the mirrored payment,
+    | returns, scope, condition and audience rows, AND the three fashion rows
+    | the narrowing had kept, «اكسسوارات» included
+    | (`category_child_option_decisions`, source `admin`).
+    |
+    | That is a complete answer, not a partial one: the accessories factory
+    | answers «أنواع الإكسسوارات» and the universal axes it already had, and
+    | nothing else. The entries are removed rather than left here, because the
+    | seeder consults the withdrawal record and would refuse them every run —
+    | a file that keeps proposing what the owner has refused is a file that
+    | reports a lie once a run.
+    |
+    | ⚠ Note for the next pass: the withdrawal record is keyed by CHILD, not by
+    | root. Withdrawing «شنط وحقائب» from #8 takes it off the clothing shop as
+    | well as the factory. `prune_links` in the seeder is what expresses a
+    | per-ROOT narrowing, and it is still there for whoever needs it next.
+    */
 
+    'mirror_links' => [
         56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // نجف
         83 => ['أقسام المنزل والعناية'],                    // منظفات
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة

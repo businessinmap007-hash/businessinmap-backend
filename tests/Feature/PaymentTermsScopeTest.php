@@ -34,6 +34,13 @@ class PaymentTermsScopeTest extends TestCase
      * root-scoped one for the same option, so counting rows made كاش and تقسيط
      * look unequal (229 vs 231) while every child carried both.
      */
+    /** @return array<int,int> */
+    private function childrenWith(string $nameAr): array
+    {
+        return DB::table('category_child_option')->where('option_id', $this->optionId($nameAr))
+            ->distinct()->pluck('child_id')->map(fn ($id) => (int) $id)->all();
+    }
+
     private function childCount(string $nameAr): int
     {
         return DB::table('category_child_option')->where('option_id', $this->optionId($nameAr))
@@ -45,10 +52,40 @@ class PaymentTermsScopeTest extends TestCase
     {
         $this->assertGreaterThan(100, $this->childCount('كاش'));
 
+        /*
+         * Granted TOGETHER, and taken off one at a time.
+         *
+         * The map hands both or neither, and this used to assert equal counts.
+         * The owner then unticked «كاش» from «تحويل أموال» by hand on
+         * 2026-08-11 20:06 — a money-transfer office quoting a cash price for
+         * moving cash is a fair thing to remove — and equality is his answer to
+         * overrule, not the map's promise.
+         *
+         * What the map promises is that no child is offered one without the
+         * other UNLESS the difference is written in the withdrawal record.
+         */
+        $cash = $this->childrenWith('كاش');
+        $instalment = $this->childrenWith('تقسيط');
+
+        $lopsided = array_merge(
+            array_diff($cash, $instalment),
+            array_diff($instalment, $cash)
+        );
+
+        $unaccounted = array_values(array_filter(
+            $lopsided,
+            fn ($childId) => ! DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE)
+                ->where('child_id', $childId)
+                ->whereIn('option_id', [$this->optionId('كاش'), $this->optionId('تقسيط')])
+                ->where('kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+                ->exists()
+        ));
+
         $this->assertSame(
-            $this->childCount('كاش'),
-            $this->childCount('تقسيط'),
-            'the two universal payment answers are not offered together'
+            [],
+            $unaccounted,
+            'these carry one payment term without the other and nobody decided that: #'
+                . implode(', #', $unaccounted)
         );
     }
 

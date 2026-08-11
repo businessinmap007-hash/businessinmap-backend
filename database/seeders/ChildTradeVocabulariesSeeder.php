@@ -88,6 +88,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
             $created = 0;
             $linked = 0;
             $refused = 0;
+            $pruned = 0;
 
             foreach (($map['groups'] ?? []) as $nameAr => $spec) {
                 $groupId = $this->group($nameAr, $spec['name_en'], $spec['price_role']);
@@ -158,6 +159,41 @@ class ChildTradeVocabulariesSeeder extends Seeder
                 }
             }
 
+            /*
+             * A narrowing that applies UNDER THIS ROOT ONLY.
+             *
+             * `child_option_scopes.php` narrows a child everywhere at once and
+             * `category_child_option_decisions` withdraws everywhere at once,
+             * so neither can say «the FACTORY answers less than the SHOP».
+             * This can, because the link column already carries the root.
+             *
+             * Only rows written against this root are touched — a SHARED row
+             * (category_id = 0) is every root's and is never pruned from here.
+             */
+            foreach (($map['prune_links'] ?? []) as $childId => $groups) {
+                foreach ($groups as $groupName => $keep) {
+                    $doomed = DB::table('category_child_option as co')
+                        ->join('options as o', 'o.id', '=', 'co.option_id')
+                        ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                        ->where('co.child_id', (int) $childId)
+                        ->where('co.category_id', $this->rootId((string) ($map['root'] ?? '')))
+                        ->where('g.name_ar', $groupName)
+                        ->whereNotIn('o.name_ar', $keep)
+                        ->pluck('co.id');
+
+                    // A merchant's own tick outranks the map, as everywhere else.
+                    $ticked = DB::table('option_user as ou')
+                        ->join('users as u', 'u.id', '=', 'ou.user_id')
+                        ->where('u.category_child_id', (int) $childId)
+                        ->pluck('ou.option_id');
+
+                    $doomed = DB::table('category_child_option')
+                        ->whereIn('id', $doomed)->whereNotIn('option_id', $ticked)->pluck('id');
+
+                    $pruned += DB::table('category_child_option')->whereIn('id', $doomed)->delete();
+                }
+            }
+
             // `links` are shared; `root_links` are written against this root
             // alone. A furniture showroom part-exchanges a sofa and the same
             // child under مصانع does not.
@@ -195,6 +231,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
             $this->command?->line("  - خيارات أُنشئت : {$created}");
             $this->command?->line("  - روابط أُضيفت : {$linked}");
             $this->command?->line("  - روابط رفضها سجل السحب : {$refused}");
+            $this->command?->line("  - روابط ضُيّقت على هذا الجذر : {$pruned}");
         });
     }
 

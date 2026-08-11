@@ -157,6 +157,40 @@ return [
         // the same act. The coworking shape again — line + modifier, not three
         // lines that cannot say «at home» about a divorce registration.
         'مكان العقد',             // بالمنزل ≠ بالمكتب
+
+        /*
+         * «مصانع», 2026-08-11. Twenty-six of its forty-four children could not
+         * name one thing they make. They are MODIFIERS, not lines, and that is
+         * the whole difference between a goods root and a services root:
+         * nobody buys the phrase «طوب أحمر», they buy a catalog product, and
+         * these say what the trade DEALS IN — the «ماركات السيارات» pattern.
+         */
+        'نظام التصنيع',           // حسب الطلب ≠ من المخزون
+        'أنواع الطوب',
+        'مستلزمات النجارة',
+        'أنواع السجاد',
+        'مواد البناء الأساسية',
+        'أنواع أجهزة الكمبيوتر',
+        'أصناف مستحضرات التجميل',
+        'أنواع الزجاج',
+        'الأدوات الصحية',
+        'مستلزمات المنزل',
+        'الخراطيم والوصلات',
+        'المفاتيح والتوزيع الكهربائي',
+        'أنواع الرخام والجرانيت',
+        'أنواع المراتب',
+        'المستلزمات الطبية',
+        'الحدايد والبويات',
+        'المواد الدوائية',
+        'الأكياس والمنتجات البلاستيكية',
+        'الصيني والخزف',
+        'مستلزمات المطاعم',
+        'أنواع الحديد',
+        'أنواع الإسفنج',
+        'أصناف لعب الأطفال',
+        'أنواع الأخشاب',
+        'أنواع الأصواف والخيوط',
+        'طباعة العبوات والتغليف',
         'حالة المنتج',            // جديد ≠ مستعمل
         // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
         // sitting as `descriptive` the same day: it was never listed here, so

@@ -154,6 +154,155 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * «مصانع» is a GOODS root and its completion rule is not the offices one.
+     *
+     * A service IS the priced row, so an office is finished when it has a
+     * `line`. A factory sells a catalog product — 986 of them live in
+     * `catalog_products` — so a `line` group there would compete with the
+     * catalog for the same job. What a factory owes is the ability to say WHAT
+     * IT DEALS IN, on whatever axis: the «ماركات السيارات» pattern.
+     *
+     * Measured against the five axes every goods child already carries, which
+     * say nothing about the trade, 26 of the 44 could name nothing at all.
+     */
+    public function test_every_factory_can_name_what_it_makes(): void
+    {
+        // Universal to every goods child, plus the two the factory root asks.
+        $universal = [
+            'حالة المنتج', 'الدفع والسداد', 'التسليم والاستلام',
+            'الاستبدال والإرجاع', 'نطاق التعامل', 'نمط تقديم الخدمة',
+            'نظام التصنيع', 'الحد الأدنى للطلب',
+        ];
+
+        $rootId = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+
+        $mute = [];
+
+        foreach (
+            DB::table('category_parent_child as pc')
+                ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
+                ->where('pc.parent_id', $rootId)->get(['c.id', 'c.name_ar']) as $child
+        ) {
+            $groups = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', (int) $child->id)
+                ->distinct()->pluck('g.name_ar')->all();
+
+            if (array_diff($groups, $universal) === []) {
+                $mute[] = "{$child->name_ar}#{$child->id}";
+            }
+        }
+
+        $this->assertSame([], $mute, 'these factories cannot name one thing they make: ' . implode('، ', $mute));
+    }
+
+    /** Nobody buys the phrase «طوب أحمر». They buy a catalog product. */
+    public function test_a_factory_vocabulary_qualifies_a_price_and_is_not_one(): void
+    {
+        $declared = require database_path('seeders/data/option_price_roles.php');
+
+        foreach ((require database_path('seeders/data/factory_child_vocabularies.php'))['groups'] as $group => $spec) {
+            $this->assertNotContains(
+                $group,
+                $declared['line'],
+                "«{$group}» is declared a line — a factory's priced rows are its catalog products"
+            );
+
+            $this->assertSame(
+                $spec['price_role'],
+                DB::table('option_groups')->where('name_ar', $group)->value('price_role'),
+                "«{$group}» does not hold the role its file declares"
+            );
+        }
+    }
+
+    /**
+     * A furniture SHOP is not asked what a furniture FACTORY is asked.
+     *
+     * «آثاث» #116 stands under مصانع، معارض، شركات. Production basis and
+     * minimum order belong to the maker, so they are written with
+     * `category_id = 23` — the first use of the per-root column for anything
+     * other than a hand edit. CategoryChildOptionScope's own docblock uses this
+     * exact example.
+     */
+    public function test_only_the_factory_is_asked_how_it_produces(): void
+    {
+        $scope = new \App\Services\CategoryChildOptionScope;
+
+        $childId = $this->childId('آثاث');
+
+        $asks = function (int $rootId) use ($scope, $childId): bool {
+            return DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $scope->idsFor($childId, $rootId))
+                ->whereIn('g.name_ar', ['نظام التصنيع', 'الحد الأدنى للطلب'])
+                ->exists();
+        };
+
+        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+        $showrooms = (int) DB::table('categories')->where('slug', 'exhibitions')->value('id');
+
+        $this->assertTrue($asks($factories), 'a furniture factory is not asked how it produces');
+        $this->assertFalse($asks($showrooms), 'a furniture SHOWROOM is being asked its minimum order quantity');
+
+        // And no shared row exists for them, which would defeat the whole thing.
+        $this->assertSame(
+            0,
+            DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('g.name_ar', ['نظام التصنيع', 'الحد الأدنى للطلب'])
+                ->where('co.category_id', 0)->count(),
+            'a factory-only axis was granted to every root'
+        );
+    }
+
+    /**
+     * Borrowed where borrowing is allowed — and NOT where it was already ruled out.
+     *
+     * «طباعة مواد تعبئة وتغليف» #232 was going to borrow «تعبئة وتغليف
+     * ومستلزمات» from its sibling #204, and `child_option_scopes.php` has
+     * declared `232 => []` against that group since 2026-08-08: it PRINTS
+     * packaging, it does not SELL it. The declared empty caught the borrow.
+     */
+    public function test_the_factory_borrowings_take_only_their_half(): void
+    {
+        $printer = $this->childId('طباعة مواد تعبئة وتغليف');
+
+        $itPrints = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $printer)->where('g.name_ar', 'طباعة العبوات والتغليف')
+            ->pluck('o.name_ar')->all();
+
+        $this->assertContains('طباعة على الكرتون', $itPrints);
+
+        $itSells = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $printer)->where('g.name_ar', 'تعبئة وتغليف ومستلزمات')
+            ->count();
+
+        $this->assertSame(0, $itSells, 'the printer was handed the supplier list the owner retired it from');
+
+        $fire = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $this->childId('سيفتى ومقاومة حرائق'))
+            ->where('g.name_ar', 'أنظمة الأمن والسلامة')
+            ->pluck('o.name_ar')->all();
+
+        $this->assertContains('طفايات ومعدات إطفاء', $fire);
+        $this->assertContains('أنظمة إنذار الحريق', $fire);
+
+        // The half it does not do. A fire-equipment factory fits no intercom.
+        $this->assertNotContains('كاميرات مراقبة', $fire);
+        $this->assertNotContains('إنتركم وفيديو إنتركم', $fire);
+        $this->assertNotContains('بصمة وحضور وانصراف', $fire);
+    }
+
+    /**
      * The registrar's office — the owner's second question.
      *
      * Six acts of DOCUMENTATION, which is what separates a مأذون from a lawyer:

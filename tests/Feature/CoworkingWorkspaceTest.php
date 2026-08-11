@@ -33,8 +33,9 @@ class CoworkingWorkspaceTest extends TestCase
      * wholesaler reserves nothing. They leave this list when the flag is
      * corrected, not when a vocabulary is invented for them.
      *
-     * «أمن» #253 left it on 2026-08-11 by the other door: it gained «خدمات
-     * الأمن والحراسة», so it can now name what a contract holds.
+     * «أمن» #253 and «سيفتى ومقاومة حرائق» #250 left it on 2026-08-11 by the
+     * other door: both gained a line group, so both can now name what they
+     * hold — #250 by borrowing the fire half of «أنظمة الأمن والسلامة».
      *
      * **«قاعات تدريب» #282 is the one genuine gap**: it IS units — a training
      * centre holds room A for you — and it has no word for a room. It is the
@@ -47,7 +48,7 @@ class CoworkingWorkspaceTest extends TestCase
      */
     private const NAMELESS_UNITS = [
         9, 17, 21, 23, 24, 34, 44, 51, 52, 55, 66, 69, 73, 88, 110, 126, 138,
-        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 240, 247, 250,
+        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 240, 247,
         262, 263, 266, 270, 280, 282, 301, 303,
     ];
 

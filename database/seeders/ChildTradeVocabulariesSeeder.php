@@ -33,6 +33,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
     private const FILES = [
         'office_child_vocabularies.php',
         'technology_child_vocabularies.php',
+        'factory_child_vocabularies.php',
     ];
 
     public function run(): void
@@ -80,11 +81,31 @@ class ChildTradeVocabulariesSeeder extends Seeder
             foreach (($map['groups'] ?? []) as $nameAr => $spec) {
                 $groupId = $this->group($nameAr, $spec['name_en'], $spec['price_role']);
 
+                /*
+                 * `scope: root` writes `category_child_option.category_id =`
+                 * this root instead of 0. CategoryChildOptionScope states the
+                 * rule and its example is this very case: «آثاث» is a factory,
+                 * a showroom, a workshop and a wholesaler, and only the factory
+                 * answers about production runs. A shared row would ask a
+                 * furniture SHOP what its minimum order quantity is.
+                 */
+                $rootId = $this->rootId((string) ($map['root'] ?? ''));
+
+                $scope = ($spec['scope'] ?? 'shared') === 'root' ? $rootId : 0;
+
+                // `children: all` follows the root's membership rather than a
+                // list, so a child added to it tomorrow inherits the axis. Safe
+                // only for an axis the ROOT asks — which is why the two that
+                // use it are also the two that are root-scoped.
+                $children = $spec['children'] === 'all'
+                    ? DB::table('category_parent_child')->where('parent_id', $rootId)->pluck('child_id')->all()
+                    : $spec['children'];
+
                 foreach ($spec['options'] as $ar => $en) {
                     $optionId = $this->option($groupId, $ar, $en, $created);
 
-                    foreach ($spec['children'] as $childId) {
-                        $this->link((int) $childId, $optionId, $blocked, $linked, $refused);
+                    foreach ($children as $childId) {
+                        $this->link((int) $childId, $optionId, $blocked, $linked, $refused, $scope);
                     }
                 }
             }
@@ -108,10 +129,10 @@ class ChildTradeVocabulariesSeeder extends Seeder
                     $optionIds = DB::table('options as o')
                         ->join('option_groups as g', 'g.id', '=', 'o.group_id')
                         ->where('g.name_ar', $groupName)
-                        ->whereIn('o.name_ar', $optionNames)
+                        ->when($optionNames !== 'all', fn ($q) => $q->whereIn('o.name_ar', $optionNames))
                         ->pluck('o.id');
 
-                    $missing = count($optionNames) - $optionIds->count();
+                    $missing = $optionNames === 'all' ? 0 : count($optionNames) - $optionIds->count();
 
                     if ($missing > 0) {
                         // A name that matches nothing is a typo or a row since
@@ -184,8 +205,13 @@ class ChildTradeVocabulariesSeeder extends Seeder
         ]);
     }
 
+    private function rootId(string $slug): int
+    {
+        return (int) DB::table('categories')->where('slug', $slug)->value('id');
+    }
+
     /** @param array<int,array<int,mixed>> $blocked */
-    private function link(int $childId, int $optionId, array $blocked, int &$linked, int &$refused): void
+    private function link(int $childId, int $optionId, array $blocked, int &$linked, int &$refused, int $scope = 0): void
     {
         if (isset($blocked[$childId][$optionId])) {
             $refused++;
@@ -193,19 +219,24 @@ class ChildTradeVocabulariesSeeder extends Seeder
             return;
         }
 
-        if (
-            DB::table('category_child_option')
-                ->where('child_id', $childId)->where('option_id', $optionId)->exists()
-        ) {
+        // A shared row already covers every root, so a per-root row on top of
+        // it is a duplicate that says nothing new. The reverse is not true: a
+        // root-scoped row does not satisfy a request for a shared one.
+        $already = DB::table('category_child_option')
+            ->where('child_id', $childId)->where('option_id', $optionId)
+            ->whereIn('category_id', array_unique([0, $scope]))
+            ->exists();
+
+        if ($already) {
             return;
         }
 
-        // SHARED (category_id = 0): تنسيق حفلات، طباعة and أمن each stand under
-        // «شركات» as well, and a printing house prints the same things under
-        // either root.
+        // Shared (0) is the normal state: تنسيق حفلات، طباعة and أمن each stand
+        // under «شركات» as well, and a printing house prints the same things
+        // under either root. Only a genuine per-root disagreement gets an id.
         DB::table('category_child_option')->insert([
             'child_id' => $childId,
-            'category_id' => 0,
+            'category_id' => $scope,
             'option_id' => $optionId,
             'reorder' => 0,
         ]);

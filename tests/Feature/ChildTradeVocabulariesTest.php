@@ -587,6 +587,15 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertSame([44], $holders('نوع قطع الغيار'), 'the car systems list is the car child\'s');
         $this->assertSame([263], $holders('قطع الغيار حسب الآلة'), 'the machine list is the wholesaler\'s');
+
+        // The grade is the one axis BOTH answer — أصلي وكيل and تجاري are the
+        // same part at a multiple of each other, whatever machine it is for.
+        $this->assertSame([44, 263], $holders('درجة قطعة الغيار'));
+
+        $grades = DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'درجة قطعة الغيار')->pluck('o.name_ar');
+
+        $this->assertNotContains('مستعمل', $grades, '«حالة المنتج» owns جديد · مستعمل');
     }
 
     /**

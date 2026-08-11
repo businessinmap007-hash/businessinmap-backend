@@ -254,6 +254,31 @@ return [
          * here is deleted) but are no longer offered to #263 — they answer
          * «نطاق التعامل» and «حالة المنتج», which it already carries.
          */
+        /*
+         * The axis the parts trade actually prices on, and neither child had
+         * it. «فرامل تويوتا» is not one price: أصلي وكيل and تجاري are the same
+         * part, the same brand and the same system at a multiple of each other,
+         * which is more than «ماركات السيارات» or «نوع قطع الغيار» moves it.
+         *
+         * A factory answers it too — it makes تجاري, or مُجدَّد, or أصلي under
+         * contract. «نظام التصنيع / تصنيع بعلامة العميل» says who owns the
+         * brand on the box, not what grade the buyer is holding.
+         *
+         * No «مستعمل» row: «حالة المنتج» owns جديد · مستعمل, and the two rows
+         * that came off #263 came off for exactly that reason. «أصلي مستورد»
+         * is not «نطاق التعامل / إستيراد» either — one is where the PART came
+         * from, the other whether the BUSINESS imports.
+         */
+        'درجة قطعة الغيار' => [
+            'name_en' => 'Spare Part Grade', 'price_role' => 'modifier', 'children' => [44, 263],
+            'options' => [
+                'أصلي وكيل' => 'Genuine (Agent)',
+                'أصلي مستورد' => 'Genuine (Imported)',
+                'تجاري' => 'Aftermarket',
+                'مُجدَّد' => 'Remanufactured',
+            ],
+        ],
+
         'قطع الغيار حسب الآلة' => [
             'name_en' => 'Spare Parts by Machine', 'price_role' => 'modifier', 'children' => [263],
             'options' => [

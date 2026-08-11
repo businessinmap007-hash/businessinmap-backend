@@ -221,6 +221,21 @@ return [
         'أعمال التبريد والتكييف',
         'أنواع قطع الغيار',
         'الأدوات المكتبية',
+        /*
+         * «المحلات أو أونلاين» — the fourteen shops that could not name their
+         * stock. Goods trades, so modifiers: the priced rows are the catalog
+         * products, and these say what is on the shelf.
+         */
+        'أصناف المجوهرات',
+        'أنواع النظارات',
+        'أنواع العطور',
+        'أصناف المكملات',
+        'أقسام المكتبة',
+        'مستلزمات الصيد',
+        'أجهزة الألعاب',
+        'مشتقات التدخين',
+        'النباتات ومستلزماتها',
+        'المصنوعات الخشبية والديكور',
         'حالة المنتج',            // جديد ≠ مستعمل
         // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
         // sitting as `descriptive` the same day: it was never listed here, so

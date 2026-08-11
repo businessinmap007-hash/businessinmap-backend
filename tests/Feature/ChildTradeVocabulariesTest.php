@@ -33,6 +33,7 @@ class ChildTradeVocabulariesTest extends TestCase
         'company_child_vocabularies.php',
         'exhibition_child_vocabularies.php',
         'crafts_child_vocabularies.php',
+        'shop_child_vocabularies.php',
     ];
 
     /**
@@ -412,12 +413,14 @@ class ChildTradeVocabulariesTest extends TestCase
      * under «شركات» and be mute under «مصانع», which is exactly what seven
      * factory children were until the mirror pass.
      *
-     * «مهن وحرفيين» left this list on 2026-08-11 — 24 of its 27 crafts and 121
-     * merchants, the largest debt the platform had. Three roots hold what is
-     * left, and one entry is not a gap at all:
+     * Two roots left this list on 2026-08-11: «مهن وحرفيين» (24 crafts, 121
+     * merchants, the largest debt the platform had) and «المحلات» (14 shops).
+     * One root and three strays are what remain, and one is not a gap at all:
      *
-     *   المحلات      14 shops — كتب، نظارات، ذهب، عطور، فضة، أدوات صيد…
-     *   فنون وترفية  11 venues that sell an hour of a table or a lane.
+     *   فنون وترفية  11 venues that sell an hour of a table or a lane. Open
+     *                question: their child name plus `booking_time` may already
+     *                BE the whole answer — nobody browses a billiards hall by
+     *                anything but the hour.
      *   مندوب #243   NOT a gap: the owner withdrew all thirteen of its options
      *                by hand, «ربع نقل» included. Curation.
      *
@@ -433,10 +436,6 @@ class ChildTradeVocabulariesTest extends TestCase
         'arts-entertainment:271', 'arts-entertainment:523', 'arts-entertainment:524',
         'arts-entertainment:525', 'arts-entertainment:526',
         'cars:85',
-        'shops-online:32', 'shops-online:37', 'shops-online:76', 'shops-online:79',
-        'shops-online:125', 'shops-online:127', 'shops-online:148', 'shops-online:213',
-        'shops-online:222', 'shops-online:226', 'shops-online:257', 'shops-online:260',
-        'shops-online:274', 'shops-online:302',
     ];
 
     /** @return array<int,string> every (root, child) that owns no trade word */

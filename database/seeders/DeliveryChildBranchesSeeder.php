@@ -48,6 +48,16 @@ class DeliveryChildBranchesSeeder extends Seeder
         ];
     }
 
+    /**
+     * Optional [child name_ar => type keys] map narrowing a branch to the part
+     * of it a trade actually sells. Null keeps the historical behaviour: the
+     * branch is expanded whole.
+     */
+    protected function narrowingFile(): ?string
+    {
+        return null;
+    }
+
     public function run(): void
     {
         $service = PlatformService::where('key', $this->serviceKey())->first();
@@ -72,10 +82,16 @@ class DeliveryChildBranchesSeeder extends Seeder
             ->groupBy('group_id')
             ->map(fn ($rows) => $rows->pluck('key')->map(fn ($k) => (string) $k)->all());
 
+        $narrowing = $this->narrowingFile() && is_file($this->narrowingFile())
+            ? require $this->narrowingFile()
+            : [];
+
         $applied = 0;
+        $narrowed = 0;
         $missingRoots = [];
         $missingChildren = [];
         $missingBranches = [];
+        $emptyNarrowings = [];
 
         foreach ($map as $rootSlug => $children) {
             $root = DB::table('categories')
@@ -110,6 +126,25 @@ class DeliveryChildBranchesSeeder extends Seeder
                     continue;
                 }
 
+                // A branch is a shelf, not a shop. Where a trade declares which
+                // part of the shelf is its own, intersect — but never down to
+                // nothing: an empty allowed_item_types reads as «everything»
+                // (BoundUnboundedConfigsSeeder), so an over-narrow entry would
+                // hand the child the whole service rather than restrict it.
+                if (isset($narrowing[$childName])) {
+                    $wanted = array_values(array_intersect($typeKeys, (array) $narrowing[$childName]));
+
+                    if (empty($wanted)) {
+                        $emptyNarrowings[] = "{$rootSlug} → {$childName}";
+                    } else {
+                        if (count($wanted) < count($typeKeys)) {
+                            $narrowed++;
+                        }
+
+                        $typeKeys = $wanted;
+                    }
+                }
+
                 $childIds = DB::table('category_parent_child as pc')
                     ->join('category_children_master as ch', 'ch.id', '=', 'pc.child_id')
                     ->where('pc.parent_id', (int) $root->id)
@@ -130,7 +165,11 @@ class DeliveryChildBranchesSeeder extends Seeder
             }
         }
 
-        $this->command?->info("{$this->serviceKey()} child branches applied: {$applied}");
+        $this->command?->info("{$this->serviceKey()} child branches applied: {$applied} (narrowed: {$narrowed})");
+
+        if (! empty($emptyNarrowings)) {
+            $this->command?->warn('Narrowing left nothing — whole branch kept: ' . implode('، ', $emptyNarrowings));
+        }
 
         if (! empty($missingRoots)) {
             $this->command?->warn('Missing roots: ' . implode(', ', $missingRoots));

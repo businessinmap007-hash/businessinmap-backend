@@ -74,6 +74,32 @@ class RetailCatalogStockedTest extends TestCase
     }
 
     /**
+     * The eight trades whose OWN shelf the master catalog has never stocked.
+     *
+     * This list is a debt, not a rule. Until 2026-08-11 every one of them
+     * passed the check below, because a branch was expanded WHOLE: an
+     * «أنتيكات وتحف» shop counted the furniture branch's mattresses and china
+     * as «something to list». Narrowing each trade to what it actually sells
+     * (data/retail_child_types.php) did not create these holes — it stopped
+     * eleven item types with zero products from hiding behind their
+     * shelf-mates.
+     *
+     * Shrinking this array is the point. Nothing may be added to it.
+     *
+     * @var array<int,string>
+     */
+    private const UNSTOCKED_TRADES = [
+        'مكملات غذائية',                 // supplements
+        'أصواف',                          // wool_yarn, fabrics
+        'أقمشة',                          // fabrics, wool_yarn
+        'أنتيكات وتحف',                  // antiques_artifacts
+        'نجف و تحف',                     // chandeliers_lighting, antiques_artifacts
+        'لوازم ستائر',                   // curtains_supplies
+        'مصنوعات خشبية ومستلزمات ديكور', // wood_decor, furniture, antiques_artifacts
+        'منظفات',                         // household_cleaners
+    ];
+
+    /**
      * The merchant-facing promise, and the one that actually matters: a child
      * offered the service must find something to list. A working screen onto
      * nothing is worse than no screen.
@@ -95,13 +121,35 @@ class RetailCatalogStockedTest extends TestCase
                 continue;               // no config yet — covered by RetailChildLinkTest
             }
 
-            $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+            $name = (string) DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+            if (in_array($name, self::UNSTOCKED_TRADES, true)) {
+                continue;
+            }
 
             $this->assertGreaterThan(
                 0,
                 $this->productsUnder($types),
                 "«{$name}» is offered retail but has nothing to list"
             );
+        }
+    }
+
+    /**
+     * …and the debt only goes one way. A trade listed above that HAS stock now
+     * must leave the list, or the exemption outlives the hole it was written
+     * for and quietly re-hides the next one.
+     */
+    public function test_the_unstocked_list_holds_only_still_empty_trades(): void
+    {
+        foreach (self::UNSTOCKED_TRADES as $name) {
+            $childIds = DB::table('category_children_master')->where('name_ar', $name)->pluck('id');
+
+            $this->assertNotEmpty($childIds, "«{$name}» is no longer a child — drop it from the list");
+
+            $stock = $childIds->sum(fn ($id) => $this->productsUnder($this->typesFor((int) $id)));
+
+            $this->assertSame(0, $stock, "«{$name}» has {$stock} products now — remove it from UNSTOCKED_TRADES");
         }
     }
 

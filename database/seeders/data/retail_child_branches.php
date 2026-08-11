@@ -70,6 +70,11 @@ return [
         'إسفنج' => ['home_furnishings'],
         'لعب أطفال' => ['hobbies_general'],
         'أصواف' => ['fashion_textiles'],
+        // Reinstated 2026-08-10 by ServiceReinstatementSeeder (pass 5, donor
+        // «معرض سيارات») and never named here, so the narrowing could not
+        // reach it and a car showroom was also being offered motorcycles,
+        // spare parts, tyres and oils.
+        'سيارات' => ['vehicles_parts'],
     ],
 
     // ── المحلات أو أونلاين (shops, non-food) ──
@@ -109,6 +114,13 @@ return [
         'رخام' => ['building_hardware'],
         'مراتب' => ['home_furnishings'],
         'سوبر ماركت' => ['grocery_retail'],
+        // «المني والهايبر بقالة مش مطاعم» (2026-08-10) moved these two onto the
+        // grocery shelf via ServiceReinstatementSeeder pass 5. The ruling was
+        // applied but never written down here, and a config this file does not
+        // name is a config the branch map cannot correct later. All 22 grocery
+        // types on purpose — a market IS the whole shelf.
+        'مني ماركت' => ['grocery_retail'],
+        'هايبر ماركت' => ['grocery_retail'],
         'مستلزمات طبية' => ['beauty_health_retail'],
         // Missing entirely until 2026-08-10, which is the whole story: a child
         // this file does not name still gets a retail config, from
@@ -208,6 +220,10 @@ return [
         'أدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],
         'قطع غيار' => ['vehicles_parts'],
+        // «قطع غيار سيارات» #44 also stands here and was not named — the
+        // sibling «قطع غيار» above is a different row, so the per-root miss
+        // was invisible. It held all six vehicle types, whole cars included.
+        'قطع غيار سيارات' => ['vehicles_parts'],
         'منظفات' => ['hobbies_general'],
         'أدوات مكتبية' => ['hobbies_general'],
         'لعب أطفال' => ['hobbies_general'],
@@ -228,6 +244,9 @@ return [
     'factories' => [
         'أجهزة كهربائية' => ['electronics_tech'],
         'أجهزه كمبيوتر' => ['electronics_tech'],
+        // Unnamed here until 2026-08-11 and so left on the whole electronics
+        // shelf: a sports-equipment factory offered laptops and playstations.
+        'أجهزة رياضية' => ['electronics_tech'],
         'أدوات تجميل' => ['beauty_health_retail'],
         'مستلزمات طبية' => ['beauty_health_retail'],
         'مواد دوائية' => ['beauty_health_retail'],

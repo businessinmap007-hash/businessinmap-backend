@@ -1,0 +1,147 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Retail narrowing — which of its branch's types a trade actually sells
+|--------------------------------------------------------------------------
+| A branch is a SHELF, not a shop. DeliveryChildBranchesSeeder::applyChild()
+| expands a branch WHOLE into allowed_item_types, which is right the day a
+| branch is created and wrong the moment two trades share it: أثاث ومفروشات
+| carries twelve types, so a سجاد shop was offered mattresses, chandeliers and
+| china, a ذهب shop was offered silver, and a كتب shop was offered fishing
+| tackle. Thirty-eight children under «المحلات أو أونلاين» had no vocabulary of
+| their own at all — only the generic commercial groups — and this was why:
+| they HAD product types, just not theirs.
+|
+| Keyed by child name_ar, NOT by root. Every one of these names carries the
+| same branch under every root it stands on (معارض / المحلات / شركات / مصانع),
+| and a سجاد showroom sells what a سجاد shop sells — the «one trade, many
+| roots, one vocabulary» rule. Adding a root to retail_child_branches.php
+| therefore narrows there too, with nothing to remember.
+|
+| Semantics: INTERSECTION with the branch-expanded list, never a replacement.
+| A type named here that the child's branch does not carry is ignored, and if
+| the intersection comes out empty the seeder keeps the whole branch and warns
+| — because an empty allowed_item_types does not mean «nothing», it means
+| «everything» (see BoundUnboundedConfigsSeeder), and silently narrowing a
+| child to zero would hand it the entire service instead.
+|
+| Safe to apply as of 2026-08-11: business_catalog_listings is empty, so no
+| merchant loses a listing. Once it is not, a narrowing must be checked against
+| it the way MerchantOptionCommitments guards option drops.
+|
+| A trade absent from this file keeps its whole branch, which is the old
+| behaviour and the right default for a shop that genuinely spans the shelf
+| («سوبر ماركت» takes all 22 grocery types on purpose).
+*/
+
+return [
+
+    // ── تجميل وصحة ──
+    // عطور and أدوات تجميل are one Egyptian retail sector and are deliberately
+    // given the same pair; مستلزمات طبية (wheelchairs, dressings) is not part
+    // of it and does not sell supplements either.
+    'أدوات تجميل' => ['beauty_cosmetics', 'perfumes'],
+    'عطور' => ['perfumes', 'beauty_cosmetics'],
+    'مستلزمات طبية' => ['medical_retail'],
+    'مكملات غذائية' => ['supplements'],
+
+    // ── مواد بناء وعدد ──
+    // «حدايد وبويات» is the general hardware store and legitimately spans four
+    // of the ten; the rest of this branch is nine single-line trades that were
+    // each being offered the other nine.
+    'حدايد وبويات' => ['paints_hardware', 'power_hand_tools', 'keys_locks', 'hoses_fittings'],
+    'حديد تسليح' => ['rebar_steel', 'cement_building'],
+    'اسمنت' => ['cement_building'],
+    'رخام' => ['marble_stone'],
+    'سيفتى ومقاومة حرائق' => ['safety_fire'],
+    'كبس خراطيم' => ['hoses_fittings'],
+    'مفاتيح' => ['keys_locks'],
+    'مستلزمات نجارة' => ['carpentry_supplies'],
+    'اكياس بلاستيك' => ['plastic_packaging'],
+    'بلاستيك' => ['plastic_packaging'],
+
+    // ── إلكترونيات وأجهزة ──
+    'أجهزة بلايستيشن' => ['gaming_consoles'],
+    'أجهزه كمبيوتر' => ['computers_laptops', 'gaming_consoles'],
+
+    // ── ملابس وأقمشة ──
+    'أصواف' => ['wool_yarn', 'fabrics'],
+    'نظارات' => ['eyewear'],
+
+    // ── هوايات ومتنوعات ──
+    'كتب' => ['books', 'stationery'],
+    'أدوات مكتبية' => ['stationery', 'books'],
+    'أدوات صيد' => ['fishing_hunting'],
+    'لعب أطفال' => ['kids_toys'],
+    'مستلزمات كافيهات' => ['horeca_supplies'],
+    'مشتقات التدخين' => ['tobacco_products'],
+    'نباتات طبيعية وزينة' => ['plants_garden'],
+
+    // ── أثاث ومفروشات ──
+    // The widest branch and the worst offender: twelve types over eleven
+    // trades. إسفنج and مراتب are one workshop's two outputs and keep each
+    // other; صيني/خزف and زجاج overlap on a shelf and keep each other.
+    'ألمونتال' => ['aluminum_cookware'],
+    'أنتيكات وتحف' => ['antiques_artifacts'],
+    'إسفنج' => ['foam_products', 'mattresses'],
+    'مراتب' => ['mattresses', 'foam_products'],
+    'زجاج' => ['glassware'],
+    'صينى وخزف' => ['china_housewares', 'glassware'],
+    'صيني ومستلزمات بيت' => ['china_housewares', 'glassware', 'aluminum_cookware'],
+    'سجاد' => ['carpets_rugs', 'home_textiles'],
+    'ستائر و ديكور' => ['curtains_supplies', 'home_textiles', 'wood_decor'],
+    'لوازم ستائر' => ['curtains_supplies'],
+    'مصنوعات خشبية ومستلزمات ديكور' => ['wood_decor', 'furniture', 'antiques_artifacts'],
+
+    // ── مجوهرات ──
+    // Two children, two types, and each was being offered the other's metal.
+    'ذهب' => ['gold_jewelry'],
+    'فضة' => ['silver_jewelry'],
+
+    // ──────────────────────────────────────────────────────────────────────
+    // The thirteen above the waterline
+    // ──────────────────────────────────────────────────────────────────────
+    // Everything to this point was a child with NO vocabulary of its own —
+    // the visible symptom. These thirteen had one, so they never showed up in
+    // that count, and were being handed the whole shelf just the same: a
+    // منظفات shop offered books and fishing tackle, a زيت سيارات shop offered
+    // whole cars. Having something to say about yourself is not the same as
+    // being asked the right question.
+    'منظفات' => ['household_cleaners'],
+    'مفروشات' => ['home_textiles', 'carpets_rugs', 'curtains_supplies', 'mattresses'],
+    'نجف و تحف' => ['chandeliers_lighting', 'antiques_artifacts'],
+    'أدوات كهربائية' => ['power_hand_tools', 'paints_hardware'],
+    'أجهزة رياضية' => ['sports_equipment'],
+    'أجهزة كهربائية' => ['home_appliances', 'appliance_spare_parts'],
+    'قطع غيار أجهزة كهربائية' => ['appliance_spare_parts'],
+    'أقمشة' => ['fabrics', 'wool_yarn'],
+    'جنوط وكاوتش سيارات' => ['tires_rims'],
+    'زيت سيارات' => ['auto_oils_fluids'],
+    'قطع غيار سيارات' => ['auto_spare_parts', 'auto_accessories'],
+    'موبيلات و اكسسوار' => ['mobiles_accessories'],
+    // The one trade that stands on two different branches: under المحلات it is
+    // the electronics counter (phone cases, car mats, watches — see the note
+    // in retail_child_branches.php), under ملابس و اكسسوارات it is the rail.
+    // Both readings are named here, and the intersection picks the right one
+    // per root on its own.
+    'اكسسوار' => ['mobiles_accessories', 'auto_accessories', 'leather_bags_shoes'],
+    'سيارات' => ['cars_showroom'],
+    'قطع غيار' => ['auto_spare_parts', 'auto_accessories'],
+    // The donors, narrowed with the trades they seeded. ServiceReinstatementTest
+    // holds a reinstated child to «lists the same catalog as the shop beside
+    // it», so narrowing «سيارات» while its donor «معرض سيارات» kept all six
+    // vehicle types broke the pair — and the donor was the one that was wrong.
+    // A car showroom does not sell motorcycles; the motorcycle showroom next
+    // door is a separate child.
+    'معرض سيارات' => ['cars_showroom'],
+    'معرض موتوسيكلات' => ['motorcycles'],
+
+    // Deliberately NOT narrowed:
+    //   «باب وشباك» — building_hardware carries no doors/windows type at all,
+    //     so any narrowing here is a guess. It has its own option group
+    //     («أنواع الأبواب والشبابيك») and no merchant accounts. The branch, not
+    //     the map, is what is missing; left whole and flagged.
+    //   «سوبر ماركت» / «مني ماركت» / «هايبر ماركت» — all 22 grocery types on
+    //     purpose. A market IS the whole shelf.
+];

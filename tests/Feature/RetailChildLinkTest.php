@@ -253,6 +253,118 @@ class RetailChildLinkTest extends TestCase
         $this->assertNotContains('chandeliers_lighting', $config['allowed_item_types'] ?? []);
     }
 
+    /** @return array<string,array<int,string>> the approved trade => types narrowing */
+    private function narrowing(): array
+    {
+        return require database_path('seeders/data/retail_child_types.php');
+    }
+
+    /** @return array<int,object> every switched-on retail config, with its root and child name */
+    private function liveConfigs(): array
+    {
+        return DB::table('category_service_configs as c')
+            ->join('categories as r', 'r.id', '=', 'c.category_id')
+            ->join('category_children_master as m', 'm.id', '=', 'c.child_id')
+            ->where('c.platform_service_id', $this->serviceId())
+            ->where('c.is_active', 1)
+            ->get(['r.slug as root', 'm.name_ar as name', 'c.config'])
+            ->all();
+    }
+
+    /**
+     * A branch is a shelf, not a shop.
+     *
+     * applyChild() expands a branch WHOLE, which is right the day the branch is
+     * created and wrong the moment two trades share it. أثاث ومفروشات carries
+     * twelve types over eleven trades, so a سجاد shop was offered mattresses,
+     * chandeliers and china; jewelry carries two, and each of its two children
+     * was offered the other's metal. Thirty-eight children under المحلات had no
+     * vocabulary of their own — this was why. They HAD product types. Not
+     * theirs.
+     *
+     * @see \Database\Seeders\data\retail_child_types
+     */
+    public function test_a_trade_is_not_offered_its_neighbours_shelf(): void
+    {
+        $narrowing = $this->narrowing();
+
+        foreach ($this->liveConfigs() as $row) {
+            if (! isset($narrowing[$row->name])) {
+                continue;
+            }
+
+            $held = json_decode((string) $row->config, true)['allowed_item_types'] ?? [];
+            $extra = array_diff($held, $narrowing[$row->name]);
+
+            $this->assertEmpty(
+                $extra,
+                "«{$row->name}» ({$row->root}) is still offered " . implode('، ', $extra)
+            );
+        }
+    }
+
+    /**
+     * The narrowing INTERSECTS, and an empty intersection must keep the whole
+     * branch rather than write nothing — because nothing does not mean nothing.
+     * An empty allowed_item_types reads as «everything» in both readers, so a
+     * typo'd or off-branch entry here would hand the child the entire service
+     * instead of restricting it, which is the exact inversion of the intent.
+     *
+     * @see \Database\Seeders\BoundUnboundedConfigsSeeder
+     */
+    public function test_no_narrowing_leaves_a_child_with_nothing(): void
+    {
+        foreach ($this->liveConfigs() as $row) {
+            $this->assertNotEmpty(
+                json_decode((string) $row->config, true)['allowed_item_types'] ?? [],
+                "«{$row->name}» ({$row->root}) has an empty type list, which reads as EVERY type"
+            );
+        }
+    }
+
+    /** A type named in the narrowing that no branch carries is a silent no-op. */
+    public function test_every_narrowed_type_exists(): void
+    {
+        $known = collect(require database_path('seeders/data/retail_taxonomy.php'))
+            ->flatMap(fn ($branch) => array_keys($branch['types']))
+            ->all();
+
+        foreach ($this->narrowing() as $name => $types) {
+            foreach ($types as $key) {
+                $this->assertContains($key, $known, "«{$name}» names «{$key}», which is not a retail item type");
+            }
+        }
+    }
+
+    /**
+     * Silence in the branch map is not neutral — a child it does not name still
+     * gets a config from elsewhere (adoptRootShape, ServiceReinstatementSeeder)
+     * and the narrowing cannot reach it. That is how the supplements shop got
+     * furniture, and how a car showroom kept motorcycles after the reinstatement
+     * that created it.
+     */
+    public function test_every_live_retail_config_is_named_by_the_map(): void
+    {
+        $map = $this->map();
+
+        // Both are trades the owner ruled KITCHENS («المخابز والحلويات مطابخ»),
+        // standing under مصانع with a grocery shelf and no accounts. Whether a
+        // fish or sweets FACTORY lists SKUs is his call, not a mapping bug.
+        $pending = ['factories:أسماك', 'factories:حلويات'];
+
+        $unmapped = [];
+
+        foreach ($this->liveConfigs() as $row) {
+            if (isset($map[$row->root][$row->name]) || in_array("{$row->root}:{$row->name}", $pending, true)) {
+                continue;
+            }
+
+            $unmapped[] = "{$row->root} → {$row->name}";
+        }
+
+        $this->assertSame([], $unmapped, 'retail configs no branch map names: ' . implode('، ', $unmapped));
+    }
+
     /** A child's Menu link must survive being given Retail as well. */
     public function test_the_supermarket_keeps_its_menu(): void
     {

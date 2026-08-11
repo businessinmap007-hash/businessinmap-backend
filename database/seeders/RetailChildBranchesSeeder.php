@@ -20,6 +20,11 @@ class RetailChildBranchesSeeder extends DeliveryChildBranchesSeeder
         return __DIR__ . '/data/retail_child_branches.php';
     }
 
+    protected function narrowingFile(): ?string
+    {
+        return __DIR__ . '/data/retail_child_types.php';
+    }
+
     protected function newConfigDefaults(): array
     {
         return [

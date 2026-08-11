@@ -448,6 +448,22 @@ return [
     */
 
     'mirror_links' => [
+        /*
+         * «أجهزة رياضية» #24 already answers everything a factory is asked —
+         * «أنواع الأجهزة الرياضية» (15 rows), نظام التصنيع، الحد الأدنى للطلب،
+         * حالة المنتج and the delivery/payment/scope axes. The ONE group it
+         * holds as a shop, a showroom and a wholesaler but not as a factory is
+         * «الاستبدال والإرجاع» — a treadmill goes back to whoever built it.
+         *
+         * That group is also one of the six the owner withdrew from «اكسسوار»
+         * #8 an hour before this was written. Asked whether that was about
+         * accessories or about factories in general, he answered: **about
+         * accessories alone**. So the axis stands here, and the uneven spread
+         * across the root (16 of 44 answer «الدفع والسداد», 9 «نطاق التعامل»)
+         * is sediment from older seeders to be evened out child by child — in
+         * the ADD direction — not a rule that factories answer less.
+         */
+        24 => ['الاستبدال والإرجاع'],                       // أجهزة رياضية
         56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // نجف
         83 => ['أقسام المنزل والعناية'],                    // منظفات
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة

@@ -505,6 +505,34 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * A withdrawal is about the CHILD it was made on, not about the root.
+     *
+     * The owner unticked «الاستبدال والإرجاع» (among five others) from
+     * «اكسسوار» #8 under مصانع. Asked whether that meant accessories or meant
+     * factories, he said **accessories alone** — so «أجهزة رياضية» #24, which
+     * answers that axis as a shop, a showroom and a wholesaler, answers it as
+     * a factory too. A treadmill goes back to whoever built it.
+     *
+     * The pair is the point: one child without the axis, one with, under the
+     * same root. A later sweep that decides factories «don't do returns» would
+     * take #24's away and this would catch it.
+     */
+    public function test_a_withdrawal_binds_the_child_it_was_made_on(): void
+    {
+        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+
+        $answers = fn (int $childId) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)
+            ->whereIn('co.category_id', [0, $factories])
+            ->where('g.name_ar', 'الاستبدال والإرجاع')->exists();
+
+        $this->assertTrue($answers(24), 'أجهزة رياضية should answer returns as a factory');
+        $this->assertFalse($answers(8), 'اكسسوار: the owner withdrew this axis under مصانع');
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

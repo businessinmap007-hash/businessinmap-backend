@@ -422,6 +422,22 @@ return [
     | nothing.
     */
     'mirror_links' => [
+        /*
+         * ── one child at a time, 2026-08-11 ──────────────────────────────
+         * Owner: «ناخد ابن فى كل مرة نضيف الخيارات واذا كان هناك خيارات فى اى
+         * مجموعة يمكن استخدامها».
+         *
+         * #8 «اكسسوار». It owns five axes under cloth-accessories, شركات and
+         * المحلات and carried none of them here — payment, returns, trade
+         * scope, condition, and WHO it dresses. Nothing new was written: an
+         * accessories factory answers the same five questions its own shop
+         * answers, and the mirror keeps whatever narrowing each already has.
+         */
+        8 => [
+            'الدفع والسداد', 'الاستبدال والإرجاع', 'نطاق التعامل',
+            'حالة المنتج', 'الجمهور المستهدف',
+        ],
+
         56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // نجف
         83 => ['أقسام المنزل والعناية'],                    // منظفات
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة

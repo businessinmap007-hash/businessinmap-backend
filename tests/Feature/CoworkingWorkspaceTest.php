@@ -28,10 +28,13 @@ class CoworkingWorkspaceTest extends TestCase
     /**
      * Children that demand a unit list and have no line group to build it from.
      *
-     * Thirty-eight of the forty are the «شركات» suppliers and «أمن», which
-     * demand a unit list because their whole root inherited one default — a
-     * brick wholesaler reserves nothing. They leave this list when the flag is
+     * All but one are the «شركات» suppliers, which demand a unit list because
+     * one bulk save switched booking on for the whole root — a brick
+     * wholesaler reserves nothing. They leave this list when the flag is
      * corrected, not when a vocabulary is invented for them.
+     *
+     * «أمن» #253 left it on 2026-08-11 by the other door: it gained «خدمات
+     * الأمن والحراسة», so it can now name what a contract holds.
      *
      * **«قاعات تدريب» #282 is the one genuine gap**: it IS units — a training
      * centre holds room A for you — and it has no word for a room. It is the
@@ -44,7 +47,7 @@ class CoworkingWorkspaceTest extends TestCase
      */
     private const NAMELESS_UNITS = [
         9, 17, 21, 23, 24, 34, 44, 51, 52, 55, 66, 69, 73, 88, 110, 126, 138,
-        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 240, 247, 250, 253,
+        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 240, 247, 250,
         262, 263, 266, 270, 280, 282, 301, 303,
     ];
 

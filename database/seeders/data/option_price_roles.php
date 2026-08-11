@@ -62,6 +62,17 @@ return [
         // one OF, and each `bookable_items` row points at one of them. Listed
         // the same day it was created — see the note under «مستوى التشطيب».
         'مساحات العمل',
+        /*
+         * The five trades under «مكاتب» that could not name what they sell,
+         * 2026-08-11 — a printing house could not say it prints and a security
+         * company could not say it guards. Each row is a thing a customer pays
+         * for: «تنظيف خزانات», «حراسة فعاليات», «تخليص وارد».
+         */
+        'الخدمات المنزلية',
+        'خدمات تنظيم الحفلات',
+        'خدمات التخليص الجمركي',
+        'خدمات الطباعة',
+        'خدمات الأمن والحراسة',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي

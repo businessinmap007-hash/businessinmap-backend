@@ -129,6 +129,17 @@ class TradeAxesTest extends TestCase
      * A new root gets the INTERSECTION of what the trade offers elsewhere, not
      * the union. «معارض» lets you book a viewing; a factory does not, and the
      * first run handed booking to the factory before this rule existed.
+     *
+     * **«شركات» left this test on 2026-08-11.** One services-bulk save switched
+     * `booking` ON for all seventy children of the root at 03:01 — «أجهزة
+     * رياضية» among them — and the owner confirmed it the same day: «اذا كنت انا
+     * قمت بتعديله فاتركه كما عدلته انا». The intersection rule is about what a
+     * SEEDER may infer when a trade arrives at a new root; it was never a veto
+     * on the owner enabling a service by hand.
+     *
+     * The factory half still holds, and it is the half the rule was written
+     * for: nobody has said a factory takes appointments, so nothing may infer
+     * that it does.
      */
     public function test_a_new_root_does_not_inherit_a_service_only_one_root_had(): void
     {
@@ -141,7 +152,21 @@ class TradeAxesTest extends TestCase
             ->pluck('category_id')->map(fn ($id) => (int) $id)->all();
 
         $this->assertNotContains(self::FACTORIES, $bookingRoots, 'a sports-equipment factory takes bookings');
-        $this->assertNotContains(self::COMPANIES, $bookingRoots, 'a sports-equipment distributor takes bookings');
+
+        // «شركات» is the owner's, as above. What is still asserted is that it
+        // is his — an ACTIVE booking link under that root must carry his mark,
+        // so a seeder quietly re-creating one is still caught.
+        if (in_array(self::COMPANIES, $bookingRoots, true)) {
+            $config = DB::table('category_service_configs')
+                ->where('category_id', self::COMPANIES)->where('child_id', self::SPORTS_GEAR)
+                ->where('platform_service_id', $booking)->value('config');
+
+            $this->assertSame(
+                'services_bulk',
+                (json_decode((string) $config, true) ?: [])['config_source'] ?? null,
+                'booking appeared under شركات from something other than the admin screen'
+            );
+        }
     }
 
     /** Both empty twins are detached, and neither master row was deleted. */

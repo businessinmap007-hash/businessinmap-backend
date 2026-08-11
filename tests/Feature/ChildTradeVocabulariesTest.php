@@ -31,6 +31,8 @@ class ChildTradeVocabulariesTest extends TestCase
         'technology_child_vocabularies.php',
         'factory_child_vocabularies.php',
         'company_child_vocabularies.php',
+        'exhibition_child_vocabularies.php',
+        'crafts_child_vocabularies.php',
     ];
 
     /**
@@ -410,11 +412,10 @@ class ChildTradeVocabulariesTest extends TestCase
      * under «شركات» and be mute under «مصانع», which is exactly what seven
      * factory children were until the mirror pass.
      *
-     * Four roots hold all of it, and one entry is not a gap at all:
+     * «مهن وحرفيين» left this list on 2026-08-11 — 24 of its 27 crafts and 121
+     * merchants, the largest debt the platform had. Three roots hold what is
+     * left, and one entry is not a gap at all:
      *
-     *   مهن وحرفيين  24 of 27 crafts, 121 merchants — the largest debt on the
-     *                platform. A نقاش with 35 merchants cannot say what he
-     *                paints. Needs the owner's approved lists.
      *   المحلات      14 shops — كتب، نظارات، ذهب، عطور، فضة، أدوات صيد…
      *   فنون وترفية  11 venues that sell an hour of a table or a lane.
      *   مندوب #243   NOT a gap: the owner withdrew all thirteen of its options
@@ -426,12 +427,6 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     private const MUTE_TRADES = [
         'shipping-delivery:243',
-        'professions:15', 'professions:18', 'professions:26', 'professions:49',
-        'professions:58', 'professions:75', 'professions:80', 'professions:89',
-        'professions:106', 'professions:129', 'professions:132', 'professions:133',
-        'professions:134', 'professions:147', 'professions:179', 'professions:206',
-        'professions:208', 'professions:220', 'professions:227', 'professions:251',
-        'professions:259', 'professions:287', 'professions:299', 'professions:300',
         'sports:516',
         'arts-entertainment:30', 'arts-entertainment:33', 'arts-entertainment:217',
         'arts-entertainment:219', 'arts-entertainment:225', 'arts-entertainment:239',

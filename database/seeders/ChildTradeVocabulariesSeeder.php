@@ -36,6 +36,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
         'factory_child_vocabularies.php',
         'company_child_vocabularies.php',
         'exhibition_child_vocabularies.php',
+        'crafts_child_vocabularies.php',
     ];
 
     public function run(): void

@@ -90,6 +90,20 @@ return [
         'خدمات التسويق',
         'خدمات الصرافة والتحويل',
         'خدمات السياحة والسفر',
+        /*
+         * «مهن وحرفيين», the largest debt on the platform — 24 of 27 crafts and
+         * 121 merchants, none of whom could say what they do. Booking-only
+         * trades, so the offices rule: the JOB is the priced row. A customer
+         * pays for «تسليك مجاري» the way he pays for «تنظيف خزانات».
+         */
+        'أعمال الجبس والأسقف',
+        'أعمال البناء والمحارة',
+        'أعمال الأرضيات',
+        'أعمال الستائر والتنجيد',
+        'أعمال الكهرباء',
+        'أعمال السباكة',
+        'أعمال الدهانات',
+        'أعمال الدش والاستقبال',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي

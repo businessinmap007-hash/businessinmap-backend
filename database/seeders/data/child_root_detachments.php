@@ -191,15 +191,44 @@ return [
     | created on 2026-08-10, and «باب وشباك» took شركات the same day — so the
     | product and the trade stood side by side under one root. Zero accounts.
     |
-    | «بي في سي» #289 is deliberately NOT here. It is the same shape, but it
-    | holds THREE live merchants whose whole identity is UPVC, and folding them
-    | into the generic trade changes what those businesses are called. That one
-    | is the owner's to say.
+    | «بي في سي» #289 was left out of this file on 2026-08-10 for one reason:
+    | it holds three live merchants whose whole identity is UPVC, and folding
+    | them changes what those businesses are called. **The owner ruled on
+    | 2026-08-12: «ادمج pvc وباب وشباك فهما نفس الخيارات ونفس الهدف».** The
+    | entry below is that ruling; see it for what the three merchants keep.
     */
     [
         'child_name_ar' => 'أبواب مصفحة',
         'root_slug' => 'companies',
         'reassign_to' => null,
         'why' => 'منتَجٌ صار خيارًا في «أنواع الأبواب والشبابيك»، والتجارة نفسها تقف تحت شركات',
+    ],
+
+    /*
+    | «ادمج pvc وباب وشباك فهما نفس الخيارات ونفس الهدف» — owner, 2026-08-12.
+    |
+    | He is right on both halves. The two children carried the SAME sixteen
+    | words — «بي في سي» was given «أنواع الأبواب والشبابيك» whole on 2026-08-10
+    | precisely because it is part of the doors trade — and the same three
+    | services with the same branches: retail on `building_hardware`, delivery
+    | on `delivery_freight`, offers. A child that answers identically to another
+    | child is a second door onto one room.
+    |
+    | And UPVC is not a trade. It is a MATERIAL, and it already stands as row
+    | #1181 «بي في سي (UPVC)» inside the list both children carry. That is what
+    | `tick_option` writes onto each of the three merchants BEFORE they move:
+    | they arrive on «باب وشباك» already saying UPVC, so nothing about what
+    | those businesses sell is lost — only the row they were filed under.
+    |
+    | #289 stands under مصانع ALONE, so this detachment retires the child: the
+    | master row survives (nothing here is deleted) and every option link goes,
+    | because a child under no root can be reached by nobody.
+    */
+    [
+        'child_name_ar' => 'بي في سي',
+        'root_slug' => 'factories',
+        'reassign_to' => 'باب وشباك',
+        'tick_option' => 'بي في سي (UPVC)',
+        'why' => 'خامة لا حرفة — وهي صفٌّ في «أنواع الأبواب والشبابيك» التي يحملها الابنان بالكامل',
     ],
 ];

@@ -188,10 +188,12 @@ return [
         | which is a modifier precisely because the priced row there is a named
         | fridge in the catalog.
         |
-        | Two of these already stand as CHILDREN — «بي في سي» #289 under مصانع and
-        | «أبواب مصفحة» #23 under شركات — which is why both are listed here: until
-        | the owner rules on whether they fold into «باب وشباك», they must be able
-        | to say the same words as the trade they are part of.
+        | Two of these once stood as CHILDREN — «أبواب مصفحة» #23 under شركات and
+        | «بي في سي» #289 under مصانع — and both were listed here so they could
+        | say the same words as the trade they are part of while the owner ruled
+        | on whether they fold into it. **Both folded** (#23 on 2026-08-10, #289
+        | on 2026-08-12), and neither is named below any more: naming a child
+        | that hangs from no root hands the list to a row nobody can reach.
         */
         [
             'name_ar' => 'أنواع الأبواب والشبابيك',
@@ -200,11 +202,12 @@ return [
             'children' => [
                 'باب وشباك',
                 'نجار باب وشباك',
-                'بي في سي',
-                // «أبواب مصفحة» was folded on 2026-08-10: it is one of the
-                // sixteen types below, and the trade itself took شركات the same
-                // day, so the product and the trade were standing side by side.
-                // Naming it here would hand the list to a row no root can reach.
+                // «أبواب مصفحة» was folded on 2026-08-10 and «بي في سي» on
+                // 2026-08-12: each is one of the sixteen types below, and the
+                // trade itself stands under the roots they stood under, so the
+                // product and the trade were standing side by side.
+                // Naming either here would hand the list to a row no root can
+                // reach.
             ],
             'options' => [
                 'بي في سي (UPVC)' => 'UPVC Doors & Windows',

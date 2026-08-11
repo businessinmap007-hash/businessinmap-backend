@@ -196,9 +196,10 @@ return [
     // Deliberately NOT narrowed:
     //   «مواد غذائية» / «مواد غذائية ومنظفات» — the whole grocery range is
     //     exactly what a food wholesaler carries, same as the markets.
-    //   «بي في سي» #289 — building_hardware has no UPVC or profile type, so
-    //     any narrowing is a guess, and the owner has an open call on whether
-    //     it folds into «باب وشباك» at all. Same reason as «باب وشباك» below.
+    //   «بي في سي» #289 — folded into «باب وشباك» on 2026-08-12, so it reaches
+    //     no root and no narrowing here can reach it either. Kept as the record
+    //     of why it was never narrowed: building_hardware has no UPVC or
+    //     profile type, so any narrowing would have been a guess.
     //   «باب وشباك» — building_hardware carries no doors/windows type at all,
     //     so any narrowing here is a guess. It has its own option group
     //     («أنواع الأبواب والشبابيك») and no merchant accounts. The branch, not

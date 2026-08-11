@@ -113,7 +113,11 @@ return [
         | Nothing is retired here. #23 holds no account and #289 «بي في سي» holds
         | three, and folding either into «باب وشباك» is the owner's call, not a
         | side effect of wiring a root — so both keep their rows AND get the new
-        | vocabulary. They serve only as WIRING donors: the intersection fallback
+        | vocabulary. (He made that call for both: #23 on 2026-08-10 and #289 on
+        | 2026-08-12, in `child_root_detachments.php`. This file still runs
+        | first and still needs them wired — a merchant cannot be rehomed onto a
+        | vocabulary that was never written.) They serve only as WIRING donors:
+        | the intersection fallback
         | would have handed a company delivery + offers and no retail, i.e. a
         | shopfront that can sell nothing.
         */

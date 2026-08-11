@@ -122,7 +122,7 @@ return [
     'cloth-accessories' => [
         'اكسسوار' => ['delivery'],
         'جلود وشنط وأحذية' => ['delivery'],
-        'ملابس' => ['delivery'],
+        'ملابس' => ['delivery'],
     ],
 
     // ── تكنولوجيا ──
@@ -329,7 +329,8 @@ return [
         'اكسسوار' => ['delivery_freight'],
         'اكياس بلاستيك' => ['delivery_freight'],
         'باب وشباك' => ['delivery_freight'],
-        'بي في سي' => ['delivery_freight'],
+        // «بي في سي» folded into «باب وشباك» above on 2026-08-12 — same trade,
+        // same freight branch. A child under no root cannot carry a service.
         'جلود وشنط وأحذية' => ['delivery_freight'],
         'حدايد وبويات' => ['delivery_freight'],
         'حديد تسليح' => ['delivery_freight'],

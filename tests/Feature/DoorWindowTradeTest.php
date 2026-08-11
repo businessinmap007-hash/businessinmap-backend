@@ -193,34 +193,39 @@ class DoorWindowTradeTest extends TestCase
     }
 
     /**
-     * Nothing was retired. «أبواب مصفحة» and «بي في سي» are products filed as
-     * trades, and whether they fold into «باب وشباك» is the owner's call — so
-     * both keep their rows, their accounts, and now say the same sixteen words.
+     * «ادمج pvc وباب وشباك فهما نفس الخيارات ونفس الهدف» — owner, 2026-08-12.
      *
-     * @dataProvider productChildren
+     * Both product children have now folded into the trade: «أبواب مصفحة» #23
+     * on 2026-08-10, «بي في سي» #289 on 2026-08-12. UPVC is a MATERIAL, and it
+     * stands as one of the sixteen types below.
+     *
+     * The fold is only honest if the three merchants kept what the child was
+     * saying about them, so this checks the tick as well as the move. Arriving
+     * mute is a demotion dressed as a merge.
      */
-    public function test_the_product_children_are_left_standing_and_given_the_words(string $nameAr, string $rootSlug): void
+    public function test_the_upvc_child_folded_into_the_trade(): void
     {
-        $childId = $this->childId($nameAr);
+        $upvc = (int) DB::table('category_children_master')->where('id', 289)->value('id');
 
-        $this->assertTrue(
-            DB::table('category_parent_child')
-                ->where('parent_id', $this->rootId($rootSlug))->where('child_id', $childId)->exists(),
-            "«{$nameAr}» was detached — nothing here may retire a child"
-        );
+        $this->assertSame(289, $upvc, 'nothing here deletes a master row');
+        $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 289)->count());
+        $this->assertSame(0, DB::table('category_child_option')->where('child_id', 289)->count());
+        $this->assertSame(0, DB::table('users')->where('category_child_id', 289)->count());
 
-        $this->assertCount(16, $this->typesOf($nameAr));
-    }
+        $option = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', self::GROUP)->where('o.name_ar', 'بي في سي (UPVC)')->value('o.id');
 
-    /** @return array<string,array{0:string,1:string}> */
-    public static function productChildren(): array
-    {
-        return [
-            // «أبواب مصفحة» was folded on 2026-08-10 once the trade itself stood
-            // under شركات — it holds no account and is one of the sixteen types.
-            // ChildRootDetachTest pins that its master row survived.
-            'بي في سي' => ['بي في سي', 'factories'],
-        ];
+        $arrived = DB::table('users')->where('category_child_id', $this->childId('باب وشباك'))
+            ->where('category_id', $this->rootId('factories'))->pluck('id');
+
+        $this->assertGreaterThanOrEqual(3, $arrived->count(), 'the three UPVC merchants landed here');
+
+        foreach ($arrived as $userId) {
+            $this->assertTrue(
+                DB::table('option_user')->where('user_id', $userId)->where('option_id', $option)->exists(),
+                "u{$userId} arrived without the word its child was saying"
+            );
+        }
     }
 
     /** The workshop that makes them says the same thing the factory says. */

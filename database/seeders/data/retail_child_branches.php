@@ -277,8 +277,9 @@ return [
         'مستلزمات نجارة' => ['building_hardware'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
         'اكياس بلاستيك' => ['building_hardware'],
-        'بي في سي' => ['building_hardware'],
         'أخشاب' => ['building_hardware'],
+        // «بي في سي» folded into «باب وشباك» on 2026-08-12 — it carried this
+        // exact branch, which is half of why the two were the same child.
         'باب وشباك' => ['building_hardware'],
         'طوب' => ['building_hardware'],
         'أدوات صحية' => ['building_hardware'],

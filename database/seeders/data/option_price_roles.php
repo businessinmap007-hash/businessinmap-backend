@@ -148,11 +148,11 @@ return [
          * The coworking pair (2026-08-11), and they are the reason its units
          * are TWO rows instead of the owner's three: «مكتب بسكرتارية» is not a
          * third kind of office, it is «مكتب منفصل» + سكرتارية, and the heading
-         * is the combination. «نظام الاشتراك» is «نظام الوجبات» exactly — the
+         * is the combination. «نظام التعاقد» is «نظام الوجبات» exactly — the
          * same desk at an hourly and a monthly price.
          */
         'خدمات المكتب',           // مكتب + سكرتارية + ريسبشن
-        'نظام الاشتراك',          // شهري ≠ بالساعة
+        'نظام التعاقد',          // شهري ≠ بالساعة
         // A مأذون who comes to the hall charges for coming; the act signed is
         // the same act. The coworking shape again — line + modifier, not three
         // lines that cannot say «at home» about a divorce registration.

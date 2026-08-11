@@ -181,6 +181,37 @@ return [
         ],
 
         /*
+         * ── the axis the whole root was missing ──────────────────────────
+         *
+         * «مكاتب» is where the platform's B2B trades live, and not one of its
+         * thirteen children could say WHO it works for. The platform's own
+         * shared axes are all goods-shaped — «الاستبدال والإرجاع» (86
+         * children), «التسليم والاستلام» (113), «حالة المنتج» (87) — and none
+         * of them says anything about an accountant. «الجمهور المستهدف» #94
+         * looks like the one until you read it: حريمي، رجالي، أطفال. It is
+         * what a clothes shop dresses.
+         *
+         * So: an accountant who does factories, a lawyer who does companies, a
+         * security firm that does government sites. `descriptive`, because it
+         * narrows a search and does not by itself change a price.
+         *
+         * Given to all thirteen. A مأذون will tick «أفراد» and nothing else,
+         * and that is the axis working, not the axis misapplied.
+         */
+        'نوع العملاء' => [
+            'name_en' => 'Client Types',
+            'price_role' => 'descriptive',
+            'children' => [10, 11, 62, 70, 77, 78, 123, 144, 167, 178, 205, 231, 253],
+            'options' => [
+                'أفراد' => 'Individuals',
+                'شركات ومؤسسات' => 'Companies',
+                'مصانع' => 'Factories',
+                'جهات حكومية' => 'Government Bodies',
+                'جمعيات ومنظمات' => 'NGOs & Associations',
+            ],
+        ],
+
+        /*
          * The registrar's office. Six acts, and they are acts of DOCUMENTATION
          * — that is what separates a مأذون from a lawyer: «تخصصات المحاماة» has
          * «أحوال شخصية وأسرة», which is litigating a family matter, while these
@@ -222,17 +253,33 @@ return [
     ],
 
     /*
+    | ── a group renamed ──────────────────────────────────────────────────
+    | «نظام الاشتراك» was born on 2026-08-11 for the coworking desks and by the
+    | end of the same day it was answering for a maid, a lawyer and a guarding
+    | contract. Its question was never subscription: it is **on what basis is
+    | this bought** — بالساعة، بالزيارة، بالمهمة، شهري — and a lawyer on a
+    | «نظام اشتراك» reads as nonsense in the admin.
+    |
+    | Renamed rather than cloned. A second group repeating شهري/سنوي/بالساعة is
+    | the duplication that cost a day in the food lists, and one honest name is
+    | cheap today and expensive next month.
+    */
+    'rename' => [
+        'نظام الاشتراك' => ['نظام التعاقد', 'Engagement Basis'],
+    ],
+
+    /*
     | ── options added to a group that already exists ─────────────────────
-    | «نظام الاشتراك» #374 was created for the coworking desks and asks exactly
-    | the question a domestic contract asks: how often, and for how long. A
-    | maid by the visit and a maid living in are two prices for one line, which
-    | is the definition of a modifier. Reused rather than cloned under another
-    | name; the two children link different subsets of it.
+    | The two the desks did not need. «بالمهمة» is what every professional
+    | office answers — an accountant per filing, a lawyer per case, a decorator
+    | per project — and «سنوي» is the retainer beneath it.
     */
     'extend' => [
-        'نظام الاشتراك' => [
+        'نظام التعاقد' => [
             'بالزيارة' => 'Per Visit',
             'بالإقامة' => 'Live-in',
+            'بالمهمة' => 'Per Assignment',
+            'سنوي' => 'Annual',
         ],
     ],
 
@@ -244,11 +291,13 @@ return [
         // The contract shapes a home-services office actually offers. «بالساعة»
         // and «ربع سنوي» are the desk's, not the maid's.
         144 => [
-            'نظام الاشتراك' => ['بالزيارة', 'يومي', 'أسبوعي', 'شهري', 'بالإقامة'],
+            'نظام التعاقد' => ['بالزيارة', 'يومي', 'أسبوعي', 'شهري', 'بالإقامة'],
         ],
 
         // The digital four of «تخصصات الدعاية والإعلان». A page manager does
-        // not print a banner.
+        // not print a banner. Its engagement basis is in the same entry on
+        // purpose: a duplicate array key here is silent — PHP keeps the last
+        // one and the earlier list simply never happens.
         205 => [
             'تخصصات الدعاية والإعلان' => [
                 'تسويق رقمي وسوشيال ميديا',
@@ -256,6 +305,24 @@ return [
                 'تصميم جرافيك',
                 'تصوير وإنتاج',
             ],
+            // إدارة صفحة اشتراك بطبعها
+            'نظام التعاقد' => ['شهري', 'ربع سنوي', 'سنوي'],
         ],
+
+        /*
+         * ── the engagement basis, per trade ──────────────────────────────
+         *
+         * Only where the SAME line genuinely prices two ways. A مأذون is paid
+         * per act and a printing house per job, so neither is here: a modifier
+         * with one possible value asks a question that has no second answer,
+         * which is noise on the pricing screen, not an axis.
+         */
+        10 => ['نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي']],           // محاسب مقيد شهريًا
+        11 => ['نظام التعاقد' => ['بالمهمة', 'شهري']],                    // حملة ≠ إدارة مستمرة
+        77 => ['نظام التعاقد' => ['بالمهمة', 'شهري']],                    // شحنة ≠ عقد مستورد
+        78 => ['نظام التعاقد' => ['بالمهمة', 'بالساعة']],                 // مشروع ≠ ساعة استشارة
+        123 => ['نظام التعاقد' => ['بالمهمة', 'بالساعة', 'شهري']],        // «إشراف على التنفيذ» شهري
+        167 => ['نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي']],           // بالقضية ≠ مستشار الشركة
+        253 => ['نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي']],           // تأمين حفل ≠ عقد حراسة
     ],
 ];

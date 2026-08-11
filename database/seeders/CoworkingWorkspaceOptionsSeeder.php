@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  *
  *   kind      booking_time (an hour), where the hotel has booking_stay (a night)
  *   line      «مساحات العمل», where the hotel has «الغرف» #150
- *   modifier  «خدمات المكتب» + «نظام الاشتراك», where the hotel has «إطلالة
+ *   modifier  «خدمات المكتب» + «نظام التعاقد», where the hotel has «إطلالة
  *             الوحدة» + «نظام الوجبات»
  *
  * `CoworkingAndHotelUnitsSeeder` built these six as ITEM TYPES on 2026-08-02 —
@@ -123,7 +123,7 @@ class CoworkingWorkspaceOptionsSeeder extends Seeder
 
             $linked += $this->group('مساحات العمل', 'Workspaces', 'line', self::WORKSPACES, $childId);
             $linked += $this->group('خدمات المكتب', 'Office Services', 'modifier', self::OFFICE_SERVICES, $childId);
-            $linked += $this->group('نظام الاشتراك', 'Subscription Plan', 'modifier', self::PLANS, $childId);
+            $linked += $this->group('نظام التعاقد', 'Engagement Basis', 'modifier', self::PLANS, $childId);
             $linked += $this->group('تجهيزات مساحة العمل', 'Workspace Facilities', 'descriptive', self::FACILITIES, $childId);
             $linked += $this->linkShared($childId);
 

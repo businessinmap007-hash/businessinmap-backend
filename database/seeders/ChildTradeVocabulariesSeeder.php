@@ -50,6 +50,29 @@ class ChildTradeVocabulariesSeeder extends Seeder
         DB::transaction(function () use ($map) {
             $blocked = app(ChildOptionDecisions::class)->blockedByChild();
 
+            /*
+             * Before anything looks a group up by name. A rename that runs
+             * second would find nothing under the new name and CREATE it,
+             * leaving two groups where there was one and splitting the
+             * children between them.
+             */
+            foreach (($map['rename'] ?? []) as $from => [$toAr, $toEn]) {
+                if (DB::table('option_groups')->where('name_ar', $toAr)->exists()) {
+                    // Already renamed, or the new name was taken first. Either
+                    // way the English half may still be the old one, because a
+                    // rename that only moved name_ar leaves the admin showing
+                    // two different names for one group.
+                    DB::table('option_groups')->where('name_ar', $toAr)
+                        ->where('name_en', '!=', $toEn)
+                        ->update(['name_en' => $toEn, 'updated_at' => now()]);
+
+                    continue;
+                }
+
+                DB::table('option_groups')->where('name_ar', $from)
+                    ->update(['name_ar' => $toAr, 'name_en' => $toEn, 'updated_at' => now()]);
+            }
+
             $created = 0;
             $linked = 0;
             $refused = 0;

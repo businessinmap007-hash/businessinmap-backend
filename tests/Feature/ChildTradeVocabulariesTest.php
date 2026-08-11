@@ -86,6 +86,74 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * «مكاتب» is finished: every child answers all three questions.
+     *
+     * What it sells (`line`), what changes the price (`modifier`) and what
+     * describes it (`descriptive`). Twelve of the thirteen had no descriptive
+     * axis at all once the owner started removing the payment group, and the
+     * platform's shared descriptives are all goods-shaped — «الاستبدال
+     * والإرجاع», «التسليم والاستلام», «حالة المنتج» say nothing about an
+     * accountant.
+     */
+    public function test_the_offices_root_answers_all_three_questions(): void
+    {
+        $rootId = (int) DB::table('categories')->where('slug', 'offices')->value('id');
+
+        $incomplete = [];
+
+        foreach (
+            DB::table('category_parent_child as pc')
+                ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
+                ->where('pc.parent_id', $rootId)->get(['c.id', 'c.name_ar']) as $child
+        ) {
+            $roles = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', (int) $child->id)
+                ->distinct()->pluck('g.price_role')->all();
+
+            $missing = array_diff(['line', 'modifier', 'descriptive'], $roles);
+
+            if ($missing !== []) {
+                $incomplete[] = "{$child->name_ar}#{$child->id} (" . implode('+', $missing) . ')';
+            }
+        }
+
+        $this->assertSame([], $incomplete, 'these answer only part of themselves: ' . implode('، ', $incomplete));
+    }
+
+    /**
+     * The engagement basis is an axis only where there are two answers.
+     *
+     * A مأذون is paid per act and a printing house per job. A modifier with one
+     * possible value asks a question that has no second answer — noise on the
+     * pricing screen, not an axis — so neither carries «نظام التعاقد».
+     */
+    public function test_the_engagement_basis_reaches_only_the_trades_with_two_answers(): void
+    {
+        $carriers = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'نظام التعاقد')
+            ->distinct()->pluck('co.child_id')->map(fn ($id) => (int) $id)->all();
+
+        foreach (['محاسبة', 'محاماه', 'أمن', 'إدارة صفحات'] as $name) {
+            $this->assertContains($this->childId($name), $carriers, "«{$name}» is engaged two ways");
+        }
+
+        foreach (['مأذون شرعى', 'طباعة'] as $name) {
+            $this->assertNotContains($this->childId($name), $carriers, "«{$name}» is paid one way only");
+        }
+
+        // A lawyer is not on a subscription. The group was renamed the day it
+        // outgrew the desks it was born for.
+        $this->assertFalse(
+            DB::table('option_groups')->where('name_ar', 'نظام الاشتراك')->exists(),
+            'the old name is back, so there are two groups asking one question'
+        );
+    }
+
+    /**
      * The registrar's office — the owner's second question.
      *
      * Six acts of DOCUMENTATION, which is what separates a مأذون from a lawyer:
@@ -193,7 +261,7 @@ class ChildTradeVocabulariesTest extends TestCase
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('co.child_id', $this->childId('خدمات منزلية'))
-            ->where('g.name_ar', 'نظام الاشتراك')->pluck('o.name_ar')->all();
+            ->where('g.name_ar', 'نظام التعاقد')->pluck('o.name_ar')->all();
 
         $this->assertContains('بالزيارة', $modifiers);
         $this->assertContains('بالإقامة', $modifiers);
@@ -285,6 +353,15 @@ class ChildTradeVocabulariesTest extends TestCase
         }
 
         foreach ($roles as $group => $role) {
+            if ($role === 'descriptive') {
+                // The file's own default, and the only role that needs no
+                // entry. What it must NOT be is claimed by a priced tier.
+                $this->assertNotContains($group, $declared['line'], "«{$group}» is declared as a line");
+                $this->assertNotContains($group, $declared['modifier'], "«{$group}» is declared as a modifier");
+
+                continue;
+            }
+
             $this->assertContains(
                 $group,
                 $declared[$role] ?? [],

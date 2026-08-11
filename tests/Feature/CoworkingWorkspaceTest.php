@@ -137,7 +137,7 @@ class CoworkingWorkspaceTest extends TestCase
         $this->assertContains('ريسبشن', $modifiers['خدمات المكتب'] ?? []);
 
         // The same desk at an hourly and a monthly price — «نظام الوجبات».
-        $this->assertContains('شهري', $modifiers['نظام الاشتراك'] ?? []);
+        $this->assertContains('شهري', $modifiers['نظام التعاقد'] ?? []);
     }
 
     /**
@@ -167,7 +167,7 @@ class CoworkingWorkspaceTest extends TestCase
 
         $this->assertContains('مساحات العمل', $declared['line']);
         $this->assertContains('خدمات المكتب', $declared['modifier']);
-        $this->assertContains('نظام الاشتراك', $declared['modifier']);
+        $this->assertContains('نظام التعاقد', $declared['modifier']);
 
         DB::beginTransaction();
 

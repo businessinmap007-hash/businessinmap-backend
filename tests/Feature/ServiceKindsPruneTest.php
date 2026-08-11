@@ -471,6 +471,99 @@ class ServiceKindsPruneTest extends TestCase
     }
 
     /**
+     * A branch named in the child→branch file but absent from the collapse's
+     * map is silently answered by the DEFAULT, which is «حجز موعد» — and a
+     * default is an absence of knowledge, not knowledge.
+     *
+     * `entertainment_leisure` was missing, so all ten children of «فنون و
+     * ترفية» were handed appointments. You do not make an appointment at a
+     * billiards hall; you take a table for an hour, which the platform already
+     * knew — «الرياضة» is the same shape and all six of its children are on
+     * «حجز وقت».
+     */
+    public function test_every_branch_the_map_names_has_a_kind(): void
+    {
+        $spec = (require database_path('seeders/data/service_kinds.php'))['booking'];
+
+        $used = collect(require database_path('seeders/data/booking_child_branches.php'))
+            ->flatMap(fn ($children) => collect($children)->flatten())
+            ->unique();
+
+        $this->assertNotEmpty($used);
+
+        foreach ($used as $branch) {
+            $this->assertArrayHasKey(
+                $branch,
+                $spec['map'],
+                "«{$branch}» is named by children but has no kind — they all fall to «{$spec['default']}»"
+            );
+        }
+    }
+
+    /**
+     * A booked hour and a booked appointment are different products, and the
+     * roots that sell an hour must agree with each other.
+     */
+    public function test_a_place_you_occupy_is_booked_by_time(): void
+    {
+        $byTime = DB::table('category_service_configs as c')
+            ->join('categories as r', 'r.id', '=', 'c.category_id')
+            ->join('category_children_master as m', 'm.id', '=', 'c.child_id')
+            ->whereIn('r.slug', ['arts-entertainment', 'sports', 'halls'])
+            ->where('c.platform_service_id', DB::table('platform_services')->where('key', 'booking')->value('id'))
+            ->where('c.is_active', 1)
+            ->get(['m.name_ar', 'c.config']);
+
+        $this->assertNotEmpty($byTime);
+
+        // The two that sell a person or a departure, not a duration.
+        $notPlaces = ['فوتوجرافر', 'رحلات ومراكب'];
+
+        foreach ($byTime as $row) {
+            if (in_array($row->name_ar, $notPlaces, true)) {
+                continue;
+            }
+
+            $this->assertContains(
+                'booking_time',
+                json_decode((string) $row->config, true)['allowed_item_types'] ?? [],
+                "«{$row->name_ar}» is a place you occupy for a while — it cannot be booked by appointment alone"
+            );
+        }
+    }
+
+    /**
+     * A map that still names a folded child hands it a branch the moment it is
+     * linked to a root again — and reports it missing on every run until then.
+     * Forty-one health specialties and three boat trips were doing exactly that.
+     */
+    public function test_the_branch_map_names_no_child_that_is_gone(): void
+    {
+        $missing = [];
+
+        foreach (require database_path('seeders/data/booking_child_branches.php') as $rootSlug => $children) {
+            $rootId = (int) DB::table('categories')->where('parent_id', 0)->where('slug', $rootSlug)->value('id');
+
+            $this->assertNotSame(0, $rootId, "no root «{$rootSlug}»");
+
+            foreach (array_keys($children) as $name) {
+                $exists = DB::table('category_parent_child as pc')
+                    ->join('category_children_master as m', 'm.id', '=', 'pc.child_id')
+                    ->where('pc.parent_id', $rootId)
+                    ->where('m.name_ar', $name)
+                    ->exists();
+
+                if (! $exists) {
+                    $missing[] = "{$rootSlug} → {$name}";
+                }
+            }
+        }
+
+        $this->assertSame([], $missing, 'the booking branch map names children that no longer stand there: '
+            . implode('، ', $missing));
+    }
+
+    /**
      * The collapse is in DatabaseSeeder, so anything it would change on a
      * re-run is a change a full seed makes without anyone asking for it.
      *

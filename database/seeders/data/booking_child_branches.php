@@ -13,8 +13,6 @@ return [
     'professions' => [
         'أويمجى' => ['services_tasks'],
         'استرجي' => ['services_tasks'],
-        'اصلاح زجاج السيارات' => ['services_tasks'],
-        'باب وشباك' => ['services_tasks'],
         'باركيه' => ['services_tasks'],
         'بناء وواجهات حجرية' => ['services_tasks'],
         'تكسير ونحت' => ['services_tasks'],
@@ -26,7 +24,6 @@ return [
         'خدمات نظافة' => ['services_tasks'],
         'دش وأقمار صناعية' => ['services_tasks'],
         'رخام وجرانيت' => ['services_tasks'],
-        'سائق' => ['services_tasks'],
         'سباك' => ['services_tasks'],
         'صيانة اجهزة منزلية' => ['services_tasks'],
         'صيانة تكيف' => ['services_tasks'],
@@ -35,7 +32,6 @@ return [
         'فني ستائر و تنجيد' => ['services_tasks'],
         'كهربائي' => ['services_tasks'],
         'كوافير' => ['beauty_care'],
-        'مأذون شرعى' => ['services_tasks'],
         'مبلط' => ['services_tasks'],
         'مبيض محارة' => ['services_tasks'],
         'منجد' => ['services_tasks'],
@@ -45,21 +41,19 @@ return [
     ],
 
     // ── الرياضة ──
+    /*
+    | Twelve sports — كرة قدم، سباحة، تنس، باليه — stood here until the remodel
+    | made them multi-select OPTIONS, so one club can carry many. What is left
+    | is the six places you actually book: an hour on a pitch, in a pool, in a
+    | gym.
+    */
     'sports' => [
-        'اسكواش' => ['sports'],
-        'باليه' => ['sports'],
-        'تنس' => ['sports'],
         'جيم' => ['sports'],
-        'سباحة' => ['sports'],
-        'سلة' => ['sports'],
-        'فنون الدفاع عن النفس' => ['sports'],
-        'كرة طائرة' => ['sports'],
-        'كرة قدم' => ['sports'],
-        'كرة يد' => ['sports'],
-        'مصارعه حرة وروماني' => ['sports'],
-        'مكملات غذائية' => ['sports'],
         'ملاعب كرة' => ['sports'],
-        'هوكي' => ['sports'],
+        'حمام سباحة' => ['sports'],
+        'نادي رياضي' => ['sports'],
+        'نادي صحي' => ['sports'],
+        'أكاديمية رياضية' => ['sports'],
     ],
 
     // ── فنون و ترفية ──
@@ -69,11 +63,19 @@ return [
         'بلياردو' => ['entertainment_leisure'],
         'بولينج' => ['entertainment_leisure'],
         'بينج بونج' => ['entertainment_leisure'],
-        'رحلات بحرية' => ['entertainment_leisure', 'tourism_travel'],
-        'رحلات نيلية' => ['entertainment_leisure', 'tourism_travel'],
-        'رحلة صيد سمك' => ['entertainment_leisure', 'tourism_travel'],
         'فوتوجرافر' => ['entertainment_leisure'],
         'مركز ترفيهي' => ['entertainment_leisure'],
+        // The four EntertainmentRemodelSeeder created (2026-08-04) and this map
+        // never learned about, so they fell to the root fallback instead of
+        // their branch.
+        'اكوا بارك' => ['entertainment_leisure'],
+        'صالة ألعاب' => ['entertainment_leisure'],
+        'منطقة أطفال' => ['entertainment_leisure'],
+        'استوديوهات' => ['entertainment_leisure'],
+        // «رحلات بحرية» / «رحلات نيلية» / «رحلة صيد سمك» were folded into
+        // «رحلات ومراكب» #526 by the same remodel; naming them here only
+        // reported three missing children on every run.
+        'رحلات ومراكب' => ['tourism_travel'],
     ],
 
     // ── ورش ومراكز صيانة ──
@@ -93,21 +95,22 @@ return [
     ],
 
     // ── قاعات ──
+    /*
+    | «اجتماعات»، «حفلات»، «مؤتمرات»، «ندوات مفتوحة» were never businesses —
+    | they are what a hall is HIRED FOR, and they became options. The three
+    | children below are the halls themselves.
+    */
     'halls' => [
-        'اجتماعات' => ['halls_events'],
-        'حفلات' => ['halls_events'],
-        'مؤتمرات' => ['halls_events'],
-        'ندوات مفتوحة' => ['halls_events'],
+        'قاعة مناسبات' => ['halls_events'],
+        'مركز مؤتمرات واجتماعات' => ['halls_events'],
+        'قاعات تدريب' => ['halls_events'],
     ],
 
     // ── دورات و  تدريب ──
     'training-courses' => [
-        'أكاديمية تعليم قص الشعر' => ['training'],
-        'تعليم صيانة' => ['training'],
         'حضانات' => ['training'],
-        'دورات و تدريب' => ['training'],
         'سنتر دروس' => ['training'],
-        'قاعات تدريب' => ['training'],
+        'مركز تدريب' => ['training'],
     ],
 
     // ── تكنولوجيا ──
@@ -126,19 +129,16 @@ return [
     ],
 
     // ── عقارات و أراضي ──
+    /*
+    | Eleven property TYPES — شقة، ڤيلا، أرض، محل، مصنع — stood here as
+    | children. A flat is not a business; it is what the business lists, and
+    | they became options on «عقارات وممتلكات». The four below are the trades.
+    */
     'property-and-land' => [
-        'أرض' => ['real_estate'],
-        'أرض زراعية' => ['real_estate'],
+        'مكتب عقاري' => ['real_estate'],
+        'مطور عقاري' => ['real_estate'],
+        'مالك عقار' => ['real_estate'],
         'تسويق عقاري' => ['real_estate'],
-        'شقة' => ['real_estate'],
-        'عمارة' => ['real_estate'],
-        'ڤيلا' => ['real_estate'],
-        'محل' => ['real_estate'],
-        'مزرعة' => ['real_estate'],
-        'مصنع' => ['real_estate'],
-        'معرض' => ['real_estate'],
-        'مكتب' => ['real_estate'],
-        'ورشة' => ['real_estate'],
     ],
 
     // ── مكاتب ──
@@ -150,51 +150,25 @@ return [
     ],
 
     // ── الصحة ──
+    /*
+    | Forty-one specialty children stood here — أسنان، باطنه، قلب وأوعية دموية —
+    | until the three-axis remodel turned every one of them into a multi-select
+    | OPTION on «تخصصات طبية», so that one hospital could carry many. The names
+    | outlived the children by nine days: this map reported all forty-one
+    | «missing» on every run and would have handed them a branch the moment any
+    | were linked to a root again.
+    |
+    | WITHDRAWN. What is left is the three that are still children — a pharmacy,
+    | a radiology centre and a lab are places, not specialties.
+    |
+    | «health_medical» went with them. It was the specialties' own branch, it
+    | has no kind in the collapse map, and beside «clinic» it said nothing these
+    | three did not already get.
+    */
     'health' => [
-        'أسنان' => ['clinic', 'health_medical'],
-        'أمراض روماتيزمية ومزمنة' => ['clinic', 'health_medical'],
-        'اطفال وحديثي الولادة' => ['clinic', 'health_medical'],
-        'امراض الدم' => ['clinic', 'health_medical'],
-        'انف وأذن وحنجرة' => ['clinic', 'health_medical'],
-        'اورام' => ['clinic', 'health_medical'],
-        'باطنه' => ['clinic', 'health_medical'],
-        'تخسيس وتغذية' => ['clinic', 'health_medical'],
-        'جراحة أطفال' => ['clinic', 'health_medical'],
-        'جراحة أورام' => ['clinic', 'health_medical'],
-        'جراحة اوعية دموية' => ['clinic', 'health_medical'],
-        'جراحة تجميل' => ['clinic', 'health_medical'],
-        'جراحة سمنة ومناظير' => ['clinic', 'health_medical'],
-        'جراحة عامة' => ['clinic', 'health_medical'],
-        'جراحة عمود فقري' => ['clinic', 'health_medical'],
-        'جراحة عيون' => ['clinic', 'health_medical'],
-        'جراحة مخ واعصاب' => ['clinic', 'health_medical'],
-        'جلديه وتناسليه' => ['clinic', 'health_medical'],
-        'جهاز هضمي ومناظير' => ['clinic', 'health_medical'],
-        'حساسية ومناعة' => ['clinic', 'health_medical'],
-        'حقن مجهري واطفال انابيب' => ['clinic', 'health_medical'],
-        'ذكورة وعقم' => ['clinic', 'health_medical'],
-        'رمد' => ['clinic', 'health_medical'],
-        'سكر وغدد صماء' => ['clinic', 'health_medical'],
-        'سمعيات' => ['clinic', 'health_medical'],
-        'صدر' => ['clinic', 'health_medical'],
-        'صيدلية' => ['clinic', 'health_medical'],
-        'طب الأسرة' => ['clinic', 'health_medical'],
-        'طب المسنين' => ['clinic', 'health_medical'],
-        'طب تقويمي' => ['clinic', 'health_medical'],
-        'عظام' => ['clinic', 'health_medical'],
-        'علاج الآلام' => ['clinic', 'health_medical'],
-        'علاج طبيعي واصابات ملاعب' => ['clinic', 'health_medical'],
-        'عيون' => ['clinic', 'health_medical'],
-        'قلب وأوعية دموية' => ['clinic', 'health_medical'],
-        'كبد' => ['clinic', 'health_medical'],
-        'كلى' => ['clinic', 'health_medical'],
-        'مخ وأعصاب' => ['clinic', 'health_medical'],
-        'مراكز أشعة' => ['clinic', 'health_medical'],
-        'مسالك بوليه' => ['clinic', 'health_medical'],
-        'معمل تحاليل' => ['clinic', 'health_medical'],
-        'ممارسة عامة' => ['clinic', 'health_medical'],
-        'نساء و ولادة' => ['clinic', 'health_medical'],
-        'نطق وتخاطب' => ['clinic', 'health_medical'],
+        'صيدلية' => ['clinic'],
+        'مراكز أشعة' => ['clinic'],
+        'معمل تحاليل' => ['clinic'],
     ],
 
     // ── شركات ──
@@ -214,18 +188,17 @@ return [
     ],
 
     // ── فنادق سياحية ──
+    /*
+    | The six star ratings (1 ⭐ … 5 ➕) were children here and were retired —
+    | a star is a grade, not a trade. The six below are the places.
+    */
     'tourist-hotels' => [
-        '1 ⭐' => ['hotel'],
-        '2⭐⭐' => ['hotel'],
-        '3 ⭐⭐ ⭐' => ['hotel'],
-        '4 ⭐⭐ ⭐ ⭐' => ['hotel'],
-        '5 ➕ ⭐ ⭐ ⭐ ⭐ ⭐' => ['hotel'],
-        '5 ⭐ ⭐ ⭐ ⭐ ⭐' => ['hotel'],
+        'فندق' => ['hotel'],
+        'شقق فندقية' => ['hotel'],
+        'منتجع' => ['hotel'],
+        'نُزل / هوستل' => ['hotel'],
+        'بيت ضيافة' => ['hotel'],
+        'فندق عائم / بوت نيلي' => ['hotel'],
     ],
 
-    // ── كوافير ──
-    'hair-dresser' => [
-        'كوافير حريمى' => ['beauty_care'],
-        'كوافير رجالي' => ['beauty_care'],
-    ],
 ];

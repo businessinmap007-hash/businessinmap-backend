@@ -100,6 +100,22 @@ return [
             'sports' => 'booking_time',
             'halls_events' => 'booking_time',
             'coworking' => 'booking_time',
+            /*
+             * Missing until 2026-08-11, so all ten children of «فنون و ترفية»
+             * fell through to the default below and were given «حجز موعد».
+             *
+             * You do not make an appointment at a billiards hall. You take a
+             * table for an hour — and the platform already knew that, because
+             * «الرياضة» is the same shape of business and every one of its six
+             * children is on «حجز وقت»: a gym, a pool, a football pitch. A
+             * playstation lounge, a bowling alley, an internet café and a
+             * children's play area are bought by the hour in exactly the way a
+             * five-a-side pitch is.
+             *
+             * «فوتوجرافر» and «رحلات ومراكب» are the two that are not, and both
+             * are named in `children` below.
+             */
+            'entertainment_leisure' => 'booking_time',
 
             'hotel' => 'booking_stay',
             'real_estate' => 'booking_stay',
@@ -187,6 +203,12 @@ return [
             // the largest child on this list at 71 businesses. Consultation
             // only: there is no online version of walking a site.
             72 => ['booking_consultation'], // مقاولات
+
+            // The two exceptions to «entertainment_leisure → حجز وقت» above.
+            // A photographer sells a session with a person, not a seat for an
+            // hour; a boat trip has a departure, not a duration you choose.
+            217 => ['booking_appointment'], // فوتوجرافر
+            526 => ['booking_appointment'], // رحلات ومراكب
         ],
 
         /*

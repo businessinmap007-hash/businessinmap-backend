@@ -133,6 +133,15 @@ class DatabaseSeeder extends Seeder
            // otherwise re-wire delivery onto the children this switches off.
            BookingWithoutDeliverySeeder::class,
 
+           // What each child of «سيارات» may put a price on. It was never in
+           // this list, so its rulings had never run: a car wash, a parking
+           // garage and a tow truck were each offering «نقل أفراد» and
+           // «ليموزين VIP», and the data file had said `off` for all three the
+           // whole time. MUST come after ServiceKindsCollapseSeeder — it used
+           // to write the price fallback type `category` into the kinds field
+           // and the two would have fought over root 13 forever.
+           ChildServiceScopeSeeder::class,
+
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this
            // has the final word.

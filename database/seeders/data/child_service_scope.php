@@ -25,6 +25,13 @@ return [
     'schedules' => [
         'cars:169' => ['mode_limousine', 'mode_passenger'], // خدمة ليموزين
         'cars:278' => ['mode_passenger'],                   // نقل ركاب
+        // Named 2026-08-11. A hired driver runs the same trips as a limousine
+        // service — he was the one child of this root the file did not rule on,
+        // and that silence had a price: switching the three below OFF took root
+        // 13 from five children carrying `schedules` to three of six siblings,
+        // which is no longer a MAJORITY, and ChildRootMovesSeeder::adoptRootShape()
+        // then wanted to strip the driver of the one thing he actually sells.
+        'cars:85' => ['mode_limousine', 'mode_passenger'],  // سائق
         'cars:284' => ['mode_freight', 'mode_distribution'], // سيارات نقل
         'cars:46' => 'off',                                 // مغسلة سيارات
         'cars:119' => 'off',                                // جراج
@@ -54,6 +61,10 @@ return [
         'cars:46',   // مغسلة سيارات
         'cars:119',  // جراج
         'cars:244',  // ونش إنقاذ
-        'shops-online:271', // استوديوهات — the one child with no active service at all
+        // «استوديوهات» left المحلات for فنون و ترفية (ChildRootMovesSeeder:
+        // «a studio is a place you book time in, which is what root 9 is
+        // for»). The ref was not moved with it, so this seeder was creating a
+        // config for a (root, child) pairing that does not exist.
+        'arts-entertainment:271', // استوديوهات
     ],
 ];

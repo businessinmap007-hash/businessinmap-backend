@@ -624,6 +624,79 @@ class ServiceKindsPruneTest extends TestCase
     }
 
     /**
+     * A merchant's (root, child) must be a pairing that exists.
+     *
+     * `users.category_id` and `users.category_child_id` are read together, so a
+     * child that moves roots leaves anyone still filed under the old one
+     * matching no config and no link at all — the platform offers them nothing.
+     * ChildRootMovesSeeder carries the accounts across on the moves IT makes
+     * («Nobody may be left pointing at a root the child no longer hangs from»);
+     * nothing applied that to the remodels and detachments, which move a child
+     * by a different door.
+     *
+     * Fourteen merchants were stranded: twelve on «سيارات» under شركات — every
+     * merchant that child had — and two on «قاعات تدريب» under دورات و تدريب,
+     * which went to قاعات in the 2026-08-02 halls remodel without them.
+     */
+    public function test_no_merchant_is_filed_under_a_root_their_trade_left(): void
+    {
+        $pairs = DB::table('category_parent_child')
+            ->get(['parent_id', 'child_id'])
+            ->mapWithKeys(fn ($r) => ["{$r->parent_id}:{$r->child_id}" => true]);
+
+        $stranded = [];
+
+        foreach (
+            DB::table('users as u')
+                ->join('categories as r', 'r.id', '=', 'u.category_id')
+                ->join('category_children_master as m', 'm.id', '=', 'u.category_child_id')
+                ->whereNotNull('u.category_child_id')
+                ->groupBy('u.category_id', 'u.category_child_id', 'r.slug', 'm.name_ar')
+                ->select('u.category_id as rid', 'u.category_child_id as cid', 'r.slug', 'm.name_ar', DB::raw('COUNT(*) as n'))
+                ->get() as $row
+        ) {
+            if ($pairs->has("{$row->rid}:{$row->cid}")) {
+                continue;
+            }
+
+            $stranded[] = "{$row->slug} → {$row->name_ar} ({$row->n})";
+        }
+
+        $this->assertSame([], $stranded, 'merchants filed under a pairing that does not exist: ' . implode('، ', $stranded));
+    }
+
+    /**
+     * Both halves or neither. A live link with no live config offers a service
+     * that nothing bounds, and an unbounded allowed_item_types is not «nothing»
+     * but EVERY type; a live config with no link is work nobody can reach.
+     *
+     * @see \Database\Seeders\ChildServiceScopeSeeder
+     */
+    public function test_a_service_is_never_wired_by_one_half(): void
+    {
+        $rows = DB::table('category_platform_services as l')
+            ->join('platform_services as s', 's.id', '=', 'l.platform_service_id')
+            ->join('categories as r', 'r.id', '=', 'l.category_id')
+            ->join('category_children_master as m', 'm.id', '=', 'l.child_id')
+            ->leftJoin('category_service_configs as c', function ($j) {
+                $j->on('c.category_id', '=', 'l.category_id')
+                    ->on('c.child_id', '=', 'l.child_id')
+                    ->on('c.platform_service_id', '=', 'l.platform_service_id')
+                    ->where('c.is_active', '=', 1);
+            })
+            ->where('l.is_active', 1)
+            ->where('s.is_active', 1)
+            ->whereNull('c.id')
+            ->get(['s.key', 'r.slug', 'm.name_ar']);
+
+        $this->assertSame(
+            [],
+            $rows->map(fn ($r) => "{$r->key}: {$r->slug} → {$r->name_ar}")->all(),
+            'offered with nothing bounding it — which reads as EVERY item type'
+        );
+    }
+
+    /**
      * The collapse is in DatabaseSeeder, so anything it would change on a
      * re-run is a change a full seed makes without anyone asking for it.
      *

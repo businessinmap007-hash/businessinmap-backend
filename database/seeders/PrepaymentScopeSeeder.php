@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -84,7 +85,22 @@ class PrepaymentScopeSeeder extends Seeder
                 ->pluck('child_id')
                 ->map(fn ($id) => (int) $id);
 
-            $missing = $keep->diff($have);
+            /*
+             * …unless the owner took it off one of them by hand.
+             *
+             * This was the sixth broad option seeder and the only one that had
+             * never learned to read `category_child_option_decisions`. He
+             * unticked «دفع مسبق» from «مكتب» and «مندوب» on 2026-08-11 and this
+             * put it straight back — a full seed hid that, because
+             * ChildOptionDecisionsSeeder runs dead last and took it off again,
+             * but running this seeder alone undid his call. A declaration is a
+             * DEFAULT; the database is the answer.
+             */
+            $blocked = app(ChildOptionDecisions::class)->blockedByChild();
+
+            $missing = $keep->diff($have)
+                ->reject(fn ($childId) => isset($blocked[(int) $childId][$optionId]))
+                ->values();
 
             foreach ($missing->chunk(200) as $chunk) {
                 DB::table('category_child_option')->insert(

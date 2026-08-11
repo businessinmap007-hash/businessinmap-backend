@@ -75,6 +75,21 @@ class ChildServiceScopeSeeder extends Seeder
                     ->where('is_active', 1)
                     ->update(['is_active' => 0, 'updated_at' => now()]);
 
+                /*
+                 * The LINK is what the owner panel and discovery read — a
+                 * config alone decides nothing. Switching the config off and
+                 * leaving the link on is worse than doing neither: the service
+                 * is still offered, and the reader now finds no active config
+                 * behind it, which is an empty allowed_item_types, which means
+                 * EVERY type. A car wash would have been offered not fewer
+                 * transport modes but all of them.
+                 */
+                DB::table('category_platform_services')
+                    ->where('category_id', $rootId)
+                    ->where('child_id', $childId)
+                    ->where('platform_service_id', $serviceId)
+                    ->update(['is_active' => 0, 'updated_at' => now()]);
+
                 continue;
             }
 
@@ -126,6 +141,24 @@ class ChildServiceScopeSeeder extends Seeder
             return ['created' => 0, 'updated' => 0];
         }
 
+        /*
+         * What «direct» is expressed BY has moved, and this seeder had not.
+         *
+         * It wrote allowed_item_types = [«افتراضي»/`category`], which was the
+         * whole answer before ServiceKindsCollapseSeeder made the eleven kinds
+         * the vocabulary of that field. `category` is not one of them: it is
+         * BusinessServicePrice::DEFAULT_ITEM_TYPE, the slot a PRICE sits in when
+         * there is no unit behind it, and that is a different axis. Writing it
+         * here put this seeder and the collapse in a fight — run this last and
+         * seven cars children lose their kind; run the collapse last and they
+         * get it back from the root fallback, which is what has been happening.
+         *
+         * `requires_bookable_item => false` below is what actually says
+         * «direct». The kind says WHAT is booked, and a child that already has
+         * one keeps it.
+         */
+        $collapseDefault = (string) ((require __DIR__ . '/data/service_kinds.php')['booking']['default'] ?? 'booking_appointment');
+
         $created = $updated = 0;
 
         foreach ($refs as $ref) {
@@ -135,9 +168,16 @@ class ChildServiceScopeSeeder extends Seeder
                 continue;
             }
 
-            $existed = DB::table('category_service_configs')
+            $stored = DB::table('category_service_configs')
                 ->where('category_id', $rootId)->where('child_id', $childId)
-                ->where('platform_service_id', $serviceId)->exists();
+                ->where('platform_service_id', $serviceId)->value('config');
+
+            $existed = $stored !== null;
+
+            $kinds = collect(json_decode((string) $stored, true)['allowed_item_types'] ?? [])
+                ->reject(fn ($k) => $k === $defaultType)
+                ->values()
+                ->all();
 
             $this->writeConfig($rootId, $childId, $serviceId, [
                 'booking_modes' => [],
@@ -149,7 +189,7 @@ class ChildServiceScopeSeeder extends Seeder
                 'supports_extras' => false,
                 'required_fields' => [],
                 'item_groups' => [],
-                'allowed_item_types' => [$defaultType],
+                'allowed_item_types' => $kinds ?: [$collapseDefault],
             ]);
 
             $this->linkService($rootId, $childId, $serviceId);

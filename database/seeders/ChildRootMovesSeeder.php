@@ -176,12 +176,40 @@ class ChildRootMovesSeeder extends Seeder
             $changed++;
         }
 
+        /*
+         * A majority is a guess, and a guess must not overrule a statement.
+         *
+         * data/child_service_scope.php rules per (root, child) on what a child
+         * may put a price on. The shape below is the root's commonest service
+         * set — useful when a child ARRIVES and nobody has said anything about
+         * it, and wrong the moment it contradicts a ruling, because it is
+         * re-evaluated on every run against a majority that moves.
+         *
+         * It moved on 2026-08-11: switching `schedules` off for the car wash,
+         * the parking garage and the tow truck took root 13 from five carriers
+         * to three of six siblings — no longer a majority — and this loop then
+         * wanted to strip «سائق» of the trip service, which is the only thing a
+         * hired driver sells. Three correct rulings would have produced a
+         * fourth, wrong one.
+         */
+        $ruled = collect(require __DIR__ . '/data/child_service_scope.php')
+            ->flatMap(fn ($block) => is_array($block) ? array_keys($block) : [])
+            ->merge((require __DIR__ . '/data/child_service_scope.php')['booking_direct'] ?? [])
+            ->filter(fn ($ref) => is_string($ref))
+            ->flip();
+
         foreach (
             DB::table('category_platform_services')
                 ->where('category_id', $rootId)->where('child_id', $childId)->where('is_active', 1)
                 ->pluck('platform_service_id') as $serviceId
         ) {
             if (array_key_exists((int) $serviceId, $shape)) {
+                continue;
+            }
+
+            $rootSlug = DB::table('categories')->where('id', $rootId)->value('slug');
+
+            if ($ruled->has("{$rootSlug}:{$childId}")) {
                 continue;
             }
 

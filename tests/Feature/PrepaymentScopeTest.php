@@ -67,16 +67,23 @@ class PrepaymentScopeTest extends TestCase
             ->all();
     }
 
-    /** The rule, stated as the owner stated it. */
+    /**
+     * The rule, stated as the owner stated it.
+     *
+     * One direction only: NOBODY outside shipping carries it. It used to assert
+     * set equality — that every carrier has it too — and that made his own
+     * curation a failure. On 2026-08-11 he unticked «دفع مسبق» from «مكتب» and
+     * «مندوب» through the admin, and the withdrawal record now correctly stops
+     * every seeder putting it back. Which carriers take it is his answer; that
+     * a bakery never sees it is the taxonomy's.
+     */
     public function test_only_shipping_and_delivery_carries_prepayment(): void
     {
         $this->assertNotEmpty($this->carriers, 'the shipping root has no children');
 
-        sort($this->carriers);
-
         $this->assertSame(
-            $this->carriers,
-            $this->linked(),
+            [],
+            array_values(array_diff($this->linked(), $this->carriers)),
             'prepayment is offered outside shipping and delivery'
         );
     }
@@ -109,11 +116,9 @@ class PrepaymentScopeTest extends TestCase
             (new LinkCategoryChildrenToOptionsSeeder)->run();
             (new SalonAndPharmacyOptionsSeeder)->run();
 
-            sort($this->carriers);
-
             $this->assertSame(
-                $this->carriers,
-                $this->linked(),
+                [],
+                array_values(array_diff($this->linked(), $this->carriers)),
                 'a seeder handed «دفع مسبق» back to children outside shipping'
             );
         } finally {
@@ -135,13 +140,22 @@ class PrepaymentScopeTest extends TestCase
         );
     }
 
-    /** Re-running writes nothing new. */
+    /**
+     * Re-running writes nothing new — and in particular does not restore what
+     * the owner withdrew by hand, which is the only way this can now differ.
+     */
     public function test_the_seeder_is_idempotent(): void
     {
         $before = $this->linked();
 
-        (new PrepaymentScopeSeeder)->run();
+        DB::beginTransaction();
 
-        $this->assertSame($before, $this->linked());
+        try {
+            (new PrepaymentScopeSeeder)->run();
+
+            $this->assertSame($before, $this->linked());
+        } finally {
+            DB::rollBack();
+        }
     }
 }

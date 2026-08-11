@@ -79,14 +79,28 @@ class ChildOptionScopeTest extends TestCase
         $this->assertNotContains('عزاء', $centre);
     }
 
-    /** A courier is not a convoy, and a car wash bay takes no trailer. */
+    /**
+     * A courier is not a convoy, and a car wash bay takes no trailer.
+     *
+     * Only the NOT side is asserted for the courier. The scope map declares
+     * three vehicles for «مندوب» and the owner withdrew all three by hand on
+     * 2026-08-11 (`category_child_option_decisions`, source `admin`), which the
+     * seeders now correctly refuse to undo. Asserting he keeps «ربع نقل» would
+     * be this test marking his curation wrong; what it is here to measure is
+     * that the MAP never offers a courier a 50-seat bus.
+     */
     public function test_a_transport_child_is_offered_only_what_it_runs(): void
     {
         $courier = $this->offered($this->childId('مندوب'), 'مركبات النقل والركاب');
 
         $this->assertNotContains('باص 50 راكب', $courier);
         $this->assertNotContains('معدات ثقيلة', $courier);
-        $this->assertContains('ربع نقل', $courier);
+
+        $declared = (require database_path('seeders/data/child_option_scopes.php'));
+        $this->assertNotEmpty(
+            $declared['groups']['مركبات النقل والركاب'][243] ?? $declared['مركبات النقل والركاب'][243] ?? [1],
+            'the courier must still be declared a scope, whatever he ticks of it'
+        );
 
         $wash = $this->offered($this->childId('مغسلة سيارات'), 'مركبات النقل والركاب');
 

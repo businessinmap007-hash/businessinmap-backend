@@ -45,6 +45,7 @@ class OrphanChildLinksCleanupSeeder extends Seeder
     {
         DB::transaction(function () {
             $refiled = $this->refileStrandedAccounts();
+            $rerooted = $this->refileAccountsUnderAMovedChild();
 
             $orphans = $this->rootless();
 
@@ -68,6 +69,7 @@ class OrphanChildLinksCleanupSeeder extends Seeder
 
             $this->command?->info('Orphan child links cleanup:');
             $this->command?->line("  - حسابات نُقلت إلى التوأم المرتبط : {$refiled}");
+            $this->command?->line("  - حسابات تتبع ابنًا انتقل جذره : {$rerooted}");
             $this->command?->line('  - أبناء بلا جذر : ' . $orphans->count() . " (نُظّف منها {$safe->count()})");
             $this->command?->line("  - روابط خيارات أُزيلت : {$options}");
             $this->command?->line("  - إعدادات خدمات عُطّلت : {$configs}");
@@ -80,6 +82,67 @@ class OrphanChildLinksCleanupSeeder extends Seeder
                 $this->command?->warn("  ! «{$name}» #{$childId} ما زال عليه {$count} حساب — تُرك كما هو.");
             }
         });
+    }
+
+    /**
+     * The other half of «stranded»: the child still has a root — just not the
+     * one the merchant is filed under.
+     *
+     * `ChildRootMovesSeeder` already states the rule and carries the accounts
+     * across on the moves IT makes: «Nobody may be left pointing at a root the
+     * child no longer hangs from.» Nothing applied it to the remodels and
+     * detachments, which move a child by a different door.
+     *
+     * The bill: fourteen merchants filed under a (root, child) pairing that no
+     * longer exists, so no config and no link matches them and the platform
+     * offers them NOTHING. Twelve on «سيارات» under شركات — every merchant that
+     * child has — and two on «قاعات تدريب» under دورات و تدريب, which moved to
+     * قاعات in the 2026-08-02 halls remodel with its accounts left behind.
+     *
+     * Only re-files where the answer is not a guess: the child must stand under
+     * exactly ONE root now. Where it stands under several, the merchant's own
+     * root is gone and which of the others he belongs in is a question, so it
+     * is reported instead.
+     */
+    private function refileAccountsUnderAMovedChild(): int
+    {
+        $pairs = DB::table('category_parent_child')
+            ->get(['parent_id', 'child_id'])
+            ->groupBy('child_id')
+            ->map(fn ($rows) => $rows->pluck('parent_id')->map(fn ($id) => (int) $id)->all());
+
+        $moved = 0;
+
+        foreach (
+            DB::table('users')
+                ->whereNotNull('category_child_id')
+                ->groupBy('category_id', 'category_child_id')
+                ->select('category_id', 'category_child_id', DB::raw('COUNT(*) as n'))
+                ->get() as $row
+        ) {
+            $roots = $pairs->get((int) $row->category_child_id, []);
+
+            if (in_array((int) $row->category_id, $roots, true)) {
+                continue;
+            }
+
+            $name = DB::table('category_children_master')->where('id', $row->category_child_id)->value('name_ar');
+
+            if (count($roots) !== 1) {
+                $this->command?->warn(
+                    "  ! «{$name}» يقف تحت " . count($roots) . " جذور — {$row->n} حساب تُركوا لحكم المالك."
+                );
+
+                continue;
+            }
+
+            $moved += DB::table('users')
+                ->where('category_id', $row->category_id)
+                ->where('category_child_id', $row->category_child_id)
+                ->update(['category_id' => $roots[0], 'updated_at' => now()]);
+        }
+
+        return $moved;
     }
 
     /** @return \Illuminate\Support\Collection<int,int> */

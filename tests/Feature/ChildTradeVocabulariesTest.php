@@ -391,6 +391,139 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * Axes every trade carries, which therefore say nothing about the trade.
+     *
+     * Measuring against what is LEFT after these is the only measure that
+     * works on both kinds of root: a services child answers with a `line`, a
+     * goods child with a `modifier`, and either way it must own SOMETHING.
+     */
+    private const UNIVERSAL = [
+        'حالة المنتج', 'الدفع والسداد', 'التسليم والاستلام', 'الاستبدال والإرجاع',
+        'نطاق التعامل', 'نمط تقديم الخدمة', 'نظام التصنيع', 'الحد الأدنى للطلب',
+        'نوع العملاء', 'نظام التعاقد', 'ملاءمة المكان',
+    ];
+
+    /**
+     * Every (root, child) that still cannot name its trade, 2026-08-11.
+     *
+     * Keyed by root because the links are per-root: a child can name its trade
+     * under «شركات» and be mute under «مصانع», which is exactly what seven
+     * factory children were until the mirror pass.
+     *
+     * Four roots hold all of it, and one entry is not a gap at all:
+     *
+     *   مهن وحرفيين  24 of 27 crafts, 121 merchants — the largest debt on the
+     *                platform. A نقاش with 35 merchants cannot say what he
+     *                paints. Needs the owner's approved lists.
+     *   المحلات      14 shops — كتب، نظارات، ذهب، عطور، فضة، أدوات صيد…
+     *   فنون وترفية  11 venues that sell an hour of a table or a lane.
+     *   مندوب #243   NOT a gap: the owner withdrew all thirteen of its options
+     *                by hand, «ربع نقل» included. Curation.
+     *
+     * The list may only SHRINK.
+     *
+     * @var array<int,string>
+     */
+    private const MUTE_TRADES = [
+        'shipping-delivery:243',
+        'professions:15', 'professions:18', 'professions:26', 'professions:49',
+        'professions:58', 'professions:75', 'professions:80', 'professions:89',
+        'professions:106', 'professions:129', 'professions:132', 'professions:133',
+        'professions:134', 'professions:147', 'professions:179', 'professions:206',
+        'professions:208', 'professions:220', 'professions:227', 'professions:251',
+        'professions:259', 'professions:287', 'professions:299', 'professions:300',
+        'sports:516',
+        'arts-entertainment:30', 'arts-entertainment:33', 'arts-entertainment:217',
+        'arts-entertainment:219', 'arts-entertainment:225', 'arts-entertainment:239',
+        'arts-entertainment:271', 'arts-entertainment:523', 'arts-entertainment:524',
+        'arts-entertainment:525', 'arts-entertainment:526',
+        'cars:85',
+        'shops-online:32', 'shops-online:37', 'shops-online:76', 'shops-online:79',
+        'shops-online:125', 'shops-online:127', 'shops-online:148', 'shops-online:213',
+        'shops-online:222', 'shops-online:226', 'shops-online:257', 'shops-online:260',
+        'shops-online:274', 'shops-online:302',
+    ];
+
+    /** @return array<int,string> every (root, child) that owns no trade word */
+    private function muteTrades(): array
+    {
+        $mute = [];
+
+        foreach (
+            DB::table('categories as r')->join('category_parent_child as pc', 'pc.parent_id', '=', 'r.id')
+                ->distinct()->get(['r.id', 'r.slug']) as $root
+        ) {
+            foreach (
+                DB::table('category_parent_child')->where('parent_id', $root->id)
+                    ->pluck('child_id') as $childId
+            ) {
+                $groups = DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('co.child_id', (int) $childId)
+                    // Per-root: shared rows plus this root's own.
+                    ->whereIn('co.category_id', [0, $root->id])
+                    ->distinct()->pluck('g.name_ar')->all();
+
+                if (array_diff($groups, self::UNIVERSAL) === []) {
+                    $mute[] = "{$root->slug}:{$childId}";
+                }
+            }
+        }
+
+        return $mute;
+    }
+
+    /** Nothing new may go mute, anywhere on the platform. */
+    public function test_no_new_trade_goes_mute(): void
+    {
+        $new = array_values(array_diff($this->muteTrades(), self::MUTE_TRADES));
+
+        $this->assertSame([], $new, 'these can no longer name their trade: ' . implode('، ', $new));
+    }
+
+    /** And an entry leaves the debt once it is settled. */
+    public function test_the_mute_list_holds_only_still_mute_trades(): void
+    {
+        $settled = array_values(array_diff(self::MUTE_TRADES, $this->muteTrades()));
+
+        $this->assertSame([], $settled, 'settled — take them off MUTE_TRADES: ' . implode('، ', $settled));
+    }
+
+    /**
+     * A trade must be able to name itself under EVERY root it stands beneath.
+     *
+     * The links are per-root, so an older seeder that named the roots it cared
+     * about leaves the same child mute elsewhere. «نجف» could name the
+     * furniture it makes under «شركات» and not under «مصانع» — the chandelier
+     * FACTORY, silent, while the wholesaler next door spoke.
+     */
+    public function test_a_trade_is_not_mute_under_one_root_and_fluent_under_another(): void
+    {
+        $mute = $this->muteTrades();
+
+        $byChild = [];
+
+        foreach ($mute as $ref) {
+            [$slug, $childId] = explode(':', $ref);
+            $byChild[(int) $childId][] = $slug;
+        }
+
+        $split = [];
+
+        foreach ($byChild as $childId => $slugs) {
+            $roots = DB::table('category_parent_child')->where('child_id', $childId)->count();
+
+            if ($roots > count($slugs)) {
+                $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+                $split[] = "{$name}#{$childId} (mute under " . implode('، ', $slugs) . " only)";
+            }
+        }
+
+        $this->assertSame([], $split, 'one trade, two answers: ' . implode(' · ', $split));
+    }
+
+    /**
      * The registrar's office — the owner's second question.
      *
      * Six acts of DOCUMENTATION, which is what separates a مأذون from a lawyer:

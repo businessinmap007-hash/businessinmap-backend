@@ -35,6 +35,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
         'technology_child_vocabularies.php',
         'factory_child_vocabularies.php',
         'company_child_vocabularies.php',
+        'exhibition_child_vocabularies.php',
     ];
 
     public function run(): void
@@ -125,7 +126,39 @@ class ChildTradeVocabulariesSeeder extends Seeder
                 }
             }
 
-            foreach (($map['links'] ?? []) as $childId => $groups) {
+            /*
+             * A child that can name its trade under one root and not under
+             * this one. Copies the option ids it ALREADY holds in that group
+             * elsewhere, which preserves any narrowing — naming the group
+             * would hand back everything the scope had cut away.
+             */
+            foreach (($map['mirror_links'] ?? []) as $childId => $groupNames) {
+                $held = DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('co.child_id', (int) $childId)
+                    ->whereIn('g.name_ar', $groupNames)
+                    ->distinct()->pluck('o.id');
+
+                if ($held->isEmpty()) {
+                    $this->command?->warn("  ! ابن {$childId}: لا شيء ليُنسخ من " . implode('، ', $groupNames));
+                }
+
+                foreach ($held as $optionId) {
+                    $this->link((int) $childId, (int) $optionId, $blocked, $linked, $refused, $this->rootId((string) ($map['root'] ?? '')));
+                }
+            }
+
+            // `links` are shared; `root_links` are written against this root
+            // alone. A furniture showroom part-exchanges a sofa and the same
+            // child under مصانع does not.
+            $linkSets = [
+                0 => $map['links'] ?? [],
+                $this->rootId((string) ($map['root'] ?? '')) => $map['root_links'] ?? [],
+            ];
+
+            foreach ($linkSets as $linkScope => $set) {
+              foreach ($set as $childId => $groups) {
                 foreach ($groups as $groupName => $optionNames) {
                     $optionIds = DB::table('options as o')
                         ->join('option_groups as g', 'g.id', '=', 'o.group_id')
@@ -143,9 +176,10 @@ class ChildTradeVocabulariesSeeder extends Seeder
                     }
 
                     foreach ($optionIds as $optionId) {
-                        $this->link((int) $childId, (int) $optionId, $blocked, $linked, $refused);
+                        $this->link((int) $childId, (int) $optionId, $blocked, $linked, $refused, (int) $linkScope);
                     }
                 }
+              }
             }
 
             $this->command?->info('Child trade vocabularies — ' . ($map['root'] ?? '?') . ':');

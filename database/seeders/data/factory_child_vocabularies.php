@@ -368,6 +368,41 @@ return [
         ],
     ],
 
+    /*
+    | ── the seven that could name their trade EVERYWHERE BUT HERE ─────────
+    |
+    | Found 2026-08-11 by auditing every root at once. «نجف» carries the
+    | furniture vocabulary under «شركات»; «أقمشة» carries the fashion one under
+    | «المحلات», «معارض» AND «شركات»; «مفروشات» under three roots. Not one of
+    | them carried it under «مصانع».
+    |
+    | **The chandelier FACTORY could not say it makes chandeliers while the
+    | chandelier wholesaler next door could** — same child row, same trade, and
+    | the factory is the one that makes them. Every one of these links is
+    | per-root, written by older seeders that named the roots they cared about,
+    | and مصانع was never one of them. No declared empty and no decision row
+    | stands against any of the seven, so the absence is an omission.
+    |
+    | Mirrored rather than restated: the seeder copies the option ids the child
+    | ALREADY holds in that group under another root. Three of the seven are
+    | narrowed by `child_option_scopes.php` — «نجف» to a single row of the
+    | furniture list — and copying the set preserves the narrowing, where
+    | naming the group would hand back everything it was cut down from.
+    |
+    | «نوع التعامل» is deliberately not mirrored for «مفروشات»: it was granted
+    | to the SHOWROOM minutes earlier and a furniture factory part-exchanges
+    | nothing.
+    */
+    'mirror_links' => [
+        56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // نجف
+        83 => ['أقسام المنزل والعناية'],                    // منظفات
+        95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة
+        101 => ['أقسام الطازج واللحوم'],                    // أسماك
+        115 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // مفروشات
+        158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
+        210 => ['بنود المنيو', 'بنود المخبوزات والحلويات'], // حلويات
+    ],
+
     'links' => [
         /*
          * The fire half of «أنظمة الأمن والسلامة», built hours earlier for

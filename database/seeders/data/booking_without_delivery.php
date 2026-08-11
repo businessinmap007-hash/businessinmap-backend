@@ -51,5 +51,23 @@ return [
         | `delivery` on the next run of this seeder.
         */
         'طباعة',
+
+        /*
+        | The three carriers, 2026-08-11. The rule reads «books time, sells no
+        | goods → it never delivers anything», and on these three it inverts:
+        | moving the goods IS the trade. A freight forwarder carries the whole
+        | `schedules` freight vocabulary — حاوية ٤٠ قدم، شحن جوي، تخليص جمركي —
+        | and eight delivery types beside it.
+        |
+        | They were pulled in the way «طباعة» was: booking is the service that
+        | does not belong on them (a shipping office is visited, not reserved),
+        | and the rule cured the symptom by proposing to strip the one service
+        | that is their entire business. Named here rather than switching their
+        | booking off, because being visitable is not wrong — only inferring
+        | «then you must not deliver» from it is.
+        */
+        'معدات ثقيلة',
+        'نقل دولي',
+        'شحن بري وبحري وجوى',
     ],
 ];

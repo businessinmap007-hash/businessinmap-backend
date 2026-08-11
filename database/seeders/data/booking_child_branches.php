@@ -143,6 +143,18 @@ return [
 
     // ── مكاتب ──
     'offices' => [
+        /*
+         * Unmapped until 2026-08-11, and that absence is what put it on «حجز
+         * موعد»: the `coworking` branch has said `booking_time` in the collapse
+         * map since the day it was written, but a child no map names never
+         * reaches its branch, so the kind the collapse happened to find stored
+         * stood unchallenged. The same leak that gave the entertainment root
+         * appointments instead of hours.
+         *
+         * You do not make an appointment for a desk. You take it for an hour,
+         * a day or a month — see CoworkingWorkspaceOptionsSeeder.
+         */
+        'منطقة عمل مشتركة' => ['coworking'],
         'تنسيق حفلات' => ['halls_events', 'business_consulting'],
         'دعاية وإعلان' => ['business_consulting'],
         'محاسبة' => ['business_consulting'],

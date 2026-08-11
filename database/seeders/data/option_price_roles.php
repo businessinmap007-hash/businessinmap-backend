@@ -57,6 +57,11 @@ return [
         // OptionPriceRolesSeeder run, which would have silently stopped every
         // hotel and property line from pricing. Fourth time this has bitten.
         'الغرف',
+        // The coworking counterpart of «الغرف», created 2026-08-11. A desk, a
+        // private office and a course room are the things a customer reserves
+        // one OF, and each `bookable_items` row points at one of them. Listed
+        // the same day it was created — see the note under «مستوى التشطيب».
+        'مساحات العمل',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
@@ -120,6 +125,15 @@ return [
         'ماركات الموتوسيكلات',
         'نظام الوجبات',           // إقامة كاملة ≠ شامل الإفطار
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
+        /*
+         * The coworking pair (2026-08-11), and they are the reason its units
+         * are TWO rows instead of the owner's three: «مكتب بسكرتارية» is not a
+         * third kind of office, it is «مكتب منفصل» + سكرتارية, and the heading
+         * is the combination. «نظام الاشتراك» is «نظام الوجبات» exactly — the
+         * same desk at an hourly and a monthly price.
+         */
+        'خدمات المكتب',           // مكتب + سكرتارية + ريسبشن
+        'نظام الاشتراك',          // شهري ≠ بالساعة
         'حالة المنتج',            // جديد ≠ مستعمل
         // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
         // sitting as `descriptive` the same day: it was never listed here, so

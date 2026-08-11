@@ -142,6 +142,12 @@ class DatabaseSeeder extends Seeder
            // and the two would have fought over root 13 forever.
            ChildServiceScopeSeeder::class,
 
+           // «منطقة عمل مشتركة» was classified `units` and had no line group to
+           // name a unit with — the flag demanded a list whose words did not
+           // exist. AFTER the collapse and after the branch seeder, both of
+           // which have an opinion about its kind.
+           CoworkingWorkspaceOptionsSeeder::class,
+
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this
            // has the final word.

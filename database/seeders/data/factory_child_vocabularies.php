@@ -471,7 +471,24 @@ return [
          * is sediment from older seeders to be evened out child by child — in
          * the ADD direction — not a rule that factories answer less.
          */
-        24 => ['الاستبدال والإرجاع'],                       // أجهزة رياضية
+        /*
+         * The eight below are the repair half of the 2026-08-11 22:45 bulk
+         * save (see FactoryBulkSaveRevertSeeder). It withdrew each child's own
+         * trade list UNDER مصانع and handed it the doors list instead. Every
+         * one of them still says the same words as a shop, a showroom or a
+         * wholesaler — the factory scope alone was emptied — so the mirror is
+         * exactly the right tool: it copies the ids the child ALREADY holds and
+         * so cannot widen anything the scope file had narrowed.
+         */
+        8 => ['أنواع الإكسسوارات'],                          // اكسسوار
+        44 => ['ماركات السيارات'],                          // قطع غيار سيارات
+        60 => ['موضة وعناية شخصية'],                       // ملابس جاهزة
+        88 => ['أنواع الأجهزة الكهربائية'],               // أجهزة كهربائية
+        116 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],      // آثاث
+        168 => ['موضة وعناية شخصية'],                      // جلود وشنط وأحذية
+        204 => ['تعبئة وتغليف ومستلزمات'],                 // مواد تعبئة وتغليف
+
+        24 => ['الاستبدال والإرجاع', 'أنواع الأجهزة الرياضية'], // أجهزة رياضية
 
         /*
          * «طوب» #34 stands under مصانع and شركات and answers three more axes

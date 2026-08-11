@@ -259,6 +259,17 @@ return [
         // priced rows are the catalog products.
         // A PS4 hour and a PS5 hour are two prices for one line.
         'فئة جهاز الألعاب',       // بلايستيشن ٥ ≠ بلايستيشن ٤
+        /*
+         * The modifiers that were genuinely missing, 2026-08-11. Each is a
+         * SECOND answer on one line: the same lorry to Aswan or across town,
+         * the same hall morning or evening, the same bean light or dark.
+         */
+        'نطاق الشحن',             // دولي ≠ داخل المدينة
+        'سرعة الشحن',             // نفس اليوم ≠ عادي
+        'فترة الحجز',             // يوم كامل ≠ فترة صباحية
+        'وحدة البيع',             // بالطن ≠ بالكيلو
+        'درجة التحميص والطحن',    // غامق ≠ فاتح
+        'حالة الدواجن',           // مقطّع ≠ حي
         'أنواع الإكسسوارات',      // اكسسوار موبايل ≠ اكسسوار سيارات
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة
 

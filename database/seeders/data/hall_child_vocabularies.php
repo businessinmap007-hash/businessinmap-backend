@@ -22,6 +22,29 @@ return [
 
     'name_en_suffix' => 'Hall',
 
+    /*
+    | ── and the axis every hall prices on ─────────────────────────────────
+    |
+    | «أنواع المناسبات» is the line — a wedding, a conference — and the SAME
+    | hall for the SAME occasion is two prices depending on the slot. A morning
+    | booking and a full day are not the same money anywhere in Egypt, and none
+    | of the three could say so.
+    */
+    'groups' => [
+        'فترة الحجز' => [
+            'name_en' => 'Booking Slot',
+            'price_role' => 'modifier',
+            'children' => [527, 528, 282],
+            'options' => [
+                'فترة صباحية' => 'Morning Slot',
+                'فترة مسائية' => 'Evening Slot',
+                'يوم كامل' => 'Full Day',
+                'نهاية الأسبوع' => 'Weekend',
+                'بالساعة' => 'Hourly',
+            ],
+        ],
+    ],
+
     'links' => [
         282 => ['مساحات العمل' => ['قاعة كورسات', 'قاعة اجتماعات', 'قاعة مؤتمرات']],
     ],

@@ -39,6 +39,8 @@ class ChildTradeVocabulariesTest extends TestCase
         'health_child_vocabularies.php',
         'hall_child_vocabularies.php',
         'workshop_child_vocabularies.php',
+        'shipping_child_vocabularies.php',
+        'agriculture_child_vocabularies.php',
     ];
 
     /**
@@ -500,6 +502,69 @@ class ChildTradeVocabulariesTest extends TestCase
         }
 
         $this->assertSame([], $bare, 'these cannot be described at all: ' . implode('، ', $bare));
+    }
+
+    /**
+     * The children that carry no modifier, and why each is right.
+     *
+     * Not a debt — a decision, per root:
+     *
+     *   مطاعم وكافيهات 6  The line is the menu item and what varies it is a
+     *                     variant or an add-on, which the MENU service owns
+     *                     (`has_variants`, `has_addons`). An option group here
+     *                     would be a second pricing system for one thing.
+     *   الصحة 7           The line is the specialty. What would be the modifier
+     *                     — seen at home, seen online — is already a booking
+     *                     KIND: booking_home_visit, booking_online_consultation.
+     *   مزارع سمكية،      Live stock sold by the head or the weight, which the
+     *   أرانب             catalog product already carries. No second rate.
+     *   سوبر ماركت        Sixteen merchants, FIVE line groups, and it prices by
+     *                     product — that is the catalog's job.
+     *
+     * The list is pinned so a genuinely new gap cannot hide among them.
+     *
+     * @var array<int,int>
+     */
+    private const NO_MODIFIER_BY_DESIGN = [
+        64, 65, 108, 143, 245, 246,          // مطاعم وكافيهات
+        163, 215, 252, 513, 514, 515, 542,   // الصحة
+        102, 236,                             // مزارع سمكية، أرانب
+        272,                                  // سوبر ماركت
+    ];
+
+    /** Nothing may quietly join the list of trades with no price axis. */
+    public function test_only_the_named_trades_carry_no_modifier(): void
+    {
+        $found = [];
+
+        foreach (
+            DB::table('categories as r')->join('category_parent_child as pc', 'pc.parent_id', '=', 'r.id')
+                ->distinct()->get(['r.id', 'r.slug']) as $root
+        ) {
+            foreach (
+                DB::table('category_parent_child')->where('parent_id', $root->id)
+                    ->pluck('child_id') as $childId
+            ) {
+                $has = DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('co.child_id', (int) $childId)
+                    ->whereIn('co.category_id', [0, $root->id])
+                    ->where('g.price_role', 'modifier')->exists();
+
+                if (! $has) {
+                    $found[] = (int) $childId;
+                }
+            }
+        }
+
+        $found = array_values(array_unique($found));
+
+        $new = array_values(array_diff($found, self::NO_MODIFIER_BY_DESIGN));
+        $settled = array_values(array_diff(self::NO_MODIFIER_BY_DESIGN, $found));
+
+        $this->assertSame([], $new, 'these lost their price axis: #' . implode(', #', $new));
+        $this->assertSame([], $settled, 'these gained one — take them off the list: #' . implode(', #', $settled));
     }
 
     /**

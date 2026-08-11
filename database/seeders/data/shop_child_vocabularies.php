@@ -170,6 +170,38 @@ return [
             ],
         ],
 
+        /*
+         * ── two modifiers that are real, and one absence that is not ──────
+         *
+         * «بن» #63 sells one bean at two prices depending on the roast, and
+         * «دواجن» #229 one bird at two depending on whether you take it live.
+         * Both are a second answer on one line, which is the whole test.
+         *
+         * «سوبر ماركت» #272 (16 merchants) is left with none on purpose: it
+         * carries FIVE line groups and prices by product, which is the catalog.
+         */
+        'درجة التحميص والطحن' => [
+            'name_en' => 'Roast & Grind', 'price_role' => 'modifier', 'children' => [63],
+            'options' => [
+                'تحميص فاتح' => 'Light Roast',
+                'تحميص وسط' => 'Medium Roast',
+                'تحميص غامق' => 'Dark Roast',
+                'حبوب كاملة' => 'Whole Bean',
+                'مطحون' => 'Ground',
+            ],
+        ],
+
+        'حالة الدواجن' => [
+            'name_en' => 'Poultry Preparation', 'price_role' => 'modifier', 'children' => [229],
+            'options' => [
+                'حي' => 'Live',
+                'مذبوح' => 'Slaughtered',
+                'مذبوح ومنظف' => 'Cleaned',
+                'مقطّع' => 'Portioned',
+                'مجمد' => 'Frozen',
+            ],
+        ],
+
         'المصنوعات الخشبية والديكور' => [
             'name_en' => 'Wooden Crafts & Decor', 'price_role' => 'modifier', 'children' => [302],
             'options' => [

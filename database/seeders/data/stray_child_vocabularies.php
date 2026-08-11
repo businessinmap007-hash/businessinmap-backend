@@ -68,6 +68,23 @@ return [
     'links' => [
 
         /*
+         * ── the axis a gym actually prices on ────────────────────────────
+         *
+         * «الأنشطة الرياضية» is the line — كارديو، سباحة — and what changes
+         * what a line costs is the SUBSCRIPTION, which is the whole commercial
+         * shape of a gym. «نظام التعاقد» already asks exactly that, written for
+         * the coworking desks and already answering for a maid and a lawyer.
+         * Borrowed, not written a fourth time.
+         *
+         * «بالزيارة» and «بالإقامة» stay out: a day pass is «يومي», and nobody
+         * lives at the gym.
+         */
+        130 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'أسبوعي', 'شهري', 'ربع سنوي', 'سنوي']],
+        519 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'شهري', 'ربع سنوي', 'سنوي']],
+        521 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'شهري']],
+
+
+        /*
          * The indoor half. A health club runs the gym floor, the pool and the
          * classes; it does not field a football team.
          */

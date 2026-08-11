@@ -81,6 +81,15 @@ return [
         'أنظمة الأمن والسلامة',
         'خدمات الاتصالات والشبكات',
         'خدمات البرمجة والتطوير',
+        // …and the SERVICE half of «شركات». The root is both, so the rule is
+        // applied per child: a contractor's «أعمال خرسانية» is the priced row
+        // the way «تنظيف خزانات» is, while a curtain wholesaler's stock is not.
+        'أعمال المقاولات',
+        'أعمال البنية التحتية',
+        'أنواع التأمين',
+        'خدمات التسويق',
+        'خدمات الصرافة والتحويل',
+        'خدمات السياحة والسفر',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
@@ -191,6 +200,13 @@ return [
         'أنواع الأخشاب',
         'أنواع الأصواف والخيوط',
         'طباعة العبوات والتغليف',
+        // «شركات», the goods half of it — the eight traders that were mute.
+        'لوازم الستائر',
+        'الأنتيكات والتحف',
+        'مستلزمات المقاهي',
+        'أعمال التبريد والتكييف',
+        'أنواع قطع الغيار',
+        'الأدوات المكتبية',
         'حالة المنتج',            // جديد ≠ مستعمل
         // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
         // sitting as `descriptive` the same day: it was never listed here, so

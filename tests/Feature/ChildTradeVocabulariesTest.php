@@ -22,8 +22,16 @@ class ChildTradeVocabulariesTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** Every root this seeder speaks for. */
+    /** Roots finished by the OFFICES rule — every child owns a `line`. */
     private const ROOTS = ['offices', 'technology'];
+
+    /** Every data file the seeder reads, in its order. */
+    private const FILES = [
+        'office_child_vocabularies.php',
+        'technology_child_vocabularies.php',
+        'factory_child_vocabularies.php',
+        'company_child_vocabularies.php',
+    ];
 
     /**
      * A child whose emptiness is a decision, not a gap.
@@ -300,6 +308,86 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('كاميرات مراقبة', $fire);
         $this->assertNotContains('إنتركم وفيديو إنتركم', $fire);
         $this->assertNotContains('بصمة وحضور وانصراف', $fire);
+    }
+
+    /**
+     * A duplicate child id in a `links` block is silent, and it has now been
+     * written twice by the same hand.
+     *
+     * PHP keeps the LAST key and discards the earlier entry with no warning, so
+     * a child listed once for its trade group and again for a shared axis
+     * quietly loses the first. It cannot be detected after the file is parsed —
+     * by then there is only one key — so the source itself is read.
+     */
+    public function test_no_data_file_declares_a_child_twice(): void
+    {
+        foreach (self::FILES as $file) {
+            $source = file_get_contents(database_path("seeders/data/{$file}"));
+
+            $links = strstr($source, "'links' => [");
+
+            if ($links === false) {
+                continue;
+            }
+
+            preg_match_all('/^        (\d+) =>/m', $links, $matches);
+
+            $ids = $matches[1];
+
+            $this->assertSame(
+                array_values(array_unique($ids)),
+                $ids,
+                "{$file} declares a child twice in `links` — PHP keeps only the last"
+            );
+        }
+    }
+
+    /**
+     * «شركات» is BOTH roots at once, so the rule is applied per child.
+     *
+     * Nine of its mute children carry booking and no retail — they are service
+     * companies and the service is the priced row, so `line`. Eight carry
+     * retail and their priced rows are catalog products, so `modifier`. A root
+     * is not a category of trade; it is where a customer looks.
+     */
+    public function test_the_companies_root_takes_both_rules(): void
+    {
+        $map = require database_path('seeders/data/company_child_vocabularies.php');
+
+        $retail = (int) DB::table('platform_services')->where('key', 'retail')->value('id');
+        $rootId = (int) DB::table('categories')->where('slug', 'companies')->value('id');
+
+        foreach ($map['groups'] as $group => $spec) {
+            foreach ($spec['children'] as $childId) {
+                $sellsGoods = DB::table('category_platform_services')
+                    ->where('category_id', $rootId)->where('child_id', $childId)
+                    ->where('platform_service_id', $retail)->where('is_active', 1)->exists();
+
+                $this->assertSame(
+                    $sellsGoods ? 'modifier' : 'line',
+                    $spec['price_role'],
+                    "«{$group}» on child #{$childId}: a goods trade takes a modifier, a service takes a line"
+                );
+            }
+        }
+    }
+
+    /** Seventy-one contractors could not say whether they pour or fit out. */
+    public function test_the_largest_mute_child_can_name_its_work(): void
+    {
+        $lines = $this->lines($this->childId('مقاولات'));
+
+        foreach (['أعمال خرسانية', 'تشطيبات متكاملة', 'أعمال كهروميكانيكا'] as $work) {
+            $this->assertContains($work, $lines, "a contractor cannot offer «{$work}»");
+        }
+
+        // Infrastructure is the sibling's, and the two lists do not overlap:
+        // a road contractor and a fit-out contractor are found by different
+        // words or neither search works.
+        $infra = $this->lines($this->childId('مقاولات بنية تحتية'));
+
+        $this->assertContains('طرق ورصف', $infra);
+        $this->assertSame([], array_values(array_intersect($lines, $infra)));
     }
 
     /**

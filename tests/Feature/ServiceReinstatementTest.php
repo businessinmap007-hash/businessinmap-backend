@@ -89,8 +89,11 @@ class ServiceReinstatementTest extends TestCase
                 return $types;
             };
 
-            $mine = $sorted($config($this->childId($entry['child_name_ar'], $rootId)));
-            $donor = $sorted($config($this->childId($entry['copy_from_child_ar'], $rootId)));
+            $mineConfig = $config($this->childId($entry['child_name_ar'], $rootId));
+            $donorConfig = $config($this->childId($entry['copy_from_child_ar'], $rootId));
+
+            $mine = $sorted($mineConfig);
+            $donor = $sorted($donorConfig);
 
             $this->assertNotSame(
                 [],
@@ -98,10 +101,33 @@ class ServiceReinstatementTest extends TestCase
                 "«{$entry['child_name_ar']}» got «{$entry['service_key']}» with an unbounded picker"
             );
 
+            /*
+             * The donor gives the SHELF, not the final list.
+             *
+             * This compared the two type lists outright until 2026-08-11, which
+             * was the same thing while every child took its branch whole. It is
+             * not any more: data/retail_child_types.php narrows a trade to the
+             * part of its shelf it sells, so «أسماك» takes مجمدات and معلبات
+             * from a donor — «مواد غذائية» — that legitimately carries all 22.
+             * Demanding equality would mean either a fish factory offering baby
+             * care, or a food wholesaler narrowed to fish.
+             *
+             * What must still hold is that the child did not invent a shelf:
+             * same branch, and its own list a SUBSET of what the donor carries.
+             */
+            $branch = fn (array $c) => collect($c['item_groups'] ?? [])->sort()->values()->all();
+
             $this->assertSame(
-                $donor,
-                $mine,
-                "«{$entry['child_name_ar']}» does not match its donor «{$entry['copy_from_child_ar']}»"
+                $branch($donorConfig),
+                $branch($mineConfig),
+                "«{$entry['child_name_ar']}» is on a different branch from its donor «{$entry['copy_from_child_ar']}»"
+            );
+
+            $this->assertSame(
+                [],
+                array_values(array_diff($mine, $donor)),
+                "«{$entry['child_name_ar']}» offers what its donor «{$entry['copy_from_child_ar']}» does not: "
+                    . implode('، ', array_diff($mine, $donor))
             );
         }
     }

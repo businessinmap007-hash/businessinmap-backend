@@ -32,11 +32,17 @@
  * are listed once; the seeder matches every id carrying that name.
  *
  * A child may only be given a branch that actually HAS a matching item type —
- * the branch's whole type list becomes the child's allowed_item_types, so a
- * branch with nothing relevant in it hands the merchant an empty product
- * picker. «حلويات» is the standing example: it is mapped to hobbies_general
- * above, which carries toys, books and stationery and no sweets type at all,
- * so it was NOT propagated to the new roots.
+ * a branch with nothing relevant in it hands the merchant an empty product
+ * picker. «حلويات» was the standing example: mapped to hobbies_general, which
+ * carries toys, books and stationery and no sweets type at all, and for that
+ * reason NOT propagated to the new roots. It moved to grocery_retail on
+ * 2026-08-11, matching what مصانع already said, and the example is now a
+ * closed one.
+ *
+ * The branch is no longer the whole answer, either. data/retail_child_types.php
+ * narrows a trade to the part of its shelf it actually sells, because a branch
+ * is a shelf and not a shop: أثاث ومفروشات carries twelve types over eleven
+ * trades. Adding a child here without adding it there gives it the whole shelf.
  */
 
 return [
@@ -63,7 +69,13 @@ return [
         'معرض سيارات' => ['vehicles_parts'],
         'معرض موتوسيكلات' => ['vehicles_parts'],
         'حدايد وبويات' => ['building_hardware'],
-        'حلويات' => ['hobbies_general'],
+        // hobbies_general until 2026-08-11, which the header of this file has
+        // called out as the standing example of a wrong branch since the day
+        // it was written: it carries toys, books, stationery and fishing gear
+        // and no sweets type at all. Under مصانع the same trade was already on
+        // grocery_retail, where chocolate and biscuits live; the two roots now
+        // agree.
+        'حلويات' => ['grocery_retail'],
         'صينى وخزف' => ['home_furnishings'],
         'مستلزمات مطاعم' => ['hobbies_general'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
@@ -284,6 +296,13 @@ return [
         'مستلزمات مطاعم' => ['hobbies_general'],
         'مواد غذائية' => ['grocery_retail'],
         'عصائر' => ['grocery_retail'],
+        // Both had a live grocery_retail config from elsewhere and no entry
+        // here, so the narrowing could not reach them and a fish factory was
+        // offered baby care, detergents and tea. Naming them does not decide
+        // whether a fish or sweets FACTORY should list SKUs at all — that is
+        // still open — it decides what it lists while it does.
+        'أسماك' => ['grocery_retail'],
+        'حلويات' => ['grocery_retail'],
         // «اكسسوارت سيارات» / «اكسسوار موبيلات» folded into «اكسسوار» on
         // 2026-08-10 (AccessoryMergeSeeder) and became two of its options.
     ],

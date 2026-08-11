@@ -94,6 +94,7 @@ class RetailCatalogStockedTest extends TestCase
         'أقمشة',                          // fabrics, wool_yarn
         'أنتيكات وتحف',                  // antiques_artifacts
         'نجف و تحف',                     // chandeliers_lighting, antiques_artifacts
+        'نجف',                            // chandeliers_lighting — the شركات/مصانع twin
         'لوازم ستائر',                   // curtains_supplies
         'مصنوعات خشبية ومستلزمات ديكور', // wood_decor, furniture, antiques_artifacts
         'منظفات',                         // household_cleaners

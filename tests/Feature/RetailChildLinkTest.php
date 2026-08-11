@@ -347,15 +347,10 @@ class RetailChildLinkTest extends TestCase
     {
         $map = $this->map();
 
-        // Both are trades the owner ruled KITCHENS («المخابز والحلويات مطابخ»),
-        // standing under مصانع with a grocery shelf and no accounts. Whether a
-        // fish or sweets FACTORY lists SKUs is his call, not a mapping bug.
-        $pending = ['factories:أسماك', 'factories:حلويات'];
-
         $unmapped = [];
 
         foreach ($this->liveConfigs() as $row) {
-            if (isset($map[$row->root][$row->name]) || in_array("{$row->root}:{$row->name}", $pending, true)) {
+            if (isset($map[$row->root][$row->name])) {
                 continue;
             }
 

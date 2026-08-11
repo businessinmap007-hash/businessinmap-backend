@@ -137,7 +137,50 @@ return [
     'معرض سيارات' => ['cars_showroom'],
     'معرض موتوسيكلات' => ['motorcycles'],
 
+    // ──────────────────────────────────────────────────────────────────────
+    // The trades that never stand under «المحلات أو أونلاين»
+    // ──────────────────────────────────────────────────────────────────────
+    // This map is keyed by trade, so every name المحلات shares with معارض،
+    // شركات، مصانع or ملابس was narrowed under all of them at once. The names
+    // that live ONLY on those other roots were reached by nothing, and kept
+    // the whole shelf: a ملابس shop with 44 businesses offered eyewear and
+    // bridal supplies, a طوب yard offered marble and locks, a تبريد وتكييف
+    // company offered playstations.
+    'ملابس' => ['ready_made_clothes'],
+    'ملابس جاهزة' => ['ready_made_clothes'],
+    'جلود وشنط وأحذية' => ['leather_bags_shoes'],
+    'تبريد وتكييف' => ['home_appliances', 'appliance_spare_parts'],
+    'مواد دوائية' => ['medical_retail'],
+    'مستلزمات مطاعم' => ['horeca_supplies'],
+    'مستلزمات قهاوى' => ['horeca_supplies'],
+    'أخشاب' => ['carpentry_supplies'],
+    'طوب' => ['cement_building'],
+    'رخام وجرانيت' => ['marble_stone'],
+    'أدوات صحية' => ['hoses_fittings', 'paints_hardware'],
+    'مواد تعبئة وتغليف' => ['plastic_packaging'],
+    'طباعة مواد تعبئة وتغليف' => ['plastic_packaging'],
+    // «آثاث» is the largest child on the platform (64 businesses) and sells
+    // the soft furnishings beside the furniture; it does not sell chandeliers,
+    // china or mattresses, which are four separate trades on this same branch.
+    'آثاث' => ['furniture', 'home_textiles'],
+    'نجف' => ['chandeliers_lighting'],
+
+    // The three food trades that stand on مصانع/شركات as MAKERS. The owner's
+    // «المخابز والحلويات مطابخ» and «عصائر مطبخ» rulings are about the shops,
+    // and live on the menu axis — under المحلات all three are menu-only and
+    // have no retail config at all, so nothing here touches those rulings.
+    // Whether a fish or sweets FACTORY should list SKUs is still his call;
+    // this only says that while it does, it lists fish and sweets.
+    'حلويات' => ['chocolate', 'biscuits_snacks'],
+    'أسماك' => ['frozen', 'canned'],
+    'عصائر' => ['juice', 'soft_drinks', 'water'],
+
     // Deliberately NOT narrowed:
+    //   «مواد غذائية» / «مواد غذائية ومنظفات» — the whole grocery range is
+    //     exactly what a food wholesaler carries, same as the markets.
+    //   «بي في سي» #289 — building_hardware has no UPVC or profile type, so
+    //     any narrowing is a guess, and the owner has an open call on whether
+    //     it folds into «باب وشباك» at all. Same reason as «باب وشباك» below.
     //   «باب وشباك» — building_hardware carries no doors/windows type at all,
     //     so any narrowing here is a guess. It has its own option group
     //     («أنواع الأبواب والشبابيك») and no merchant accounts. The branch, not

@@ -62,7 +62,12 @@ class RetailOwnerScopingTest extends TestCase
 
     public function test_store_accepts_in_scope_product(): void
     {
-        $inScope = $this->makeCatalogProduct('mattresses', 'مرتبة اختبار');
+        // «مفروشات», not «مراتب». This read `mattresses` until 2026-08-11,
+        // when data/retail_child_types.php narrowed «آثاث» to the part of the
+        // furniture branch it actually sells — furniture and soft furnishings.
+        // A mattress is «مراتب», its own trade with its own child, and the
+        // showroom being able to list one was the thing being fixed.
+        $inScope = $this->makeCatalogProduct('home_textiles', 'مفرش اختبار');
         $owner = $this->retailOwner();
 
         $this->actingAs($owner);

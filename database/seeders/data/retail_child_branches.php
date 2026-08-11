@@ -175,12 +175,6 @@ return [
     // merchant had no way to list in the first place.
     'cloth-accessories' => [
         'ملابس' => ['fashion_textiles'],
-        'ملابس كاجوال' => ['fashion_textiles'],
-        'ملابس رسمي' => ['fashion_textiles'],
-        'ملابس النوم' => ['fashion_textiles'],
-        'ملابس رياضية' => ['fashion_textiles'],
-        'ملابس زفاف' => ['fashion_textiles'],
-        'كوتشي' => ['fashion_textiles'],
         'اكسسوار' => ['fashion_textiles'],
         'جلود وشنط وأحذية' => ['fashion_textiles'],
     ],

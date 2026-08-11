@@ -55,7 +55,7 @@ class DeliveryChildBranchesSeeder extends Seeder
      */
     protected function narrowingFile(): ?string
     {
-        return null;
+        return __DIR__ . '/data/delivery_child_types.php';
     }
 
     /**
@@ -110,6 +110,12 @@ class DeliveryChildBranchesSeeder extends Seeder
         $narrowing = $this->narrowingFile() && is_file($this->narrowingFile())
             ? require $this->narrowingFile()
             : [];
+
+        // «this type belongs to these trades and nobody else» — the inverse
+        // shape, for when the exceptions are few and the rule is «everybody
+        // else gets the generic ones».
+        $onlyFor = $narrowing['__only_for'] ?? [];
+        unset($narrowing['__only_for']);
 
         $applied = 0;
         $narrowed = 0;
@@ -169,6 +175,20 @@ class DeliveryChildBranchesSeeder extends Seeder
                         }
 
                         $typeKeys = $wanted;
+                    }
+                }
+
+                if ($onlyFor !== []) {
+                    $kept = array_values(array_filter(
+                        $typeKeys,
+                        fn ($key) => ! isset($onlyFor[$key]) || in_array($childName, $onlyFor[$key], true)
+                    ));
+
+                    if (empty($kept)) {
+                        $emptyNarrowings[] = "{$rootSlug} → {$childName} (__only_for)";
+                    } elseif (count($kept) < count($typeKeys)) {
+                        $narrowed++;
+                        $typeKeys = $kept;
                     }
                 }
 

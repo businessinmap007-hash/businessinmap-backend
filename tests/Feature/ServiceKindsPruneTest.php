@@ -535,13 +535,22 @@ class ServiceKindsPruneTest extends TestCase
     /**
      * A map that still names a folded child hands it a branch the moment it is
      * linked to a root again — and reports it missing on every run until then.
-     * Forty-one health specialties and three boat trips were doing exactly that.
+     * Forty-one health specialties, twelve sports, eleven property types, six
+     * hotel star ratings and six folded clothing children were doing exactly
+     * that across the four maps, which is what let ten real misses hide in
+     * booking: two thirds of that file was noise.
+     *
+     * @dataProvider branchMaps
      */
-    public function test_the_branch_map_names_no_child_that_is_gone(): void
+    public function test_the_branch_map_names_no_child_that_is_gone(string $file): void
     {
         $missing = [];
 
-        foreach (require database_path('seeders/data/booking_child_branches.php') as $rootSlug => $children) {
+        foreach (require database_path("seeders/data/{$file}") as $rootSlug => $children) {
+            if (! is_array($children)) {
+                continue;
+            }
+
             $rootId = (int) DB::table('categories')->where('parent_id', 0)->where('slug', $rootSlug)->value('id');
 
             $this->assertNotSame(0, $rootId, "no root «{$rootSlug}»");
@@ -559,8 +568,59 @@ class ServiceKindsPruneTest extends TestCase
             }
         }
 
-        $this->assertSame([], $missing, 'the booking branch map names children that no longer stand there: '
-            . implode('، ', $missing));
+        $this->assertSame([], $missing, "{$file} names children that no longer stand there: " . implode('، ', $missing));
+    }
+
+    /** @return array<string,array{0:string}> */
+    public static function branchMaps(): array
+    {
+        return [
+            'booking' => ['booking_child_branches.php'],
+            'menu' => ['menu_child_branches.php'],
+            'retail' => ['retail_child_branches.php'],
+            'delivery' => ['delivery_child_branches.php'],
+        ];
+    }
+
+    /**
+     * «توصيل مطعم»، «توصيل سوبر ماركت»، «توصيل صيدلية» and «نقل عينات طبية»
+     * are named after the trade that uses them, and they went out with their
+     * branch to everybody on it: a gold shop and a bookshop were each offered
+     * pharmacy and restaurant delivery, and twenty-seven food trades — a
+     * vegetable seller, a poultry farm, a plant nursery — were offered medical
+     * sample transport.
+     *
+     * @see \Database\Seeders\data\delivery_child_types
+     */
+    public function test_a_trade_named_delivery_mechanism_stays_with_its_trade(): void
+    {
+        $onlyFor = (require database_path('seeders/data/delivery_child_types.php'))['__only_for'] ?? [];
+
+        $this->assertNotEmpty($onlyFor);
+
+        foreach (
+            DB::table('category_service_configs as c')
+                ->join('category_children_master as m', 'm.id', '=', 'c.child_id')
+                ->where('c.platform_service_id', DB::table('platform_services')->where('key', 'delivery')->value('id'))
+                ->where('c.is_active', 1)
+                ->get(['m.name_ar', 'c.config']) as $row
+        ) {
+            $held = json_decode((string) $row->config, true)['allowed_item_types'] ?? [];
+
+            $this->assertNotEmpty($held, "«{$row->name_ar}» has no delivery mechanism, which reads as ALL of them");
+
+            foreach ($held as $key) {
+                if (! isset($onlyFor[$key])) {
+                    continue;
+                }
+
+                $this->assertContains(
+                    $row->name_ar,
+                    $onlyFor[$key],
+                    "«{$row->name_ar}» is offered «{$key}», which belongs to another trade"
+                );
+            }
+        }
     }
 
     /**

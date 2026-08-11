@@ -25,8 +25,6 @@ return [
 
     // ── مهن وحرفيين ──
     'professions' => [
-        'اصلاح زجاج السيارات' => ['delivery_courier_ondemand'],
-        'سائق' => ['delivery_courier_ondemand'],
         'منجد' => ['delivery_freight', 'delivery_courier_ondemand'],
         'نجار موبيليا' => ['delivery_freight', 'delivery_courier_ondemand'],
         // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
@@ -78,22 +76,57 @@ return [
         // them here is what stops this map re-wiring delivery on its own run.
     ],
 
+    // ── معارض ──
+    /*
+    | This root had no block at all, so its twenty-eight showrooms were
+    | configured from elsewhere and the narrowing could not reach them.
+    | Twenty-six already carried freight, which is right — a showroom moves
+    | heavy goods. «نجف و تحف» had the generic branch instead and was being
+    | offered grocery, pharmacy AND restaurant delivery; «حلويات» kept a
+    | medical sample courier. Writing down what the twenty-six already say is
+    | what corrects the two.
+    */
+    'exhibitions' => [
+        'آثاث' => ['delivery_freight'],
+        'أجهزة رياضية' => ['delivery_freight'],
+        'أجهزة كهربائية' => ['delivery_freight'],
+        'أجهزه كمبيوتر' => ['delivery_freight'],
+        'أدوات تجميل' => ['delivery_freight'],
+        'أصواف' => ['delivery_freight'],
+        'أقمشة' => ['delivery_freight'],
+        'ألمونتال' => ['delivery_freight'],
+        'أنتيكات وتحف' => ['delivery_freight'],
+        'إسفنج' => ['delivery_freight'],
+        'جلود وشنط وأحذية' => ['delivery_freight'],
+        'حدايد وبويات' => ['delivery_freight'],
+        'رخام' => ['delivery_freight'],
+        'زجاج' => ['delivery_freight'],
+        'سجاد' => ['delivery_freight'],
+        'سيارات' => ['delivery_freight'],
+        'سيفتى ومقاومة حرائق' => ['delivery_freight'],
+        'صينى وخزف' => ['delivery_freight'],
+        'صيني ومستلزمات بيت' => ['delivery_freight'],
+        'لعب أطفال' => ['delivery_freight'],
+        'مراتب' => ['delivery_freight'],
+        'مستلزمات مطاعم' => ['delivery_freight'],
+        'معرض سيارات' => ['delivery_freight'],
+        'معرض موتوسيكلات' => ['delivery_freight'],
+        'مفروشات' => ['delivery_freight'],
+        'ملابس جاهزة' => ['delivery_freight'],
+        'نجف و تحف' => ['delivery_freight'],
+        // A sweets showroom moves a chilled load as well as a heavy one.
+        'حلويات' => ['delivery_freight', 'delivery_coldchain'],
+    ],
+
     // ── ملابس و اكسسوارات ──
     'cloth-accessories' => [
         'اكسسوار' => ['delivery'],
         'جلود وشنط وأحذية' => ['delivery'],
-        'كوتشي' => ['delivery'],
-        'ملابس' => ['delivery'],
-        'ملابس النوم' => ['delivery'],
-        'ملابس رسمي' => ['delivery'],
-        'ملابس رياضية' => ['delivery'],
-        'ملابس زفاف' => ['delivery'],
-        'ملابس كاجوال' => ['delivery'],
+        'ملابس' => ['delivery'],
     ],
 
     // ── تكنولوجيا ──
     'technology' => [
-        'إدارة صفحات' => ['delivery'],
         // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
         // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
         // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
@@ -160,6 +193,13 @@ return [
         'مخابز' => ['delivery'],
         'مراتب' => ['delivery', 'delivery_freight'],
         'مستلزمات طبية' => ['delivery'],
+        // Both arrived on this root after the map was written and were never
+        // named, so they kept the generic branch whole — including pharmacy,
+        // grocery and restaurant delivery. «اكسسوار» absorbed the two folded
+        // accessory children (AccessoryMergeSeeder); «مكملات غذائية» came from
+        // الرياضة.
+        'اكسسوار' => ['delivery'],
+        'مكملات غذائية' => ['delivery'],
         'مستلزمات كافيهات' => ['delivery'],
         'مستلزمات نجارة' => ['delivery'],
         // 2026-08-10: the doors-and-windows trade took this root; a door leaves
@@ -229,7 +269,6 @@ return [
         'رخام' => ['delivery_freight'],
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
-        'سيارات' => ['delivery_freight'],
         'سيفتى ومقاومة حرائق' => ['delivery_freight'],
         'شحن بري وبحري وجوى' => ['delivery_freight', 'delivery_international'],
         'صينى وخزف' => ['delivery_freight'],
@@ -239,6 +278,10 @@ return [
         'عصائر' => ['delivery_freight', 'delivery_coldchain'],
         'فواكة' => ['delivery_freight', 'delivery_coldchain'],
         'قطع غيار' => ['delivery_freight'],
+        // The sibling row #44, never named here, so it kept the generic branch
+        // whole — pharmacy, grocery and restaurant delivery on a spare-parts
+        // company. مصانع already said freight for the same trade.
+        'قطع غيار سيارات' => ['delivery_freight'],
         'كبس خراطيم' => ['delivery_freight'],
         'كرڤان' => ['delivery_freight'],
         'لعب أطفال' => ['delivery_freight'],
@@ -294,7 +337,6 @@ return [
         'رخام وجرانيت' => ['delivery_freight'],
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
-        'سيارات' => ['delivery_freight'],
         'سيفتى ومقاومة حرائق' => ['delivery_freight'],
         'صينى وخزف' => ['delivery_freight'],
         'صيني ومستلزمات بيت' => ['delivery_freight'],

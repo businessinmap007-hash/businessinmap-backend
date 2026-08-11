@@ -7,13 +7,16 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Gives the six children of «مكاتب» that could not name their trade a
- * vocabulary to name it with.
+ * Gives a child that cannot name its trade a vocabulary to name it with.
  *
- *     php artisan db:seed --class=OfficeChildVocabulariesSeeder
+ *     php artisan db:seed --class=ChildTradeVocabulariesSeeder
  *
- * See data/office_child_vocabularies.php for the lists and for the three
- * things deliberately left out.
+ * One file per root, because the gap turns up a root at a time: six of the
+ * thirteen children of «مكاتب» carried «نمط تقديم الخدمة», a payment group and
+ * no `line` group at all, and every one of «تكنولوجيا»'s three did. They could
+ * describe HOW they work and never WHAT they do.
+ *
+ * See each data file for its lists and for what is deliberately left out.
  *
  * It CONSULTS the withdrawal record before linking anything. The owner was
  * curating «خدمات منزلية» by hand minutes before he asked for this — a seeder
@@ -22,11 +25,27 @@ use Illuminate\Support\Facades\DB;
  *
  * Idempotent; nothing is deleted.
  */
-class OfficeChildVocabulariesSeeder extends Seeder
+class ChildTradeVocabulariesSeeder extends Seeder
 {
+    /** Disambiguates a `name_en` that another group already owns. */
+    private string $suffix = 'Trade';
+
+    private const FILES = [
+        'office_child_vocabularies.php',
+        'technology_child_vocabularies.php',
+    ];
+
     public function run(): void
     {
-        $map = require __DIR__ . '/data/office_child_vocabularies.php';
+        foreach (self::FILES as $file) {
+            $this->apply(require __DIR__ . '/data/' . $file);
+        }
+    }
+
+    /** @param array<string,mixed> $map */
+    private function apply(array $map): void
+    {
+        $this->suffix = (string) ($map['name_en_suffix'] ?? 'Trade');
 
         DB::transaction(function () use ($map) {
             $blocked = app(ChildOptionDecisions::class)->blockedByChild();
@@ -35,7 +54,7 @@ class OfficeChildVocabulariesSeeder extends Seeder
             $linked = 0;
             $refused = 0;
 
-            foreach ($map['groups'] as $nameAr => $spec) {
+            foreach (($map['groups'] ?? []) as $nameAr => $spec) {
                 $groupId = $this->group($nameAr, $spec['name_en'], $spec['price_role']);
 
                 foreach ($spec['options'] as $ar => $en) {
@@ -47,7 +66,7 @@ class OfficeChildVocabulariesSeeder extends Seeder
                 }
             }
 
-            foreach ($map['extend'] as $nameAr => $options) {
+            foreach (($map['extend'] ?? []) as $nameAr => $options) {
                 $groupId = (int) DB::table('option_groups')->where('name_ar', $nameAr)->value('id');
 
                 if ($groupId <= 0) {
@@ -61,7 +80,7 @@ class OfficeChildVocabulariesSeeder extends Seeder
                 }
             }
 
-            foreach ($map['links'] as $childId => $groups) {
+            foreach (($map['links'] ?? []) as $childId => $groups) {
                 foreach ($groups as $groupName => $optionNames) {
                     $optionIds = DB::table('options as o')
                         ->join('option_groups as g', 'g.id', '=', 'o.group_id')
@@ -84,7 +103,7 @@ class OfficeChildVocabulariesSeeder extends Seeder
                 }
             }
 
-            $this->command?->info('Office child vocabularies:');
+            $this->command?->info('Child trade vocabularies — ' . ($map['root'] ?? '?') . ':');
             $this->command?->line("  - خيارات أُنشئت : {$created}");
             $this->command?->line("  - روابط أُضيفت : {$linked}");
             $this->command?->line("  - روابط رفضها سجل السحب : {$refused}");
@@ -125,9 +144,10 @@ class OfficeChildVocabulariesSeeder extends Seeder
         }
 
         // `options.name_en` collides across groups — «تصوير وإنتاج» already
-        // belongs to the advertising list. Same handling as the hotel seeder.
+        // belongs to the advertising list, «كاميرات مراقبة» to two trades that
+        // fit them. Same handling as the hotel seeder.
         if (DB::table('options')->where('name_en', $en)->exists()) {
-            $en .= ' (Office)';
+            $en .= " ({$this->suffix})";
         }
 
         $created++;

@@ -73,6 +73,14 @@ return [
         'خدمات التخليص الجمركي',
         'خدمات الطباعة',
         'خدمات الأمن والحراسة',
+        'خدمات المأذون الشرعي',
+        // …and «تكنولوجيا», whose three children were all mute. «أنظمة الأمن
+        // والسلامة» is the SYSTEMS half of security; «خدمات الأمن والحراسة»
+        // above is the manpower half, on a different child under a different
+        // root, and neither list repeats a row of the other.
+        'أنظمة الأمن والسلامة',
+        'خدمات الاتصالات والشبكات',
+        'خدمات البرمجة والتطوير',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
@@ -145,6 +153,10 @@ return [
          */
         'خدمات المكتب',           // مكتب + سكرتارية + ريسبشن
         'نظام الاشتراك',          // شهري ≠ بالساعة
+        // A مأذون who comes to the hall charges for coming; the act signed is
+        // the same act. The coworking shape again — line + modifier, not three
+        // lines that cannot say «at home» about a divorce registration.
+        'مكان العقد',             // بالمنزل ≠ بالمكتب
         'حالة المنتج',            // جديد ≠ مستعمل
         // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
         // sitting as `descriptive` the same day: it was never listed here, so

@@ -20,11 +20,14 @@
 |
 | ── What is deliberately NOT here ─────────────────────────────────────────
 |
-| **«مأذون شرعى» #178.** The owner withdrew every one of its six options by
-| hand on 2026-08-10 (`category_child_option_decisions`, source `admin`),
-| «فردي» and «فريق عمل» included. A child stripped that deliberately is not a
-| gap; adding a vocabulary here would be the seeder overruling him. See
-| [seeder-withdrawal-record].
+| **Nothing on «مأذون شرعى» #178 was re-added.** He withdrew all six of its
+| options by hand on 2026-08-10 — «كاش», «تقسيط», «فردي», «فريق عمل»,
+| «أونلاين», «خاص». Read them: every one belongs to the two GENERIC groups.
+| He removed the noise, and he never removed a trade line because the child
+| had none. So «خدمات المأذون الشرعي» below is not the seeder overruling him;
+| the six he took off stay off, and the withdrawal record is consulted on every
+| link so they cannot come back. He asked for this himself on 2026-08-11:
+| «هل هناك مهام للمأذون الشرعى تضاف الى مكتبه».
 |
 | **Payment groups.** «كاش/تقسيط» look missing on محاسبة، هندسية and محاماه, and
 | they are not: he has been REMOVING them — from تخليص جمركي (2026-08-10),
@@ -44,6 +47,10 @@
 */
 
 return [
+
+    'root' => 'offices',
+
+    'name_en_suffix' => 'Office',
 
     /*
     | ── new line groups ──────────────────────────────────────────────────
@@ -170,6 +177,46 @@ return [
                 'دوريات متحركة' => 'Mobile Patrols',
                 'تفتيش وبوابات' => 'Screening & Gates',
                 'تدريب أفراد أمن' => 'Guard Training',
+            ],
+        ],
+
+        /*
+         * The registrar's office. Six acts, and they are acts of DOCUMENTATION
+         * — that is what separates a مأذون from a lawyer: «تخصصات المحاماة» has
+         * «أحوال شخصية وأسرة», which is litigating a family matter, while these
+         * are the register entries themselves.
+         *
+         * A general notary's work (توكيلات، توثيق عقود) is the شهر العقاري's and
+         * is not here; the مأذون's authority is the marriage register.
+         */
+        'خدمات المأذون الشرعي' => [
+            'name_en' => 'Marriage Registrar Services',
+            'price_role' => 'line',
+            'children' => [178],
+            'options' => [
+                'عقد قران' => 'Marriage Contract',
+                'عقد زواج أجانب' => 'Foreign Nationals Marriage',
+                'توثيق طلاق' => 'Divorce Registration',
+                'إثبات رجعة' => 'Reconciliation Registration',
+                'قائمة منقولات زوجية' => 'Marital Property Inventory',
+                'استخراج قسيمة زواج' => 'Marriage Certificate Copy',
+            ],
+        ],
+
+        /*
+         * Where the contract is signed, and it is the registrar's other price.
+         * A مأذون who comes to the house or to the hall charges for coming; the
+         * act is the same act. Line + modifier, the same shape as the coworking
+         * office and its secretary — and the reason it is not three lines.
+         */
+        'مكان العقد' => [
+            'name_en' => 'Signing Location',
+            'price_role' => 'modifier',
+            'children' => [178],
+            'options' => [
+                'بالمكتب' => 'At the Office',
+                'بالمنزل' => 'At Home',
+                'بالقاعة أو الفندق' => 'At the Venue',
             ],
         ],
     ],

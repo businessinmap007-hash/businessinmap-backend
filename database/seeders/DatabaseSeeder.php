@@ -148,11 +148,11 @@ class DatabaseSeeder extends Seeder
            // which have an opinion about its kind.
            CoworkingWorkspaceOptionsSeeder::class,
 
-           // The other five children of «مكاتب» that could not name their
-           // trade: a printing house could not say it prints. Consults the
-           // withdrawal record, so it must stay ahead of nothing in particular
-           // — but keep it beside the coworking seeder, same root, same gap.
-           OfficeChildVocabulariesSeeder::class,
+           // A child that cannot name its trade — «مكاتب» had six such children and
+           // «تكنولوجيا» all three: a printing house could not say it prints.
+           // Consults the withdrawal record, so it may run anywhere; kept beside
+           // the coworking seeder, which closed the same gap on the same day.
+           ChildTradeVocabulariesSeeder::class,
 
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this

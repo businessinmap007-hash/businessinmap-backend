@@ -384,6 +384,93 @@ class ServiceKindsPruneTest extends TestCase
     }
 
     /**
+     * The branch seeders name the branches the collapse retired.
+     *
+     * All twelve booking branches — clinic, hotel, restaurant_table, sports,
+     * halls_events … — and the food branches under menu were switched off and
+     * emptied when their types moved onto the kinds. The inherited expansion in
+     * DeliveryChildBranchesSeeder reads a branch's types, so run standalone
+     * these two wrote an EMPTY allowed_item_types onto 64 booking configs and
+     * all 19 menu ones — and empty does not read as «nothing», it reads as
+     * «everything». A clinic that could take a hotel stay.
+     *
+     * A full seed hid both: the collapse runs a few lines later and re-derives
+     * the kind from the branch. Nothing hid it from anyone running one seeder.
+     *
+     * @dataProvider branchSeeders
+     */
+    public function test_a_branch_seeder_does_not_blank_its_configs(string $class, string $serviceKey): void
+    {
+        $serviceId = (int) DB::table('platform_services')->where('key', $serviceKey)->value('id');
+
+        $counts = fn () => DB::table('category_service_configs')
+            ->where('platform_service_id', $serviceId)
+            ->where('is_active', 1)
+            ->get(['id', 'config'])
+            ->mapWithKeys(fn ($r) => [(int) $r->id => count(json_decode((string) $r->config, true)['allowed_item_types'] ?? [])])
+            ->all();
+
+        $before = $counts();
+        $this->assertNotEmpty($before);
+
+        DB::beginTransaction();
+
+        try {
+            (new $class)->run();
+
+            foreach ($counts() as $id => $after) {
+                $this->assertGreaterThan(0, $after, "{$class} emptied config #{$id} — which means EVERY kind");
+                $this->assertSame($before[$id] ?? $after, $after, "{$class} changed config #{$id} on a re-run");
+            }
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    /** @return array<string,array{0:string,1:string}> */
+    public static function branchSeeders(): array
+    {
+        return [
+            'booking' => [\Database\Seeders\BookingChildBranchesSeeder::class, 'booking'],
+            'menu' => [\Database\Seeders\MenuChildBranchesSeeder::class, 'menu'],
+            'retail' => [\Database\Seeders\RetailChildBranchesSeeder::class, 'retail'],
+            'delivery' => [\Database\Seeders\DeliveryChildBranchesSeeder::class, 'delivery'],
+        ];
+    }
+
+    /**
+     * The clinic's four kinds must survive the branch seeder as well as the
+     * collapse. «clinic» maps to «حجز موعد», so translating the branch alone
+     * would flatten كشف، متابعة، استشارة أونلاين and زيارة منزلية back onto one.
+     */
+    public function test_the_branch_seeder_does_not_flatten_the_clinic(): void
+    {
+        $clinic = 514;
+
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\BookingChildBranchesSeeder)->run();
+
+            $kinds = DB::table('category_service_configs')
+                ->where('child_id', $clinic)
+                ->where('platform_service_id', DB::table('platform_services')->where('key', 'booking')->value('id'))
+                ->where('is_active', 1)
+                ->pluck('config')
+                ->flatMap(fn ($c) => json_decode((string) $c, true)['allowed_item_types'] ?? [])
+                ->unique();
+
+            foreach (['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'] as $kind) {
+                $this->assertContains($kind, $kinds->all(), "«عيادة» lost «{$kind}» to its branch");
+            }
+
+            $this->assertNotContains('booking_appointment', $kinds->all(), '«عيادة» was flattened back onto حجز موعد');
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    /**
      * The collapse is in DatabaseSeeder, so anything it would change on a
      * re-run is a change a full seed makes without anyone asking for it.
      *

@@ -75,9 +75,23 @@ return [
 
         /*
         | What a food business trades in. Attached to the children that carry a
-        | RANGE — a supermarket, a food factory, a grain merchant — not to the
+        | RANGE — a food factory, a grain merchant, an importer — not to the
         | single-product trades beside them: a «عصائر» shop ticking «عصائر
         | ومشروبات» and nothing else says less than its own name already does.
+        |
+        | It said «a supermarket» here until 2026-08-11, and named five food
+        | RETAIL children below. The food-vocabulary re-partition of 2026-08-10
+        | («راجع اصناف المنتجات الغذائية و اقسام السوبر ماركت … واعد تقسيمهم»)
+        | moved all five onto the five aisle groups instead — «أقسام الطازج
+        | واللحوم»، «أقسام البقالة الجافة»، «أقسام المشروبات»، «أقسام المنزل
+        | والعناية»، «بنود المخبوزات والحلويات» — which say the same thing at
+        | shelf grain. Leaving the names here meant this seeder put the coarse
+        | list straight back on top of the fine one: a hundred links, every
+        | supermarket answering the same question twice.
+        |
+        | WITHDRAWN: حبوب وغلال، سوبر ماركت، مني ماركت، هايبر ماركت، مجمدات.
+        | What stays is the wholesale side, where a range is all the merchant
+        | can say — [[seeder-must-withdraw]].
         */
         [
             'name_ar' => 'أصناف المنتجات الغذائية',
@@ -86,11 +100,6 @@ return [
             'children' => [
                 'مواد غذائية',
                 'مواد غذائية ومنظفات',
-                'حبوب وغلال',
-                'سوبر ماركت',
-                'مني ماركت',
-                'هايبر ماركت',
-                'مجمدات',
                 'استيراد وتصدير',
             ],
             'options' => [

@@ -25,9 +25,17 @@ use Illuminate\Support\Facades\DB;
  */
 class MenuChildBranchesSeeder extends DeliveryChildBranchesSeeder
 {
-    protected function translateTypes(array $branchKeys, array $typeKeys): array
+    protected function translateTypes(array $branchKeys, array $typeKeys, int $childId): array
     {
-        $map = (require __DIR__ . '/data/service_kinds.php')['menu']['map'] ?? [];
+        $spec = (require __DIR__ . '/data/service_kinds.php')['menu'];
+
+        // The listing children are stated outright, and an explicit answer wins
+        // outright — the same precedence the collapse gives it.
+        if (isset($spec['children'][$childId])) {
+            return $spec['children'][$childId];
+        }
+
+        $map = $spec['map'] ?? [];
 
         $kinds = array_values(array_unique(array_filter(
             array_map(fn ($key) => $map[$key] ?? null, $branchKeys)

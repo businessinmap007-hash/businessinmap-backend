@@ -48,15 +48,23 @@ return [
     | most one account, so nothing is disturbed by the move.
     */
 
-    [
-        // ورش already holds سمكري، ميكانيكي، كهربائي سيارات، ابواب سيارات،
-        // مركز سيارات. This is the sixth of them and was the only one filed
-        // among the household crafts.
-        'child_name_ar' => 'اصلاح زجاج السيارات',
-        'from_root_slug' => 'professions',
-        'to_root_slug' => 'workshops',
-        'why' => 'ورشة تُصلح سيارة، فمكانها بين السمكري والميكانيكي لا بين النقاش والسباك',
-    ],
+    /*
+    | «اصلاح زجاج السيارات» was moved professions → workshops here, and this
+    | entry's own note gave the reason it should not have survived: «ورش already
+    | holds سمكري، ميكانيكي، كهربائي سيارات، ابواب سيارات، مركز سيارات. This is
+    | the sixth of them.» On 2026-08-10 WorkshopRemodelSeeder folded all six —
+    | every one is now a priced LINE option inside «تخصصات ورش السيارات» on
+    | «ورشة سيارات» #543, this one as option #1202.
+    |
+    | The child row #104 was left standing under NO root, which is the fold's
+    | undo record. The move entry outlived the child's reason to exist and would
+    | have re-attached it to ورش on the next seed — a second door beside the
+    | workshop, offering what the workshop already prices. Nobody is on it (0
+    | accounts).
+    |
+    | WITHDRAWN, on the same rule as «تجهيز عرائس» below: a move seeder that
+    | names a folded child re-attaches it on its next run.
+    */
 
     [
         // Root 17 is «المحلات أو أونلاين» — things sold over a counter. A studio

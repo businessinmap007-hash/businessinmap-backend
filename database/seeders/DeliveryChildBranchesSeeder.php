@@ -66,7 +66,7 @@ class DeliveryChildBranchesSeeder extends Seeder
      * @param  array<int,string>  $typeKeys    what those branches carry today
      * @return array<int,string>
      */
-    protected function translateTypes(array $branchKeys, array $typeKeys): array
+    protected function translateTypes(array $branchKeys, array $typeKeys, int $childId): array
     {
         return $typeKeys;
     }
@@ -151,7 +151,6 @@ class DeliveryChildBranchesSeeder extends Seeder
                     continue;
                 }
 
-                $typeKeys = $this->translateTypes($branchKeys, $typeKeys);
                 $groupIds = $this->translateGroups($branchKeys, $groupIds);
 
                 // A branch is a shelf, not a shop. Where a trade declares which
@@ -187,7 +186,16 @@ class DeliveryChildBranchesSeeder extends Seeder
                 }
 
                 foreach ($childIds as $childId) {
-                    $this->applyChild((int) $root->id, $childId, $serviceId, $groupIds, $typeKeys);
+                    // Per child, not per name: a translation may have a
+                    // per-child answer that outranks the branch's (the clinic's
+                    // four kinds against «clinic → حجز موعد»).
+                    $this->applyChild(
+                        (int) $root->id,
+                        $childId,
+                        $serviceId,
+                        $groupIds,
+                        $this->translateTypes($branchKeys, $typeKeys, $childId)
+                    );
                     $applied++;
                 }
             }

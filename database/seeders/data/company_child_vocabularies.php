@@ -38,13 +38,31 @@
 |   تحويل أموال #283 ← the transfer rows of «خدمات الصرافة والتحويل». It does
 |                    not trade currency over a counter.
 |
-| ── One left open ─────────────────────────────────────────────────────────
+| ── The question that was open, now settled (2026-08-12) ──────────────────
 |
-| «قطع غيار» #263 (1 merchant) is NOT given «نوع قطع الغيار» #260, which is car
-| parts — فرامل، فتيس، زجاج سيارات — and belongs to «قطع غيار سيارات» #44. A
-| child named only «قطع غيار» may mean industrial or appliance spares, so it
-| gets a list that spans the machines rather than the car's systems. **If it
-| really is the car trade, say so and it should borrow #260 instead.**
+| Whether «قطع غيار» #263 is really the car trade, and should borrow
+| «نوع قطع الغيار» #260 with its own list retired.
+|
+| **It should not — the two lists are different AXES, not two versions of one.**
+|
+|   #260 «نوع قطع الغيار»     ميكانيكا، فرامل، فتيس، زجاج سيارات، عوادم…
+|                             → WHICH SYSTEM of a car. Held by #44 alone.
+|   #433 قطع الغيار حسب الآلة  سيارات، معدات ثقيلة، أجهزة منزلية، مصاعد…
+|                             → WHICH MACHINE. Held by #263 alone.
+|
+| «قطع غيار سيارات» is one of nine rows on #263's list, not its whole trade:
+| #44 is the car specialist, #263 the any-machine wholesaler, and under شركات
+| both are right. Neither list is retired.
+|
+| Two rows DID come off #263's list, because they were not machines and each
+| duplicated an axis it already carries: «قطع مستعملة» is
+| «حالة المنتج / مستعمل», and «قطع مستوردة» is «نطاق التعامل / إستيراد». Two
+| places to say one thing is two places to say it inconsistently. The narrowing
+| is in `child_option_scopes.php`; the rows themselves are not deleted.
+|
+| And the group was renamed, because «أنواع قطع الغيار» beside
+| «نوع قطع الغيار» is one letter apart for two different questions — which is
+| what made the axes look like duplicates in the first place.
 */
 
 return [
@@ -52,6 +70,15 @@ return [
     'root' => 'companies',
 
     'name_en_suffix' => 'Company',
+
+    /*
+     * One letter apart from «نوع قطع الغيار» and asking a different question,
+     * which is how the two came to look like duplicates of each other. The new
+     * name says the axis out loud.
+     */
+    'rename' => [
+        'أنواع قطع الغيار' => ['قطع الغيار حسب الآلة', 'Spare Parts by Machine'],
+    ],
 
     'groups' => [
 
@@ -219,11 +246,16 @@ return [
         ],
 
         /*
-         * Spanning the MACHINES, not a car's systems — see the note at the top
-         * about why this does not borrow «نوع قطع الغيار» #260.
+         * WHICH MACHINE the parts are for — a different question from #44's
+         * «نوع قطع الغيار», which is which SYSTEM of a car. See the note at the
+         * top: neither borrows the other.
+         *
+         * «قطع مستوردة» and «قطع مستعملة» are still rows of this group (nothing
+         * here is deleted) but are no longer offered to #263 — they answer
+         * «نطاق التعامل» and «حالة المنتج», which it already carries.
          */
-        'أنواع قطع الغيار' => [
-            'name_en' => 'Spare Parts Ranges', 'price_role' => 'modifier', 'children' => [263],
+        'قطع الغيار حسب الآلة' => [
+            'name_en' => 'Spare Parts by Machine', 'price_role' => 'modifier', 'children' => [263],
             'options' => [
                 'قطع غيار سيارات' => 'Automotive Spares',
                 'قطع غيار معدات ثقيلة' => 'Heavy Equipment Spares',
@@ -232,8 +264,6 @@ return [
                 'قطع غيار مصاعد' => 'Lift Spares',
                 'قطع غيار تبريد وتكييف' => 'HVAC Spares',
                 'قطع غيار دراجات' => 'Motorcycle Spares',
-                'قطع مستوردة' => 'Imported Parts',
-                'قطع مستعملة' => 'Used Parts',
             ],
         ],
 

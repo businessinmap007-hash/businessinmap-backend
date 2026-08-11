@@ -563,6 +563,33 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * Two spare-parts lists, one letter apart, asking different questions.
+     *
+     * «نوع قطع الغيار» is which SYSTEM of a car — فرامل، فتيس، زجاج سيارات —
+     * and belongs to «قطع غيار سيارات» #44. «قطع الغيار حسب الآلة» is which
+     * MACHINE — سيارات، معدات ثقيلة، مصاعد — and belongs to the any-machine
+     * wholesaler «قطع غيار» #263. Car parts is ONE of its nine rows, not its
+     * trade, so neither child borrows the other's list and neither is retired.
+     *
+     * The old name «أنواع قطع الغيار» is what made them look like duplicates.
+     */
+    public function test_the_two_spare_parts_lists_are_different_axes(): void
+    {
+        $this->assertNull(
+            DB::table('option_groups')->where('name_ar', 'أنواع قطع الغيار')->first(),
+            'the ambiguous name was renamed to «قطع الغيار حسب الآلة»'
+        );
+
+        $holders = fn (string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', $group)->distinct()->pluck('co.child_id')->all();
+
+        $this->assertSame([44], $holders('نوع قطع الغيار'), 'the car systems list is the car child\'s');
+        $this->assertSame([263], $holders('قطع الغيار حسب الآلة'), 'the machine list is the wholesaler\'s');
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

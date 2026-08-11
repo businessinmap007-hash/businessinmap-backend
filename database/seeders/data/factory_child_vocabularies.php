@@ -111,6 +111,14 @@ return [
                 'طوب طفلي' => 'Clay Brick', 'طوب حراري' => 'Fire Brick',
                 'بلوك خرساني' => 'Concrete Block', 'طوب زجاجي' => 'Glass Block',
                 'إنترلوك' => 'Interlock',
+                // Three the first pass missed. «طوب أبيض» is the sand-lime
+                // block, a different kiln and a different price from the red;
+                // «طوب خفاف» is the insulating block a roof is built with; and
+                // an interlock press makes kerbstones and paving off the same
+                // line, which is what its customer actually orders with it.
+                'طوب أبيض (سيليكات)' => 'Sand-lime Brick',
+                'طوب خفاف عازل' => 'Lightweight Insulating Block',
+                'بردورات وبلاط أرصفة' => 'Kerbstones & Paving',
             ],
         ],
 
@@ -464,6 +472,20 @@ return [
          * the ADD direction — not a rule that factories answer less.
          */
         24 => ['الاستبدال والإرجاع'],                       // أجهزة رياضية
+
+        /*
+         * «طوب» #34 stands under مصانع and شركات and answers three more axes
+         * as the WHOLESALER than as the FACTORY. Two of the three are the
+         * factory's too: a pallet delivered as the wrong type goes back
+         * (الاستبدال والإرجاع), and a kiln sells retail, wholesale and for
+         * export (نطاق التعامل).
+         *
+         * «حالة المنتج» is deliberately NOT mirrored. Its two rows are
+         * جديد · مستعمل, and a brick factory only ever fires new — used brick
+         * is a demolition trade, not a kiln's. A modifier with one possible
+         * answer is noise on the pricing screen, not an axis.
+         */
+        34 => ['الاستبدال والإرجاع', 'نطاق التعامل'],      // طوب
         56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // نجف
         83 => ['أقسام المنزل والعناية'],                    // منظفات
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة

@@ -533,6 +533,36 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * A kiln fires new brick, so «حالة المنتج» has one answer and is not asked.
+     *
+     * «طوب» #34 answers جديد · مستعمل as a WHOLESALER under شركات, where used
+     * brick off a demolition really does pass through. Under مصانع it does
+     * not, and the two axes that DO belong to a kiln — returns and dealing
+     * scope — were mirrored across in the same pass.
+     *
+     * This is the shape of the whole factory walk: even the sediment out in
+     * the ADD direction, one child at a time, minus whatever the root cannot
+     * actually answer.
+     */
+    public function test_a_kiln_is_not_asked_whether_its_brick_is_used(): void
+    {
+        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+        $companies = (int) DB::table('categories')->where('slug', 'companies')->value('id');
+
+        $under = fn (int $root, string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', 34)->whereIn('co.category_id', [0, $root])
+            ->where('g.name_ar', $group)->exists();
+
+        $this->assertFalse($under($factories, 'حالة المنتج'), 'a kiln fires new brick only');
+        $this->assertTrue($under($companies, 'حالة المنتج'), 'the wholesaler still answers it');
+
+        $this->assertTrue($under($factories, 'الاستبدال والإرجاع'));
+        $this->assertTrue($under($factories, 'نطاق التعامل'));
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

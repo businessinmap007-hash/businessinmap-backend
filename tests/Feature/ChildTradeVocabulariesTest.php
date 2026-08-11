@@ -34,6 +34,8 @@ class ChildTradeVocabulariesTest extends TestCase
         'exhibition_child_vocabularies.php',
         'crafts_child_vocabularies.php',
         'shop_child_vocabularies.php',
+        'entertainment_child_vocabularies.php',
+        'stray_child_vocabularies.php',
     ];
 
     /**
@@ -407,22 +409,17 @@ class ChildTradeVocabulariesTest extends TestCase
     ];
 
     /**
-     * Every (root, child) that still cannot name its trade, 2026-08-11.
+     * Every (root, child) that still cannot name its trade.
      *
-     * Keyed by root because the links are per-root: a child can name its trade
-     * under «شركات» and be mute under «مصانع», which is exactly what seven
-     * factory children were until the mirror pass.
+     * On 2026-08-11 this held 52 entries across five roots. It now holds ONE,
+     * and that one is not a gap: **«مندوب» #243 carries 159 merchants, more
+     * than any other child on the platform, and the owner withdrew all
+     * thirteen of its options by hand** — «ربع نقل» and «ربع نقل صندوق» among
+     * them. Curation, recorded in `category_child_option_decisions`.
      *
-     * Two roots left this list on 2026-08-11: «مهن وحرفيين» (24 crafts, 121
-     * merchants, the largest debt the platform had) and «المحلات» (14 shops).
-     * One root and three strays are what remain, and one is not a gap at all:
-     *
-     *   فنون وترفية  11 venues that sell an hour of a table or a lane. Open
-     *                question: their child name plus `booking_time` may already
-     *                BE the whole answer — nobody browses a billiards hall by
-     *                anything but the hour.
-     *   مندوب #243   NOT a gap: the owner withdrew all thirteen of its options
-     *                by hand, «ربع نقل» included. Curation.
+     * Keyed by ROOT because the links are per-root: a child can name its trade
+     * under «شركات» and be mute under «مصانع», which is what seven factory
+     * children were until the mirror pass.
      *
      * The list may only SHRINK.
      *
@@ -430,12 +427,6 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     private const MUTE_TRADES = [
         'shipping-delivery:243',
-        'sports:516',
-        'arts-entertainment:30', 'arts-entertainment:33', 'arts-entertainment:217',
-        'arts-entertainment:219', 'arts-entertainment:225', 'arts-entertainment:239',
-        'arts-entertainment:271', 'arts-entertainment:523', 'arts-entertainment:524',
-        'arts-entertainment:525', 'arts-entertainment:526',
-        'cars:85',
     ];
 
     /** @return array<int,string> every (root, child) that owns no trade word */

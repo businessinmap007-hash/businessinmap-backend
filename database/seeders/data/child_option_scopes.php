@@ -74,6 +74,14 @@ return [
         // passenger fleets
         278 => [51, 220, 248, 250, 251],   // نقل ركاب
         169 => [220, 248, 251],            // خدمة ليموزين
+        /*
+         * «سائق» #85, added 2026-08-11 when the last mute children were given
+         * a vocabulary. Declaring it here was NOT optional: linking the five
+         * passenger sizes without saying so leaves the child UNSCOPED, and
+         * VehicleOptionGroupsSeeder hands the whole list back on its next run —
+         * a driver-for-hire offered a trailer and a load of heavy plant.
+         */
+        85 => [51, 220, 248, 250, 251],    // سائق — he drives you, not your cargo
 
         // freight fleets
         284 => [184, 214, 280, 281, 365],  // سيارات نقل

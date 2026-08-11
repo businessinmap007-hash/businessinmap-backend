@@ -104,6 +104,21 @@ return [
         'أعمال السباكة',
         'أعمال الدهانات',
         'أعمال الدش والاستقبال',
+        /*
+         * «فنون و ترفية», the last mute root. Booking-only, so the service
+         * rule: the thing booked IS the priced row — an hour of a pool table
+         * is paid for the way an hour of a desk is.
+         *
+         * These four spent one commit in the `modifier` block by mistake, and
+         * OptionPriceRoleTest::test_the_seeder_is_idempotent caught it: the
+         * next run of OptionPriceRolesSeeder would have demoted all four and
+         * stopped a photographer pricing a wedding. Seventh time this file has
+         * bitten, and the first time a test got there first.
+         */
+        'ألعاب ومرافق الترفيه',
+        'خدمات التصوير',
+        'أنواع الاستوديوهات',
+        'المراكب والرحلات النيلية',
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
@@ -242,6 +257,8 @@ return [
         // the first run of THIS seeder reset it. Fifth time. What it says is
         // what a shop STOCKS — nobody buys the phrase «اكسسوار موبايل», the
         // priced rows are the catalog products.
+        // A PS4 hour and a PS5 hour are two prices for one line.
+        'فئة جهاز الألعاب',       // بلايستيشن ٥ ≠ بلايستيشن ٤
         'أنواع الإكسسوارات',      // اكسسوار موبايل ≠ اكسسوار سيارات
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة
 

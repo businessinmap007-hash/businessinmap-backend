@@ -104,6 +104,18 @@ return [
             46,  // مغسلة سيارات — which sizes it can take
             119, // جراج
             169, // خدمة ليموزين
+            /*
+             * «سائق» #85, added 2026-08-11. What a hired driver is booked WITH
+             * is the vehicle, and this is the list that says so.
+             *
+             * Naming him in `child_option_scopes.php` alone was not enough and
+             * the tests said so: THIS file decides who holds the group and the
+             * scope file only narrows what a holder may answer. Scoped but not
+             * named, he was a child with a narrowing and no grant — so the
+             * seeder read his desired set as empty and deleted the five rows on
+             * its next run. Both halves, or neither.
+             */
+            85,  // سائق
             244, // ونش إنقاذ
             278, // نقل ركاب
             284, // سيارات نقل

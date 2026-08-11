@@ -57,6 +57,8 @@ return [
     'سيفتى ومقاومة حرائق' => ['safety_fire'],
     'كبس خراطيم' => ['hoses_fittings'],
     'مفاتيح' => ['keys_locks'],
+    // The fittings trade, which is what «carpentry_supplies» actually is. It
+    // does NOT get «timber_boards»: selling the hinge is not selling the door.
     'مستلزمات نجارة' => ['carpentry_supplies'],
     'اكياس بلاستيك' => ['plastic_packaging'],
     'بلاستيك' => ['plastic_packaging'],
@@ -92,6 +94,13 @@ return [
     'سجاد' => ['carpets_rugs', 'home_textiles'],
     'ستائر و ديكور' => ['curtains_supplies', 'home_textiles', 'wood_decor'],
     'لوازم ستائر' => ['curtains_supplies'],
+    /*
+     * «wood_marble_alternatives» was tried here and removed: this map
+     * INTERSECTS with what the child's BRANCH offers and never widens it. The
+     * decor shop sits on `home_furnishings` and the substitutes live under
+     * `building_hardware`, so the row did nothing. Widening the branch would
+     * have handed it rebar and cement to reach one shelf.
+     */
     'مصنوعات خشبية ومستلزمات ديكور' => ['wood_decor', 'furniture', 'antiques_artifacts'],
 
     // ── مجوهرات ──
@@ -153,9 +162,18 @@ return [
     'مواد دوائية' => ['medical_retail'],
     'مستلزمات مطاعم' => ['horeca_supplies'],
     'مستلزمات قهاوى' => ['horeca_supplies'],
-    'أخشاب' => ['carpentry_supplies'],
+    /*
+     * «أخشاب» sells TIMBER. It was narrowed to «مستلزمات نجارة» when that was
+     * the only shelf the catalog had for anything wooden, and a timber merchant
+     * could not list a plank — see retail_taxonomy.php, 2026-08-11. The
+     * fittings stay: a timber yard sells the glue and the edging beside the
+     * board.
+     */
+    'أخشاب' => ['timber_boards', 'wood_marble_alternatives', 'carpentry_supplies'],
     'طوب' => ['cement_building'],
-    'رخام وجرانيت' => ['marble_stone'],
+    // A marble yard sells the substitute beside the stone; the customer who
+    // cannot afford the slab asks for the sheet in the same visit.
+    'رخام وجرانيت' => ['marble_stone', 'wood_marble_alternatives'],
     'أدوات صحية' => ['hoses_fittings', 'paints_hardware'],
     'مواد تعبئة وتغليف' => ['plastic_packaging'],
     'طباعة مواد تعبئة وتغليف' => ['plastic_packaging'],

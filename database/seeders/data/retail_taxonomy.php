@@ -88,6 +88,24 @@ return [
             'hoses_fittings' => ['خراطيم ووصلات', 'Hoses & Fittings'],
             'keys_locks' => ['مفاتيح وأقفال', 'Keys & Locks'],
             'carpentry_supplies' => ['مستلزمات نجارة', 'Carpentry Supplies'],
+            /*
+             * Owner, 2026-08-11: «شركات و مصانع اخشاب … وكلا الابنين فارغين».
+             *
+             * «أخشاب» #301 carries 8 merchants across شركات and مصانع, and the
+             * only thing either could LIST was «مستلزمات نجارة» — hinges,
+             * runners, glue. A timber merchant could not put one plank of زان
+             * or one sheet of MDF in front of a customer, because the catalog
+             * had no category for timber at all. The option list said what he
+             * deals in; nothing let him sell it.
+             */
+            'timber_boards' => ['أخشاب وألواح', 'Timber & Boards'],
+            /*
+             * And the family that is neither timber nor stone: «بديل الخشب»
+             * (WPC), «بديل الرخام» (UV/PVC sheet) and «ڤيوتك» panels. They are
+             * sold beside both and are made of neither, which is why they need
+             * their own shelf rather than a row inside one of the two.
+             */
+            'wood_marble_alternatives' => ['بدائل الخشب والرخام', 'Wood & Marble Alternatives'],
             'plastic_packaging' => ['بلاستيك وأكياس', 'Plastic & Packaging'],
         ],
     ],

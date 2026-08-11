@@ -326,14 +326,42 @@ return [
             ],
         ],
 
+        /*
+         * Owner, 2026-08-11: «من المفترض ان هناك انواع اخشاب طبيعى وصناعى».
+         * Both halves are named, and the order says which is which: the first
+         * five grow, the rest are pressed.
+         */
         'أنواع الأخشاب' => [
             'name_en' => 'Timber Types', 'price_role' => 'modifier', 'children' => [301],
             'options' => [
+                // طبيعي
                 'زان' => 'Beech', 'أرو' => 'Pine',
                 'موسكي' => 'Whitewood', 'سويد' => 'Swedish Redwood',
-                'MDF' => 'MDF', 'كونتر' => 'Plywood',
-                'HDF' => 'HDF', 'قشرة خشب' => 'Veneer',
                 'خشب معالج' => 'Treated Timber',
+                // صناعي
+                'MDF' => 'MDF', 'HDF' => 'HDF',
+                'كونتر' => 'Plywood', 'أبلاكاش' => 'Blockboard',
+                'لاتيه' => 'Laminboard', 'حبيبي (شيبورد)' => 'Chipboard',
+                'قشرة خشب' => 'Veneer',
+            ],
+        ],
+
+        /*
+         * Neither timber nor stone, and sold beside both — «بديل الخشب» (WPC),
+         * «بديل الرخام» (UV sheet) and «ڤيوتك» panels. A separate list because
+         * a row inside «أنواع الأخشاب» would call a PVC sheet a wood, and a
+         * marble yard carries these without carrying one plank.
+         */
+        'بدائل الخشب والرخام' => [
+            'name_en' => 'Wood & Marble Alternatives', 'price_role' => 'modifier', 'children' => [301, 174],
+            'options' => [
+                'بديل خشب WPC' => 'WPC Wood Alternative',
+                'بديل رخام UV' => 'UV Marble Alternative',
+                'ألواح ڤيوتك' => 'Viotech Panels',
+                'ألواح PVC' => 'PVC Panels',
+                'ديكينج خارجي' => 'Outdoor Decking',
+                'فوم بورد' => 'Foam Board',
+                'كلادينج' => 'Cladding Panels',
             ],
         ],
 

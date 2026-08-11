@@ -227,6 +227,25 @@ return [
         'why' => 'معرض سيارات لا يستطيع إدراج سيارة، و٢٧ من ٢٨ ابنًا في الجذر يستطيعون — ١٢ حسابًا',
     ],
 
+    /*
+     * The mirror image of the entry above, found by the same audit and
+     * confirmed by the owner on 2026-08-11: «شغله».
+     *
+     * «آثاث» was the ONLY one of the root's twenty-eight children with
+     * `booking` switched off — off since 2026-08-04 00:30, with no data file,
+     * scope rule or decision record saying why. Twenty-six merchants, and a
+     * showroom's whole model here is that a customer books a viewing.
+     * «مفروشات» sits beside it carrying booking and is the same trade one
+     * shelf over, which is why it is the donor.
+     */
+    [
+        'child_name_ar' => 'آثاث',
+        'root_slug' => 'exhibitions',
+        'service_key' => 'booking',
+        'copy_from_child_ar' => 'مفروشات',
+        'why' => 'معرض أثاث لا يمكن حجز معاينة فيه، و٢٧ من ٢٨ ابنًا في الجذر يمكن — ٢٦ حسابًا',
+    ],
+
     // The three general markets are one trade at three sizes. «سوبر ماركت» has
     // the 22-type grocery branch and the other two have nothing but a market
     // list, though the goods on the shelf are identical.

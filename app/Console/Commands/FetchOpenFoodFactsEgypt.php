@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Http;
 class FetchOpenFoodFactsEgypt extends Command
 {
     protected $signature = 'bim:off-fetch
+        {--dump= : Read a downloaded products.csv.gz instead of the API}
         {--source=all : food|beauty|products|all}
         {--out= : Where to write (defaults to database/seeders/data/catalog/off_egypt_products.csv)}
         {--page-size=100 : Rows per request}
@@ -105,8 +106,12 @@ class FetchOpenFoodFactsEgypt extends Command
 
         $written = 0;
 
-        foreach ($sources as $source) {
-            $written += $this->fetchSource($source, $handle, $seen);
+        if ($this->option('dump')) {
+            $written = $this->fromDump((string) $this->option('dump'), $handle, $seen);
+        } else {
+            foreach ($sources as $source) {
+                $written += $this->fetchSource($source, $handle, $seen);
+            }
         }
 
         fclose($handle);
@@ -116,6 +121,122 @@ class FetchOpenFoodFactsEgypt extends Command
         $this->line('Data © Open Food Facts contributors, ODbL — record it in verification_source.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The whole-database export, streamed and filtered to Egypt.
+     *
+     * The search API answers 503 under load and **401 past about page ten** —
+     * roughly a thousand rows — so the remaining three thousand Egyptian food
+     * products are only reachable this way. The file is ~0.9 GB gzipped and
+     * ~9 GB open, and it is read through `compress.zlib://` a line at a time:
+     * nothing is unpacked to disk and nothing but the Egyptian rows is kept.
+     *
+     * It is TAB separated and UNQUOTED — Open Food Facts strips tabs and
+     * newlines out of the values instead — so the line is split rather than
+     * parsed. `fgetcsv` with its quote handling swallows rows here.
+     *
+     * One thing the export does not carry: `product_name_ar`. That field lives
+     * only in the JSONL/Mongo dumps. The rows already collected through the API
+     * keep theirs, which is why this appends rather than replaces.
+     *
+     * @param  array<string,true>  $seen
+     */
+    private function fromDump(string $path, $handle, array &$seen): int
+    {
+        if (! is_readable($path)) {
+            $this->error("Cannot read {$path}");
+
+            return 0;
+        }
+
+        $stream = fopen('compress.zlib://' . $path, 'r');
+
+        if (! $stream) {
+            $this->error("Cannot open {$path} as gzip");
+
+            return 0;
+        }
+
+        $header = fgets($stream);
+
+        if ($header === false) {
+            $this->error('The dump is empty');
+
+            return 0;
+        }
+
+        $columns = array_flip(array_map('trim', explode("\t", rtrim($header, "\r\n"))));
+
+        foreach (['code', 'countries_tags', 'brands', 'categories_tags'] as $needed) {
+            if (! isset($columns[$needed])) {
+                $this->error("The dump has no «{$needed}» column — is this the products export?");
+
+                return 0;
+            }
+        }
+
+        $this->line(count($columns) . ' columns; scanning for en:egypt…');
+
+        $read = 0;
+        $written = 0;
+        $at = fn (array $f, string $c) => trim((string) ($f[$columns[$c] ?? -1] ?? ''));
+
+        while (($line = fgets($stream)) !== false) {
+            $read++;
+
+            if ($read % 250000 === 0) {
+                $this->line(sprintf('  %s rows read, %d Egyptian', number_format($read), $written));
+            }
+
+            // Cheap reject before splitting four million lines into 200 fields.
+            if (! str_contains($line, 'en:egypt')) {
+                continue;
+            }
+
+            $fields = explode("\t", rtrim($line, "\r\n"));
+            $countries = $at($fields, 'countries_tags');
+
+            // «en:egypt» must be a whole tag — «en:egypt» is not «en:egyptian…».
+            if (! in_array('en:egypt', array_map('trim', explode(',', $countries)), true)) {
+                continue;
+            }
+
+            $barcode = $at($fields, 'code');
+
+            if ($barcode === '' || isset($seen[$barcode])) {
+                continue;
+            }
+
+            $seen[$barcode] = true;
+            $name = $at($fields, 'product_name');
+
+            fputcsv($handle, [
+                'dump',
+                $barcode,
+                $name,
+                '', // product_name_ar is not in this export
+                $name,
+                $at($fields, 'generic_name'),
+                $at($fields, 'brands'),
+                str_replace(',', '|', $at($fields, 'brands_tags')),
+                $at($fields, 'quantity'),
+                $at($fields, 'product_quantity'),
+                $at($fields, 'product_quantity_unit'),
+                str_replace(',', '|', $at($fields, 'categories_tags')),
+                $at($fields, 'image_url') ?: $at($fields, 'image_small_url'),
+                $at($fields, 'lang') ?: $at($fields, 'lc'),
+                $at($fields, 'stores'),
+            ]);
+
+            $written++;
+        }
+
+        fclose($stream);
+
+        $this->line(sprintf('  %s rows read, %d Egyptian', number_format($read), $written));
+
+        return $written;
     }
 
     /** @param  array<string,true>  $seen */

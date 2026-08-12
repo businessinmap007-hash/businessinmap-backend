@@ -310,4 +310,80 @@ class OpenFoodFactsMatchTest extends TestCase
 
         $this->assertNull($matcher->match('Juhayna', 'Juhayna Mango Juice', null)['row']);
     }
+
+    /**
+     * The whole-database export carries no `product_quantity_unit` column.
+     * Reading its bare «1500» as GRAMS turns a litre and a half of juice into
+     * a weight, and the size gate then refuses every correct candidate.
+     */
+    public function test_a_number_with_no_unit_falls_back_to_the_written_quantity(): void
+    {
+        $row = $this->row(['quantity' => '1.5 L', 'quantity_value' => '1500', 'quantity_unit' => '']);
+
+        $this->assertSame(['value' => 1500.0, 'type' => 'volume'], $row->size());
+    }
+
+    /** …and where nothing states a unit at all, there is no size to compare. */
+    public function test_a_bare_number_is_not_a_size(): void
+    {
+        $row = $this->row(['quantity' => '', 'quantity_value' => '1500', 'quantity_unit' => '']);
+
+        $this->assertNull($row->size());
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | The whole-database export
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * The dump is TAB separated and unquoted, and holds every country. What is
+     * asserted is that only Egypt comes out, that «en:egypt» is matched as a
+     * whole tag, and that the tag lists are rewritten from commas to the pipes
+     * the rest of this pipeline reads.
+     */
+    public function test_the_dump_reader_keeps_only_egypt(): void
+    {
+        $dump = tempnam(sys_get_temp_dir(), 'off') . '.csv.gz';
+        $out = tempnam(sys_get_temp_dir(), 'off') . '.csv';
+
+        $rows = [
+            ['code', 'product_name', 'brands', 'brands_tags', 'quantity', 'product_quantity', 'categories_tags', 'countries_tags', 'image_url', 'lc', 'generic_name', 'stores'],
+            ['6221000000001', 'Mango Juice', 'Juhayna', 'juhayna', '1 L', '1000', 'en:beverages,en:juices', 'en:egypt', 'https://x/a.jpg', 'en', '', ''],
+            ['3000000000002', 'Lait Demi', 'Candia', 'candia', '1 L', '1000', 'en:dairies', 'en:france', '', 'fr', '', ''],
+            // «en:egyptian-cuisine» contains the word but is not the country.
+            ['4000000000003', 'Koshari', 'Somebody', 'somebody', '', '', 'en:egyptian-cuisine', 'en:united-states,en:egyptian-cuisine', '', 'en', '', ''],
+            ['6221000000004', 'Feta', 'Domty', 'domty', '500 g', '500', 'en:cheeses', 'en:egypt,en:saudi-arabia', '', 'en', '', ''],
+        ];
+
+        $gz = gzopen($dump, 'w');
+        foreach ($rows as $row) {
+            gzwrite($gz, implode("\t", $row) . "\n");
+        }
+        gzclose($gz);
+
+        $this->artisan('bim:off-fetch', ['--dump' => $dump, '--out' => $out])->assertSuccessful();
+
+        $written = array_map('str_getcsv', array_filter(explode("\n", trim(file_get_contents($out)))));
+        $header = array_map(fn ($h) => preg_replace('/^\xEF\xBB\xBF/', '', $h), array_shift($written));
+        $byBarcode = [];
+
+        foreach ($written as $line) {
+            $row = array_combine($header, $line);
+            $byBarcode[$row['barcode']] = $row;
+        }
+
+        @unlink($dump);
+        @unlink($out);
+
+        // PHP turns numeric string keys into ints, so compare as strings.
+        $this->assertSame(
+            ['6221000000001', '6221000000004'],
+            array_map('strval', array_keys($byBarcode))
+        );
+        $this->assertSame('en:beverages|en:juices', $byBarcode['6221000000001']['categories']);
+        $this->assertSame('Juhayna', $byBarcode['6221000000001']['brand']);
+        $this->assertSame('dump', $byBarcode['6221000000001']['source']);
+    }
 }

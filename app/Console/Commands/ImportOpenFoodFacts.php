@@ -78,6 +78,16 @@ class ImportOpenFoodFacts extends Command
             ->pluck('id', 'slug');
 
         $brands = $this->knownBrands();
+
+        // Listed brands join the map in BOTH modes, or a dry run would report
+        // «unknown-brand» for rows the apply run then imports — and a dry run
+        // that does not predict the apply is worth nothing.
+        $new = $this->addListedBrands($brands, (bool) $this->option('apply'));
+
+        if ($new > 0) {
+            $this->line("{$new} brands from off_brands.php" . ($this->option('apply') ? ' created' : ' (would be created)'));
+        }
+
         $units = DB::table('catalog_units')->pluck('id', 'code');
         $heldBarcodes = DB::table('catalog_products')
             ->whereNotNull('default_barcode')->where('default_barcode', '!=', '')
@@ -201,6 +211,50 @@ class ImportOpenFoodFacts extends Command
         }
 
         return $brands;
+    }
+
+    /**
+     * Brands the source names that the catalog lacks, created from the written
+     * list in `off_brands.php` — never from the source's own spelling.
+     *
+     * The Arabic spelling of a brand is a decision, and one hundred products
+     * carrying the wrong one is one hundred rows to fix. A brand absent from
+     * that file stays refused and shows up in the rejects sheet, which is how
+     * the file grows.
+     *
+     * @param  array<string,object>  $brands
+     */
+    private function addListedBrands(array &$brands, bool $apply): int
+    {
+        $listed = require database_path('seeders/data/catalog/off_brands.php');
+        $added = 0;
+
+        foreach ($listed as $key => $names) {
+            if (isset($brands[$key])) {
+                continue;
+            }
+
+            $slug = \Illuminate\Support\Str::slug((string) $names['en'], '_') ?: $key;
+
+            $id = $apply
+                ? DB::table('catalog_brands')->insertGetId([
+                    'slug' => $slug,
+                    'name_ar' => $names['ar'],
+                    'name_en' => $names['en'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ])
+                : 0;
+
+            $brands[$key] = (object) [
+                'id' => $id, 'slug' => $slug,
+                'name_ar' => $names['ar'], 'name_en' => $names['en'],
+            ];
+
+            $added++;
+        }
+
+        return $added;
     }
 
     private function alreadyHave(int $brandId, string $nameAr, string $label): bool

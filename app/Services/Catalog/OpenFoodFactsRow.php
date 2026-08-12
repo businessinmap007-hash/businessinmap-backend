@@ -104,14 +104,22 @@ class OpenFoodFactsRow
      */
     public function size(): ?array
     {
-        if ($this->quantityValue !== null) {
-            $size = self::normalise($this->quantityValue, $this->quantityUnit ?: 'g');
+        // A number with no unit says nothing. The whole-database export omits
+        // `product_quantity_unit`, and reading 1500 there as 1500 GRAMS turns
+        // a litre and a half of juice into a weight — which the size gate then
+        // refuses against every correct candidate. The raw «1.5 L» string is
+        // the better witness whenever the unit column is silent.
+        if ($this->quantityValue !== null && $this->quantityUnit !== '') {
+            $size = self::normalise($this->quantityValue, $this->quantityUnit);
 
             if ($size) {
                 return $size;
             }
         }
 
+        // No unit anywhere is no size. Unsized rows still match on name alone
+        // and are labelled «matched-without-size», so nothing is lost by
+        // declining to guess which kind of unit a bare number was.
         return self::parseSize($this->quantity);
     }
 

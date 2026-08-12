@@ -195,6 +195,16 @@ return [
                 'تحميص غامق' => 'Dark Roast',
                 'حبوب كاملة' => 'Whole Bean',
                 'مطحون' => 'Ground',
+                /*
+                 * Owner, 2026-08-12. The two rows an Egyptian coffee counter is
+                 * actually asked for, and neither is a roast DEGREE: «محوج» is
+                 * ground with cardamom and «سبيشيال» is the house blend. They
+                 * belong on this axis all the same — they are the other two
+                 * answers to «which one do you want», and each is a different
+                 * price for the same bean, which is what the group is for.
+                 */
+                'محوج' => 'Cardamom Blend',
+                'سبيشيال' => 'Special Blend',
             ],
         ],
 

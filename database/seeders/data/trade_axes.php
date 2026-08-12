@@ -142,7 +142,20 @@ return [
             // retail. It was a goods seller in a root of trades that are booked,
             // with zero accounts, while «نجار باب وشباك» was the craftsman all
             // along. Second time this list has had to give a root back.
-            'roots' => [23, 22, 17],
+            /*
+             * معارض #21 joined on 2026-08-12, and the reason is two accounts:
+             * «معرض الوميتال مطابخ و شبابيك و ابواب» and «مطابخ الوميتال وحشب
+             * حديثه» were filed under «ألمونتال», which sells the extrusion.
+             * They MAKE the window, so they belong to this trade — and there
+             * was nowhere to put them, because the trade did not stand in the
+             * root they were registered in.
+             *
+             * It belongs there on its own merits too: معارض already holds
+             * آثاث، مفروشات، رخام، زجاج، حدايد وبويات، إسفنج — the building and
+             * furnishing showrooms — and a doors showroom is one of those. It
+             * was an absence, not a decision.
+             */
+            'roots' => [23, 22, 21, 17],
             'axis_groups' => ['أنواع الأبواب والشبابيك'],
             'retire_children' => [],
             // «ألمونتال» #17 is NOT listed as a child of this axis. It sells
@@ -150,7 +163,9 @@ return [
             // #23 أبواب مصفحة stands under شركات, #51 مستلزمات نجارة under
             // المحلات; both sell (delivery + offers + retail) exactly as a
             // doors business would.
-            'donor_children' => [23, 51],
+            // #17 ألمونتال added 2026-08-12 as the معارض donor: it is the only
+            // other opening trade already selling from that root.
+            'donor_children' => [23, 51, 17],
         ],
 
         /*

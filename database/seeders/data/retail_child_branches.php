@@ -51,6 +51,10 @@ return [
     'exhibitions' => [
         'أجهزة رياضية' => ['electronics_tech'],
         'ألمونتال' => ['home_furnishings'],
+        // The trade took this root on 2026-08-12 so the two «ألمونتال»
+        // showroom accounts had somewhere to move to. A doors showroom sells
+        // building hardware, the same as its other three standings.
+        'باب وشباك' => ['building_hardware'],
         'أنتيكات وتحف' => ['home_furnishings'],
         'سجاد' => ['home_furnishings'],
         'نجف و تحف' => ['home_furnishings'],

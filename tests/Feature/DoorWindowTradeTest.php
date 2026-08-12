@@ -280,6 +280,56 @@ class DoorWindowTradeTest extends TestCase
         $this->assertContains('retail', $sells, 'a standing that can sell nothing is not a standing');
     }
 
+    /**
+     * «انقلهما الى باب وشباك» — owner, 2026-08-12.
+     *
+     * Two accounts read as the window trade in their own names — «معرض
+     * الوميتال مطابخ و شبابيك و ابواب» and «مطابخ الوميتال وحشب حديثه» — and
+     * were filed under «ألمونتال», which sells the extrusion to whoever makes
+     * the opening. The trade had to take معارض first: there was nowhere under
+     * their own root to move them to, and an account pointing at a child that
+     * does not hang from its root disappears from every screen.
+     *
+     * Each keeps «ألومنيوم» — the word its old child was saying about it.
+     */
+    public function test_the_showroom_accounts_moved_to_the_window_trade(): void
+    {
+        $doors = $this->childId('باب وشباك');
+        $showrooms = $this->rootId('exhibitions');
+
+        $this->assertTrue(
+            DB::table('category_parent_child')->where('parent_id', $showrooms)
+                ->where('child_id', $doors)->exists(),
+            'the trade cannot hold a showroom account from outside معارض'
+        );
+
+        $this->assertContains('ألومنيوم', $this->typesOf('باب وشباك'));
+
+        $aluminium = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', self::GROUP)->where('o.name_ar', 'ألومنيوم')->value('o.id');
+
+        foreach ([1519, 1313] as $userId) {
+            $user = DB::table('users')->where('id', $userId)->first(['category_id', 'category_child_id']);
+
+            if ($user === null) {
+                continue; // the account is the owner's to keep or close
+            }
+
+            $this->assertSame($doors, (int) $user->category_child_id, "u{$userId} did not move");
+
+            $this->assertTrue(
+                DB::table('category_parent_child')->where('parent_id', (int) $user->category_id)
+                    ->where('child_id', $doors)->exists(),
+                "u{$userId} points at a child its root does not carry"
+            );
+
+            $this->assertTrue(
+                DB::table('option_user')->where('user_id', $userId)->where('option_id', $aluminium)->exists(),
+                "u{$userId} arrived without the word its child was saying"
+            );
+        }
+    }
+
     /** The workshop that makes them says the same thing the factory says. */
     public function test_the_workshop_carries_the_same_list(): void
     {

@@ -44,6 +44,24 @@ return [
     'name_en_suffix' => 'Showroom',
 
     /*
+    | «باب وشباك» #50 took معارض on 2026-08-12 so that two showroom accounts
+    | filed under «ألمونتال» — «معرض الوميتال مطابخ و شبابيك و ابواب» and
+    | «مطابخ الوميتال وحشب حديثه» — had somewhere to be moved to. The standing
+    | was wired by TradeAxesSeeder; the WORDS are wired here.
+    |
+    | A mirror rather than naming the group: it copies the ids the child already
+    | holds under its other three roots, so a narrowing survives. It says the
+    | same sixteen things in a showroom as in a factory.
+    */
+    'mirror_links' => [
+        // «حالة المنتج» travels with it: a showroom's floor model is sold
+        // second-hand as often as new, and without a modifier the trade would
+        // stand in this root able to list sixteen products and price none of
+        // them differently.
+        50 => ['أنواع الأبواب والشبابيك', 'حالة المنتج'],   // باب وشباك
+    ],
+
+    /*
     | Links written against THIS root rather than shared. Same shape as
     | `links`, and every child appears once.
     */

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BusinessWorkingHour;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -87,6 +88,66 @@ class BusinessHoursService
             (string) $row->open_time,
             (string) $row->close_time
         );
+    }
+
+    /**
+     * Is the business open for a whole WINDOW, not just an instant?
+     *
+     * `isOpenNow` answers about a moment, which is all a search result needs. A
+     * booking is a range, and a clinic that closes at 17:00 was happily handed a
+     * 16:50 appointment thirty minutes long — and, worse, could publish a whole
+     * grid of Friday slots on a Friday it is closed.
+     *
+     * Two deliberate abstentions:
+     *
+     * - **No rows at all → true.** Hours unknown is not hours refused; the same
+     *   rule search uses. Nearly every business on the platform has set none
+     *   yet, and a booking engine that started refusing them all would take the
+     *   platform down rather than tighten it.
+     * - **A window crossing midnight into another DAY → true.** A four-night
+     *   hotel stay is not a question about opening hours, and answering it as
+     *   one would refuse every stay ever made. Opening hours gate the
+     *   appointment-shaped bookings — the ones measured in minutes and hours.
+     */
+    public function isOpenThroughout(int $businessId, CarbonInterface $start, CarbonInterface $end): bool
+    {
+        $hours = $this->hoursFor($businessId);
+
+        if ($hours->isEmpty()) {
+            return true;
+        }
+
+        if (! $start->isSameDay($end)) {
+            return true;
+        }
+
+        $row = $hours->get($start->dayOfWeek);
+
+        // A business that described its week but left this day out has said
+        // nothing about it — same abstention as above, one day wide.
+        if (! $row) {
+            return true;
+        }
+
+        if ($row->is_closed || ! $row->open_time || ! $row->close_time) {
+            return false;
+        }
+
+        $open = (string) $row->open_time;
+        $close = (string) $row->close_time;
+
+        // An end exactly ON closing time is inside: 16:30–17:00 at a clinic that
+        // closes at 17:00 is the last appointment of the day, not a refusal.
+        $from = $start->format('H:i:s');
+        $to = $end->format('H:i:s');
+
+        if ($open <= $close) {
+            return $from >= $open && $to <= $close;
+        }
+
+        // Past midnight, and both ends on the same date: either both in the
+        // evening stretch or both in the early-morning one.
+        return ($from >= $open && $to > $open) || ($from < $close && $to <= $close);
     }
 
     /**

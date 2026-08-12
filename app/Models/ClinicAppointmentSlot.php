@@ -13,6 +13,7 @@ class ClinicAppointmentSlot extends Model
 {
     protected $fillable = [
         'clinic_id',
+        'service_price_id',
         'appointment_id',
         'created_by',
         'starts_at',
@@ -22,6 +23,7 @@ class ClinicAppointmentSlot extends Model
     protected $casts = [
         'starts_at' => 'datetime',
         'duration_minutes' => 'integer',
+        'service_price_id' => 'integer',
     ];
 
     public function clinic(): BelongsTo
@@ -32,6 +34,12 @@ class ClinicAppointmentSlot extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(ClinicAppointment::class, 'appointment_id');
+    }
+
+    /** The kind of visit this slot is for — «كشف», «استشارة» — and its price. */
+    public function servicePrice(): BelongsTo
+    {
+        return $this->belongsTo(BusinessServicePrice::class, 'service_price_id');
     }
 
     public function isOpen(): bool

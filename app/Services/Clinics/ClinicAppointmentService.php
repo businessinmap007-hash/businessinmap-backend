@@ -4,10 +4,12 @@ namespace App\Services\Clinics;
 
 use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
+use App\Models\BusinessServicePrice;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\ReminderPreference;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
+use App\Services\BusinessHoursService;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,15 +28,59 @@ class ClinicAppointmentService
     ) {
     }
 
+    /** The platform's fallback length when nothing else says otherwise. */
+    public const DEFAULT_DURATION = 30;
+
+    /**
+     * How long this visit runs: the clinic's own setting for the KIND of visit
+     * first, then whatever the caller asked for, then thirty minutes.
+     *
+     * The clinic's setting wins over the request on purpose. A patient asking
+     * for «كشف» is asking for the thing the clinic defined; letting his form
+     * field decide how long the doctor's morning is booked for would make the
+     * setting decorative.
+     *
+     * @param  array<string,mixed>  $data  the request payload
+     */
+    public function resolveDuration(int $clinicId, array $data): array
+    {
+        $priceId = (int) ($data['service_price_id'] ?? 0);
+        $price = null;
+
+        if ($priceId > 0) {
+            $price = BusinessServicePrice::query()
+                ->where('id', $priceId)
+                ->where('business_id', $clinicId)
+                ->where('is_active', 1)
+                ->first();
+
+            // A price from another clinic (or a dead one) names no visit here.
+            if (! $price) {
+                throw ValidationException::withMessages([
+                    'service_price_id' => __('نوع الزيارة غير متاح لدى هذه العيادة.'),
+                ]);
+            }
+        }
+
+        $minutes = $price?->duration_minutes
+            ?: (int) ($data['duration_minutes'] ?? 0)
+            ?: self::DEFAULT_DURATION;
+
+        return [(int) $minutes, $price?->id];
+    }
+
     /** Patient requests an appointment at a time; the clinic will confirm it. */
     public function request(User $patient, User $clinic, array $data): ClinicAppointment
     {
+        [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
+
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
+            'service_price_id' => $priceId,
             'created_by' => (int) $patient->id,
             'scheduled_at' => $data['scheduled_at'],
-            'duration_minutes' => $data['duration_minutes'] ?? 30,
+            'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_REQUESTED,
             'reason' => $data['reason'] ?? null,
         ]);
@@ -51,13 +97,14 @@ class ClinicAppointmentService
     public function bookByClinic(User $clinic, User $patient, array $data): ClinicAppointment
     {
         $start = Carbon::parse($data['scheduled_at']);
-        $duration = (int) ($data['duration_minutes'] ?? 30);
+        [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
         $this->assertNoConflict((int) $clinic->id, $start, $duration, null);
         $this->agenda->assertFree((int) $patient->id, $start, $start->copy()->addMinutes($duration));
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
+            'service_price_id' => $priceId,
             'created_by' => (int) $clinic->id,
             'scheduled_at' => $start,
             'duration_minutes' => $duration,
@@ -138,11 +185,15 @@ class ClinicAppointmentService
      * Clinic publishes one open slot. Silently skips (returns null) a duplicate
      * start time — the (clinic_id, starts_at) unique key makes republishing safe.
      */
-    public function publishSlot(User $clinic, Carbon $start, int $duration = 30): ?ClinicAppointmentSlot
+    public function publishSlot(User $clinic, Carbon $start, int $duration = 30, ?int $servicePriceId = null): ?ClinicAppointmentSlot
     {
         $slot = ClinicAppointmentSlot::query()->firstOrCreate(
             ['clinic_id' => (int) $clinic->id, 'starts_at' => $start],
-            ['duration_minutes' => $duration, 'created_by' => (int) $clinic->id],
+            [
+                'duration_minutes' => $duration,
+                'service_price_id' => $servicePriceId,
+                'created_by' => (int) $clinic->id,
+            ],
         );
 
         return $slot->wasRecentlyCreated ? $slot : null;
@@ -153,11 +204,13 @@ class ClinicAppointmentService
      * the next `$days` whose weekday (Carbon 0=Sun..6=Sat) is selected, open a slot
      * at every listed time. Duplicates are skipped. Returns [created, skipped].
      */
-    public function generateSlots(User $clinic, array $weekdays, array $times, int $days, int $duration = 30): array
+    public function generateSlots(User $clinic, array $weekdays, array $times, int $days, int $duration = 30, ?int $servicePriceId = null): array
     {
         $created = 0;
         $skipped = 0;
+        $closed = 0;
         $today = Carbon::today();
+        $hours = app(BusinessHoursService::class);
 
         for ($d = 0; $d <= $days; $d++) {
             $date = $today->copy()->addDays($d);
@@ -172,11 +225,22 @@ class ClinicAppointmentService
                     continue;
                 }
 
-                $this->publishSlot($clinic, $at, $duration) ? $created++ : $skipped++;
+                // A weekly grid is exactly where a closed day does the most
+                // damage: one press published four weeks of Friday slots at a
+                // clinic shut on Fridays, and every one of them was bookable.
+                // Counted separately from `skipped` (a duplicate) so the answer
+                // says WHY nothing appeared.
+                if (! $hours->isOpenThroughout((int) $clinic->id, $at, $at->copy()->addMinutes($duration))) {
+                    $closed++;
+
+                    continue;
+                }
+
+                $this->publishSlot($clinic, $at, $duration, $servicePriceId) ? $created++ : $skipped++;
             }
         }
 
-        return ['created' => $created, 'skipped' => $skipped];
+        return ['created' => $created, 'skipped' => $skipped, 'outside_hours' => $closed];
     }
 
     /** Clinic deletes an open (unbooked) slot; a booked one can't be removed here. */
@@ -210,6 +274,10 @@ class ClinicAppointmentService
             $appointment = ClinicAppointment::create([
                 'clinic_id' => (int) $slot->clinic_id,
                 'patient_id' => (int) $patient->id,
+                // The slot already says which visit it is and how long it runs —
+                // the patient took what the clinic offered, so nothing he posts
+                // may lengthen or relabel it.
+                'service_price_id' => $slot->service_price_id,
                 'created_by' => (int) $patient->id,
                 'scheduled_at' => $slot->starts_at,
                 'duration_minutes' => (int) $slot->duration_minutes,
@@ -386,6 +454,16 @@ class ClinicAppointmentService
     public function assertNoConflict(int $clinicId, Carbon $start, int $duration, ?int $ignoreId): void
     {
         $end = $start->copy()->addMinutes($duration);
+
+        // Every path that puts an appointment in the diary comes through here —
+        // the clinic booking directly, confirming a request, rescheduling, or a
+        // patient taking a published slot — so the closed-hours refusal belongs
+        // here too rather than at four call sites that could drift apart.
+        if (! app(BusinessHoursService::class)->isOpenThroughout($clinicId, $start, $end)) {
+            throw ValidationException::withMessages([
+                'scheduled_at' => __('العيادة مغلقة في هذا الوقت.'),
+            ]);
+        }
 
         $conflict = ClinicAppointment::query()
             ->where('clinic_id', $clinicId)

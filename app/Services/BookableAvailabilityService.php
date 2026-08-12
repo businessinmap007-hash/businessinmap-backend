@@ -49,6 +49,25 @@ class BookableAvailabilityService
             );
         }
 
+        // The business's own week, which nothing here used to read: a clinic
+        // that closes at 17:00 was handed a 16:50 appointment thirty minutes
+        // long, and a shop shut on Friday took Friday bookings all day. Only
+        // same-day windows are judged — a four-night stay is not a question
+        // about opening hours. See BusinessHoursService::isOpenThroughout.
+        if ($item->business_id && ! app(BusinessHoursService::class)
+            ->isOpenThroughout((int) $item->business_id, $start, $end)) {
+            return $this->result(
+                ok: true,
+                available: false,
+                reason: __('النشاط مغلق في هذا الوقت'),
+                code: 'outside_working_hours',
+                item: $item,
+                start: $start,
+                end: $end,
+                conflicts: collect()
+            );
+        }
+
         $conflicts = $this->findBlockingSlots($item, $start, $end);
 
         if ($conflicts->isNotEmpty()) {

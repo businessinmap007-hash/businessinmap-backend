@@ -217,6 +217,7 @@ class BusinessServicePriceController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'charge_mode' => ['nullable', 'in:standard,free,reservation_fee,minimum_charge'],
             'charge_amount' => ['nullable', 'numeric', 'min:0'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable'],
             'discount_enabled' => ['nullable'],
@@ -227,6 +228,7 @@ class BusinessServicePriceController extends Controller
             'price' => 'السعر',
             'charge_mode' => 'طريقة احتساب الوحدة',
             'charge_amount' => 'قيمة الرسوم/الحد الأدنى',
+            'duration_minutes' => 'مدة الموعد',
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -251,6 +253,10 @@ class BusinessServicePriceController extends Controller
             'price' => round((float) $data['price'], 2),
             'charge_mode' => $chargeMode,
             'charge_amount' => $chargeAmount,
+            // «الكشف ٣٠ دقيقة والاستشارة ٢٠»: said once, here, beside the price
+            // it already belongs to. Blank means «no fixed length» — a hotel
+            // room has none — and the appointment falls back to 30.
+            'duration_minutes' => ($m = (int) ($data['duration_minutes'] ?? 0)) > 0 ? $m : null,
             'currency' => strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP',
             'is_active' => (int) $request->boolean('is_active'),
             'discount_enabled' => $discountEnabled,

@@ -94,6 +94,23 @@
                 <input class="a2-input" id="charge_amount" name="charge_amount" value="{{ old('charge_amount', $row->charge_amount ?? 0) }}" inputmode="decimal" placeholder="0.00">
                 <div class="a2-hint a2-mt-8 js-bp-charge-hint"></div>
             </div>
+
+            {{-- «الطبيب يقدر يحدد للكشف ٣٠ دقيقة والاستشارة ٢٠».
+
+                 Said once, here, beside the price it already belongs to — the
+                 row IS (visit kind × line), which is the exact granularity the
+                 question is asked at. Every slot the clinic publishes and every
+                 appointment booked against this kind inherits it. --}}
+            <div class="a2-form-group">
+                <label class="a2-label" for="duration_minutes">{{ __('مدة الموعد (بالدقائق)') }}</label>
+                <input class="a2-input" id="duration_minutes" name="duration_minutes" type="number"
+                       min="5" max="480" step="5"
+                       value="{{ old('duration_minutes', $row->duration_minutes ?? '') }}"
+                       placeholder="{{ __('اتركه فارغًا إن لم يكن للموعد مدة ثابتة') }}">
+                <div class="a2-hint a2-mt-8">
+                    {{ __('يُطبَّق تلقائيًا على كل موعد من هذا النوع — «كشف ٣٠»، «استشارة ٢٠». فارغًا يعني ٣٠ دقيقة.') }}
+                </div>
+            </div>
         </div>
     </div>
 

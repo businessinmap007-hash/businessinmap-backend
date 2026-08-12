@@ -32,6 +32,7 @@ class ClinicAppointment extends Model
     protected $fillable = [
         'clinic_id',
         'patient_id',
+        'service_price_id',
         'created_by',
         'scheduled_at',
         'duration_minutes',
@@ -45,6 +46,7 @@ class ClinicAppointment extends Model
     protected $casts = [
         'scheduled_at' => 'datetime',
         'duration_minutes' => 'integer',
+        'service_price_id' => 'integer',
         'reminded_day_at' => 'datetime',
         'reminded_soon_at' => 'datetime',
     ];
@@ -57,6 +59,16 @@ class ClinicAppointment extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');
+    }
+
+    /**
+     * The kind of visit — «كشف», «استشارة» — as the clinic priced it. The
+     * appointment's LENGTH is inherited from here when it is set, which is how
+     * a clinic says «كشف ٣٠ دقيقة، استشارة ٢٠» once instead of on every slot.
+     */
+    public function servicePrice(): BelongsTo
+    {
+        return $this->belongsTo(BusinessServicePrice::class, 'service_price_id');
     }
 
     /** The prescription written during this visit, if any. */

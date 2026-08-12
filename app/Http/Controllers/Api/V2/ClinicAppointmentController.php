@@ -40,6 +40,9 @@ class ClinicAppointmentController extends Controller
         $data = $request->validate([
             'clinic_id' => ['required', 'integer', 'exists:users,id', 'different:' . (int) $request->user()->id],
             'scheduled_at' => ['required', 'date', 'after:now'],
+            // Naming the visit sets its length from what the clinic priced —
+            // the patient's own duration is only the fallback.
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
@@ -123,6 +126,9 @@ class ClinicAppointmentController extends Controller
             'id' => (int) $s->id,
             'starts_at' => optional($s->starts_at)->toIso8601String(),
             'duration_minutes' => (int) $s->duration_minutes,
+            // What the patient is booking, not just how long it takes.
+            'visit_kind' => $s->servicePrice?->offeringLabel($s->servicePrice->bookable_item_type),
+            'price' => $s->servicePrice?->price,
         ]);
 
         return response()->json(['success' => true, 'data' => $rows]);
@@ -150,6 +156,7 @@ class ClinicAppointmentController extends Controller
             'status' => (string) $a->status,
             'scheduled_at' => optional($a->scheduled_at)->toIso8601String(),
             'duration_minutes' => (int) $a->duration_minutes,
+            'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,

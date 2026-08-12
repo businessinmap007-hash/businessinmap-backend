@@ -46,6 +46,7 @@ class BusinessClinicAppointmentController extends Controller
         $data = $request->validate([
             'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $clinicId],
             'scheduled_at' => ['required', 'date', 'after:now'],
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
@@ -115,6 +116,8 @@ class BusinessClinicAppointmentController extends Controller
             'id' => (int) $s->id,
             'starts_at' => optional($s->starts_at)->toIso8601String(),
             'duration_minutes' => (int) $s->duration_minutes,
+            'service_price_id' => $s->service_price_id ? (int) $s->service_price_id : null,
+            'visit_kind' => $s->servicePrice?->offeringLabel($s->servicePrice->bookable_item_type),
             'appointment_id' => $s->appointment_id ? (int) $s->appointment_id : null,
             'is_open' => $s->isOpen(),
         ]);
@@ -132,16 +135,30 @@ class BusinessClinicAppointmentController extends Controller
             'starts_at' => ['required_without:slots', 'date', 'after:now'],
             'slots' => ['required_without:starts_at', 'array', 'min:1', 'max:200'],
             'slots.*' => ['date', 'after:now'],
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
         ]);
 
         $clinic = User::query()->findOrFail(BusinessContext::id($request));
-        $duration = (int) ($data['duration_minutes'] ?? 30);
+
+        // «الكشف ٣٠ والاستشارة ٢٠»: naming the visit is enough — its length comes
+        // from what the clinic priced, and only falls back to the posted number.
+        [$duration, $priceId] = $this->service->resolveDuration((int) $clinic->id, $data);
         $starts = $data['slots'] ?? [$data['starts_at']];
 
         $created = 0;
+        $closed = 0;
         foreach ($starts as $at) {
-            if ($this->service->publishSlot($clinic, Carbon::parse($at), $duration)) {
+            $start = Carbon::parse($at);
+
+            if (! app(\App\Services\BusinessHoursService::class)
+                ->isOpenThroughout((int) $clinic->id, $start, $start->copy()->addMinutes($duration))) {
+                $closed++;
+
+                continue;
+            }
+
+            if ($this->service->publishSlot($clinic, $start, $duration, $priceId)) {
                 $created++;
             }
         }
@@ -169,6 +186,7 @@ class BusinessClinicAppointmentController extends Controller
             'end_time' => ['required_with:start_time', 'date_format:H:i', 'after:start_time'],
             'interval_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'weeks' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
         ]);
 
@@ -176,12 +194,15 @@ class BusinessClinicAppointmentController extends Controller
         abort_if($times === [], 422, __('حدّد الأوقات.'));
 
         $clinic = User::query()->findOrFail(BusinessContext::id($request));
+        [$duration, $priceId] = $this->service->resolveDuration((int) $clinic->id, $data);
+
         $result = $this->service->generateSlots(
             $clinic,
             array_values(array_unique(array_map('intval', $data['weekdays']))),
             $times,
             (int) ($data['weeks'] ?? 4) * 7,
-            (int) ($data['duration_minutes'] ?? 30),
+            $duration,
+            $priceId,
         );
 
         return response()->json([

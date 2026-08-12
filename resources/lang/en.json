@@ -2670,5 +2670,8 @@
     "لا توجد جلسة نشطة. ابدأ جلسة أولًا.": "No active session. Start one first.",
     "هذه الوحدة محجوزة بالفعل في هذه الفترة": "This unit is already booked for these dates",
     "هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.": "This business reserves a specific unit — choose the one you want first.",
-    "هذه الوحدة محجوزة بالفعل في هذا الوقت.": "This unit is already booked at that time."
+    "هذه الوحدة محجوزة بالفعل في هذا الوقت.": "This unit is already booked at that time.",
+    "النشاط مغلق في هذا الوقت": "The business is closed at this time",
+    "نوع الزيارة غير متاح لدى هذه العيادة.": "That visit type is not available at this clinic.",
+    "العيادة مغلقة في هذا الوقت.": "The clinic is closed at this time."
 }

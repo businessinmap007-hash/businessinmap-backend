@@ -32,6 +32,7 @@ return [
     | «cream» of «full cream» translated a second time as an ingredient.
     */
     'noun_phrases' => [
+        'whole milk' => 'لبن كامل الدسم',
         'ice cream' => 'آيس كريم',
         'corn flakes' => 'كورن فليكس',
         'peanut butter' => 'زبدة فول سوداني',
@@ -53,6 +54,10 @@ return [
         // «fresh» alone is «طازج», which is right for food and wrong on a tube
         // of toothpaste — so the toothpaste phrase is spelled out separately.
         'extra fresh' => 'إكسترا فريش',
+        // «whole» alone is «كامل الدسم» — about FAT — and it went onto a loaf
+        // of bread as «توست كامل الدسم قمح». Whole grain is a different idea
+        // and gets its own entry; the bare word is gone from `attributes`.
+        'whole wheat' => 'قمح كامل',
     ],
 
     /*
@@ -165,7 +170,6 @@ return [
     'attributes' => [
         // fat and diet
         'full' => 'كامل الدسم',
-        'whole' => 'كامل الدسم',
         'skimmed' => 'خالي الدسم',
         'skim' => 'خالي الدسم',
         'light' => 'لايت',
@@ -269,5 +273,63 @@ return [
         'hair' => 'للشعر',
         'face' => 'للوجه',
         'cleansing' => 'منظف',
+
+        /*
+        | Added after the whole-database export — 2026-08-13. Taken from the
+        | words that actually blocked a row: 133 rows had a name, a brand and a
+        | shelf, and were refused over one unknown word. Only words with a
+        | settled Arabic reading are added; a product word that could mean two
+        | things stays out and keeps its row in the sheet.
+        */
+        'pure' => 'نقي',
+        'mini' => 'ميني',
+        'triangle' => 'مثلثات',
+        'portions' => 'قطع',
+        'mix' => 'مكس',
+        'dairy' => 'ألبان',
+        'fava' => 'فول',
+        'date' => 'تمر',
+        'roll' => 'رول',
+        'sticks' => 'أصابع',
+        'slices' => 'شرائح',
+        'crispy' => 'مقرمش',
+        'smooth' => 'ناعم',
+        'thick' => 'خشن',
+        'long' => 'طويل',
+        'small' => 'صغير',
+        'large' => 'كبير',
+        'family' => 'عائلي',
+        'double' => 'دبل',
+        'rich' => 'غني',
+        'soft' => 'طري',
+        'butter' => 'زبدة',
+        'cocoa' => 'كاكاو',
+        'nut' => 'مكسرات',
+        'raisin' => 'زبيب',
+        'fig' => 'تين',
+        'plum' => 'برقوق',
+        'cherry' => 'كرز',
+        'melon' => 'شمام',
+        'watermelon' => 'بطيخ',
+        'carrot' => 'جزر',
+        'cucumber' => 'خيار',
+        'olives' => 'زيتون',
+        'mushroom' => 'مشروم',
+        'chicken' => 'دجاج',
+        'beef' => 'لحم بقري',
+        'meat' => 'لحم',
+        'fish' => 'سمك',
+        'shrimp' => 'جمبري',
+        'egg' => 'بيض',
+        'ginger' => 'زنجبيل',
+        'cinnamon' => 'قرفة',
+        'cardamom' => 'حبهان',
+        'cumin' => 'كمون',
+        'mint' => 'نعناع',
+        'anise' => 'ينسون',
+        'hibiscus' => 'كركديه',
+        'liquorice' => 'عرقسوس',
+        'tamarind' => 'تمر هندي',
+        'chamomile' => 'بابونج',
     ],
 ];

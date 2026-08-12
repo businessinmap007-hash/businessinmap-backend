@@ -185,6 +185,63 @@ class OpenFoodFactsPlacementTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
+    | What the whole-database export taught, 2026-08-13
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * «whole» on its own is «كامل الدسم» — a statement about FAT — and it went
+     * onto a loaf of bread as «توست كامل الدسم قمح».
+     */
+    public function test_whole_wheat_is_about_grain_not_fat(): void
+    {
+        $name = $this->placement()->arabicName(
+            $this->row(['name_en' => 'Whole wheat sugar-free toast']),
+            ''
+        );
+
+        $this->assertSame('توست قمح كامل بدون سكر', $name);
+        $this->assertStringNotContainsString('الدسم', (string) $name);
+    }
+
+    /** …and «whole milk» still is about fat. */
+    public function test_whole_milk_is_still_about_fat(): void
+    {
+        $this->assertSame(
+            'لبن كامل الدسم',
+            $this->placement()->arabicName($this->row(['name_en' => 'Whole Milk']), '')
+        );
+    }
+
+    /**
+     * «fava» and «beans» are both «فول», and «Premium Fava Beans» came out
+     * «فول بريميوم فول». A word that repeats the head says nothing twice.
+     */
+    public function test_a_word_that_repeats_the_head_is_dropped(): void
+    {
+        $this->assertSame(
+            'فول بريميوم',
+            $this->placement()->arabicName($this->row(['name_en' => 'Premium Fava Beans']), '')
+        );
+    }
+
+    /**
+     * A contributor's Arabic name that already states a size must not be given
+     * a second one: «حليب بالشيكولاتة 0.9لتر ٨٥٠ مل» disagreed with itself.
+     */
+    public function test_an_arabic_name_that_states_a_size_gets_no_second_one(): void
+    {
+        $name = $this->placement()->arabicName(
+            $this->row(['name_ar' => 'حليب بالشيكولاتة 0.9لتر']),
+            'مزارع دينا',
+            '٨٥٠ مل'
+        );
+
+        $this->assertSame('مزارع دينا حليب بالشيكولاتة 0.9لتر', $name);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | The package
     |--------------------------------------------------------------------------
     */

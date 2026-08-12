@@ -105,6 +105,12 @@ class OpenFoodFactsPlacement
                 ? $brandAr . ' ' . $row->nameAr
                 : $row->nameAr;
 
+            // «حليب بالشيكولاتة 0.9لتر» already states its size. Appending the
+            // label on top gave a name carrying two of them, disagreeing.
+            if (preg_match('/[\d٠-٩]/u', $row->nameAr)) {
+                return trim($name);
+            }
+
             return trim($name . ' ' . $packageLabel);
         }
 
@@ -163,10 +169,15 @@ class OpenFoodFactsPlacement
             $rest[] = $word;
         }
 
+        // «Premium Fava Beans» — «fava» and «beans» are both «فول», and the
+        // name came out «فول بريميوم فول». A word that repeats the head says
+        // nothing a second time.
+        $rest = array_values(array_filter(array_unique($rest), fn ($word) => $word !== $noun));
+
         return trim(implode(' ', array_filter([
             $brandAr,
             $noun,
-            implode(' ', array_unique($rest)),
+            implode(' ', $rest),
             trim($packageLabel),
         ])));
     }

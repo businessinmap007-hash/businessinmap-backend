@@ -56,7 +56,16 @@ class MatchOpenFoodFacts extends Command
         $this->newLine();
 
         $report = [];
-        $taken = [];
+
+        // Seeded with what the catalog ALREADY holds, not just what this run
+        // hands out. A previous run gave «الرشيدي حلاوة ٣٥٠ جم» the barcode of
+        // a source row that states no size; the next run then offered the very
+        // same barcode to the ٥٠٠ جم. One barcode is one article, across runs
+        // as much as within one.
+        $taken = DB::table('catalog_products')
+            ->whereNotNull('default_barcode')->where('default_barcode', '!=', '')
+            ->pluck('bim_code', 'default_barcode')
+            ->all();
         $counts = ['matched' => 0, 'review' => 0, 'none' => 0, 'already' => 0, 'collision' => 0];
 
         $bar = $this->output->createProgressBar($products->count());

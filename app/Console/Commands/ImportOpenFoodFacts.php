@@ -104,6 +104,7 @@ class ImportOpenFoodFacts extends Command
         ], 0);
 
         $report = [];
+        $seenIdentities = [];
         $limit = (int) $this->option('limit');
         $nextCode = $this->nextCodeNumbers();
 
@@ -145,7 +146,14 @@ class ImportOpenFoodFacts extends Command
             // The gate a clean barcode check does NOT give you: the same
             // product already in the catalog under an older code, with no
             // barcode on it to compare against.
-            if (! $verdict && $this->alreadyHave((int) $brand->id, (string) $nameAr, $label)) {
+            // …and the same product twice in ONE run. The database check alone
+            // reads clean in a dry run and then catches the twin on the apply
+            // pass, so the two runs disagreed about the count. A dry run that
+            // does not predict the apply is worth nothing.
+            $identity = $verdict ? '' : $brand->id . '|' . $nameAr . '|' . $label;
+
+            if (! $verdict && (isset($seenIdentities[$identity])
+                || $this->alreadyHave((int) $brand->id, (string) $nameAr, $label))) {
                 $verdict = 'duplicate-of-existing';
             }
 
@@ -164,6 +172,7 @@ class ImportOpenFoodFacts extends Command
 
             $counts['imported']++;
             $heldBarcodes->put($row->barcode, true);
+            $seenIdentities[$identity] = true;
 
             // Accepted rows go in the sheet too — the name this command is
             // about to write in Arabic is the thing most worth reading before

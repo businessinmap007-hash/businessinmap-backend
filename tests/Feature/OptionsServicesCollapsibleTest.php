@@ -96,6 +96,38 @@ class OptionsServicesCollapsibleTest extends TestCase
         $this->assertStringContainsString('renderGroupChips', $html);
     }
 
+    /**
+     * «لا يجب ان ترفع الشاشة لاعلى … ولا تتحرك إلا عندما اقوم بالاسكرول».
+     *
+     * Stepping to the next child used to scroll its card into view, which threw
+     * the admin's place away on every press. The row is pinned where he is
+     * looking instead, and the page moves only when he moves it.
+     */
+    public function test_stepping_between_children_never_scrolls_the_page(): void
+    {
+        $html = $this->actingAs($this->admin())
+            ->get(route('admin.category-child-options.bulk.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('childPrev', $html);
+        $this->assertStringContainsString('childNext', $html);
+
+        $step = strstr($html, 'function stepChild');
+        $step = $step === false ? '' : substr($step, 0, (int) strpos($step, 'const childPrev'));
+
+        $this->assertNotSame('', $step, 'stepChild must exist to be checked');
+        // The CALL, not the word — the code says in a comment why it is absent.
+        $this->assertStringNotContainsString('.scrollIntoView(', $step, 'a step must not move the page');
+
+        // And the row stays reachable while the child list is scrolled.
+        $this->assertMatchesRegularExpression(
+            '/id="childNav"[^>]*position:sticky/s',
+            $html,
+            'the nav row is pinned'
+        );
+    }
+
     public function test_services_bulk_renders(): void
     {
         $root = DB::table('categories')->where('parent_id', 0)->value('id');

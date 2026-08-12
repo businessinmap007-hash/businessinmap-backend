@@ -181,15 +181,18 @@
                  is how a pass gets abandoned half-way. One line, two keys: the
                  step unticks the last child and ticks the next, which is what
                  puts the screen in single-child mode and opens its card. --}}
+            {{-- Sticky, and the two keys sit AGAINST the name rather than at the
+                 far edges: «السابق والتالى يجب ان يكون بجوار الابن المختار».
+                 Pinned because a step re-draws the card below it — without the
+                 pin the buttons slide out from under the cursor mid-walk. --}}
             <div id="childNav" class="a2-mt-12"
-                 style="display:none;align-items:center;gap:10px;padding:8px 12px;
-                        border:1px solid var(--a2-border,#d4d4d8);border-radius:10px;">
+                 style="display:none;align-items:center;justify-content:center;gap:8px;
+                        padding:8px 12px;border:1px solid var(--a2-border,#d4d4d8);border-radius:10px;
+                        position:sticky;top:0;z-index:5;background:var(--a2-card,#fff);">
                 <button type="button" class="a2-btn a2-btn-ghost" id="childPrev">↦ {{ __('السابق') }}</button>
 
-                <div style="flex:1;text-align:center;">
-                    <span style="font-weight:600;" id="childNavName"></span>
-                    <span class="a2-badge" id="childNavPos" style="margin-inline-start:6px;"></span>
-                </div>
+                <span style="font-weight:600;" id="childNavName"></span>
+                <span class="a2-badge" id="childNavPos"></span>
 
                 <button type="button" class="a2-btn a2-btn-ghost" id="childNext">{{ __('التالي') }} ↤</button>
             </div>
@@ -1137,14 +1140,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         inputs.forEach(function (input, index) { input.checked = index === next; });
 
+        // No scrollIntoView. «لا يجب ان ترفع الشاشة لاعلى» — the page moves when
+        // the admin scrolls it and at no other time. Stepping already says which
+        // child is in hand, on a row that is pinned where he is looking.
         refreshRegistered();
         seedFromRegistered();
-
-        const card = inputs[next].closest('.js-child-card');
-
-        if (card) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
     }
 
     const childPrev = document.getElementById('childPrev');

@@ -60,12 +60,30 @@ class MedicineController extends Controller
         ], 201);
     }
 
+    /**
+     * `name_ar` is deliberately absent.
+     *
+     * It is a phonetic transliteration the register ships as a search alias,
+     * not a registered Arabic brand — so it may be MATCHED on and must never
+     * reach a client that could render it as the drug's name or print it on a
+     * prescription. Serialising it would be the first step to exactly that.
+     */
     private function serialize(Medicine $m): array
     {
         return [
             'id' => (int) $m->id,
             'name' => $m->name,
             'strength' => $m->strength,
+            // What the doctor was taught to think in, and what tells two
+            // near-identical brand names apart in a list of twenty.
+            'scientific_name' => $m->scientific_name,
+            'manufacturer' => $m->manufacturer,
+            'drug_class' => $m->drug_class,
+            'route' => $m->route,
+            // Dated, because the register's own disclaimer says prices change
+            // constantly and an undated price is a claim nobody can check.
+            'price_egp' => $m->price_egp !== null ? (float) $m->price_egp : null,
+            'price_captured_at' => optional($m->price_captured_at)->toDateString(),
             'uses_count' => (int) $m->uses_count,
         ];
     }

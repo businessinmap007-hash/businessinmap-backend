@@ -33,7 +33,8 @@ class ImportMedicines extends Command
     protected $signature = 'medicines:import
         {file : Path to a .csv or .json file}
         {--dry-run : Report what would be imported without writing}
-        {--chunk=500 : Rows per insert}';
+        {--chunk=500 : Rows per insert}
+        {--source= : Label recorded on each row (defaults to the file name)}';
 
     protected $description = 'Import medicines into the shared prescription dictionary';
 
@@ -59,6 +60,27 @@ class ImportMedicines extends Command
     private const STRENGTH_KEYS = [
         'strength', 'dose', 'dosage', 'concentration', 'unit_strength', 'potency',
         'التركيز', 'الجرعة', 'التركيب',
+    ];
+
+    /**
+     * The columns beyond the name, keyed by the DB column they fill.
+     *
+     * The first import read one column of seven and threw the rest away, which
+     * left a doctor unable to search by active ingredient — the way medicine is
+     * actually taught. Absent columns simply stay null.
+     *
+     * `name_ar` is a SEARCH ALIAS. Registers ship a transliterated Arabic name
+     * that is not the registered brand, so it may be matched on and must never
+     * be shown as the drug's name.
+     */
+    private const EXTRA_KEYS = [
+        'scientific_name' => ['scientific_name', 'scientific', 'active_ingredient', 'ingredient',
+            'generic', 'composition', 'المادة_الفعالة', 'المادة_الفعّالة', 'التركيب_الدوائي'],
+        'name_ar' => ['commercial_name_ar', 'name_ar', 'arabic_name', 'الاسم_بالعربية', 'الاسم_العربي'],
+        'manufacturer' => ['manufacturer', 'company', 'producer', 'الشركة', 'المصنع'],
+        'drug_class' => ['drug_class', 'class', 'category', 'التصنيف', 'المجموعة'],
+        'route' => ['route', 'form', 'dosage_form', 'الشكل', 'طريقة_الاستخدام'],
+        'price_egp' => ['price_egp', 'price', 'egp', 'السعر'],
     ];
 
     public function handle(): int
@@ -98,8 +120,28 @@ class ImportMedicines extends Command
         $this->line("File: " . count($rows) . " unique entries · dictionary holds {$existing}");
 
         if ($this->option('dry-run')) {
-            foreach (array_slice($rows, 0, 10) as $row) {
+            // Which extra columns were actually FOUND, so an operator sees the
+            // ingredient axis land (or notices it silently did not).
+            $found = [];
+            foreach (Medicine::ENRICHABLE as $column) {
+                $filled = count(array_filter($rows, fn ($r) => ($r[$column] ?? null) !== null));
+
+                if ($filled > 0) {
+                    $found[] = $column . ' ' . round(100 * $filled / count($rows)) . '%';
+                }
+            }
+
+            $this->line('Columns read: name' . ($found ? ', ' . implode(', ', $found) : ' only'));
+            $this->newLine();
+
+            foreach (array_slice($rows, 0, 8) as $row) {
                 $this->line('  ' . $row['name'] . ($row['strength'] ? ' — ' . $row['strength'] : ''));
+
+                if (! empty($row['scientific_name'])) {
+                    $this->line('      ' . $row['scientific_name']
+                        . (empty($row['manufacturer']) ? '' : '  ·  ' . $row['manufacturer'])
+                        . (isset($row['price_egp']) ? '  ·  ' . $row['price_egp'] . ' EGP' : ''));
+                }
             }
 
             $this->info('Dry run — nothing written.');
@@ -108,30 +150,68 @@ class ImportMedicines extends Command
         }
 
         $created = 0;
+        $enriched = 0;
+        $untouched = 0;
+        $captured = now()->toDateString();
+        $source = $this->option('source') ?: basename($path);
         $bar = $this->output->createProgressBar(count($rows));
 
         foreach (array_chunk($rows, max((int) $this->option('chunk'), 1)) as $chunk) {
-            // firstOrCreate per row rather than one insertOrIgnore: the table's
-            // identity is (name, strength) and NULL strength does not collide
-            // with NULL in a unique index, so the check has to be explicit.
+            // Row by row rather than one insertOrIgnore: the table's identity is
+            // (name, strength) and NULL strength does not collide with NULL in a
+            // unique index, so the check has to be explicit.
             foreach ($chunk as $row) {
-                $found = Medicine::query()
+                $extra = array_intersect_key($row, array_flip(Medicine::ENRICHABLE));
+
+                if ($extra !== []) {
+                    $extra['source'] = $source;
+
+                    if (array_key_exists('price_egp', $extra)) {
+                        // A price with no date is a claim nobody can check, and
+                        // this register says its own prices change constantly.
+                        $extra['price_captured_at'] = $captured;
+                    }
+                }
+
+                $existing = Medicine::query()
                     ->where('name', $row['name'])
                     ->where('strength', $row['strength'])
-                    ->exists();
+                    ->first();
 
-                if (! $found) {
-                    Medicine::query()->create([
+                if (! $existing) {
+                    Medicine::query()->create($extra + [
                         'name' => $row['name'],
                         'strength' => $row['strength'],
                         'created_by' => null,
                         // Imported, not prescribed. Leaving it at zero keeps the
                         // typeahead's «most-used first» order honest: what
                         // doctors actually reach for still rises above the
-                        // twelve thousand rows nobody has written yet.
+                        // twenty-five thousand rows nobody has written yet.
                         'uses_count' => 0,
                     ]);
                     $created++;
+                    $bar->advance();
+
+                    continue;
+                }
+
+                // A second pass over a richer file fills what the first one had
+                // no column for — which is exactly how the ingredient axis
+                // reached 25,000 rows already imported by name alone. It fills
+                // blanks and corrects stale facts, and touches neither the row's
+                // identity nor `uses_count`: that is the record of what doctors
+                // did, and no file may rewrite it.
+                $changes = array_filter(
+                    $extra,
+                    fn ($value, $column) => $value !== null && (string) $existing->{$column} !== (string) $value,
+                    ARRAY_FILTER_USE_BOTH
+                );
+
+                if ($changes !== []) {
+                    $existing->forceFill($changes)->save();
+                    $enriched++;
+                } else {
+                    $untouched++;
                 }
 
                 $bar->advance();
@@ -140,7 +220,7 @@ class ImportMedicines extends Command
 
         $bar->finish();
         $this->newLine(2);
-        $this->info("Added {$created} · already present " . (count($rows) - $created));
+        $this->info("Added {$created} · enriched {$enriched} · unchanged {$untouched}");
 
         return self::SUCCESS;
     }
@@ -169,6 +249,18 @@ class ImportMedicines extends Command
         $nameAt = $this->columnFor($header, self::NAME_KEYS);
         $strengthAt = $this->columnFor($header, self::STRENGTH_KEYS);
 
+        $extraAt = [];
+        foreach (self::EXTRA_KEYS as $column => $keys) {
+            $at = $this->columnFor($header, $keys);
+
+            // The name column must not be read twice: a register whose only
+            // name header is «generic_name» would otherwise land in both, and
+            // the ingredient axis would just echo the trade name.
+            if ($at !== null && $at !== $nameAt) {
+                $extraAt[$column] = $at;
+            }
+        }
+
         if ($nameAt === null) {
             $this->error('No name column. Looked for: ' . implode(', ', self::NAME_KEYS));
             fclose($handle);
@@ -179,7 +271,16 @@ class ImportMedicines extends Command
         $rows = [];
 
         while (($line = fgetcsv($handle)) !== false) {
-            $row = $this->row($line[$nameAt] ?? null, $strengthAt === null ? null : ($line[$strengthAt] ?? null));
+            $extra = [];
+            foreach ($extraAt as $column => $at) {
+                $extra[$column] = $line[$at] ?? null;
+            }
+
+            $row = $this->row(
+                $line[$nameAt] ?? null,
+                $strengthAt === null ? null : ($line[$strengthAt] ?? null),
+                $extra,
+            );
 
             if ($row) {
                 $rows[] = $row;
@@ -210,9 +311,15 @@ class ImportMedicines extends Command
             if (is_string($entry)) {
                 $row = $this->row($entry, null);
             } elseif (is_array($entry)) {
+                $extra = [];
+                foreach (self::EXTRA_KEYS as $column => $keys) {
+                    $extra[$column] = $this->pick($entry, $keys);
+                }
+
                 $row = $this->row(
                     $this->pick($entry, self::NAME_KEYS),
                     $this->pick($entry, self::STRENGTH_KEYS),
+                    $extra,
                 );
             } else {
                 continue;
@@ -265,8 +372,11 @@ class ImportMedicines extends Command
         return null;
     }
 
-    /** @return array{name:string,strength:?string}|null */
-    private function row(?string $name, ?string $strength): ?array
+    /**
+     * @param  array<string,?string>  $extra
+     * @return array<string,mixed>|null
+     */
+    private function row(?string $name, ?string $strength, array $extra = []): ?array
     {
         $name = trim((string) $name);
 
@@ -277,6 +387,38 @@ class ImportMedicines extends Command
         $strength = trim((string) $strength);
         $strength = ($strength === '' || mb_strlen($strength) > 120) ? null : $strength;
 
-        return ['name' => $name, 'strength' => $strength];
+        $row = ['name' => $name, 'strength' => $strength];
+
+        foreach (self::EXTRA_KEYS as $column => $ignored) {
+            $value = trim((string) ($extra[$column] ?? ''));
+
+            if ($value === '') {
+                continue;
+            }
+
+            // A price is a number or it is nothing — a register with «N/A» in
+            // the column must not write 0.00 and call it a price.
+            if ($column === 'price_egp') {
+                $clean = str_replace([',', ' '], '', $value);
+                $row[$column] = is_numeric($clean) ? round((float) $clean, 2) : null;
+
+                continue;
+            }
+
+            // The alias is a MATCHING key, so it is stored folded: hamza,
+            // ة/ه, ى/ي and the latin punctuation the transliteration drags
+            // along («أوجمينتين . ./») all go, and the search folds the typed
+            // term the same way to meet it.
+            if ($column === 'name_ar') {
+                $folded = Medicine::arabicKey($value);
+                $row[$column] = $folded === '' ? null : mb_substr($folded, 0, 300);
+
+                continue;
+            }
+
+            $row[$column] = mb_substr($value, 0, $column === 'scientific_name' ? 500 : 191);
+        }
+
+        return $row;
     }
 }

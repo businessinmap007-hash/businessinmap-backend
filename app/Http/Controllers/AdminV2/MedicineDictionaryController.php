@@ -50,15 +50,27 @@ class MedicineDictionaryController extends Controller
      */
     public function search(Request $request)
     {
+        $term = (string) $request->get('q', '');
+
         $rows = Medicine::query()
-            ->search((string) $request->get('q', ''))
+            ->search($term)
             ->limit(20)
-            ->get(['id', 'name', 'strength', 'uses_count']);
+            ->get(['id', 'name', 'strength', 'scientific_name', 'name_ar', 'manufacturer', 'price_egp', 'uses_count']);
 
         return response()->json([
             'success' => true,
             'total' => DB::table('medicines')->count(),
-            'data' => $rows,
+            'data' => $rows->map(fn (Medicine $m) => [
+                'id' => (int) $m->id,
+                'name' => $m->name,
+                'scientific_name' => $m->scientific_name,
+                'manufacturer' => $m->manufacturer,
+                'price_egp' => $m->price_egp !== null ? (float) $m->price_egp : null,
+                'uses_count' => (int) $m->uses_count,
+                // A doctor who typed an ingredient and got twenty brand names
+                // deserves to be told that is what happened, not left to guess.
+                'matched_on' => $m->matchedOn($term),
+            ])->values(),
         ]);
     }
 

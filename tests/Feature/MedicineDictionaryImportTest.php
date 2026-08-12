@@ -236,6 +236,128 @@ class MedicineDictionaryImportTest extends TestCase
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | The six columns the first import threw away
+    |--------------------------------------------------------------------------
+    | 25,065 drugs were loaded by trade name alone and «DICLOFENAC» returned
+    | nothing at all, though 102 registered products contain it. A doctor thinks
+    | in ACTIVE INGREDIENT — that is how medicine is taught.
+    */
+    public function test_a_second_pass_enriches_rows_already_imported_by_name(): void
+    {
+        $row = Medicine::create(['name' => 'ZzThin 10 MG', 'strength' => null, 'uses_count' => 4]);
+
+        $path = $this->file('meds-rich.csv',
+            "commercial_name_en,scientific_name,manufacturer,price_egp\nZzThin 10 MG,ZZINGREDIENT,ZzPharma,25.5\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $row->refresh();
+
+        $this->assertSame('ZZINGREDIENT', $row->scientific_name);
+        $this->assertSame('ZzPharma', $row->manufacturer);
+        $this->assertSame('25.50', (string) $row->price_egp);
+
+        // A price with no date is a claim nobody can check.
+        $this->assertNotNull($row->price_captured_at);
+
+        // And the record of what doctors did is not a register's to rewrite.
+        $this->assertSame(4, (int) $row->uses_count);
+    }
+
+    public function test_a_doctor_finds_every_brand_of_an_active_ingredient(): void
+    {
+        Medicine::create(['name' => 'ZzBrandOne 50 MG', 'strength' => null, 'scientific_name' => 'ZZDICLOTEST', 'uses_count' => 0]);
+        Medicine::create(['name' => 'ZzBrandTwo 100 MG', 'strength' => null, 'scientific_name' => 'ZZDICLOTEST POTASSIUM', 'uses_count' => 0]);
+
+        $found = Medicine::query()->search('ZZDICLOTEST')->pluck('name')->all();
+
+        $this->assertContains('ZzBrandOne 50 MG', $found);
+        $this->assertContains('ZzBrandTwo 100 MG', $found);
+    }
+
+    /** A brand-name hit still outranks an ingredient hit — you asked for a brand. */
+    public function test_the_brand_still_wins_over_an_ingredient_match(): void
+    {
+        Medicine::create(['name' => 'ZZKEYB PLAIN', 'strength' => null, 'uses_count' => 0]);
+        Medicine::create(['name' => 'ZzOther Brand', 'strength' => null, 'scientific_name' => 'ZZKEYB ACID', 'uses_count' => 90]);
+
+        $this->assertSame('ZZKEYB PLAIN', Medicine::query()->search('ZZKEYB')->first()->name);
+    }
+
+    /**
+     * Nobody types hamza consistently. The alias is stored folded and the term
+     * is folded to meet it, so «اوجمينتين» and «أوجمينتين» are one word.
+     */
+    public function test_the_arabic_alias_ignores_hamza_and_punctuation(): void
+    {
+        $path = $this->file('meds-ar.csv',
+            "commercial_name_en,commercial_name_ar\nZzArabicDrug 500 MG,\"أوجمينتينZZ . ./\"\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $stored = Medicine::query()->where('name', 'ZzArabicDrug 500 MG')->value('name_ar');
+
+        $this->assertSame('اوجمينتين', $stored, 'folded, and the latin punctuation dropped');
+
+        foreach (['أوجمينتين', 'اوجمينتين'] as $typed) {
+            $this->assertSame(
+                1,
+                Medicine::query()->search($typed)->where('name', 'ZzArabicDrug 500 MG')->count(),
+                "«{$typed}» must find it"
+            );
+        }
+    }
+
+    /**
+     * The alias is a MATCHING key, never a name.
+     *
+     * The register ships a phonetic transliteration, not the registered Arabic
+     * brand, so serialising it is the first step to a client rendering it as
+     * the drug's name — or printing it on a prescription.
+     */
+    public function test_the_arabic_alias_never_leaves_the_api(): void
+    {
+        Medicine::create(['name' => 'ZzHidden 5 MG', 'strength' => null, 'name_ar' => 'زدهيدن', 'uses_count' => 0]);
+
+        $body = $this->actingAs($this->admin())
+            ->getJson(route('admin.medicines.search', ['q' => 'ZzHidden']))
+            ->assertOk()
+            ->json('data');
+
+        $this->assertNotEmpty($body);
+        $this->assertArrayNotHasKey('name_ar', $body[0], 'the alias must never be handed to a client');
+        $this->assertSame('ZzHidden 5 MG', $body[0]['name']);
+    }
+
+    /** A register whose only name column is «generic_name» must not fill both. */
+    public function test_the_name_column_is_never_read_as_the_ingredient_too(): void
+    {
+        $path = $this->file('meds-one.csv', "generic_name\nZzSoleColumn\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $this->assertNull(
+            Medicine::query()->where('name', 'ZzSoleColumn')->value('scientific_name'),
+            'the ingredient axis would just echo the trade name'
+        );
+    }
+
+    /** «N/A» in a price column is not a price of zero. */
+    public function test_an_unparseable_price_is_left_null(): void
+    {
+        $path = $this->file('meds-price.csv', "name,price_egp\nZzNoPrice,N/A\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $this->assertNull(Medicine::query()->where('name', 'ZzNoPrice')->value('price_egp'));
+    }
+
     /** A drug already written into someone's prescription is not deletable. */
     public function test_a_prescribed_drug_survives_a_delete(): void
     {

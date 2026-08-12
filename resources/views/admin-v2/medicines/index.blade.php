@@ -116,7 +116,9 @@
                     <thead>
                         <tr>
                             <th>{{ __('الدواء') }}</th>
-                            <th>{{ __('التركيز') }}</th>
+                            <th>{{ __('المادة الفعّالة') }}</th>
+                            <th>{{ __('الشركة') }}</th>
+                            <th>{{ __('السعر') }}</th>
                             <th>{{ __('مرات الكتابة') }}</th>
                             <th></th>
                         </tr>
@@ -124,8 +126,25 @@
                     <tbody>
                         @foreach($rows as $row)
                             <tr>
-                                <td>{{ $row->name }}</td>
-                                <td>{{ $row->strength ?: '—' }}</td>
+                                <td>
+                                    {{ $row->name }}
+                                    @if($row->strength)
+                                        <div class="a2-muted" style="font-size:12px;">{{ $row->strength }}</div>
+                                    @endif
+                                </td>
+                                <td style="font-size:12px;">{{ $row->scientific_name ?: '—' }}</td>
+                                <td style="font-size:12px;">{{ $row->manufacturer ?: '—' }}</td>
+                                <td style="white-space:nowrap;">
+                                    @if($row->price_egp !== null)
+                                        {{ rtrim(rtrim(number_format((float) $row->price_egp, 2), '0'), '.') }}
+                                        {{-- The date matters: the register says its prices change constantly. --}}
+                                        @if($row->price_captured_at)
+                                            <div class="a2-muted" style="font-size:11px;">{{ $row->price_captured_at->toDateString() }}</div>
+                                        @endif
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td>{{ (int) $row->uses_count }}</td>
                                 <td style="text-align:end;">
                                     @if((int) $row->uses_count === 0)
@@ -169,9 +188,16 @@ document.addEventListener('DOMContentLoaded', function () {
         empty: @json(__('لا يوجد دواء بهذا الاسم — يستطيع الطبيب إضافته بنفسه وقتها.')),
         typing: @json(__('اكتب حرفين على الأقل.')),
         failed: @json(__('تعذّر البحث.')),
-        starts: @json(__('يبدأ به')),
-        contains: @json(__('يحتويه')),
         used: @json(__('كُتب')),
+    };
+
+    // Which axis brought the row back. «بالمادة الفعّالة» is the one worth
+    // naming: a doctor who typed DICLOFENAC and got twenty brand names should
+    // be told that is what happened rather than left to guess.
+    const WHY = {
+        name: @json(__('بالاسم')),
+        scientific: @json(__('بالمادة الفعّالة')),
+        arabic: @json(__('بالعربية')),
     };
 
     let seq = 0;
@@ -193,11 +219,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         rows.forEach(function (row) {
             const line = document.createElement('div');
-            line.style.display = 'flex';
-            line.style.alignItems = 'center';
-            line.style.gap = '8px';
-            line.style.padding = '7px 10px';
+            line.style.padding = '8px 10px';
             line.style.borderBottom = '1px solid var(--a2-border,#eef0f4)';
+
+            const top = document.createElement('div');
+            top.style.display = 'flex';
+            top.style.alignItems = 'center';
+            top.style.gap = '8px';
 
             const name = document.createElement('span');
             name.style.flex = '1';
@@ -205,30 +233,62 @@ document.addEventListener('DOMContentLoaded', function () {
             // Show WHERE the match landed — the whole reason the search stopped
             // being prefix-only is that this register writes the dose into the
             // name, so most real matches are in the middle of it.
-            const at = String(row.name).toUpperCase().indexOf(upper);
+            const mark = function (text) {
+                const holder = document.createElement('span');
+                const at = String(text || '').toUpperCase().indexOf(upper);
 
-            if (at < 0) {
-                name.textContent = row.name;
-            } else {
-                name.append(row.name.slice(0, at));
+                if (at < 0 || !text) {
+                    holder.textContent = text || '';
+
+                    return holder;
+                }
+
+                holder.append(text.slice(0, at));
                 const hit = document.createElement('mark');
-                hit.textContent = row.name.slice(at, at + term.length);
-                name.appendChild(hit);
-                name.append(row.name.slice(at + term.length));
-            }
+                hit.textContent = text.slice(at, at + term.length);
+                holder.appendChild(hit);
+                holder.append(text.slice(at + term.length));
 
-            line.appendChild(name);
+                return holder;
+            };
 
-            const where = document.createElement('span');
-            where.className = 'a2-badge';
-            where.textContent = at === 0 ? SAYS.starts : SAYS.contains;
-            line.appendChild(where);
+            name.appendChild(mark(row.name));
+            top.appendChild(name);
+
+            const why = document.createElement('span');
+            why.className = 'a2-badge';
+            why.textContent = WHY[row.matched_on] || WHY.name;
+            top.appendChild(why);
 
             if (Number(row.uses_count) > 0) {
                 const used = document.createElement('span');
                 used.className = 'a2-badge';
                 used.textContent = SAYS.used + ' ' + row.uses_count;
-                line.appendChild(used);
+                top.appendChild(used);
+            }
+
+            line.appendChild(top);
+
+            // The ingredient under the brand: this is what a doctor was taught
+            // to think in, and it is how two near-identical names are told apart.
+            if (row.scientific_name || row.manufacturer || row.price_egp !== null) {
+                const under = document.createElement('div');
+                under.className = 'a2-muted';
+                under.style.fontSize = '12px';
+                under.style.marginTop = '2px';
+
+                if (row.scientific_name) {
+                    under.appendChild(mark(row.scientific_name));
+                }
+
+                const tail = [row.manufacturer, row.price_egp !== null ? row.price_egp + ' ج.م' : null]
+                    .filter(Boolean).join('  ·  ');
+
+                if (tail) {
+                    under.append((row.scientific_name ? '  ·  ' : '') + tail);
+                }
+
+                line.appendChild(under);
             }
 
             out.appendChild(line);

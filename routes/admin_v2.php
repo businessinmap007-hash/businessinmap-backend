@@ -49,6 +49,7 @@ use App\Http\Controllers\AdminV2\{
     JobFollowController,
     JobPostController,
     TripScheduleAdminController,
+    MedicineDictionaryController,
     MenuItemController,
     MenuItemExtraController,
     MenuItemVariantController,
@@ -160,6 +161,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{categoryChild}', [CategoryChildController::class, 'update'])->whereNumber('categoryChild')->name('update');
             Route::delete('{categoryChild}', [CategoryChildController::class, 'destroy'])->whereNumber('categoryChild')->name('destroy');
             Route::delete('{categoryChild}/parents/{parent}', [CategoryChildController::class, 'detachParent'])->whereNumber('categoryChild')->whereNumber('parent')->name('detach-parent');
+        });
+
+        /*
+         * The drug dictionary a doctor's prescription typeahead reads. CONTENT
+         * rather than CATALOG: it is a reference list, not part of the taxonomy
+         * that decides what a business may sell.
+         */
+        Route::prefix('medicines')->name('medicines.')->middleware('can:' . AdminAbility::CONTENT)->group(function () {
+            Route::get('/', [MedicineDictionaryController::class, 'index'])->name('index');
+            Route::post('import', [MedicineDictionaryController::class, 'import'])->name('import');
+            Route::delete('{medicine}', [MedicineDictionaryController::class, 'destroy'])->whereNumber('medicine')->name('destroy');
         });
 
         Route::prefix('categories/services-bulk')->name('categories.services-bulk.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {

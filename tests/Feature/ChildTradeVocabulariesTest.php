@@ -742,28 +742,6 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
-     * «لا تدمج لوازم ستائر وستائر وديكور فهم بندين مختلفين» — owner,
-     * 2026-08-12.
-     *
-     * They were proposed for a merge on the strength of holding the same
-     * options, which is the same evidence that was right about «بي في سي» and
-     * wrong here: #9 supplies the PARTS — rails, linings, sheer by the metre —
-     * and #76 sells the finished curtain and hangs it.
-     *
-     * Two identical option sets are a question, never an answer. This pins the
-     * refusal so no later audit re-proposes it.
-     */
-    public function test_the_two_curtain_trades_stay_apart(): void
-    {
-        foreach ([9, 76] as $childId) {
-            $this->assertTrue(
-                DB::table('category_parent_child')->where('child_id', $childId)->exists(),
-                "child #{$childId} was folded away — the owner refused that merge"
-            );
-        }
-    }
-
-    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

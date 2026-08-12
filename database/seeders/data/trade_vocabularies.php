@@ -363,6 +363,44 @@ return [
             ],
         ],
 
+        /*
+        | «ابدأ بالنجف» — owner, 2026-08-12, picking it off the list of children
+        | whose options were never set.
+        |
+        | «نجف» #56 and «نجف و تحف» #57 each said exactly ONE word, and it was
+        | «تابلوه» — a row of «أثاث وتشطيب منزلي» narrowed to the wall-art piece.
+        | A whole lighting trade that could not say نجف. The platform had no
+        | lighting vocabulary at all: searching «إضاءة» found a spare-part
+        | domain, a party-hire row and a false ceiling.
+        |
+        | `modifier`, by the goods rule: both carry retail under every root they
+        | stand under, and the catalog already has the shelf for it —
+        | `chandeliers_lighting` under home_furnishings. The priced row is a
+        | named chandelier; this says what the shop deals in.
+        */
+        [
+            'name_ar' => 'أنواع النجف والإضاءة',
+            'name_en' => 'Lighting & Chandeliers',
+            'price_role' => 'modifier',
+            'children' => ['نجف', 'نجف و تحف'],
+            'options' => [
+                'نجف كريستال' => 'Crystal Chandeliers',
+                'نجف مودرن' => 'Modern Chandeliers',
+                'نجف كلاسيك ونحاس' => 'Classic & Brass Chandeliers',
+                'دلايات (بندول)' => 'Pendant Lights',
+                'أباجورات وأبليك' => 'Table & Wall Lamps',
+                'ستاندات أرضية' => 'Floor Lamps',
+                'سبوتات وإضاءة مخفية' => 'Spotlights & Cove Lights',
+                'كشافات وإضاءة خارجية' => 'Outdoor & Flood Lights',
+                'إضاءة حدائق ولاندسكيب' => 'Garden & Landscape Lights',
+                'شرائط ليد' => 'LED Strips',
+                'لمبات ليد وتوفير' => 'LED & Energy-saving Bulbs',
+                'إضاءة محلات ومكاتب' => 'Retail & Office Lighting',
+                'محولات ودرايفرات' => 'Drivers & Transformers',
+                'قطع غيار وإكسسوار نجف' => 'Chandelier Parts & Fittings',
+            ],
+        ],
+
         [
             'name_ar' => 'أنواع الأقمشة',
             'name_en' => 'Fabric Types',

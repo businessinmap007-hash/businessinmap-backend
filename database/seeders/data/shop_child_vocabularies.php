@@ -257,6 +257,16 @@ return [
 
         76 => ['لوازم الستائر' => 'all'],
 
+        /*
+         * «نجف و تحف» #57 is TWO trades in one name and only ever said one of
+         * them — and not even that: its single row was «تابلوه». Its lighting
+         * half is «أنواع النجف والإضاءة», written 2026-08-12; the antiques half
+         * is borrowed whole from «أنتيكات وتحف» #21, which is the same stock.
+         * Its retail branch already named both shelves — chandeliers_lighting
+         * AND antiques_artifacts — so the wiring was ahead of the words.
+         */
+        57 => ['الأنتيكات والتحف' => 'all'],
+
         222 => ['الأكياس والمنتجات البلاستيكية' => 'all'],
     ],
 ];

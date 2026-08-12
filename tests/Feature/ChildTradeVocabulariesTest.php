@@ -742,6 +742,40 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * «ابدأ بالنجف» — owner, 2026-08-12.
+     *
+     * «نجف» #56 and «نجف و تحف» #57 each said exactly ONE word and it was
+     * «تابلوه»: a row of the furniture list, narrowed to the wall-art piece. A
+     * whole lighting trade that could not say نجف, on a platform that had no
+     * lighting word anywhere — searching «إضاءة» found a spare-part domain, a
+     * party-hire row and a false ceiling.
+     *
+     * And #57 is TWO trades in its own name. Its antiques half is borrowed
+     * whole from «أنتيكات وتحف» #21 rather than cloned; its retail branch had
+     * named both shelves all along, so the wiring was ahead of the words.
+     */
+    public function test_the_lighting_trades_can_say_chandelier(): void
+    {
+        $named = fn (int $childId, string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)->where('g.name_ar', $group)
+            ->distinct()->pluck('o.name_ar')->all();
+
+        foreach ([56, 57] as $childId) {
+            $lighting = $named($childId, 'أنواع النجف والإضاءة');
+
+            $this->assertContains('نجف كريستال', $lighting);
+            $this->assertContains('شرائط ليد', $lighting);
+            $this->assertGreaterThan(10, count($lighting));
+        }
+
+        // Only the one whose name says تحف carries the antiques list.
+        $this->assertContains('تحف نحاسية', $named(57, 'الأنتيكات والتحف'));
+        $this->assertSame([], $named(56, 'الأنتيكات والتحف'));
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

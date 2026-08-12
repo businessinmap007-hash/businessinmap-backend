@@ -326,6 +326,9 @@ return [
         // and the fibre qualifies its price. «أصناف المفروشات» went the other
         // way on his instruction — see the `line` block above.
         'أنواع الأقمشة',
+        // The platform had no lighting word at all until 2026-08-12; the two
+        // نجف children said «تابلوه» and nothing else.
+        'أنواع النجف والإضاءة',
     ],
 
     /*

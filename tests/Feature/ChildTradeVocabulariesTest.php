@@ -697,6 +697,70 @@ class ChildTradeVocabulariesTest extends TestCase
         // The furniture pieces are the trade next door, and only «سجاد
         // ومفروشات» was ever about soft furnishing.
         $this->assertSame(['سجاد ومفروشات'], $named(115, 'أثاث وتشطيب منزلي'));
+
+        /*
+         * «عدل أصناف المفروشات سطر مسعر» — owner, overruling the goods rule
+         * that would have made it a modifier. A مفروشات merchant quotes «طقم
+         * مفارش سرير» as a price with a size and a piece count, so the range IS
+         * the priced row. The fabric list stays a modifier: a bolt of cotton is
+         * a catalog product and the fibre qualifies its price.
+         */
+        $role = fn (string $group) => (string) DB::table('option_groups')
+            ->where('name_ar', $group)->value('price_role');
+
+        $this->assertSame('line', $role('أصناف المفروشات'));
+        $this->assertSame('modifier', $role('أنواع الأقمشة'));
+    }
+
+    /**
+     * «لا تدمج لوازم ستائر وستائر وديكور فهم بندين مختلفين» — owner,
+     * 2026-08-12.
+     *
+     * The two came up as a merge candidate on the mechanical test — same root,
+     * identical option set — because #76 BORROWED «لوازم الستائر» from #9
+     * rather than being given a list of its own. Sharing a vocabulary is not
+     * being one trade: #9 sells the fittings, #76 sells and hangs the curtain.
+     *
+     * Pinned so the audit does not propose it a second time.
+     */
+    public function test_the_two_curtain_trades_stay_apart(): void
+    {
+        foreach ([9, 76] as $childId) {
+            $this->assertTrue(
+                DB::table('category_parent_child')->where('child_id', $childId)->exists(),
+                "curtain child #{$childId} was folded away"
+            );
+
+            $this->assertTrue(
+                DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('co.child_id', $childId)->where('g.name_ar', 'لوازم الستائر')->exists(),
+                "curtain child #{$childId} lost the list it shares"
+            );
+        }
+    }
+
+    /**
+     * «لا تدمج لوازم ستائر وستائر وديكور فهم بندين مختلفين» — owner,
+     * 2026-08-12.
+     *
+     * They were proposed for a merge on the strength of holding the same
+     * options, which is the same evidence that was right about «بي في سي» and
+     * wrong here: #9 supplies the PARTS — rails, linings, sheer by the metre —
+     * and #76 sells the finished curtain and hangs it.
+     *
+     * Two identical option sets are a question, never an answer. This pins the
+     * refusal so no later audit re-proposes it.
+     */
+    public function test_the_two_curtain_trades_stay_apart(): void
+    {
+        foreach ([9, 76] as $childId) {
+            $this->assertTrue(
+                DB::table('category_parent_child')->where('child_id', $childId)->exists(),
+                "child #{$childId} was folded away — the owner refused that merge"
+            );
+        }
     }
 
     /**

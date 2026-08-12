@@ -326,16 +326,21 @@ return [
         | FURNITURE trade next door, and «أقمشة» #95 (8 merchants) had exactly
         | ONE row: the word «أقمشة» itself. One row is not a vocabulary.
         |
-        | Both are `modifier`, by the goods rule: each carries retail under all
-        | four of its roots, so the priced rows are catalog products and these
-        | say what the trade DEALS IN. `child_option_scopes.php` narrows #115's
-        | furniture line down to «سجاد ومفروشات», the only row that was ever
-        | about soft furnishing.
+        | «أنواع الأقمشة» is a `modifier` by the goods rule: a bolt of cotton is
+        | a catalog product and the fibre qualifies its price.
+        |
+        | «أصناف المفروشات» is a `line` — «عدل أصناف المفروشات سطر مسعر», owner,
+        | the same day, overruling the same rule. He is describing the shop: a
+        | مفروشات merchant quotes «طقم مفارش سرير» as a price with a size and a
+        | piece count, so the range IS the priced row.
+        |
+        | `child_option_scopes.php` narrows #115's furniture line down to «سجاد
+        | ومفروشات», the only row that was ever about soft furnishing.
         */
         [
             'name_ar' => 'أصناف المفروشات',
             'name_en' => 'Soft Furnishing Ranges',
-            'price_role' => 'modifier',
+            'price_role' => 'line',
             'children' => ['مفروشات'],
             'options' => [
                 'مفارش سرير' => 'Bed Linen',

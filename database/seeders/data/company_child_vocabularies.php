@@ -190,6 +190,15 @@ return [
         | Their priced rows are catalog products. These say what they stock.
         */
 
+        /*
+         * ⚠ «لا تدمج لوازم ستائر وستائر وديكور فهم بندين مختلفين» — owner,
+         * 2026-08-12, refusing a merge this list's shape invites.
+         *
+         * «لوازم ستائر» #9 supplies the PARTS — rails, linings, sheer by the
+         * metre — and «ستائر و ديكور» #76 sells the finished curtain and hangs
+         * it. Their option sets look identical to an audit that only compares
+         * option ids, which is exactly how the merge was proposed. Do not.
+         */
         'لوازم الستائر' => [
             'name_en' => 'Curtain Supplies', 'price_role' => 'modifier', 'children' => [9],
             'options' => [

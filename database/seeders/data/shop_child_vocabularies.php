@@ -21,6 +21,13 @@
 |                          «مستلزمات قهاوى» #66 under شركات. The wholesaler and
 |                          the shop stock the same machines.
 |   ستائر و ديكور #76    ← «لوازم الستائر», written for «لوازم ستائر» #9.
+|                          ⚠ SHARING A LIST IS NOT BEING ONE TRADE. The two
+|                          came up as a merge candidate on 2026-08-12 — same
+|                          root, identical option set — and the owner refused:
+|                          «لا تدمج لوازم ستائر وستائر وديكور فهم بندين
+|                          مختلفين». #9 sells the FITTINGS (rails, rings,
+|                          brackets); #76 sells and hangs the curtain. Do not
+|                          propose it again.
 |   بلاستيك #222         ← «الأكياس والمنتجات البلاستيكية», written for «اكياس
 |                          بلاستيك» #221 — EXTENDED with the household rows
 |                          rather than given a second list. The group name

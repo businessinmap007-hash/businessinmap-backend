@@ -90,6 +90,16 @@ return [
         'أنظمة المصاعد والسلالم',
         'الكرفانات والوحدات الجاهزة',
         'معدات السوبر ماركت',
+        /*
+         * «عدل أصناف المفروشات سطر مسعر» — owner, 2026-08-12, overruling the
+         * goods rule that put it in the modifier block below.
+         *
+         * He is describing the shop, not the schema. A مفروشات merchant quotes
+         * «طقم مفارش سرير» as a price with a size and a piece count, the way a
+         * hall quotes a booking — the range IS the priced row, and a catalog
+         * product behind it would be a second price for one thing.
+         */
+        'أصناف المفروشات',
         'أعمال البنية التحتية',
         'أنواع التأمين',
         'خدمات التسويق',
@@ -311,10 +321,10 @@ return [
         // a line because a doors business prices a shutter by the leaf, while a
         // profile is a catalog product sold by the metre.
         'قطاعات ومنتجات الألومنيوم',
-        // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. Both
-        // carry retail, so the catalog holds the priced rows and these say what
-        // the trade deals in.
-        'أصناف المفروشات',
+        // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. The
+        // fabric list stays a modifier: a bolt of cotton is a catalog product
+        // and the fibre qualifies its price. «أصناف المفروشات» went the other
+        // way on his instruction — see the `line` block above.
         'أنواع الأقمشة',
     ],
 

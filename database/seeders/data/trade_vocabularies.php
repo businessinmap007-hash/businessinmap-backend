@@ -226,6 +226,19 @@ return [
                 'سواتر ومظلات' => 'Sunshades & Awnings',
                 'شبك حماية وناموسية' => 'Insect & Security Screens',
                 'كوالين ومقابض وإكسسوارات' => 'Locks, Handles & Fittings',
+                /*
+                 * «المطابخ هى فرع من فروع الالمونتال والبي في سي» — owner,
+                 * 2026-08-12, answering whether kitchens need a trade of their
+                 * own. They do not: the same fabricator, the same profile, the
+                 * same bench. It is «أدراج ووحدات مطبخ» in «أثاث وتشطيب منزلي»
+                 * that is the other trade — the CARPENTER's kitchen — and these
+                 * two rows are why the two must not be merged.
+                 *
+                 * Both accounts moved here the same day carry «مطابخ» in their
+                 * own names: «معرض الوميتال مطابخ و شبابيك و ابواب».
+                 */
+                'مطابخ ألومنيوم' => 'Aluminium Kitchens',
+                'مطابخ بي في سي' => 'UPVC Kitchens',
             ],
         ],
 
@@ -295,6 +308,77 @@ return [
                 'كاوتش وجوانات' => 'Gaskets & Seals',
                 'إكسسوارات ومقابض ألومنيوم' => 'Aluminium Hardware',
                 'ألومنيوم خام وخردة' => 'Raw & Scrap Aluminium',
+                // «المطابخ هى فرع من فروع الالمونتال والبي في سي» — owner,
+                // 2026-08-12. The supplier sells the kitchen section the same
+                // way it sells the window section; the fabricator's own rows
+                // are in «أنواع الأبواب والشبابيك».
+                'قطاعات مطابخ' => 'Kitchen Profiles',
+            ],
+        ],
+
+        /*
+        | «مفروشات - اقمشة هم فقراء جدا فى خياراتهم … وليس من ضمن المفروشات
+        |  الصالون - الانترية - الطابلوة ولكن مفارش واصناف شبيهه» — owner,
+        |  2026-08-12.
+        |
+        | He is right twice. «مفروشات» #115 (14 merchants) had five rows of
+        | «أثاث وتشطيب منزلي» — صالون، أنتريه، ركنه، تابلوه — which is the
+        | FURNITURE trade next door, and «أقمشة» #95 (8 merchants) had exactly
+        | ONE row: the word «أقمشة» itself. One row is not a vocabulary.
+        |
+        | Both are `modifier`, by the goods rule: each carries retail under all
+        | four of its roots, so the priced rows are catalog products and these
+        | say what the trade DEALS IN. `child_option_scopes.php` narrows #115's
+        | furniture line down to «سجاد ومفروشات», the only row that was ever
+        | about soft furnishing.
+        */
+        [
+            'name_ar' => 'أصناف المفروشات',
+            'name_en' => 'Soft Furnishing Ranges',
+            'price_role' => 'modifier',
+            'children' => ['مفروشات'],
+            'options' => [
+                'مفارش سرير' => 'Bed Linen',
+                'ملايات وشراشف' => 'Sheets',
+                'لحاف وكوفرتة' => 'Quilts & Bedspreads',
+                'بطاطين وأغطية' => 'Blankets',
+                'وسائد ومخدات' => 'Pillows & Cushions',
+                'واقي مرتبة' => 'Mattress Protectors',
+                'كوفرتة كنب وأنتريه' => 'Sofa Covers',
+                // «Table Linen» already belongs to «مفارش سفرة» in «مستلزمات
+                // المنزل», which #115 cannot reach — so this one is qualified
+                // rather than dropped.
+                'مفارش سفرة وترابيزة' => 'Dining & Table Linen',
+                'مناشف وبشاكير' => 'Towels',
+                'مفارش حمام' => 'Bath Sets',
+                'مفارش أطفال ومواليد' => 'Baby & Kids Linen',
+                'ستائر جاهزة' => 'Ready-made Curtains',
+                'كليم ودواسات' => 'Kilims & Door Mats',
+                'مفروشات فنادق ومنشآت' => 'Hotel & Contract Linen',
+            ],
+        ],
+
+        [
+            'name_ar' => 'أنواع الأقمشة',
+            'name_en' => 'Fabric Types',
+            'price_role' => 'modifier',
+            'children' => ['أقمشة'],
+            'options' => [
+                'قطن' => 'Cotton',
+                'كتان' => 'Linen Fabric',
+                'حرير' => 'Silk',
+                'صوف' => 'Wool Fabric',
+                'بوليستر' => 'Polyester',
+                'ڤيسكوز' => 'Viscose',
+                'دنيم (جينز)' => 'Denim',
+                'شيفون' => 'Chiffon',
+                'ساتان' => 'Satin',
+                'مخمل وقطيفة' => 'Velvet',
+                'جبردين' => 'Gabardine',
+                'تُل ودانتيل' => 'Tulle & Lace',
+                'أقمشة تنجيد' => 'Upholstery Fabric',
+                'أقمشة ستائر' => 'Curtain Fabric',
+                'أقمشة مفروشات' => 'Furnishing Fabric',
             ],
         ],
     ],

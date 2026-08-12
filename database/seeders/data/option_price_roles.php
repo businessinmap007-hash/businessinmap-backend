@@ -311,6 +311,11 @@ return [
         // a line because a doors business prices a shutter by the leaf, while a
         // profile is a catalog product sold by the metre.
         'قطاعات ومنتجات الألومنيوم',
+        // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. Both
+        // carry retail, so the catalog holds the priced rows and these say what
+        // the trade deals in.
+        'أصناف المفروشات',
+        'أنواع الأقمشة',
     ],
 
     /*

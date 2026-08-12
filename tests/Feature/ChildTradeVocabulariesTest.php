@@ -668,6 +668,38 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12.
+     *
+     * «مفروشات» #115 had five rows of the FURNITURE list — صالون، أنتريه،
+     * ركنه، تابلوه — and «أقمشة» #95 had exactly one row, the word «أقمشة»
+     * itself. Neither could say what it actually sells, which for a soft
+     * furnishing shop is مفارش وملايات ومناشف and for a fabric shop is قطن
+     * وكتان وشيفون.
+     *
+     * A child whose whole vocabulary is ONE row is the shape worth guarding:
+     * it passes every mute check and still says nothing.
+     */
+    public function test_the_furnishing_trades_can_name_their_stock(): void
+    {
+        $named = function (int $childId, string $group): array {
+            return DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', $childId)->where('g.name_ar', $group)
+                ->distinct()->pluck('o.name_ar')->all();
+        };
+
+        $this->assertContains('مفارش سرير', $named(115, 'أصناف المفروشات'));
+        $this->assertContains('مناشف وبشاكير', $named(115, 'أصناف المفروشات'));
+        $this->assertContains('قطن', $named(95, 'أنواع الأقمشة'));
+        $this->assertContains('أقمشة تنجيد', $named(95, 'أنواع الأقمشة'));
+
+        // The furniture pieces are the trade next door, and only «سجاد
+        // ومفروشات» was ever about soft furnishing.
+        $this->assertSame(['سجاد ومفروشات'], $named(115, 'أثاث وتشطيب منزلي'));
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

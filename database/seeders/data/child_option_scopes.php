@@ -43,7 +43,16 @@ return [
         // carpet. Without the entry, rule 3 («اثاث|…|مطابخ») hands it the whole
         // list back, سجاد ومفروشات and all.
         544 => [39, 77, 113, 169, 188, 219, 266, 312, 337, 355, 398], // ورشة أثاث ونجارة
-        115 => [64, 312, 337, 398, 355], // مفروشات — soft furnishing, no kitchen units
+        /*
+         * «وليس من ضمن المفروشات الصالون - الانترية - الطابلوة ولكن مفارش
+         *  واصناف شبيهه» — owner, 2026-08-12.
+         *
+         * It had five rows and four of them were the FURNITURE trade next door:
+         * صالون، أنتريه، ركنه، تابلوه. «سجاد ومفروشات» is the only one that was
+         * ever about soft furnishing, and what it deals in is now said properly
+         * by «أصناف المفروشات» — مفارش، ملايات، لحاف، مناشف.
+         */
+        115 => [64], // مفروشات — the soft-furnishing row, and only it
         49 => [39, 77, 113, 169, 188, 219, 266, 312, 337, 355, 398], // نجار موبيليا — makes all of it but weaves no carpet
         // #116 آثاث keeps the whole list: as a showroom, workshop, factory and
         // company child it covers every piece there is

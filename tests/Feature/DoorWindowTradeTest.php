@@ -330,14 +330,22 @@ class DoorWindowTradeTest extends TestCase
         }
     }
 
-    /** The workshop that makes them says the same thing the factory says. */
+    /**
+     * The workshop that makes them says the same thing the factory says.
+     *
+     * Sorted, because the two lists are the same SET and the order is whatever
+     * each child's rows were written in — the two kitchen rows added on
+     * 2026-08-12 landed first on one and last on the other, which says nothing
+     * about what either of them makes.
+     */
     public function test_the_workshop_carries_the_same_list(): void
     {
-        $this->assertSame(
-            $this->typesOf('باب وشباك'),
-            $this->typesOf('نجار باب وشباك'),
-            'the workshop and the trade disagree about what a door is'
-        );
+        $trade = $this->typesOf('باب وشباك');
+        $workshop = $this->typesOf('نجار باب وشباك');
+        sort($trade);
+        sort($workshop);
+
+        $this->assertSame($trade, $workshop, 'the workshop and the trade disagree about what a door is');
     }
 
     /** Re-running either seeder writes nothing and withdraws nothing. */

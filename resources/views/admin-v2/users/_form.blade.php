@@ -24,8 +24,12 @@
     // The child this user already has, so opening the form costs no request.
     // Built here rather than inline: @json() cannot parse a multi-line array
     // literal — Blade ends the directive at the first ')'.
+    //
+    // Keyed «root:child», not by child alone: the same child answers a
+    // different question under a different root, so a cache keyed by the child
+    // would show the wrong vocabulary the moment the root is changed.
     $catalogSeed = (int) ($user->category_child_id ?? 0) > 0
-        ? [(int) $user->category_child_id => [
+        ? [((int) ($user->category_id ?? 0)) . ':' . (int) $user->category_child_id => [
             'groups' => $groups ?? [],
             'ungrouped' => $ungroupedOptions ?? [],
             'services' => $services ?? [],
@@ -428,8 +432,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return item.name_ar || item.name_en || ('#' + item.id);
     }
 
-    function renderOptions(childId) {
-        const payload = catalog[String(childId || '')] || {groups: [], ungrouped: []};
+    /*
+     * A child's vocabulary is answered PER ROOT — «آثاث» under مصانع is asked
+     * about materials, under معارض about instalments and delivery. Everything
+     * below is keyed by the pair, never by the child alone.
+     */
+    function catalogKey(childId) {
+        const child = String(childId || '');
+
+        return child ? (String(categoryEl.value || 0) + ':' + child) : '';
+    }
+
+    function renderOptions(key) {
+        const payload = catalog[key] || {groups: [], ungrouped: []};
         const groups = payload.groups || [];
         const ungrouped = payload.ungrouped || [];
 
@@ -480,8 +495,8 @@ document.addEventListener('DOMContentLoaded', function () {
         optionsWrap.innerHTML = html;
     }
 
-    function renderServices(childId) {
-        const services = (catalog[String(childId || '')] || {}).services || [];
+    function renderServices(key) {
+        const services = (catalog[key] || {}).services || [];
 
         if (!services.length) {
             servicesWrap.innerHTML = '<div class="a2-muted">لا توجد خدمات متاحة لهذا القسم الفرعي.</div>';
@@ -537,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let catalogSeq = 0;
 
     function showChild(childId) {
-        const key = String(childId || '');
+        const key = catalogKey(childId);
 
         if (!key || catalog[key]) {
             renderOptions(key);
@@ -550,7 +565,9 @@ document.addEventListener('DOMContentLoaded', function () {
         optionsWrap.innerHTML = '<div class="a2-muted">…</div>';
         servicesWrap.innerHTML = '<div class="a2-muted">…</div>';
 
-        fetch(CATALOG_URL + '?child_id=' + encodeURIComponent(key), {
+        fetch(CATALOG_URL
+                + '?child_id=' + encodeURIComponent(String(childId || ''))
+                + '&category_id=' + encodeURIComponent(String(categoryEl.value || 0)), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',
         })

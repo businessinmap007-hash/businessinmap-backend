@@ -12,6 +12,7 @@ use App\Models\PlatformService;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\UserGuarantee;
+use App\Services\CategoryChildOptionScope;
 use App\Services\UserPurgeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,31 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    public function __construct(private UserPurgeService $purger) {}
+    public function __construct(
+        private UserPurgeService $purger,
+        private CategoryChildOptionScope $optionScope = new CategoryChildOptionScope,
+    ) {}
+
+    /**
+     * The option ids a child carries UNDER ONE ROOT.
+     *
+     * «الخيارات فى صفحة المستخدم تعرض كل مجموعة الخيارات للابن وليس الخيارات
+     * المحددة لهذا الابن» — this screen read `category_child_option` by child
+     * alone, so a child sitting under several roots handed back the UNION of
+     * all of them. «دعاية وإعلان» granted 19 options under «خدمات» showed 45:
+     * the goods vocabulary of the other root it also lives under (نطاق التعامل،
+     * حالة المنتج، التسليم والاستلام) rode along, and the picker screen that
+     * granted them never showed such a thing.
+     *
+     * `CategoryChildOptionScope` is where the rule lives — 0 means every root,
+     * a real id means that root alone — and it is what the merchant's own
+     * screens already obey. With no root in hand the union is still the right
+     * answer, which is exactly what root 0 returns.
+     */
+    private function scopedOptionIds(int $childId, int $rootId): \Illuminate\Support\Collection
+    {
+        return $this->optionScope->idsFor($childId, max($rootId, 0));
+    }
 
     public function index(Request $request)
     {
@@ -151,11 +176,7 @@ class UserController extends Controller
         if ($categoryChildId > 0) {
             $options = Option::query()
                 ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-                ->whereIn('id', function ($sub) use ($categoryChildId) {
-                    $sub->select('option_id')
-                        ->from('category_child_option')
-                        ->where('child_id', $categoryChildId);
-                })
+                ->whereIn('id', $this->scopedOptionIds($categoryChildId, $categoryId))
                 ->orderBy('name_ar')
                 ->orderBy('id')
                 ->get(['id', 'name_ar', 'name_en']);
@@ -239,16 +260,21 @@ class UserController extends Controller
     }
 
     /**
-     * GET /admin/users/catalog?child_id= — the options and services one child
-     * carries, for the filter cascade.
+     * GET /admin/users/catalog?child_id=&category_id= — the options and services
+     * one child carries under one root.
      *
      * Shipping the whole map with the page cost 380KB of JSON (209 children,
      * 5,915 option rows) on every visit, for a filter most visits never touch.
      * One request when a child is actually picked replaces it.
+     *
+     * `category_id` is not decoration: the same child answers a different
+     * question under a different root, and without it this hands back the union
+     * of every root the child sits under. Both callers send the root they have.
      */
     public function catalog(Request $request)
     {
         $childId = (int) $request->get('child_id', 0);
+        $rootId = (int) $request->get('category_id', 0);
 
         if ($childId <= 0) {
             return response()->json(['options' => [], 'groups' => [], 'ungrouped' => [], 'services' => []]);
@@ -258,8 +284,7 @@ class UserController extends Controller
         // index wants one flat list, and the EDIT form wants them under their
         // option groups. Both come back — it is one child, so the difference is
         // a few kilobytes, and one endpoint cannot drift from itself.
-        $held = fn ($sub) => $sub->select('option_id')
-            ->from('category_child_option')->where('child_id', $childId);
+        $held = $this->scopedOptionIds($childId, $rootId);
 
         $options = Option::query()
             ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
@@ -351,17 +376,16 @@ class UserController extends Controller
             $childId = (int) $user->category_child_id;
             $q = '';
 
+            // Under HIS root, not under every root the child happens to sit in.
+            $held = $this->scopedOptionIds($childId, (int) $user->category_id);
+
             $groups = OptionGroup::query()
                 ->where('is_active', 1)
                 ->with([
-                    'options' => function ($query) use ($q, $childId) {
+                    'options' => function ($query) use ($q, $held) {
                         $query
                             ->when($this->hasOptionIsActiveColumn(), fn ($sub) => $sub->where('is_active', 1))
-                            ->whereIn('id', function ($sub) use ($childId) {
-                                $sub->select('option_id')
-                                    ->from('category_child_option')
-                                    ->where('child_id', $childId);
-                            })
+                            ->whereIn('id', $held)
                             ->when($q !== '', function ($sub) use ($q) {
                                 $sub->where(function ($w) use ($q) {
                                     $w->where('name_ar', 'like', "%{$q}%")
@@ -384,11 +408,7 @@ class UserController extends Controller
             $ungroupedOptions = Option::query()
                 ->when($this->hasOptionIsActiveColumn(), fn ($query) => $query->where('is_active', 1))
                 ->whereNull('group_id')
-                ->whereIn('id', function ($sub) use ($childId) {
-                    $sub->select('option_id')
-                        ->from('category_child_option')
-                        ->where('child_id', $childId);
-                })
+                ->whereIn('id', $held)
                 ->orderBy('id', 'asc')
                 ->get(['id', 'name_ar', 'name_en', 'group_id']);
 
@@ -574,16 +594,16 @@ class UserController extends Controller
             ->all();
 
         if (!empty($optionIds)) {
-            $invalid = Option::query()
-                ->whereIn('id', $optionIds)
-                ->whereNotIn('id', function ($sub) use ($data) {
-                    $sub->select('option_id')
-                        ->from('category_child_option')
-                        ->where('child_id', (int) ($data['category_child_id'] ?? 0));
-                })
-                ->exists();
+            // The same test the merchant's own profile endpoint applies: an
+            // option must be granted to this child UNDER THIS ROOT. Checking
+            // the child alone let the panel save a vocabulary the API would
+            // then refuse — two doors into one column disagreeing.
+            $allowed = $this->scopedOptionIds(
+                (int) ($data['category_child_id'] ?? 0),
+                (int) ($data['category_id'] ?? 0)
+            );
 
-            if ($invalid) {
+            if (collect($optionIds)->diff($allowed)->isNotEmpty()) {
                 throw ValidationException::withMessages([
                     'options' => __('بعض الخيارات لا تنتمي للقسم الفرعي المختار.'),
                 ]);

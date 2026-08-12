@@ -16,8 +16,12 @@
     // The child already filtered on, so arriving on a filtered screen costs no
     // request. Built here rather than inline: @json() cannot parse a multi-line
     // array literal — Blade ends the directive at the first ')'.
+    //
+    // Keyed «root:child»: the child's vocabulary differs per root, so a cache
+    // keyed by the child alone answers for the wrong one.
     $catalogSeed = ((int) ($categoryChildId ?? 0)) > 0
-        ? [(int) $categoryChildId => ['options' => $options ?? [], 'services' => $services ?? []]]
+        ? [((int) ($categoryId ?? 0)) . ':' . (int) $categoryChildId
+            => ['options' => $options ?? [], 'services' => $services ?? []]]
         : (object) [];
     $perPageVal = (int) ($perPage ?? 50);
     $sortNow = (string) ($sort ?? 'id');
@@ -383,6 +387,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function syncDependentFilters() {
         const childId = parseInt(childSelect?.value || 0);
+        const rootId = parseInt(categorySelect?.value || 0);
 
         if (!childId) {
             paint({ options: [], services: [] });
@@ -390,8 +395,12 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (catalogCache[childId]) {
-            paint(catalogCache[childId]);
+        // A child sits under several roots and says something different under
+        // each — the pair is the question, so the pair is the key.
+        const key = rootId + ':' + childId;
+
+        if (catalogCache[key]) {
+            paint(catalogCache[key]);
 
             return;
         }
@@ -399,13 +408,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Answers can come back out of order; only the newest may paint.
         const mine = ++catalogSeq;
 
-        fetch(CATALOG_URL + '?child_id=' + childId, {
+        fetch(CATALOG_URL + '?child_id=' + childId + '&category_id=' + rootId, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',
         })
             .then(function (response) { return response.json(); })
             .then(function (body) {
-                catalogCache[childId] = body;
+                catalogCache[key] = body;
 
                 if (mine === catalogSeq) {
                     paint(body);

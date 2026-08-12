@@ -37,11 +37,25 @@ class ImportMedicines extends Command
 
     protected $description = 'Import medicines into the shared prescription dictionary';
 
-    /** Header names a register might use for the drug itself. */
-    private const NAME_KEYS = ['name', 'medicine', 'drug', 'trade_name', 'product', 'اسم', 'الاسم', 'الدواء'];
+    /**
+     * Header names a register might use for the drug itself.
+     *
+     * Long because every source spells it differently and the cost of a miss is
+     * the whole import: the first real file said «Trade Name» and the command
+     * reported "no name column" and wrote nothing. Matched after `key()`
+     * normalises case and turns spaces and hyphens into underscores.
+     */
+    private const NAME_KEYS = [
+        'name', 'drug_name', 'medicine', 'medicine_name', 'drug', 'trade', 'trade_name',
+        'brand', 'brand_name', 'generic_name', 'product', 'product_name', 'item_name',
+        'اسم', 'الاسم', 'الدواء', 'اسم_الدواء', 'الاسم_التجاري', 'الصنف',
+    ];
 
     /** …and for its strength. */
-    private const STRENGTH_KEYS = ['strength', 'dose', 'dosage', 'concentration', 'التركيز', 'الجرعة'];
+    private const STRENGTH_KEYS = [
+        'strength', 'dose', 'dosage', 'concentration', 'unit_strength', 'potency',
+        'التركيز', 'الجرعة', 'التركيب',
+    ];
 
     public function handle(): int
     {

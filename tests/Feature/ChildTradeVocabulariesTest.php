@@ -948,6 +948,13 @@ class ChildTradeVocabulariesTest extends TestCase
         102,                                  // مزارع سمكية — «أرانب» #236 folded
                                               // into «مواشي وأرانب» on 2026-08-12 and reaches no root
         272,                                  // سوبر ماركت
+        101,                                  // أسماك — narrowed by hand under «المحلات» on
+                                              // 2026-08-12: it had been answering with the whole
+                                              // fresh counter (خضار وفاكهة، ألبان وبيض، أجبان،
+                                              // لحوم ودواجن، مجمدات) and now says فسيخ · رنجة ·
+                                              // أسماك طازجة. «جديد / مستعمل» went with them, which
+                                              // is right — nobody sells second-hand fish. Under
+                                              // «مصانع» it keeps both modifiers.
     ];
 
     /** Nothing may quietly join the list of trades with no price axis. */

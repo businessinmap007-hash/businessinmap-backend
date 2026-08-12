@@ -175,6 +175,25 @@
                 @endforeach
             @endif
 
+            {{-- «سطر به الابن المختار وعلى يمينه زر السابق وعلى اليسار التالى».
+
+                 Walking 63 children by hunting for the next checkbox in a grid
+                 is how a pass gets abandoned half-way. One line, two keys: the
+                 step unticks the last child and ticks the next, which is what
+                 puts the screen in single-child mode and opens its card. --}}
+            <div id="childNav" class="a2-mt-12"
+                 style="display:none;align-items:center;gap:10px;padding:8px 12px;
+                        border:1px solid var(--a2-border,#d4d4d8);border-radius:10px;">
+                <button type="button" class="a2-btn a2-btn-ghost" id="childPrev">↦ {{ __('السابق') }}</button>
+
+                <div style="flex:1;text-align:center;">
+                    <span style="font-weight:600;" id="childNavName"></span>
+                    <span class="a2-badge" id="childNavPos" style="margin-inline-start:6px;"></span>
+                </div>
+
+                <button type="button" class="a2-btn a2-btn-ghost" id="childNext">{{ __('التالي') }} ↤</button>
+            </div>
+
             {{-- Everything the selection already carries, grouped, with an × on each.
                  Removing here clears the matching box in the picker below, so the
                  card and the picker are two views of one answer — never two lists
@@ -941,6 +960,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         refreshGroupCounts();
+        refreshChildNav();
     }
 
     function refreshGroupCounts() {
@@ -1049,6 +1069,89 @@ document.addEventListener('DOMContentLoaded', function () {
             seedFromRegistered();
         });
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Step one child at a time
+    |--------------------------------------------------------------------------
+    | The whole point of a pass is to see every child once. Stepping ticks
+    | exactly one, which is also the state in which the card becomes editable
+    | and the chips name that child's own groups — so «التالي» is the whole
+    | gesture, not the first half of one.
+    */
+    const childNav = document.getElementById('childNav');
+    const childNavName = document.getElementById('childNavName');
+    const childNavPos = document.getElementById('childNavPos');
+
+    function childLabel(input) {
+        const card = input.closest('.js-child-card');
+        const span = card ? card.querySelector('span') : null;
+
+        return span ? span.textContent.trim() : ('#' + input.value);
+    }
+
+    function refreshChildNav() {
+        if (!childNav) {
+            return;
+        }
+
+        const inputs = Array.from(visibleChildren());
+
+        if (!inputs.length) {
+            childNav.style.display = 'none';
+            return;
+        }
+
+        childNav.style.display = 'flex';
+
+        const picked = inputs.filter(function (input) { return input.checked; });
+
+        if (picked.length === 1) {
+            childNavName.textContent = childLabel(picked[0]);
+            childNavPos.textContent = (inputs.indexOf(picked[0]) + 1) + ' / ' + inputs.length;
+            return;
+        }
+
+        childNavName.textContent = picked.length
+            ? @json(__('عدة أقسام محددة')) + ' (' + picked.length + ')'
+            : @json(__('لم يُحدَّد قسم — اضغط «التالي» للبدء'));
+        childNavPos.textContent = inputs.length;
+    }
+
+    function stepChild(delta) {
+        const inputs = Array.from(visibleChildren());
+
+        if (!inputs.length) {
+            return;
+        }
+
+        // Several ticked (or none) has no "current", so a step starts the walk
+        // from whichever end it was heading towards.
+        const picked = inputs.filter(function (input) { return input.checked; });
+        const from = picked.length === 1 ? inputs.indexOf(picked[0]) : (delta > 0 ? -1 : 0);
+
+        let next = from + delta;
+
+        if (next < 0) { next = inputs.length - 1; }
+        if (next >= inputs.length) { next = 0; }
+
+        inputs.forEach(function (input, index) { input.checked = index === next; });
+
+        refreshRegistered();
+        seedFromRegistered();
+
+        const card = inputs[next].closest('.js-child-card');
+
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    const childPrev = document.getElementById('childPrev');
+    const childNext = document.getElementById('childNext');
+
+    if (childPrev) { childPrev.addEventListener('click', function () { stepChild(-1); }); }
+    if (childNext) { childNext.addEventListener('click', function () { stepChild(1); }); }
 
     /*
     |--------------------------------------------------------------------------

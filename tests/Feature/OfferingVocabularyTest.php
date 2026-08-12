@@ -373,4 +373,98 @@ class OfferingVocabularyTest extends TestCase
 
         $this->assertNotSame('', $rows[0]->offeringLabel());
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | «انا مصنع اخشاب … فيظهروا فى القائمة الخاصة بمنتجاتى»
+    |--------------------------------------------------------------------------
+    | «أنواع الأخشاب» is a modifier because a wood species usually qualifies a
+    | piece of furniture. Under «أخشاب» it qualifies nothing — زان and MDF and
+    | كونتر ARE the product line. The child has no `line` group and never will,
+    | so the strict reading left eight timber merchants unable to name a single
+    | thing they sell.
+    */
+    private function timberYard(): array
+    {
+        $child = DB::table('category_children_master')->where('name_ar', 'أخشاب')->value('id');
+        $user = $child ? DB::table('users')->where('category_child_id', $child)->first(['id', 'category_id']) : null;
+
+        if (! $user) {
+            $this->markTestSkipped('No timber merchant to ask.');
+        }
+
+        return [(int) $user->id, (int) $child, (int) $user->category_id];
+    }
+
+    public function test_a_trade_with_no_line_group_sells_its_modifiers(): void
+    {
+        [$business, $child, $root] = $this->timberYard();
+
+        $result = app(MerchantOfferingVocabulary::class)->for($business, $child, $root);
+
+        $this->assertSame(OptionGroup::ROLE_MODIFIER, $result['promoted'], 'the modifiers stood in for a missing line');
+
+        $lines = $result['lines']->keys()->all();
+
+        $this->assertContains('أنواع الأخشاب', $lines, 'زان and MDF are what a timber yard sells');
+
+        $named = $result['lines']->flatten()->pluck('name_ar');
+
+        foreach (['زان', 'MDF', 'كونتر'] as $product) {
+            $this->assertContains($product, $named->all(), "«{$product}» must be pickable as a product");
+        }
+    }
+
+    /** The promotion widens nothing: it may only reach what the child already held. */
+    public function test_the_promotion_leaves_the_deal_words_out_of_the_product_list(): void
+    {
+        [$business, $child, $root] = $this->timberYard();
+
+        $result = app(MerchantOfferingVocabulary::class)->for($business, $child, $root);
+
+        foreach (['حالة المنتج', 'نظام التصنيع', 'الدفع والسداد'] as $group) {
+            $this->assertNotContains(
+                $group,
+                $result['lines']->keys()->all(),
+                "«{$group}» is about the deal — nobody buys «جديد»"
+            );
+        }
+
+        // Still a perfectly good qualifier, though: a plank can be sold used.
+        $this->assertContains('حالة المنتج', $result['modifiers']->keys()->all());
+    }
+
+    /** A child that HAS a line group is untouched — the promotion is a fallback. */
+    public function test_a_trade_with_a_line_group_is_not_promoted(): void
+    {
+        [$user] = $this->businessThatSellsALine();
+
+        $result = app(MerchantOfferingVocabulary::class)
+            ->for((int) $user->id, (int) $user->category_child_id, (int) $user->category_id);
+
+        $this->assertNull($result['promoted'], 'nothing was promoted where a real line exists');
+        $this->assertNotEmpty($result['lines']->all(), 'and the real line is what he is offered');
+    }
+
+    /**
+     * The screens validate a POST against the per-child answer now. Asking the
+     * group's platform-wide role instead refused every promoted line — the
+     * timber merchant's «زان» posted back as «not a line» and vanished.
+     */
+    public function test_a_promoted_line_survives_the_post_guard(): void
+    {
+        [$business, $child, $root] = $this->timberYard();
+
+        $vocabulary = app(MerchantOfferingVocabulary::class);
+        $picks = $vocabulary->pickableIds($business, $child, $root);
+
+        $beech = DB::table('options')->where('name_ar', 'زان')->value('id');
+
+        if (! $beech) {
+            $this->markTestSkipped('«زان» does not exist.');
+        }
+
+        $this->assertTrue($picks['lines']->contains((int) $beech), '«زان» must pass as a line for this merchant');
+        $this->assertSame('modifier', $vocabulary->roleOf((int) $beech), 'while staying a modifier platform-wide');
+    }
 }

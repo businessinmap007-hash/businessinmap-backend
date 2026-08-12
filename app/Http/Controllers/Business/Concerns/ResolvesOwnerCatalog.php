@@ -161,13 +161,10 @@ trait ResolvesOwnerCatalog
             return null;
         }
 
-        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+        $lines = app(\App\Services\MerchantOfferingVocabulary::class)
+            ->pickableIds($this->businessId(), $this->childId(), $this->rootId())['lines'];
 
-        $allowed = $vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
-
-        return ($allowed->contains($optionId) && $vocabulary->roleOf($optionId) === 'line')
-            ? $optionId
-            : null;
+        return $lines->contains($optionId) ? $optionId : null;
     }
 
     /**

@@ -161,14 +161,17 @@ class BusinessServicePriceController extends Controller
      */
     private function chosenVocabulary(Request $request): array
     {
-        $allowed = $this->vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
+        // Which slot an option may fill is a per-child question — a wood species
+        // is a modifier on a furniture workshop and the product itself in a
+        // timber yard — so it is asked of the vocabulary, not of the group.
+        $picks = $this->vocabulary->pickableIds($this->businessId(), $this->childId(), $this->rootId());
 
         $line = (int) $request->input('line_option_id', 0);
-        $line = $allowed->contains($line) && $this->vocabulary->roleOf($line) === 'line' ? $line : null;
+        $line = $picks['lines']->contains($line) ? $line : null;
 
         $modifiers = collect($request->input('modifier_option_ids', []))
             ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $allowed->contains($id) && $this->vocabulary->roleOf($id) === 'modifier')
+            ->filter(fn ($id) => $picks['modifiers']->contains($id))
             ->values()
             ->all();
 

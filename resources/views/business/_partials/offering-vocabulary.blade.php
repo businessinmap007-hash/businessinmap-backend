@@ -8,6 +8,10 @@
     $lines = collect($vocabulary['lines'] ?? []);
     $modifiers = collect($vocabulary['modifiers'] ?? []);
     $narrowed = (bool) ($vocabulary['narrowed'] ?? false);
+    // A trade with no `line` group of its own sells its modifiers — a timber
+    // yard's product IS «زان». The help text below must not then call it
+    // «غرفة نوم»، «شقة»: the example would name nothing he could pick.
+    $promoted = $vocabulary['promoted'] ?? null;
     $selectedLine = (int) old('line_option_id', $lineId ?? 0);
     $selectedModifiers = collect(old('modifier_option_ids', ($modifierIds ?? collect())->all() ?? []))
         ->map(fn ($id) => (int) $id);
@@ -49,7 +53,13 @@
                             </optgroup>
                         @endforeach
                     </select>
-                    <small class="a2-help">{{ __('الشيء الذي يشتريه العميل — «غرفة نوم»، «شقة»، «كشف عظام».') }}</small>
+                    <small class="a2-help">
+                        @if($promoted)
+                            {{ __('الشيء الذي يشتريه العميل، من واقع خيارات نشاطك — «زان»، «MDF»، «بديل رخام».') }}
+                        @else
+                            {{ __('الشيء الذي يشتريه العميل — «غرفة نوم»، «شقة»، «كشف عظام».') }}
+                        @endif
+                    </small>
                 </div>
             @endif
 

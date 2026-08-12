@@ -236,14 +236,14 @@ class MenuItemController extends Controller
      */
     private function applyVocabulary(Request $request, MenuItem $item): void
     {
-        $allowed = $this->vocabulary->allowedIds($this->businessId(), $this->childId(), $this->rootId());
+        $picks = $this->vocabulary->pickableIds($this->businessId(), $this->childId(), $this->rootId());
 
         $line = (int) $request->input('line_option_id', 0);
-        $line = $allowed->contains($line) && $this->vocabulary->roleOf($line) === 'line' ? $line : null;
+        $line = $picks['lines']->contains($line) ? $line : null;
 
         $modifiers = collect($request->input('modifier_option_ids', []))
             ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $allowed->contains($id) && $this->vocabulary->roleOf($id) === 'modifier')
+            ->filter(fn ($id) => $picks['modifiers']->contains($id))
             ->values()
             ->all();
 

@@ -626,7 +626,11 @@ class ChildTradeVocabulariesTest extends TestCase
      * @var array<int,string>
      */
     private const ROOT_WIDE_BY_NATURE = [
-        'agriculture-and-animals:مستلزمات المزارع',
+        // «مستلزمات المزارع» left this list on 2026-08-12. It was never really
+        // the root's question — three rows that restate the child's own name,
+        // spread across ten children because nobody had written them anything
+        // better. Seven of them now name their trade and the group is down to
+        // the three bulk traders it is actually true of.
         'arts-entertainment:ألعاب ومرافق الترفيه',
     ];
 
@@ -773,6 +777,48 @@ class ChildTradeVocabulariesTest extends TestCase
         // Only the one whose name says تحف carries the antiques list.
         $this->assertContains('تحف نحاسية', $named(57, 'الأنتيكات والتحف'));
         $this->assertSame([], $named(56, 'الأنتيكات والتحف'));
+    }
+
+    /**
+     * «اكمل بعنقود المزارع» — owner, 2026-08-12.
+     *
+     * Seven children shared «مستلزمات المزارع» and nothing else, and that group
+     * is three rows — «مستلزمات زراعية»، «ماشية وطيور»، «معدات ومستلزمات» —
+     * which restate the child's own name instead of saying anything about it.
+     * «معدات مزارع دواجن» answering «ماشية وطيور» told a customer nothing.
+     *
+     * Three trades were hiding in the seven: farm MACHINERY (#12), livestock
+     * HOUSING (#171، #230، #235), and the ANIMALS themselves (#170، #236،
+     * #102). The last two are one group each, narrowed per child — a milking
+     * parlour is not a rabbit hutch, and a rabbit is not a mullet.
+     */
+    public function test_the_farm_cluster_names_three_trades_not_one(): void
+    {
+        $named = fn (int $childId, string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)->where('g.name_ar', $group)
+            ->distinct()->pluck('o.name_ar')->all();
+
+        $this->assertContains('جرارات زراعية', $named(12, 'الآلات والمعدات الزراعية'));
+
+        // The equipment list, and what each animal does NOT need.
+        $this->assertContains('أنظمة حلابة', $named(171, 'معدات وتجهيزات المزارع'));
+        $this->assertNotContains('أنظمة حلابة', $named(230, 'معدات وتجهيزات المزارع'));
+        $this->assertContains('حضانات وفقاسات', $named(230, 'معدات وتجهيزات المزارع'));
+        $this->assertNotContains('حضانات وفقاسات', $named(171, 'معدات وتجهيزات المزارع'));
+
+        // The stock list: three answers that do not overlap at all.
+        $stock = 'أنواع الثروة الحيوانية والسمكية';
+        $this->assertContains('أبقار', $named(170, $stock));
+        $this->assertContains('أرانب تسمين', $named(236, $stock));
+        $this->assertContains('أسماك بلطي', $named(102, $stock));
+        $this->assertSame([], array_intersect($named(170, $stock), $named(102, $stock)));
+
+        // And none of the seven is asked the grab-bag question any more.
+        foreach ([12, 102, 170, 171, 230, 235, 236] as $childId) {
+            $this->assertSame([], $named($childId, 'مستلزمات المزارع'));
+        }
     }
 
     /**

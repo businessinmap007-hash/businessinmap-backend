@@ -291,10 +291,43 @@ class ChildTradeVocabulariesSeeder extends Seeder
         return (int) DB::table('categories')->where('slug', $slug)->value('id');
     }
 
+    /**
+     * group name_ar => child id => the option ids that child may answer.
+     *
+     * `child_option_scopes.php` is the file that says «this child can only use
+     * a slice of that group». Two other seeders already honour it; this one did
+     * not, so every run handed the farm-equipment list back whole and
+     * ChildOptionScopeSeeder took it away again — a pair of seeders undoing
+     * each other on every seed, which the idempotency test caught.
+     *
+     * @var array<string,array<int,array<int,int>>>|null
+     */
+    private ?array $scopes = null;
+
+    /** @return array<string,array<int,array<int,int>>> */
+    private function scopes(): array
+    {
+        return $this->scopes ??= require database_path('seeders/data/child_option_scopes.php');
+    }
+
+    /** True when the scope file lets this child answer this option. */
+    private function inScope(int $childId, int $optionId): bool
+    {
+        $group = (string) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.id', $optionId)->value('g.name_ar');
+
+        $allowed = $this->scopes()[$group][$childId] ?? null;
+
+        // Absent from the map means «no narrowing», never «narrow to nothing» —
+        // the same reading ChildOptionScopeSeeder gives it.
+        return $allowed === null || in_array($optionId, $allowed, true);
+    }
+
     /** @param array<int,array<int,mixed>> $blocked */
     private function link(int $childId, int $optionId, array $blocked, int &$linked, int &$refused, int $scope = 0): void
     {
-        if (isset($blocked[$childId][$optionId])) {
+        if (isset($blocked[$childId][$optionId]) || ! $this->inScope($childId, $optionId)) {
             $refused++;
 
             return;

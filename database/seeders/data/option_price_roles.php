@@ -85,6 +85,9 @@ return [
         // applied per child: a contractor's «أعمال خرسانية» is the priced row
         // the way «تنظيف خزانات» is, while a curtain wholesaler's stock is not.
         'أعمال المقاولات',
+        // «جراج» #119, 2026-08-12: booking and no retail, so the priced row is
+        // the stay itself — an hour, a night, a monthly space.
+        'خدمات الجراج والانتظار',
         // The farm cluster, 2026-08-12: no retail and no catalog behind them,
         // so the type IS what the customer pays for.
         'الآلات والمعدات الزراعية',
@@ -292,6 +295,11 @@ return [
         'فترة الحجز',             // يوم كامل ≠ فترة صباحية
         'وحدة البيع',             // بالطن ≠ بالكيلو
         'درجة التحميص والطحن',    // غامق ≠ فاتح
+        // The four shops that had borrowed a neighbour's list, 2026-08-12.
+        'العدد والأدوات الكهربائية',
+        'قطع غيار الأجهزة المنزلية',
+        'أنواع الزيوت والسوائل',
+        'الإطارات والجنوط',
         'حالة الدواجن',           // مقطّع ≠ حي
         'أنواع الإكسسوارات',      // اكسسوار موبايل ≠ اكسسوار سيارات
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة

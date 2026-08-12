@@ -63,6 +63,38 @@ return [
                 'حضانة أطفال' => 'Creche',
             ],
         ],
+
+        /*
+        | ── «جراج» #119 was answering with another trade's list ────────────
+        |
+        | It carried «مركبات النقل والركاب» — باص ٥٠ راكب، جامبو، مقطورة — which
+        | is the list of vehicles a HAULIER hires out. A جراج does not hire out
+        | a bus; it parks one. The child booked appointments and could name
+        | nothing it books them for, and the borrowed list is why it read as a
+        | twin of «مغسلة سيارات» in the merge audit.
+        |
+        | `line`: it carries booking and no retail, so the priced row is the
+        | stay itself — an hour, a night, a monthly space.
+        |
+        | The vehicle list is declared empty for it in `child_option_scopes.php`.
+        */
+        'خدمات الجراج والانتظار' => [
+            'name_en' => 'Parking Services',
+            'price_role' => 'line',
+            'children' => [119],
+            'options' => [
+                'انتظار بالساعة' => 'Hourly Parking',
+                'انتظار يومي' => 'Daily Parking',
+                'اشتراك شهري' => 'Monthly Parking',
+                'مكان ثابت محجوز' => 'Reserved Bay',
+                'انتظار مغطى' => 'Covered Parking',
+                'انتظار مكشوف' => 'Open-air Parking',
+                'انتظار حافلات ونقل' => 'Bus & Truck Parking',
+                'خدمة صف السيارة' => 'Valet Parking',
+                'شحن سيارات كهربائية' => 'EV Charging',
+                'غسيل داخل الجراج' => 'In-garage Wash',
+            ],
+        ],
     ],
 
     'links' => [

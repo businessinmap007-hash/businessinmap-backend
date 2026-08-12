@@ -102,7 +102,16 @@ return [
         ],
         'transport_vehicles' => [
             46,  // مغسلة سيارات — which sizes it can take
-            119, // جراج
+            /*
+             * «جراج» #119 left on 2026-08-12. It had the whole list — باص ٥٠
+             * راكب، جامبو، مقطورة — which is what a HAULIER hires out; a garage
+             * parks a bus, it does not hire one out. It says «خدمات الجراج
+             * والانتظار» now, and the bus survives in it as «انتظار حافلات
+             * ونقل», a row about the SPACE.
+             *
+             * Both halves, as always: narrowing it in `child_option_scopes.php`
+             * alone leaves this file granting it back on the next run.
+             */
             169, // خدمة ليموزين
             /*
              * «سائق» #85, added 2026-08-11. What a hired driver is booked WITH

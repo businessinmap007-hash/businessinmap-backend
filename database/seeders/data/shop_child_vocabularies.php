@@ -187,6 +187,96 @@ return [
          * «سوبر ماركت» #272 (16 merchants) is left with none on purpose: it
          * carries FIVE line groups and prices by product, which is the catalog.
          */
+        /*
+        | ── four shops that were answering with a neighbour's list ─────────
+        |
+        | Found 2026-08-12 by the merge audit, and none of them was a merge:
+        | each read as a twin of the shop next door only because it had
+        | borrowed that shop's vocabulary for want of one.
+        |
+        |   #87  أدوات كهربائية    «أنواع الأجهزة الكهربائية» — it sells a drill,
+        |                          not a fridge. name_en had said «Electric
+        |                          Tools» all along.
+        |   #264 قطع غيار أجهزة    the same list, which for IT is right — «which
+        |                          machine» — but it could never say WHICH PART.
+        |                          Same two-axis shape as «قطع غيار سيارات».
+        |   #42  زيت سيارات        «ماركات السيارات» and nothing else: it could
+        |                          say which cars and never which oil.
+        |   #249 جنوط وكاوتش       likewise — no size, no season, no rim.
+        |
+        | All four `modifier`: they carry retail, so the priced rows are catalog
+        | products and these say what is on the shelf.
+        */
+        'العدد والأدوات الكهربائية' => [
+            'name_en' => 'Power & Hand Tools Range', 'price_role' => 'modifier', 'children' => [87],
+            'options' => [
+                'شنيور ومثقاب' => 'Drills',
+                'صاروخ وجلاخة' => 'Angle Grinders',
+                'مناشير كهربائية' => 'Power Saws',
+                'مفكات كهربائية' => 'Power Screwdrivers',
+                'هيلتي ومعدات هدم' => 'Demolition Hammers',
+                'كمبروسر هواء' => 'Air Compressors',
+                'ماكينات لحام' => 'Welding Machines',
+                'مولدات كهرباء' => 'Generators',
+                'مضخات مياه' => 'Water Pumps',
+                'موازين ليزر وقياس' => 'Laser & Measuring Tools',
+                'عدد يدوية' => 'Hand Tools',
+                'لقم وشفرات وإكسسوارات' => 'Bits, Blades & Accessories',
+            ],
+        ],
+
+        'قطع غيار الأجهزة المنزلية' => [
+            'name_en' => 'Appliance Part Types', 'price_role' => 'modifier', 'children' => [264],
+            'options' => [
+                'كمبروسر تبريد' => 'Cooling Compressors',
+                'مواتير ومراوح' => 'Motors & Fans',
+                'بوردات إلكترونية' => 'Control Boards',
+                'ثرموستات وحساسات' => 'Thermostats & Sensors',
+                'عناصر تسخين' => 'Heating Elements',
+                'مضخات تصريف' => 'Drain Pumps',
+                'سيور وبكر' => 'Belts & Pulleys',
+                'جلد أبواب وحشوات' => 'Door Seals & Gaskets',
+                'فلاتر وخراطيم' => 'Filters & Hoses',
+                'ريموتات ولوحات مفاتيح' => 'Remotes & Keypads',
+                'فريون وغازات تبريد' => 'Refrigerant Gases',
+            ],
+        ],
+
+        'أنواع الزيوت والسوائل' => [
+            'name_en' => 'Oils & Fluids', 'price_role' => 'modifier', 'children' => [42],
+            'options' => [
+                'زيت محرك' => 'Engine Oil',
+                'زيت فتيس' => 'Gearbox Oil',
+                'زيت فرامل' => 'Brake Fluid',
+                'زيت باور' => 'Power Steering Fluid',
+                'مياه تبريد (كولنت)' => 'Coolant',
+                'شحوم' => 'Greases',
+                'إضافات ومحسنات' => 'Additives',
+                'فلاتر زيت' => 'Oil Filters',
+                'فلاتر هواء' => 'Air Filters',
+                'فلاتر بنزين' => 'Fuel Filters',
+                'فلاتر تكييف' => 'Cabin Filters',
+            ],
+        ],
+
+        'الإطارات والجنوط' => [
+            'name_en' => 'Tyres & Rims', 'price_role' => 'modifier', 'children' => [249],
+            'options' => [
+                'إطارات ملاكي' => 'Passenger Tyres',
+                'إطارات دفع رباعي' => '4x4 Tyres',
+                'إطارات نقل وحافلات' => 'Truck & Bus Tyres',
+                'إطارات كل الفصول' => 'All-season Tyres',
+                'إطارات شتوية' => 'Winter Tyres',
+                'إطارات مجددة' => 'Retreaded Tyres',
+                'جنوط ألومنيوم' => 'Alloy Rims',
+                'جنوط حديد' => 'Steel Rims',
+                'صواميل وأغطية جنوط' => 'Nuts & Wheel Covers',
+                'بلوف ووزنات ترصيص' => 'Valves & Balance Weights',
+                'خدمة ترصيص وتوازن' => 'Balancing Service',
+                'ضبط زوايا (ترصيص)' => 'Wheel Alignment',
+            ],
+        ],
+
         'درجة التحميص والطحن' => [
             'name_en' => 'Roast & Grind', 'price_role' => 'modifier', 'children' => [63],
             'options' => [

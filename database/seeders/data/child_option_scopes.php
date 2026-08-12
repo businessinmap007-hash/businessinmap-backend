@@ -103,7 +103,14 @@ return [
 
         // what a bay can physically take
         46 => [248, 250, 251, 280, 281],   // مغسلة سيارات
-        119 => [248, 250, 251, 280, 281],  // جراج
+        /*
+         * «جراج» #119 → nothing, 2026-08-12. Even narrowed to five sizes this
+         * was the wrong axis: the list says which vehicles a HAULIER hires out,
+         * and a garage parks a bus rather than hiring one out. It says «خدمات
+         * الجراج والانتظار» now, and the bus survives there as «انتظار حافلات
+         * ونقل» — a row about the SPACE.
+         */
+        119 => [],                         // جراج
         // #244 ونش إنقاذ keeps the whole list — a rescue winch tows all of it
     ],
 
@@ -289,6 +296,25 @@ return [
     */
     'أنواع الأبواب والشبابيك' => [
         17 => [],
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | أنواع الأجهزة الكهربائية
+    |--------------------------------------------------------------------------
+    | «أدوات كهربائية» #87 — «Electric Tools», and the name_en had said so all
+    | along — was offering ثلاجات and غسالات because it had borrowed the
+    | appliance shop's list for want of one. It has «العدد والأدوات
+    | الكهربائية» now.
+    |
+    | «قطع غيار أجهزة كهربائية» #264 KEEPS the list and is not here: for a parts
+    | dealer it is the right axis — WHICH MACHINE — and what it was missing is
+    | the second one, «قطع غيار الأجهزة المنزلية». Same two-axis shape as «قطع
+    | غيار سيارات» #44, which says both the marque and the system.
+    */
+    'أنواع الأجهزة الكهربائية' => [
+        87 => [],
     ],
 
     /*

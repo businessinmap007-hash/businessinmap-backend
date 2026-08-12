@@ -880,6 +880,48 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * Five shops that were answering with the neighbour's list.
+     *
+     * The merge audit of 2026-08-12 reported them as twins, and not one was a
+     * merge: each read as identical to the shop next door only because it had
+     * borrowed that shop's vocabulary for want of one. «أدوات كهربائية» was
+     * offering fridges; «جراج» was offering to hire out a 50-seat coach.
+     *
+     * **Two identical option sets are a question, and this is the other answer
+     * to it** — the first was «لوازم ستائر» vs «ستائر وديكور», two real trades
+     * sharing one list on purpose.
+     */
+    public function test_the_borrowed_lists_were_given_back(): void
+    {
+        $named = fn (int $childId, string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)->where('g.name_ar', $group)
+            ->distinct()->pluck('o.name_ar')->all();
+
+        // A garage parks a bus, it does not hire one out.
+        $this->assertContains('اشتراك شهري', $named(119, 'خدمات الجراج والانتظار'));
+        $this->assertSame([], $named(119, 'مركبات النقل والركاب'));
+
+        // «Electric Tools» — the name_en had said so all along.
+        $this->assertContains('شنيور ومثقاب', $named(87, 'العدد والأدوات الكهربائية'));
+        $this->assertSame([], $named(87, 'أنواع الأجهزة الكهربائية'));
+
+        /*
+         * The parts dealer KEEPS the appliance list — for it «which machine» is
+         * the right axis — and gains the second one. Same two-axis shape as
+         * «قطع غيار سيارات» #44, which says both the marque and the system.
+         */
+        $this->assertContains('كمبروسر تبريد', $named(264, 'قطع غيار الأجهزة المنزلية'));
+        $this->assertNotSame([], $named(264, 'أنواع الأجهزة الكهربائية'));
+
+        // These two could say which CARS and never which oil, which tyre.
+        $this->assertContains('زيت محرك', $named(42, 'أنواع الزيوت والسوائل'));
+        $this->assertContains('جنوط ألومنيوم', $named(249, 'الإطارات والجنوط'));
+        $this->assertNotSame([], $named(42, 'ماركات السيارات'), 'which cars it fits is still right');
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

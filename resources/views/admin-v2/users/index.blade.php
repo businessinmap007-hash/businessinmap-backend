@@ -282,8 +282,25 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const childCatalog = @json($childCatalog ?? (object) []);
-    const optionCatalog = @json($optionCatalog ?? (object) []);
-    const serviceCatalog = @json($serviceCatalog ?? (object) []);
+    /*
+     * The options/services map used to ship whole: 209 children, 5,915 rows,
+     * 380KB of JSON on every page view for a filter most visits never touch.
+     * It is fetched when a child is actually picked.
+     *
+     * route(.., false): an absolute URL built from APP_URL points at a host the
+     * panel may not be served from, and the fetch dies cross-origin with
+     * nothing on screen to say why.
+     */
+    const CATALOG_URL = @json(route('admin.users.catalog', [], false));
+
+    // Seeded with the child already selected, whose rows the server rendered
+    // with the page — so arriving on a filtered screen costs no request, and
+    // only CHANGING the child does.
+    const catalogCache = @json(
+        ($categoryChildId ?? 0) > 0
+            ? [(int) $categoryChildId => ['options' => $options ?? [], 'services' => $services ?? []]]
+            : (object) []
+    );
 
     const categorySelect = document.getElementById('filterCategory');
     const childSelect = document.getElementById('filterChild');
@@ -354,10 +371,44 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    let catalogSeq = 0;
+
+    function paint(entry) {
+        renderOptions(optionSelect, entry.options || [], selectedOptionIds, 'اختيارات القسم الفرعي');
+        renderOptions(serviceSelect, entry.services || [], selectedServiceIds, 'خدمات القسم الفرعي');
+    }
+
     function syncDependentFilters() {
         const childId = parseInt(childSelect?.value || 0);
-        renderOptions(optionSelect, optionCatalog[childId] || [], selectedOptionIds, 'اختيارات القسم الفرعي');
-        renderOptions(serviceSelect, serviceCatalog[childId] || [], selectedServiceIds, 'خدمات القسم الفرعي');
+
+        if (!childId) {
+            paint({ options: [], services: [] });
+
+            return;
+        }
+
+        if (catalogCache[childId]) {
+            paint(catalogCache[childId]);
+
+            return;
+        }
+
+        // Answers can come back out of order; only the newest may paint.
+        const mine = ++catalogSeq;
+
+        fetch(CATALOG_URL + '?child_id=' + childId, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (body) {
+                catalogCache[childId] = body;
+
+                if (mine === catalogSeq) {
+                    paint(body);
+                }
+            })
+            .catch(function () { /* the two selects simply stay as they are */ });
     }
 
     syncChildren();

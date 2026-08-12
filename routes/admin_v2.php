@@ -118,6 +118,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::prefix('users')->name('users.')->middleware('can:' . AdminAbility::USERS)->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
+            // Before the numeric {user} route, or «catalog» is read as an id.
+            Route::get('catalog', [UserController::class, 'catalog'])->name('catalog');
             Route::delete('/', [UserController::class, 'bulkDestroy'])->name('bulkDestroy');
             Route::post('restore', [UserController::class, 'bulkRestore'])->name('bulkRestore');
             Route::delete('force', [UserController::class, 'bulkForceDelete'])->name('bulkForceDelete');

@@ -199,64 +199,17 @@ class UserController extends Controller
             })
             ->all();
 
-        $optionCatalog = CategoryChild::query()
-            ->get(['id'])
-            ->mapWithKeys(function ($child) {
-                $childId = (int) $child->id;
-
-                $options = Option::query()
-                    ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-                    ->whereIn('id', function ($sub) use ($childId) {
-                        $sub->select('option_id')
-                            ->from('category_child_option')
-                            ->where('child_id', $childId);
-                    })
-                    ->orderBy('name_ar')
-                    ->orderBy('id')
-                    ->get(['id', 'name_ar', 'name_en'])
-                    ->map(fn ($opt) => [
-                        'id' => (int) $opt->id,
-                        'name_ar' => (string) ($opt->name_ar ?? ''),
-                        'name_en' => (string) ($opt->name_en ?? ''),
-                    ])
-                    ->values()
-                    ->all();
-
-                return [
-                    $childId => $options,
-                ];
-            })
-            ->all();
-
-        $serviceCatalog = CategoryChild::query()
-            ->get(['id'])
-            ->mapWithKeys(function ($child) {
-                $childId = (int) $child->id;
-
-                $services = PlatformService::query()
-                    ->where('is_active', 1)
-                    ->whereIn('id', function ($sub) use ($childId) {
-                        $sub->select('platform_service_id')
-                            ->from('category_platform_services')
-                            ->where('child_id', $childId)
-                            ->where('is_active', 1);
-                    })
-                    ->orderBy('name_ar')
-                    ->orderBy('id')
-                    ->get(['id', 'name_ar', 'name_en'])
-                    ->map(fn ($srv) => [
-                        'id' => (int) $srv->id,
-                        'name_ar' => (string) ($srv->name_ar ?? ''),
-                        'name_en' => (string) ($srv->name_en ?? ''),
-                    ])
-                    ->values()
-                    ->all();
-
-                return [
-                    $childId => $services,
-                ];
-            })
-            ->all();
+        /*
+         * The cascade (pick a child → its options and services appear) used to
+         * ship the WHOLE map with every page: 209 children, 5,915 option rows,
+         * 380KB of JSON — 41% of the response — so that a dropdown could be
+         * repopulated without a round trip. Almost every visit to this screen
+         * never touches that filter.
+         *
+         * It is fetched now when a child is actually picked. The rows for the
+         * child already selected still render server-side (above), so the
+         * screen arrives complete and only a CHANGE costs a request.
+         */
 
         return view('admin-v2.users.index', [
             'items' => $users,
@@ -282,8 +235,43 @@ class UserController extends Controller
             'options' => $options,
             'services' => $services,
             'childCatalog' => $childCatalog,
-            'optionCatalog' => $optionCatalog,
-            'serviceCatalog' => $serviceCatalog,
+        ]);
+    }
+
+    /**
+     * GET /admin/users/catalog?child_id= — the options and services one child
+     * carries, for the filter cascade.
+     *
+     * Shipping the whole map with the page cost 380KB of JSON (209 children,
+     * 5,915 option rows) on every visit, for a filter most visits never touch.
+     * One request when a child is actually picked replaces it.
+     */
+    public function catalog(Request $request)
+    {
+        $childId = (int) $request->get('child_id', 0);
+
+        if ($childId <= 0) {
+            return response()->json(['options' => [], 'services' => []]);
+        }
+
+        $options = Option::query()
+            ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
+            ->whereIn('id', fn ($sub) => $sub->select('option_id')
+                ->from('category_child_option')->where('child_id', $childId))
+            ->orderBy('name_ar')->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en']);
+
+        $services = PlatformService::query()
+            ->where('is_active', 1)
+            ->whereIn('id', fn ($sub) => $sub->select('platform_service_id')
+                ->from('category_platform_services')
+                ->where('child_id', $childId)->where('is_active', 1))
+            ->orderBy('name_ar')->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en']);
+
+        return response()->json([
+            'options' => $options,
+            'services' => $services,
         ]);
     }
 
@@ -758,8 +746,19 @@ class UserController extends Controller
         return back()->with('success', __('تم رفع الإيقاف.'));
     }
 
+    /**
+     * Whether `options.is_active` exists — asked once per request, not per call.
+     *
+     * `Schema::hasColumn` is a round trip to information_schema, and this is
+     * called from six places, one of which used to sit inside a loop over 337
+     * children. That single missing cache was 923ms of a 1,858ms page — half
+     * the wait, spent asking the database the same unchanging question 337
+     * times.
+     */
+    private ?bool $optionsHaveIsActive = null;
+
     private function hasOptionIsActiveColumn(): bool
     {
-        return Schema::hasColumn('options', 'is_active');
+        return $this->optionsHaveIsActive ??= Schema::hasColumn('options', 'is_active');
     }
 }

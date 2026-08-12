@@ -11,6 +11,7 @@ use App\Models\OptionGroup;
 use App\Services\CategoryChildOptionScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -256,6 +257,71 @@ class CategoryChildOptionController extends Controller
     }
 
     /**
+     * How many children may be emptied of a vocabulary before the save stops
+     * to ask. Six is a curated batch; forty-three is a picker left on one group.
+     */
+    private const WIDE_WITHDRAWAL_LIMIT = 5;
+
+    /**
+     * Which children this save would leave unable to say a whole group, and
+     * which group each of them loses.
+     *
+     * Written after the screen took two roots apart in one hour on 2026-08-11:
+     * «أنواع الأبواب والشبابيك» onto 42 of مصانع's 44 children and «أنواع
+     * الأجهزة الرياضية» onto 69 of شركات's 70 — each of them losing its own
+     * trade list in the same write. A food factory sold «شاتر كهربائي», and
+     * «طباعة العبوات والتغليف» dropped to zero holders platform-wide.
+     *
+     * Losing SOME of a group is ordinary curation and is not counted. Losing
+     * every word a child had in one is the shape of the accident: after it the
+     * child cannot name that part of its trade at all.
+     *
+     * This only reads. The save is unchanged when it comes back under the
+     * limit, and confirmed saves pass through untouched.
+     *
+     * @param  array<int,int>  $childIds
+     * @param  array<int,int>  $optionIds
+     * @return array<int,array<int,string>> child id => group names emptied
+     */
+    private function vocabulariesEmptied(array $childIds, int $parentId, array $optionIds, string $mode): array
+    {
+        if ($mode === 'append' || ($mode === 'remove' && $optionIds === [])) {
+            return [];
+        }
+
+        $emptied = [];
+
+        foreach ($childIds as $childId) {
+            $held = $this->scope->idsFor((int) $childId, $parentId);
+
+            // Exactly what syncFor() would drop, and what revokeFor() would.
+            $doomed = $mode === 'replace'
+                ? $held->diff($optionIds)
+                : $held->intersect($optionIds);
+
+            if ($doomed->isEmpty()) {
+                continue;
+            }
+
+            $byGroup = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $held)
+                ->get(['o.id', 'g.name_ar'])
+                ->groupBy('name_ar');
+
+            foreach ($byGroup as $groupName => $rows) {
+                $ids = $rows->pluck('id')->map(fn ($id) => (int) $id);
+
+                if ($ids->diff($doomed)->isEmpty()) {
+                    $emptied[(int) $childId][] = (string) $groupName;
+                }
+            }
+        }
+
+        return $emptied;
+    }
+
+    /**
      * Three ways to write, and «استبدال بالكامل» is the one that can withdraw.
      *
      * The screen used to open with every option unticked whatever the children
@@ -296,6 +362,30 @@ class CategoryChildOptionController extends Controller
         // to it: appending under معارض must not also grant the option under
         // مصانع, and replacing under one root must not wipe the others.
         $parentId = (int) ($data['parent_id'] ?? 0);
+
+        /*
+         * Not confirmable, because it is never a thing anyone means: «replace»
+         * with nothing ticked says «these children now carry no options at
+         * all», and across a selection that is the whole accident in one
+         * request. On ONE child it stays legal — that is how a child is
+         * deliberately emptied, and the screen seeds its real set there so the
+         * boxes are never blank by surprise.
+         */
+        if ($data['mode'] === 'replace' && $optionIds === [] && count($childIds) > 1) {
+            return back()->withInput()->with('error', __(
+                'استبدال بالكامل بدون أي خيار محدد يمسح خيارات :count أقسام دفعة واحدة — اختر الخيارات أولًا، أو طبّقه على قسم واحد.',
+                ['count' => count($childIds)]
+            ));
+        }
+
+        $emptied = $this->vocabulariesEmptied($childIds, $parentId, $optionIds, (string) $data['mode']);
+
+        if (count($emptied) > self::WIDE_WITHDRAWAL_LIMIT && ! $request->boolean('confirm_wide_withdrawal')) {
+            return back()->withInput()->with('confirm_wide_withdrawal', [
+                'children' => count($emptied),
+                'groups' => collect($emptied)->flatten()->unique()->sort()->values()->all(),
+            ]);
+        }
 
         $children = CategoryChild::query()->whereIn('id', $childIds)->get(['id']);
 

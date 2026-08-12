@@ -424,18 +424,18 @@ return [
             ],
         ],
 
-        // The aluminium rows only. It fits no wooden door and no manual shutter.
-        17 => [
-            'أنواع الأبواب والشبابيك' => [
-                'ألومنيوم',
-                'أبواب ونوافذ سحب',
-                'واجهات زجاجية (سيكوريت)',
-                'شيش وحصيرة',
-                'سواتر ومظلات',
-                'شبك حماية وناموسية',
-                'كوالين ومقابض وإكسسوارات',
-            ],
-        ],
+        /*
+         * «ألمونتال» #17 had the seven aluminium rows of the door list, on the
+         * reading that it fits no wooden door and no manual shutter. The owner
+         * corrected the reading on 2026-08-12: «هو لبيع قطاعات الالمونتال نفسها
+         * وليس الشباك والباب». It sells the extrusion to the workshop that makes
+         * the window. Its list is «قطاعات ومنتجات الألومنيوم» in
+         * `trade_vocabularies.php`, and the door list is a declared empty for it
+         * in `child_option_scopes.php`.
+         *
+         * Left as a note rather than deleted quietly: this entry re-granted the
+         * seven rows on every run and would have undone the narrowing.
+         */
 
         // A trip operator issues no visa and books no hotel.
         285 => [

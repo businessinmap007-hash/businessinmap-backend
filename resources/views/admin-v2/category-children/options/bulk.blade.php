@@ -64,6 +64,10 @@
         <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
     @endif
 
+    @if(session('error'))
+        <div class="a2-alert a2-alert-danger">{{ session('error') }}</div>
+    @endif
+
     @if($errors->any())
         <div class="a2-alert a2-alert-danger">
             @foreach($errors->all() as $error)
@@ -338,6 +342,35 @@
                 @endif
             @endif
         </div>
+
+        {{-- The screen took two whole roots apart on 2026-08-11 — «أنواع الأبواب
+             والشبابيك» onto 42 factories, «أنواع الأجهزة الرياضية» onto 69
+             companies — each child losing its own trade list in the same write.
+             A save that empties a vocabulary on more than five children now
+             comes back once and says whose, before it happens. --}}
+        @if (session('confirm_wide_withdrawal'))
+            @php($warn = session('confirm_wide_withdrawal'))
+            <div class="a2-card" style="border:2px solid #b45309;background:#fffbeb;margin-bottom:16px;">
+                <h2 class="a2-section-title" style="color:#92400e;">
+                    {{ __('هذا الحفظ يُسكِت :count قسمًا', ['count' => $warn['children']]) }}
+                </h2>
+
+                <p class="a2-muted" style="margin-bottom:8px;">
+                    {{ __('بعد الحفظ لن يستطيع أيٌّ منها أن يذكر شيئًا من هذه المجموعات:') }}
+                </p>
+
+                <p style="font-weight:600;margin-bottom:12px;">{{ implode('، ', $warn['groups']) }}</p>
+
+                <p class="a2-muted" style="margin-bottom:12px;">
+                    {{ __('راجع الأقسام المحددة وطريقة التطبيق. إن كان هذا مقصودًا، أكّده.') }}
+                </p>
+
+                <label class="a2-check-card" style="display:inline-flex;">
+                    <input type="checkbox" name="confirm_wide_withdrawal" value="1">
+                    <span>{{ __('نعم، اسحب هذه المجموعات من كل الأقسام المحددة') }}</span>
+                </label>
+            </div>
+        @endif
 
         <div class="a2-card">
             <button type="submit" class="a2-btn a2-btn-primary">

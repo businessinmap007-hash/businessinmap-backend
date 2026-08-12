@@ -254,6 +254,97 @@ class CategoryChildOptionsBulkTest extends TestCase
         $this->assertNotContains($optionIds[2], $now, 'the removed option survived');
     }
 
+    /**
+     * The guard written after this screen took two whole roots apart.
+     *
+     * On 2026-08-11 it wrote «أنواع الأبواب والشبابيك» onto 42 of مصانع's 44
+     * children and «أنواع الأجهزة الرياضية» onto 69 of شركات's 70, each losing
+     * its own trade list in the same write. A save that empties a vocabulary on
+     * more than five children now comes back once and names the groups.
+     */
+    public function test_a_root_wide_withdrawal_stops_to_ask(): void
+    {
+        $rootId = (int) DB::table('category_parent_child')
+            ->select('parent_id', DB::raw('COUNT(*) as n'))
+            ->groupBy('parent_id')->orderByDesc('n')->value('parent_id');
+
+        // Children of that root that actually carry something to lose.
+        $childIds = DB::table('category_parent_child as pc')
+            ->join('category_child_option as co', 'co.child_id', '=', 'pc.child_id')
+            ->where('pc.parent_id', $rootId)
+            ->whereIn('co.category_id', [0, $rootId])
+            ->distinct()->limit(10)->pluck('pc.child_id')->all();
+
+        $this->assertGreaterThan(5, count($childIds), 'need a root wide enough to trip the guard');
+
+        // One option ticked, replace mode: exactly the shape of the accident.
+        $optionId = (int) DB::table('category_child_option')
+            ->whereIn('child_id', $childIds)->value('option_id');
+
+        $before = DB::table('category_child_option')->whereIn('child_id', $childIds)->count();
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.category-child-options.bulk.update'), [
+                'parent_id' => $rootId,
+                'child_ids' => $childIds,
+                'option_ids' => [$optionId],
+                'mode' => 'replace',
+            ])
+            ->assertSessionHas('confirm_wide_withdrawal');
+
+        $this->assertSame(
+            $before,
+            DB::table('category_child_option')->whereIn('child_id', $childIds)->count(),
+            'the guard warned and wrote anyway'
+        );
+
+        // Confirmed, the same save goes through — the guard asks once.
+        $this->actingAs($this->admin())
+            ->post(route('admin.category-child-options.bulk.update'), [
+                'parent_id' => $rootId,
+                'child_ids' => $childIds,
+                'option_ids' => [$optionId],
+                'mode' => 'replace',
+                'confirm_wide_withdrawal' => 1,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertLessThan(
+            $before,
+            DB::table('category_child_option')->whereIn('child_id', $childIds)->count()
+        );
+    }
+
+    /**
+     * «استبدال بالكامل» with nothing ticked, across a selection, is never what
+     * anyone means — so it is refused outright rather than offered a checkbox.
+     * On ONE child it stays legal: that is how a child is deliberately emptied.
+     */
+    public function test_replacing_many_children_with_nothing_is_refused(): void
+    {
+        $rootId = (int) DB::table('category_parent_child')
+            ->select('parent_id', DB::raw('COUNT(*) as n'))
+            ->groupBy('parent_id')->orderByDesc('n')->value('parent_id');
+
+        $childIds = DB::table('category_parent_child')->where('parent_id', $rootId)
+            ->limit(3)->pluck('child_id')->all();
+
+        $before = DB::table('category_child_option')->whereIn('child_id', $childIds)->count();
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.category-child-options.bulk.update'), [
+                'parent_id' => $rootId,
+                'child_ids' => $childIds,
+                'mode' => 'replace',
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(
+            $before,
+            DB::table('category_child_option')->whereIn('child_id', $childIds)->count()
+        );
+    }
+
     /** Saving with no child picked must say so in Arabic, not in English. */
     public function test_saving_with_no_child_names_the_problem(): void
     {

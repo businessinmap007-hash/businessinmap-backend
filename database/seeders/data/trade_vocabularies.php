@@ -257,5 +257,45 @@ return [
                 'ملابس وأحذية رياضية' => 'Sportswear & Trainers',
             ],
         ],
+
+        /*
+        | «شركات بها ابن اسمه المونتال وهو لبيع قطاعات الالمونتال نفسها وليس
+        |  الشباك والباب» — owner, 2026-08-12.
+        |
+        | «ألمونتال» #17 had been given «أنواع الأبواب والشبابيك», seven of its
+        | sixteen rows, because the two trades stand next to each other. They are
+        | not the same trade: this one sells the EXTRUSION — by the metre, by the
+        | kilo, by the system — to the workshop that then makes the window. Its
+        | customer asks for a thermal-break section, not for a shutter.
+        |
+        | A `modifier` and not a `line`, by the goods rule: it carries `retail`
+        | under every root it stands under, so the priced rows are catalog
+        | products and this says what the trade DEALS IN — «ماركات السيارات»
+        | again. The door list is a `line` precisely because a doors business
+        | prices «شاتر كهربائي» by the leaf with no catalog behind it.
+        |
+        | The door list is withdrawn from it in `child_option_scopes.php`, the
+        | same declared empty «طباعة مواد تعبئة وتغليف» #232 has: it PRINTS
+        | packaging, it does not SELL it.
+        */
+        [
+            'name_ar' => 'قطاعات ومنتجات الألومنيوم',
+            'name_en' => 'Aluminium Profiles & Products',
+            'price_role' => 'modifier',
+            'children' => ['ألمونتال'],
+            'options' => [
+                'قطاعات ألومنيوم' => 'Aluminium Profiles',
+                'قطاعات سحب' => 'Sliding Profiles',
+                'قطاعات مفصلية' => 'Casement Profiles',
+                'قطاعات ثرمال بريك' => 'Thermal Break Profiles',
+                'قطاعات كيرتن وول' => 'Curtain Wall Profiles',
+                'شرائح ولوفر' => 'Louvre Slats',
+                'ألواح كومبوزيت' => 'Composite Panels',
+                'زوايا ووصلات' => 'Corners & Cleats',
+                'كاوتش وجوانات' => 'Gaskets & Seals',
+                'إكسسوارات ومقابض ألومنيوم' => 'Aluminium Hardware',
+                'ألومنيوم خام وخردة' => 'Raw & Scrap Aluminium',
+            ],
+        ],
     ],
 ];

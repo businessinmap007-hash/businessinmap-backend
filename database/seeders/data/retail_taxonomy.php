@@ -98,6 +98,10 @@ return [
              * had no category for timber at all. The option list said what he
              * deals in; nothing let him sell it.
              */
+            // The extrusion, not the finished window: «ألمونتال» #17 took مصانع
+            // on 2026-08-12 and this branch carried no aluminium type at all,
+            // so it was offered the whole shelf — paints, rebar, marble.
+            'aluminium_profiles' => ['قطاعات ألومنيوم', 'Aluminium Profiles'],
             'timber_boards' => ['أخشاب وألواح', 'Timber & Boards'],
             /*
              * And the family that is neither timber nor stone: «بديل الخشب»

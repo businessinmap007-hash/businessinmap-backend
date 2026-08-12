@@ -261,4 +261,24 @@ return [
     'قطع الغيار حسب الآلة' => [
         263 => [1742, 1743, 1744, 1745, 1746, 1747, 1748],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | أنواع الأبواب والشبابيك
+    |--------------------------------------------------------------------------
+    | «المونتال … هو لبيع قطاعات الالمونتال نفسها وليس الشباك والباب» — owner,
+    | 2026-08-12.
+    |
+    | «ألمونتال» #17 had seven of the sixteen door types because the two trades
+    | stand beside each other. It sells the EXTRUSION to the workshop that makes
+    | the window; it does not make the window. Its own list is «قطاعات ومنتجات
+    | الألومنيوم», written the same day.
+    |
+    | The second declared empty in this file, and for the same reason as the
+    | first: «طباعة مواد تعبئة وتغليف» #232 PRINTS packaging, it does not SELL
+    | it. A merchant's own tick still outranks this, as everywhere else.
+    */
+    'أنواع الأبواب والشبابيك' => [
+        17 => [],
+    ],
 ];

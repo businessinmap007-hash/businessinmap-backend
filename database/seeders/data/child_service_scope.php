@@ -66,5 +66,17 @@ return [
         // for»). The ref was not moved with it, so this seeder was creating a
         // config for a (root, child) pairing that does not exist.
         'arts-entertainment:271', // استوديوهات
+        /*
+         * «ألمونتال» #17 sells the extrusion, and on 2026-08-12 its vocabulary
+         * stopped being «أنواع الأبواب والشبابيك» — a `line` group whose rows
+         * doubled as its bookable units — and became «قطاعات ومنتجات الألومنيوم»,
+         * a modifier, because the priced rows are catalog products.
+         *
+         * What is left to book is a visit: a customer measures an opening with
+         * the supplier, or the supplier quotes on site. That is the business,
+         * not object #3 in an inventory, so the booking stops demanding units.
+         */
+        'companies:17',
+        'exhibitions:17',
     ],
 ];

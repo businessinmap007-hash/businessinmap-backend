@@ -307,6 +307,10 @@ return [
         'أصناف المنتجات الغذائية', // زيوت وسمن ≠ أغذية أطفال
         'أنواع الأجهزة الكهربائية', // إصلاح ثلاجة ≠ إصلاح مكيف
         'أنواع الأجهزة الرياضية',  // مشاية ≠ دمبل
+        // The extrusion, not the finished opening: «أنواع الأبواب والشبابيك» is
+        // a line because a doors business prices a shutter by the leaf, while a
+        // profile is a catalog product sold by the metre.
+        'قطاعات ومنتجات الألومنيوم',
     ],
 
     /*

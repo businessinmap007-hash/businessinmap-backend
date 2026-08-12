@@ -170,6 +170,14 @@ return [
      * board.
      */
     'أخشاب' => ['timber_boards', 'wood_marble_alternatives', 'carpentry_supplies'],
+    /*
+     * «ألمونتال» #17 stands under four roots on two different branches — a
+     * home_furnishings shop under المحلات، معارض، شركات and a building_hardware
+     * factory under مصانع since 2026-08-12. This map is per CHILD and intersects
+     * with whatever branch the root gives it, so both are named: the shop keeps
+     * cookware, the factory gets profiles, and neither is offered the other's.
+     */
+    'ألمونتال' => ['aluminium_profiles', 'aluminum_cookware'],
     'طوب' => ['cement_building'],
     // A marble yard sells the substitute beside the stone; the customer who
     // cannot afford the slab asks for the sheet in the same visit.

@@ -228,6 +228,58 @@ class DoorWindowTradeTest extends TestCase
         }
     }
 
+    /**
+     * «المونتال … لبيع قطاعات الالمونتال نفسها وليس الشباك والباب» — owner,
+     * 2026-08-12.
+     *
+     * «ألمونتال» #17 had been given seven of the sixteen door types because the
+     * two trades stand beside each other. They are one step apart, not one
+     * trade: this one sells the EXTRUSION to the workshop that then makes the
+     * window. So it has its own list, and the door list is a declared empty in
+     * `child_option_scopes.php`.
+     *
+     * It also took مصانع that day — somebody presses the profile before anybody
+     * wholesales it — and the standing is only real if it can sell there.
+     */
+    public function test_the_extrusion_trade_is_not_the_window_trade(): void
+    {
+        $upvc = $this->childId('ألمونتال');
+
+        $this->assertSame([], $this->typesOf('ألمونتال'), 'the extrusion trade kept the door list');
+
+        $profiles = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $upvc)
+            ->where('g.name_ar', 'قطاعات ومنتجات الألومنيوم')
+            ->pluck('o.name_ar');
+
+        $this->assertContains('قطاعات ثرمال بريك', $profiles);
+
+        // Shared, so the shop, the showroom, the wholesaler and now the factory
+        // all name the same profiles — the «ماركات السيارات» rule.
+        $this->assertSame([0], DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $upvc)->where('g.name_ar', 'قطاعات ومنتجات الألومنيوم')
+            ->distinct()->pluck('co.category_id')->map(fn ($id) => (int) $id)->all());
+
+        $factories = $this->rootId('factories');
+
+        $this->assertTrue(
+            DB::table('category_parent_child')->where('parent_id', $factories)
+                ->where('child_id', $upvc)->exists(),
+            'ألمونتال did not take مصانع'
+        );
+
+        $sells = DB::table('category_service_configs as c')
+            ->join('platform_services as s', 's.id', '=', 'c.platform_service_id')
+            ->where('c.child_id', $upvc)->where('c.category_id', $factories)
+            ->where('c.is_active', 1)->pluck('s.key')->all();
+
+        $this->assertContains('retail', $sells, 'a standing that can sell nothing is not a standing');
+    }
+
     /** The workshop that makes them says the same thing the factory says. */
     public function test_the_workshop_carries_the_same_list(): void
     {

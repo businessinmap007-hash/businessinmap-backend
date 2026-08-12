@@ -281,6 +281,10 @@ return [
         // «بي في سي» folded into «باب وشباك» on 2026-08-12 — it carried this
         // exact branch, which is half of why the two were the same child.
         'باب وشباك' => ['building_hardware'],
+        // «ألمونتال» #17 took this root on 2026-08-12. Under المحلات it is a
+        // home_furnishings shop (cookware beside chandeliers); the FACTORY form
+        // of it presses profiles, which is a building material.
+        'ألمونتال' => ['building_hardware'],
         'طوب' => ['building_hardware'],
         'أدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],

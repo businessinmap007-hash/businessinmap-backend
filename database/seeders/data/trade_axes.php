@@ -145,10 +145,38 @@ return [
             'roots' => [23, 22, 17],
             'axis_groups' => ['أنواع الأبواب والشبابيك'],
             'retire_children' => [],
+            // «ألمونتال» #17 is NOT listed as a child of this axis. It sells
+            // the extrusion, not the window — see its own entry below.
             // #23 أبواب مصفحة stands under شركات, #51 مستلزمات نجارة under
             // المحلات; both sell (delivery + offers + retail) exactly as a
             // doors business would.
             'donor_children' => [23, 51],
+        ],
+
+        /*
+        | «واضف نفس الابن الى المصانع» — owner, 2026-08-12.
+        |
+        | «ألمونتال» #17 stood under شركات، معارض، المحلات and not under مصانع,
+        | which is the one root an extrusion trade most obviously belongs to:
+        | somebody presses the profile before anybody wholesales it. Its three
+        | standings all carry retail, so the new one must too, or a merchant
+        | registering there gets a shopfront that can sell nothing — the same
+        | trap the intersection fallback set for «باب وشباك» above.
+        |
+        | «باب وشباك» #50 is the donor: it is the nearest trade that already
+        | sells from مصانع, with retail + delivery + offers active there.
+        |
+        | The two trades keep their own words. #17's axis is «قطاعات ومنتجات
+        | الألومنيوم» (the extrusion), #50's is «أنواع الأبواب والشبابيك» (the
+        | finished opening), and `child_option_scopes.php` holds #17 off the
+        | second.
+        */
+        'ألمونتال' => [
+            'keep_child_id' => 17,
+            'roots' => [23, 22, 21, 17],
+            'axis_groups' => ['قطاعات ومنتجات الألومنيوم'],
+            'retire_children' => [],
+            'donor_children' => [50],
         ],
     ],
 ];

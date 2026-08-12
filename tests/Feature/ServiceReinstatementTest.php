@@ -161,7 +161,9 @@ class ServiceReinstatementTest extends TestCase
         $rootId = $this->rootId('companies');
         $schedules = (int) DB::table('platform_services')->where('key', 'schedules')->value('id');
 
-        foreach (['معدات ثقيلة', 'شحن بري وبحري وجوى', 'نقل دولي'] as $name) {
+        // «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12 (owner) —
+        // one trade under two names, and «دولي» is a scope it already answers.
+        foreach (['معدات ثقيلة', 'شحن بري وبحري وجوى'] as $name) {
             $this->assertTrue(
                 DB::table('category_platform_services')->where('category_id', $rootId)
                     ->where('child_id', $this->childId($name, $rootId))

@@ -67,7 +67,7 @@ return [
         | «then you must not deliver» from it is.
         */
         'معدات ثقيلة',
-        'نقل دولي',
+        // «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12.
         'شحن بري وبحري وجوى',
     ],
 ];

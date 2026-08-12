@@ -28,7 +28,13 @@ class VehicleDealTypeTest extends TestCase
 
     private const SHOWROOMS = [188, 53, 189]; // معرض سيارات، سيارات، معرض موتوسيكلات
 
-    private const REAL_ESTATE = [238, 517, 518, 522];
+    /*
+     * #238 «تسويق عقاري» folded into #517 «مكتب عقاري» on 2026-08-12 (owner):
+     * one trade under two names, and #517 is the platform's declared
+     * `business_migration_target`. It reaches no root, so a link table cannot
+     * keep anything away from it.
+     */
+    private const REAL_ESTATE = [517, 518, 522];
 
     private function group(): ?object
     {

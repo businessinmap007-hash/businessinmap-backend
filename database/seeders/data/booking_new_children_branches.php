@@ -20,7 +20,7 @@ return [
     ],
     'property-and-land' => [
         'مكتب عقاري' => ['real_estate'],
-        'تسويق عقاري' => ['real_estate'],
+        // «تسويق عقاري» folded into «مكتب عقاري» on 2026-08-12.
         'مطور عقاري' => ['real_estate'],
         'مالك عقار' => ['real_estate'],
     ],

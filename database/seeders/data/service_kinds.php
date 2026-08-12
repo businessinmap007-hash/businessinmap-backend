@@ -311,7 +311,7 @@ return [
             517 => ['menu_properties'],  // مكتب عقاري
             518 => ['menu_properties'],  // مطور عقاري
             522 => ['menu_properties'],  // مالك عقار
-            238 => ['menu_properties'],  // تسويق عقاري
+            // #238 تسويق عقاري folded into #517 مكتب عقاري on 2026-08-12.
             53 => ['menu_vehicles'],     // سيارات
             188 => ['menu_vehicles'],    // معرض سيارات
             189 => ['menu_vehicles'],    // معرض موتوسيكلات

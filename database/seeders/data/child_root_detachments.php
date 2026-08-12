@@ -298,4 +298,42 @@ return [
         'reassign_to' => null,
         'why' => 'الفرق عن «مواشي» صار صفًّا في «أنواع الثروة الحيوانية والسمكية»',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Two more merges the owner approved on 2026-08-12
+    |--------------------------------------------------------------------------
+    | «نعم نفذها ما عدا السيارات». Both keepers already carry the folded child's
+    | ENTIRE vocabulary and the same services on the same branches — which is
+    | what the merge audit found and all it can find.
+    |
+    | ── freight ───────────────────────────────────────────────────────────
+    | «نقل دولي» #154 holds no account. It is not renamed away: «شحن بري وبحري
+    | وجوى» already names every MODE there is, and «دولي» is a SCOPE — the
+    | keeper answers it on «نطاق التعامل» (تصدير · إستيراد) and already carries
+    | the `delivery_international` branch. Renaming for a word the child can
+    | already say would have meant editing five files for nothing.
+    |
+    | ── real estate ───────────────────────────────────────────────────────
+    | «تسويق عقاري» #238 has the MORE accounts of the two (16 against 7), and
+    | is still the one that folds. «مكتب عقاري» #517 is the platform's declared
+    | `business_migration_target` in `real_estate_taxonomy.php` — the row every
+    | migrating estate business is already sent to — and three tests name it.
+    | Folding the target into the source would have unwired all of that to keep
+    | a name that means the same trade. The sixteen accounts move.
+    |
+    | «مالك عقار» #522 stays. An owner letting his own flat is not an agent.
+    */
+    [
+        'child_name_ar' => 'نقل دولي',
+        'root_slug' => 'companies',
+        'reassign_to' => null,
+        'why' => 'نفس المعجم ونفس الخدمات — و«دولي» نطاق تعامل لا وسيلة نقل',
+    ],
+    [
+        'child_name_ar' => 'تسويق عقاري',
+        'root_slug' => 'property-and-land',
+        'reassign_to' => 'مكتب عقاري',
+        'why' => 'تجارة واحدة باسمين — و«مكتب عقاري» هو الوجهة المعلنة في خريطة العقارات',
+    ],
 ];

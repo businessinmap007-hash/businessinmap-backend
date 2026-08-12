@@ -298,7 +298,8 @@ return [
         'مواد غذائية ومنظفات' => ['delivery_freight', 'delivery_coldchain'],
         'مواشي وأرانب' => ['delivery_freight', 'delivery_coldchain'],
         'نجف' => ['delivery_freight'],
-        'نقل دولي' => ['delivery_freight', 'delivery_international'],
+        // «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12 — it
+        // already carries delivery_international, which is the whole of it.
         // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
         // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
         // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing

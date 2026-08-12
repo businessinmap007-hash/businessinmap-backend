@@ -36,6 +36,10 @@ class MedicineDictionaryController extends Controller
             'q' => $q,
             'total' => DB::table('medicines')->count(),
             'prescribed' => DB::table('medicines')->where('uses_count', '>', 0)->count(),
+            // What is left for a human: no stated strength and none readable
+            // out of the name either.
+            'missingStrength' => DB::table('medicines')
+                ->whereNull('strength')->whereNull('strength_derived')->count(),
         ]);
     }
 
@@ -95,6 +99,42 @@ class MedicineDictionaryController extends Controller
         $output = trim(Artisan::output());
 
         return back()->with($code === 0 ? 'success' : 'error', $output !== '' ? $output : __('تعذّرت قراءة الملف.'));
+    }
+
+    /**
+     * The whole dictionary as one sheet.
+     *
+     * 42% of the register states no strength anywhere — not in a column, not in
+     * the name — and no parser invents one. Nor can a parser tell «AUGMENTIN 1
+     * GM» from «A.ONE SOAP 100 GM». Both are jobs for someone who knows what
+     * the product is, so the sheet goes out, gets edited, and comes back
+     * through the importer — the `id` column is what lands each correction on
+     * the row it was made for.
+     */
+    public function export(Request $request)
+    {
+        $only = $request->boolean('missing_strength');
+        $name = 'medicines-' . ($only ? 'missing-strength-' : '') . now()->toDateString() . '.csv';
+
+        return response()->streamDownload(function () use ($only) {
+            $out = fopen('php://output', 'w');
+
+            // Excel reads a CSV as the local codepage without this, and every
+            // Arabic name arrives as mojibake. The importer strips it coming back.
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, Medicine::SHEET_COLUMNS);
+
+            Medicine::query()
+                ->when($only, fn ($q) => $q->whereNull('strength')->whereNull('strength_derived'))
+                ->orderBy('name')
+                ->chunk(1000, function ($rows) use ($out) {
+                    foreach ($rows as $row) {
+                        fputcsv($out, $row->toSheetRow());
+                    }
+                });
+
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**

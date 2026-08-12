@@ -72,9 +72,41 @@
             </div>
 
             <div class="a2-muted a2-mt-12" style="font-size:12px;">
-                {{ __('إعادة رفع نفس الملف آمنة — الاسم والتركيز معًا هما الهوية، فلا يتكرر صنف.') }}
+                {{ __('إعادة رفع نفس الملف آمنة — عمود id يوصل كل تصحيح إلى صفّه، وبدونه الاسم والتركيز معًا هما الهوية.') }}
             </div>
         </form>
+    </div>
+
+    {{-- «حتى احصل على شيت كامل بالاسم والتركيزات».
+
+         42% of the register states no strength anywhere — not in a column, not
+         in the name — and no parser invents one. Nor can a parser tell
+         «AUGMENTIN 1 GM» from «A.ONE SOAP 100 GM». Both are jobs for a human,
+         so the sheet goes out, gets edited, and comes back up the form above:
+         the `id` column is what lands each correction on its own row. --}}
+    <div class="a2-card" style="margin-bottom:16px;">
+        <div class="a2-section-head">
+            <div>
+                <h2 class="a2-section-title">{{ __('تنزيل شيت للمراجعة') }}</h2>
+                <div class="a2-section-subtitle">
+                    {{ __('يفتح في إكسل بالعربية سليمة. صحّح عمود «strength» ثم ارفعه من الأعلى — عمود id يوصل كل تصحيح إلى صفّه.') }}
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a class="a2-btn a2-btn-primary" href="{{ route('admin.medicines.export') }}">
+                {{ __('الشيت كاملًا') }} ({{ number_format($total) }})
+            </a>
+
+            <a class="a2-btn a2-btn-ghost" href="{{ route('admin.medicines.export', ['missing_strength' => 1]) }}">
+                {{ __('الناقص تركيزه فقط') }} ({{ number_format($missingStrength) }})
+            </a>
+        </div>
+
+        <div class="a2-muted a2-mt-12" style="font-size:12px;">
+            {{ __('التركيز المستخرَج من الاسم مُعلَّم في العمود strength_is_derived — قراءةٌ للاسم لا تصريحٌ من المصدر، وتحتاج عينًا بشرية.') }}
+        </div>
     </div>
 
     {{-- «اعطنى فيو ارى منهم الدواء واجرب البحث».

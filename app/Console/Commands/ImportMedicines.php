@@ -152,6 +152,8 @@ class ImportMedicines extends Command
         $created = 0;
         $enriched = 0;
         $untouched = 0;
+        $failed = 0;
+        $rejected = [];
         $captured = now()->toDateString();
         $source = $this->option('source') ?: basename($path);
         $bar = $this->output->createProgressBar(count($rows));
@@ -163,6 +165,8 @@ class ImportMedicines extends Command
             foreach ($chunk as $row) {
                 $extra = array_intersect_key($row, array_flip(Medicine::ENRICHABLE));
 
+                unset($extra['id']);
+
                 if ($extra !== []) {
                     $extra['source'] = $source;
 
@@ -173,10 +177,16 @@ class ImportMedicines extends Command
                     }
                 }
 
-                $existing = Medicine::query()
-                    ->where('name', $row['name'])
-                    ->where('strength', $row['strength'])
-                    ->first();
+                // An `id` targets a row exactly, which is what makes the
+                // export → edit → import loop lossless. Without it a corrected
+                // strength does not match (name, strength) any more and lands
+                // as a TWIN of the row it was meant to fix.
+                $existing = ! empty($row['id'])
+                    ? Medicine::query()->find((int) $row['id'])
+                    : Medicine::query()
+                        ->where('name', $row['name'])
+                        ->where('strength', $row['strength'])
+                        ->first();
 
                 if (! $existing) {
                     Medicine::query()->create($extra + [
@@ -201,6 +211,15 @@ class ImportMedicines extends Command
                 // blanks and corrects stale facts, and touches neither the row's
                 // identity nor `uses_count`: that is the record of what doctors
                 // did, and no file may rewrite it.
+                // A reviewer's whole reason for opening the sheet is usually
+                // the strength, so a row addressed by id may correct it — and
+                // then it is STATED, not derived, whoever typed it.
+                if (! empty($row['id']) && $row['strength'] !== null
+                    && (string) $existing->strength !== (string) $row['strength']) {
+                    $extra['strength'] = $row['strength'];
+                    $extra['strength_is_derived'] = false;
+                }
+
                 $changes = array_filter(
                     $extra,
                     fn ($value, $column) => $value !== null && (string) $existing->{$column} !== (string) $value,
@@ -208,8 +227,17 @@ class ImportMedicines extends Command
                 );
 
                 if ($changes !== []) {
-                    $existing->forceFill($changes)->save();
-                    $enriched++;
+                    try {
+                        $existing->forceFill($changes)->save();
+                        $enriched++;
+                    } catch (\Throwable $e) {
+                        // A reviewer's corrected strength can collide with the
+                        // (name, strength) key when a twin already holds it.
+                        // One bad cell must not abandon the other 25,000 rows
+                        // twenty thousand in — it is counted and named instead.
+                        $rejected[] = $row['name'];
+                        $failed++;
+                    }
                 } else {
                     $untouched++;
                 }
@@ -220,7 +248,12 @@ class ImportMedicines extends Command
 
         $bar->finish();
         $this->newLine(2);
-        $this->info("Added {$created} · enriched {$enriched} · unchanged {$untouched}");
+        $this->info("Added {$created} · enriched {$enriched} · unchanged {$untouched}"
+            . ($failed ? " · refused {$failed}" : ''));
+
+        foreach (array_slice($rejected, 0, 10) as $name) {
+            $this->warn('  refused: ' . $name);
+        }
 
         return self::SUCCESS;
     }
@@ -250,6 +283,14 @@ class ImportMedicines extends Command
         $strengthAt = $this->columnFor($header, self::STRENGTH_KEYS);
 
         $extraAt = [];
+
+        // Not a data column — the address of a row this sheet came FROM.
+        $idAt = $this->columnFor($header, ['id', 'medicine_id']);
+
+        if ($idAt !== null) {
+            $extraAt['id'] = $idAt;
+        }
+
         foreach (self::EXTRA_KEYS as $column => $keys) {
             $at = $this->columnFor($header, $keys);
 
@@ -311,7 +352,8 @@ class ImportMedicines extends Command
             if (is_string($entry)) {
                 $row = $this->row($entry, null);
             } elseif (is_array($entry)) {
-                $extra = [];
+                $extra = ['id' => $this->pick($entry, ['id', 'medicine_id'])];
+
                 foreach (self::EXTRA_KEYS as $column => $keys) {
                     $extra[$column] = $this->pick($entry, $keys);
                 }
@@ -388,6 +430,10 @@ class ImportMedicines extends Command
         $strength = ($strength === '' || mb_strlen($strength) > 120) ? null : $strength;
 
         $row = ['name' => $name, 'strength' => $strength];
+
+        if (! empty($extra['id']) && ctype_digit((string) $extra['id'])) {
+            $row['id'] = (int) $extra['id'];
+        }
 
         foreach (self::EXTRA_KEYS as $column => $ignored) {
             $value = trim((string) ($extra[$column] ?? ''));

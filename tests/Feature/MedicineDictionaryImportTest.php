@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\DeriveMedicineStrength;
 use App\Models\Medicine;
 use App\Models\User;
 use App\Support\AdminAbility;
@@ -356,6 +357,112 @@ class MedicineDictionaryImportTest extends TestCase
         @unlink($path);
 
         $this->assertNull(Medicine::query()->where('name', 'ZzNoPrice')->value('price_egp'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | «شيت كامل بالاسم والتركيزات» — export, edit, import
+    |--------------------------------------------------------------------------
+    | The register states no strength as a column: it writes it into the name,
+    | recoverable for 58% of rows. The other 42% — and every «A.ONE SOAP 100 GM»
+    | a parser cannot tell from «AUGMENTIN 1 GM» — are a human's job, so the
+    | sheet has to go out and come back.
+    */
+    public function test_the_strength_is_read_out_of_the_name(): void
+    {
+        foreach ([
+            'ZzD AUG 1 GM 14 F.C.TABS.' => '1 GM',
+            'ZzD BRU 100MG/5ML SYRUP 150ML' => '100MG/5ML',
+            'ZzD CAT 25 MG 20 SUGAR C.TABS.' => '25 MG',
+            'ZzD VIT 50000 IU 10 CAPS.' => '50000 IU',
+        ] as $name => $expected) {
+            $this->assertSame($expected, DeriveMedicineStrength::read($name), $name);
+        }
+    }
+
+    /**
+     * A bottle is not a dose.
+     *
+     * A first pass allowed a bare ML and claimed 82% coverage, a quarter of
+     * which was bottle sizes — «SUSP. 120 ML» is how much liquid you get, and
+     * «20 F.C.TABS.» is how many tablets.
+     */
+    public function test_a_pack_size_is_never_read_as_a_strength(): void
+    {
+        foreach (['ZzP SUSP. 120 ML', 'ZzP 20 F.C.TABS.', 'ZzP GEL 100 ML'] as $name) {
+            $this->assertNull(DeriveMedicineStrength::read($name), $name);
+        }
+    }
+
+    /** A parsed strength never sits where a stated one goes. */
+    public function test_a_derived_strength_stays_out_of_the_identity_column(): void
+    {
+        $row = Medicine::create(['name' => 'ZzDerive 250 MG 10 TABS.', 'strength' => null, 'uses_count' => 0]);
+
+        Artisan::call('medicines:derive-strength');
+        $row->refresh();
+
+        $this->assertSame('250 MG', $row->strength_derived);
+        $this->assertTrue((bool) $row->strength_is_derived);
+
+        // (name, strength) is the row's identity and the importer matches on it.
+        // Writing a guess there would make every future import miss its own
+        // rows and duplicate all 25,000.
+        $this->assertNull($row->strength, 'a guess must never become half the identity');
+    }
+
+    public function test_the_sheet_carries_every_column_a_reviewer_needs(): void
+    {
+        Medicine::create(['name' => 'ZzSheet 5 MG', 'strength' => null, 'scientific_name' => 'ZZSHEETMOL', 'uses_count' => 0]);
+
+        $csv = $this->actingAs($this->admin())
+            ->get(route('admin.medicines.export'))
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv, 'Excel needs the BOM or Arabic arrives as mojibake');
+        $this->assertStringContainsString(implode(',', Medicine::SHEET_COLUMNS), $csv);
+        $this->assertStringContainsString('ZzSheet 5 MG', $csv);
+        $this->assertStringContainsString('ZZSHEETMOL', $csv);
+    }
+
+    /**
+     * The whole point of the id column.
+     *
+     * A reviewer fills in a strength and re-uploads. Matching on (name,
+     * strength) the row no longer matches itself — so the correction would land
+     * as a TWIN of the row it was meant to fix, and a 25,000-row sheet would
+     * double the dictionary.
+     */
+    public function test_a_corrected_strength_lands_on_its_own_row(): void
+    {
+        $row = Medicine::create(['name' => 'ZzFixMe SYRUP', 'strength' => null, 'uses_count' => 7]);
+
+        $path = $this->file('meds-fix.csv', "id,name,strength\n{$row->id},ZzFixMe SYRUP,120 MG/5 ML\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $this->assertSame(1, Medicine::query()->where('name', 'ZzFixMe SYRUP')->count(), 'no twin');
+
+        $row->refresh();
+        $this->assertSame('120 MG/5 ML', $row->strength);
+        $this->assertFalse((bool) $row->strength_is_derived, 'a human typed it — it is stated now, not derived');
+        $this->assertSame(7, (int) $row->uses_count, 'and the prescribing history is untouched');
+    }
+
+    /** Without an id the sheet still behaves as it always did. */
+    public function test_a_sheet_without_ids_still_matches_on_name_and_strength(): void
+    {
+        Medicine::create(['name' => 'ZzNoId 10 MG', 'strength' => null, 'uses_count' => 0]);
+
+        $path = $this->file('meds-noid.csv', "name,manufacturer\nZzNoId 10 MG,ZzMaker\n");
+
+        Artisan::call('medicines:import', ['file' => $path]);
+        @unlink($path);
+
+        $this->assertSame(1, Medicine::query()->where('name', 'ZzNoId 10 MG')->count());
+        $this->assertSame('ZzMaker', Medicine::query()->where('name', 'ZzNoId 10 MG')->value('manufacturer'));
     }
 
     /** A drug already written into someone's prescription is not deletable. */

@@ -13,6 +13,8 @@ class Medicine extends Model
     protected $fillable = [
         'name',
         'strength',
+        'strength_derived',
+        'strength_is_derived',
         'scientific_name',
         'name_ar',
         'manufacturer',
@@ -27,6 +29,7 @@ class Medicine extends Model
 
     protected $casts = [
         'uses_count' => 'integer',
+        'strength_is_derived' => 'boolean',
         'price_egp' => 'decimal:2',
         'price_captured_at' => 'date',
     ];
@@ -42,6 +45,39 @@ class Medicine extends Model
         'scientific_name', 'name_ar', 'manufacturer',
         'drug_class', 'route', 'price_egp', 'price_captured_at', 'source',
     ];
+
+    /**
+     * The dictionary as a reviewer's sheet.
+     *
+     * Owned by the model rather than by either writer: the console command and
+     * the admin download both emit this, and two writers that could disagree
+     * about the column order would hand back files the importer maps
+     * differently. `id` leads because it is what makes a correction land on the
+     * row it was made for.
+     */
+    public const SHEET_COLUMNS = [
+        'id', 'name', 'strength', 'strength_derived', 'strength_is_derived',
+        'scientific_name', 'manufacturer', 'drug_class', 'route',
+        'price_egp', 'price_captured_at', 'uses_count', 'source',
+    ];
+
+    /** This row, in SHEET_COLUMNS order. */
+    public function toSheetRow(): array
+    {
+        $row = [];
+
+        foreach (self::SHEET_COLUMNS as $column) {
+            $value = $this->{$column};
+
+            $row[] = match ($column) {
+                'strength_is_derived' => $value ? '1' : '',
+                'price_captured_at' => optional($value)->toDateString(),
+                default => $value,
+            };
+        }
+
+        return $row;
+    }
 
     /**
      * The typeahead a doctor sees, and the ONLY definition of it.

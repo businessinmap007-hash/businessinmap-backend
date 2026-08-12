@@ -154,6 +154,11 @@ class DatabaseSeeder extends Seeder
            // the coworking seeder, which closed the same gap on the same day.
            ChildTradeVocabulariesSeeder::class,
 
+           // Sixteen children that could say what they DO and not what they are
+           // made of, lent an existing list from a sibling. After the seeder
+           // above, because a donor must already hold what it lends.
+           ChildVocabularyBorrowSeeder::class,
+
            // «دفع مسبق» belongs to carriers. Last of the option seeders, so
            // whatever else granted the payment group has already run and this
            // has the final word.

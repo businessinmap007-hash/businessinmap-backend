@@ -128,7 +128,13 @@ class HospitalityOptionRestoreTest extends TestCase
         // option «تقسيط بدون فوائد» was replaced by the pair كاش + تقسيط. The
         // restore seeder still did not touch them — the totals moved underneath
         // it, which is what a hard-coded total costs and why it is worth it.
-        foreach (['فندق' => 44, 'شقق فندقية' => 28, 'منتجع' => 48, 'نُزل / هوستل' => 26] as $name => $expected) {
+        //
+        // And again on 2026-08-12: «تصنيف الإقامة» was lent to the four kinds of
+        // stay that never had it (ChildVocabularyBorrowSeeder), +7 each — so
+        // شقق فندقية 28→35 and نُزل 26→33, while فندق and منتجع already held it
+        // and did not move. The restore seeder is still not the one that wrote
+        // them, which is the whole point of the assertion.
+        foreach (['فندق' => 44, 'شقق فندقية' => 35, 'منتجع' => 48, 'نُزل / هوستل' => 33] as $name => $expected) {
             $this->assertSame(
                 $expected,
                 DB::table('category_child_option')->where('child_id', $this->childId($name))->count(),

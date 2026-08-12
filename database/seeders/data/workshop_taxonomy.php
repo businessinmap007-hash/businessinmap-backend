@@ -105,6 +105,17 @@ return [
                 'ترميم وإصلاح أثاث' => 'Furniture Restoration',
                 'ديكورات خشبية' => 'Wooden Decor',
                 'تفصيل غرف نوم' => 'Bedroom Sets To Order',
+                /*
+                 * 2026-08-12. «استرجي» (Wood Painter) and «أويمجى» (Wood
+                 * Carving) each answered with two rows, and the shortage was in
+                 * this list: a finisher's work is دوكو and ورنيش and تعتيق
+                 * before it is «دهان», and a carver's headline job in Egypt is
+                 * أرابيسك ومشربية, which nothing here could say.
+                 */
+                'رش دوكو' => 'Duco Spray Finishing',
+                'ورنيش وسيلر' => 'Varnish & Sealer',
+                'تعتيق وباتينا' => 'Antiquing & Patina',
+                'أرابيسك ومشربية' => 'Arabesque & Mashrabiya',
             ],
         ],
 

@@ -86,6 +86,17 @@ return [
                 'نحت وتشكيل' => 'Carving & Shaping',
                 'تكسير وإزالة' => 'Demolition & Removal',
                 'ترميم مباني' => 'Building Restoration',
+                /*
+                 * 2026-08-12. «مبيض محارة» and «تكسير ونحت» each answered with
+                 * TWO rows, and the shortage was in this list rather than in
+                 * either trade: a plasterer's day is بؤج وأوتار before it is
+                 * محارة, and half the demolition jobs on a finished building
+                 * are a core drill, not a hammer.
+                 */
+                'محارة جبس (بلاستر)' => 'Gypsum Plastering',
+                'بؤج وأوتار' => 'Plaster Screeds & Guides',
+                'طرطشة ورشة' => 'Spatter Dash Coat',
+                'قص وتخريم خرسانة' => 'Concrete Cutting & Coring',
             ],
         ],
 
@@ -185,9 +196,14 @@ return [
 
         // ── the four building trades ─────────────────────────────────────
         147 => ['أعمال البناء والمحارة' => ['مباني طوب', 'محارة وبياض', 'خرسانات', 'أساسات']],
-        220 => ['أعمال البناء والمحارة' => ['محارة وبياض', 'ترميم مباني']],
+        220 => ['أعمال البناء والمحارة' => [
+            'محارة وبياض', 'ترميم مباني',
+            // 2026-08-12: the three rows a plasterer's day actually runs on.
+            'محارة جبس (بلاستر)', 'بؤج وأوتار', 'طرطشة ورشة',
+        ]],
         179 => ['أعمال البناء والمحارة' => ['واجهات حجرية', 'حجر هاشمي', 'نحت وتشكيل', 'ترميم مباني']],
-        80 => ['أعمال البناء والمحارة' => ['تكسير وإزالة', 'نحت وتشكيل']],
+        // Half the demolition jobs on a finished building are a core drill.
+        80 => ['أعمال البناء والمحارة' => ['تكسير وإزالة', 'نحت وتشكيل', 'قص وتخريم خرسانة']],
 
         // ── the two flooring trades ──────────────────────────────────────
         106 => ['أعمال الأرضيات' => ['سيراميك وبورسلين', 'رخام وجرانيت', 'وزر وحوائط', 'ترميم أرضيات']],
@@ -201,10 +217,16 @@ return [
         287 => ['تخصصات ورش الأثاث' => ['تنجيد', 'كنب وركنات', 'ترميم وإصلاح أثاث']],
 
         // «Wood Carving». The trade name is colloquial; name_en read it.
-        299 => ['تخصصات ورش الأثاث' => ['حفر وأويما', 'ديكورات خشبية']],
+        // أرابيسك ومشربية added 2026-08-12 — the headline job of the trade,
+        // and nothing in the list could say it.
+        299 => ['تخصصات ورش الأثاث' => ['حفر وأويما', 'ديكورات خشبية', 'أرابيسك ومشربية']],
 
-        // «Wood Painter».
-        300 => ['تخصصات ورش الأثاث' => ['دهان وتلميع أثاث', 'ترميم وإصلاح أثاث']],
+        // «Wood Painter». Finishing is دوكو and ورنيش and تعتيق before it is
+        // «دهان»; the two rows it had named neither.
+        300 => ['تخصصات ورش الأثاث' => [
+            'دهان وتلميع أثاث', 'ترميم وإصلاح أثاث',
+            'رش دوكو', 'ورنيش وسيلر', 'تعتيق وباتينا',
+        ]],
 
         259 => [
             'تخصصات ورش المعادن' => [
@@ -236,7 +258,11 @@ return [
         ],
 
         // «Awnings worker».
-        26 => ['أنواع الأبواب والشبابيك' => ['سواتر ومظلات', 'شيش وحصيرة']],
+        26 => ['أنواع الأبواب والشبابيك' => [
+            'سواتر ومظلات', 'شيش وحصيرة',
+            // 2026-08-12: the trade is named «تنده» and could not say it.
+            'تندات ومظلات قماش', 'بيرجولات', 'مظلات انتظار سيارات',
+        ]],
 
         /*
          * ── two that had a vocabulary on the WRONG axis ──────────────────

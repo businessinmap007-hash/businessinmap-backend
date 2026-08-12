@@ -239,6 +239,14 @@ return [
                  */
                 'مطابخ ألومنيوم' => 'Aluminium Kitchens',
                 'مطابخ بي في سي' => 'UPVC Kitchens',
+                /*
+                 * «نجار تنده» #26 is named for a product this list could not
+                 * name: it had «سواتر ومظلات» and «شيش وحصيرة» and nothing that
+                 * says a fabric awning, which is the trade in its own name.
+                 */
+                'تندات ومظلات قماش' => 'Fabric Awnings',
+                'بيرجولات' => 'Pergolas',
+                'مظلات انتظار سيارات' => 'Car Park Shades',
             ],
         ],
 

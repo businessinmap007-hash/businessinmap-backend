@@ -48,6 +48,10 @@ class ImportMedicines extends Command
     private const NAME_KEYS = [
         'name', 'drug_name', 'medicine', 'medicine_name', 'drug', 'trade', 'trade_name',
         'brand', 'brand_name', 'generic_name', 'product', 'product_name', 'item_name',
+        // The EDA-shaped export: the registered commercial name, which is the
+        // one a doctor actually writes — «PANADOL EXTRA 20 F.C.TABS.» — pack and
+        // strength included, because that is how it appears on the box.
+        'commercial_name_en', 'commercial_name', 'trade_name_en',
         'اسم', 'الاسم', 'الدواء', 'اسم_الدواء', 'الاسم_التجاري', 'الصنف',
     ];
 

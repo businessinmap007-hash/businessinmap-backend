@@ -56,7 +56,8 @@
             'ungroupedOptions' => $ungroupedOptions ?? collect(),
             'selectedOptionIds' => $selectedOptionIds ?? [],
             'childCatalog' => $childCatalog ?? [],
-            'optionCatalog' => $optionCatalog ?? [],
+            'services' => $services ?? collect(),
+            'selectedServiceIds' => $selectedServiceIds ?? [],
             'submitLabel' => 'حفظ'
         ])
     </form>

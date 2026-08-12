@@ -103,18 +103,24 @@ class AppServiceProvider extends ServiceProvider
 
     private function shareAdminV2Data(): void
     {
-        View::composer('admin-v2.*', function ($view) {
-            $openDisputesCount = 0;
+        // Counted ONCE per request, not once per admin-v2 view: this composer
+        // fires for the layout, every partial and every component, so a page
+        // built from a dozen views ran the same COUNT a dozen times for one
+        // badge.
+        $openDisputes = null;
 
-            try {
-                $openDisputesCount = (int) Deposit::query()
-                    ->where('status', 'dispute')
-                    ->count();
-            } catch (\Throwable $e) {
-                $openDisputesCount = 0;
+        View::composer('admin-v2.*', function ($view) use (&$openDisputes) {
+            if ($openDisputes === null) {
+                try {
+                    $openDisputes = (int) Deposit::query()
+                        ->where('status', 'dispute')
+                        ->count();
+                } catch (\Throwable $e) {
+                    $openDisputes = 0;
+                }
             }
 
-            $view->with('openDisputesCount', $openDisputesCount);
+            $view->with('openDisputesCount', $openDisputes);
         });
     }
 

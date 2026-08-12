@@ -20,8 +20,17 @@
         : collect($selectedServiceIds ?? [])->map(fn ($v) => (int) $v)->filter()->values()->all();
 
     $childCatalogJson = json_encode($childCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $optionCatalogJson = json_encode($optionCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $serviceCatalogJson = json_encode($serviceCatalog ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    // The child this user already has, so opening the form costs no request.
+    // Built here rather than inline: @json() cannot parse a multi-line array
+    // literal — Blade ends the directive at the first ')'.
+    $catalogSeed = (int) ($user->category_child_id ?? 0) > 0
+        ? [(int) $user->category_child_id => [
+            'groups' => $groups ?? [],
+            'ungrouped' => $ungroupedOptions ?? [],
+            'services' => $services ?? [],
+        ]]
+        : (object) [];
 @endphp
 
 <div class="a2-card a2-card--section">
@@ -391,8 +400,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const servicesWrap = document.getElementById('business_services_wrap');
 
     const childCatalog = {!! $childCatalogJson ?: '{}' !!};
-    const optionCatalog = {!! $optionCatalogJson ?: '{}' !!};
-    const serviceCatalog = {!! $serviceCatalogJson ?: '{}' !!};
+
+    /*
+     * The option map for ALL 337 children used to ship with this form — four
+     * queries each to build, 1,399 queries and 3.1 seconds to open ONE user,
+     * and 668KB on the wire. The form shows one child at a time.
+     *
+     * It is fetched for the child actually chosen, and seeded below with the
+     * one the user already has, so opening the page asks for nothing and only
+     * CHANGING the specialty costs a request.
+     *
+     * route(.., false): an absolute URL from APP_URL points at a host the panel
+     * may not be served from, and the fetch dies cross-origin in silence.
+     */
+    const CATALOG_URL = @json(route('admin.users.catalog', [], false));
+
+    const catalog = @json($catalogSeed);
 
     let selectedOptions = @json(array_values($selectedIds));
     let selectedServices = @json(array_values($selectedServiceIdsNow));
@@ -406,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderOptions(childId) {
-        const payload = optionCatalog[String(childId || '')] || {groups: [], ungrouped: []};
+        const payload = catalog[String(childId || '')] || {groups: [], ungrouped: []};
         const groups = payload.groups || [];
         const ungrouped = payload.ungrouped || [];
 
@@ -458,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderServices(childId) {
-        const services = serviceCatalog[String(childId || '')] || [];
+        const services = (catalog[String(childId || '')] || {}).services || [];
 
         if (!services.length) {
             servicesWrap.innerHTML = '<div class="a2-muted">لا توجد خدمات متاحة لهذا القسم الفرعي.</div>';
@@ -500,12 +523,52 @@ document.addEventListener('DOMContentLoaded', function () {
             childEl.value = '';
             selectedOptions = [];
             selectedServices = [];
-            renderOptions('');
-            renderServices('');
+            showChild('');
         } else {
-            renderOptions(childEl.value);
-            renderServices(childEl.value);
+            showChild(childEl.value);
         }
+    }
+
+    /**
+     * Draw the two panels for a child, fetching its rows first if this is the
+     * first time it has been chosen. Answers can arrive out of order, so only
+     * the newest may paint.
+     */
+    let catalogSeq = 0;
+
+    function showChild(childId) {
+        const key = String(childId || '');
+
+        if (!key || catalog[key]) {
+            renderOptions(key);
+            renderServices(key);
+
+            return;
+        }
+
+        const mine = ++catalogSeq;
+        optionsWrap.innerHTML = '<div class="a2-muted">…</div>';
+        servicesWrap.innerHTML = '<div class="a2-muted">…</div>';
+
+        fetch(CATALOG_URL + '?child_id=' + encodeURIComponent(key), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (body) {
+                catalog[key] = body;
+
+                if (mine === catalogSeq) {
+                    renderOptions(key);
+                    renderServices(key);
+                }
+            })
+            .catch(function () {
+                if (mine === catalogSeq) {
+                    optionsWrap.innerHTML = '<div class="a2-muted">تعذّر تحميل الخيارات.</div>';
+                    servicesWrap.innerHTML = '<div class="a2-muted">تعذّر تحميل الخدمات.</div>';
+                }
+            });
     }
 
     function toggleBusinessFields() {
@@ -535,8 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
     childEl.addEventListener('change', function () {
         selectedOptions = [];
         selectedServices = [];
-        renderOptions(this.value);
-        renderServices(this.value);
+        showChild(this.value);
     });
 
     toggleBusinessFields();

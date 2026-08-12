@@ -12,6 +12,13 @@
     $activeVal = (string) ($active ?? '');
     $subActiveVal = (string) ($subActive ?? '');
     $trashedVal = (string) ($trashed ?? '');
+
+    // The child already filtered on, so arriving on a filtered screen costs no
+    // request. Built here rather than inline: @json() cannot parse a multi-line
+    // array literal — Blade ends the directive at the first ')'.
+    $catalogSeed = ((int) ($categoryChildId ?? 0)) > 0
+        ? [(int) $categoryChildId => ['options' => $options ?? [], 'services' => $services ?? []]]
+        : (object) [];
     $perPageVal = (int) ($perPage ?? 50);
     $sortNow = (string) ($sort ?? 'id');
     $dirNow = (string) ($dir ?? 'desc');
@@ -296,11 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Seeded with the child already selected, whose rows the server rendered
     // with the page — so arriving on a filtered screen costs no request, and
     // only CHANGING the child does.
-    const catalogCache = @json(
-        ($categoryChildId ?? 0) > 0
-            ? [(int) $categoryChildId => ['options' => $options ?? [], 'services' => $services ?? []]]
-            : (object) []
-    );
+    const catalogCache = @json($catalogSeed ?? (object) []);
 
     const categorySelect = document.getElementById('filterCategory');
     const childSelect = document.getElementById('filterChild');

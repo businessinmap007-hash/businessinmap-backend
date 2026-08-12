@@ -22,8 +22,17 @@ use Tests\TestCase;
  *  - 380KB of options JSON shipped so a filter dropdown could cascade without
  *    a round trip, on every visit, for a filter most visits never touch.
  *
- * Now 32 queries and 265ms. These tests hold the shape, not the numbers: a
- * budget that cannot be exceeded, and a page that no longer carries the map.
+ * The edit form was worse still — 1,399 queries and 3.1 seconds to open ONE
+ * user, building the grouped map for all 337 children to show the one he has.
+ *
+ * And underneath both, two view composers that run for EVERY view — the layout,
+ * every partial, every component — each issuing its own query. A page built
+ * from fourteen views paid twenty-eight Category queries and a dozen COUNTs for
+ * one unchanging list and one badge.
+ *
+ * Now: list 12 queries / 227ms, edit 16 / 242ms, show 26 / 45ms. These tests
+ * hold the SHAPE, not the numbers — a budget that cannot be exceeded, and pages
+ * that no longer carry the map.
  */
 class AdminUsersPagePerformanceTest extends TestCase
 {
@@ -48,34 +57,83 @@ class AdminUsersPagePerformanceTest extends TestCase
      */
     public function test_the_users_page_stays_inside_a_query_budget(): void
     {
+        $this->assertWithinBudget(route('admin.users.index'), 120, 'the list');
+    }
+
+    /**
+     * The edit form was the worse of the two: **1,399 queries and 3.1 seconds**
+     * to open ONE user, because it built the grouped option map for all 337
+     * children — four queries each — to show the one the user actually has.
+     */
+    public function test_the_edit_form_stays_inside_a_query_budget(): void
+    {
+        $business = User::query()->where('type', 'business')->firstOrFail();
+
+        $this->assertWithinBudget(route('admin.users.edit', $business->id), 120, 'the edit form');
+    }
+
+    public function test_the_user_page_stays_inside_a_query_budget(): void
+    {
+        $business = User::query()->where('type', 'business')->firstOrFail();
+
+        $this->assertWithinBudget(route('admin.users.show', $business->id), 120, 'the user page');
+    }
+
+    private function assertWithinBudget(string $url, int $budget, string $what): void
+    {
         $admin = $this->admin();
 
         $count = 0;
         DB::listen(function () use (&$count) { $count++; });
 
-        $this->actingAs($admin)->get(route('admin.users.index'))->assertOk();
+        $this->actingAs($admin)->get($url)->assertOk();
 
         $this->assertLessThan(
-            120,
+            $budget,
             $count,
-            "the users page ran {$count} queries — something is querying per child again"
+            "{$what} ran {$count} queries — something is querying per child, or per view, again"
         );
     }
 
     /** The taxonomy must not ride along in the HTML. */
-    public function test_the_page_does_not_ship_the_whole_option_catalog(): void
+    public function test_neither_page_ships_the_whole_option_catalog(): void
     {
-        $html = $this->actingAs($this->admin())
-            ->get(route('admin.users.index'))
+        $business = User::query()->where('type', 'business')->firstOrFail();
+
+        foreach ([
+            route('admin.users.index'),
+            route('admin.users.edit', $business->id),
+        ] as $url) {
+            $html = $this->actingAs($this->admin())->get($url)->assertOk()->getContent();
+
+            $this->assertStringNotContainsString('optionCatalog', $html, "the whole map is back on {$url}");
+            $this->assertStringNotContainsString('serviceCatalog', $html);
+
+            // …and the cascade still has its door.
+            $this->assertStringContainsString('CATALOG_URL', $html);
+            $this->assertStringContainsString(json_encode(route('admin.users.catalog', [], false)), $html);
+        }
+    }
+
+    /** The edit form needs the GROUPED shape; the filter needs the flat one. */
+    public function test_the_catalog_answers_in_both_shapes(): void
+    {
+        $childId = (int) DB::table('category_child_option')->value('child_id');
+
+        if (! $childId) {
+            $this->markTestSkipped('No child carries an option.');
+        }
+
+        $body = $this->actingAs($this->admin())
+            ->getJson(route('admin.users.catalog', ['child_id' => $childId]))
             ->assertOk()
-            ->getContent();
+            ->json();
 
-        $this->assertStringNotContainsString('optionCatalog', $html, '380KB of options is back on the page');
-        $this->assertStringNotContainsString('serviceCatalog', $html);
+        foreach (['options', 'groups', 'ungrouped', 'services'] as $key) {
+            $this->assertArrayHasKey($key, $body, "«{$key}» is missing — one of the two screens needs it");
+        }
 
-        // …and the cascade still has its door.
-        $this->assertStringContainsString('CATALOG_URL', $html);
-        $this->assertStringContainsString(json_encode(route('admin.users.catalog', [], false)), $html);
+        $this->assertNotEmpty($body['groups'], 'the edit form would show no option groups');
     }
 
     /** What the eager map used to answer, the endpoint answers now. */
@@ -103,7 +161,7 @@ class AdminUsersPagePerformanceTest extends TestCase
         $this->actingAs($this->admin())
             ->getJson(route('admin.users.catalog'))
             ->assertOk()
-            ->assertExactJson(['options' => [], 'services' => []]);
+            ->assertExactJson(['options' => [], 'groups' => [], 'ungrouped' => [], 'services' => []]);
     }
 
     /** «catalog» must not be read as a user id by the numeric show route. */

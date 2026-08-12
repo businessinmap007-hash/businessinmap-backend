@@ -251,15 +251,40 @@ class UserController extends Controller
         $childId = (int) $request->get('child_id', 0);
 
         if ($childId <= 0) {
-            return response()->json(['options' => [], 'services' => []]);
+            return response()->json(['options' => [], 'groups' => [], 'ungrouped' => [], 'services' => []]);
         }
+
+        // The two screens want the same facts in two shapes: the FILTER on the
+        // index wants one flat list, and the EDIT form wants them under their
+        // option groups. Both come back — it is one child, so the difference is
+        // a few kilobytes, and one endpoint cannot drift from itself.
+        $held = fn ($sub) => $sub->select('option_id')
+            ->from('category_child_option')->where('child_id', $childId);
 
         $options = Option::query()
             ->when($this->hasOptionIsActiveColumn(), fn ($q) => $q->where('is_active', 1))
-            ->whereIn('id', fn ($sub) => $sub->select('option_id')
-                ->from('category_child_option')->where('child_id', $childId))
+            ->whereIn('id', $held)
             ->orderBy('name_ar')->orderBy('id')
-            ->get(['id', 'name_ar', 'name_en']);
+            ->get(['id', 'name_ar', 'name_en', 'group_id']);
+
+        $groups = OptionGroup::query()
+            ->where('is_active', 1)
+            ->whereIn('id', $options->pluck('group_id')->filter()->unique())
+            ->orderBy('reorder')->orderBy('id')
+            ->get(['id', 'name_ar', 'name_en'])
+            ->map(fn ($group) => [
+                'id' => (int) $group->id,
+                'name_ar' => (string) ($group->name_ar ?? ''),
+                'name_en' => (string) ($group->name_en ?? ''),
+                'options' => $options->where('group_id', $group->id)
+                    ->map(fn ($o) => [
+                        'id' => (int) $o->id,
+                        'name_ar' => (string) ($o->name_ar ?? ''),
+                        'name_en' => (string) ($o->name_en ?? ''),
+                    ])->values()->all(),
+            ])
+            ->filter(fn ($group) => $group['options'] !== [])
+            ->values();
 
         $services = PlatformService::query()
             ->where('is_active', 1)
@@ -270,7 +295,18 @@ class UserController extends Controller
             ->get(['id', 'name_ar', 'name_en']);
 
         return response()->json([
-            'options' => $options,
+            'options' => $options->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name_ar' => (string) ($o->name_ar ?? ''),
+                'name_en' => (string) ($o->name_en ?? ''),
+            ])->values(),
+            'groups' => $groups,
+            'ungrouped' => $options->whereNull('group_id')
+                ->map(fn ($o) => [
+                    'id' => (int) $o->id,
+                    'name_ar' => (string) ($o->name_ar ?? ''),
+                    'name_en' => (string) ($o->name_en ?? ''),
+                ])->values(),
             'services' => $services,
         ]);
     }
@@ -399,103 +435,17 @@ class UserController extends Controller
             })
             ->all();
 
-        $optionCatalog = CategoryChild::query()
-            ->get(['id'])
-            ->mapWithKeys(function ($child) {
-                $childId = (int) $child->id;
-
-                $groups = OptionGroup::query()
-                    ->where('is_active', 1)
-                    ->with([
-                        'options' => function ($query) use ($childId) {
-                            $query
-                                ->when($this->hasOptionIsActiveColumn(), fn ($sub) => $sub->where('is_active', 1))
-                                ->whereIn('id', function ($sub) use ($childId) {
-                                    $sub->select('option_id')
-                                        ->from('category_child_option')
-                                        ->where('child_id', $childId);
-                                })
-                                ->orderBy('id', 'asc');
-                        }
-                    ])
-                    ->orderBy('reorder')
-                    ->orderBy('id')
-                    ->get(['id', 'name_ar', 'name_en', 'reorder'])
-                    ->map(function ($group) {
-                        return [
-                            'id' => (int) $group->id,
-                            'name_ar' => (string) ($group->name_ar ?? ''),
-                            'name_en' => (string) ($group->name_en ?? ''),
-                            'options' => collect($group->options)
-                                ->map(fn ($opt) => [
-                                    'id' => (int) $opt->id,
-                                    'name_ar' => (string) ($opt->name_ar ?? ''),
-                                    'name_en' => (string) ($opt->name_en ?? ''),
-                                ])
-                                ->values()
-                                ->all(),
-                        ];
-                    })
-                    ->filter(fn ($group) => !empty($group['options']))
-                    ->values()
-                    ->all();
-
-                $ungrouped = Option::query()
-                    ->when($this->hasOptionIsActiveColumn(), fn ($query) => $query->where('is_active', 1))
-                    ->whereNull('group_id')
-                    ->whereIn('id', function ($sub) use ($childId) {
-                        $sub->select('option_id')
-                            ->from('category_child_option')
-                            ->where('child_id', $childId);
-                    })
-                    ->orderBy('id', 'asc')
-                    ->get(['id', 'name_ar', 'name_en'])
-                    ->map(fn ($opt) => [
-                        'id' => (int) $opt->id,
-                        'name_ar' => (string) ($opt->name_ar ?? ''),
-                        'name_en' => (string) ($opt->name_en ?? ''),
-                    ])
-                    ->values()
-                    ->all();
-
-                return [
-                    $childId => [
-                        'groups' => $groups,
-                        'ungrouped' => $ungrouped,
-                    ],
-                ];
-            })
-            ->all();
-
-        $serviceCatalog = CategoryChild::query()
-            ->get(['id'])
-            ->mapWithKeys(function ($child) {
-                $childId = (int) $child->id;
-
-                $services = PlatformService::query()
-                    ->where('is_active', 1)
-                    ->whereIn('id', function ($sub) use ($childId) {
-                        $sub->select('platform_service_id')
-                            ->from('category_platform_services')
-                            ->where('child_id', $childId)
-                            ->where('is_active', 1);
-                    })
-                    ->orderBy('name_ar')
-                    ->orderBy('id')
-                    ->get(['id', 'name_ar', 'name_en'])
-                    ->map(fn ($srv) => [
-                        'id' => (int) $srv->id,
-                        'name_ar' => (string) ($srv->name_ar ?? ''),
-                        'name_en' => (string) ($srv->name_en ?? ''),
-                    ])
-                    ->values()
-                    ->all();
-
-                return [
-                    $childId => $services,
-                ];
-            })
-            ->all();
+        /*
+         * The edit form used to receive the option map for ALL 337 children —
+         * four queries each (groups, their options, the ungrouped ones,
+         * services) for 1,399 queries and 3.1 seconds to open ONE user, and
+         * 668KB of it on the wire. The form shows one child at a time.
+         *
+         * `admin.users.catalog` answers for the child actually chosen, in both
+         * the flat and the grouped shape, and the form seeds its cache with the
+         * child the user already has — so opening the page costs nothing and
+         * only CHANGING the specialty asks.
+         */
 
         return view('admin-v2.users.edit', [
             'user' => $user,
@@ -507,8 +457,6 @@ class UserController extends Controller
             'selectedServiceIds' => $selectedServiceIds,
             'selectedOptionIds' => $selectedOptionIds,
             'childCatalog' => $childCatalog,
-            'optionCatalog' => $optionCatalog,
-            'serviceCatalog' => $serviceCatalog,
         ]);
     }
 

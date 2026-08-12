@@ -170,6 +170,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
          */
         Route::prefix('medicines')->name('medicines.')->middleware('can:' . AdminAbility::CONTENT)->group(function () {
             Route::get('/', [MedicineDictionaryController::class, 'index'])->name('index');
+            Route::get('search', [MedicineDictionaryController::class, 'search'])->name('search');
             Route::post('import', [MedicineDictionaryController::class, 'import'])->name('import');
             Route::delete('{medicine}', [MedicineDictionaryController::class, 'destroy'])->whereNumber('medicine')->name('destroy');
         });

@@ -19,10 +19,13 @@ class MedicineController extends Controller
     {
         $q = trim((string) $request->get('q', ''));
 
+        // One definition of the search, shared with the admin preview — see
+        // Medicine::scopeSearch. Prefix-only used to be the rule, and it hid
+        // most of a 25,000-row register: the name carries the strength and the
+        // pack («AUGMENTIN 1 GM 14 F.C.TABS.»), so a doctor reaching for a dose
+        // types from the middle of it.
         $rows = Medicine::query()
-            ->when($q !== '', fn ($query) => $query->where('name', 'like', $q . '%'))
-            ->orderByDesc('uses_count')
-            ->orderBy('name')
+            ->search($q)
             ->limit((int) min(max((int) $request->get('limit', 20), 1), 50))
             ->get();
 

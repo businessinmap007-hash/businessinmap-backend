@@ -144,7 +144,96 @@ class MedicineDictionaryImportTest extends TestCase
 
     public function test_the_screen_opens(): void
     {
-        $this->actingAs($this->admin())->get(route('admin.medicines.index'))->assertOk();
+        $html = $this->actingAs($this->admin())
+            ->get(route('admin.medicines.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('mdTry', $html, 'the try-it box is on the page');
+
+        // The AdminV2 AJAX landmine: an absolute URL built from APP_URL points
+        // at a host the panel may not be served from, and the fetch dies on the
+        // cross-origin check with nothing on screen to say why.
+        //
+        // Matched against the ESCAPED form @json emits ("\/admin\/…"), not the
+        // plain path — the first version of this assertion failed on that alone.
+        $this->assertStringContainsString(
+            'const ENDPOINT = ' . json_encode(route('admin.medicines.search', [], false)),
+            $html,
+            'the endpoint must be relative'
+        );
+        $this->assertStringNotContainsString(
+            json_encode(route('admin.medicines.search')),
+            $html,
+            'an absolute endpoint would break the preview off-host'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | «اعطنى فيو ارى منهم الدواء واجرب البحث»
+    |--------------------------------------------------------------------------
+    | The preview must be the doctor's own search, not a demonstration of one.
+    */
+    public function test_the_preview_and_the_app_search_are_the_same_search(): void
+    {
+        Medicine::create(['name' => 'ZzAlphaOne 500 MG', 'strength' => null, 'uses_count' => 0]);
+        Medicine::create(['name' => 'ZzAlphaTwo 500 MG', 'strength' => null, 'uses_count' => 9]);
+
+        $preview = $this->actingAs($this->admin())
+            ->getJson(route('admin.medicines.search', ['q' => 'ZzAlpha']))
+            ->assertOk()
+            ->json('data');
+
+        $direct = Medicine::query()->search('ZzAlpha')->limit(20)->pluck('name')->all();
+
+        $this->assertSame(
+            $direct,
+            array_column($preview, 'name'),
+            'the preview ran a different query from the one the doctor is given'
+        );
+    }
+
+    /** A name that STARTS with what was typed outranks one that merely holds it. */
+    public function test_a_prefix_match_outranks_a_middle_match(): void
+    {
+        Medicine::create(['name' => 'ZzMid CONTAINSZZKEY 10 MG', 'strength' => null, 'uses_count' => 40]);
+        Medicine::create(['name' => 'ZZKEY PLAIN 10 MG', 'strength' => null, 'uses_count' => 0]);
+
+        $first = Medicine::query()->search('ZZKEY')->first();
+
+        $this->assertSame(
+            'ZZKEY PLAIN 10 MG',
+            $first->name,
+            'the prefix must win even against a far more prescribed middle match'
+        );
+    }
+
+    /**
+     * The register writes the dose into the name — «AUGMENTIN 1 GM 14 F.C.TABS.»
+     * — so a doctor reaching for a strength types from the middle of it. Prefix
+     * only was the original rule and it hid most of a 25,000-row register.
+     */
+    public function test_a_doctor_can_search_by_the_dose_inside_the_name(): void
+    {
+        Medicine::create(['name' => 'ZzDoseDrug 250 MG 20 TABS.', 'strength' => null, 'uses_count' => 0]);
+
+        $this->assertSame(
+            1,
+            Medicine::query()->search('250 MG 20 TABS')->where('name', 'like', 'ZzDose%')->count()
+        );
+    }
+
+    /** A wildcard typed into the box is a character, not a query. */
+    public function test_a_percent_sign_matches_nothing_rather_than_everything(): void
+    {
+        Medicine::create(['name' => 'ZzWildcardTarget', 'strength' => null, 'uses_count' => 0]);
+
+        $this->assertSame(
+            0,
+            Medicine::query()->search('ZzWild%Target')->count(),
+            'a typed % must not turn into a wildcard'
+        );
     }
 
     /** A drug already written into someone's prescription is not deletable. */

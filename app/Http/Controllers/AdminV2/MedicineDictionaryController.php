@@ -27,9 +27,7 @@ class MedicineDictionaryController extends Controller
         $q = trim((string) $request->get('q', ''));
 
         $rows = Medicine::query()
-            ->when($q !== '', fn ($query) => $query->where('name', 'like', '%' . $q . '%'))
-            ->orderByDesc('uses_count')
-            ->orderBy('name')
+            ->search($q)
             ->paginate(50)
             ->withQueryString();
 
@@ -38,6 +36,29 @@ class MedicineDictionaryController extends Controller
             'q' => $q,
             'total' => DB::table('medicines')->count(),
             'prescribed' => DB::table('medicines')->where('uses_count', '>', 0)->count(),
+        ]);
+    }
+
+    /**
+     * The doctor's typeahead, live, so it can be tried rather than described.
+     *
+     * It calls `Medicine::scopeSearch` — the same scope the app endpoint calls —
+     * because a preview that runs its own query would eventually flatter a
+     * search the doctor is not actually given. The app route sits behind
+     * `auth:sanctum` and an admin session cannot reach it, which is the only
+     * reason this second door exists.
+     */
+    public function search(Request $request)
+    {
+        $rows = Medicine::query()
+            ->search((string) $request->get('q', ''))
+            ->limit(20)
+            ->get(['id', 'name', 'strength', 'uses_count']);
+
+        return response()->json([
+            'success' => true,
+            'total' => DB::table('medicines')->count(),
+            'data' => $rows,
         ]);
     }
 

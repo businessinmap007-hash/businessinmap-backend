@@ -77,6 +77,29 @@
         </form>
     </div>
 
+    {{-- «اعطنى فيو ارى منهم الدواء واجرب البحث».
+
+         Not a mock-up of the doctor's typeahead — the SAME query. Both this and
+         the app endpoint call Medicine::scopeSearch, so a preview cannot end up
+         flattering a search the doctor is not actually given. --}}
+    <div class="a2-card" style="margin-bottom:16px;">
+        <div class="a2-section-head">
+            <div>
+                <h2 class="a2-section-title">{{ __('جرّب البحث كما يراه الطبيب') }}</h2>
+                <div class="a2-section-subtitle">
+                    {{ __('اكتب حرفين فأكثر — هذه نفس النتائج التي تظهر للطبيب داخل الروشتة، بنفس الترتيب.') }}
+                </div>
+            </div>
+        </div>
+
+        <input class="a2-input" id="mdTry" autocomplete="off"
+               placeholder="{{ __('اكتب اسم دواء… مثل AUGMENTIN أو 500 MG') }}"
+               style="font-size:16px;">
+
+        <div class="a2-muted a2-mt-8" id="mdMeta" style="font-size:12px;min-height:16px;"></div>
+        <div id="mdOut" class="a2-mt-8"></div>
+    </div>
+
     <div class="a2-card">
         <form method="GET" style="display:flex;gap:8px;margin-bottom:12px;">
             <input class="a2-input" name="q" value="{{ $q }}" placeholder="{{ __('ابحث باسم الدواء') }}" style="max-width:320px;">
@@ -126,4 +149,135 @@
         @endif
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const box = document.getElementById('mdTry');
+    const out = document.getElementById('mdOut');
+    const meta = document.getElementById('mdMeta');
+
+    if (!box) {
+        return;
+    }
+
+    // route(..., false): an absolute URL built from APP_URL points at a host the
+    // panel may not be served from, and the fetch dies on the cross-origin check
+    // with nothing on screen to say why.
+    const ENDPOINT = @json(route('admin.medicines.search', [], false));
+
+    const SAYS = {
+        empty: @json(__('لا يوجد دواء بهذا الاسم — يستطيع الطبيب إضافته بنفسه وقتها.')),
+        typing: @json(__('اكتب حرفين على الأقل.')),
+        failed: @json(__('تعذّر البحث.')),
+        starts: @json(__('يبدأ به')),
+        contains: @json(__('يحتويه')),
+        used: @json(__('كُتب')),
+    };
+
+    let seq = 0;
+    let timer = null;
+
+    function render(term, rows) {
+        out.innerHTML = '';
+
+        if (!rows.length) {
+            const none = document.createElement('div');
+            none.className = 'a2-muted';
+            none.textContent = SAYS.empty;
+            out.appendChild(none);
+
+            return;
+        }
+
+        const upper = term.toUpperCase();
+
+        rows.forEach(function (row) {
+            const line = document.createElement('div');
+            line.style.display = 'flex';
+            line.style.alignItems = 'center';
+            line.style.gap = '8px';
+            line.style.padding = '7px 10px';
+            line.style.borderBottom = '1px solid var(--a2-border,#eef0f4)';
+
+            const name = document.createElement('span');
+            name.style.flex = '1';
+
+            // Show WHERE the match landed — the whole reason the search stopped
+            // being prefix-only is that this register writes the dose into the
+            // name, so most real matches are in the middle of it.
+            const at = String(row.name).toUpperCase().indexOf(upper);
+
+            if (at < 0) {
+                name.textContent = row.name;
+            } else {
+                name.append(row.name.slice(0, at));
+                const hit = document.createElement('mark');
+                hit.textContent = row.name.slice(at, at + term.length);
+                name.appendChild(hit);
+                name.append(row.name.slice(at + term.length));
+            }
+
+            line.appendChild(name);
+
+            const where = document.createElement('span');
+            where.className = 'a2-badge';
+            where.textContent = at === 0 ? SAYS.starts : SAYS.contains;
+            line.appendChild(where);
+
+            if (Number(row.uses_count) > 0) {
+                const used = document.createElement('span');
+                used.className = 'a2-badge';
+                used.textContent = SAYS.used + ' ' + row.uses_count;
+                line.appendChild(used);
+            }
+
+            out.appendChild(line);
+        });
+    }
+
+    function look() {
+        const term = box.value.trim();
+
+        if (term.length < 2) {
+            out.innerHTML = '';
+            meta.textContent = term.length ? SAYS.typing : '';
+
+            return;
+        }
+
+        // Every keystroke is a request, and they come back out of order — the
+        // slow answer to «AUG» would otherwise overwrite the one for «AUGMENTIN».
+        const mine = ++seq;
+        const started = performance.now();
+
+        fetch(ENDPOINT + '?q=' + encodeURIComponent(term), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (body) {
+                if (mine !== seq) {
+                    return;
+                }
+
+                const rows = (body && body.data) || [];
+                meta.textContent = rows.length
+                    ? (rows.length + ' / ' + (body.total || '?') + ' · ' + Math.round(performance.now() - started) + 'ms')
+                    : '';
+
+                render(term, rows);
+            })
+            .catch(function () {
+                if (mine === seq) {
+                    meta.textContent = SAYS.failed;
+                }
+            });
+    }
+
+    box.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(look, 180);
+    });
+});
+</script>
 @endsection

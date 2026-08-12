@@ -35,20 +35,15 @@ return [
 
     // ── زراعية وحيوانية ──
     'agriculture-and-animals' => [
-        'أرانب' => ['delivery_freight'],
-        'أسمدة' => ['delivery_freight'],
         'أعلاف' => ['delivery_freight'],
-        'تقاوي زراعية' => ['delivery_freight'],
+        'تقاوي وأسمدة ومبيدات' => ['delivery_freight'],
         'حبوب وغلال' => ['delivery_freight'],
-        'خضروات' => ['delivery_freight', 'delivery_coldchain'],
         'دواجن' => ['delivery_freight', 'delivery_coldchain'],
-        'فواكة' => ['delivery_freight', 'delivery_coldchain'],
+        'خضار وفاكهة' => ['delivery_freight', 'delivery_coldchain'],
         'مزارع سمكية' => ['delivery_freight', 'delivery_coldchain'],
         'معدات زراعية' => ['delivery_freight'],
-        'معدات مزارع أرانب' => ['delivery_freight'],
-        'معدات مزارع دواجن' => ['delivery_freight', 'delivery_coldchain'],
-        'معدات مزارع مواشي' => ['delivery_freight', 'delivery_coldchain'],
-        'مواشي' => ['delivery_freight', 'delivery_coldchain'],
+        'معدات وتجهيزات المزارع' => ['delivery_freight', 'delivery_coldchain'],
+        'مواشي وأرانب' => ['delivery_freight', 'delivery_coldchain'],
     ],
 
     // ── ورش ومراكز صيانة ──
@@ -122,7 +117,9 @@ return [
     'cloth-accessories' => [
         'اكسسوار' => ['delivery'],
         'جلود وشنط وأحذية' => ['delivery'],
-        'ملابس' => ['delivery'],
+        'ملابس' => ['delivery'],
+
+
     ],
 
     // ── تكنولوجيا ──
@@ -167,7 +164,6 @@ return [
         'حدايد وبويات' => ['delivery', 'delivery_freight'],
         'حديد تسليح' => ['delivery', 'delivery_freight'],
         'حلويات' => ['delivery', 'delivery_coldchain'],
-        'خضروات' => ['delivery', 'delivery_coldchain'],
         'دواجن' => ['delivery', 'delivery_coldchain'],
         'ذهب' => ['delivery'],
         'رخام' => ['delivery', 'delivery_freight'],
@@ -182,7 +178,7 @@ return [
         'عصائر' => ['delivery', 'delivery_coldchain'],
         'عطور' => ['delivery'],
         'فضة' => ['delivery'],
-        'فواكة' => ['delivery', 'delivery_coldchain'],
+        'خضار وفاكهة' => ['delivery', 'delivery_coldchain'],
         'قطع غيار أجهزة كهربائية' => ['delivery'],
         'قطع غيار سيارات' => ['delivery'],
         'كبس خراطيم' => ['delivery'],
@@ -265,7 +261,6 @@ return [
         'حدايد وبويات' => ['delivery_freight'],
         'حديد تسليح' => ['delivery_freight'],
         'حلويات' => ['delivery_freight', 'delivery_coldchain'],
-        'خضروات' => ['delivery_freight', 'delivery_coldchain'],
         'رخام' => ['delivery_freight'],
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
@@ -276,7 +271,7 @@ return [
         'طباعة' => ['delivery_freight'],
         'طوب' => ['delivery_freight'],
         'عصائر' => ['delivery_freight', 'delivery_coldchain'],
-        'فواكة' => ['delivery_freight', 'delivery_coldchain'],
+        'خضار وفاكهة' => ['delivery_freight', 'delivery_coldchain'],
         'قطع غيار' => ['delivery_freight'],
         // The sibling row #44, never named here, so it kept the generic branch
         // whole — pharmacy, grocery and restaurant delivery on a spare-parts
@@ -301,7 +296,7 @@ return [
         'مواد تعبئة وتغليف' => ['delivery_freight'],
         'مواد دوائية' => ['delivery_coldchain', 'delivery_documents'],
         'مواد غذائية ومنظفات' => ['delivery_freight', 'delivery_coldchain'],
-        'مواشي' => ['delivery_freight', 'delivery_coldchain'],
+        'مواشي وأرانب' => ['delivery_freight', 'delivery_coldchain'],
         'نجف' => ['delivery_freight'],
         'نقل دولي' => ['delivery_freight', 'delivery_international'],
         // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل

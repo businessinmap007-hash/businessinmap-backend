@@ -321,23 +321,21 @@ return [
     |--------------------------------------------------------------------------
     | معدات وتجهيزات المزارع
     |--------------------------------------------------------------------------
-    | One list for three equipment traders, because it is one question. What
-    | differs is the animal: a milking parlour is not a rabbit hutch, and a
-    | hatchery belongs to poultry.
+    | It held three narrowings for one day. On 2026-08-12 the owner merged the
+    | three equipment children into one, and #171 — now «معدات وتجهيزات
+    | المزارع» — serves every animal, so it takes the WHOLE list: milking
+    | parlour and incubator both. #230 and #235 hang from no root, and a
+    | narrowing cannot reach a child nobody can see.
     |
-    | #2138 بطاريات وأقفاص · #2139 حضانات وفقاسات · #2140 معالف ومشارب
-    | #2141 تهوية · #2142 تدفئة وتبريد · #2143 سيلوهات · #2144 خلط أعلاف
-    | #2145 أنظمة حلابة · #2146 بيطرية · #2147 نظافة · #2148 شبك وأسوار
-    | #2149 تحكم ومراقبة
+    | So the group is absent from the map, which reads as «no narrowing» — and
+    | that is exactly right. The entry is kept as a comment because the three
+    | slices are the record of what each animal actually needed, and the next
+    | person to split them apart should start from here:
+    |
+    |   مواشي  حلابة وسيلوهات، بلا حضانة — البقرة تُولد
+    |   دواجن  حضانات وفقاسات، بلا حلابة
+    |   أرانب  أقفاص ومشارب، بلا هذه ولا تلك
     */
-    'معدات وتجهيزات المزارع' => [
-        // #171 مواشي — milking and silos, and no incubator: cattle are born.
-        171 => [2138, 2140, 2141, 2142, 2143, 2144, 2145, 2146, 2147, 2148, 2149],
-        // #230 دواجن — incubators and hatchers, and no milking parlour.
-        230 => [2138, 2139, 2140, 2141, 2142, 2143, 2144, 2146, 2147, 2148, 2149],
-        // #235 أرانب — cages and drinkers, neither milking nor hatching.
-        235 => [2138, 2140, 2141, 2142, 2143, 2144, 2146, 2147, 2148, 2149],
-    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -351,8 +349,11 @@ return [
     | #2159 بلطي · #2160 بوري · #2161 قراميط · #2162 زينة · #2163 زريعة
     */
     'أنواع الثروة الحيوانية والسمكية' => [
-        170 => [2150, 2151, 2152, 2153, 2154, 2155, 2156], // مواشي
-        236 => [2157, 2158],                                // أرانب
-        102 => [2159, 2160, 2161, 2162, 2163],              // مزارع سمكية
+        // «مواشي وأرانب» since the 2026-08-12 merge, so it takes the rabbit
+        // rows too — the fold's whole point is that the difference was a row.
+        170 => [2150, 2151, 2152, 2153, 2154, 2155, 2156, 2157, 2158],
+        // «مزارع سمكية» stayed its own child: a different licence, a different
+        // cycle, and not one row in common with the four-legged stock.
+        102 => [2159, 2160, 2161, 2162, 2163],
     ],
 ];

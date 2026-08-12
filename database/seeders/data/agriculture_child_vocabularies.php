@@ -38,6 +38,12 @@ return [
     |   #171، #230، #235        livestock HOUSING & equipment — cages, feeders
     |   #170، #236، #102        the ANIMALS themselves
     |
+    | The owner merged them on the same day: #230 and #235 folded into #171, and
+    | #236 into #170, because once the animal is a ROW the three children were
+    | one. Only the keepers are named below — a `children` list that still names
+    | a folded child hands the vocabulary back to a row no root can reach, on
+    | every single run.
+    |
     | All three are `line`. These children carry `menu` and `delivery` and no
     | `retail` — there is no catalog behind them, so the type IS what the
     | customer pays for, the same reading «أنواع الأبواب والشبابيك» gets.
@@ -66,12 +72,12 @@ return [
         ],
 
         /*
-         * One list for the three equipment traders, narrowed per child: a
-         * milking parlour is not a rabbit hutch. The narrowing is in
-         * `child_option_scopes.php`, so the group stays one list.
+         * One list, and after the merge one child holding all of it — the
+         * per-animal narrowing that lived here for a day is kept as a comment
+         * in `child_option_scopes.php` for whoever splits them again.
          */
         'معدات وتجهيزات المزارع' => [
-            'name_en' => 'Livestock Farm Equipment', 'price_role' => 'line', 'children' => [171, 230, 235],
+            'name_en' => 'Livestock Farm Equipment', 'price_role' => 'line', 'children' => [171], // the three merged 2026-08-12
             'options' => [
                 'بطاريات وأقفاص تربية' => 'Cages & Battery Systems',
                 'حضانات وفقاسات' => 'Incubators & Hatchers',
@@ -90,11 +96,11 @@ return [
 
         /*
          * What the producer actually sells, narrowed per child in the scope
-         * file: cattle to #170, rabbits to #236, fish to #102. One group
-         * because it is one question — «what do you raise».
+         * file: cattle AND rabbits to #170 after the merge, fish to #102. One
+         * group because it is one question — «what do you raise».
          */
         'أنواع الثروة الحيوانية والسمكية' => [
-            'name_en' => 'Livestock & Fish Stock', 'price_role' => 'line', 'children' => [170, 236, 102],
+            'name_en' => 'Livestock & Fish Stock', 'price_role' => 'line', 'children' => [170, 102], // «أرانب» folded into #170
             'options' => [
                 'أبقار' => 'Cattle',
                 'جاموس' => 'Buffalo',
@@ -113,8 +119,31 @@ return [
             ],
         ],
 
+        /*
+         * «تقاوي وأسمدة ومبيدات» #14 after the 2026-08-12 merge — and the merge
+         * closed a gap rather than only removing a row: «مبيدات» had no child
+         * anywhere on the platform, so a pesticide dealer had nowhere to
+         * register and no word to register with.
+         */
+        'مستلزمات المحاصيل' => [
+            'name_en' => 'Crop Inputs', 'price_role' => 'line', 'children' => [14],
+            'options' => [
+                'تقاوي وبذور' => 'Seeds',
+                'شتلات' => 'Seedlings',
+                'أسمدة كيماوية' => 'Chemical Fertiliser',
+                'أسمدة عضوية' => 'Organic Fertiliser',
+                'أسمدة ورقية ومخصبات' => 'Foliar Feeds',
+                'مبيدات حشرية' => 'Insecticides',
+                'مبيدات فطرية' => 'Fungicides',
+                'مبيدات أعشاب' => 'Herbicides',
+                'منظمات نمو' => 'Growth Regulators',
+                'بيتموس وبيئات زراعة' => 'Peat & Growing Media',
+                'أدوات رش ومكافحة' => 'Spraying & Control Gear',
+            ],
+        ],
+
         'وحدة البيع' => [
-            'name_en' => 'Selling Unit', 'price_role' => 'modifier', 'children' => [14, 99, 107, 128],
+            'name_en' => 'Selling Unit', 'price_role' => 'modifier', 'children' => [14, 107, 128], // «أسمدة» folded into #14 on 2026-08-12
             'options' => [
                 'بالكيلو' => 'Per Kilo',
                 'بالشيكارة' => 'Per Sack',

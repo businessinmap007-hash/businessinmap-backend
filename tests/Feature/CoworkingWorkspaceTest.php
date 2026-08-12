@@ -244,6 +244,20 @@ class CoworkingWorkspaceTest extends TestCase
                 continue;
             }
 
+            /*
+             * A child that hangs from no root reaches nobody, so a demand it
+             * cannot meet is not a debt. The configs of a folded child are
+             * deactivated rather than deleted — the platform's debris rule —
+             * and #292 «خضروات» arrived here the day it folded into «خضار
+             * وفاكهة». Read the standings, not the leftovers.
+             */
+            $rooted = DB::table('category_parent_child')
+                ->where('child_id', (int) $row->child_id)->exists();
+
+            if (! $rooted) {
+                continue;
+            }
+
             $hasLine = DB::table('category_child_option as co')
                 ->join('options as o', 'o.id', '=', 'co.option_id')
                 ->join('option_groups as g', 'g.id', '=', 'o.group_id')

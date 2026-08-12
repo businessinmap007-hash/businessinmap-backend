@@ -802,23 +802,81 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertContains('جرارات زراعية', $named(12, 'الآلات والمعدات الزراعية'));
 
-        // The equipment list, and what each animal does NOT need.
-        $this->assertContains('أنظمة حلابة', $named(171, 'معدات وتجهيزات المزارع'));
-        $this->assertNotContains('أنظمة حلابة', $named(230, 'معدات وتجهيزات المزارع'));
-        $this->assertContains('حضانات وفقاسات', $named(230, 'معدات وتجهيزات المزارع'));
-        $this->assertNotContains('حضانات وفقاسات', $named(171, 'معدات وتجهيزات المزارع'));
+        /*
+         * The three equipment children became ONE on 2026-08-12, so the keeper
+         * takes the whole list — milking parlour and incubator both. The
+         * per-animal narrowing they had for a day is kept as a comment in
+         * `child_option_scopes.php`, which is where a future split starts.
+         */
+        $equipment = $named(171, 'معدات وتجهيزات المزارع');
+        $this->assertContains('أنظمة حلابة', $equipment);
+        $this->assertContains('حضانات وفقاسات', $equipment);
 
         // The stock list: three answers that do not overlap at all.
         $stock = 'أنواع الثروة الحيوانية والسمكية';
         $this->assertContains('أبقار', $named(170, $stock));
-        $this->assertContains('أرانب تسمين', $named(236, $stock));
+        $this->assertContains('أرانب تسمين', $named(170, $stock));
         $this->assertContains('أسماك بلطي', $named(102, $stock));
         $this->assertSame([], array_intersect($named(170, $stock), $named(102, $stock)));
 
-        // And none of the seven is asked the grab-bag question any more.
-        foreach ([12, 102, 170, 171, 230, 235, 236] as $childId) {
+        // And none of the survivors is asked the grab-bag question any more.
+        foreach ([12, 102, 170, 171] as $childId) {
             $this->assertSame([], $named($childId, 'مستلزمات المزارع'));
         }
+    }
+
+    /**
+     * «نفذ ١ و٢ و٣ وادمج مواشي وأرانب فقط» — owner, 2026-08-12.
+     *
+     * Fourteen children of «زراعية وحيوانية» became nine. Each merge keeps one
+     * child, RENAMES it to cover what it swallowed, and folds the rest — the id
+     * survives, so every option link, service config and account travels with
+     * it. None of the nine held an account, so nothing was rehomed.
+     *
+     * «مزارع سمكية» and «دواجن» were on the table and stayed: aquaculture is a
+     * different licence and a different cycle, and «دواجن» is a fresh SELLER,
+     * not a producer.
+     */
+    public function test_the_agriculture_root_merged_fourteen_children_into_nine(): void
+    {
+        $root = (int) DB::table('categories')->where('slug', 'agriculture-and-animals')->value('id');
+
+        $standing = DB::table('category_parent_child as pc')
+            ->join('category_children_master as m', 'm.id', '=', 'pc.child_id')
+            ->where('pc.parent_id', $root)->pluck('m.name_ar', 'pc.child_id');
+
+        $this->assertCount(9, $standing);
+
+        // The keepers answer to the wider name.
+        $this->assertSame('معدات وتجهيزات المزارع', $standing[171] ?? null);
+        $this->assertSame('خضار وفاكهة', $standing[114] ?? null);
+        $this->assertSame('تقاوي وأسمدة ومبيدات', $standing[14] ?? null);
+        $this->assertSame('مواشي وأرانب', $standing[170] ?? null);
+
+        // The folded rows survive and reach nobody — nothing here is deleted.
+        foreach ([230, 235, 292, 99, 236] as $folded) {
+            $this->assertTrue(DB::table('category_children_master')->where('id', $folded)->exists());
+            $this->assertSame(0, DB::table('category_parent_child')->where('child_id', $folded)->count());
+        }
+
+        $named = fn (int $childId, string $group) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)->where('g.name_ar', $group)
+            ->distinct()->pluck('o.name_ar')->all();
+
+        // A keeper that swallowed its sibling must be able to SAY the sibling.
+        $equipment = $named(171, 'معدات وتجهيزات المزارع');
+        $this->assertContains('أنظمة حلابة', $equipment);
+        $this->assertContains('حضانات وفقاسات', $equipment);
+
+        $stock = $named(170, 'أنواع الثروة الحيوانية والسمكية');
+        $this->assertContains('أبقار', $stock);
+        $this->assertContains('أرانب تسمين', $stock);
+        $this->assertNotContains('أسماك بلطي', $stock, 'the fish farm stayed its own child');
+
+        // The merge closed a gap: «مبيدات» had no child anywhere before it.
+        $this->assertContains('مبيدات حشرية', $named(14, 'مستلزمات المحاصيل'));
     }
 
     /**
@@ -845,7 +903,8 @@ class ChildTradeVocabulariesTest extends TestCase
     private const NO_MODIFIER_BY_DESIGN = [
         64, 65, 108, 143, 245, 246,          // مطاعم وكافيهات
         163, 215, 252, 513, 514, 515, 542,   // الصحة
-        102, 236,                             // مزارع سمكية، أرانب
+        102,                                  // مزارع سمكية — «أرانب» #236 folded
+                                              // into «مواشي وأرانب» on 2026-08-12 and reaches no root
         272,                                  // سوبر ماركت
     ];
 

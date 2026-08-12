@@ -73,11 +73,11 @@ return [
     | accounts) — see the fourth pass below, which is where it was answered.
     */
 
-    // فواكة، دواجن، خضروات under الزراعة: eleven of their fourteen siblings
+    // خضار وفاكهة (فواكة + خضروات, merged 2026-08-12) and دواجن under الزراعة: eleven of their fourteen siblings
     // carry menu, and the same three children carry it under المحلات. Produce is
     // sold off a market list in both places.
     [
-        'child_name_ar' => 'فواكة',
+        'child_name_ar' => 'خضار وفاكهة',
         'root_slug' => 'agriculture-and-animals',
         'service_key' => 'menu',
         'copy_from_child_ar' => 'حبوب وغلال',
@@ -92,18 +92,11 @@ return [
         'why' => 'نفس الحالة — سطح السوق (menu_market) هو ما يبيع به جيرانه',
     ],
 
-    [
-        'child_name_ar' => 'خضروات',
-        'root_slug' => 'agriculture-and-animals',
-        'service_key' => 'menu',
-        'copy_from_child_ar' => 'حبوب وغلال',
-        'why' => 'نفس الحالة',
-    ],
 
     // The same three trades as COMPANIES. «كرڤان» is the donor because it is the
     // one child under شركات already selling off menu_market.
     [
-        'child_name_ar' => 'فواكة',
+        'child_name_ar' => 'خضار وفاكهة',
         'root_slug' => 'companies',
         'service_key' => 'menu',
         'copy_from_child_ar' => 'كرڤان',
@@ -118,13 +111,6 @@ return [
         'why' => 'نفس الحالة',
     ],
 
-    [
-        'child_name_ar' => 'خضروات',
-        'root_slug' => 'companies',
-        'service_key' => 'menu',
-        'copy_from_child_ar' => 'كرڤان',
-        'why' => 'نفس الحالة',
-    ],
 
     /*
     | The one entry here with LIVE merchants, and the oldest open finding on the

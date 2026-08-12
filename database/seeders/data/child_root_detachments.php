@@ -231,4 +231,71 @@ return [
         'tick_option' => 'بي في سي (UPVC)',
         'why' => 'خامة لا حرفة — وهي صفٌّ في «أنواع الأبواب والشبابيك» التي يحملها الابنان بالكامل',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | «زراعية وحيوانية» — 14 children into 10
+    |--------------------------------------------------------------------------
+    | «نفذ ١ و٢ و٣ وادمج مواشي وأرانب فقط» — owner, 2026-08-12.
+    |
+    | Every keeper was renamed first (`child_renames.php`), because a child that
+    | swallows its sibling must stop advertising half of what it covers.
+    |
+    | None of the nine children involved holds a single account, so nothing is
+    | rehomed and no `tick_option` is needed: the keeper already carries the
+    | folded child's whole vocabulary, which is precisely why they merged.
+    |
+    | «مزارع سمكية» and «دواجن» were on the table and are NOT here. Aquaculture
+    | is a different licence and a different cycle, and «دواجن» is a fresh
+    | SELLER — «أقسام الطازج واللحوم» and «حالة الدواجن» — not a producer.
+    */
+    [
+        'child_name_ar' => 'معدات مزارع دواجن',
+        'root_slug' => 'agriculture-and-animals',
+        'reassign_to' => null,
+        'why' => 'يتقاسم قائمة «معدات وتجهيزات المزارع» — والفرق هو الحيوان، وهو صفٌّ لا ابن',
+    ],
+    [
+        'child_name_ar' => 'معدات مزارع أرانب',
+        'root_slug' => 'agriculture-and-animals',
+        'reassign_to' => null,
+        'why' => 'نفس القائمة ونفس الحرفة — أقفاص ومشارب',
+    ],
+
+    /*
+    | «خضروات» stands under THREE roots and has to leave all three, or the row
+    | survives where the merge did not reach and a customer meets two names for
+    | one shelf. «خضار وفاكهة» #114 already stands in the same three.
+    */
+    [
+        'child_name_ar' => 'خضروات',
+        'root_slug' => 'agriculture-and-animals',
+        'reassign_to' => null,
+        'why' => 'تطابق ١٠٠٪ مع «فواكة» — واسمهما التجاري واحد: خضار وفاكهة',
+    ],
+    [
+        'child_name_ar' => 'خضروات',
+        'root_slug' => 'companies',
+        'reassign_to' => null,
+        'why' => 'نفس الدمج، والجذر الثاني الذي كان يقف فيه',
+    ],
+    [
+        'child_name_ar' => 'خضروات',
+        'root_slug' => 'shops-online',
+        'reassign_to' => null,
+        'why' => 'نفس الدمج، والجذر الثالث',
+    ],
+
+    [
+        'child_name_ar' => 'أسمدة',
+        'root_slug' => 'agriculture-and-animals',
+        'reassign_to' => null,
+        'why' => 'محل المستلزمات الزراعية يبيع التقاوي والسماد والمبيد معًا',
+    ],
+    [
+        'child_name_ar' => 'أرانب',
+        'root_slug' => 'agriculture-and-animals',
+        'reassign_to' => null,
+        'why' => 'الفرق عن «مواشي» صار صفًّا في «أنواع الثروة الحيوانية والسمكية»',
+    ],
 ];

@@ -30,11 +30,10 @@ return [
         // undoes.
         'بن' => ['grocery_pantry'],
         'حلويات' => ['bakery_sweets'],
-        'خضروات' => ['fresh_market'],
         'دواجن' => ['fresh_market'],
         'سوبر ماركت' => ['supermarket'],
         'عصائر' => ['beverages_drinks'],
-        'فواكة' => ['fresh_market'],
+        'خضار وفاكهة' => ['fresh_market'],
         'مجمدات' => ['fresh_market'],
         'مخابز' => ['bakery_sweets'],
         'منظفات' => ['household_personal'],

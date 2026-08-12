@@ -36,16 +36,16 @@ return [
     'goods' => [
         // زراعة: supplies and livestock a catalogue can carry
         'معدات زراعية',
-        'تقاوي زراعية',
-        'أسمدة',
+        // Fourteen children of this root became nine on 2026-08-12 (owner):
+        // تقاوي+أسمدة, فواكة+خضروات, مواشي+أرانب, and the three «معدات مزارع X»
+        // into one. The folded rows survive and reach no root, so naming them
+        // here asks whether a child nobody can see is sellable.
+        'تقاوي وأسمدة ومبيدات',
         'أعلاف',
         'حبوب وغلال',
-        'مواشي',
-        'أرانب',
+        'مواشي وأرانب',
         'مزارع سمكية',
-        'معدات مزارع مواشي',
-        'معدات مزارع دواجن',
-        'معدات مزارع أرانب',
+        'معدات وتجهيزات المزارع',
 
         // شركات: equipment traders
         'كرڤان',

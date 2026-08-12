@@ -90,6 +90,7 @@ return [
         'الآلات والمعدات الزراعية',
         'معدات وتجهيزات المزارع',
         'أنواع الثروة الحيوانية والسمكية',
+        'مستلزمات المحاصيل',
         // Written 2026-08-12 for the three «شركات» children the bulk-picker
         // slip left with no vocabulary at all. Lines: the priced row is the job.
         'أنظمة المصاعد والسلالم',

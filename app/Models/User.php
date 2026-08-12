@@ -28,6 +28,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'name_en',
         'email',
         'phone',
         'password',
@@ -147,9 +148,54 @@ class User extends Authenticatable
 
         return $query->where(function (Builder $qq) use ($q) {
             $qq->where('name', 'like', "%{$q}%")
+                // 605 of 1,704 businesses carry a Latin-only name, and every one
+                // of them was invisible to a customer typing Arabic while this
+                // matched `name` alone. A shop cannot guess which script its
+                // customers use.
+                ->orWhere('name_en', 'like', "%{$q}%")
                 ->orWhere('email', 'like', "%{$q}%")
                 ->orWhere('phone', 'like', "%{$q}%");
         });
+    }
+
+    /**
+     * Match a business by EITHER of its names, and nothing else.
+     *
+     * `scopeSearch` also matches email and phone, which is right for an admin
+     * hunting an account and wrong for a customer browsing shops — it would let
+     * anyone confirm whether a phone number is registered by watching the
+     * result count. A public search gets names only.
+     */
+    public function scopeSearchByName(Builder $query, ?string $q): Builder
+    {
+        $q = trim((string) $q);
+
+        if ($q === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $qq) use ($q) {
+            $qq->where('name', 'like', "%{$q}%")
+                ->orWhere('name_en', 'like', "%{$q}%");
+        });
+    }
+
+    /**
+     * The name to show, in the reader's language, falling back to the other.
+     *
+     * Never blank: `name` is the canonical column and is never null, so a
+     * merchant who has not filled the English box is still called something on
+     * an English screen.
+     */
+    public function displayName(): string
+    {
+        $english = trim((string) $this->name_en);
+
+        if (app()->getLocale() === 'en' && $english !== '') {
+            return $english;
+        }
+
+        return trim((string) $this->name) ?: $english;
     }
 
     public function scopeOfType(Builder $query, ?string $type): Builder

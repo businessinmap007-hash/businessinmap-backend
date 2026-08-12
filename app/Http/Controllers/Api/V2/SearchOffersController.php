@@ -110,13 +110,13 @@ final class SearchOffersController extends Controller
 
         $q = trim((string) ($data['q'] ?? ''));
 
-        if ($q !== '') {
-            $query->where(function (Builder $w) use ($q) {
-                $w->where('name', 'like', "%{$q}%")
-                    ->orWhere('email', 'like', "%{$q}%")
-                    ->orWhere('phone', 'like', "%{$q}%");
-            });
-        }
+        // Names only. This endpoint is PUBLIC, and matching email meant anyone
+        // could confirm an address belonged to a registered account by watching
+        // the result count — and harvest addresses by narrowing. A customer
+        // searching shops has no business querying contact details.
+        // `searchByName` also covers `name_en`, which is what makes a
+        // Latin-named shop findable in Arabic and the reverse.
+        $query->searchByName($q);
 
         if (! empty($data['business_id'])) {
             $query->where('id', (int) $data['business_id']);

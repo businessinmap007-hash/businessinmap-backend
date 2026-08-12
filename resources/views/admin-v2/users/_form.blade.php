@@ -33,9 +33,26 @@
 
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
-            <label class="a2-label">Name</label>
+            <label class="a2-label">{{ __('الاسم') }} <span class="a2-muted">({{ __('عربي') }})</span></label>
             <input class="a2-input" name="name" value="{{ old('name', $user->name) }}">
             @error('name')
+                <div class="a2-error">{{ $message }}</div>
+            @enderror
+        </div>
+
+        {{-- «الاسم فى حسابات البزنس يكون خانتين عربى وانجليزى / حسابات العملاء
+             خانة واحدة وتقبل الاثنين».
+
+             A shop is searched for; a customer is not. 605 of 1,704 businesses
+             carried a Latin-only name and no Arabic search could reach them. --}}
+        <div class="a2-form-group">
+            <label class="a2-label">
+                {{ __('الاسم بالإنجليزية') }}
+                <span class="a2-muted">({{ __('للأنشطة التجارية') }})</span>
+            </label>
+            <input class="a2-input" name="name_en" dir="ltr" value="{{ old('name_en', $user->name_en) }}">
+            <div class="a2-hint">{{ __('يجعل النشاط يظهر لمن يبحث بالإنجليزية — وخانة العميل الواحدة تقبل اللغتين.') }}</div>
+            @error('name_en')
                 <div class="a2-error">{{ $message }}</div>
             @enderror
         </div>

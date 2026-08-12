@@ -595,6 +595,10 @@ class UserController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:191',
+            // A business is searched by customers and 35% of them carried a
+            // Latin-only name, invisible to anyone typing Arabic. A client has
+            // one box that takes either script — nobody searches for customers.
+            'name_en' => 'nullable|string|max:191',
             'email' => 'required|email|max:191|unique:users,email,' . $user->id,
             'phone' => 'required|string|max:15|unique:users,phone,' . $user->id,
             'type' => 'required|in:admin,client,business',

@@ -16,6 +16,10 @@ class AccountResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'name' => (string) $this->name,
+            // Business only: a customer has one name box and a null here would
+            // read as «he forgot to fill it in».
+            'name_en' => $this->isBusiness() ? $this->name_en : null,
+            'display_name' => $this->displayName(),
             'email' => (string) $this->email,
             'phone' => $this->phone,
             'type' => (string) $this->type,

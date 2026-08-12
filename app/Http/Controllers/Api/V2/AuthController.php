@@ -27,7 +27,16 @@ final class AuthController extends Controller
     public function register(Request $request)
     {
         $data = $request->validate([
+            // A CLIENT writes one name in whichever script he likes — a person's
+            // name is not a translation of itself, and nobody searches for
+            // customers. A BUSINESS writes both, because 35% of them carried a
+            // Latin-only name and were invisible to every customer typing
+            // Arabic. `name` holds the Arabic; `name_en` the English.
             'name' => ['required', 'string', 'max:191'],
+            'name_en' => [
+                'required_if:type,' . User::TYPE_BUSINESS,
+                'nullable', 'string', 'max:191',
+            ],
             'email' => ['required', 'string', 'email', 'max:191', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:15', 'unique:users,phone'],
             'password' => \App\Support\PasswordPolicy::rules(),
@@ -62,6 +71,7 @@ final class AuthController extends Controller
         $user = DB::transaction(function () use ($data) {
             return User::create([
                 'name' => $data['name'],
+                'name_en' => $data['name_en'] ?? null,
                 'email' => $data['email'],
                 'phone' => $data['phone'],
                 'password' => Hash::make($data['password']),

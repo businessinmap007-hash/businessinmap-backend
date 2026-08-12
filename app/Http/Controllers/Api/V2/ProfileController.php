@@ -31,13 +31,25 @@ final class ProfileController extends Controller
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:191'],
+            // Business only: a customer's single box already takes either script.
+            'name_en' => ['sometimes', 'nullable', 'string', 'max:191'],
             'phone' => ['sometimes', 'string', 'max:15', Rule::unique('users', 'phone')->ignore($user->id)],
             'about' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
-            'category_child_id' => ['sometimes', 'nullable', 'integer', 'exists:category_children,id'],
+            // `category_children` does not exist — the table is
+            // `category_children_master`. The rule threw a QueryException, so
+            // every profile update carrying a category_child_id answered 500.
+            // The same mistake was already found and fixed in AuthController.
+            'category_child_id' => ['sometimes', 'nullable', 'integer', 'exists:category_children_master,id'],
         ]);
+
+        // A customer has one name box, so an English name posted to a client
+        // account is dropped rather than stored where nothing will read it.
+        if (! $user->isBusiness()) {
+            unset($data['name_en']);
+        }
 
         if (! empty($data)) {
             $user->fill($data)->save();

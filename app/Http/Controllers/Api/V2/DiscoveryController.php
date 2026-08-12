@@ -250,9 +250,10 @@ final class DiscoveryController extends Controller
         $query = User::query()
             ->where('type', 'business')
             ->where('category_child_id', $childId)
-            ->when($q !== '', fn (Builder $w) => $w->where(fn (Builder $x) => $x
-                ->where('name', 'like', "%{$q}%")
-                ->orWhere('phone', 'like', "%{$q}%")));
+            // Both names, and only the names: a shop that wrote «panda» must be
+            // findable by someone typing «باندا»'s alphabet either way, and a
+            // customer browsing shops must not be able to probe phone numbers.
+            ->when($q !== '', fn (Builder $w) => $w->searchByName($q));
 
         /*
          * A business appears for its child whether or not it has priced

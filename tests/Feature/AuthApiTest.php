@@ -56,7 +56,10 @@ class AuthApiTest extends TestCase
         $suffix = Str::random(8);
 
         $res = $this->postJson('/api/v2/auth/register', [
-            'name' => 'Biz With Child',
+            // Both names since 2026-08-12: a shop is searched for, and 35% of
+            // them carried a Latin-only name no Arabic search could reach.
+            'name' => 'نشاط له تخصص',
+            'name_en' => 'Biz With Child',
             'email' => "b_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
             'password' => 'Secret123',

@@ -255,6 +255,57 @@ return [
          * «نطاق التعامل» and «حالة المنتج», which it already carries.
          */
         /*
+         * Three children the 23:41 save left with nothing to say ANYWHERE, so
+         * there was nothing to mirror back. Each had carried a single stray row
+         * of «مستلزمات المزارع» — a lift company does not sell feed troughs;
+         * that was sediment, not a vocabulary — so restoring the row would
+         * restore a mistake. They get the words their trade actually uses.
+         *
+         * `line`, all three: they carry booking and menu under شركات and no
+         * retail, so the priced row is the JOB — a lift supplied and installed,
+         * a cabin delivered — not a catalog product.
+         */
+        'أنظمة المصاعد والسلالم' => [
+            'name_en' => 'Lift & Escalator Systems', 'price_role' => 'line', 'children' => [90],
+            'options' => [
+                'مصاعد ركاب' => 'Passenger Lifts',
+                'مصاعد بضائع' => 'Goods Lifts',
+                'مصاعد بانوراما' => 'Panoramic Lifts',
+                'مصاعد سيارات' => 'Car Lifts',
+                'سلالم كهربائية' => 'Escalators',
+                'ممرات متحركة' => 'Moving Walkways',
+                'تحديث وتجديد مصاعد' => 'Lift Modernisation',
+                'عقود صيانة دورية' => 'Lift Maintenance Contracts',
+            ],
+        ],
+
+        'الكرفانات والوحدات الجاهزة' => [
+            'name_en' => 'Caravans & Portable Units', 'price_role' => 'line', 'children' => [47],
+            'options' => [
+                'كرفان سكني' => 'Living Caravan',
+                'كرفان مكتبي' => 'Office Caravan',
+                'غرف حراسة ومداخل' => 'Guard Cabins',
+                'دورات مياه متنقلة' => 'Portable Toilets',
+                'مخازن ومستودعات جاهزة' => 'Prefab Stores',
+                'بيوت وشاليهات جاهزة' => 'Prefab Homes & Chalets',
+                'تأجير كرفانات' => 'Caravan Rental',
+            ],
+        ],
+
+        'معدات السوبر ماركت' => [
+            'name_en' => 'Supermarket Equipment', 'price_role' => 'line', 'children' => [273],
+            'options' => [
+                'ثلاجات وفاترينات عرض' => 'Display Fridges & Cabinets',
+                'غرف تبريد وتجميد' => 'Cold & Freezer Rooms',
+                'أرفف وجندولات' => 'Shelving & Gondolas',
+                'كاونتر كاشير' => 'Checkout Counters',
+                'موازين وطابعات باركود' => 'Scales & Label Printers',
+                'عربات وسلال تسوق' => 'Trolleys & Baskets',
+                'تركيب وصيانة معدات' => 'Equipment Installation & Service',
+            ],
+        ],
+
+        /*
          * The axis the parts trade actually prices on, and neither child had
          * it. «فرامل تويوتا» is not one price: أصلي وكيل and تجاري are the same
          * part, the same brand and the same system at a multiple of each other,
@@ -307,11 +358,50 @@ return [
     ],
 
     /*
+    | The repair half of the 2026-08-11 23:41 bulk save (see
+    | BulkPickerSlipRevertSeeder). It pinned «أنواع الأجهزة الرياضية» onto
+    | SIXTY-NINE children of شركات and withdrew what each of them was saying, so
+    | a contractor sold treadmills and could not say «أعمال خرسانية».
+    |
+    | Every child below still says the right words as a shop, a factory or a
+    | showroom — only the شركات scope was emptied — so the mirror is the exact
+    | tool: it copies the ids the child ALREADY holds, and therefore cannot
+    | widen anything `child_option_scopes.php` had narrowed.
+    */
+    'mirror_links' => [
+        8 => ['أنواع الإكسسوارات'],                          // اكسسوار
+        11 => ['تخصصات الدعاية والإعلان'],                  // دعاية وإعلان
+        50 => ['أنواع الأبواب والشبابيك'],                  // باب وشباك
+        56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],        // نجف
+        60 => ['موضة وعناية شخصية'],                        // ملابس جاهزة
+        83 => ['أقسام المنزل والعناية'],                    // منظفات
+        // «أجهزة كهربائية» #88 is not mirrored: its list must be SHARED across
+        // its four roots — see BulkPickerSlipRevertSeeder::SHARED_AGAIN.
+        95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة
+        114 => ['أقسام الطازج واللحوم', 'مواصفات المنتج الغذائي'], // فواكة
+        115 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // مفروشات
+        116 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // آثاث
+        158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
+        168 => ['موضة وعناية شخصية'],                       // جلود وشنط وأحذية
+        170 => ['مستلزمات المزارع'],                        // مواشي
+        210 => ['بنود المخبوزات والحلويات', 'بنود المنيو'], // حلويات
+        292 => ['أقسام الطازج واللحوم', 'مواصفات المنتج الغذائي'], // خضروات
+    ],
+
+    /*
     | Every child appears ONCE here, however many groups it takes. A duplicate
     | array key is silent — PHP keeps the last and the earlier entry simply
     | never happens — and 261, 283 and 285 each wanted two.
     */
     'links' => [
+        /*
+         * «مواد غذائية ومنظفات» #110 (8 merchants) held the whole twenty-row
+         * food range and lost it in the same save. It carries `retail`, so the
+         * catalog holds its priced rows and this stays a modifier — the
+         * «ماركات السيارات» shape, saying what the wholesaler DEALS IN.
+         */
+        110 => ['أصناف المنتجات الغذائية' => 'all'],
+
         // A software COMPANY and «برمجة» under تكنولوجيا are one trade.
         261 => [
             'خدمات البرمجة والتطوير' => 'all',

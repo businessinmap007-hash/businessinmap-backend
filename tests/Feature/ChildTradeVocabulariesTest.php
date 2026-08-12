@@ -599,6 +599,75 @@ class ChildTradeVocabulariesTest extends TestCase
     }
 
     /**
+     * No root says one thing. This is the bulk-picker slip, caught by shape.
+     *
+     * The bulk child-options screen in replace mode writes the picked group
+     * onto every selected child and withdraws what each of them was saying.
+     * Twice on 2026-08-11 that took a whole root: «أنواع الأبواب والشبابيك»
+     * onto 42 of مصانع's 44 (a food factory selling «شاتر كهربائي»), and
+     * «أنواع الأجهزة الرياضية» onto 69 of شركات's 70 (a contractor selling
+     * treadmills). Reverted by BulkPickerSlipRevertSeeder.
+     *
+     * A trade vocabulary is by nature narrow — «أنواع الطوب» belongs to the
+     * kiln and nothing else — so one held by most of a root is not a
+     * vocabulary, it is a save that went wide. The universal axes are excluded
+     * because being everywhere is precisely their job.
+     */
+    /**
+     * The two that really are the whole root's question, not a slip.
+     *
+     * «مستلزمات المزارع» — every farm child buys feed, troughs and incubators,
+     * whatever it raises. «ألعاب ومرافق الترفيه» — every entertainment child
+     * has facilities, and which ones is the thing a customer chooses on.
+     *
+     * Both were written deliberately, group-first, rather than picked onto a
+     * root. The list may only shrink.
+     *
+     * @var array<int,string>
+     */
+    private const ROOT_WIDE_BY_NATURE = [
+        'agriculture-and-animals:مستلزمات المزارع',
+        'arts-entertainment:ألعاب ومرافق الترفيه',
+    ];
+
+    public function test_no_vocabulary_is_spread_across_a_whole_root(): void
+    {
+        $wide = [];
+
+        foreach (
+            DB::table('categories as r')->join('category_parent_child as pc', 'pc.parent_id', '=', 'r.id')
+                ->distinct()->get(['r.id', 'r.slug']) as $root
+        ) {
+            $children = DB::table('category_parent_child')->where('parent_id', $root->id)->pluck('child_id');
+
+            if ($children->count() < 8) {
+                continue; // too small for "most of it" to mean anything
+            }
+
+            $counts = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('co.child_id', $children)
+                ->whereIn('co.category_id', [0, $root->id])
+                ->whereNotIn('g.name_ar', self::UNIVERSAL)
+                ->select('g.name_ar', DB::raw('COUNT(DISTINCT co.child_id) as held'))
+                ->groupBy('g.name_ar')->get();
+
+            foreach ($counts as $row) {
+                if (in_array("{$root->slug}:{$row->name_ar}", self::ROOT_WIDE_BY_NATURE, true)) {
+                    continue;
+                }
+
+                if ($row->held / $children->count() > 0.6) {
+                    $wide[] = "{$root->slug}: «{$row->name_ar}» على {$row->held} من {$children->count()}";
+                }
+            }
+        }
+
+        $this->assertSame([], $wide, 'a vocabulary went root-wide: ' . implode(' · ', $wide));
+    }
+
+    /**
      * The children that carry no modifier, and why each is right.
      *
      * Not a debt — a decision, per root:

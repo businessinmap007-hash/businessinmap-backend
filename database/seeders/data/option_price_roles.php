@@ -85,6 +85,11 @@ return [
         // applied per child: a contractor's «أعمال خرسانية» is the priced row
         // the way «تنظيف خزانات» is, while a curtain wholesaler's stock is not.
         'أعمال المقاولات',
+        // Written 2026-08-12 for the three «شركات» children the bulk-picker
+        // slip left with no vocabulary at all. Lines: the priced row is the job.
+        'أنظمة المصاعد والسلالم',
+        'الكرفانات والوحدات الجاهزة',
+        'معدات السوبر ماركت',
         'أعمال البنية التحتية',
         'أنواع التأمين',
         'خدمات التسويق',

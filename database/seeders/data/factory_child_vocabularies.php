@@ -481,7 +481,10 @@ return [
          * so cannot widen anything the scope file had narrowed.
          */
         8 => ['أنواع الإكسسوارات'],                          // اكسسوار
-        44 => ['ماركات السيارات'],                          // قطع غيار سيارات
+        // «قطع غيار سيارات» #44 is NOT mirrored: «ماركات السيارات» must be
+        // SHARED, not scoped, or the shop can say BMW while the factory beside
+        // it cannot — the exact bug TradeAxesTest was written for. Its repair
+        // lives in BulkPickerSlipRevertSeeder::SHARED_AGAIN.
         60 => ['موضة وعناية شخصية'],                       // ملابس جاهزة
         88 => ['أنواع الأجهزة الكهربائية'],               // أجهزة كهربائية
         116 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],      // آثاث

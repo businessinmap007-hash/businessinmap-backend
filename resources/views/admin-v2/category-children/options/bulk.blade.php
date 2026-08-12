@@ -239,7 +239,7 @@
             <div class="a2-section-head">
                 <div>
                     <h2 class="a2-section-title">{{ __('جروبات الخيارات') }}</h2>
-                    <div class="a2-section-subtitle">{{ __('الجروبات مغلقة — اضغط أي جروب لفتحه وعرض خياراته') }}</div>
+                    <div class="a2-section-subtitle">{{ __('لا يظهر أي جروب حتى تضغط اسمه — مجموعات القسم أولًا، والباقي داخل «أخرى»') }}</div>
                 </div>
 
                 <div class="a2-page-actions">
@@ -264,6 +264,17 @@
                 <span class="a2-muted" style="font-size:12px;">{{ __('السطر يُسعَّر ويُحجَز · الوصفي يُبحث به فقط') }}</span>
             </div>
 
+            {{-- «اخفى باقى مجموعات الخيارات الغير مختارة فى زر other … وعند الضغط
+                 على اى مجموعة مختارة او مجموعة من Other تظهر فى الاسفل ويظهر فقط
+                 ما تم الضغط عليه».
+
+                 Forty open shells said nothing about which of them this child
+                 answers. The chips say it: what it carries, then a door to the
+                 rest — and one panel at a time below them. --}}
+            <div id="groupChipBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+            <div id="groupOtherBar" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:12px;
+                        padding:8px;border:1px dashed var(--a2-border,#d4d4d8);border-radius:8px;"></div>
+
             @if($optionGroupsSafe->isEmpty() && !$hasUngrouped)
                 <div class="a2-muted">{{ __('لا توجد خيارات متاحة.') }}</div>
             @else
@@ -276,7 +287,7 @@
 
                     <details class="a2-card a2-card--section js-option-group-panel"
                              data-role="{{ $roleKey }}"
-                             style="margin-bottom:10px;">
+                             style="margin-bottom:10px;display:none;">
                         <summary class="a2-card-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                             <span class="a2-section-title a2-mb-0">{{ $nameOf($group) }}</span>
 
@@ -318,7 +329,7 @@
                 @endforeach
 
                 @if($hasUngrouped)
-                    <details class="a2-card a2-card--section js-option-group-panel" data-role="" style="margin-bottom:10px;">
+                    <details class="a2-card a2-card--section js-option-group-panel" data-role="" style="margin-bottom:10px;display:none;">
                         <summary class="a2-card-head" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;">
                             <span class="a2-section-title a2-mb-0">{{ __('بدون جروب') }}</span>
                             <span class="a2-badge js-group-count"
@@ -570,7 +581,10 @@ document.addEventListener('DOMContentLoaded', function () {
             byGroup.get(entry[1]).items.push({ id: String(id), name: entry[0] });
         });
 
-        peekBody.appendChild(groupJumpBar(Array.from(byGroup.keys()).sort()));
+        // The chips live in the picker card below, not in here: they are how the
+        // picker is opened at all now, and they must stay reachable when no
+        // child card is open.
+        renderGroupChips(Array.from(byGroup.keys()).sort());
 
         if (!ids.length) {
             const empty = document.createElement('div');
@@ -663,66 +677,131 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /**
-     * The child's groups as chips, plus every OTHER group, so «اختر منها ما هو
-     * مناسب» is reachable for an axis the child carries nothing from yet — which
-     * is exactly the case a card built only from what it already has would hide.
-     */
-    function groupJumpBar(carried) {
-        const bar = document.createElement('div');
-        bar.style.display = 'flex';
-        bar.style.flexWrap = 'wrap';
-        bar.style.gap = '6px';
-        bar.style.marginBottom = '10px';
+    /*
+    |--------------------------------------------------------------------------
+    | The chips: the child's own groups, and a door to the rest
+    |--------------------------------------------------------------------------
+    | Nothing below is drawn until one of these is pressed, and pressing one
+    | closes whatever was open. Forty shells at once is how «أنواع الأبواب
+    | والشبابيك» ended up ticked on a root of factories — the axis being written
+    | was never in view.
+    */
+    const chipBar = document.getElementById('groupChipBar');
+    const otherBar = document.getElementById('groupOtherBar');
 
-        const carriedSet = new Set(carried);
+    let carriedGroups = [];
+    let activeRole = '';
+    let openGroupName = '';
 
-        const chip = function (name, held) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = held ? 'a2-btn a2-btn-sm a2-btn-primary' : 'a2-btn a2-btn-sm a2-btn-ghost';
-            button.textContent = name;
-            button.title = @json(__('افتح المجموعة بالأسفل'));
-            button.addEventListener('click', function () { revealGroup(name); });
-            return button;
-        };
-
-        carried.forEach(function (name) { bar.appendChild(chip(name, true)); });
-
-        allGroupNames().forEach(function (name) {
-            if (!carriedSet.has(name)) {
-                bar.appendChild(chip(name, false));
-            }
-        });
-
-        return bar;
-    }
-
-    /** Every group the picker below actually draws, in its own order. */
-    function allGroupNames() {
+    /** Every group the picker draws, in its own order, with what it does. */
+    function groupPanels() {
         return Array.from(document.querySelectorAll('.js-option-group-panel'))
             .map(function (panel) {
                 const title = panel.querySelector('.a2-section-title');
-                return title ? title.textContent.trim() : '';
+
+                return {
+                    panel: panel,
+                    name: title ? title.textContent.trim() : '',
+                    role: panel.dataset.role || '',
+                };
             })
-            .filter(function (name) { return name !== ''; });
+            .filter(function (entry) { return entry.name !== ''; });
     }
 
-    /** Open that group in the picker and scroll to it. */
-    function revealGroup(name) {
-        document.querySelectorAll('.js-option-group-panel').forEach(function (panel) {
-            const title = panel.querySelector('.a2-section-title');
+    function groupChip(name, held) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'a2-btn a2-btn-sm '
+            + (openGroupName === name ? 'a2-btn-primary' : (held ? 'a2-btn-primary' : 'a2-btn-ghost'));
+        button.textContent = name;
 
-            if (!title || title.textContent.trim() !== name) {
+        if (openGroupName === name) {
+            button.style.outline = '2px solid currentColor';
+        }
+
+        button.title = @json(__('اعرضها بالأسفل'));
+        button.addEventListener('click', function () { revealGroup(name); });
+
+        return button;
+    }
+
+    /**
+     * @param carried group names the open child already answers — passed in
+     *                rather than read back, since the card knows and the picker
+     *                does not.
+     */
+    function renderGroupChips(carried) {
+        if (!chipBar || !otherBar) {
+            return;
+        }
+
+        if (Array.isArray(carried)) {
+            carriedGroups = carried;
+        }
+
+        const carriedSet = new Set(carriedGroups);
+
+        chipBar.innerHTML = '';
+        otherBar.innerHTML = '';
+
+        const rest = [];
+
+        groupPanels().forEach(function (entry) {
+            if (activeRole !== '' && entry.role !== activeRole) {
                 return;
             }
 
-            // A role filter may be hiding it — showing the group an admin just
-            // asked for beats keeping a filter he set two clicks ago.
-            panel.style.display = '';
-            panel.open = true;
-            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (carriedSet.has(entry.name)) {
+                chipBar.appendChild(groupChip(entry.name, true));
+            } else {
+                rest.push(entry.name);
+            }
         });
+
+        if (!carriedSet.size) {
+            const hint = document.createElement('span');
+            hint.className = 'a2-muted';
+            hint.style.fontSize = '12px';
+            hint.style.alignSelf = 'center';
+            hint.textContent = @json(__('اختر قسمًا واحدًا لتظهر مجموعاته هنا — أو افتح «أخرى».'));
+            chipBar.appendChild(hint);
+        }
+
+        if (!rest.length) {
+            return;
+        }
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'a2-btn a2-btn-sm a2-btn-ghost';
+        toggle.textContent = @json(__('أخرى')) + ' (' + rest.length + ')';
+        toggle.addEventListener('click', function () {
+            otherBar.style.display = otherBar.style.display === 'none' ? 'flex' : 'none';
+        });
+
+        chipBar.appendChild(toggle);
+
+        rest.forEach(function (name) { otherBar.appendChild(groupChip(name, false)); });
+    }
+
+    /** Show that group below — and only it. */
+    function revealGroup(name) {
+        openGroupName = name;
+
+        groupPanels().forEach(function (entry) {
+            const wanted = entry.name === name;
+
+            // A role filter no longer hides panels — it filters the chips — so
+            // the group an admin just asked for always comes up.
+            entry.panel.style.display = wanted ? '' : 'none';
+            entry.panel.open = wanted;
+
+            if (wanted) {
+                entry.panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+
+        renderGroupChips();
     }
 
     /** The picker's box for an option, or null when no group draws it. */
@@ -925,9 +1004,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 other.classList.toggle('a2-btn-ghost', !active);
             });
 
-            document.querySelectorAll('.js-option-group-panel').forEach(function (panel) {
-                panel.style.display = (role === '' || panel.dataset.role === role) ? '' : 'none';
-            });
+            // It filters the CHIPS now. Filtering the panels meant hiding a group
+            // that is open and ticked, which is how a role button became a way to
+            // lose sight of what you were about to save.
+            activeRole = role;
+            renderGroupChips();
         });
     });
 
@@ -1057,6 +1138,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const mode = currentMode();
 
         if (mode !== 'replace' || children.length !== 1) {
+            // No single child in hand means no group is "the child's" — every
+            // one of them falls under «أخرى».
+            renderGroupChips([]);
+
             if (modeHint) {
                 modeHint.textContent = mode === 'replace'
                     ? (children.length === 1
@@ -1110,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', function () {
     buildChildBadges();
     refreshChildBadges();
     refreshRegistered();
+    renderGroupChips([]);
     seedFromRegistered();
 });
 </script>

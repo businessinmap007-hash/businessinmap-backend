@@ -66,6 +66,36 @@ class OptionsServicesCollapsibleTest extends TestCase
         $this->assertStringNotContainsString('js-option-group-tab', $html, 'the old tab buttons are gone');
     }
 
+    /**
+     * «اخفى باقى مجموعات الخيارات الغير مختارة فى زر other وايضا جروبات
+     *  المجموعات اخفيها كلها … ويظهر فقط ما تم الضغط عليه».
+     *
+     * Collapsed was not enough: forty shells still filled the page, and the axis
+     * actually being written was never in view — which is how a door-and-window
+     * list was saved onto a whole root of factories. Nothing renders now until a
+     * chip is pressed, and pressing one closes the last.
+     */
+    public function test_the_bulk_picker_draws_no_group_until_one_is_asked_for(): void
+    {
+        $html = $this->actingAs($this->admin())
+            ->get(route('admin.category-child-options.bulk.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $panels = preg_match_all('/class="[^"]*js-option-group-panel[^"]*"[^>]*>/', $html, $found);
+
+        $this->assertGreaterThan(5, $panels, 'the screen still draws its groups');
+
+        foreach ($found[0] as $tag) {
+            $this->assertStringContainsString('display:none', $tag, 'every group starts hidden: ' . $tag);
+        }
+
+        // The chips are the only way in, so they must ship with the page.
+        $this->assertStringContainsString('groupChipBar', $html);
+        $this->assertStringContainsString('groupOtherBar', $html);
+        $this->assertStringContainsString('renderGroupChips', $html);
+    }
+
     public function test_services_bulk_renders(): void
     {
         $root = DB::table('categories')->where('parent_id', 0)->value('id');

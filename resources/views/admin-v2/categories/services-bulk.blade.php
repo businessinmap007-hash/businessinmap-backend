@@ -156,6 +156,25 @@
                         </label>
                     @endforeach
                 </div>
+
+                {{-- «السابق والتالى يجب ان يكون بجوار الابن المختار» — the two
+                     buttons sit either side of the name, not at the ends of a
+                     wide row, so a walk is a pair of clicks in one place.
+
+                     Pinned because stepping re-draws the cards below it, and
+                     without the pin the buttons slide out from under the
+                     cursor. It never scrolls: «لا يجب ان ترفع الشاشة لاعلى». --}}
+                <div id="childNav" class="a2-mt-12"
+                     style="display:none;align-items:center;justify-content:center;gap:8px;
+                            padding:8px 12px;border:1px solid var(--a2-border,#d4d4d8);border-radius:10px;
+                            position:sticky;top:0;z-index:5;background:var(--a2-card,#fff);">
+                    <button type="button" class="a2-btn a2-btn-ghost" id="childPrev">↦ {{ __('السابق') }}</button>
+
+                    <span style="font-weight:600;" id="childNavName"></span>
+                    <span class="a2-badge" id="childNavPos"></span>
+
+                    <button type="button" class="a2-btn a2-btn-ghost" id="childNext">{{ __('التالي') }} ↤</button>
+                </div>
             @endif
         </div>
 
@@ -275,7 +294,20 @@
                 </div>
 
                 <div id="feesLayout" hidden>
-                    <div class="a2-tabs" id="feeTabs">
+                    {{-- Chips, not a tab strip — the same shape as
+                         category-child-options/bulk: what is chosen sits on the
+                         first row, everything else hides behind «Other», and
+                         pressing any chip opens that one service below and
+                         closes the rest. --}}
+                    <div id="serviceChipBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+
+                    <div id="serviceOtherBar" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:12px;
+                                                     padding:8px;border:1px dashed var(--a2-border,#d4d4d8);border-radius:10px;"></div>
+
+                    {{-- Kept, hidden, and still the thing the JS drives: the
+                         card show/hide already hangs off these, so the chips
+                         press them rather than replacing the machinery. --}}
+                    <div class="a2-tabs" id="feeTabs" style="display:none;">
                         @foreach($servicesSafe as $service)
                             @php
                                 $serviceId = (int) $service->id;
@@ -285,6 +317,8 @@
                                 type="button"
                                 class="a2-tab js-fee-tab"
                                 data-service-id="{{ $serviceId }}"
+                                data-service-name="{{ $nameOf($service) }}"
+                                data-service-key="{{ $service->key }}"
                                 hidden
                             >
                                 {{ $nameOf($service) }}
@@ -1087,6 +1121,9 @@ document.addEventListener('DOMContentLoaded', function () {
             setActiveFeeCard(activeTab ? activeTab.dataset.serviceId : selectedIds[0]);
         }
 
+        renderServiceChips();
+        refreshChildNav();
+
         if (feesHelpBox) {
             feesHelpBox.hidden = visibleCount > 0 || feesDisabled;
         }
@@ -1179,6 +1216,181 @@ document.addEventListener('DOMContentLoaded', function () {
             setActiveFeeCard(tab.dataset.serviceId);
         });
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Service chips — the shape of category-child-options/bulk
+    |--------------------------------------------------------------------------
+    |
+    | «اريدها بنفس طريقة عمل category-child-options/bulk/edit فى الشكل واسلوب
+    | العمل». There it is: what is chosen sits on the first row, the rest hide
+    | behind «Other», and pressing any chip opens that one panel below.
+    |
+    | The chips do not replace the tab machinery, they press it — the cards
+    | already show and hide off `.js-fee-tab`, and two mechanisms driving one
+    | panel is how they drift apart.
+    */
+    const serviceChipBar = document.getElementById('serviceChipBar');
+    const serviceOtherBar = document.getElementById('serviceOtherBar');
+    let otherServicesOpen = false;
+
+    function serviceChip(tab, chosen) {
+        const button = document.createElement('button');
+        const id = String(tab.dataset.serviceId || '');
+        const active = tab.classList.contains('is-active') && !tab.hidden;
+
+        button.type = 'button';
+        button.className = 'a2-btn a2-btn-sm ' + (chosen ? 'a2-btn-primary' : 'a2-btn-ghost');
+        button.textContent = tab.dataset.serviceName || tab.textContent.trim();
+
+        if (active) {
+            button.style.outline = '2px solid currentColor';
+        }
+
+        button.title = chosen
+            ? @json(__('اعرضها بالأسفل'))
+            : @json(__('فعّل الخدمة واعرضها بالأسفل'));
+
+        button.addEventListener('click', function () {
+            // An «Other» chip switches the service on first — the panel below is
+            // only meaningful for a service this save actually touches, and its
+            // fields stay disabled until then.
+            if (!chosen) {
+                const box = document.querySelector('.js-service-checkbox[value="' + id + '"]');
+
+                if (box && !box.checked) {
+                    box.indeterminate = false;
+                    box.checked = true;
+                    box.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            setActiveFeeCard(id);
+            renderServiceChips();
+        });
+
+        return button;
+    }
+
+    function renderServiceChips() {
+        if (!serviceChipBar || !serviceOtherBar) {
+            return;
+        }
+
+        const chosenIds = getSelectedServiceIds();
+
+        serviceChipBar.innerHTML = '';
+        serviceOtherBar.innerHTML = '';
+
+        const others = [];
+
+        feeTabs.forEach(function (tab) {
+            const id = String(tab.dataset.serviceId || '');
+
+            if (chosenIds.includes(id)) {
+                serviceChipBar.appendChild(serviceChip(tab, true));
+            } else {
+                others.push(tab);
+            }
+        });
+
+        if (!others.length) {
+            serviceOtherBar.style.display = 'none';
+            return;
+        }
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'a2-btn a2-btn-sm a2-btn-ghost';
+        toggle.textContent = @json(__('أخرى')) + ' (' + others.length + ')';
+        toggle.addEventListener('click', function () {
+            otherServicesOpen = !otherServicesOpen;
+            renderServiceChips();
+        });
+        serviceChipBar.appendChild(toggle);
+
+        serviceOtherBar.style.display = otherServicesOpen ? 'flex' : 'none';
+        others.forEach(function (tab) { serviceOtherBar.appendChild(serviceChip(tab, false)); });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Walking the children one at a time
+    |--------------------------------------------------------------------------
+    */
+    const childNav = document.getElementById('childNav');
+    const childNavName = document.getElementById('childNavName');
+    const childNavPos = document.getElementById('childNavPos');
+
+    function childLabel(input) {
+        const card = input.closest('.a2-check-card');
+        const name = card ? card.querySelector('strong') : null;
+
+        return name ? name.textContent.trim() : ('#' + input.value);
+    }
+
+    function refreshChildNav() {
+        if (!childNav) {
+            return;
+        }
+
+        const inputs = Array.from(childInputs).filter(function (input) {
+            return input.offsetParent !== null || input.checked;
+        });
+
+        if (!inputs.length) {
+            childNav.style.display = 'none';
+            return;
+        }
+
+        childNav.style.display = 'flex';
+
+        const picked = inputs.filter(function (input) { return input.checked; });
+
+        if (picked.length === 1) {
+            childNavName.textContent = childLabel(picked[0]);
+            childNavPos.textContent = (inputs.indexOf(picked[0]) + 1) + ' / ' + inputs.length;
+            return;
+        }
+
+        childNavName.textContent = picked.length
+            ? @json(__('عدة أقسام محددة')) + ' (' + picked.length + ')'
+            : @json(__('لم يُحدَّد قسم — اضغط «التالي» للبدء'));
+        childNavPos.textContent = inputs.length;
+    }
+
+    function stepChild(delta) {
+        const inputs = Array.from(childInputs).filter(function (input) {
+            return input.offsetParent !== null || input.checked;
+        });
+
+        if (!inputs.length) {
+            return;
+        }
+
+        // Several ticked (or none) has no "current", so a step starts the walk
+        // from whichever end it was heading towards.
+        const picked = inputs.filter(function (input) { return input.checked; });
+        const from = picked.length === 1 ? inputs.indexOf(picked[0]) : (delta > 0 ? -1 : 0);
+
+        let next = from + delta;
+
+        if (next < 0) { next = inputs.length - 1; }
+        if (next >= inputs.length) { next = 0; }
+
+        inputs.forEach(function (input, index) { input.checked = index === next; });
+
+        // No scrollIntoView. «لا يجب ان ترفع الشاشة لاعلى» — the page moves when
+        // the admin scrolls it and at no other time.
+        fillVisibleServiceFeeCards();
+        syncAll();
+    }
+
+    const childPrev = document.getElementById('childPrev');
+    const childNext = document.getElementById('childNext');
+
+    if (childPrev) { childPrev.addEventListener('click', function () { stepChild(-1); }); }
+    if (childNext) { childNext.addEventListener('click', function () { stepChild(1); }); }
 
     document.querySelectorAll('input[name="mode"]').forEach(function (input) {
         input.addEventListener('change', function () {

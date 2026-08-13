@@ -559,10 +559,32 @@ class CategoryServiceBulkController extends Controller
 
         $matrix = [];
 
+        /*
+         * NOT filtered by `is_active`, and that is the point.
+         *
+         * «فى استرجي لا يوجد اى خدمات محددة داخل توصيل بينما فى child-workbench
+         * محدد الكثير». Both screens were right about what they read: the
+         * workbench reads the stored config row whatever its state, this one
+         * skipped any row with `is_active = 0`. «استرجي» (child 300) holds a
+         * full delivery config — two branches, a dozen types — on a row marked
+         * inactive, so the workbench showed a dozen ticks and this screen showed
+         * none. **262 config rows are inactive and still carry a stored
+         * `allowed_item_types`.**
+         *
+         * The deciding argument is not which screen is prettier: `configFor()`
+         * on the SAVE path of THIS controller reads the row with no `is_active`
+         * filter, and the untouched-picker guard keeps whatever it finds there.
+         * A screen that shows less than its own save path preserves is a screen
+         * that invites an admin to «fix» an empty picker and overwrite a
+         * curation they were never shown.
+         *
+         * Whether the service is switched ON is a different question, answered
+         * by `category_platform_services.is_active` through
+         * `activeServiceCountsForRoot()`. The two facts stay separate.
+         */
         $rows = CategoryServiceConfig::query()
             ->where('category_id', $rootId)
             ->whereIn('child_id', $childIds)
-            ->where('is_active', 1)
             ->get(['child_id', 'platform_service_id', 'config']);
 
         foreach ($rows as $row) {

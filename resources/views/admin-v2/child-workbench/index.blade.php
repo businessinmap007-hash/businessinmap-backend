@@ -45,6 +45,38 @@
         </div>
     </form>
 
+    {{-- ── walking the children, the way the bulk picker walks them ────────
+         «السابق والتالى بجوار الابن المختار» — the two buttons sit either side
+         of the name, on a row pinned where the eye already is.
+
+         Here a step is a page load, not a redraw, so the browser would land at
+         the top: the scroll position is carried across in sessionStorage and
+         put back, which is the same promise («لا يجب ان ترفع الشاشة لاعلى»)
+         kept by different means. --}}
+    @if($childId && $children->isNotEmpty())
+        @php
+            $ids = $children->pluck('id')->map(fn ($v) => (int) $v)->values();
+            $at = $ids->search($childId);
+            $prev = $at === false ? null : $ids[($at - 1 + $ids->count()) % $ids->count()];
+            $next = $at === false ? null : $ids[($at + 1) % $ids->count()];
+            $link = fn ($id) => route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $id], false);
+        @endphp
+
+        <div id="childNav" class="a2-mb-16"
+             style="display:flex;align-items:center;justify-content:center;gap:8px;
+                    padding:8px 12px;border:1px solid var(--a2-border,#d4d4d8);border-radius:10px;
+                    position:sticky;top:0;z-index:5;background:var(--a2-card,#fff);">
+            <a class="a2-btn a2-btn-ghost js-child-step" id="childPrev"
+               href="{{ $prev ? $link($prev) : '#' }}">↦ {{ __('السابق') }}</a>
+
+            <span style="font-weight:600;" id="childNavName">{{ $children->firstWhere('id', $childId)->name_ar ?? '' }}</span>
+            <span class="a2-badge" id="childNavPos">{{ ($at === false ? 0 : $at + 1) }} / {{ $ids->count() }}</span>
+
+            <a class="a2-btn a2-btn-ghost js-child-step" id="childNext"
+               href="{{ $next ? $link($next) : '#' }}">{{ __('التالي') }} ↤</a>
+        </div>
+    @endif
+
     @if(! $childId)
         <div class="a2-card a2-card--soft">
             <div class="a2-card-body a2-muted">{{ __('اختر أبًا ثم ابنًا لعرض خياراته وخدماته.') }}</div>
@@ -71,13 +103,19 @@
                 </div>
 
                 <div class="a2-card-body">
-                    <h3 class="cw-section-title">
+                    {{-- Chips: what this child already answers on the first row,
+                         the rest behind «أخرى», one panel open at a time. --}}
+                    <div class="cw-chipbar" data-cw-bar="options"></div>
+                    <div class="cw-otherbar" data-cw-other="options"></div>
+
+                    <h3 class="cw-section-title js-cw-heading" data-cw-scope="options">
                         {{ __('المحددة') }}
                         <span class="a2-badge">{{ $optionPanel['selected']->flatten()->count() }}</span>
                     </h3>
 
                     @forelse($optionPanel['selected'] as $groupName => $options)
-                        <div class="cw-block">
+                        <div class="cw-block js-cw-panel" data-cw-scope="options"
+                             data-cw-key="{{ $groupName }}" data-cw-held="1">
                             <div class="cw-block-head">{{ $groupName }}</div>
                             <div class="cw-chips">
                                 @foreach($options as $option)
@@ -104,13 +142,13 @@
                         <p class="a2-muted">{{ __('لا خيارات محددة بعد.') }}</p>
                     @endforelse
 
-                    <h3 class="cw-section-title a2-mt-16">
+                    <h3 class="cw-section-title a2-mt-16 js-cw-heading" data-cw-scope="options">
                         {{ __('باقي الخيارات') }}
                         <span class="a2-badge">{{ $optionPanel['groups']->flatten()->count() }}</span>
                     </h3>
 
                     @foreach($optionPanel['groups'] as $groupName => $options)
-                        <details class="cw-fold">
+                        <details class="cw-fold js-cw-panel" data-cw-scope="options" data-cw-key="{{ $groupName }}">
                             <summary>{{ $groupName }} <span class="a2-badge">{{ $options->count() }}</span></summary>
                             <div class="cw-chips">
                                 @foreach($options as $option)
@@ -141,9 +179,13 @@
                 </div>
 
                 <div class="a2-card-body">
+                    <div class="cw-chipbar" data-cw-bar="services"></div>
+                    <div class="cw-otherbar" data-cw-other="services"></div>
+
                     @foreach($servicePanel as $service)
                         @php $selectedCount = $service->selected->flatten()->count(); @endphp
-                        <div class="cw-service">
+                        <div class="cw-service js-cw-panel" data-cw-scope="services"
+                             data-cw-key="{{ $service->name }}" data-cw-held="{{ $service->enabled ? 1 : 0 }}">
                             <div class="cw-service-head">
                                 <label class="cw-toggle">
                                     <input type="checkbox" name="services[{{ $service->id }}][enabled]" value="1"
@@ -319,5 +361,158 @@
     .cw-fee-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
     .cw-fee-row .a2-select, .cw-fee-row .a2-input { max-width: 150px; }
     .cw-fee-off { opacity: .55; }
+
+    .cw-chipbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .cw-otherbar { display: none; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+                   padding: 8px; border: 1px dashed rgba(128,128,128,.35); border-radius: 10px; }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    /*
+    |--------------------------------------------------------------------------
+    | One panel at a time — the shape of category-child-options/bulk
+    |--------------------------------------------------------------------------
+    |
+    | Every group of options and every service is a panel with a chip. What the
+    | child already answers sits on the first row; the rest waits behind
+    | «أخرى»; pressing a chip opens that one and closes the others.
+    |
+    | Panels are HIDDEN, never disabled. Both forms save by replacing the whole
+    | set — `option_ids[]` and `services[…][item_types][]` — so a disabled field
+    | is a deleted answer. `display:none` still submits; `disabled` does not.
+    */
+    const openPanel = { options: '', services: '' };
+    const otherOpen = { options: false, services: false };
+
+    function panels(scope) {
+        return Array.from(document.querySelectorAll('.js-cw-panel[data-cw-scope="' + scope + '"]'));
+    }
+
+    /** Panel keys in page order, each with whether the child already holds it. */
+    function keysOf(scope) {
+        const seen = new Map();
+
+        panels(scope).forEach(function (panel) {
+            const key = panel.dataset.cwKey || '';
+
+            if (key === '') {
+                return;
+            }
+
+            seen.set(key, (seen.get(key) === true) || panel.dataset.cwHeld === '1');
+        });
+
+        return seen;
+    }
+
+    function reveal(scope, key) {
+        openPanel[scope] = openPanel[scope] === key ? '' : key;
+
+        panels(scope).forEach(function (panel) {
+            const wanted = openPanel[scope] !== '' && panel.dataset.cwKey === openPanel[scope];
+
+            panel.style.display = wanted ? '' : 'none';
+
+            if (wanted && panel.tagName === 'DETAILS') {
+                panel.open = true;
+            }
+        });
+
+        // The «المحددة» / «باقي الخيارات» headings name rows that are now
+        // hidden; with nothing open they are the only thing left on screen.
+        document.querySelectorAll('.js-cw-heading[data-cw-scope="' + scope + '"]').forEach(function (heading) {
+            heading.style.display = openPanel[scope] === '' ? '' : 'none';
+        });
+
+        render(scope);
+    }
+
+    function chip(scope, key, held) {
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.className = 'a2-btn a2-btn-sm ' + (held ? 'a2-btn-primary' : 'a2-btn-ghost');
+        button.textContent = key;
+
+        if (openPanel[scope] === key) {
+            button.style.outline = '2px solid currentColor';
+        }
+
+        button.title = @json(__('اعرضها بالأسفل'));
+        button.addEventListener('click', function () { reveal(scope, key); });
+
+        return button;
+    }
+
+    function render(scope) {
+        const bar = document.querySelector('[data-cw-bar="' + scope + '"]');
+        const other = document.querySelector('[data-cw-other="' + scope + '"]');
+
+        if (!bar || !other) {
+            return;
+        }
+
+        bar.innerHTML = '';
+        other.innerHTML = '';
+
+        const rest = [];
+
+        keysOf(scope).forEach(function (held, key) {
+            if (held) {
+                bar.appendChild(chip(scope, key, true));
+            } else {
+                rest.push(key);
+            }
+        });
+
+        if (!rest.length) {
+            other.style.display = 'none';
+            return;
+        }
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'a2-btn a2-btn-sm a2-btn-ghost';
+        toggle.textContent = @json(__('أخرى')) + ' (' + rest.length + ')';
+        toggle.addEventListener('click', function () {
+            otherOpen[scope] = !otherOpen[scope];
+            render(scope);
+        });
+        bar.appendChild(toggle);
+
+        other.style.display = otherOpen[scope] ? 'flex' : 'none';
+        rest.forEach(function (key) { other.appendChild(chip(scope, key, false)); });
+    }
+
+    ['options', 'services'].forEach(function (scope) {
+        if (panels(scope).length) {
+            reveal(scope, '');
+        }
+    });
+
+    /*
+    | Stepping to the next child is a page load here, so the scroll position is
+    | carried across rather than promised away. «لا يجب ان ترفع الشاشة لاعلى».
+    */
+    const KEY = 'cw-scroll';
+
+    document.querySelectorAll('.js-child-step').forEach(function (link) {
+        link.addEventListener('click', function () {
+            try { sessionStorage.setItem(KEY, String(window.scrollY)); } catch (e) { /* private mode */ }
+        });
+    });
+
+    try {
+        const back = sessionStorage.getItem(KEY);
+
+        if (back !== null) {
+            sessionStorage.removeItem(KEY);
+            window.scrollTo(0, parseInt(back, 10) || 0);
+        }
+    } catch (e) { /* private mode */ }
+});
+</script>
 @endpush

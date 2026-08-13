@@ -30,9 +30,14 @@ class OpenFoodFactsPlacement
     /** @var array<string,string> */
     private array $attributePhrases;
 
-    public function __construct(?array $departments = null, ?array $terms = null)
+    /** @var array<string,string> Arabic head noun → department */
+    private array $nounDepartments;
+
+    public function __construct(?array $departments = null, ?array $terms = null, ?array $nounDepartments = null)
     {
         $this->departments = $departments ?? require database_path('seeders/data/catalog/off_department_map.php');
+        $this->nounDepartments = $nounDepartments
+            ?? require database_path('seeders/data/catalog/off_noun_departments.php');
 
         $terms ??= require database_path('seeders/data/catalog/off_terms.php');
         $this->nouns = $terms['nouns'] ?? [];
@@ -81,7 +86,52 @@ class OpenFoodFactsPlacement
             }
         }
 
-        return null;
+        // What the source DECLARES outranks what the name implies — but 721
+        // Egyptian rows carry a brand and a plain type and no category at all,
+        // and «لبن» belongs on the milk shelf whatever the tags omit.
+        $head = $this->headNoun($row);
+
+        return $head === null ? null : ($this->nounDepartments[$head] ?? null);
+    }
+
+    /**
+     * The TYPE: what the thing is and what kind of it — «لبن كامل الدسم»,
+     * «جبنة كريمي» — with the brand and the size left out.
+     *
+     * «يبقى المطلوب الاسم التجارى والنوع والحجم فقط». The three are separate
+     * facts and the catalog has a column for each: the brand is `brand_id`, the
+     * size is `package_label_ar`, and this is what goes in `short_name_ar`. A
+     * name is the three run together; keeping the type on its own is what lets
+     * one type be listed once with its sizes underneath.
+     */
+    public function type(OpenFoodFactsRow $row): ?string
+    {
+        return $this->translate($row);
+    }
+
+    /** The Arabic head noun alone, or null when no word in the name is one. */
+    private function headNoun(OpenFoodFactsRow $row): ?string
+    {
+        $tokens = $this->foldPhrases($row->tokenSet());
+        $head = null;
+
+        foreach ($tokens as $token) {
+            if (str_starts_with($token, '=')) {
+                $head = substr($token, 1);
+            }
+        }
+
+        if ($head !== null) {
+            return $head;
+        }
+
+        foreach ($tokens as $token) {
+            if (isset($this->nouns[$token])) {
+                $head = $this->nouns[$token];
+            }
+        }
+
+        return $head;
     }
 
     /**
@@ -114,6 +164,24 @@ class OpenFoodFactsPlacement
             return trim($name . ' ' . $packageLabel);
         }
 
+        $type = $this->translate($row);
+
+        if ($type === null) {
+            return null;
+        }
+
+        return trim(implode(' ', array_filter([$brandAr, $type, trim($packageLabel)])));
+    }
+
+    /**
+     * The type alone, translated from the English name — no brand, no size.
+     *
+     * Split out of `arabicName()` so the two can never disagree: the name is
+     * this with a brand in front and a size behind, and `short_name_ar` is this
+     * on its own.
+     */
+    private function translate(OpenFoodFactsRow $row): ?string
+    {
         $tokens = $this->foldPhrases($row->tokenSet());
 
         if ($tokens === []) {
@@ -174,12 +242,7 @@ class OpenFoodFactsPlacement
         // nothing a second time.
         $rest = array_values(array_filter(array_unique($rest), fn ($word) => $word !== $noun));
 
-        return trim(implode(' ', array_filter([
-            $brandAr,
-            $noun,
-            implode(' ', $rest),
-            trim($packageLabel),
-        ])));
+        return trim($noun . ' ' . implode(' ', $rest));
     }
 
     /** Words that measure the package rather than name the product. */

@@ -88,6 +88,13 @@ class OpenFoodFactsRow
             return '';
         }
 
+        // Half-latin is not an Arabic name. A real row read «DAIRY MILK
+        // hazelnut نستله» — enough Arabic to pass, and it would have gone onto
+        // the shelf spelled exactly like that (under Cadbury, naming Nestlé).
+        if (preg_match('/[A-Za-z]{3,}/', $value)) {
+            return '';
+        }
+
         // At least two Arabic letters — «.» and «أ» are not names either.
         return preg_match_all('/\p{Arabic}/u', $value) >= 2 ? $value : '';
     }

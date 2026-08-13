@@ -242,6 +242,70 @@ class OpenFoodFactsPlacementTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
+    | Brand, type, size — «يبقى المطلوب الاسم التجارى والنوع والحجم فقط»
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * 721 Egyptian rows carry a brand and a plain type and **no category at
+     * all**, and were refused for want of a fact the name already states: a
+     * «لبن» belongs on the milk shelf whatever the tags omit.
+     */
+    public function test_the_type_shelves_a_row_the_source_never_categorised(): void
+    {
+        $row = $this->row(['name_en' => 'Full Cream Milk', 'brand' => 'Juhayna', 'categories' => '']);
+
+        $this->assertSame('dairy_milk', $this->placement()->department($row));
+    }
+
+    /** What the source DECLARES still outranks what the name implies. */
+    public function test_a_declared_category_beats_the_type(): void
+    {
+        $row = $this->row(['name_en' => 'Chocolate Milk', 'categories' => 'en:chocolates']);
+
+        $this->assertSame('chocolate', $this->placement()->department($row));
+    }
+
+    /**
+     * An ambiguous head is worse than none. «كريمة» put a Galaxy bar on the
+     * milk shelf and «فلفل» put Doritos among the spices, so neither shelves
+     * anything on its own any more.
+     *
+     * @dataProvider ambiguousHeads
+     */
+    public function test_an_ambiguous_type_shelves_nothing(string $english): void
+    {
+        $row = $this->row(['name_en' => $english, 'categories' => '']);
+
+        $this->assertNull(
+            $this->placement()->department($row),
+            "«{$english}» was shelved on the strength of an ambiguous word"
+        );
+    }
+
+    public static function ambiguousHeads(): array
+    {
+        return [
+            'cream is dairy, biscuit, chocolate or hand' => ['Dark Chocolate Cream'],
+            'pepper is a spice or a crisp flavour' => ['sweet chili pepper'],
+        ];
+    }
+
+    /** The type is the name with the brand and the size taken out. */
+    public function test_the_type_carries_neither_brand_nor_size(): void
+    {
+        $row = $this->row(['name_en' => 'Full Cream Milk', 'brand' => 'Juhayna', 'quantity' => '1 L']);
+        $placement = $this->placement();
+
+        $this->assertSame('لبن كامل الدسم', $placement->type($row));
+        $this->assertSame(
+            'جهينة لبن كامل الدسم ١ لتر',
+            $placement->arabicName($row, 'جهينة', $placement->packageLabel($row->size()))
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | The package
     |--------------------------------------------------------------------------
     */

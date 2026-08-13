@@ -315,6 +315,12 @@ class ImportOpenFoodFacts extends Command
             'brand_id' => $brand->id,
             'product_type' => 'simple',
             'name_ar' => $nameAr,
+            // «الاسم التجارى والنوع والحجم فقط» — three separate facts, and the
+            // table has a column for each. The brand is `brand_id`, the size is
+            // `package_label_ar`, and the TYPE goes here rather than only
+            // inside the run-together name, so «جهينة / لبن كامل الدسم / ١ لتر
+            // و ١.٥ لتر» can be listed as one type with its sizes under it.
+            'short_name_ar' => $placement->type($row),
             'name_en' => trim($brand->name_en . ' ' . $row->name),
             'default_barcode' => $row->barcode,
             'main_image' => $row->imageUrl ?: null,

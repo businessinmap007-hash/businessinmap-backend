@@ -81,6 +81,31 @@ return [
             'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
             'booking_home_sample' => ['حجز سحب عينة بالمنزل', 'Home Sample Collection'],
             'booking_home_visit' => ['حجز زيارة منزلية', 'Home Visit'],
+
+            /*
+             * Added in the admin panel on 2026-08-14 and written down here on
+             * 2026-08-15 — which is the whole point of the warning above. Six
+             * live configs were already selling on these two, and every one of
+             * them would have been thrown away by the next full seed: absent
+             * from this array a kind is deactivated, pruned, and every config
+             * offering it falls through to the bare «حجز موعد».
+             *
+             * Both are genuine mechanisms rather than trades, so they belong
+             * with the other ten:
+             *
+             *   حجز كورس   a training centre, a nursery and a lessons centre do
+             *              not sell an hour or an appointment. The customer
+             *              enrols in a course that runs over a stretch of days,
+             *              and the enrolment is the thing bought — one price,
+             *              one booking, many sessions inside it.
+             *
+             *   حجز زيارة  the mirror of «زيارة منزلية», for a business rather
+             *              than a home: a software house, a telecoms contractor
+             *              and a security firm are booked to COME to the site
+             *              and look before anything is quoted.
+             */
+            'book_a_course' => ['حجز كورس', 'Course Enrolment'],
+            'book_a_visit' => ['حجز زيارة', 'Site Visit'],
         ],
 
         /*
@@ -195,7 +220,17 @@ return [
             167 => ['booking_consultation', 'booking_follow_up', 'booking_online_consultation'], // محاماه
             10 => ['booking_consultation', 'booking_follow_up', 'booking_online_consultation'],  // محاسبة
             177 => ['booking_consultation', 'booking_online_consultation'], // تسويق
-            233 => ['booking_consultation', 'booking_online_consultation'], // برمجة
+            /*
+             * The three «تكنولوجيا» trades that were given «حجز زيارة» from the
+             * bulk screen on 2026-08-14 (config_source: services_bulk), with
+             * the plain appointment beside it. A survey visit is what these are
+             * actually booked for before a quote exists, and it is priced as
+             * its own thing — recorded here so the next collapse keeps it.
+             */
+            233 => ['booking_appointment', 'booking_consultation', 'booking_online_consultation', 'book_a_visit'], // برمجة
+            67 => ['booking_appointment', 'booking_consultation', 'booking_online_consultation', 'book_a_visit'],  // إتصالات
+            254 => ['booking_appointment', 'booking_consultation', 'booking_online_consultation', 'book_a_visit'], // أمن وسلامة
+
             261 => ['booking_consultation', 'booking_online_consultation'], // برمجيات
             153 => ['booking_consultation', 'booking_online_consultation'], // شركات تأمين
 
@@ -204,11 +239,48 @@ return [
             // only: there is no online version of walking a site.
             72 => ['booking_consultation'], // مقاولات
 
+            /*
+             * «مطاعم وكافيهات» — the plain appointment beside the table, added
+             * from the bulk screen on 2026-08-14 00:57 for all six.
+             *
+             * A table is held for a sitting; an appointment is the other thing
+             * these six are booked for — a tasting, a private event walkthrough,
+             * a coffee cart booked for a morning. Written here because this
+             * array is the FIRST thing BookingChildBranchesSeeder reads, so the
+             * `restaurant_table` branch would otherwise have narrowed all six
+             * back to «حجز طاولة» alone on its next run.
+             */
+            64 => ['booking_appointment', 'booking_table'],  // كافيه
+            65 => ['booking_appointment', 'booking_table'],  // عربية قهوة ومأكولات
+            108 => ['booking_appointment', 'booking_table'], // مجمع مطاعم
+            143 => ['booking_appointment', 'booking_table'], // أكل بيتى
+            245 => ['booking_appointment', 'booking_table'], // مطعم
+            246 => ['booking_appointment', 'booking_table'], // مطعم وكافيه
+
+            /*
+             * «دورات و تدريب» — the course enrolment, from the same 2026-08-14
+             * pass. All three sell a programme that runs, not a slot: a nursery
+             * term, a course at a lessons centre, a training programme.
+             */
+            86 => ['book_a_course'],  // سنتر دروس
+            195 => ['book_a_course'], // حضانات
+            529 => ['book_a_course'], // مركز تدريب
+
             // The two exceptions to «entertainment_leisure → حجز وقت» above.
             // A photographer sells a session with a person, not a seat for an
             // hour; a boat trip has a departure, not a duration you choose.
-            217 => ['booking_appointment'], // فوتوجرافر
-            526 => ['booking_appointment'], // رحلات ومراكب
+            //
+            // Both were narrowed further from the bulk screen on 2026-08-14 and
+            // this line is what the collapse reads, so leaving it stale would
+            // have taken the edit back on the next run:
+            //   فوتوجرافر  keeps the appointment AND gains «حجز وقت» — a studio
+            //              hour is bought differently from a shoot booked with
+            //              a particular photographer, and he sells both.
+            //   رحلات ومراكب  is «حجز بالمدة», not an appointment: a boat is held
+            //              from a date to a date, the same shape as a hotel room
+            //              or a rented flat.
+            217 => ['booking_appointment', 'booking_time'], // فوتوجرافر
+            526 => ['booking_stay'], // رحلات ومراكب
         ],
 
         /*

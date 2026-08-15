@@ -129,7 +129,20 @@ class UnsellableChildrenTest extends TestCase
         $this->assertSame(['menu_market'], $config['allowed_item_types'] ?? []);
     }
 
-    /** A security company sells an appointment, not a unit out of an inventory. */
+    /**
+     * A security company sells an appointment, not a unit out of an inventory.
+     *
+     * What is held is the SHAPE, not the exact list. This used to assert
+     * «exactly booking_appointment», which was the list the seeder wrote into a
+     * silence — and the test below this one is called «the seeder fills a
+     * silence; it never overrides a later choice». The owner named three more
+     * kinds from the bulk screen on 2026-08-14 (استشارة، استشارة أونلاين،
+     * حجز زيارة, all recorded in `service_kinds.php`), and freezing the seeded
+     * list here would make his answer look like a regression.
+     *
+     * The claim that matters survives every one of them: it books DIRECTLY —
+     * no bookable item, and the plain appointment still among what it offers.
+     */
     public function test_a_service_child_books_directly(): void
     {
         $map = require database_path('seeders/data/unsellable_children.php');
@@ -141,7 +154,9 @@ class UnsellableChildrenTest extends TestCase
             ->where('child_id', $childId)->where('platform_service_id', $booking)
             ->where('is_active', 1)->value('config'), true) ?: [];
 
-        $this->assertSame(['booking_appointment'], $config['allowed_item_types'] ?? []);
+        $this->assertContains('booking_appointment', $config['allowed_item_types'] ?? []);
+        $this->assertNotContains('booking_stay', $config['allowed_item_types'] ?? [],
+            'a security firm does not hold a unit for a period');
         $this->assertFalse((bool) ($config['requires_bookable_item'] ?? false));
     }
 

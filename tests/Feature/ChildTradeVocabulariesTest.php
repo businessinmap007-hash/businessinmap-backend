@@ -474,8 +474,24 @@ class ChildTradeVocabulariesTest extends TestCase
      * either. The platform's shared descriptives are all goods-shaped, so
      * neither root had anything to inherit.
      *
-     * Unlike the two axes above this needs no debt list: it is at zero.
+     * It ran at zero until 2026-08-13 23:46, when the owner withdrew «عائلي»
+     * and «ممنوع التدخين» from «استوديوهات» #271 — its only descriptive under
+     * this root, and his call to make: a recording booth is not a place a
+     * family visits, and «ممنوع التدخين» says nothing about a room hired by
+     * the hour.
+     *
+     * Two things keep this from being a permanent hole rather than a decision.
+     * The withdrawal is in the ledger, so no seeder hands the pair back; and
+     * #271 does hold «الدفع والسداد» — but scoped to root #17, which is not a
+     * root it sits under, so nothing can reach it. That stray scoping is real
+     * and it is not alone: eighteen rows across six children are filed under a
+     * root their child left. Worth a sweep of its own, and named here rather
+     * than papered over by putting the pair back.
+     *
+     * @var array<int,string>
      */
+    private const NO_DESCRIPTIVE_BY_DESIGN = ['arts-entertainment:271'];
+
     public function test_every_child_can_be_described(): void
     {
         $bare = [];
@@ -501,7 +517,11 @@ class ChildTradeVocabulariesTest extends TestCase
             }
         }
 
-        $this->assertSame([], $bare, 'these cannot be described at all: ' . implode('، ', $bare));
+        $new = array_values(array_diff($bare, self::NO_DESCRIPTIVE_BY_DESIGN));
+        $settled = array_values(array_diff(self::NO_DESCRIPTIVE_BY_DESIGN, $bare));
+
+        $this->assertSame([], $new, 'these cannot be described at all: ' . implode('، ', $new));
+        $this->assertSame([], $settled, 'these gained one — take them off the list: ' . implode('، ', $settled));
     }
 
     /**
@@ -1035,10 +1055,26 @@ class ChildTradeVocabulariesTest extends TestCase
     public function test_a_root_scoped_narrowing_is_possible_and_a_withdrawal_wins(): void
     {
         $childId = $this->childId('اكسسوار');
+        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
 
+        /*
+         * Read the record AT THE ROOT, which is what the note below says and
+         * what this query did not do.
+         *
+         * It used to take every withdrawal recorded against #8 whatever root it
+         * was made under, and then look for rows under مصانع. That is the exact
+         * conflation the note warns about, and on 2026-08-14 it came true: the
+         * owner withdrew thirty-five words from #8 on the ملابس screen, and
+         * three of them are legitimately still on the factory side — a case
+         * maker under مصانع is not the shop under ملابس.
+         *
+         * A withdrawal at ALL_ROOTS still counts, because that one really does
+         * mean everywhere.
+         */
         $withdrawn = DB::table(ChildOptionDecisions::TABLE)
             ->where('child_id', $childId)
             ->where('kind', ChildOptionDecisions::WITHDRAWN)
+            ->whereIn('category_id', [0, $factories])
             ->pluck('option_id');
 
         $this->assertNotEmpty($withdrawn, 'the owner curation of #8 on 2026-08-11 is gone from the record');
@@ -1053,8 +1089,6 @@ class ChildTradeVocabulariesTest extends TestCase
          * «withdrawn implies gone everywhere» would be asserting a bug into
          * existence.
          */
-        $factories = (int) DB::table('categories')->where('slug', 'factories')->value('id');
-
         $this->assertSame(
             0,
             DB::table('category_child_option')

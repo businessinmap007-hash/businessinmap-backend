@@ -50,10 +50,26 @@ class HospitalityOptionRestoreTest extends TestCase
         foreach (['بيت ضيافة', 'فندق عائم / بوت نيلي'] as $name) {
             $groups = $this->groupsOf($this->childId($name));
 
-            $this->assertSame(10, $groups['مرافق الإقامة'] ?? 0, "«{$name}» lost its facilities");
-            $this->assertSame(2, $groups['ملاءمة المكان'] ?? 0);
-            $this->assertSame(2, $groups['إطلالة الوحدة'] ?? 0);
-            $this->assertSame(3, $groups['نظام الوجبات'] ?? 0);
+            /*
+             * At least the base — which is what the note above says and what
+             * these four assertions did not do. «ملاءمة المكان» has since grown
+             * from two answers to five, so a child carrying the whole group was
+             * reported as carrying too much of it; that is the «asserting an
+             * exact group size» the note warns against, in the group it warns
+             * about.
+             */
+            foreach ([
+                'مرافق الإقامة' => 10,
+                'ملاءمة المكان' => 2,
+                'إطلالة الوحدة' => 2,
+                'نظام الوجبات' => 3,
+            ] as $group => $base) {
+                $this->assertGreaterThanOrEqual(
+                    $base,
+                    $groups[$group] ?? 0,
+                    "«{$name}» lost part of «{$group}» — it must carry at least the base every sibling has"
+                );
+            }
 
             // Was «تقسيط بدون فوائد» until 2026-08-10, when the owner made that
             // one hand-set only. The base a hospitality child must carry is now

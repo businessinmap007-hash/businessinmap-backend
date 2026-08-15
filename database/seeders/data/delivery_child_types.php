@@ -85,4 +85,52 @@ return [
             'مندوب', 'مكتب', 'شركة',
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Per-child narrowings the owner made on the screens, 2026-08-13/14
+    |--------------------------------------------------------------------------
+    | Eight configs carried a narrower list than their branch expands to, every
+    | one of them stamped `config_source: services_bulk` or `child_workbench`
+    | with his own timestamp. None of them was written down here, so the branch
+    | seeder handed the removed mechanisms straight back on its next run — the
+    | seeder file quietly overruling the hand that curates it, which is the one
+    | thing this whole data directory exists to prevent.
+    |
+    | Recorded, not re-derived: these are the lists that are actually on the
+    | configs, so the seeder now agrees with the screen instead of fighting it.
+    */
+
+    // «مندوب» keeps every courier mechanism and gives up the crane. A rep runs
+    // errands and carries parcels; recovering a vehicle is a winch business,
+    // and «شركة» — which does both — kept it.
+    'مندوب' => [
+        'bulk_reservation', 'document_courier', 'full_truckload',
+        'partial_load', 'rep_errand', 'same_day_pickup', 'small_parcel',
+    ],
+
+    /*
+    | The five «زراعية وحيوانية» children that gave up the cold chain on
+    | 2026-08-13 13:37, landing on the same four bulk mechanisms the equipment
+    | and input trades under that root already carried.
+    |
+    | ⚠ Flagged rather than silently kept: «مزارع سمكية»، «دواجن» and «خضار
+    | وفاكهة» are the three trades on the platform whose goods genuinely need
+    | «توصيل مبرّد» and «نقل مجمّد», and a save that lands eleven children of one
+    | root on an identical list has the shape of a screen-wide slip, not of a
+    | reading of three different trades. It is recorded because his answer wins
+    | over the file until he says otherwise — deleting these three entries is
+    | all it takes to hand the cold chain back.
+    */
+    'مزارع سمكية' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
+    'خضار وفاكهة' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
+    'دواجن' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
+    'مواشي وأرانب' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
+    'معدات وتجهيزات المزارع' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
+
+    // «ملابس» and «اكسسوار», from the workbench on 2026-08-14: same-day and
+    // standard delivery, no scheduled slot. A clothes shop delivers when the
+    // order is placed; it does not book a window.
+    'ملابس' => ['delivery', 'express_delivery'],
+    'اكسسوار' => ['delivery', 'express_delivery'],
 ];

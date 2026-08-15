@@ -119,6 +119,41 @@ return [
             ],
         ],
 
+        /*
+        | ── the axis these five actually price on, 2026-08-15 ──────────────
+        |
+        | Five children of this root carried a line and a descriptive and no
+        | MODIFIER at all: بلياردو وبينج بونج #30، بولينج #33، مركز ترفيهي #239،
+        | اكوا بارك #523 and رحلات ومراكب #526. A child with no modifier can name
+        | what it sells and cannot say that the same thing costs two different
+        | amounts — and the docblock at the top of this very file says what the
+        | second amount depends on: «all sell an HOUR, they are all on
+        | `booking_time`».
+        |
+        | So the modifier is the slot, and it is not a new idea — «فترة الحجز»
+        | already exists, already carries exactly these five answers, and is
+        | already the axis «قاعة مناسبات» prices on in
+        | `hall_child_vocabularies.php`. A bowling lane on a Friday evening and
+        | the same lane on a Tuesday morning are two prices in every alley in
+        | Egypt, and none of these five could say so.
+        |
+        | Borrowed rather than rewritten: the group is declared in the halls file
+        | with its five options, and naming it here adds these children to it.
+        | «فوتوجرافر» and «استوديوهات» are left out — a shoot is priced by what
+        | is shot and a studio by the room, and both already have a modifier.
+        */
+        'فترة الحجز' => [
+            'name_en' => 'Booking Slot', 'price_role' => 'modifier',
+            'children' => [30, 33, 239, 523, 526],
+            'options' => [
+                'فترة صباحية' => 'Morning Slot',
+                'فترة مسائية' => 'Evening Slot',
+                'يوم كامل' => 'Full Day',
+                'نهاية الأسبوع' => 'Weekend',
+                'بالساعة' => 'Hourly',
+            ],
+        ],
+
         'المراكب والرحلات النيلية' => [
             'name_en' => 'Boats & Nile Trips', 'price_role' => 'line', 'children' => [526],
             'options' => [
@@ -191,5 +226,17 @@ return [
         526 => [
             'خدمات السياحة والسفر' => ['رحلات داخلية', 'رحلات بحرية', 'رحلات سفاري وبرية', 'برامج سياحية'],
         ],
+
+        /*
+         * «استوديوهات» #271 was the one child on the platform that could not be
+         * DESCRIBED at all — it named eight room types and a service mode and
+         * nothing a searcher narrows on. Its seven siblings under this root all
+         * carry «ملاءمة المكان»; it simply never got it.
+         *
+         * Borrowed, like the trip rows above, rather than written again: a
+         * studio is a room people come to, and «عائلي» and «ممنوع التدخين» are
+         * as true of a photo studio as of a bowling alley.
+         */
+        271 => ['ملاءمة المكان' => ['عائلي', 'ممنوع التدخين']],
     ],
 ];

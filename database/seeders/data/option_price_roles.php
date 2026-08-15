@@ -184,6 +184,19 @@ return [
         'أنواع المناسبات',        // إيجار القاعة ليوم فرح
         'مركبات النقل والركاب',   // رحلة باص 50 راكب
         'موضة وعناية شخصية',      // ملابس، أقمشة، فساتين زفاف — after the split
+        /*
+         * The produce list «خضار وفاكهة» #114 answers with — mango, strawberry,
+         * tomato, potato — created 2026-08-14 and left off this file entirely,
+         * which is the mistake the «نوع قطع الغيار» note warns about happening
+         * again: an unlisted group is reset to `descriptive` on the next run,
+         * turning a trader's crop into a search filter he cannot price.
+         *
+         * `line`, not modifier, and the distinction is the whole file: «أصناف
+         * المنتجات الغذائية» below qualifies a catalog product that already has
+         * a price, while #114 has no catalog behind it at all. A tonne of
+         * strawberries is what is sold, and «وحدة البيع» is what modifies it.
+         */
+        'أصناف الخضار والفاكهة',   // طن فراولة ≠ طن بصل
     ],
 
     /*

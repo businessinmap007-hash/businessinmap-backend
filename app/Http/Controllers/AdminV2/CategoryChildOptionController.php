@@ -364,6 +364,34 @@ class CategoryChildOptionController extends Controller
         $parentId = (int) ($data['parent_id'] ?? 0);
 
         /*
+         * The root and the children have to be talking about the same thing.
+         *
+         * The screen switches root in the page, so `parent_id` and the ticked
+         * children are two independent pieces of state that can drift apart —
+         * and a row written under a root the child does not sit beneath is
+         * unreachable by every read path, which is a save that reports success
+         * and changes nothing an admin can ever see again.
+         *
+         * `parent_id = 0` is «under every root» and answers to no root.
+         */
+        if ($parentId > 0 && $childIds !== []) {
+            $strangers = collect($childIds)->diff(
+                DB::table('category_parent_child')
+                    ->where('parent_id', $parentId)
+                    ->whereIn('child_id', $childIds)
+                    ->pluck('child_id')
+                    ->map(fn ($id) => (int) $id)
+            );
+
+            if ($strangers->isNotEmpty()) {
+                return back()->withInput()->with('error', __(
+                    'أقسام فرعية لا تتبع التصنيف المختار (:ids) — حدّث الصفحة وأعد الاختيار.',
+                    ['ids' => $strangers->implode('، ')]
+                ));
+            }
+        }
+
+        /*
          * Not confirmable, because it is never a thing anyone means: «replace»
          * with nothing ticked says «these children now carry no options at
          * all», and across a selection that is the whole accident in one

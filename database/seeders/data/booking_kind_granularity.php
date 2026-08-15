@@ -66,4 +66,20 @@ return [
     // A visit to the customer's home: the window has to cover the travel too.
     'booking_home_sample' => ['unit' => 'minute', 'slot_minutes' => 30, 'all_day' => false],
     'booking_home_visit' => ['unit' => 'minute', 'slot_minutes' => 60, 'all_day' => false],
+
+    /*
+     * The two kinds added from the admin panel on 2026-08-14. They reached the
+     * types table without passing through here, so they were the only live
+     * kinds letting the CLIENT choose the unit — which is the exact hole this
+     * file was written to close.
+     *
+     * A course is bought whole and runs over a stretch of days: a nursery term,
+     * a programme at a training centre. Whole days, like a stay — the customer
+     * enrols from a date, and no clock is involved in the purchase.
+     *
+     * A site visit is an errand with travel in it, so it takes the same hour
+     * «زيارة منزلية» takes. The two differ in who is visited, not in shape.
+     */
+    'book_a_course' => ['unit' => 'day', 'slot_minutes' => 1440, 'all_day' => true],
+    'book_a_visit' => ['unit' => 'minute', 'slot_minutes' => 60, 'all_day' => false],
 ];

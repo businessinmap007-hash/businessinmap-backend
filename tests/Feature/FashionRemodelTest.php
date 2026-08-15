@@ -71,15 +71,42 @@ class FashionRemodelTest extends TestCase
         $this->assertSame($keep, $this->childrenOfRoot());
     }
 
-    /** The owner's shop: clothes AND shoes AND accessories, all sayable. */
+    /**
+     * The owner's shop: clothes AND shoes AND accessories, all sayable.
+     *
+     * The claim is that the five words live on ONE axis a child may tick many
+     * of — which is the whole remodel — not that all three survivors must carry
+     * all five forever. On 2026-08-14 the owner narrowed «اكسسوار» to what an
+     * accessories shop actually sells, withdrawing thirty-five words from it one
+     * save at a time; requiring every child to keep every word turned his
+     * curation into a failure and would have had the seeder hand back wedding
+     * dresses to a bag shop.
+     *
+     * So: every word must still be claimable, at least one child must be able
+     * to claim several at once, and nothing may be left with no word at all.
+     */
     public function test_one_shop_can_claim_clothes_shoes_and_accessories(): void
     {
-        foreach ($this->data['keep'] as $childId) {
-            $offered = $this->offered($childId);
+        $words = ['ملابس', 'أحذية', 'كوتشي', 'اكسسوارات', 'شنط وحقائب'];
 
-            foreach (['ملابس', 'أحذية', 'كوتشي', 'اكسسوارات', 'شنط وحقائب'] as $must) {
-                $this->assertContains($must, $offered, "child #{$childId} cannot say «{$must}»");
-            }
+        $byChild = collect($this->data['keep'])
+            ->mapWithKeys(fn ($childId) => [$childId => $this->offered($childId)]);
+
+        foreach ($words as $must) {
+            $this->assertTrue(
+                $byChild->contains(fn ($offered) => in_array($must, $offered, true)),
+                "no child of the root can say «{$must}» — the word has no home again"
+            );
+        }
+
+        $this->assertTrue(
+            $byChild->contains(fn ($offered) => count(array_intersect($words, $offered)) >= 3),
+            'no single child can claim clothes and shoes and accessories together — '
+                . 'the remodel put these on one axis precisely so one shop could'
+        );
+
+        foreach ($byChild as $childId => $offered) {
+            $this->assertNotEmpty($offered, "child #{$childId} can name nothing it sells");
         }
     }
 
@@ -138,17 +165,34 @@ class FashionRemodelTest extends TestCase
         }
     }
 
-    /** The scope seeder must not narrow the three back down. */
+    /**
+     * The scope seeder must not narrow the three back down.
+     *
+     * «Silenced» means losing a word it currently holds — the failure the
+     * remodel was written against, where كوتشي could name nothing at all. It
+     * does NOT mean «must still carry كوتشي»: the owner withdrew that word from
+     * «اكسسوار» himself, and a test that reads a withdrawal as a silencing is a
+     * test that argues with him every run.
+     *
+     * Each child is checked against its own set, so the seeders may add but
+     * never subtract.
+     */
     public function test_the_scope_seeder_does_not_re_silence_them(): void
     {
+        $before = collect($this->data['keep'])
+            ->mapWithKeys(fn ($childId) => [$childId => $this->offered($childId)]);
+
         DB::beginTransaction();
 
         try {
             (new LinkCategoryChildrenToOptionsSeeder)->run();
             (new ChildOptionScopeSeeder)->run();
 
-            foreach ($this->data['keep'] as $childId) {
-                $this->assertContains('كوتشي', $this->offered($childId), "child #{$childId} was silenced again");
+            foreach ($before as $childId => $had) {
+                $lost = array_values(array_diff($had, $this->offered($childId)));
+
+                $this->assertSame([], $lost,
+                    "child #{$childId} was silenced again — it lost: " . implode('، ', $lost));
             }
         } finally {
             DB::rollBack();

@@ -433,6 +433,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const rootPanels = document.querySelectorAll('.js-root-panel');
     const parentInput = document.getElementById('bulk_parent_id');
 
+    /*
+    | Switching root is a change of subject, and three things have to move with
+    | it or the screen keeps saying what the LAST root said.
+    |
+    | «عند التعديل على خيارات الاب سيارات وعمل حفظ والانتقال الى اى اب اخر وعمل
+    |  رفرش للصفحة يعود الى سيارات … ولذلك حدثت مشكلة انتقال خيارات الرياضة الى
+    |  خيارات زراعية وحيوانية».
+    |
+    | The tabs switched root in the page and nowhere else. The URL still named
+    | the root the last SAVE had redirected to, so F5 — or a browser restoring
+    | the tab — silently put the admin back on it while he believed he was
+    | somewhere else. Everything he did next was written under a root he was no
+    | longer looking at.
+    |
+    | Two more, both on the line below, and together they are how one submit
+    | rewrote a whole root: the switch ticked EVERY child of the root it opened
+    | (the markup three lines up promises the opposite — «Nothing is pre-ticked
+    | unless the URL asked for it»), and the picker kept the options seeded from
+    | the previous root, because seedFromRegistered() returns early when more
+    | than one child is in hand and never clears them. Mode is «استبدال بالكامل»
+    | by then, since picking a single child puts it there. Root tab, then save,
+    | and every child of the new root carries the old root's vocabulary and
+    | nothing of its own.
+    */
     function activateRoot(rootId) {
         rootTabs.forEach(function (tab) {
             const active = tab.dataset.rootId === rootId;
@@ -446,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             panel.querySelectorAll('.js-child-checkbox').forEach(function (input) {
                 input.disabled = !active;
-                input.checked = active;
+                input.checked = false;
             });
         });
 
@@ -454,12 +478,65 @@ document.addEventListener('DOMContentLoaded', function () {
             parentInput.value = rootId;
         }
 
+        // A tick means «this child gets exactly this», and which child that is
+        // has just changed. Carrying the marks across is how a vocabulary
+        // crosses a root.
+        optionBoxes().forEach(function (input) { input.checked = false; });
+
+        rememberRoot(rootId);
         closePeek();
         refreshChildBadges();
         refreshRegistered();
         // The root decides which children are in play AND which scoped options
         // they carry, so the replace-mode seed has to be taken again.
         seedFromRegistered();
+    }
+
+    /**
+     * Put the open root in the address bar, so a refresh comes back to the root
+     * that was on screen rather than to the one the last save redirected to.
+     *
+     * `replaceState`, not `pushState`: stepping through eight roots must not
+     * bury the page the admin arrived from under eight back presses.
+     *
+     * `child_ids` is dropped rather than rewritten. It names children of the
+     * root being LEFT, and a reload that re-ticks them under a different root
+     * is the same confusion in a new place — nothing ticked is the honest state
+     * after a switch, and the save refuses an empty selection outright.
+     */
+    function rememberRoot(rootId) {
+        writeUrl(function (params) {
+            params.set('parent_id', String(rootId));
+            params.delete('child_ids');
+            params.delete('child_ids[]');
+        });
+    }
+
+    /**
+     * …and which children are in hand, for the same reason: a walk down sixty
+     * children is long enough to be interrupted, and coming back to child #1
+     * with the marks of child #43 still in the picker is how the wrong child
+     * gets written.
+     */
+    function rememberChildren(childIds) {
+        writeUrl(function (params) {
+            params.delete('child_ids');
+            params.delete('child_ids[]');
+
+            childIds.forEach(function (id) { params.append('child_ids[]', String(id)); });
+        });
+    }
+
+    function writeUrl(mutate) {
+        if (!window.history || !window.history.replaceState) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+
+        mutate(url.searchParams);
+
+        window.history.replaceState(window.history.state, '', url.toString());
     }
 
     rootTabs.forEach(function (tab) {
@@ -964,6 +1041,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         refreshGroupCounts();
         refreshChildNav();
+
+        // Every path that changes the selection comes through here — the step
+        // keys, the checkboxes, «تحديد الظاهر», the root switch — so this is the
+        // one place the address bar has to be kept honest.
+        rememberChildren(children);
     }
 
     function refreshGroupCounts() {
@@ -1296,6 +1378,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     buildChildBadges();
+
+    // Arriving with no `parent_id` the controller falls back to the first root
+    // it drew, and the URL says nothing about it — so the very first refresh
+    // would already be a guess. Name it, without touching whatever selection
+    // came in the link.
+    if (!new URL(window.location.href).searchParams.has('parent_id')) {
+        writeUrl(function (params) { params.set('parent_id', currentRootId()); });
+    }
+
     refreshChildBadges();
     refreshRegistered();
     renderGroupChips([]);

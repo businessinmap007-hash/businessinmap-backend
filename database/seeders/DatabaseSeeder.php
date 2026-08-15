@@ -28,6 +28,14 @@ class DatabaseSeeder extends Seeder
            // child-seeders below.
            DeliveryBranchesSeeder::class,
            DeliveryChildBranchesSeeder::class,
+
+           // Before every seeder that resolves a branch by key: the twelve
+           // booking branches the collapse retired were later deleted from the
+           // admin panel, and three seeders below still look them up by name.
+           // It restores the ROW only — inactive and empty, which is what the
+           // collapse left behind and never meant to remove.
+           RetiredBranchRowsSeeder::class,
+
            BookingBranchesSeeder::class,
            BookingChildBranchesSeeder::class,
            MenuBranchesSeeder::class,

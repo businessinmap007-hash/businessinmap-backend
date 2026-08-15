@@ -142,8 +142,20 @@ return [
             ],
         ],
 
+        /*
+         * #114 «خضار وفاكهة» joined on 2026-08-15, and it is the child that
+         * needs this group most.
+         *
+         * Its old vocabulary was the supermarket counter list, and when that
+         * came off — it said «خضار وفاكهة» back at a trader who deals in
+         * nothing else — the produce varieties above replaced it as the LINE
+         * and nothing replaced the price axis. A crop with no unit is half an
+         * answer: an exporter quotes strawberries by the tonne, a wholesaler
+         * sells them by the crate, and the same mango is three prices before
+         * anyone has named a variety.
+         */
         'وحدة البيع' => [
-            'name_en' => 'Selling Unit', 'price_role' => 'modifier', 'children' => [14, 107, 128], // «أسمدة» folded into #14 on 2026-08-12
+            'name_en' => 'Selling Unit', 'price_role' => 'modifier', 'children' => [14, 107, 128, 114], // «أسمدة» folded into #14 on 2026-08-12
             'options' => [
                 'بالكيلو' => 'Per Kilo',
                 'بالشيكارة' => 'Per Sack',

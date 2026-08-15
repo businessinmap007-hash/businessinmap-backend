@@ -91,7 +91,13 @@ class TaxonomyRedistributionTest extends TestCase
         // Amenities are a business-level yes/no → axis 2 → an option.
         $amenities = DB::table('option_groups')->where('name_ar', 'مرافق ومعدات')->first();
         $this->assertNotNull($amenities, 'the amenities option group must exist');
-        $this->assertSame(2, DB::table('options')->where('group_id', $amenities->id)->count());
+
+        // Non-empty, not a fixed count. The point of this test is the AXIS —
+        // amenities are business-level and belong in options, capacity and
+        // class are per-unit and do not — and that does not change when the
+        // owner adds one («شاشة عرض», 2026-08-14). CoworkingWorkspaceTest is
+        // where the group's membership is bounded.
+        $this->assertGreaterThan(0, DB::table('options')->where('group_id', $amenities->id)->count());
 
         // Capacity and class describe one bookable UNIT → axis 3 → they must NOT
         // be options. An earlier pass wrongly made them option groups; that is

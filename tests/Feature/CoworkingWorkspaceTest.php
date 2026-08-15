@@ -156,13 +156,36 @@ class CoworkingWorkspaceTest extends TestCase
      * locker added there for a coworking space reaches a wedding hall on the
      * next run. The hotel made the same call with «مرافق الإقامة».
      */
+    /**
+     * Things one trade has and the other nine carrying the group do not. A
+     * wedding hall has no locker room and no phone booth; those live on the
+     * coworking space's own «تجهيزات مساحة العمل».
+     *
+     * @var array<int,string>
+     */
+    private const TRADE_SPECIFIC = ['لوكرز', 'بوث مكالمات', 'مطبخ مشترك'];
+
     public function test_a_shared_group_was_not_widened_for_one_trade(): void
     {
         $shared = DB::table('options as o')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('g.name_ar', 'مرافق ومعدات')->pluck('o.name_ar')->all();
 
-        $this->assertSame(['واي فاي', 'وايت بورد'], array_values($shared));
+        /*
+         * The claim is «nothing trade-specific got in», not «the group has
+         * exactly two rows». It listed both by name until the owner added
+         * «شاشة عرض» on 2026-08-14 — which is the right kind of thing for this
+         * group: a hall, a conference centre and a coworking floor all have a
+         * screen, and none of the ten children carrying the group is surprised
+         * to be asked. Freezing the membership made a correct addition read as
+         * a regression, so what is held is the boundary the group actually has.
+         */
+        foreach (self::TRADE_SPECIFIC as $own) {
+            $this->assertNotContains($own, $shared, "«{$own}» belongs to one trade — it widened a shared group");
+        }
+
+        $this->assertContains('واي فاي', $shared);
+        $this->assertContains('وايت بورد', $shared);
 
         $own = $this->vocabulary($this->childId(self::COWORKING), 'descriptive');
 

@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\CategoryChildOption;
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -173,11 +175,23 @@ class FashionRemodelSeeder extends Seeder
      * that sells clothes and shoes and bags must be able to say all three, and
      * the narrowing is the merchant's own ticks, not the taxonomy's guess.
      *
+     * Whole EXCEPT what the owner has since taken back. This inserted straight
+     * into the pivot, so on 2026-08-14 he withdrew thirty-five words from
+     * «اكسسوار» one child at a time — ملابس، أحذية، كوتشي، فساتين زفاف — and
+     * this seeder handed every one of them back on its next run. An accessories
+     * shop was made to sell wedding dresses by a file, three weeks after a
+     * person said it should not.
+     *
+     * `filter()` at ALL_ROOTS is blocked by a withdrawal under ANY root, which
+     * is the right reading here: this grant is shared, so it would reach the
+     * root the owner said no under.
+     *
      * @param  array<int,int>  $childIds
      */
     private function offerTheWholeVocabulary(array $childIds, int $groupId): int
     {
         $optionIds = DB::table('options')->where('group_id', $groupId)->pluck('id')->map(fn ($id) => (int) $id);
+        $decisions = new ChildOptionDecisions;
         $added = 0;
 
         foreach ($childIds as $childId) {
@@ -187,7 +201,11 @@ class FashionRemodelSeeder extends Seeder
                 ->pluck('option_id')
                 ->map(fn ($id) => (int) $id);
 
-            $missing = $optionIds->diff($have)->values();
+            $missing = collect($decisions->filter(
+                (int) $childId,
+                CategoryChildOption::ALL_ROOTS,
+                $optionIds->diff($have)
+            ))->values();
 
             foreach ($missing->chunk(200) as $chunk) {
                 DB::table('category_child_option')->insert(

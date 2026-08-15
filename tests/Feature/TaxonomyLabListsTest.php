@@ -47,14 +47,31 @@ class TaxonomyLabListsTest extends TestCase
         $this->assertGreaterThan(0, $car->items()->count());
         $this->assertGreaterThan(0, $moto->items()->count());
 
-        // The only brands allowed in BOTH lists are the dual makers (BMW/Honda/
-        // Suzuki) — everything else is exclusive to one side.
-        $overlap = array_values(array_intersect(
-            $car->items()->pluck('source_id')->all(),
-            $moto->items()->pluck('source_id')->all()
-        ));
-        sort($overlap);
-        $this->assertSame([44, 185, 351], $overlap, 'only dual makers may appear in both sub-lists');
+        /*
+         * Each sub-list mirrors its own live option group.
+         *
+         * This used to assert the overlap was exactly BMW/Honda/Suzuki, from
+         * the days when one grab-bag group held everything and the builder tore
+         * it apart with three hand-written id lists. The taxonomy has since made
+         * «ماركات السيارات» and «ماركات الموتوسيكلات» two real groups, so who
+         * makes both is the taxonomy's answer to give, not this test's — and a
+         * maker in both groups is in both lists by construction.
+         *
+         * What is worth holding is that the sub-lists still MIRROR the groups:
+         * a brand added to the live vocabulary and missing here means the
+         * builder has drifted from its source again, which is exactly what the
+         * dead `group_id = 1` read did.
+         */
+        $liveIds = fn (string $group) => DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', $group)->pluck('o.id')
+            ->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+        $listed = fn (LabList $list) => $list->items()->pluck('source_id')
+            ->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+        $this->assertSame($liveIds('ماركات السيارات'), $listed($car));
+        $this->assertSame($liveIds('ماركات الموتوسيكلات'), $listed($moto));
         $this->assertSame(['option'], $car->items()->distinct()->pluck('source')->all());
     }
 
@@ -70,10 +87,32 @@ class TaxonomyLabListsTest extends TestCase
         $sources = $health->items()->distinct()->pluck('source')->sort()->values()->all();
         $this->assertSame(['category_child', 'item_type'], $sources);
 
-        // The specialties come from the «الصحة» category children (parent 20).
+        /*
+         * The specialties come from the «الصحة» category children (parent 20).
+         *
+         * What is held is that every one of them is a LIVE child of that root —
+         * not that the list has as many rows as the root has children today. A
+         * lab list is a snapshot taken by `taxonomy-lab:build-lists`, and the
+         * sandbox is paused while the live taxonomy keeps moving: root 20 has
+         * gained children since the list was built, so an equality here reports
+         * the pause as a failure forever.
+         *
+         * The direction that matters is this one. A list holding a child that
+         * no longer exists is a real defect — it would resolve to a blank name
+         * and offer a specialty nobody can be. A list missing a child added
+         * yesterday is just a stale snapshot, and re-running the builder fixes
+         * it without anyone needing to be told by a red test.
+         */
         $specialtyItems = $health->items()->where('source', LabListItem::SOURCE_CATEGORY_CHILD)->get();
-        $expected = DB::table('category_parent_child')->where('parent_id', 20)->count();
-        $this->assertSame($expected, $specialtyItems->count());
+        $this->assertNotEmpty($specialtyItems, 'the health list lost its specialties');
+
+        $live = DB::table('category_parent_child')->where('parent_id', 20)->pluck('child_id')
+            ->map(fn ($id) => (int) $id);
+
+        $stale = $specialtyItems->pluck('source_id')->map(fn ($id) => (int) $id)->diff($live);
+
+        $this->assertSame([], $stale->values()->all(),
+            'the health list names children that are no longer under «الصحة»: #' . $stale->implode(', #'));
 
         // …and they resolve to real names, not raw ids.
         $names = LabListItem::resolveNames($specialtyItems);

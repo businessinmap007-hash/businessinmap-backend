@@ -93,7 +93,12 @@ class VehicleTypeOptionsTest extends TestCase
 
             $fleet = $this->optionsOf($id, 'مركبات النقل والركاب');
 
-            $this->assertNotEmpty($fleet, "the fleet group no longer reaches «{$name}»");
+            // Not «the fleet group must still be there». The owner took it off
+            // «خدمة ليموزين» on 2026-08-14, one save, and he is right: a
+            // limousine service runs cars, and كوتش and باص ٥٠ were never its
+            // fleet — it names the car by brand and body type instead. What must
+            // hold is only that the fleet group never becomes the place a body
+            // type is answered.
             $this->assertNotContains('سيدان', $fleet, 'the fleet group was not the place for a body type');
 
             // Complementary, not competing: the fleet keeps the big vehicles,
@@ -105,10 +110,22 @@ class VehicleTypeOptionsTest extends TestCase
         }
     }
 
-    /** A workshop fits and services vehicles; it never sells one. */
+    /**
+     * A workshop fits and services vehicles; it never sells one.
+     *
+     * «مغسلة سيارات» came off this list on 2026-08-14, when the owner ticked
+     * the three body types onto it himself. It is not the mistake this test was
+     * written against: an electrician and a spares dealer answer «which car» by
+     * brand and model, and a body type there was noise from the days the group
+     * went out wholesale — but a car wash prices BY the body: a sedan and a
+     * microbus are two different rates, and سيدان is the axis it charges on.
+     *
+     * The rule the test still holds is the one it always meant: a workshop is
+     * never handed the SELLING vocabulary. That is asserted below.
+     */
     public function test_a_workshop_is_not_offered_a_body_type(): void
     {
-        foreach (['كهربائي سيارات', 'مغسلة سيارات', 'قطع غيار سيارات'] as $name) {
+        foreach (['كهربائي سيارات', 'قطع غيار سيارات'] as $name) {
             $id = $this->childId($name);
 
             if (! $id) {
@@ -118,6 +135,22 @@ class VehicleTypeOptionsTest extends TestCase
             $this->assertEmpty(
                 $this->optionsOf($id, 'نوع المركبة'),
                 "«{$name}» was given a body type it has nothing to do with"
+            );
+        }
+
+        // The rule underneath, which holds for the car wash too: servicing a
+        // vehicle is not trading in one, so none of them is offered the deal
+        // axis a showroom answers on.
+        foreach (['كهربائي سيارات', 'مغسلة سيارات', 'قطع غيار سيارات'] as $name) {
+            $id = $this->childId($name);
+
+            if (! $id) {
+                continue;
+            }
+
+            $this->assertEmpty(
+                $this->optionsOf($id, 'نوع التعامل'),
+                "«{$name}» was offered بيع/إيجار/تبديل — it services vehicles, it does not trade them"
             );
         }
     }

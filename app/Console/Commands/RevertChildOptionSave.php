@@ -34,6 +34,7 @@ class RevertChildOptionSave extends Command
         {--root= : The category (root) id the save was scoped to}
         {--at= : The exact decision timestamp, e.g. "2026-08-13 23:38:25"}
         {--child=* : Limit to these child ids (default: every child touched)}
+        {--option=* : Limit to these option ids (default: everything the save touched)}
         {--restore-only : Put back what was removed and un-grant nothing}
         {--apply : Undo it. Without this nothing is written}';
 
@@ -54,6 +55,16 @@ class RevertChildOptionSave extends Command
             ->where('category_id', $rootId)
             ->where('created_at', $at)
             ->when($this->option('child'), fn ($q) => $q->whereIn('child_id', $this->option('child')))
+            /*
+             * Option-level, because a whole-child revert is often too blunt.
+             * The 23:22 sports save gave «ملاعب كرة» thirty options, and most
+             * of them — كرة قدم، كرة سلة، تنس — are simply correct for a pitch;
+             * only the pool's own list has no business there. Undoing all
+             * thirty to remove one would empty a child the owner has been
+             * curating since, which is the accident again in the other
+             * direction.
+             */
+            ->when($this->option('option'), fn ($q) => $q->whereIn('option_id', $this->option('option')))
             ->get(['id', 'child_id', 'option_id', 'kind']);
 
         if ($decisions->isEmpty()) {

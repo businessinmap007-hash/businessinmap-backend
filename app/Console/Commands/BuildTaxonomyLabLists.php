@@ -145,14 +145,27 @@ class BuildTaxonomyLabLists extends Command
             'sort_order' => 2,
         ]);
 
-        // The vehicle group is defined on the LIVE options table (sandbox group_id
-        // is cleared); the ids are identical in options_new.
-        $vehicleIds = DB::table('options')->where('group_id', 1)->pluck('id')->all();
+        /*
+         * Read the two brand groups as they now stand.
+         *
+         * This used to take group #1 whole — a grab-bag holding car brands,
+         * moto brands, body types, transport vehicles and spare parts together
+         * — and pull the three apart with the hand-written id lists above. The
+         * live taxonomy has since done that split for real: «ماركات السيارات»
+         * and «ماركات الموتوسيكلات» are two groups of their own, and the
+         * non-brands moved out to «مركبات النقل والركاب» and «نوع المركبة».
+         *
+         * Group #1 no longer exists, so the old read returned nothing and the
+         * builder wrote two empty sub-lists. By NAME rather than by id, because
+         * the ids moved once already and the names did not.
+         */
+        $brandsOf = fn (string $group) => DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', $group)
+            ->pluck('o.id')->map(fn ($id) => (int) $id)->all();
 
-        // Motorcycle list = pure moto brands + the dual makers; car list keeps the
-        // dual makers too (they build cars as well), so dual brands live in both.
-        $motoIds = array_values(array_intersect($vehicleIds, array_merge(self::MOTO_BRANDS, self::DUAL_BRANDS)));
-        $carIds = array_values(array_diff($vehicleIds, self::MOTO_BRANDS, self::NON_BRANDS));
+        $carIds = $brandsOf('ماركات السيارات');
+        $motoIds = $brandsOf('ماركات الموتوسيكلات');
 
         $carBrands = LabList::create([
             'key' => 'cars.car_brands',

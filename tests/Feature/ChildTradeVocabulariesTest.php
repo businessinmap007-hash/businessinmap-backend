@@ -474,24 +474,14 @@ class ChildTradeVocabulariesTest extends TestCase
      * either. The platform's shared descriptives are all goods-shaped, so
      * neither root had anything to inherit.
      *
-     * It ran at zero until 2026-08-13 23:46, when the owner withdrew «عائلي»
-     * and «ممنوع التدخين» from «استوديوهات» #271 — its only descriptive under
-     * this root, and his call to make: a recording booth is not a place a
-     * family visits, and «ممنوع التدخين» says nothing about a room hired by
-     * the hour.
-     *
-     * Two things keep this from being a permanent hole rather than a decision.
-     * The withdrawal is in the ledger, so no seeder hands the pair back; and
-     * #271 does hold «الدفع والسداد» — but scoped to root #17, which is not a
-     * root it sits under, so nothing can reach it. That stray scoping is real
-     * and it is not alone: eighteen rows across six children are filed under a
-     * root their child left. Worth a sweep of its own, and named here rather
-     * than papered over by putting the pair back.
-     *
-     * @var array<int,string>
+     * It read as broken once, for «استوديوهات» #271, and the cause was not a
+     * missing vocabulary: the owner withdrew «عائلي» and «ممنوع التدخين» from
+     * it on 2026-08-13 — his call, a recording booth is not a place a family
+     * visits — and its «الدفع والسداد» was filed under root #17, which #271
+     * does not sit under, so nothing could reach it. Rescoped by
+     * `bim:rescope-stray-options` on 2026-08-15 along with seventeen other rows
+     * left behind by folds. Back to zero, and no debt list.
      */
-    private const NO_DESCRIPTIVE_BY_DESIGN = ['arts-entertainment:271'];
-
     public function test_every_child_can_be_described(): void
     {
         $bare = [];
@@ -517,11 +507,36 @@ class ChildTradeVocabulariesTest extends TestCase
             }
         }
 
-        $new = array_values(array_diff($bare, self::NO_DESCRIPTIVE_BY_DESIGN));
-        $settled = array_values(array_diff(self::NO_DESCRIPTIVE_BY_DESIGN, $bare));
+        $this->assertSame([], $bare, 'these cannot be described at all: ' . implode('، ', $bare));
+    }
 
-        $this->assertSame([], $new, 'these cannot be described at all: ' . implode('، ', $new));
-        $this->assertSame([], $settled, 'these gained one — take them off the list: ' . implode('، ', $settled));
+    /**
+     * …and no option row names a root its child does not sit under.
+     *
+     * Such a row is reachable by nothing — `idsFor()` is only ever called with
+     * a root the child IS under — so it counts on the admin's badge, is
+     * returned by everything that reads by child alone, and is offered to
+     * nobody. It is also how #271 came to look mute above while holding a
+     * perfectly good descriptive axis.
+     *
+     * Seventeen of the original eighteen were made by `bim:fold-child`, which
+     * unlinked a retired child from its roots and left its scoped rows pointing
+     * at them. The fold unfiles them now; this holds the invariant.
+     */
+    public function test_no_option_row_names_a_root_its_child_left(): void
+    {
+        $strays = DB::table('category_child_option as cco')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->join('categories as cat', 'cat.id', '=', 'cco.category_id')
+            ->where('cco.category_id', '>', 0)
+            ->whereNotExists(fn ($q) => $q->from('category_parent_child as pc')
+                ->whereColumn('pc.child_id', 'cco.child_id')
+                ->whereColumn('pc.parent_id', 'cco.category_id'))
+            ->distinct()
+            ->pluck(DB::raw("concat(c.name_ar, ' #', cco.child_id, ' → ', cat.name_ar)"));
+
+        $this->assertSame([], $strays->all(),
+            'filed under a root the child does not sit under: ' . $strays->implode('، '));
     }
 
     /**

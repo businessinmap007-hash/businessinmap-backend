@@ -110,21 +110,20 @@ return [
     ],
 
     /*
-    | The five «زراعية وحيوانية» children that gave up the cold chain on
-    | 2026-08-13 13:37, landing on the same four bulk mechanisms the equipment
-    | and input trades under that root already carried.
+    | Five «زراعية وحيوانية» children gave up the cold chain in one save on
+    | 2026-08-13 13:37, all eleven children of the root landing on the identical
+    | four bulk mechanisms the equipment and input trades already carried.
     |
-    | ⚠ Flagged rather than silently kept: «مزارع سمكية»، «دواجن» and «خضار
-    | وفاكهة» are the three trades on the platform whose goods genuinely need
-    | «توصيل مبرّد» and «نقل مجمّد», and a save that lands eleven children of one
-    | root on an identical list has the shape of a screen-wide slip, not of a
-    | reading of three different trades. It is recorded because his answer wins
-    | over the file until he says otherwise — deleting these three entries is
-    | all it takes to hand the cold chain back.
+    | Three of them are back, on the owner's word (2026-08-15). «مزارع سمكية»،
+    | «دواجن» and «خضار وفاكهة» are the three trades on this platform whose
+    | goods genuinely spoil: fish, poultry and produce move refrigerated or they
+    | do not arrive. A save that lands a whole root on one list is a shape, not
+    | a reading of three different trades — and these three read differently.
+    | Unlisted here, they take the whole branch again, cold chain included.
+    |
+    | The other two stay narrowed, because for them the same save IS a reading:
+    | a livestock haulier moves animals alive, and farm equipment does not chill.
     */
-    'مزارع سمكية' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
-    'خضار وفاكهة' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
-    'دواجن' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
     'مواشي وأرانب' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
     'معدات وتجهيزات المزارع' => ['full_truckload', 'partial_load', 'crane_winch', 'bulk_reservation'],
 

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CategoryChildOption;
 use App\Services\CategoryChildOptionScope;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -189,6 +190,38 @@ class FoldChildIntoChild extends Command
                 DB::table('category_service_configs')->where('child_id', $loserId)->delete();
                 DB::table('category_platform_services')->where('child_id', $loserId)->delete();
                 DB::table('category_child_service_fees')->where('child_id', $loserId)->delete();
+
+                /*
+                 * Its own option rows stay — they are the vocabulary, and this
+                 * taxonomy keeps a retired child's vocabulary as the record of
+                 * what it was. But a row SCOPED to a root is now naming a root
+                 * the child has just been taken out of, and that is reachable
+                 * by nothing: idsFor() is only ever called with a root the
+                 * child sits under.
+                 *
+                 * Unfiled rather than deleted, which is the same thing that
+                 * happened to the child itself: it still says what it said, and
+                 * it says it under no root. The first four folds left seventeen
+                 * such rows behind and `bim:rescope-stray-options` swept them.
+                 *
+                 * A shared row already saying the same thing wins — the pair is
+                 * unique and the scoped one adds nothing.
+                 */
+                $shared = DB::table('category_child_option')
+                    ->where('child_id', $loserId)
+                    ->where('category_id', CategoryChildOption::ALL_ROOTS)
+                    ->pluck('option_id');
+
+                DB::table('category_child_option')
+                    ->where('child_id', $loserId)
+                    ->where('category_id', '>', CategoryChildOption::ALL_ROOTS)
+                    ->whereIn('option_id', $shared)
+                    ->delete();
+
+                DB::table('category_child_option')
+                    ->where('child_id', $loserId)
+                    ->where('category_id', '>', CategoryChildOption::ALL_ROOTS)
+                    ->update(['category_id' => CategoryChildOption::ALL_ROOTS]);
             });
         }
 

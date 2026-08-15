@@ -152,5 +152,79 @@ return [
                 'بالعبوة' => 'Per Pack',
             ],
         ],
+
+        /*
+        | ── what a produce trader actually deals in, 2026-08-14 ─────────────
+        |
+        | «خضار وفاكهه فى زراعية وحيوانية يجب ان يكون لها خيارات منجو فراولة
+        | طماطم بطاطس وهكذا لان هى للتجار فى جميع اصناف الخضار والفاكهة وايضا
+        | للتصدير والاستيراد».
+        |
+        | #114 answered «أقسام الطازج واللميوم» — the supermarket counter list,
+        | which says «خضار وفاكهة» back at itself. A trader is not a counter: he
+        | deals in a mango season and a potato contract, and an importer or
+        | exporter is asked which crop before anything else.
+        |
+        | `line`, because the crop IS the priced thing — there is no catalog
+        | behind #114 and a tonne of strawberries and a tonne of onions are not
+        | one rate.
+        |
+        | Egypt's real trade and export staples first — oranges, potatoes,
+        | onions, garlic, grapes, strawberries, mango, pomegranate, dates and
+        | beans are what actually leave the country — then the rest of the
+        | domestic basket.
+        */
+        'أصناف الخضار والفاكهة' => [
+            'name_en' => 'Produce Varieties', 'price_role' => 'line', 'children' => [114],
+            'options' => [
+                // فواكه
+                'مانجو' => 'Mango',
+                'فراولة' => 'Strawberry',
+                'عنب' => 'Grapes',
+                'برتقال' => 'Orange',
+                'يوسفي' => 'Mandarin',
+                'ليمون' => 'Lemon',
+                'موز' => 'Banana',
+                'تفاح' => 'Apple',
+                'جوافة' => 'Guava',
+                'رمان' => 'Pomegranate',
+                'بلح وتمر' => 'Dates',
+                'تين' => 'Figs',
+                'خوخ' => 'Peach',
+                'مشمش' => 'Apricot',
+                'بطيخ' => 'Watermelon',
+                'شمام وكانتلوب' => 'Melon & Cantaloupe',
+                'كمثرى' => 'Pear',
+                'جريب فروت' => 'Grapefruit',
+                // خضار
+                'طماطم' => 'Tomato',
+                'بطاطس' => 'Potato',
+                'بصل' => 'Onion',
+                'ثوم' => 'Garlic',
+                'خيار' => 'Cucumber',
+                'فلفل ألوان' => 'Bell Pepper',
+                'فلفل حار' => 'Chilli',
+                'باذنجان' => 'Aubergine',
+                'كوسة' => 'Courgette',
+                'جزر' => 'Carrot',
+                'بامية' => 'Okra',
+                'فاصوليا خضراء' => 'Green Beans',
+                'بازلاء' => 'Peas',
+                'لوبيا' => 'Cowpeas',
+                'ملوخية' => 'Molokhia',
+                'سبانخ' => 'Spinach',
+                'خس' => 'Lettuce',
+                'كرنب' => 'Cabbage',
+                'قرنبيط' => 'Cauliflower',
+                'بروكلي' => 'Broccoli',
+                'بنجر' => 'Beetroot',
+                'لفت وفجل' => 'Turnip & Radish',
+                'بطاطا' => 'Sweet Potato',
+                'قرع عسلي' => 'Pumpkin',
+                'خرشوف' => 'Artichoke',
+                'ذرة' => 'Corn',
+                'أعشاب وورقيات' => 'Herbs & Greens',
+            ],
+        ],
     ],
 ];

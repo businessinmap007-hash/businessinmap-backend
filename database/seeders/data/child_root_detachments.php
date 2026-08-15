@@ -336,4 +336,66 @@ return [
         'reassign_to' => 'مكتب عقاري',
         'why' => 'تجارة واحدة باسمين — و«مكتب عقاري» هو الوجهة المعلنة في خريطة العقارات',
     ],
+
+    /*
+    | ── 2026-08-14, five folds the owner asked for ──────────────────────────
+    |
+    | The gypsum family. `crafts_child_vocabularies.php` calls these «four
+    | children of one craft», each taking «a different slice of one list», and
+    | says the slices are what keep them apart — «a مبيض محارة lays no
+    | foundation». That is the right rule and these three failed it:
+    | «جبس وكرانيش» was a strict SUBSET of «جبس وديكورات» (كرانيش، ديكورات
+    | جبسية، ترميم — every one of them already there), and «جبسيوم بورد»
+    | overlapped it on four of five, differing only by «أعمدة وقواطع».
+    |
+    | The keeper is renamed «جبس وجبسيوم بورد» and carries the union. «جي أر
+    | سي» stays — it holds two lines nobody else has, and GRC is a different
+    | material, not a slice of plaster.
+    */
+    [
+        'child_name_ar' => 'جبسيوم بورد',
+        'root_slug' => 'professions',
+        'reassign_to' => 'جبس وجبسيوم بورد',
+        'why' => 'يتقاطع مع «جبس وديكورات» في أربعة من خمسة — والفارق «أعمدة وقواطع» انتقل معه',
+    ],
+    [
+        'child_name_ar' => 'جبس وكرانيش',
+        'root_slug' => 'professions',
+        'reassign_to' => 'جبس وجبسيوم بورد',
+        'why' => 'مجموعة جزئية تامّة من «جبس وديكورات» — لا شريحة تفصله',
+    ],
+
+    /*
+    | «بينج بونج» and «بلياردو» are one hall with two tables. The keeper is
+    | «بلياردو وبينج بونج».
+    */
+    [
+        'child_name_ar' => 'بينج بونج',
+        'root_slug' => 'arts-entertainment',
+        'reassign_to' => 'بلياردو وبينج بونج',
+        'why' => 'صالة واحدة بطاولتين',
+    ],
+
+    /*
+    | «انترنت كافيه» — «غير منتشر حاليا». Folded into «مركز ترفيهي» rather than
+    | left standing: the trade has thinned to the point where it is a room in
+    | an entertainment centre, not a business type of its own.
+    */
+    [
+        'child_name_ar' => 'انترنت كافيه',
+        'root_slug' => 'arts-entertainment',
+        'reassign_to' => 'مركز ترفيهي',
+        'why' => 'لم يعد منتشرًا — صار ركنًا داخل مركز ترفيهي لا نشاطًا قائمًا',
+    ],
+
+    /*
+    | «نادي صحي» sat between «نادي رياضي» and «أكاديمية رياضية» saying nothing
+    | the first does not. The owner kept those two.
+    */
+    [
+        'child_name_ar' => 'نادي صحي',
+        'root_slug' => 'sports',
+        'reassign_to' => 'نادي رياضي',
+        'why' => 'يكفي «نادي رياضي» و«أكاديمية رياضية» — ولا مفردة ينفرد بها',
+    ],
 ];

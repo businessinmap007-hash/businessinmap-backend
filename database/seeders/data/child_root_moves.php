@@ -102,17 +102,16 @@ return [
     | Second pass over the roots, 2026-08-09. Both hold zero accounts.
     */
 
-    [
-        // Root 20 «الصحة» is medical FACILITIES — مستشفى، عيادة، صيدلية، معمل
-        // تحاليل، مراكز أشعة. A health club is not one of those; it is the same
-        // kind of place as a جيم, and TrainingServiceSeeder already sells the
-        // training service through it alongside جيم and نادي رياضي.
-        'child_name_ar' => 'نادي صحي',
-        'adopt_services' => true,
-        'from_root_slug' => 'health',
-        'to_root_slug' => 'sports',
-        'why' => 'ليس منشأة طبية بل مكان تُمارَس فيه رياضة — بجوار «جيم» و«نادي رياضي»، وخدمة التدريب تُباع من خلاله بالفعل',
-    ],
+    /*
+    | «نادي صحي» stood here — moved out of الصحة into الرياضة on 2026-08-09,
+    | because a health club is not a medical facility. On 2026-08-14 the owner
+    | retired it outright: «حذف نادي صحي ونكتفى ب نادى رياضى واكاديمية». It
+    | carried no account and no vocabulary «نادي رياضي» lacks.
+    |
+    | The entry is GONE rather than kept-and-ignored, because a move says «put
+    | it under sports» and `child_root_detachments.php` now says «take it out of
+    | sports». Two files arguing, and whichever seeder ran last would win.
+    */
 
     [
         // Root 15 «تكنولوجيا» is what is built and run — برمجة، إتصالات. Running

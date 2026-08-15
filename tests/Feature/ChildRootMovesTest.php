@@ -140,7 +140,9 @@ class ChildRootMovesTest extends TestCase
             // «عفشجى» moved ورش → شحن وتوصيل here, and the owner detached it from
             // شحن وتوصيل on 2026-08-10; its end state is pinned by
             // ChildRootDetachTest instead.
-            'نادي صحي' => ['نادي صحي', 'health', 'sports'],
+            // «نادي صحي» moved health → sports here, and the owner retired it
+            // on 2026-08-14 — «نكتفى ب نادى رياضى واكاديمية». Its end state is
+            // pinned by ChildRootDetachTest, like «عفشجى» above.
             'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
             // «تجهيز عرائس» moved here on 2026-08-09 and was folded onto
             // «كوافير» on 2026-08-10 — it was already one of that child's
@@ -194,10 +196,15 @@ class ChildRootMovesTest extends TestCase
         $this->assertContains('عيادة', $names, 'the health root lost a medical child');
     }
 
-    /** And the gym root gained it, where the training service already sells it. */
-    public function test_the_health_club_can_still_sell_training(): void
+    /**
+     * «نادي صحي» was moved here so the training service would keep selling
+     * through it. On 2026-08-14 the owner retired the child outright —
+     * «حذف نادي صحي ونكتفى ب نادى رياضى واكاديمية» — so what has to keep
+     * selling training is the child it folded into.
+     */
+    public function test_the_training_service_survived_the_health_club(): void
     {
-        $childId = $this->childId('نادي صحي');
+        $childId = $this->childId('نادي رياضي');
         $training = (int) DB::table('platform_services')->where('key', 'training')->value('id');
 
         $this->assertTrue(
@@ -206,7 +213,7 @@ class ChildRootMovesTest extends TestCase
                 ->where('platform_service_id', $training)
                 ->where('is_active', 1)
                 ->exists(),
-            'the move stranded the training service'
+            'the fold stranded the training service'
         );
     }
 

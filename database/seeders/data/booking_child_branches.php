@@ -16,9 +16,7 @@ return [
         'باركيه' => ['services_tasks'],
         'بناء وواجهات حجرية' => ['services_tasks'],
         'تكسير ونحت' => ['services_tasks'],
-        'جبس وديكورات' => ['services_tasks'],
-        'جبس وكرانيش' => ['services_tasks'],
-        'جبسيوم بورد' => ['services_tasks'],
+        'جبس وجبسيوم بورد' => ['services_tasks'], // «جبس وكرانيش» و«جبسيوم بورد» طُويا فيه 2026-08-14
         'جي أر سي' => ['services_tasks'],
         'حداد' => ['services_tasks'],
         'خدمات نظافة' => ['services_tasks'],
@@ -51,18 +49,16 @@ return [
         'جيم' => ['sports'],
         'ملاعب كرة' => ['sports'],
         'حمام سباحة' => ['sports'],
-        'نادي رياضي' => ['sports'],
-        'نادي صحي' => ['sports'],
+        'نادي رياضي' => ['sports'], // «نادي صحي» طُوي فيه 2026-08-14
+        'مدرب' => ['sports'],
         'أكاديمية رياضية' => ['sports'],
     ],
 
     // ── فنون و ترفية ──
     'arts-entertainment' => [
-        'انترنت كافيه' => ['entertainment_leisure'],
         'بلاي ستيشن' => ['entertainment_leisure'],
-        'بلياردو' => ['entertainment_leisure'],
+        'بلياردو وبينج بونج' => ['entertainment_leisure'], // «بينج بونج» طُوي فيه 2026-08-14
         'بولينج' => ['entertainment_leisure'],
-        'بينج بونج' => ['entertainment_leisure'],
         'فوتوجرافر' => ['entertainment_leisure'],
         'مركز ترفيهي' => ['entertainment_leisure'],
         // The four EntertainmentRemodelSeeder created (2026-08-04) and this map

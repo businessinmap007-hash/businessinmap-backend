@@ -204,6 +204,113 @@ return [
         'أنواع الدواجن والطيور',   // بط ≠ سمان
         'أنواع الحبوب والغلال',    // أردب قمح ≠ أردب عدس
         'أنواع الأعلاف',           // طن أعلاف دواجن ≠ طن تبن
+
+        /*
+        |----------------------------------------------------------------------
+        | The goods reversal, 2026-08-16
+        |----------------------------------------------------------------------
+        | «معظم مجموعات الخيارات الوصفية هى المفروض ان تكون سطر مسعر كما فعلت فى
+        | بعضهم».
+        |
+        | Everything below was a `modifier` on one argument, stated in this file
+        | and in `shop_child_vocabularies.php`: these are goods trades, the
+        | priced rows are catalog products, and the group only says what is on
+        | the shelf. It was a reasonable argument and the data does not support
+        | it.
+        |
+        | The catalog holds 1,164 products across 65 shelves, and for these
+        | trades the shelf is a handful: seven products for every eyewear shop
+        | on the platform, seven for gold, six for marble, six for locksmiths,
+        | six for carpets. A merchant whose vocabulary is a modifier and whose
+        | catalog is six rows deep can price nothing he actually sells — the
+        | modifier has no line under it, which is the same emptiness «حالة
+        | الدواجن» and «وحدة البيع» were sitting over on دواجن and حبوب وغلال
+        | two days ago.
+        |
+        | So the rule the goods roots were finished under is narrowed rather
+        | than dropped: a modifier is a SECOND answer on a line — new or used,
+        | BMW or Fiat, by the tonne or by the kilo — and a group that answers
+        | «what do you sell» is a line however deep the catalog behind it is.
+        | The genuine qualifiers stay below, and the list of them is shorter and
+        | sharper for it.
+        |
+        | This does not remove anything: a merchant's ticks are untouched, and
+        | every one of these groups keeps its children. What changes is that
+        | the ticks now reach the pricing screen.
+        */
+
+        // مصانع — what the works actually makes
+        'أنواع الطوب',
+        'مستلزمات النجارة',
+        'أنواع السجاد',
+        'مواد البناء الأساسية',
+        'أنواع أجهزة الكمبيوتر',
+        'أصناف مستحضرات التجميل',
+        'أنواع الزجاج',
+        'الأدوات الصحية',
+        'مستلزمات المنزل',
+        'الخراطيم والوصلات',
+        'أنواع الرخام والجرانيت',
+        'أنواع المراتب',
+        'المستلزمات الطبية',
+        'الحدايد والبويات',
+        'المواد الدوائية',
+        'الأكياس والمنتجات البلاستيكية',
+        'الصيني والخزف',
+        'مستلزمات المطاعم',
+        'أنواع الحديد',
+        'أنواع الإسفنج',
+        'أصناف لعب الأطفال',
+        'أنواع الأخشاب',
+        'بدائل الخشب والرخام',
+        'أنواع الأصواف والخيوط',
+        'طباعة العبوات والتغليف',
+        'قطاعات ومنتجات الألومنيوم',
+        'أنواع الأجهزة الكهربائية',
+        'أنواع الأجهزة الرياضية',
+
+        // شركات — the wholesale traders
+        'لوازم الستائر',
+        'الأنتيكات والتحف',
+        'مستلزمات المقاهي',
+        'أعمال التبريد والتكييف',
+        'الأدوات المكتبية',
+
+        // المحلات أو أونلاين — the shop floor
+        'أصناف المجوهرات',
+        'أنواع النظارات',
+        'أنواع العطور',
+        'أصناف المكملات',
+        'أقسام المكتبة',
+        'مستلزمات الصيد',
+        'أجهزة الألعاب',
+        'مشتقات التدخين',
+        'النباتات ومستلزماتها',
+        'المصنوعات الخشبية والديكور',
+        'العدد والأدوات الكهربائية',
+        'قطع غيار الأجهزة المنزلية',
+        'أنواع الزيوت والسوائل',
+        'الإطارات والجنوط',
+        'أنواع الإكسسوارات',
+        'نوع قطع الغيار',
+        'أنواع النجف والإضاءة',
+        'المفاتيح والتوزيع الكهربائي',
+
+        /*
+         * The pharmacy's shelves, moved out of `descriptive` in the same pass.
+         * «أدوية بشرية» was called a shelf and not a product — but a pharmacy
+         * with thirteen catalog rows platform-wide prices its counters, and
+         * «مستحضرات تجميل» and «أجهزة قياس منزلية» are two different margins.
+         */
+        'أقسام الصيدلية',
+
+        // The five written today for the shops that were answering somebody
+        // else's question — see shop_child_vocabularies.php.
+        'أجهزة الموبايل وملحقاتها',
+        'خدمات المفاتيح والأقفال',
+        'أنواع الستائر والديكور',
+        'أصناف العصائر والمشروبات',
+        'أصناف الحلويات والجاتوه',
     ],
 
     /*
@@ -241,70 +348,18 @@ return [
         'مكان العقد',             // بالمنزل ≠ بالمكتب
 
         /*
-         * «مصانع», 2026-08-11. Twenty-six of its forty-four children could not
-         * name one thing they make. They are MODIFIERS, not lines, and that is
-         * the whole difference between a goods root and a services root:
-         * nobody buys the phrase «طوب أحمر», they buy a catalog product, and
-         * these say what the trade DEALS IN — the «ماركات السيارات» pattern.
+         * «مصانع», 2026-08-11 — what survives of that block after the goods
+         * reversal above. «نظام التصنيع» is a genuine second answer on a line
+         * (the same order made to spec or taken from stock); the twenty-six
+         * trade lists that sat beside it here are lines now.
          */
         'نظام التصنيع',           // حسب الطلب ≠ من المخزون
-        'أنواع الطوب',
-        'مستلزمات النجارة',
-        'أنواع السجاد',
-        'مواد البناء الأساسية',
-        'أنواع أجهزة الكمبيوتر',
-        'أصناف مستحضرات التجميل',
-        'أنواع الزجاج',
-        'الأدوات الصحية',
-        'مستلزمات المنزل',
-        'الخراطيم والوصلات',
-        'المفاتيح والتوزيع الكهربائي',
-        'أنواع الرخام والجرانيت',
-        'أنواع المراتب',
-        'المستلزمات الطبية',
-        'الحدايد والبويات',
-        'المواد الدوائية',
-        'الأكياس والمنتجات البلاستيكية',
-        'الصيني والخزف',
-        'مستلزمات المطاعم',
-        'أنواع الحديد',
-        'أنواع الإسفنج',
-        'أصناف لعب الأطفال',
-        'أنواع الأخشاب',
-        'بدائل الخشب والرخام',
-        'أنواع الأصواف والخيوط',
-        'طباعة العبوات والتغليف',
-        // «شركات», the goods half of it — the eight traders that were mute.
-        'لوازم الستائر',
-        'الأنتيكات والتحف',
-        'مستلزمات المقاهي',
-        'أعمال التبريد والتكييف',
         'قطع الغيار حسب الآلة',   // renamed from «أنواع قطع الغيار» 2026-08-12
         'درجة قطعة الغيار',       // أصلي وكيل ≠ تجاري — the trade's real price axis
-        'الأدوات المكتبية',
-        /*
-         * «المحلات أو أونلاين» — the fourteen shops that could not name their
-         * stock. Goods trades, so modifiers: the priced rows are the catalog
-         * products, and these say what is on the shelf.
-         */
-        'أصناف المجوهرات',
-        'أنواع النظارات',
-        'أنواع العطور',
-        'أصناف المكملات',
-        'أقسام المكتبة',
-        'مستلزمات الصيد',
-        'أجهزة الألعاب',
-        'مشتقات التدخين',
-        'النباتات ومستلزماتها',
-        'المصنوعات الخشبية والديكور',
         'حالة المنتج',            // جديد ≠ مستعمل
-        // Created as a modifier by AccessoryMergeSeeder on 2026-08-10 and found
-        // sitting as `descriptive` the same day: it was never listed here, so
-        // the first run of THIS seeder reset it. Fifth time. What it says is
-        // what a shop STOCKS — nobody buys the phrase «اكسسوار موبايل», the
-        // priced rows are the catalog products.
         // A PS4 hour and a PS5 hour are two prices for one line.
         'فئة جهاز الألعاب',       // بلايستيشن ٥ ≠ بلايستيشن ٤
+        'ماركات الموبيلات',       // شاشة سامسونج ≠ شاشة شاومي
         /*
          * The modifiers that were genuinely missing, 2026-08-11. Each is a
          * SECOND answer on one line: the same lorry to Aswan or across town,
@@ -315,13 +370,7 @@ return [
         'فترة الحجز',             // يوم كامل ≠ فترة صباحية
         'وحدة البيع',             // بالطن ≠ بالكيلو
         'درجة التحميص والطحن',    // غامق ≠ فاتح
-        // The four shops that had borrowed a neighbour's list, 2026-08-12.
-        'العدد والأدوات الكهربائية',
-        'قطع غيار الأجهزة المنزلية',
-        'أنواع الزيوت والسوائل',
-        'الإطارات والجنوط',
         'حالة الدواجن',           // مقطّع ≠ حي
-        'أنواع الإكسسوارات',      // اكسسوار موبايل ≠ اكسسوار سيارات
         'الجمهور المستهدف',       // حريمي / رجالي / أطفال — split out of موضة
 
         /*
@@ -347,22 +396,16 @@ return [
          * a warning about the past: «نوع قطع الغيار» was created on 2026-08-09
          * and was already one run away from being reset to descriptive.
          */
-        'نوع قطع الغيار',          // فرامل BMW ≠ فرامل فيات
+        // The stock RANGE a wholesaler deals in, which is the one survivor of
+        // this pattern: it belongs to the three children with no market list —
+        // «مواد غذائية»، «استيراد وتصدير» — and answers «which ranges», not
+        // «what do you sell». See GroceryAisleSplitTest.
         'أصناف المنتجات الغذائية', // زيوت وسمن ≠ أغذية أطفال
-        'أنواع الأجهزة الكهربائية', // إصلاح ثلاجة ≠ إصلاح مكيف
-        'أنواع الأجهزة الرياضية',  // مشاية ≠ دمبل
-        // The extrusion, not the finished opening: «أنواع الأبواب والشبابيك» is
-        // a line because a doors business prices a shutter by the leaf, while a
-        // profile is a catalog product sold by the metre.
-        'قطاعات ومنتجات الألومنيوم',
         // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. The
         // fabric list stays a modifier: a bolt of cotton is a catalog product
         // and the fibre qualifies its price. «أصناف المفروشات» went the other
         // way on his instruction — see the `line` block above.
         'أنواع الأقمشة',
-        // The platform had no lighting word at all until 2026-08-12; the two
-        // نجف children said «تابلوه» and nothing else.
-        'أنواع النجف والإضاءة',
     ],
 
     /*
@@ -386,6 +429,29 @@ return [
         'مرافق الإقامة',
         'تصنيف الإقامة',
         'مواصفات المنتج الغذائي',
-        'أقسام الصيدلية',
+        // «أقسام الصيدلية» moved to `line` on 2026-08-16 — see the goods
+        // reversal there. It was here on the argument that «أدوية بشرية» is a
+        // shelf and the medicine is the product; a pharmacy with thirteen
+        // catalog rows platform-wide prices its counters instead.
+
+        /*
+         * Named rather than left to the default, 2026-08-16. All four were
+         * relying on «anything unlisted is descriptive» and the seeder reported
+         * them as such on every run — «بقيت وصفية (غير مذكورة)». That is the
+         * right role for each, and a group whose role is an absence is one
+         * rename away from being a surprise.
+         */
+        'الحد الأدنى للطلب',      // كرتونة / باليت / طن — how little you may buy
+        'نوع العملاء',            // أفراد / شركات / جهات حكومية
+        'تسهيلات ومرافق طبية',    // يقبل التأمين / أشعة داخلية
+        'تجهيزات مساحة العمل',    // بروجيكتور / لوكرز / دخول ٢٤٧
+        /*
+         * «مرافق النادي الرياضي» stays descriptive and it is the one genuinely
+         * mixed group left: خزائن ودش and انتظار سيارات are facilities, while
+         * مدرب شخصي، استشارة تغذية and حمام مغربي are things a gym charges for.
+         * Splitting it is a decision about the trade and is the owner's —
+         * flagged rather than guessed.
+         */
+        'مرافق النادي الرياضي',
     ],
 ];

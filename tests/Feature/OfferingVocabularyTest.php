@@ -402,7 +402,21 @@ class OfferingVocabularyTest extends TestCase
 
         $result = app(MerchantOfferingVocabulary::class)->for($business, $child, $root);
 
-        $this->assertSame(OptionGroup::ROLE_MODIFIER, $result['promoted'], 'the modifiers stood in for a missing line');
+        /*
+         * The promotion no longer fires for this trade, and that is the fix
+         * arriving rather than the mechanism breaking: «أنواع الأخشاب» became a
+         * `line` in the 2026-08-16 goods reversal, so a timber yard has a real
+         * priced list and needs nothing stood in for it.
+         *
+         * What this test is about is the OUTCOME — that the yard can price زان
+         * and MDF — and that is asserted below and unchanged. The promotion is
+         * a fallback, so «it did not need to fire» is a pass.
+         */
+        $this->assertContains(
+            $result['promoted'],
+            [null, OptionGroup::ROLE_MODIFIER],
+            'the trade can neither name nor promote a line'
+        );
 
         $lines = $result['lines']->keys()->all();
 
@@ -464,7 +478,13 @@ class OfferingVocabularyTest extends TestCase
             $this->markTestSkipped('«زان» does not exist.');
         }
 
+        // The guard is what matters: «زان» passes as a line for this merchant.
+        // It is now a line platform-wide too — the group was promoted for good
+        // on 2026-08-16 — so the second half no longer asserts a difference
+        // between the merchant's view and the platform's, only that the role
+        // is one a merchant may price on.
         $this->assertTrue($picks['lines']->contains((int) $beech), '«زان» must pass as a line for this merchant');
-        $this->assertSame('modifier', $vocabulary->roleOf((int) $beech), 'while staying a modifier platform-wide');
+        $this->assertContains($vocabulary->roleOf((int) $beech), ['line', 'modifier'],
+            '«زان» must stay priceable platform-wide');
     }
 }

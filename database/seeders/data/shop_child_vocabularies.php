@@ -49,8 +49,213 @@ return [
 
     'groups' => [
 
+        /*
+        |----------------------------------------------------------------------
+        | Five shops that were answering somebody else's question, 2026-08-16
+        |----------------------------------------------------------------------
+        | Found by reviewing the root the way «زراعية وحيوانية» was reviewed.
+        | Each of these is `line`: what the shop sells IS what it prices, and
+        | the catalog behind it is too thin to be the price list — a glasses
+        | shop has seven products in the entire platform catalog, a locksmith
+        | six. The rule this file opened with («these are modifier groups; the
+        | priced rows are catalog products») is the one the owner overturned on
+        | the same day — see the note in `option_price_roles.php`.
+        */
+
+        /*
+        | «موبيلات و اكسسوار» #186 answered «أنواع الإكسسوارات» — the FASHION
+        | accessories list it shares with «اكسسوار» #8: شنط، أحزمة، نظارات
+        | شمس. A phone shop was being asked whether it sells handbags, and had
+        | no word for a phone at all.
+        |
+        | Two axes, the same shape «قطع غيار سيارات» uses: the DEVICE is the
+        | line and the BRAND qualifies it, because a Samsung screen and a
+        | Xiaomi screen are the same job at two prices. Models are deliberately
+        | not enumerated — «آيفون ١٥ برو ماكس» is a catalog product, and a list
+        | that must be edited every autumn is a list nobody maintains.
+        */
+        'أجهزة الموبايل وملحقاتها' => [
+            'name_en' => 'Mobile Devices & Accessories', 'price_role' => 'line', 'children' => [186],
+            'options' => [
+                'موبايل جديد' => 'New Handset',
+                'موبايل مستعمل' => 'Used Handset',
+                'تابلت' => 'Tablet',
+                'ساعة ذكية' => 'Smart Watch',
+                'سماعات' => 'Headphones & Earbuds',
+                'شواحن وكابلات' => 'Chargers & Cables',
+                'باور بانك' => 'Power Banks',
+                'جرابات وكفرات' => 'Cases & Covers',
+                'اسكرين وحماية' => 'Screen Protectors',
+                'كروت ذاكرة' => 'Memory Cards',
+                'إكسسوار موبايل للسيارة' => 'In-car Mobile Accessories',
+                'صيانة وبرمجة' => 'Repair & Software',
+                'شرائح وشحن رصيد' => 'SIM Cards & Top-up',
+            ],
+        ],
+
+        'ماركات الموبيلات' => [
+            'name_en' => 'Mobile Brands', 'price_role' => 'modifier', 'children' => [186],
+            'options' => [
+                'سامسونج' => 'Samsung',
+                'آيفون' => 'iPhone',
+                'شاومي' => 'Xiaomi',
+                'ريدمي' => 'Redmi',
+                'أوبو' => 'Oppo',
+                'ريلمي' => 'Realme',
+                'فيفو' => 'Vivo',
+                'إنفينكس' => 'Infinix',
+                'تكنو' => 'Tecno',
+                'هواوي' => 'Huawei',
+                'هونر' => 'Honor',
+                'نوكيا' => 'Nokia',
+                'ون بلس' => 'OnePlus',
+                'موتورولا' => 'Motorola',
+            ],
+        ],
+
+        /*
+        | «مفاتيح» #159 — «فى المحلات واونلاين مفاتيح هو المحل الذي يقوم بتصليح
+        | الكوالين او نسخ المفاتيح» (owner, 2026-08-16).
+        |
+        | It answered «المفاتيح والتوزيع الكهربائي» — switches, sockets,
+        | distribution boards, circuit breakers. That is the SWITCHGEAR trade,
+        | and it is the right list for #159 under «شركات» and «مصانع» where the
+        | same name means an electrical wholesaler. Under «المحلات» it means the
+        | man on the corner who cuts a key and changes a lock, and he had no
+        | word for anything he does.
+        |
+        | Root-scoped for exactly that reason: one child row, two trades, and
+        | `root_links` is what says so. The switchgear list is untouched.
+        |
+        | Mostly a SERVICE list, which is correct — this shop sells labour with
+        | a part in it, and «نسخ مفتاح» is priced as one thing.
+        */
+        'خدمات المفاتيح والأقفال' => [
+            'name_en' => 'Keys & Locksmithing', 'price_role' => 'line',
+            'scope' => 'root', 'children' => [159],
+            'options' => [
+                'نسخ مفاتيح' => 'Key Cutting',
+                'مفاتيح سيارات وريموت' => 'Car Keys & Remotes',
+                'برمجة مفتاح سيارة' => 'Car Key Programming',
+                'تصليح كوالين' => 'Lock Repair',
+                'تركيب كوالين' => 'Lock Fitting',
+                'كالون باب خشب' => 'Wooden Door Locks',
+                'كالون باب حديد' => 'Steel Door Locks',
+                'كوالين شبابيك ودرف' => 'Window & Sash Locks',
+                'كالون خزنة' => 'Safe Locks',
+                'أقفال إلكترونية وبصمة' => 'Electronic & Fingerprint Locks',
+                'فتح أبواب وسيارات' => 'Door & Car Opening',
+                'ضبة وسلندر' => 'Cylinders & Latches',
+            ],
+        ],
+
+        /*
+        | «ستائر و ديكور» #76 — «المفروض به انواع الستائر وليس لوازم الستائر»
+        | (owner, 2026-08-16).
+        |
+        | It was borrowing «لوازم الستائر» from «لوازم ستائر» #9 — rails, rings,
+        | brackets, cords. The two were ruled separate trades on 2026-08-12
+        | («لا تدمج لوازم ستائر وستائر وديكور فهم بندين مختلفين») and this is
+        | the other half of that ruling finally arriving: #9 sells the FITTINGS,
+        | #76 sells and hangs the CURTAIN. Sharing the fittings list left #76
+        | with no word for a curtain at all.
+        |
+        | The borrow is withdrawn in `child_option_scopes.php`; #9 keeps its own
+        | list untouched.
+        */
+        'أنواع الستائر والديكور' => [
+            'name_en' => 'Curtains & Decor', 'price_role' => 'line', 'children' => [76],
+            'options' => [
+                'ستائر بلاك آوت' => 'Blackout Curtains',
+                'ستائر رول' => 'Roller Blinds',
+                'ستائر زيبرا' => 'Zebra Blinds',
+                'ستائر عمودية' => 'Vertical Blinds',
+                'ستائر خشبية' => 'Wooden Blinds',
+                'ستائر معدنية / شيش حصيرة' => 'Metal & Slat Blinds',
+                'ستائر رومانية' => 'Roman Blinds',
+                'ستائر شيفون وأورجانزا' => 'Sheer Curtains',
+                'ستائر مخمل' => 'Velvet Curtains',
+                'ستائر أطفال' => 'Kids Curtains',
+                'ستائر حمام ومطبخ' => 'Bath & Kitchen Curtains',
+                'ستائر كهربائية بريموت' => 'Motorised Curtains',
+                'ورق حائط' => 'Wallpaper',
+                'ديكورات جبس' => 'Gypsum Decor',
+                'تفصيل وتركيب ستائر' => 'Made-to-measure & Fitting',
+            ],
+        ],
+
+        /*
+        | «عصائر» #158 — «يحتاج اضافات مثلا عصير قصب وتمر وسوبيا وسلطة فواكه
+        | والعصائر الفريش» (owner, 2026-08-16).
+        |
+        | Its whole line was «مشروبات ساخنة» and «مشروبات باردة» — two menu
+        | bands, which is a HEADING and not a drink. The owner ruled this child
+        | a kitchen on 2026-08-10 («عصائر مطبخ»), and a kitchen is priced by
+        | what it pours.
+        */
+        'أصناف العصائر والمشروبات' => [
+            'name_en' => 'Juices & Drinks', 'price_role' => 'line', 'children' => [158],
+            'options' => [
+                'عصير قصب' => 'Sugarcane Juice',
+                'عصير تمر' => 'Date Juice',
+                'سوبيا' => 'Sobia',
+                'سلطة فواكه' => 'Fruit Salad',
+                'عصائر فريش' => 'Fresh Juices',
+                'عصير مانجو' => 'Mango Juice',
+                'عصير برتقال' => 'Orange Juice',
+                'عصير فراولة' => 'Strawberry Juice',
+                'عصير جوافة' => 'Guava Juice',
+                'عصير ليمون بالنعناع' => 'Lemon & Mint',
+                'عصير رمان' => 'Pomegranate Juice',
+                'تمر هندي وخروب' => 'Tamarind & Carob',
+                'عرقسوس' => 'Liquorice',
+                'كركديه' => 'Hibiscus',
+                'سحلب' => 'Sahlab',
+                'ميلك شيك' => 'Milkshake',
+                'سموذي' => 'Smoothie',
+                'كوكتيل فواكه' => 'Fruit Cocktail',
+                'آيس كوفي ومشروبات مثلجة' => 'Iced Coffee & Frappé',
+            ],
+        ],
+
+        /*
+        | «حلويات» #210 — «بنود حلويات تحتاج اضافات مثل تورته وجاتوه واكلير وما
+        | الى ذلك» (owner, 2026-08-16).
+        |
+        | It answered the shared bakery counter — مخبوزات، فطائر، وافل، آيس كريم،
+        | حلويات وشوكولاتة — five headings covering both a bakery and a sweet
+        | shop. What it could not name was a single sweet: no cake, no gateau,
+        | no éclair, and none of the Egyptian counter either.
+        |
+        | Its own list, so the shared counter can stay exactly as the bakeries
+        | and markets use it.
+        */
+        'أصناف الحلويات والجاتوه' => [
+            'name_en' => 'Sweets & Gateaux', 'price_role' => 'line', 'children' => [210],
+            'options' => [
+                'تورتة' => 'Cakes',
+                'جاتوه' => 'Gateaux',
+                'إكلير' => 'Éclairs',
+                'تشيز كيك' => 'Cheesecake',
+                'كب كيك' => 'Cupcakes',
+                'بيتي فور' => 'Petit Fours',
+                'بسكويت وكحك' => 'Biscuits & Kahk',
+                'بسبوسة وهريسة' => 'Basbousa',
+                'كنافة' => 'Kunafa',
+                'بقلاوة' => 'Baklava',
+                'زلابية ولقمة القاضي' => 'Lokmet El-Qadi',
+                'أم علي' => 'Om Ali',
+                'مهلبية وأرز بلبن' => 'Mahalabia & Rice Pudding',
+                'كريم كراميل' => 'Crème Caramel',
+                'حلاوة وطحينة' => 'Halva & Tahini Sweets',
+                'شوكولاتة وبونبون' => 'Chocolate & Bonbons',
+                'حلويات شرقية' => 'Oriental Sweets',
+                'حلويات دايت وخالية من السكر' => 'Diet & Sugar-free',
+            ],
+        ],
+
         'أصناف المجوهرات' => [
-            'name_en' => 'Jewellery Ranges', 'price_role' => 'modifier', 'children' => [127, 257],
+            'name_en' => 'Jewellery Ranges', 'price_role' => 'line', 'children' => [127, 257],
             'options' => [
                 'خواتم' => 'Rings',
                 'دبل زفاف' => 'Wedding Bands',
@@ -65,7 +270,7 @@ return [
         ],
 
         'أنواع النظارات' => [
-            'name_en' => 'Eyewear Ranges', 'price_role' => 'modifier', 'children' => [125],
+            'name_en' => 'Eyewear Ranges', 'price_role' => 'line', 'children' => [125],
             'options' => [
                 'نظارات طبية' => 'Prescription Glasses',
                 'نظارات شمس' => 'Sunglasses',
@@ -79,7 +284,7 @@ return [
         ],
 
         'أنواع العطور' => [
-            'name_en' => 'Fragrance Ranges', 'price_role' => 'modifier', 'children' => [213],
+            'name_en' => 'Fragrance Ranges', 'price_role' => 'line', 'children' => [213],
             'options' => [
                 'عطور شرقية' => 'Oriental Perfumes',
                 'عطور فرنسية' => 'French Perfumes',
@@ -93,7 +298,7 @@ return [
         ],
 
         'أصناف المكملات' => [
-            'name_en' => 'Supplement Ranges', 'price_role' => 'modifier', 'children' => [274],
+            'name_en' => 'Supplement Ranges', 'price_role' => 'line', 'children' => [274],
             'options' => [
                 'بروتين' => 'Protein',
                 'كرياتين' => 'Creatine',
@@ -107,7 +312,7 @@ return [
         ],
 
         'أقسام المكتبة' => [
-            'name_en' => 'Bookshop Sections', 'price_role' => 'modifier', 'children' => [32],
+            'name_en' => 'Bookshop Sections', 'price_role' => 'line', 'children' => [32],
             'options' => [
                 'كتب دراسية' => 'Textbooks',
                 'روايات وأدب' => 'Fiction & Literature',
@@ -121,7 +326,7 @@ return [
         ],
 
         'مستلزمات الصيد' => [
-            'name_en' => 'Fishing & Hunting Gear', 'price_role' => 'modifier', 'children' => [148],
+            'name_en' => 'Fishing & Hunting Gear', 'price_role' => 'line', 'children' => [148],
             'options' => [
                 'سنارات وبكر' => 'Rods & Reels',
                 'خيوط وطعوم' => 'Line & Bait',
@@ -135,7 +340,7 @@ return [
         ],
 
         'أجهزة الألعاب' => [
-            'name_en' => 'Gaming Hardware', 'price_role' => 'modifier', 'children' => [226],
+            'name_en' => 'Gaming Hardware', 'price_role' => 'line', 'children' => [226],
             'options' => [
                 'أجهزة بلايستيشن' => 'PlayStation Consoles',
                 'أجهزة إكس بوكس' => 'Xbox Consoles',
@@ -149,7 +354,7 @@ return [
         ],
 
         'مشتقات التدخين' => [
-            'name_en' => 'Tobacco Ranges', 'price_role' => 'modifier', 'children' => [260],
+            'name_en' => 'Tobacco Ranges', 'price_role' => 'line', 'children' => [260],
             'options' => [
                 'سجائر' => 'Cigarettes',
                 'معسل وتبغ' => 'Shisha Tobacco',
@@ -163,7 +368,7 @@ return [
         ],
 
         'النباتات ومستلزماتها' => [
-            'name_en' => 'Plants & Garden Supplies', 'price_role' => 'modifier', 'children' => [79],
+            'name_en' => 'Plants & Garden Supplies', 'price_role' => 'line', 'children' => [79],
             'options' => [
                 'نباتات داخلية' => 'Indoor Plants',
                 'نباتات خارجية' => 'Outdoor Plants',
@@ -208,7 +413,7 @@ return [
         | products and these say what is on the shelf.
         */
         'العدد والأدوات الكهربائية' => [
-            'name_en' => 'Power & Hand Tools Range', 'price_role' => 'modifier', 'children' => [87],
+            'name_en' => 'Power & Hand Tools Range', 'price_role' => 'line', 'children' => [87],
             'options' => [
                 'شنيور ومثقاب' => 'Drills',
                 'صاروخ وجلاخة' => 'Angle Grinders',
@@ -226,7 +431,7 @@ return [
         ],
 
         'قطع غيار الأجهزة المنزلية' => [
-            'name_en' => 'Appliance Part Types', 'price_role' => 'modifier', 'children' => [264],
+            'name_en' => 'Appliance Part Types', 'price_role' => 'line', 'children' => [264],
             'options' => [
                 'كمبروسر تبريد' => 'Cooling Compressors',
                 'مواتير ومراوح' => 'Motors & Fans',
@@ -243,7 +448,7 @@ return [
         ],
 
         'أنواع الزيوت والسوائل' => [
-            'name_en' => 'Oils & Fluids', 'price_role' => 'modifier', 'children' => [42],
+            'name_en' => 'Oils & Fluids', 'price_role' => 'line', 'children' => [42],
             'options' => [
                 'زيت محرك' => 'Engine Oil',
                 'زيت فتيس' => 'Gearbox Oil',
@@ -260,7 +465,7 @@ return [
         ],
 
         'الإطارات والجنوط' => [
-            'name_en' => 'Tyres & Rims', 'price_role' => 'modifier', 'children' => [249],
+            'name_en' => 'Tyres & Rims', 'price_role' => 'line', 'children' => [249],
             'options' => [
                 'إطارات ملاكي' => 'Passenger Tyres',
                 'إطارات دفع رباعي' => '4x4 Tyres',
@@ -310,7 +515,7 @@ return [
         ],
 
         'المصنوعات الخشبية والديكور' => [
-            'name_en' => 'Wooden Crafts & Decor', 'price_role' => 'modifier', 'children' => [302],
+            'name_en' => 'Wooden Crafts & Decor', 'price_role' => 'line', 'children' => [302],
             'options' => [
                 'تحف خشبية' => 'Wooden Ornaments',
                 'إطارات وبراويز' => 'Frames',
@@ -355,7 +560,10 @@ return [
         // The wholesaler and the shop stock the same machines.
         37 => ['مستلزمات المقاهي' => 'all'],
 
-        76 => ['لوازم الستائر' => 'all'],
+        // #76's borrow of «لوازم الستائر» ended 2026-08-16 — it has «أنواع
+        // الستائر والديكور» now, and the fittings belong to #9. Removed here
+        // AND declared empty in `child_option_scopes.php`: this line only stops
+        // the seeder re-granting, the scope file is what takes it back off.
 
         /*
          * «نجف و تحف» #57 is TWO trades in one name and only ever said one of

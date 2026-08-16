@@ -53,7 +53,7 @@ class MenuBandSplitTest extends TestCase
     public static function splitGroups(): array
     {
         return [
-            'المطعم' => ['بنود المنيو', 14, 'مشويات'],
+            'المطعم' => ['بنود المنيو', 15, 'مشويات'], // «كريب» added 2026-08-16
             'المزارع' => ['مستلزمات المزارع', 3, 'ماشية وطيور'],
             'المعروضات' => ['صفوف معروضة', 3, 'مركبة معروضة'],
         ];
@@ -68,7 +68,8 @@ class MenuBandSplitTest extends TestCase
             $all = array_merge($all, $this->bandsOf($group));
         }
 
-        $this->assertSame(20, count($all));
+        // 21 since «كريب» was added for the food court on 2026-08-16.
+        $this->assertSame(21, count($all));
         $this->assertSame(count($all), count(array_unique($all)));
     }
 

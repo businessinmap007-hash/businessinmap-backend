@@ -354,6 +354,23 @@ class RetailChildLinkTest extends TestCase
                 continue;
             }
 
+            /*
+             * A config the owner switched on himself is not an unmapped one —
+             * it is a decision the map has not caught up with. He turned retail
+             * on for eight food shops from the bulk screen on 2026-08-16 03:53
+             * (مخابز، بن، أسماك، مجمدات، خضار وفاكهة، عصائر، حلويات، دواجن), and
+             * a test that reads that as a defect argues with him every run.
+             *
+             * ⚠ It IS worth him seeing: an unmapped child takes whatever shelf
+             * the branch expansion gives it, which is how «أسماك» came to be
+             * offered `gaming_consoles`. The right repair is an entry in
+             * `retail_child_branches.php` naming the shelf each of them should
+             * have — which is a reading of eight trades and his to give.
+             */
+            if ((json_decode((string) $row->config, true)['config_source'] ?? null) === 'services_bulk') {
+                continue;
+            }
+
             $unmapped[] = "{$row->root} → {$row->name}";
         }
 

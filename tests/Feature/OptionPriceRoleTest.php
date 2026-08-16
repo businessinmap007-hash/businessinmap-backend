@@ -52,7 +52,11 @@ class OptionPriceRoleTest extends TestCase
      */
     public function test_the_pharmacy_stocks_and_services_are_told_apart(): void
     {
-        $this->assertSame(OptionGroup::ROLE_DESCRIPTIVE, $this->roleOf('أقسام الصيدلية'));
+        // Both are lines since 2026-08-16. The distinction this test exists for
+        // is not the ROLE — it is that the two lists stayed apart: what the
+        // shop stocks and what the pharmacist does are different questions, and
+        // merging them is what stopped a blood-pressure check being priced.
+        $this->assertSame(OptionGroup::ROLE_LINE, $this->roleOf('أقسام الصيدلية'));
         $this->assertSame(OptionGroup::ROLE_LINE, $this->roleOf('خدمات الصيدلية'));
 
         $stock = DB::table('options as o')
@@ -108,8 +112,10 @@ class OptionPriceRoleTest extends TestCase
      */
     public function test_the_widest_groups_stay_out_of_pricing(): void
     {
+        // «أقسام الصيدلية» left this list on 2026-08-16 — a pharmacy with
+        // thirteen catalog rows platform-wide prices its counters.
         foreach (['الدفع والسداد', 'التسليم والاستلام', 'نطاق التعامل', 'الاستبدال والإرجاع',
-            'ملاءمة المكان', 'مرافق الإقامة', 'تصنيف الإقامة', 'أقسام الصيدلية'] as $group) {
+            'ملاءمة المكان', 'مرافق الإقامة', 'تصنيف الإقامة'] as $group) {
             $this->assertSame(OptionGroup::ROLE_DESCRIPTIVE, $this->roleOf($group), "«{$group}» is never bought");
         }
 

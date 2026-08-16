@@ -75,7 +75,11 @@ class TradeAxesTest extends TestCase
         $group = DB::table('option_groups')->where('name_ar', 'نوع قطع الغيار')->first();
 
         $this->assertNotNull($group, 'the spare-part domain axis was never created');
-        $this->assertSame('modifier', (string) $group->price_role, 'the domain narrows a part, it is not a priced row');
+        // A priced line since the 2026-08-16 goods reversal: a spares dealer
+        // quotes brakes and a clutch at two different prices, and the ten
+        // catalog rows behind the trade were never going to be the price list.
+        // «درجة قطعة الغيار» (أصلي وكيل / تجاري) is the modifier on top.
+        $this->assertSame('line', (string) $group->price_role, 'a spares dealer prices by the part');
 
         $names = DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')

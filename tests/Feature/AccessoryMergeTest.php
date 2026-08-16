@@ -40,13 +40,20 @@ class AccessoryMergeTest extends TestCase
             ->where('g.name_ar', self::GROUP)->pluck('o.name_ar')->all();
     }
 
-    /** What a shop STOCKS, so a modifier — the priced rows are the products. */
-    public function test_the_accessory_kinds_narrow_rather_than_price(): void
+    /**
+     * What a shop SELLS, so a line.
+     *
+     * It was a modifier until 2026-08-16 on the argument that the priced rows
+     * are catalog products — and «اكسسوار موبايل» has nineteen of those for the
+     * whole platform. The owner reversed the rule for every trade list of this
+     * shape; see the goods-reversal block in `option_price_roles.php`.
+     */
+    public function test_the_accessory_kinds_are_a_priced_line(): void
     {
         $group = DB::table('option_groups')->where('name_ar', self::GROUP)->first();
 
         $this->assertNotNull($group);
-        $this->assertSame('modifier', (string) $group->price_role);
+        $this->assertSame('line', (string) $group->price_role);
 
         foreach (['اكسسوار موبايل', 'اكسسوار سيارات', 'اكسسوار كمبيوتر'] as $expected) {
             $this->assertContains($expected, $this->typesOf('اكسسوار'), "«اكسسوار» cannot say «{$expected}»");

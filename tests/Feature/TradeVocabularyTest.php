@@ -115,17 +115,33 @@ class TradeVocabularyTest extends TestCase
     }
 
     /**
-     * The other three narrow, they do not price: the priced rows for a grocer
-     * are the products in the catalog, not the phrase «حبوب وبقوليات».
+     * Each of these reaches its trade and holds its role.
+     *
+     * The three were `modifier` on the argument that a grocer's priced rows are
+     * catalog products and not the phrase «حبوب وبقوليات». Two of them —
+     * الأجهزة الكهربائية and الأجهزة الرياضية — became lines in the 2026-08-16
+     * goods reversal, because ten catalog rows are not a price list for a whole
+     * trade. «أصناف المنتجات الغذائية» stayed a modifier and is the survivor of
+     * the pattern: it answers «which RANGES do you deal in» for a wholesaler
+     * with no market list, which is a narrowing and not a thing bought.
+     *
+     * The role is read from the authority rather than hard-coded here, so this
+     * test stops arguing with `option_price_roles.php` every time it moves.
      *
      * @dataProvider stockGroups
      */
-    public function test_a_stock_range_narrows_rather_than_prices(string $groupNameAr, string $childNameAr, string $sample): void
+    public function test_a_stock_range_reaches_its_trade(string $groupNameAr, string $childNameAr, string $sample): void
     {
         $group = DB::table('option_groups')->where('name_ar', $groupNameAr)->first();
 
         $this->assertNotNull($group, "«{$groupNameAr}» was never created");
-        $this->assertSame('modifier', (string) $group->price_role, "«{$groupNameAr}» must narrow, not price");
+
+        $declared = require database_path('seeders/data/option_price_roles.php');
+        $authority = in_array($groupNameAr, $declared['line'], true) ? 'line'
+            : (in_array($groupNameAr, $declared['modifier'], true) ? 'modifier' : 'descriptive');
+
+        $this->assertSame($authority, (string) $group->price_role,
+            "«{$groupNameAr}» disagrees with option_price_roles.php");
 
         $this->assertContains($sample, $this->optionsOf($childNameAr, $groupNameAr), "«{$childNameAr}» cannot say «{$sample}»");
     }

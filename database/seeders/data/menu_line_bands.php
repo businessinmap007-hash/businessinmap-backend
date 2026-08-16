@@ -31,6 +31,10 @@ return [
         'مشروبات ساخنة'  => 'Hot Drinks',
         'مشروبات باردة'  => 'Cold Drinks',
         'وجبات أطفال'      => 'Kids Meals',
+        // «مجمع مطاعم يحتاج فروع اخرى لانه مكان به مجموعة من المطاعم» — owner,
+        // 2026-08-16. A food court is a row of counters, and it already carried
+        // thirteen of the fourteen bands; «كريب» was the one nobody had.
+        'كريب'                   => 'Crêpes',
         'مستلزمات زراعية'  => 'Agricultural Supplies',
         'ماشية وطيور'        => 'Livestock & Poultry',
         'معدات ومستلزمات'  => 'Equipment & Supplies',
@@ -185,11 +189,23 @@ return [
             'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
             'مجمدات',
         ],
+        /*
+        | A food court is not one kitchen — it is a row of them, so it takes
+        | every band there is. It already had thirteen and «كريب» is new.
+        |
+        | «فطائر» is NOT added here and that is deliberate: the word already
+        | exists on «بنود المخبوزات والحلويات», the counter «حلويات» and «مخابز»
+        | work. Lending that whole counter to the court and then narrowing it
+        | back to two rows put the borrow seeder and the scope seeder in a loop
+        | over one child, each undoing the other every run. A second «فطائر» in
+        | this list would be the duplication this taxonomy keeps having to undo.
+        | Open for the owner: either is one line, and it is his call which.
+        */
         'مجمع مطاعم' => [
             'مقبلات', 'سلطات', 'شوربة', 'مشويات',
             'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
             'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
-            'مشروبات باردة', 'وجبات أطفال',
+            'مشروبات باردة', 'وجبات أطفال', 'كريب',
         ],
         'مخابز' => [
             'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',

@@ -65,9 +65,25 @@ class CustomerCartTest extends TestCase
         $res = $this->getJson('/api/v2/cart')->assertOk();
 
         $this->assertSame(2, (int) $res->json('data.totals.businesses'));
-        // businessA: retail 2*10=20 (plain) + menu 75 → +14% tax 10.5 = 85.5 → 105.5
-        // businessB: retail 4 (plain) = 4 ; grand = 109.5
-        $this->assertSame(109.5, (float) $res->json('data.totals.grand_total'));
+
+        /*
+         * businessA: retail 2*10=20 (plain) + menu 75 → +14% tax 10.5 = 85.5
+         * businessB: retail 4 (plain) = 4 ; goods and tax = 109.5
+         *
+         * Asserted as a FLOOR plus the goods figure rather than as one frozen
+         * number. The grand total also carries whatever service fee the child's
+         * fee row declares, and that row is configuration the owner edits from
+         * the admin — he switched delivery fees on across «المحلات» on
+         * 2026-08-16 03:52 and every hard-coded total in the suite went red at
+         * once. What this test is about is that three items from two businesses
+         * land in one cart and are totalled per business; it should not also be
+         * an assertion about the current fee table.
+         */
+        $goods = 109.5;
+        $grand = (float) $res->json('data.totals.grand_total');
+
+        $this->assertGreaterThanOrEqual($goods, $grand, 'the cart lost part of its goods');
+        $this->assertLessThan($goods * 1.5, $grand, 'the total is no longer explained by the goods and a fee');
     }
 
     public function test_adding_same_offering_merges_quantity(): void

@@ -54,10 +54,19 @@ class CoworkingWorkspaceTest extends TestCase
      *
      * @var array<int,int>
      */
+    /*
+     * Thirty-one of these came off the list on 2026-08-16 and none of them was
+     * given a word: they were all holding a full trade vocabulary already, as
+     * a `modifier`. The goods reversal made those lists `line`, so a shop that
+     * could name its stock but not price it can now do both — which is what
+     * this debt list has always been measuring.
+     *
+     * The three left are the ones still genuinely without a priced list:
+     * #23 «شركات الأمن», #110 «مواد غذائية ومنظفات» and #263 «قطع غيار» — a
+     * wholesaler whose only axis is the RANGE it deals in.
+     */
     private const NAMELESS_UNITS = [
-        9, 21, 23, 24, 34, 44, 51, 52, 55, 66, 69, 73, 88, 110, 126, 138,
-        145, 146, 159, 173, 180, 182, 207, 214, 228, 232, 247,
-        262, 263, 266, 270, 280, 301, 303,
+        23, 110, 263,
     ];
 
     private function childId(string $name): int

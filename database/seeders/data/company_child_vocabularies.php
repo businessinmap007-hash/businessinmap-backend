@@ -200,7 +200,7 @@ return [
          * option ids, which is exactly how the merge was proposed. Do not.
          */
         'لوازم الستائر' => [
-            'name_en' => 'Curtain Supplies', 'price_role' => 'modifier', 'children' => [9],
+            'name_en' => 'Curtain Supplies', 'price_role' => 'line', 'children' => [9],
             'options' => [
                 'أقمشة ستائر' => 'Curtain Fabrics',
                 'قضبان وسكك' => 'Rails & Poles',
@@ -214,7 +214,7 @@ return [
         ],
 
         'الأنتيكات والتحف' => [
-            'name_en' => 'Antiques & Objets', 'price_role' => 'modifier', 'children' => [21],
+            'name_en' => 'Antiques & Objets', 'price_role' => 'line', 'children' => [21],
             'options' => [
                 'تحف نحاسية' => 'Brassware',
                 'أنتيكات خشبية' => 'Wooden Antiques',
@@ -228,7 +228,7 @@ return [
         ],
 
         'مستلزمات المقاهي' => [
-            'name_en' => 'Café Supplies', 'price_role' => 'modifier', 'children' => [66],
+            'name_en' => 'Café Supplies', 'price_role' => 'line', 'children' => [66],
             'options' => [
                 'ماكينات قهوة' => 'Coffee Machines',
                 'مطاحن بن' => 'Coffee Grinders',
@@ -241,7 +241,7 @@ return [
         ],
 
         'أعمال التبريد والتكييف' => [
-            'name_en' => 'HVAC & Refrigeration', 'price_role' => 'modifier', 'children' => [240],
+            'name_en' => 'HVAC & Refrigeration', 'price_role' => 'line', 'children' => [240],
             'options' => [
                 'تكييف سبليت' => 'Split Units',
                 'تكييف مركزي' => 'Central Air Conditioning',
@@ -353,7 +353,7 @@ return [
         ],
 
         'الأدوات المكتبية' => [
-            'name_en' => 'Office Supplies', 'price_role' => 'modifier', 'children' => [270],
+            'name_en' => 'Office Supplies', 'price_role' => 'line', 'children' => [270],
             'options' => [
                 'ورق وطباعة' => 'Paper & Print Media',
                 'أدوات كتابة' => 'Writing Instruments',

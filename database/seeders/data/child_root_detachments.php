@@ -398,4 +398,19 @@ return [
         'reassign_to' => 'نادي رياضي',
         'why' => 'يكفي «نادي رياضي» و«أكاديمية رياضية» — ولا مفردة ينفرد بها',
     ],
+
+    /*
+    | «دمج صينى ومستلزمات بيت مع صيني وخزف» — owner, 2026-08-16.
+    |
+    | One shop under four roots, and the two names were the same window: #145
+    | carried «الصيني والخزف» — #228's own list — beside «مستلزمات المنزل», and
+    | #228 carried the china. Six merchants moved; the keeper takes both lists
+    | and the one retail shelf #145 had that it did not, `aluminum_cookware`.
+    */
+    [
+        'child_name_ar' => 'صيني ومستلزمات بيت',
+        'root_slug' => 'shops-online',
+        'reassign_to' => 'صينى وخزف',
+        'why' => 'اسمان لواجهة واحدة — الصيني والخزف ومستلزمات المنزل تُباع من محل واحد',
+    ],
 ];

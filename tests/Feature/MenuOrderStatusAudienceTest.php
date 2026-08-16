@@ -36,6 +36,22 @@ class MenuOrderStatusAudienceTest extends TestCase
         }
         [$this->host, $this->member] = [$others[0], $others[1]];
         $this->itemId = $this->seedMenuItem($this->biz->id, null, 50.0, 'برجر')->id;
+
+        /*
+         * Accepting an order charges the business its service fee, and the
+         * engine refuses when the wallet cannot cover it. That is correct
+         * behaviour and not what this test is about — it is about WHO hears
+         * the status change — so the fixture funds the wallet instead of
+         * assuming the fee is zero.
+         *
+         * It was zero until the owner switched delivery fees on across
+         * «المحلات» on 2026-08-16 03:52, and both cases here went red on a
+         * 422 that had nothing to do with notifications.
+         */
+        \App\Models\Wallet::query()->updateOrCreate(
+            ['user_id' => $this->biz->id],
+            ['balance' => 500, 'locked_balance' => 0, 'total_in' => 500, 'total_out' => 0, 'status' => 'active']
+        );
     }
 
     private function acceptedNotesFor(int $userId): \Illuminate\Database\Eloquent\Builder

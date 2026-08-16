@@ -66,7 +66,6 @@ return [
         'مفروشات' => ['home_furnishings'],
         'آثاث' => ['home_furnishings'],
         'زجاج' => ['home_furnishings'],
-        'صيني ومستلزمات بيت' => ['home_furnishings'],
         'جلود وشنط وأحذية' => ['fashion_textiles'],
         'رخام' => ['building_hardware'],
         'مراتب' => ['home_furnishings'],
@@ -95,6 +94,27 @@ return [
 
     // ── المحلات أو أونلاين (shops, non-food) ──
     'shops-online' => [
+        /*
+        | The eight food shops the owner put on retail from the bulk screen on
+        | 2026-08-16 03:53. Retail was switched on and no branch named them, so
+        | each took whatever the expansion happened to give it — «أسماك» came
+        | out offering `gaming_consoles`.
+        |
+        | All eight are grocery trades and `grocery_retail` is the food shelf,
+        | so that is the branch. What each may actually stock is narrowed per
+        | child in `retail_child_types.php`, which already named most of them —
+        | «أسماك» has said `frozen, canned` there since the branch was built and
+        | nothing could reach it.
+        */
+        'مخابز' => ['grocery_retail'],
+        'بن' => ['grocery_retail'],
+        'أسماك' => ['grocery_retail'],
+        'مجمدات' => ['grocery_retail'],
+        'خضار وفاكهة' => ['grocery_retail'],
+        'عصائر' => ['grocery_retail'],
+        'حلويات' => ['grocery_retail'],
+        'دواجن' => ['grocery_retail'],
+
         'أجهزة رياضية' => ['electronics_tech'],
         'لوازم ستائر' => ['home_furnishings'],
         'ألمونتال' => ['home_furnishings'],
@@ -123,7 +143,6 @@ return [
         'نظارات' => ['fashion_textiles'],
         'زجاج' => ['home_furnishings'],
         'ذهب' => ['jewelry'],
-        'صيني ومستلزمات بيت' => ['home_furnishings'],
         'كبس خراطيم' => ['building_hardware'],
         'أدوات صيد' => ['hobbies_general'],
         'مفاتيح' => ['building_hardware'],
@@ -206,7 +225,6 @@ return [
         'أنتيكات وتحف' => ['home_furnishings'],
         'سجاد' => ['home_furnishings'],
         'زجاج' => ['home_furnishings'],
-        'صيني ومستلزمات بيت' => ['home_furnishings'],
         'صينى وخزف' => ['home_furnishings'],
         'مراتب' => ['home_furnishings'],
         'إسفنج' => ['home_furnishings'],
@@ -267,7 +285,6 @@ return [
         'اكسسوار' => ['fashion_textiles'],
         'سجاد' => ['home_furnishings'],
         'زجاج' => ['home_furnishings'],
-        'صيني ومستلزمات بيت' => ['home_furnishings'],
         'صينى وخزف' => ['home_furnishings'],
         'مراتب' => ['home_furnishings'],
         'إسفنج' => ['home_furnishings'],

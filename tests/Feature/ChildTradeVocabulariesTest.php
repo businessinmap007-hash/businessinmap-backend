@@ -215,16 +215,50 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame([], $mute, 'these factories cannot name one thing they make: ' . implode('، ', $mute));
     }
 
-    /** Nobody buys the phrase «طوب أحمر». They buy a catalog product. */
-    public function test_a_factory_vocabulary_qualifies_a_price_and_is_not_one(): void
+    /**
+     * Every factory group holds the role the AUTHORITY gives it.
+     *
+     * This used to assert the opposite of what it now does: that no factory
+     * vocabulary may be a `line`, because «nobody buys the phrase طوب أحمر —
+     * they buy a catalog product». The owner overturned that on 2026-08-16
+     * («معظم مجموعات الخيارات ... المفروض ان تكون سطر مسعر») and the data backs
+     * him: the catalog is six or seven rows deep for most of these trades, so a
+     * modifier with no line under it prices nothing at all. See the goods
+     * reversal block in `option_price_roles.php`.
+     *
+     * What survives, and is the part worth keeping, is that the two files must
+     * AGREE. A group declared `modifier` in the vocabulary file and `line` in
+     * the roles file is the drift that flipped «أنواع الزجاج» back and forth
+     * for a week — so the roles file is read as the authority and the
+     * vocabulary file is checked against it, rather than each being asserted
+     * on its own.
+     */
+    public function test_a_factory_vocabulary_holds_the_role_the_authority_gives_it(): void
     {
         $declared = require database_path('seeders/data/option_price_roles.php');
 
+        $roleOf = function (string $group) use ($declared): ?string {
+            foreach (['line', 'modifier', 'descriptive'] as $role) {
+                if (in_array($group, $declared[$role], true)) {
+                    return $role;
+                }
+            }
+
+            return null;
+        };
+
         foreach ((require database_path('seeders/data/factory_child_vocabularies.php'))['groups'] as $group => $spec) {
-            $this->assertNotContains(
-                $group,
-                $declared['line'],
-                "«{$group}» is declared a line — a factory's priced rows are its catalog products"
+            $authority = $roleOf($group);
+
+            $this->assertNotNull(
+                $authority,
+                "«{$group}» is in no list in option_price_roles.php — it will be reset to descriptive"
+            );
+
+            $this->assertSame(
+                $authority,
+                $spec['price_role'],
+                "«{$group}» is «{$spec['price_role']}» in factory_child_vocabularies.php and «{$authority}» in the authority"
             );
 
             $this->assertSame(
@@ -264,12 +298,23 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertTrue($asks($factories), 'a furniture factory is not asked how it produces');
         $this->assertFalse($asks($showrooms), 'a furniture SHOWROOM is being asked its minimum order quantity');
 
-        // And no shared row exists for them, which would defeat the whole thing.
+        /*
+         * And no shared row exists for them on a LIVE child, which would defeat
+         * the whole thing.
+         *
+         * Retired children are excluded, and that is not a loophole: a child
+         * with no root is reachable by nothing, and `bim:fold-child` unfiles a
+         * retired child's root-scoped rows to ALL_ROOTS on purpose — they are
+         * the record of what it carried, and filing them under a root it has
+         * left is what the fold was leaving behind before 2026-08-15.
+         */
         $this->assertSame(
             0,
             DB::table('category_child_option as co')
                 ->join('options as o', 'o.id', '=', 'co.option_id')
                 ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereExists(fn ($q) => $q->from('category_parent_child as pc')
+                    ->whereColumn('pc.child_id', 'co.child_id'))
                 ->whereIn('g.name_ar', ['نظام التصنيع', 'الحد الأدنى للطلب'])
                 ->where('co.category_id', 0)->count(),
             'a factory-only axis was granted to every root'
@@ -373,10 +418,28 @@ class ChildTradeVocabulariesTest extends TestCase
                     ->where('category_id', $rootId)->where('child_id', $childId)
                     ->where('platform_service_id', $retail)->where('is_active', 1)->exists();
 
-                $this->assertSame(
-                    $sellsGoods ? 'modifier' : 'line',
+                /*
+                 * Both take a line since 2026-08-16. The rule this test was
+                 * written for — goods take a modifier because the catalog
+                 * holds the priced rows — was the owner's to set and his to
+                 * reverse, and he reversed it: the catalog is six or seven
+                 * rows deep for these trades, so a modifier prices nothing.
+                 *
+                 * What is still worth holding is that the file and the
+                 * authority agree, which is checked against
+                 * `option_price_roles.php` rather than re-derived from whether
+                 * the child has retail.
+                 */
+                $this->assertContains(
                     $spec['price_role'],
-                    "«{$group}» on child #{$childId}: a goods trade takes a modifier, a service takes a line"
+                    ['line', 'modifier'],
+                    "«{$group}» on child #{$childId} has no usable role"
+                );
+
+                $this->assertNotSame(
+                    'descriptive',
+                    $spec['price_role'],
+                    "«{$group}» on child #{$childId} cannot be priced at all"
                 );
             }
         }
@@ -770,12 +833,23 @@ class ChildTradeVocabulariesTest extends TestCase
                 "curtain child #{$childId} was folded away"
             );
 
+            /*
+             * They no longer SHARE a list, and that is the ruling finishing
+             * rather than breaking. «ستائر وديكور المفروض به انواع الستائر وليس
+             * لوازم الستائر» — owner, 2026-08-16. #9 keeps «لوازم الستائر» (the
+             * rails, rings and brackets); #76 has «أنواع الستائر والديكور».
+             *
+             * What this test exists for is that the two stay APART and neither
+             * goes mute — which is now checked by each one holding its own.
+             */
+            $ownList = $childId === 9 ? 'لوازم الستائر' : 'أنواع الستائر والديكور';
+
             $this->assertTrue(
                 DB::table('category_child_option as co')
                     ->join('options as o', 'o.id', '=', 'co.option_id')
                     ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-                    ->where('co.child_id', $childId)->where('g.name_ar', 'لوازم الستائر')->exists(),
-                "curtain child #{$childId} lost the list it shares"
+                    ->where('co.child_id', $childId)->where('g.name_ar', $ownList)->exists(),
+                "curtain child #{$childId} lost «{$ownList}»"
             );
         }
     }

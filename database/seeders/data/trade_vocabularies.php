@@ -136,7 +136,7 @@ return [
         [
             'name_ar' => 'أنواع الأجهزة الكهربائية',
             'name_en' => 'Home Appliance Types',
-            'price_role' => 'modifier',
+            'price_role' => 'line',
             'children' => [
                 'أجهزة كهربائية',
                 'أدوات كهربائية',
@@ -258,7 +258,7 @@ return [
         [
             'name_ar' => 'أنواع الأجهزة الرياضية',
             'name_en' => 'Sports Equipment Types',
-            'price_role' => 'modifier',
+            'price_role' => 'line',
             'children' => ['أجهزة رياضية'],
             'options' => [
                 'مشايات كهربائية' => 'Treadmills',
@@ -302,7 +302,7 @@ return [
         [
             'name_ar' => 'قطاعات ومنتجات الألومنيوم',
             'name_en' => 'Aluminium Profiles & Products',
-            'price_role' => 'modifier',
+            'price_role' => 'line',
             'children' => ['ألمونتال'],
             'options' => [
                 'قطاعات ألومنيوم' => 'Aluminium Profiles',
@@ -389,7 +389,7 @@ return [
         [
             'name_ar' => 'أنواع النجف والإضاءة',
             'name_en' => 'Lighting & Chandeliers',
-            'price_role' => 'modifier',
+            'price_role' => 'line',
             'children' => ['نجف', 'نجف و تحف'],
             'options' => [
                 'نجف كريستال' => 'Crystal Chandeliers',

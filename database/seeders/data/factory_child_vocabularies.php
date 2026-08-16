@@ -105,7 +105,7 @@ return [
         */
 
         'أنواع الطوب' => [
-            'name_en' => 'Brick Types', 'price_role' => 'modifier', 'children' => [34],
+            'name_en' => 'Brick Types', 'price_role' => 'line', 'children' => [34],
             'options' => [
                 'طوب أحمر' => 'Red Brick', 'طوب أسمنتي' => 'Cement Brick',
                 'طوب طفلي' => 'Clay Brick', 'طوب حراري' => 'Fire Brick',
@@ -123,7 +123,7 @@ return [
         ],
 
         'مستلزمات النجارة' => [
-            'name_en' => 'Carpentry Fittings', 'price_role' => 'modifier', 'children' => [51],
+            'name_en' => 'Carpentry Fittings', 'price_role' => 'line', 'children' => [51],
             'options' => [
                 'مفصلات' => 'Hinges', 'مجارى وسكك' => 'Drawer Runners',
                 'أقفال وكوالين' => 'Locks', 'مقابض' => 'Handles',
@@ -133,7 +133,7 @@ return [
         ],
 
         'أنواع السجاد' => [
-            'name_en' => 'Carpet Types', 'price_role' => 'modifier', 'children' => [52],
+            'name_en' => 'Carpet Types', 'price_role' => 'line', 'children' => [52],
             'options' => [
                 'سجاد مشجر' => 'Patterned Rugs', 'سجاد سادة' => 'Plain Rugs',
                 'سجاد شيرازي' => 'Shirazi Rugs', 'سجاد صوف' => 'Wool Rugs',
@@ -143,7 +143,7 @@ return [
         ],
 
         'مواد البناء الأساسية' => [
-            'name_en' => 'Basic Building Materials', 'price_role' => 'modifier', 'children' => [55],
+            'name_en' => 'Basic Building Materials', 'price_role' => 'line', 'children' => [55],
             'options' => [
                 'أسمنت بورتلاندي' => 'Portland Cement', 'أسمنت مقاوم' => 'Sulphate-Resistant Cement',
                 'أسمنت أبيض' => 'White Cement', 'مونة جاهزة' => 'Ready Mortar',
@@ -153,7 +153,7 @@ return [
         ],
 
         'أنواع أجهزة الكمبيوتر' => [
-            'name_en' => 'Computer Hardware', 'price_role' => 'modifier', 'children' => [69],
+            'name_en' => 'Computer Hardware', 'price_role' => 'line', 'children' => [69],
             'options' => [
                 'لابتوب' => 'Laptops', 'كمبيوتر مكتبي' => 'Desktops',
                 'شاشات' => 'Monitors', 'طابعات وماسحات' => 'Printers & Scanners',
@@ -164,7 +164,7 @@ return [
         ],
 
         'أصناف مستحضرات التجميل' => [
-            'name_en' => 'Cosmetics Ranges', 'price_role' => 'modifier', 'children' => [73],
+            'name_en' => 'Cosmetics Ranges', 'price_role' => 'line', 'children' => [73],
             'options' => [
                 'مكياج' => 'Make-up', 'عناية بالبشرة' => 'Skincare',
                 'عناية بالشعر' => 'Haircare', 'عطور' => 'Fragrance',
@@ -174,7 +174,7 @@ return [
         ],
 
         'أنواع الزجاج' => [
-            'name_en' => 'Glass Types', 'price_role' => 'modifier', 'children' => [126],
+            'name_en' => 'Glass Types', 'price_role' => 'line', 'children' => [126],
             'options' => [
                 'زجاج سيكوريت' => 'Tempered Glass', 'زجاج دبل' => 'Double Glazing',
                 'زجاج مزخرف' => 'Patterned Glass', 'مرايا' => 'Mirrors',
@@ -184,7 +184,7 @@ return [
         ],
 
         'الأدوات الصحية' => [
-            'name_en' => 'Sanitary Ware', 'price_role' => 'modifier', 'children' => [138],
+            'name_en' => 'Sanitary Ware', 'price_role' => 'line', 'children' => [138],
             'options' => [
                 'أطقم حمامات' => 'Bathroom Suites', 'خلاطات' => 'Mixers & Taps',
                 'أحواض' => 'Basins', 'بانيوهات' => 'Bathtubs',
@@ -195,7 +195,7 @@ return [
         ],
 
         'مستلزمات المنزل' => [
-            'name_en' => 'Household Goods', 'price_role' => 'modifier', 'children' => [145],
+            'name_en' => 'Household Goods', 'price_role' => 'line', 'children' => [228], // #145 folded in 2026-08-16
             'options' => [
                 'أواني طهي' => 'Cookware', 'أدوات مائدة' => 'Tableware',
                 'تخزين وحفظ' => 'Storage & Containers', 'أدوات مطبخ' => 'Kitchen Tools',
@@ -205,7 +205,7 @@ return [
         ],
 
         'الخراطيم والوصلات' => [
-            'name_en' => 'Hoses & Couplings', 'price_role' => 'modifier', 'children' => [146],
+            'name_en' => 'Hoses & Couplings', 'price_role' => 'line', 'children' => [146],
             'options' => [
                 'خراطيم هيدروليك' => 'Hydraulic Hoses', 'خراطيم هواء' => 'Air Hoses',
                 'خراطيم مياه' => 'Water Hoses', 'خراطيم وقود' => 'Fuel Hoses',
@@ -215,7 +215,7 @@ return [
         ],
 
         'المفاتيح والتوزيع الكهربائي' => [
-            'name_en' => 'Switchgear & Wiring', 'price_role' => 'modifier', 'children' => [159],
+            'name_en' => 'Switchgear & Wiring', 'price_role' => 'line', 'children' => [159],
             'options' => [
                 'مفاتيح كهرباء' => 'Switches', 'بريزات' => 'Sockets',
                 'لوحات توزيع' => 'Distribution Boards', 'قواطع' => 'Circuit Breakers',
@@ -225,7 +225,7 @@ return [
         ],
 
         'أنواع الرخام والجرانيت' => [
-            'name_en' => 'Marble & Granite', 'price_role' => 'modifier', 'children' => [174],
+            'name_en' => 'Marble & Granite', 'price_role' => 'line', 'children' => [174],
             'options' => [
                 'رخام مصري' => 'Egyptian Marble', 'رخام مستورد' => 'Imported Marble',
                 'جرانيت' => 'Granite', 'كوارتز' => 'Quartz',
@@ -235,7 +235,7 @@ return [
         ],
 
         'أنواع المراتب' => [
-            'name_en' => 'Mattress Types', 'price_role' => 'modifier', 'children' => [180],
+            'name_en' => 'Mattress Types', 'price_role' => 'line', 'children' => [180],
             'options' => [
                 'مرتبة سوست' => 'Spring Mattress', 'مرتبة إسفنج' => 'Foam Mattress',
                 'مرتبة طبية' => 'Orthopaedic Mattress', 'مرتبة لاتكس' => 'Latex Mattress',
@@ -245,7 +245,7 @@ return [
         ],
 
         'المستلزمات الطبية' => [
-            'name_en' => 'Medical Supplies', 'price_role' => 'modifier', 'children' => [182],
+            'name_en' => 'Medical Supplies', 'price_role' => 'line', 'children' => [182],
             'options' => [
                 'مستهلكات طبية' => 'Disposables', 'أجهزة قياس' => 'Diagnostic Devices',
                 'كراسي متحركة' => 'Wheelchairs', 'أسرّة طبية' => 'Hospital Beds',
@@ -256,7 +256,7 @@ return [
         ],
 
         'الحدايد والبويات' => [
-            'name_en' => 'Hardware & Paints', 'price_role' => 'modifier', 'children' => [207],
+            'name_en' => 'Hardware & Paints', 'price_role' => 'line', 'children' => [207],
             'options' => [
                 'بويات ودهانات' => 'Paints', 'ورق حائط' => 'Wallpaper',
                 'عدد يدوية' => 'Hand Tools', 'عدد كهربائية' => 'Power Tools',
@@ -266,7 +266,7 @@ return [
         ],
 
         'المواد الدوائية' => [
-            'name_en' => 'Pharmaceutical Materials', 'price_role' => 'modifier', 'children' => [214],
+            'name_en' => 'Pharmaceutical Materials', 'price_role' => 'line', 'children' => [214],
             'options' => [
                 'خامات دوائية' => 'Active Ingredients', 'مكملات وفيتامينات' => 'Supplements',
                 'مستحضرات عشبية' => 'Herbal Preparations', 'مواد تعقيم' => 'Sterilisers',
@@ -275,7 +275,7 @@ return [
         ],
 
         'الأكياس والمنتجات البلاستيكية' => [
-            'name_en' => 'Plastic Bags & Products', 'price_role' => 'modifier', 'children' => [221],
+            'name_en' => 'Plastic Bags & Products', 'price_role' => 'line', 'children' => [221],
             'options' => [
                 'أكياس تسوق' => 'Shopping Bags', 'أكياس قمامة' => 'Refuse Sacks',
                 'أكياس فاكيوم' => 'Vacuum Bags', 'أكياس شرنك' => 'Shrink Bags',
@@ -285,7 +285,7 @@ return [
         ],
 
         'الصيني والخزف' => [
-            'name_en' => 'China & Porcelain', 'price_role' => 'modifier', 'children' => [228, 145],
+            'name_en' => 'China & Porcelain', 'price_role' => 'line', 'children' => [228], // #145 folded in 2026-08-16
             'options' => [
                 'أطقم شاي وقهوة' => 'Tea & Coffee Sets', 'أطقم عشاء' => 'Dinner Sets',
                 'بورسلين' => 'Porcelain', 'خزف مزخرف' => 'Decorated Ceramics',
@@ -295,7 +295,7 @@ return [
         ],
 
         'مستلزمات المطاعم' => [
-            'name_en' => 'Restaurant Equipment', 'price_role' => 'modifier', 'children' => [247],
+            'name_en' => 'Restaurant Equipment', 'price_role' => 'line', 'children' => [247],
             'options' => [
                 'معدات مطابخ' => 'Kitchen Equipment', 'ثلاجات عرض' => 'Display Fridges',
                 'أفران' => 'Ovens', 'شوايات' => 'Grills',
@@ -306,7 +306,7 @@ return [
         ],
 
         'أنواع الحديد' => [
-            'name_en' => 'Steel Products', 'price_role' => 'modifier', 'children' => [262],
+            'name_en' => 'Steel Products', 'price_role' => 'line', 'children' => [262],
             'options' => [
                 'حديد تسليح' => 'Rebar', 'حديد زوايا' => 'Angle Iron',
                 'حديد مربعات' => 'Square Sections', 'مواسير حديد' => 'Steel Pipes',
@@ -316,7 +316,7 @@ return [
         ],
 
         'أنواع الإسفنج' => [
-            'name_en' => 'Foam Types', 'price_role' => 'modifier', 'children' => [266],
+            'name_en' => 'Foam Types', 'price_role' => 'line', 'children' => [266],
             'options' => [
                 'إسفنج مراتب' => 'Mattress Foam', 'إسفنج أثاث' => 'Upholstery Foam',
                 'إسفنج ضغط عالي' => 'High-Density Foam', 'إسفنج ميموري' => 'Memory Foam',
@@ -325,7 +325,7 @@ return [
         ],
 
         'أصناف لعب الأطفال' => [
-            'name_en' => 'Toy Ranges', 'price_role' => 'modifier', 'children' => [280],
+            'name_en' => 'Toy Ranges', 'price_role' => 'line', 'children' => [280],
             'options' => [
                 'ألعاب تعليمية' => 'Educational Toys', 'عرائس ودمى' => 'Dolls & Plush',
                 'سيارات ومركبات' => 'Toy Vehicles', 'ألعاب خارجية' => 'Outdoor Toys',
@@ -340,7 +340,7 @@ return [
          * five grow, the rest are pressed.
          */
         'أنواع الأخشاب' => [
-            'name_en' => 'Timber Types', 'price_role' => 'modifier', 'children' => [301],
+            'name_en' => 'Timber Types', 'price_role' => 'line', 'children' => [301],
             'options' => [
                 // طبيعي
                 'زان' => 'Beech', 'أرو' => 'Pine',
@@ -361,7 +361,7 @@ return [
          * marble yard carries these without carrying one plank.
          */
         'بدائل الخشب والرخام' => [
-            'name_en' => 'Wood & Marble Alternatives', 'price_role' => 'modifier', 'children' => [301, 174],
+            'name_en' => 'Wood & Marble Alternatives', 'price_role' => 'line', 'children' => [301, 174],
             'options' => [
                 'بديل خشب WPC' => 'WPC Wood Alternative',
                 'بديل رخام UV' => 'UV Marble Alternative',
@@ -379,7 +379,7 @@ return [
          * that caught the difference.
          */
         'طباعة العبوات والتغليف' => [
-            'name_en' => 'Packaging Printing', 'price_role' => 'modifier', 'children' => [232],
+            'name_en' => 'Packaging Printing', 'price_role' => 'line', 'children' => [232],
             'options' => [
                 'طباعة على الكرتون' => 'Carton Printing',
                 'طباعة على الأكياس' => 'Bag Printing',
@@ -394,7 +394,7 @@ return [
         ],
 
         'أنواع الأصواف والخيوط' => [
-            'name_en' => 'Wool & Yarn', 'price_role' => 'modifier', 'children' => [303],
+            'name_en' => 'Wool & Yarn', 'price_role' => 'line', 'children' => [303],
             'options' => [
                 'صوف طبيعي' => 'Natural Wool', 'صوف صناعي' => 'Synthetic Wool',
                 'خيوط قطن' => 'Cotton Yarn', 'خيوط أكريليك' => 'Acrylic Yarn',

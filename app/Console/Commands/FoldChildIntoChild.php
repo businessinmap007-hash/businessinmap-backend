@@ -210,18 +210,37 @@ class FoldChildIntoChild extends Command
                 $shared = DB::table('category_child_option')
                     ->where('child_id', $loserId)
                     ->where('category_id', CategoryChildOption::ALL_ROOTS)
-                    ->pluck('option_id');
+                    ->pluck('option_id')
+                    ->map(fn ($id) => (int) $id);
+
+                // Collected, dropped, then re-inserted once each — an UPDATE
+                // to ALL_ROOTS collides on the unique pair whenever the loser
+                // held the same option under two roots, which a child sitting
+                // under four of them does constantly.
+                $scoped = DB::table('category_child_option')
+                    ->where('child_id', $loserId)
+                    ->where('category_id', '>', CategoryChildOption::ALL_ROOTS)
+                    ->pluck('option_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->diff($shared)
+                    ->values();
 
                 DB::table('category_child_option')
                     ->where('child_id', $loserId)
                     ->where('category_id', '>', CategoryChildOption::ALL_ROOTS)
-                    ->whereIn('option_id', $shared)
                     ->delete();
 
-                DB::table('category_child_option')
-                    ->where('child_id', $loserId)
-                    ->where('category_id', '>', CategoryChildOption::ALL_ROOTS)
-                    ->update(['category_id' => CategoryChildOption::ALL_ROOTS]);
+                foreach ($scoped->chunk(200) as $chunk) {
+                    DB::table('category_child_option')->insertOrIgnore(
+                        $chunk->map(fn ($optionId) => [
+                            'child_id' => $loserId,
+                            'category_id' => CategoryChildOption::ALL_ROOTS,
+                            'option_id' => $optionId,
+                            'reorder' => 0,
+                        ])->values()->all()
+                    );
+                }
             });
         }
 

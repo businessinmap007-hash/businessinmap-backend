@@ -89,8 +89,10 @@ return [
     'إسفنج' => ['foam_products', 'mattresses'],
     'مراتب' => ['mattresses', 'foam_products'],
     'زجاج' => ['glassware'],
-    'صينى وخزف' => ['china_housewares', 'glassware'],
-    'صيني ومستلزمات بيت' => ['china_housewares', 'glassware', 'aluminum_cookware'],
+    // «صيني ومستلزمات بيت» #145 folded in here on 2026-08-16 («دمج صينى
+    // ومستلزمات بيت مع صيني وخزف»). It carried one shelf the keeper did not —
+    // aluminium cookware — so the shelf comes across rather than the line.
+    'صينى وخزف' => ['china_housewares', 'glassware', 'aluminum_cookware'],
     'سجاد' => ['carpets_rugs', 'home_textiles'],
     'ستائر و ديكور' => ['curtains_supplies', 'home_textiles', 'wood_decor'],
     'لوازم ستائر' => ['curtains_supplies'],

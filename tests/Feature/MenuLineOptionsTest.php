@@ -131,27 +131,20 @@ class MenuLineOptionsTest extends TestCase
                 ->exists();
 
             /*
-             * …unless the owner took its last heading off by hand.
+             * ── #189 «معرض موتوسيكلات» — raised, and answered ──
              *
-             * ── #189 «معرض موتوسيكلات», 2026-08-16 17:48 ──
+             * The owner withdrew «مركبة معروضة» from it on 2026-08-16 17:48, which was
+             * its only line, and the withdrawal was right: «the thing on display» is a
+             * placeholder word, not a heading anybody prices under. That left it with a
+             * modifier and nothing under it, and the two ways out were a motorcycle
+             * TYPE list of its own or the brand list promoted. He took the second the
+             * same evening — «ماركات الموتوسيكلات» is a `line` now, and ياماها against
+             * هوندا really is the whole of a bike showroom's choice.
              *
-             * The owner withdrew «مركبة معروضة» from it by hand, which was its only
-             * line, and the withdrawal is right: «the thing on display» is a placeholder
-             * word, not a heading anybody prices under. What it leaves is the shape this
-             * whole sweep has been closing — «ماركات الموتوسيكلات» is a modifier and
-             * there is now nothing under it.
-             *
-             * Its twin «معرض سيارات» prices on «نوع المركبة» — سيدان، SUV، بيك أب — and
-             * a motorcycle answers none of those, so there is no list to borrow. Two
-             * ways out and both are the owner's: a motorcycle TYPE list of its own
-             * (سكوتر، رياضي، توك توك…), which is new words, or the brand list promoted
-             * to `line`, which is one role change. Zero merchants stand on it, so
-             * nothing is broken today.
-             *
-             * Recorded here rather than guessed at, and the guard is kept sharp: the
-             * exemption is granted only while the WITHDRAWAL is on record. Put the row
-             * back and the child leaves this list; let a seeder strip a line without a
-             * decision behind it and the test still fails.
+             * The exemption below survives him, and it is the rule and not the case:
+             * a line the OWNER took off by hand is his answer, not a debt. It lasts
+             * only while the WITHDRAWAL is on record, so a seeder stripping a line with
+             * no decision behind it still fails.
              */
             if (! $has && $this->lastLineWasWithdrawn((int) $id)) {
                 continue;

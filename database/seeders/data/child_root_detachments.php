@@ -413,4 +413,37 @@ return [
         'reassign_to' => 'صينى وخزف',
         'why' => 'اسمان لواجهة واحدة — الصيني والخزف ومستلزمات المنزل تُباع من محل واحد',
     ],
+
+    /*
+    | «حذف من الشركات الابن مفاتيح - حلويات» — owner, 2026-08-16.
+    |
+    | Neither is a company. A «مفاتيح» is a man at a bench cutting keys and
+    | opening locks — the trade this taxonomy gave «خدمات المفاتيح والأقفال» to
+    | on 2026-08-16, scoped to «المحلات» because that is where it stands. And a
+    | «حلويات» is a kitchen; the owner ruled it one on 2026-08-10, which is what
+    | gave it the bakery counter and «فطائر». Under «شركات» they sat beside
+    | insurance firms and contractors answering «تصدير / جملة».
+    |
+    | Both keep every other root they stand under — مفاتيح under «المحلات» and
+    | «مصانع», حلويات under those two and «معارض» — so no `reassign_to` is
+    | needed and neither trade is retired. Zero merchants stand on either under
+    | this root, which is the only reason a detachment is safe at all.
+    |
+    | What goes with the membership is the wiring that NAMED this root: 19
+    | option rows each, the service links, the configs and the fee overrides.
+    | What stays is the decisions ledger, and it has to: `byChild()` reads a
+    | withdrawal without looking at its root, so deleting those rows would
+    | quietly hand back, under «المحلات» and «مصانع», every word the owner has
+    | taken off these two children anywhere.
+    */
+    [
+        'child_name_ar' => 'مفاتيح',
+        'root_slug' => 'companies',
+        'why' => 'محل مفاتيح وأقفال — ورشة رجل واحد لا شركة',
+    ],
+    [
+        'child_name_ar' => 'حلويات',
+        'root_slug' => 'companies',
+        'why' => 'مطبخ حلواني — حُكم عليه بذلك في ١٠ أغسطس حين أخذ بنود المخبوزات',
+    ],
 ];

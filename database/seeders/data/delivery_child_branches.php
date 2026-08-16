@@ -265,7 +265,9 @@ return [
         'جلود وشنط وأحذية' => ['delivery_freight'],
         'حدايد وبويات' => ['delivery_freight'],
         'حديد تسليح' => ['delivery_freight'],
-        'حلويات' => ['delivery_freight', 'delivery_coldchain'],
+        // «مفاتيح» and «حلويات» were detached from «شركات» on 2026-08-16 —
+        // a key-cutter is a one-man bench and a sweets shop is a kitchen.
+        // Their lines go with them: this map is keyed by ROOT.
         'رخام' => ['delivery_freight'],
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
@@ -292,7 +294,6 @@ return [
         'مصاعد وسلم كهرياء' => ['delivery_freight'],
         'معدات ثقيلة' => ['delivery_freight'],
         'معدات سوبرماركت' => ['delivery_freight'],
-        'مفاتيح' => ['delivery_freight'],
         'مفروشات' => ['delivery_freight'],
         'ملابس جاهزة' => ['delivery_freight'],
         'منظفات' => ['delivery_freight'],

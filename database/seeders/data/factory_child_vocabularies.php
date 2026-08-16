@@ -312,6 +312,22 @@ return [
             ],
         ],
 
+        /*
+        | «اضافة ستنالس ستيل الى انواع الحديد واضفها الى الورش و الحداد» —
+        | owner, 2026-08-16.
+        |
+        | The list was eight shapes of ONE metal: everything in it is carbon
+        | steel in a different profile. Stainless is a different metal and it is
+        | the one a workshop is actually asked for by name — مطابخ، درابزين،
+        | أحواض، واجهات — and it prices at several times rebar, which is exactly
+        | what a `line` row is for.
+        |
+        | «الورش والحداد» need no entry of their own: «حداد» #259 and «ورشة حدادة
+        | وخراطة» #545 borrow this whole group through child_vocabulary_borrows,
+        | so a row added here reaches both on the next run. That is the borrow
+        | rule earning its keep — one word written once and three trades can say
+        | it.
+        */
         'أنواع الحديد' => [
             'name_en' => 'Steel Products', 'price_role' => 'line', 'children' => [262],
             'options' => [
@@ -319,6 +335,7 @@ return [
                 'حديد مربعات' => 'Square Sections', 'مواسير حديد' => 'Steel Pipes',
                 'صاج' => 'Steel Sheet', 'شينيه' => 'Channel Sections',
                 'حديد شدات' => 'Formwork Steel', 'أسلاك ربط' => 'Tie Wire',
+                'ستانلس ستيل' => 'Stainless Steel',
             ],
         ],
 

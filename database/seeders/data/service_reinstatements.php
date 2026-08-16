@@ -103,13 +103,18 @@ return [
         'why' => 'شركة فاكهة بلا سطح بيع؛ menu_market هو ما يستخدمه جارها',
     ],
 
-    [
-        'child_name_ar' => 'حلويات',
-        'root_slug' => 'companies',
-        'service_key' => 'menu',
-        'copy_from_child_ar' => 'كرڤان',
-        'why' => 'نفس الحالة',
-    ],
+    /*
+    | «حلويات» stood here for `menu` under «شركات» and was detached from that
+    | root on 2026-08-16 — «حذف من الشركات الابن مفاتيح - حلويات». A sweets shop
+    | is a kitchen, which the owner ruled on 2026-08-10 when it took the bakery
+    | counter, and it never belonged among the contractors and insurers.
+    |
+    | The entry goes with the membership rather than being left to fail
+    | silently: this file resolves a child under a NAMED root, so a row for a
+    | root it has left finds nothing and is skipped, and the skip reads like a
+    | data error to whoever runs the seeder next. It keeps `menu` under
+    | «المحلات», «معارض» and «مصانع», where it actually stands.
+    */
 
 
     /*

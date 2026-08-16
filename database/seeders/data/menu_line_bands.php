@@ -162,11 +162,24 @@ return [
             'حلويات وشوكولاتة', 'مشروبات', 'منظفات', 'عناية شخصية',
             'منتجات أطفال', 'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
+        /*
+        | A cart, not a kitchen with fourteen sections, and the owner has said so
+        | twice from opposite directions.
+        |
+        | On 2026-08-10 he withdrew مقبلات، سلطات، شوربة، أطباق رئيسية and
+        | حلويات — the sit-down half. On 2026-08-16 18:17 he ticked back the
+        | eight it does serve out of a window, «فطائر» and «كريب» among them.
+        | Between the two saves the list below is his, written down: eleven
+        | bands, and the map now says what the screen says.
+        |
+        | The five withdrawals are NOT restored by listing them here — the
+        | ledger blocks a re-grant either way — so this entry is deliberately
+        | the eleven and not the fourteen it inherited from «مطعم».
+        */
         'عربية قهوة ومأكولات' => [
-            'مقبلات', 'سلطات', 'شوربة', 'مشويات',
-            'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
-            'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
-            'مشروبات باردة', 'وجبات أطفال',
+            'مشويات', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
+            'مأكولات بحرية', 'إفطار', 'مشروبات ساخنة',
+            'مشروبات باردة', 'وجبات أطفال', 'فطائر', 'كريب',
         ],
         /*
         | «عصائر مطبخ» — owner, same ruling, the other way. A juice bar PREPARES

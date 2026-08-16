@@ -406,7 +406,11 @@ return [
         158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
         168 => ['موضة وعناية شخصية'],                       // جلود وشنط وأحذية
         170 => ['مستلزمات المزارع'],                        // مواشي
-        210 => ['بنود المخبوزات والحلويات', 'بنود المنيو'], // حلويات
+        // «حلويات» #210 was mirrored here and is gone: it was detached from
+        // «شركات» on 2026-08-16 («حذف من الشركات الابن مفاتيح - حلويات»), and
+        // a mirror writes rows AGAINST THIS ROOT. Left in the list it wrote
+        // five option rows naming a root the child had just left — reachable
+        // by nothing, and the exact debris a detachment exists to clear.
         292 => ['أقسام الطازج واللحوم', 'مواصفات المنتج الغذائي'], // خضروات
     ],
 

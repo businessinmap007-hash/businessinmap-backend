@@ -48,6 +48,22 @@ return [
         'مستلزمات المزارع',       // ماشية وطيور
         'صفوف معروضة',            // مركبة معروضة — one row meaning «what is on display»
         'نوع المركبة',            // سيدان — BMW; the brand needs something to be the brand OF
+        /*
+         * «رقّي ماركات الموتوسيكلات الى سطر» — owner, 2026-08-16, and it is the
+         * exception «نوع المركبة» proves rather than breaks.
+         *
+         * A car showroom prices on the TYPE — سيدان، SUV، بيك أب — and the
+         * marque qualifies it, which is why «ماركات السيارات» is still a
+         * modifier one block down. A motorcycle answers none of those types and
+         * the platform has no list of its own for them, so after «مركبة
+         * معروضة» was withdrawn on 2026-08-16 17:48 the marque was the only
+         * axis #189 had left and it could price nothing at all.
+         *
+         * The brand IS the heading a motorcycle showroom sells under — ياماها
+         * against هوندا is the whole of the choice — so this is the shorter of
+         * the two ways out, and the one that invents no words.
+         */
+        'ماركات الموتوسيكلات',    // ياماها، بينيلي — the heading a bike showroom sells under
         // Was «فئات الغرف» until the owner merged the hotel room kinds into the
         // existing «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين
         // for property listings. One group now answers both: جناح ≠ غرفة فردية
@@ -363,7 +379,6 @@ return [
         'المراحل التعليمية',      // رياضيات ثانوي ≠ ابتدائي
         'نمط تقديم الخدمة',       // بسائق ≠ بدون · أونلاين ≠ حضوري
         'ماركات السيارات',        // ليموزين مرسيدس ≠ هيونداي
-        'ماركات الموتوسيكلات',
         'نظام الوجبات',           // إقامة كاملة ≠ شامل الإفطار
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
         /*

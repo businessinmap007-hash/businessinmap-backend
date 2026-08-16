@@ -234,7 +234,9 @@ return [
         'حديد تسليح' => ['building_hardware'],
         'حدايد وبويات' => ['building_hardware'],
         'رخام' => ['building_hardware'],
-        'مفاتيح' => ['building_hardware'],
+        // «مفاتيح» and «حلويات» were detached from «شركات» on 2026-08-16 —
+        // a key-cutter is a one-man bench and a sweets shop is a kitchen.
+        // Their lines go with them: this map is keyed by ROOT.
         'كبس خراطيم' => ['building_hardware'],
         'مستلزمات نجارة' => ['building_hardware'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],

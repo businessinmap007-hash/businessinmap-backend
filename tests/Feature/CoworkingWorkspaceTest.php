@@ -307,12 +307,14 @@ class CoworkingWorkspaceTest extends TestCase
              * its only heading, and «the thing on display» is a placeholder
              * rather than something anybody prices under. Its twin «معرض
              * سيارات» prices on «نوع المركبة», which a motorcycle answers none
-             * of, so there is no list to borrow: either a motorcycle TYPE list
-             * of its own, or «ماركات الموتوسيكلات» promoted to `line`. Both are
-             * the owner's and zero merchants stand on it.
+             * of, so there was no list to borrow: either a motorcycle TYPE list
+             * of its own, or «ماركات الموتوسيكلات» promoted. He took the second
+             * the same evening and the child has a heading again — ياماها
+             * against هوندا is the whole of a bike showroom's choice.
              *
-             * The guard stays sharp — the exemption lasts only while the
-             * withdrawal is on record, so a SEEDER stripping a line still fails.
+             * The exemption survives the case because it is the rule, and the
+             * guard stays sharp: it lasts only while the withdrawal is on
+             * record, so a SEEDER stripping a line still fails.
              */
             if (! $hasLine && ! $this->lastLineWasWithdrawn((int) $row->child_id)) {
                 $nameless[(int) $row->child_id] = true;

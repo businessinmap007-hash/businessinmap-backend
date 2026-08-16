@@ -47,6 +47,86 @@ class OptionGroupCohesionTest extends TestCase
         $this->assertContains('إطلالة بحرية', $this->namesIn('إطلالة الوحدة'));
     }
 
+    /**
+     * …and a fourth question the amenity list was answering: what the hotel
+     * SELLS. A transfer is a driver, a car and a fare; it sat beside «مسبح»
+     * where no price could reach it.
+     *
+     * «خدمة الغرف» is the control. Staff bring it, but the bill is the food and
+     * the hotel prices that on a menu, so the row means «there is room service»
+     * — a fact about the place. If it ever moves, the cut was made on «is
+     * somebody involved» rather than «is this the thing being bought».
+     */
+    public function test_hotel_facilities_no_longer_hold_a_thing_the_hotel_sells(): void
+    {
+        $facilities = $this->namesIn('مرافق الإقامة');
+
+        $this->assertNotContains('نقل من المطار', $facilities, 'a paid transfer is not an amenity');
+        $this->assertContains('نقل من المطار', $this->namesIn('خدمات الفندق'));
+        $this->assertContains('خدمة الغرف', $facilities, 'the bill for room service is the food');
+
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'خدمات الفندق')->value('price_role'),
+            'the group exists so a hotel can price the transfer; a descriptive one would not'
+        );
+    }
+
+    /**
+     * The clinic case, and the one where the file that ruled on it had the
+     * counter-example in its own hands.
+     *
+     * health_child_vocabularies.php declined to invent a modifier for medicine
+     * because «a modifier exists where the SAME line prices two ways, and «كشف»
+     * does not». True of every row it wrote — and «زيارة منزلية», sitting in its
+     * descriptive list, is precisely a كشف priced two ways.
+     *
+     * It moved rather than being created, into the axis that already asks how a
+     * service is supplied.
+     */
+    public function test_medical_facilities_no_longer_hold_the_one_row_that_is_a_price(): void
+    {
+        $this->assertNotContains('زيارة منزلية', $this->namesIn('تسهيلات ومرافق طبية'));
+        $this->assertContains('زيارة منزلية', $this->namesIn('نمط تقديم الخدمة'));
+
+        // And the five who answer it still do. A regroup that re-granted by list
+        // instead of moving by id would have handed it to all seven.
+        $carriers = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('o.name_ar', 'زيارة منزلية')->distinct()->orderBy('c.name_ar')
+            ->pluck('c.name_ar')->all();
+
+        $this->assertNotContains('مراكز أشعة', $carriers, 'an X-ray suite does not travel');
+        $this->assertContains('عيادة', $carriers);
+        $this->assertContains('معمل تحاليل', $carriers);
+    }
+
+    /**
+     * The hotel seeder builds an option when it cannot find one, and it used to
+     * look only inside «مرافق الإقامة». Six of its fifteen rows have since been
+     * split out of that group, so a single run would have created six duplicates
+     * there — «Sea View (Stay)» beside «Sea View» — linked them to every hotel
+     * child, and undone both splits at once. It is in no seeder list, which is
+     * the only reason it had not fired.
+     */
+    public function test_the_hotel_seeder_cannot_rebuild_what_the_split_took_out(): void
+    {
+        $before = DB::table('options')->count();
+
+        (new \Database\Seeders\CoworkingAndHotelUnitsSeeder)->run();
+
+        $this->assertSame($before, DB::table('options')->count(), 'the amenity seeder created a duplicate of a split row');
+
+        foreach (['إطلالة بحرية', 'نصف إقامة', 'نقل من المطار'] as $moved) {
+            $this->assertCount(
+                1,
+                DB::table('options')->where('name_ar', $moved)->get(),
+                "«{$moved}» exists twice; the split has been undone"
+            );
+        }
+    }
+
     public function test_property_types_no_longer_hold_a_deal_or_a_payment_term(): void
     {
         $property = $this->namesIn('عقارات وممتلكات');

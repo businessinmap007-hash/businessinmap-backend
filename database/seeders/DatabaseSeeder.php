@@ -178,6 +178,21 @@ class DatabaseSeeder extends Seeder
            OrphanChildLinksCleanupSeeder::class,
 
            /*
+            * One group, one question. Moves `options.group_id` and nothing
+            * else — no child link is touched, so this is safe anywhere after
+            * the option seeders and it must run before the roles below: a row
+            * that has not reached its group yet gets the role of the group it
+            * is still sitting in.
+            *
+            * It had no place in a full seed either, the same absence
+            * OptionPriceRolesSeeder had. Four groups' worth of splitting lived
+            * only in the live database, so `php artisan db:seed --class=…` on a
+            * fresh copy produced a hotel amenity list still holding its own
+            * view and meal plan.
+            */
+           OptionGroupSplitSeeder::class,
+
+           /*
             * What each group DOES — line, modifier or descriptive — from
             * `option_price_roles.php`, which is the declared authority on it
             * and had no place in a full seed at all until 2026-08-16.

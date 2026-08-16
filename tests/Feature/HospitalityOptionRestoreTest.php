@@ -58,8 +58,15 @@ class HospitalityOptionRestoreTest extends TestCase
              * exact group size» the note warns against, in the group it warns
              * about.
              */
+            /*
+             * Nine, not ten, since 2026-08-16: «نقل من المطار» moved to «خدمات
+             * الفندق» so a hotel can price it. The row did not leave the child —
+             * it left the heading — which is why the total across the pair is
+             * still ten and both are asserted rather than the count lowered.
+             */
             foreach ([
-                'مرافق الإقامة' => 10,
+                'مرافق الإقامة' => 9,
+                'خدمات الفندق' => 1,
                 'ملاءمة المكان' => 2,
                 'إطلالة الوحدة' => 2,
                 'نظام الوجبات' => 3,

@@ -164,6 +164,11 @@ return [
         // nutritionist, a bath attendant and a creche are four people's time,
         // and a gym sells all four beside the subscription.
         'خدمات النادي الرياضي',   // مدرب شخصي، حضانة أطفال
+        // Same cut again, for the guest: «نقل من المطار» is a driver, a car and
+        // a fare, and it spent its life in «مرافق الإقامة» beside المسبح where
+        // no price could reach it. One row, and a group of one is right when it
+        // exists so something can be priced.
+        'خدمات الفندق',           // نقل من المطار
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة
         'اللغات',                  // كورس إنجليزي

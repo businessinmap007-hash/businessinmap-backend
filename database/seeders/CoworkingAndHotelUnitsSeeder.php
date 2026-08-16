@@ -154,7 +154,27 @@ class CoworkingAndHotelUnitsSeeder extends Seeder
         $added = 0;
 
         foreach (self::STAY_ATTRIBUTES as $ar => $en) {
-            $optionId = DB::table('options')->where('group_id', $groupId)->where('name_ar', $ar)->value('id');
+            /*
+             * Looked up ANYWHERE first, and only then in this group.
+             *
+             * Six of these fifteen no longer live in «مرافق الإقامة»:
+             * OptionGroupSplitSeeder moved the two views and the three meal
+             * plans out on 2026-08-08 and «نقل من المطار» out on 2026-08-16,
+             * because a view, a board basis and a paid transfer are three
+             * questions the amenity list was answering as though they were one.
+             *
+             * Scoped to the group, this loop could not see any of them. It would
+             * have built six fresh duplicates inside «مرافق الإقامة» — «Sea View
+             * (Stay)» beside «Sea View» — and linked all six to every hotel
+             * child, undoing both splits in one run and leaving each question
+             * answerable twice. The seeder is in no seeder list, which is the
+             * only reason it had not fired yet.
+             *
+             * A row that exists is a row this seeder links; creating is for a
+             * word the platform does not have.
+             */
+            $optionId = DB::table('options')->where('group_id', $groupId)->where('name_ar', $ar)->value('id')
+                ?: DB::table('options')->where('name_ar', $ar)->value('id');
 
             if (! $optionId) {
                 if (DB::table('options')->where('name_en', $en)->exists()) {

@@ -1053,7 +1053,20 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     private const NO_MODIFIER_BY_DESIGN = [
         64, 65, 108, 143, 245, 246,          // مطاعم وكافيهات
-        163, 215, 252, 513, 514, 515, 542,   // الصحة
+        /*
+         * الصحة was seven and is two.
+         *
+         * The entry above argued that the medical modifier «is already a booking
+         * KIND: booking_home_visit» — and while that was being written, «زيارة
+         * منزلية» was sitting in «تسهيلات ومرافق طبية» as a descriptive, where a
+         * booking kind cannot reach it and no price can either. Moved into «نمط
+         * تقديم الخدمة» on 2026-08-16, so five of the seven now have exactly the
+         * modifier this list said they did not need: the same كشف, priced twice.
+         *
+         * #215 and #252 keep the entry. «مراكز أشعة» does not travel, and its
+         * line — which scan — is the whole of its price.
+         */
+        215, 252,                            // الصحة
         /*
          * «معدات زراعية» #12. It IS named in `condition_children`, so the file
          * still offers it جديد and مستعمل — and the owner withdrew both by hand

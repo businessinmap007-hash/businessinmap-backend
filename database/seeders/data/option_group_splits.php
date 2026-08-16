@@ -34,8 +34,68 @@ return [
                     'reorder' => 33,
                     'options' => [855, 856, 857], // شامل الإفطار، إقامة كاملة، نصف إقامة
                 ],
+
+                /*
+                | ── and a fourth question: what the hotel SELLS you ──────────
+                |
+                | «قسّم مرافق النادي الرياضي» drew the line and this is the same
+                | one: a facility is a room the guest walks into, a service is a
+                | person the hotel assigns and bills for. المسبح، الجيم، السبا
+                | and المطعم الداخلي are rooms; «نقل من المطار» is a driver, a
+                | car and a fare, and while it sat among the amenities a hotel
+                | could say it runs transfers and never say for how much.
+                |
+                | «خدمة الغرف» deliberately stayed a facility. Staff bring it,
+                | but the bill is the food and the hotel prices that on a menu —
+                | the row means «there is room service», which is a fact about
+                | the place. Same reading that kept «ساونا» with the gym's rooms.
+                |
+                | One row, and that is not an oversight. A group of one earns its
+                | place when it exists so something can be PRICED that otherwise
+                | cannot be — it renders as a working line on the pricing screen,
+                | not as a heading with nothing under it. The folds this file
+                | undid in `merges` were the opposite case: headings that had
+                | been emptied of everything except a leftover.
+                */
+                'خدمات الفندق' => [
+                    'name_en' => 'Hotel Services',
+                    'reorder' => 35,
+                    'options' => [867], // نقل من المطار
+                ],
             ],
-            // the ten that remain are facilities proper: wifi, pool, spa, parking…
+            // the nine that remain are facilities proper: wifi, pool, spa, parking…
+        ],
+
+        /*
+        | ── Clinics: a facilities list holding the one thing that is a price ──
+        |
+        | health_child_vocabularies.php ruled that the medical children need no
+        | modifier at all: «a modifier exists where the SAME line prices two
+        | ways, and «كشف» does not — what changes a consultation's price here is
+        | the specialty, and the specialty is already the line».
+        |
+        | That is right about every row it was written for and wrong about one it
+        | was already holding. «زيارة منزلية» IS the same line priced two ways: a
+        | كشف باطنة in the clinic and the same كشف at your bedside are two prices
+        | for one specialty, and a lab's home collection is a fee on top of the
+        | test. The modifier the file declined to invent existed in its own
+        | descriptive list, where it could never reach a price.
+        |
+        | So it moves rather than being created — into «نمط تقديم الخدمة», which
+        | is exactly this axis and says so: vehicle_option_groups.php parks
+        | «سيارة بسائق» there on the grounds that it «describes HOW the service
+        | is supplied, the same axis as فردي / فريق عمل / أونلاين». A doctor at
+        | your door is that question answered.
+        |
+        | The five carriers keep the row; مراكز أشعة and #215 do not have it and
+        | do not get it — an X-ray suite does not travel.
+        */
+        'تسهيلات ومرافق طبية' => [
+            'into_existing' => [
+                'نمط تقديم الخدمة' => [1979], // زيارة منزلية
+            ],
+            // the nine that remain are the place itself: insurance, an in-house
+            // lab, an accessible entrance, parking, a women's section.
         ],
 
         // ── Real estate: a property type, a deal type, and a payment term ──

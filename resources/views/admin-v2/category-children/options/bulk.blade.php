@@ -572,7 +572,24 @@ document.addEventListener('DOMContentLoaded', function () {
      * The count on every child card, so a child nobody has configured is visible
      * as such. The badge doubles as the handle that opens the child's own list.
      */
-    const childBadges = new Map();
+    /*
+     * «هناك اسماء قصيره ليس لديها عدد الخيارات وطويله لديها العدد» — owner,
+     * 2026-08-16, and the length was a coincidence. What the children with an
+     * empty pill have in common is that they stand under MORE THAN ONE ROOT.
+     *
+     * This screen draws every root's children at once and hides the ones whose
+     * root is not open, so a child under four roots is four cards carrying the
+     * same `data-child-id`. Keyed by that id in a Map, `set()` kept the last
+     * card and dropped the other three — and `refreshChildBadges()` then wrote
+     * the number into one badge while three identical pills stayed blank.
+     *
+     * «ألمونتال» stands under four roots and showed nothing; «مواد غذائية»
+     * stands under one and showed 44. Every case in the screenshot was that,
+     * and none of them was about the name.
+     *
+     * A LIST of badges, so every card gets its own.
+     */
+    const childBadges = [];
 
     function buildChildBadges() {
         document.querySelectorAll('.js-child-card').forEach(function (card) {
@@ -581,19 +598,9 @@ document.addEventListener('DOMContentLoaded', function () {
             badge.style.marginInlineStart = 'auto';
             badge.style.cursor = 'pointer';
 
-            /*
-             * «بعضهم لا يوجد العدد ما السبب فى ذلك» — owner, 2026-08-16.
-             *
-             * The number was never missing; it was squeezed to nothing. The card
-             * is a flex row and its name span is `flex: 1 1 auto`, so it grows —
-             * while the badge, a plain flex item, defaults to `flex-shrink: 1`
-             * and gives up its own width first. A short name left room and a
-             * long one did not, which is why «كتب» showed a number and
-             * «مصنوعات خشبية ومستلزمات ديكور» showed an empty pill.
-             *
-             * The count is the whole point of the badge — a child nobody has
-             * configured must be visible as a zero — so it does not shrink.
-             */
+            // The name span is `flex: 1 1 auto` and grows; a plain flex item
+            // gives up its own width first. The count is the point of the
+            // badge, so it does not shrink.
             badge.style.flex = '0 0 auto';
             badge.title = @json(__('اعرض الخيارات المسجّلة لهذا القسم'));
 
@@ -606,13 +613,13 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             card.appendChild(badge);
-            childBadges.set(card.dataset.childId, badge);
+            childBadges.push({ childId: card.dataset.childId, badge: badge });
         });
     }
 
     function refreshChildBadges() {
-        childBadges.forEach(function (badge, childId) {
-            badge.textContent = String(optionsOf(childId).length);
+        childBadges.forEach(function (entry) {
+            entry.badge.textContent = String(optionsOf(entry.childId).length);
         });
     }
 

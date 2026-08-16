@@ -57,6 +57,59 @@ class BulkOptionsRootStickinessTest extends TestCase
         $this->assertStringNotContainsString('history.pushState', $script);
     }
 
+    /**
+     * «هناك اسماء قصيره ليس لديها عدد الخيارات وطويله لديها العدد» — owner,
+     * 2026-08-16, with a screenshot, and the length was a coincidence.
+     *
+     * What the blank pills had in common is that their children stand under
+     * MORE THAN ONE ROOT. The screen draws every root's children at once and
+     * hides the ones whose root is not open, so a child under four roots is
+     * four cards carrying the same `data-child-id`. Held in a Map keyed by that
+     * id, `set()` kept the last card and dropped the other three, and the
+     * number was then written into one badge while three identical pills stayed
+     * blank. «ألمونتال» stands under four roots and showed nothing; «مواد
+     * غذائية» stands under one and showed 44.
+     *
+     * A list, so every card keeps its own badge — asserted on the script,
+     * because a Map that silently discards a duplicate key is exactly the kind
+     * of thing that comes back.
+     */
+    public function test_every_child_card_keeps_its_own_count(): void
+    {
+        $script = $this->script();
+
+        $this->assertStringContainsString('const childBadges = [];', $script);
+        $this->assertStringContainsString('childBadges.push({', $script);
+        $this->assertStringNotContainsString('childBadges.set(', $script);
+        $this->assertStringNotContainsString('const childBadges = new Map()', $script);
+    }
+
+    /**
+     * «فى category-child-options/bulk/update عند الحفظ يعطى 419 Page Expired».
+     *
+     * This is the one admin screen an admin leaves open for an hour, and
+     * `session.lifetime` is 120 minutes of INACTIVITY — a page that has made no
+     * request since it loaded has no session left by the time the form posts.
+     * A GET refreshes the last activity, so the heartbeat is the fix, and the
+     * beat immediately before submit is what rescues an edit that began before
+     * the last one.
+     */
+    public function test_the_screen_keeps_its_own_session_alive(): void
+    {
+        $script = $this->script();
+
+        $this->assertStringContainsString('keepSessionAlive', $script);
+        $this->assertStringContainsString('setInterval(keepSessionAlive', $script);
+
+        // The beat before the submit, and the token written back into the form.
+        $this->assertStringContainsString("bulkForm.addEventListener('submit'", $script);
+        $this->assertStringContainsString('input[name="_token"]', $script);
+
+        // Relative, or the ping leaves the origin the page is served from and
+        // arrives without the session cookie it exists to refresh.
+        $this->assertStringContainsString("route('admin.session.ping', [], false)", $script);
+    }
+
     /** …and activateRoot actually calls it. */
     public function test_the_root_switch_is_what_calls_it(): void
     {

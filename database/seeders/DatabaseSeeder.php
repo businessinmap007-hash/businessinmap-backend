@@ -177,6 +177,30 @@ class DatabaseSeeder extends Seeder
            // legitimately re-attach one.
            OrphanChildLinksCleanupSeeder::class,
 
+           /*
+            * What each group DOES — line, modifier or descriptive — from
+            * `option_price_roles.php`, which is the declared authority on it
+            * and had no place in a full seed at all until 2026-08-16.
+            *
+            * That absence was live: several of the option seeders above write
+            * a role of their own when they touch a group, and running
+            * ChildTradeVocabulariesSeeder on its own is enough to turn «أنواع
+            * الزجاج» and «أنواع الأجهزة الرياضية» from modifier into line. A
+            * group's role decides where it surfaces — a line is offered to the
+            * merchant and becomes a priced row, a descriptive only ever filters
+            * a search — so a flipped role puts «سيكوريت» on the pricing screen
+            * as a thing to sell rather than a property of the pane.
+            *
+            * Nothing downstream corrected it, which meant `php artisan db:seed`
+            * ended with roles the authority file disagrees with, and the only
+            * reason the database was right is that the roles had been restored
+            * by hand after each of those runs.
+            *
+            * Placed after every seeder that writes a role and before the
+            * display order below, which sorts BY the role.
+            */
+           OptionPriceRolesSeeder::class,
+
            // Order within a price-role tier. The tiers themselves are sorted
            // by OptionGroup::ROLE_RANK and are not stored.
            OptionGroupDisplayOrderSeeder::class,

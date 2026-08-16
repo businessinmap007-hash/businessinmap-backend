@@ -187,6 +187,41 @@ class OptionPriceRoleTest extends TestCase
     }
 
     /** Re-running must not create a second audience group or move anything back. */
+    /**
+     * A full seed has to end with the roles this file declares.
+     *
+     * It did not, until 2026-08-16: `OptionPriceRolesSeeder` was in no seeder
+     * list at all, while several of the option seeders write a role of their
+     * own when they touch a group. Running `ChildTradeVocabulariesSeeder`
+     * alone is enough to turn «أنواع الزجاج» and «أنواع الأجهزة الرياضية» from
+     * modifier into line — and the role decides where a group SURFACES, so the
+     * flip puts «سيكوريت» on the merchant's pricing screen as a thing to sell
+     * rather than a property of the pane he is selling.
+     *
+     * The database only ever looked right because the roles were restored by
+     * hand after each of those runs. Asserted structurally rather than by
+     * running a full seed: the ordering is the fix, and it must come after
+     * everything that writes a role.
+     */
+    public function test_the_authority_runs_in_a_full_seed_and_runs_late(): void
+    {
+        $source = (string) file_get_contents(base_path('database/seeders/DatabaseSeeder.php'));
+
+        $at = fn (string $class) => strpos($source, $class . '::class');
+
+        $roles = $at('OptionPriceRolesSeeder');
+
+        $this->assertNotFalse($roles, 'OptionPriceRolesSeeder is not in the full seed — the roles file is advisory again');
+
+        foreach (['ChildTradeVocabulariesSeeder', 'ChildVocabularyBorrowSeeder', 'CoworkingWorkspaceOptionsSeeder'] as $writer) {
+            $this->assertLessThan(
+                $roles,
+                $at($writer),
+                "{$writer} runs after the roles authority and can leave a group with the wrong role"
+            );
+        }
+    }
+
     public function test_the_seeder_is_idempotent(): void
     {
         $before = [

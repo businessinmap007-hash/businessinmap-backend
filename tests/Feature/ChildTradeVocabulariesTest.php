@@ -1006,6 +1006,18 @@ class ChildTradeVocabulariesTest extends TestCase
                                               // since 2026-08-12 and which reached the live
                                               // database on 2026-08-16.
         272,                                  // سوبر ماركت
+        /*
+         * «مخابز» #27، «مجمدات» #113 and «مني ماركت» #185, on the owner's own
+         * sweep of 2026-08-16 02:30–03:10. He took «جديد / مستعمل» off them
+         * one child at a time, with «تيك أواى» and «تسليم أرض المصنع» — a
+         * bakery, a frozen-goods shop and a mini market do not sell anything
+         * second-hand, and a modifier with one possible answer is noise on the
+         * pricing screen. Same reading «سوبر ماركت» above already had.
+         *
+         * «هايبر ماركت» #149 followed minutes later, which completes the set:
+         * all four grocers and both kitchens now say it the same way.
+         */
+        27, 113, 149, 185,
         101,                                  // أسماك — narrowed by hand under «المحلات» on
                                               // 2026-08-12: it had been answering with the whole
                                               // fresh counter (خضار وفاكهة، ألبان وبيض، أجبان،
@@ -1043,10 +1055,34 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $found = array_values(array_unique($found));
 
-        $new = array_values(array_diff($found, self::NO_MODIFIER_BY_DESIGN));
+        /*
+         * A child whose modifier the owner took off by hand is not a gap — it
+         * is an answer, and the ledger holds it.
+         *
+         * This was a pinned list alone, and on 2026-08-16 it became a treadmill:
+         * between 02:30 and 03:30 he swept «حالة المنتج» off shop after shop —
+         * مخابز، مجمدات، مني ماركت، هايبر ماركت، منظفات، عصائر، حلويات — because
+         * a grocer sells nothing second-hand and a modifier with one possible
+         * answer is noise on the pricing screen. Every one of those saves made
+         * this test red and every one of them was right, so appending ids was
+         * losing to him one child at a time.
+         *
+         * The list stays for the trades whose silence predates the record —
+         * a restaurant, a clinic, a fish farm — where nothing was withdrawn and
+         * the reason is written down here instead.
+         */
+        $explained = DB::table('category_child_option_decisions as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('d.kind', ChildOptionDecisions::WITHDRAWN)
+            ->where('g.price_role', 'modifier')
+            ->distinct()->pluck('d.child_id')
+            ->map(fn ($id) => (int) $id)->all();
+
+        $new = array_values(array_diff($found, self::NO_MODIFIER_BY_DESIGN, $explained));
         $settled = array_values(array_diff(self::NO_MODIFIER_BY_DESIGN, $found));
 
-        $this->assertSame([], $new, 'these lost their price axis: #' . implode(', #', $new));
+        $this->assertSame([], $new, 'these lost their price axis and nobody decided that: #' . implode(', #', $new));
         $this->assertSame([], $settled, 'these gained one — take them off the list: #' . implode(', #', $settled));
     }
 

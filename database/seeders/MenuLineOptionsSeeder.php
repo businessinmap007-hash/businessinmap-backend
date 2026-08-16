@@ -67,19 +67,36 @@ class MenuLineOptionsSeeder extends Seeder
             $skipped = [];
 
             foreach ($this->menuChildren() as $childId => $name) {
-                $ownVocabulary = $this->hasOtherLineGroup((int) $childId, $groupId);
-
-                if ($ownVocabulary) {
+                /*
+                 * A child with its own richer vocabulary is LEFT ALONE — and
+                 * leaving alone means writing nothing, not emptying it.
+                 *
+                 * This used to set `$wanted` to an empty collection and fall
+                 * through, which made `$drop` the child's entire holding: every
+                 * band this seeder had ever granted, deleted, because the child
+                 * had grown a second list. The docblock on hasOtherLineGroup()
+                 * describes that exact failure — «the seeder decides it must
+                 * not trade down, and strips every band it owns» — and defends
+                 * against it with a hard-coded family list, which holds only
+                 * until somebody adds a genuinely new group.
+                 *
+                 * Somebody did, on 2026-08-16 03:09: «مني ماركت» was given the
+                 * poultry list by hand, and the next full seed would have taken
+                 * all twenty-four of its aisle words away for it — خضار وفاكهة،
+                 * ألبان وبيض، مخبوزات، منظفات, the entire shop. Not trading down
+                 * is a reason to write nothing; it was never a reason to delete.
+                 */
+                if ($this->hasOtherLineGroup((int) $childId, $groupId)) {
                     $skipped[] = $name;
+
+                    continue;
                 }
 
-                $wanted = $ownVocabulary
-                    ? collect()
-                    : collect($map['children'][$name] ?? [])
-                        ->map(fn ($band) => $optionOf[$band] ?? null)
-                        ->filter()
-                        ->unique()
-                        ->values();
+                $wanted = collect($map['children'][$name] ?? [])
+                    ->map(fn ($band) => $optionOf[$band] ?? null)
+                    ->filter()
+                    ->unique()
+                    ->values();
 
                 $held = DB::table('category_child_option')
                     ->where('child_id', $childId)
@@ -124,7 +141,9 @@ class MenuLineOptionsSeeder extends Seeder
                         ->delete();
                 }
 
-                if (($add->isNotEmpty() || $drop->isNotEmpty()) && ! $ownVocabulary) {
+                // A child with its own vocabulary never reaches here — it is
+                // skipped above — so this only reports children the map rules.
+                if ($add->isNotEmpty() || $drop->isNotEmpty()) {
                     $touched[] = $name . ' (+' . $add->count() . ' -' . $drop->count() . ')';
                 }
             }

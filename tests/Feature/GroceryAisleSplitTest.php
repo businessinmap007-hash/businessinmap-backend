@@ -207,6 +207,55 @@ class GroceryAisleSplitTest extends TestCase
     }
 
     /**
+     * A fishmonger sells fish under every root it stands in.
+     *
+     * «راجع باقي الجذور بنفس الطريقة» — owner, 2026-08-16. The review found one
+     * child answering another trade's list outside «زراعية وحيوانية»: «أسماك»
+     * #101 held the whole fresh counter under «مصانع» — خضار وفاكهة، سلطة
+     * فواكة، ألبان وبيض، أجبان، لحوم ودواجن، مجمدات — while holding only the
+     * three fish words under «المحلات», where the owner had narrowed it by hand
+     * on 2026-08-12.
+     *
+     * The gap is structural rather than careless: a withdrawal is keyed by
+     * CHILD and a per-root narrowing lives in `prune_links`, so narrowing the
+     * shop leaves the factory untouched and nothing reports the difference. A
+     * fish plant salts, pickles, freezes and packs fish; it does not make
+     * cheese.
+     *
+     * Per-root differences are legitimate elsewhere — a trade really can answer
+     * differently as a factory than as a shop. What is asserted is only that
+     * THIS child's answer is fish under all of them.
+     */
+    public function test_the_fishmonger_sells_fish_under_every_root(): void
+    {
+        $childId = $this->childId('أسماك');
+        $notFish = [];
+
+        foreach (
+            DB::table('category_parent_child as pc')
+                ->join('categories as r', 'r.id', '=', 'pc.parent_id')
+                ->where('pc.child_id', $childId)
+                ->get(['r.id', 'r.name_ar']) as $root
+        ) {
+            $words = DB::table('category_child_option as cco')
+                ->join('options as o', 'o.id', '=', 'cco.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('cco.child_id', $childId)
+                ->whereIn('cco.category_id', [0, $root->id])
+                ->whereIn('g.name_ar', self::COUNTERS)
+                ->distinct()->pluck('o.name_ar')
+                ->reject(fn ($w) => in_array($w, ['فسيخ', 'رنجة', 'أسماك ومأكولات بحرية طازجة'], true));
+
+            if ($words->isNotEmpty()) {
+                $notFish[] = "«{$root->name_ar}»: " . $words->implode('، ');
+            }
+        }
+
+        $this->assertSame([], $notFish,
+            '«أسماك» is answering a counter it does not work — ' . implode(' · ', $notFish));
+    }
+
+    /**
      * «راجع باقي ابناء زراعية وحيوانية بنفس الطريقة» — owner, 2026-08-16.
      *
      * The review, held as a rule. Every one of the root's nine children sells a
@@ -355,12 +404,38 @@ class GroceryAisleSplitTest extends TestCase
             );
         }
 
-        // Sold wrapped: the kitchens AND the three markets.
+        /*
+         * Sold wrapped: the kitchens AND the three markets — unless the owner
+         * has said otherwise about one of them. «مخابز» gave up «آيس كريم» on
+         * 2026-08-16 03:05, and a bakery that does not keep a freezer is a
+         * reading of the trade, not a regression. The withdrawal record is
+         * consulted rather than the list being edited, so the next such call
+         * needs no change here at all.
+         *
+         * What stays absolute is the direction the split drew: a grocer stocks
+         * the wrapped version. If a MARKET loses one of these, the aisle has
+         * been taken apart again.
+         */
+        $withdrawn = fn (string $child, string $word) => DB::table('category_child_option_decisions as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('category_children_master as c', 'c.id', '=', 'd.child_id')
+            ->where('c.name_ar', $child)->where('o.name_ar', $word)
+            ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+            ->exists();
+
         foreach (['مخبوزات', 'آيس كريم', 'حلويات وشوكولاتة'] as $packaged) {
             $carriers = $carriersOf($packaged);
 
-            foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت', 'مخابز', 'حلويات'] as $expected) {
-                $this->assertContains($expected, $carriers, "«{$expected}» lost «{$packaged}»");
+            foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $market) {
+                $this->assertContains($market, $carriers, "«{$market}» lost «{$packaged}»");
+            }
+
+            foreach (['مخابز', 'حلويات'] as $kitchen) {
+                if ($withdrawn($kitchen, $packaged)) {
+                    continue;
+                }
+
+                $this->assertContains($kitchen, $carriers, "«{$kitchen}» lost «{$packaged}»");
             }
         }
     }

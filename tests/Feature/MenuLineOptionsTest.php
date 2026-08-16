@@ -206,6 +206,59 @@ class MenuLineOptionsTest extends TestCase
         $this->assertContains('غرفة نوم', $own->all());
     }
 
+    /**
+     * A child that grows a second vocabulary keeps its bands.
+     *
+     * «مني ماركت» #185 was given the poultry list by hand on 2026-08-16 03:09.
+     * That made hasOtherLineGroup() true, which set `$wanted` to nothing, which
+     * made `$drop` its entire holding — the next full seed would have taken all
+     * twenty-four of its aisle words: خضار وفاكهة، ألبان وبيض، مخبوزات، منظفات,
+     * the whole shop, because it had learned to say «بط».
+     *
+     * The guard against it was a hard-coded list of the groups «بنود المنيو»
+     * was split into, which holds exactly until somebody adds a group that is
+     * not on it. Somebody always does. Skipping the child is the fix that does
+     * not need the list to be complete: not trading down is a reason to write
+     * nothing, never a reason to delete.
+     */
+    public function test_a_child_with_its_own_vocabulary_is_skipped_not_emptied(): void
+    {
+        $childId = (int) DB::table('category_children_master')->where('name_ar', 'مني ماركت')->value('id');
+
+        $bands = fn () => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $childId)
+            ->whereIn('g.name_ar', ['بنود المنيو', 'أقسام الطازج واللحوم', 'أقسام البقالة الجافة',
+                'أقسام المشروبات', 'أقسام المنزل والعناية', 'بنود المخبوزات والحلويات'])
+            ->count();
+
+        $before = $bands();
+
+        $this->assertGreaterThan(10, $before, '«مني ماركت» has already lost its aisles');
+
+        // The condition that arms the bug: a line group outside the band family.
+        $this->assertTrue(
+            DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', $childId)
+                ->where('g.name_ar', 'أنواع الدواجن والطيور')
+                ->exists(),
+            'the case this guards is gone — re-point it at whichever child now carries a second vocabulary'
+        );
+
+        DB::beginTransaction();
+
+        try {
+            (new \Database\Seeders\MenuLineOptionsSeeder)->run();
+
+            $this->assertSame($before, $bands(), 'the seeder emptied a child instead of leaving it alone');
+        } finally {
+            DB::rollBack();
+        }
+    }
+
     /** Re-running must repair, not accumulate. */
     public function test_the_seeder_is_idempotent(): void
     {

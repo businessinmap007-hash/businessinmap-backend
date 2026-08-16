@@ -515,6 +515,34 @@ return [
         210 => ['بنود المنيو', 'بنود المخبوزات والحلويات'], // حلويات
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Per-root narrowings — «مصانع» only
+    |--------------------------------------------------------------------------
+    | The tool the note above says is «still there for whoever needs it next».
+    | This is who needed it.
+    |
+    | «أسماك» #101 answered the WHOLE supermarket fresh counter under مصانع —
+    | خضار وفاكهة، سلطة فواكة، ألبان وبيض، أجبان، لحوم ودواجن، مجمدات — nine
+    | words, of which three are fish. The owner narrowed this same child to
+    | those three under «المحلات» on 2026-08-12; the factory scope kept all
+    | nine, because a withdrawal is keyed by child and a per-root narrowing is
+    | keyed here, and nobody had written this half.
+    |
+    | A fish processing plant salts, pickles, freezes and packs fish. It does
+    | not make cheese, and it does not grow vegetables. Same fault «دواجن» and
+    | «حبوب وغلال» had under «زراعية وحيوانية» — an aisle standing in for a
+    | trade — found by reviewing the other roots the same way.
+    |
+    | Shape: child id => [group name => the option names it KEEPS]. Only rows
+    | written against مصانع are touched; a shared row is every root's.
+    */
+    'prune_links' => [
+        101 => [
+            'أقسام الطازج واللحوم' => ['فسيخ', 'رنجة', 'أسماك ومأكولات بحرية طازجة'],
+        ],
+    ],
+
     'links' => [
         /*
          * The fire half of «أنظمة الأمن والسلامة», built hours earlier for

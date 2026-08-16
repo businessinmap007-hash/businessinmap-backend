@@ -296,6 +296,10 @@ return [
         'أنواع أجهزة الكمبيوتر',
         'أصناف مستحضرات التجميل',
         'أنواع الزجاج',
+        // The other half of «سيراميك وأدوات صحية» #138, added 2026-08-16. Two
+        // vocabularies on one child because the shop is one shop — see
+        // factory_child_vocabularies.php for why it is not two children.
+        'أنواع السيراميك والبورسلين', // بورسلانو، موزاييك
         'الأدوات الصحية',
         'مستلزمات المنزل',
         'الخراطيم والوصلات',

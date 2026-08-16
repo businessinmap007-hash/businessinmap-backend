@@ -49,6 +49,10 @@ return [
 
     // ── معارض (showrooms) ──
     'exhibitions' => [
+        // Stood under «معارض» and «المحلات» on 2026-08-16 — the two roots a
+        // customer actually looks for a bathroom shop in, and it was in
+        // neither. Same shelf and same branch as under شركات and مصانع.
+        'سيراميك وأدوات صحية' => ['building_hardware'],
         'أجهزة رياضية' => ['electronics_tech'],
         'ألمونتال' => ['home_furnishings'],
         // The trade took this root on 2026-08-12 so the two «ألمونتال»
@@ -94,6 +98,10 @@ return [
 
     // ── المحلات أو أونلاين (shops, non-food) ──
     'shops-online' => [
+        // Stood under «معارض» and «المحلات» on 2026-08-16 — the two roots a
+        // customer actually looks for a bathroom shop in, and it was in
+        // neither. Same shelf and same branch as under شركات and مصانع.
+        'سيراميك وأدوات صحية' => ['building_hardware'],
         /*
         | The eight food shops the owner put on retail from the bulk screen on
         | 2026-08-16 03:53. Retail was switched on and no branch named them, so
@@ -247,7 +255,7 @@ return [
         // its entry under مصانع does not reach here.
         'باب وشباك' => ['building_hardware'],
         'طوب' => ['building_hardware'],
-        'أدوات صحية' => ['building_hardware'],
+        'سيراميك وأدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],
         'قطع غيار' => ['vehicles_parts'],
         // «قطع غيار سيارات» #44 also stands here and was not named — the
@@ -309,7 +317,7 @@ return [
         // of it presses profiles, which is a building material.
         'ألمونتال' => ['building_hardware'],
         'طوب' => ['building_hardware'],
-        'أدوات صحية' => ['building_hardware'],
+        'سيراميك وأدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],
         'طباعة مواد تعبئة وتغليف' => ['building_hardware'],
         'قطع غيار سيارات' => ['vehicles_parts'],

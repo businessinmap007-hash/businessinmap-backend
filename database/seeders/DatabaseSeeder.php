@@ -190,6 +190,17 @@ class DatabaseSeeder extends Seeder
             * fresh copy produced a hotel amenity list still holding its own
             * view and meal plan.
             */
+           /*
+            * «سيراميك وأدوات صحية» #138 — the ceramics trade the platform did
+            * not have, and the sanitary ware nobody could find. Renames the
+            * child, stands it under «معارض» and «المحلات» beside the two roots
+            * it already had, and copies its service shape from «صينى وخزف»,
+            * which stands under all four. Before the option seeders: the
+            * vocabulary in factory_child_vocabularies.php is keyed by child id,
+            * but every branch map naming this child is keyed by NAME.
+            */
+           CeramicsAndSanitaryWareSeeder::class,
+
            OptionGroupSplitSeeder::class,
 
            /*

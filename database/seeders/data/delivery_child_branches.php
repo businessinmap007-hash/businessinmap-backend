@@ -89,6 +89,10 @@ return [
     | what corrects the two.
     */
     'exhibitions' => [
+        // Stood under «معارض» and «المحلات» on 2026-08-16 — the two roots a
+        // customer actually looks for a bathroom shop in, and it was in
+        // neither. Same shelf and same branch as under شركات and مصانع.
+        'سيراميك وأدوات صحية' => ['delivery_freight'],
         'آثاث' => ['delivery_freight'],
         'أجهزة رياضية' => ['delivery_freight'],
         'أجهزة كهربائية' => ['delivery_freight'],
@@ -148,6 +152,10 @@ return [
 
     // ── المحلات أو أونلاين ──
     'shops-online' => [
+        // Stood under «معارض» and «المحلات» on 2026-08-16 — the two roots a
+        // customer actually looks for a bathroom shop in, and it was in
+        // neither. Same shelf and same branch as under شركات and مصانع.
+        'سيراميك وأدوات صحية' => ['delivery_freight'],
         'أجهزة بلايستيشن' => ['delivery'],
         'أجهزة رياضية' => ['delivery'],
         'أجهزة كهربائية' => ['delivery'],
@@ -252,7 +260,7 @@ return [
         'أجهزه كمبيوتر' => ['delivery_freight'],
         'أخشاب' => ['delivery_freight'],
         'أدوات تجميل' => ['delivery_freight'],
-        'أدوات صحية' => ['delivery_freight'],
+        'سيراميك وأدوات صحية' => ['delivery_freight'],
         'أدوات مكتبية' => ['delivery_freight'],
         'أصواف' => ['delivery_freight'],
         'أقمشة' => ['delivery_freight'],
@@ -320,7 +328,7 @@ return [
         'أجهزه كمبيوتر' => ['delivery_freight'],
         'أخشاب' => ['delivery_freight'],
         'أدوات تجميل' => ['delivery_freight'],
-        'أدوات صحية' => ['delivery_freight'],
+        'سيراميك وأدوات صحية' => ['delivery_freight'],
         'أسماك' => ['delivery_freight', 'delivery_coldchain'],
         'أصواف' => ['delivery_freight'],
         'أقمشة' => ['delivery_freight'],

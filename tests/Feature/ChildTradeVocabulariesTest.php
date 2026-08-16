@@ -132,6 +132,25 @@ class ChildTradeVocabulariesTest extends TestCase
 
             $missing = array_diff(['line', 'modifier', 'descriptive'], $roles);
 
+            /*
+             * A role the OWNER emptied by hand is his answer, not a gap.
+             *
+             * «مأذون شرعى» #178 lost all five rows of «نوع العملاء» on
+             * 2026-08-16 18:32 and that reads true — a مأذون writes marriage
+             * contracts for people, so «شركات ومؤسسات / مصانع / جهات حكومية» is
+             * a question about somebody else's trade. It leaves him with no
+             * descriptive at all, and the axis that would fit does not exist on
+             * this platform yet.
+             *
+             * The guard stays sharp: the exemption lasts only while the
+             * withdrawal is on record, so a SEEDER emptying a role still fails.
+             */
+            if ($missing === ['descriptive'] || $missing === [2 => 'descriptive']) {
+                if ($this->lastDescriptiveWasWithdrawn((int) $child->id)) {
+                    continue;
+                }
+            }
+
             if ($missing !== []) {
                 $incomplete[] = "{$child->name_ar}#{$child->id} (" . implode('+', $missing) . ')';
             }
@@ -159,7 +178,15 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertContains($this->childId($name), $carriers, "«{$name}» is engaged two ways");
         }
 
-        foreach (['مأذون شرعى', 'طباعة'] as $name) {
+        /*
+         * «طباعة» came off this list on 2026-08-16 18:34, pinned by hand with
+         * يومي، شهري، ربع سنوي، بالمهمة and سنوي. It is right and the file was
+         * wrong: a printing house quotes a job by the job and carries retainer
+         * clients on a monthly contract, which is two answers and exactly what
+         * this group asks. «مأذون شرعى» stays — a marriage contract is one act
+         * at one price.
+         */
+        foreach (['مأذون شرعى'] as $name) {
             $this->assertNotContains($this->childId($name), $carriers, "«{$name}» is paid one way only");
         }
 
@@ -570,7 +597,23 @@ class ChildTradeVocabulariesTest extends TestCase
                     ->whereIn('co.category_id', [0, $root->id])
                     ->where('g.price_role', 'descriptive')->exists();
 
-                if (! $has) {
+                /*
+                 * …unless the owner emptied its last descriptive group by hand.
+                 *
+                 * «مأذون شرعى» #178 lost all five rows of «نوع العملاء» on
+                 * 2026-08-16 18:32, and the ruling reads true: a مأذون writes
+                 * marriage contracts for people, so «شركات ومؤسسات / مصانع /
+                 * جهات حكومية» is a question about somebody else's trade and
+                 * «أفراد» alone is an answer with nothing to contrast against.
+                 * What it leaves is a child a searcher cannot narrow on at all,
+                 * and the only descriptive that would fit it — opening hours,
+                 * home visits — does not exist on this platform yet.
+                 *
+                 * Reported rather than papered over: the exemption lasts only
+                 * while the WITHDRAWAL is on record, so a seeder emptying a
+                 * child still fails here.
+                 */
+                if (! $has && ! $this->lastDescriptiveWasWithdrawn((int) $childId)) {
                     $bare[] = "{$root->slug}:{$childId}";
                 }
             }
@@ -1815,6 +1858,66 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertCount(4, $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'سرعة الشحن'));
     }
 
+    /**
+     * «فما اقتراحك له» → «نعم نفذ اقتراحك» — owner, 2026-08-16.
+     *
+     * Two holes, one child. There was no ceramics trade on the platform at all:
+     * «سيراميك وبورسلين» existed as a row inside «أعمال الأرضيات», which is a
+     * flooring contractor's job list, and «بورسلين» inside «الصيني والخزف»,
+     * which is dinner plates. And #138 stood under «شركات» and «مصانع» only —
+     * the wholesale and manufacturing ends — so a customer looking for a
+     * bathroom shop under «معارض» or «المحلات» found nothing.
+     *
+     * ONE child and not two, which is the rule that merged صرافة with تحويل
+     * أموال the same day: a معرض سيراميك وأدوات صحية is one shop, a business
+     * carries one `category_child_id`, and with two children the common
+     * merchant picks one and disappears from the other search.
+     */
+    public function test_the_ceramics_and_sanitary_trade_is_one_child_with_two_vocabularies(): void
+    {
+        $this->assertSame(
+            'سيراميك وأدوات صحية',
+            DB::table('category_children_master')->where('id', 138)->value('name_ar')
+        );
+
+        $roots = DB::table('category_parent_child as pc')
+            ->join('categories as c', 'c.id', '=', 'pc.parent_id')
+            ->where('pc.child_id', 138)->pluck('c.slug')->sort()->values()->all();
+
+        $this->assertSame(['companies', 'exhibitions', 'factories', 'shops-online'], $roots);
+
+        foreach (['أنواع السيراميك والبورسلين', 'الأدوات الصحية'] as $group) {
+            $this->assertNotEmpty(
+                $this->optionsOfChildInGroup('سيراميك وأدوات صحية', $group),
+                "«{$group}» does not reach the child it was written for"
+            );
+
+            $this->assertSame(
+                'line',
+                DB::table('option_groups')->where('name_ar', $group)->value('price_role'),
+                "a shop quotes «{$group}» by the metre or by the piece; a descriptive prices nothing"
+            );
+        }
+
+        /*
+         * A child ADDED to a root arrives with no services, which makes it
+         * visible and unsellable — the mirror image of the debris a detachment
+         * leaves behind. The shape was copied from «صينى وخزف» #228, which
+         * already stands under all four of these roots.
+         */
+        foreach (['exhibitions' => 4, 'shops-online' => 4] as $slug => $atLeast) {
+            $rootId = (int) DB::table('categories')->where('slug', $slug)->value('id');
+
+            $this->assertGreaterThanOrEqual(
+                $atLeast,
+                DB::table('category_platform_services')
+                    ->where('category_id', $rootId)->where('child_id', 138)
+                    ->where('is_active', 1)->count(),
+                "«{$slug}» has the child and nothing it can sell there"
+            );
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {
@@ -1835,4 +1938,17 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertSame($before, DB::table('category_child_option')->count());
     }
+
+    /** True when a `descriptive` row was taken off this child by hand. */
+    private function lastDescriptiveWasWithdrawn(int $childId): bool
+    {
+        return DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('d.child_id', $childId)
+            ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+            ->where('g.price_role', 'descriptive')
+            ->exists();
+    }
+
 }

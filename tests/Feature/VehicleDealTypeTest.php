@@ -120,7 +120,25 @@ class VehicleDealTypeTest extends TestCase
         foreach (self::REAL_ESTATE as $childId) {
             $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
 
-            $this->assertSame(['إيجار', 'بيع وشراء'], $this->answersOf($childId), "«{$name}» drifted");
+            /*
+             * «مكتب عقاري» #517 gained «تبديل» by hand on 2026-08-16 18:46, and
+             * a بدل — شقة بشقة through a broker — is a real Egyptian deal. The
+             * pair is what the FILE grants; a third answer the owner pinned is
+             * his, so it is allowed only when the ledger says he put it there.
+             *
+             * What stays absolute is the direction: nothing may DRIFT in. A row
+             * with no decision behind it still fails.
+             */
+            $pinned = DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+                ->join('options as o', 'o.id', '=', 'd.option_id')
+                ->where('d.child_id', $childId)
+                ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::PINNED)
+                ->pluck('o.name_ar')->all();
+
+            $unexplained = array_values(array_diff($this->answersOf($childId), ['إيجار', 'بيع وشراء'], $pinned));
+
+            $this->assertSame([], $unexplained, "«{$name}» drifted: " . implode('، ', $unexplained));
+            $this->assertContains('بيع وشراء', $this->answersOf($childId), "«{$name}» lost the pair");
         }
     }
 

@@ -184,7 +184,9 @@ return [
     // A marble yard sells the substitute beside the stone; the customer who
     // cannot afford the slab asks for the sheet in the same visit.
     'رخام وجرانيت' => ['marble_stone', 'wood_marble_alternatives'],
-    'أدوات صحية' => ['hoses_fittings', 'paints_hardware'],
+    // Renamed from «أدوات صحية» on 2026-08-16 when the ceramics half was
+    // written; the shelf it sells off is unchanged.
+    'سيراميك وأدوات صحية' => ['hoses_fittings', 'paints_hardware'],
     'مواد تعبئة وتغليف' => ['plastic_packaging'],
     'طباعة مواد تعبئة وتغليف' => ['plastic_packaging'],
     // «آثاث» is the largest child on the platform (64 businesses) and sells

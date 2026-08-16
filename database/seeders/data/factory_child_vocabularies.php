@@ -190,6 +190,39 @@ return [
             ],
         ],
 
+        /*
+        | ── the half of #138 that had no words at all ────────────────────────
+        |
+        | «ولا يوجد لدينا لا مصانع سيراميك وبورسلين ولا شركات وايضا المعارض» —
+        | owner, 2026-08-16, and the data is blunter than the question: there was
+        | no ceramics child ANYWHERE. «سيراميك وبورسلين» existed only as a row
+        | inside «أعمال الأرضيات» — a flooring contractor's job list — and
+        | «بورسلين» inside «الصيني والخزف», which is tableware. Neither is the
+        | building material.
+        |
+        | One child and not two, which is the rule that merged صرافة with تحويل
+        | أموال the same day. A معرض سيراميك وأدوات صحية is ONE shop in Egypt and
+        | Cleopatra and Lecico make both, but a business carries one
+        | `category_child_id` — so with two children the common merchant picks
+        | one and is invisible in the other search. With one child and two
+        | vocabularies all three cases work: a tile showroom ticks these rows, a
+        | plumbing supplier ticks the sanitary ware below, and the company that
+        | sells both ticks both.
+        |
+        | `line`, like its neighbour: a merchant quotes «بورسلانو» by the metre
+        | the way he quotes «بانيوهات» by the piece.
+        */
+        'أنواع السيراميك والبورسلين' => [
+            'name_en' => 'Ceramics & Porcelain', 'price_role' => 'line', 'children' => [138],
+            'options' => [
+                'سيراميك أرضيات' => 'Floor Tiles', 'سيراميك حوائط' => 'Wall Tiles',
+                'بورسلين' => 'Porcelain Tiles', 'بورسلانو' => 'Polished Porcelain',
+                'رخام صناعي / كوارتز' => 'Engineered Stone & Quartz',
+                'وزر وحلوق' => 'Skirting & Trims', 'موزاييك' => 'Mosaic',
+                'بلاط انترلوك' => 'Interlock Paving', 'سيراميك خارجي' => 'Outdoor Tiles',
+            ],
+        ],
+
         'الأدوات الصحية' => [
             'name_en' => 'Sanitary Ware', 'price_role' => 'line', 'children' => [138],
             'options' => [

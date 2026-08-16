@@ -166,6 +166,49 @@ return [
         ],
 
         /*
+        | ── the last child of the root still answering the grab-bag ────────
+        |
+        | «أعلاف» #107, reviewed 2026-08-16 with the rest of the root. Its LINE
+        | was «مستلزمات المزارع» — two words, «مستلزمات زراعية» and «ماشية
+        | وطيور» — which is the grab-bag the other six children were taken off
+        | in August, and it was left on deliberately: at the time #107 had no
+        | vocabulary of its own and «مستلزمات زراعية» was at least true.
+        |
+        | It is not true enough to price on. A feed merchant is asked one
+        | question before any other — WHICH FEED — and could not answer it: not
+        | which animal it is for, and not what it is made of. Its «وحدة البيع»
+        | modifier (بالطن · بالشيكارة) had nothing underneath it, the same
+        | emptiness «حالة الدواجن» and «وحدة البيع» were sitting over on دواجن
+        | and حبوب وغلال.
+        |
+        | Two axes in one list, because that is how the trade is actually
+        | quoted: the finished ration is named by the animal it feeds, and the
+        | raw material is named by what it is. A feed mill sells both.
+        */
+        'أنواع الأعلاف' => [
+            'name_en' => 'Animal Feed', 'price_role' => 'line', 'children' => [107],
+            'options' => [
+                // العلف المصنّع، باسم الحيوان
+                'أعلاف دواجن' => 'Poultry Feed',
+                'أعلاف مواشي' => 'Cattle Feed',
+                'أعلاف أغنام وماعز' => 'Sheep & Goat Feed',
+                'أعلاف أرانب' => 'Rabbit Feed',
+                'أعلاف أسماك' => 'Fish Feed',
+                'أعلاف خيول' => 'Horse Feed',
+                'أعلاف طيور زينة' => 'Cage Bird Feed',
+                // الخامات، باسم المادة
+                'فول صويا' => 'Soybean Meal',
+                'كسب' => 'Oilseed Cake',
+                'دريس وبرسيم' => 'Hay & Clover',
+                'تبن' => 'Straw',
+                'سيلاج' => 'Silage',
+                'مولاس' => 'Molasses',
+                'مركزات وإضافات علفية' => 'Feed Concentrates & Additives',
+                'فيتامينات ومعادن' => 'Vitamins & Minerals',
+            ],
+        ],
+
+        /*
         | ── the bird, and the grain, 2026-08-16 ────────────────────────────
         |
         | «حبوب وغلال - دواجن الخيارات بها هى خيارات السوبر ماركت وليست انواع
@@ -319,6 +362,24 @@ return [
                 'ذرة' => 'Corn',
                 'أعشاب وورقيات' => 'Herbs & Greens',
             ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Borrowed, not written twice
+    |--------------------------------------------------------------------------
+    | «ذرة صفراء» and «ردة ونخالة» are the two raw materials the feed merchant
+    | and the grain merchant both deal in — the mill buys the maize and sells
+    | the bran that comes back out of it. They live in «أنواع الحبوب والغلال»,
+    | and #107 reaches them there rather than getting a second row with the same
+    | word on it. Same move «رحلات ومراكب» makes on «خدمات السياحة والسفر»:
+    | duplicating a word across two groups is how a customer ends up narrowing
+    | twice for one thing.
+    */
+    'links' => [
+        107 => [
+            'أنواع الحبوب والغلال' => ['ذرة صفراء', 'ردة ونخالة'],
         ],
     ],
 ];

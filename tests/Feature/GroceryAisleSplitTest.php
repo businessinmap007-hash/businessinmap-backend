@@ -202,7 +202,55 @@ class GroceryAisleSplitTest extends TestCase
             'دواجن' => ['دواجن', 'أنواع الدواجن والطيور', 'بط'],
             'حبوب وغلال' => ['حبوب وغلال', 'أنواع الحبوب والغلال', 'قمح'],
             'خضار وفاكهة' => ['خضار وفاكهة', 'أصناف الخضار والفاكهة', 'مانجو'],
+            'أعلاف' => ['أعلاف', 'أنواع الأعلاف', 'أعلاف دواجن'],
         ];
+    }
+
+    /**
+     * «راجع باقي ابناء زراعية وحيوانية بنفس الطريقة» — owner, 2026-08-16.
+     *
+     * The review, held as a rule. Every one of the root's nine children sells a
+     * GOOD, so every one of them must have a line naming that good — and the
+     * two failures it found were both of the same kind: a list that describes
+     * where a shopper would look, or a grab-bag restating the child's own name,
+     * standing in for the trade.
+     *
+     * The three grab-bag rows are named because they are the ones that read as
+     * a vocabulary while saying nothing. «مستلزمات زراعية» on a feed merchant
+     * is true of every business under this root and distinguishes none of them,
+     * which is the property that makes it useless as a line: a customer
+     * narrowing by it narrows by nothing, and a merchant pricing on it prices
+     * everything he sells at one rate.
+     */
+    public function test_every_agriculture_child_names_what_it_sells(): void
+    {
+        $root = (int) DB::table('categories')->where('slug', 'agriculture-and-animals')->value('id');
+
+        $empty = ['مستلزمات زراعية', 'ماشية وطيور', 'معدات ومستلزمات'];
+        $mute = [];
+
+        foreach (
+            DB::table('category_parent_child as pc')
+                ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
+                ->where('pc.parent_id', $root)
+                ->get(['c.id', 'c.name_ar']) as $child
+        ) {
+            $lines = DB::table('category_child_option as cco')
+                ->join('options as o', 'o.id', '=', 'cco.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('cco.child_id', $child->id)
+                ->whereIn('cco.category_id', [0, $root])
+                ->where('g.price_role', 'line')
+                ->pluck('o.name_ar')
+                ->reject(fn ($word) => in_array($word, $empty, true));
+
+            if ($lines->count() < 2) {
+                $mute[] = "«{$child->name_ar}» #{$child->id} (" . $lines->count() . ')';
+            }
+        }
+
+        $this->assertSame([], $mute,
+            'these cannot name what they sell: ' . implode('، ', $mute));
     }
 
     /**

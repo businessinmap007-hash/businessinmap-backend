@@ -354,13 +354,20 @@ return [
     | properly — machinery, farm equipment, or the stock they raise — so being
     | asked a fourth time whether they deal in «معدات ومستلزمات» is noise.
     |
-    | Declared empty rather than deleted: #14 تقاوي، #99 أسمدة، #107 أعلاف keep
-    | the group. They are bulk traders whose other axis is «وحدة البيع», and for
-    | them «مستلزمات زراعية» is at least true.
+    | Declared empty rather than deleted: #14 تقاوي and #99 أسمدة keep the group.
+    | They are bulk traders whose other axis is «وحدة البيع», and for them
+    | «مستلزمات زراعية» is at least true.
+    |
+    | #107 أعلاف was on that list too, on the same reasoning, until 2026-08-16 —
+    | when a review of the whole root found it was the LAST child of «زراعية
+    | وحيوانية» whose line was still this grab-bag. «at least true» is not a
+    | thing to price on: a feed merchant is asked WHICH FEED before anything
+    | else and these two words cannot answer it. It has «أنواع الأعلاف» now.
     */
     'مستلزمات المزارع' => [
         12 => [],   // معدات زراعية
         102 => [],  // مزارع سمكية
+        107 => [],  // أعلاف — has «أنواع الأعلاف» since 2026-08-16
         170 => [],  // مواشي
         171 => [],  // معدات مزارع مواشي
         230 => [],  // معدات مزارع دواجن

@@ -92,6 +92,71 @@ class ChildOptionRedistributionTest extends TestCase
     }
 
     /**
+     * «ضيّق تيك أواى وتسليم أرض المصنع» — owner, 2026-08-16.
+     *
+     * A bundle is granted per TRADE, and two rows of the fulfilment bundle are
+     * narrower than the trade that carries it. Handing them out with the bundle
+     * is how «تيك أواى» reached a gold dealer, a marble yard and a freight
+     * company, and how «تسليم أرض المصنع» reached a juice bar.
+     *
+     * Each list is the option's own name read literally: the second one says
+     * FACTORY GROUNDS, so it is every child under «مصانع» plus the trades whose
+     * goods leave on the buyer's lorry. The first is a counter's word.
+     *
+     * @dataProvider narrowedFulfilmentRows
+     */
+    public function test_a_fulfilment_row_narrower_than_its_bundle_reaches_only_its_trades(
+        string $option,
+        array $mustNot,
+    ): void {
+        $carriers = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+            // A child detached from every root is unreachable — `idsFor()` is
+            // only ever called with a root the child IS under — so its links
+            // are a retirement's leftovers and not this rule's business.
+            ->whereExists(fn ($q) => $q->from('category_parent_child as pc')->whereColumn('pc.child_id', 'c.id'))
+            ->where('o.name_ar', $option)
+            ->distinct()->pluck('c.name_ar')->all();
+
+        foreach ($mustNot as $trade) {
+            $this->assertNotContains($trade, $carriers, "«{$trade}» has no business saying «{$option}»");
+        }
+    }
+
+    /** @return array<string,array{0:string,1:array<int,string>}> */
+    public static function narrowedFulfilmentRows(): array
+    {
+        return [
+            // A counter's word. NOT asserted: «صينى وخزف», which the owner
+            // pinned by hand at 03:58 on 2026-08-16 — one child, one save, and
+            // a pin outranks any map.
+            'تيك أواى' => ['تيك أواى', ['ذهب', 'رخام', 'حديد تسليح', 'معدات ثقيلة', 'شحن بري وبحري وجوى', 'سوبر ماركت']],
+            // A factory's word. The service companies still holding it were
+            // pinned root-wide under «شركات» in two seconds on 2026-08-11 and
+            // are reported rather than reverted — a hand save is his.
+            'تسليم أرض المصنع' => ['تسليم أرض المصنع', ['ذهب', 'معرض سيارات', 'معرض موتوسيكلات', 'خضار وفاكهة', 'قطع غيار', 'تبريد وتكييف']],
+        ];
+    }
+
+    /** The trades each word was kept for are still able to say it. */
+    public function test_the_narrowing_did_not_silence_the_trades_the_words_belong_to(): void
+    {
+        $carries = fn (string $child, string $option) => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+            ->where('c.name_ar', $child)->where('o.name_ar', $option)->exists();
+
+        foreach (['مطعم', 'كافيه', 'مجمع مطاعم', 'أكل بيتى', 'مطعم وكافيه'] as $kitchen) {
+            $this->assertTrue($carries($kitchen, 'تيك أواى'), "«{$kitchen}» lost takeaway");
+        }
+
+        foreach (['طوب', 'اسمنت', 'حديد تسليح', 'أخشاب', 'معدات ثقيلة', 'مواشي وأرانب'] as $bulk) {
+            $this->assertTrue($carries($bulk, 'تسليم أرض المصنع'), "«{$bulk}» lost ex-works");
+        }
+    }
+
+    /**
      * An active service with an empty `allowed_item_types` is UNBOUNDED, not
      * empty: both readers treat the missing list as «no restriction», so the
      * child offers every type the service has.

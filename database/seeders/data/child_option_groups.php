@@ -68,6 +68,9 @@ return [
             'name_en' => 'Delivery & Pickup',
             'reorder' => 42,
             'options' => [108, 152, 322, 134, 356],
+            // Two of these five are narrowed further — see `option_only_for`
+            // at the foot of this file. A bundle is per TRADE; those two are
+            // per trade AND per word.
         ],
         'payment_terms' => [
             'name_ar' => 'الدفع والسداد',
@@ -265,5 +268,76 @@ return [
         527 => ['مرافق ومعدات'],    // قاعة مناسبات
         528 => ['مرافق ومعدات'],    // مركز مؤتمرات واجتماعات
         529 => ['مرافق ومعدات'],    // مركز تدريب
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | «ضيّق تيك أواى وتسليم أرض المصنع» — owner, 2026-08-16
+    |--------------------------------------------------------------------------
+    | A bundle is granted per TRADE, and until now that was the finest cut this
+    | map could make: a child either got all five fulfilment rows or none. Two
+    | of the five are not trade-wide words, and handing them out with the bundle
+    | is how «تيك أواى» reached a gold dealer, a marble yard and a freight
+    | company, and how «تسليم أرض المصنع» reached a juice bar and a bakery.
+    |
+    | Nothing here is a taste call; each list is the option's own name applied
+    | literally.
+    |
+    | ── «تسليم أرض المصنع» ────────────────────────────────────────────────
+    | The word says FACTORY GROUNDS. So: every child standing under «مصانع»,
+    | by the root and not by a list, so a factory child added tomorrow inherits
+    | it — plus the trades outside that root whose goods leave on the BUYER's
+    | lorry, by the ton, the head or the load. A caravan is towed away, cattle
+    | are collected from the farm, and EXW is an importer's own vocabulary.
+    |
+    | What goes: the service trades that were answering it at all — تسويق،
+    | تأمين، صرافة، تحويل أموال، سياحة، أمن، دعاية، طباعة، تنسيق حفلات and both
+    | مقاولات, none of which hand over goods; the showrooms (سيارات، معرض
+    | سيارات، معرض موتوسيكلات، ذهب، أنتيكات، نجف وتحف), which hand over on the
+    | spot and call it a sale; the fitters (مصاعد، تبريد وتكييف، ستائر), whose
+    | product is installed and never collected; and the counter shops.
+    |
+    | ── «تيك أواى» ───────────────────────────────────────────────────────
+    | Prepared food and drink handed over a counter. The «مطاعم وكافيهات» root
+    | is exactly the six venues, and three kitchens stand outside it: مخابز،
+    | حلويات and عصائر — all three ruled kitchens by the owner on 2026-08-10,
+    | which is the same ruling that gave حلويات and مخابز the bakery counter.
+    |
+    | «بن» is deliberately absent though it sits beside them: «بن يبيع حبوب
+    | فقط» — a shop, not a kitchen, and a bag of beans is not a takeaway.
+    |
+    | What goes: 49 of the 55, and the shape of the list says why they were
+    | there — ذهب، رخام، حديد تسليح، معدات ثقيلة، شحن بري وبحري وجوى. Not one
+    | of them was curated in; they got the word because they got the bundle.
+    |
+    | ── The one thing this cannot say ────────────────────────────────────
+    | «حلويات» is a factory under «مصانع» and a shop under «المحلات», and it
+    | answers both lists here because a child is one row. Per-ROOT narrowing
+    | exists in `category_child_option.category_id` but this map folds a child's
+    | roots into one set before it decides, so it cannot ask the factory and the
+    | shop different questions. Left as it is rather than half-built.
+    */
+    'option_only_for' => [
+        134 => [   // تسليم أرض المصنع
+            'roots' => ['factories'],
+            'children' => [
+                47,   // كرڤان — towed off the yard
+                110,  // مواد غذائية ومنظفات — by the pallet
+                139,  // معدات ثقيلة
+                150,  // استيراد وتصدير — EXW is its own incoterm
+                170,  // مواشي وأرانب — collected live from the farm
+                173,  // رخام
+                222,  // بلاستيك
+                273,  // معدات سوبرماركت — shelving and fridges, by lorry
+            ],
+        ],
+        356 => [   // تيك أواى
+            'roots' => ['restaurants-cafes'],
+            'children' => [
+                27,   // مخابز
+                158,  // عصائر
+                210,  // حلويات
+            ],
+        ],
     ],
 ];

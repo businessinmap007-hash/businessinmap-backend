@@ -180,12 +180,22 @@ class ChildOptionGroupsSeeder extends Seeder
 
         $added = $removed = $kept = 0;
 
+        $onlyFor = $this->optionAudiences($map['option_only_for'] ?? []);
+
         foreach ($targets as $childId => $groupKeys) {
             $desired = [];
             foreach ($groupKeys as $key) {
                 $desired = array_merge($desired, $optionsOf[$key]);
             }
-            $desired = array_unique($desired);
+
+            // A bundle is granted per TRADE. Two rows in it are narrower than
+            // the trade — «تيك أواى» is a counter's word and «تسليم أرض
+            // المصنع» is a factory's — so the bundle's grant is filtered by
+            // who may say them at all. See `option_only_for` in the data file.
+            $desired = array_filter(
+                array_unique($desired),
+                fn ($optionId) => ! isset($onlyFor[$optionId]) || isset($onlyFor[$optionId][(int) $childId])
+            );
 
             $existing = DB::table('category_child_option')
                 ->where('child_id', $childId)
@@ -223,6 +233,42 @@ class ChildOptionGroupsSeeder extends Seeder
         }
 
         return [$added, $removed, $kept];
+    }
+
+    /**
+     * Who may answer an option that is narrower than the bundle carrying it.
+     *
+     * A ROOT is resolved to its children rather than listed, so a factory child
+     * added tomorrow inherits «تسليم أرض المصنع» without anyone remembering to
+     * come back here — the word means «at the factory grounds», and the root is
+     * the definition, not a shorthand for one.
+     *
+     * Returned as option id => child id => true, so the caller's test is a
+     * lookup and an option absent from the map is unrestricted. Absent means
+     * «no narrowing», never «narrow to nothing» — the same reading
+     * `child_option_scopes.php` is given everywhere else.
+     *
+     * @param  array<int,array<string,mixed>>  $spec
+     * @return array<int,array<int,true>>
+     */
+    private function optionAudiences(array $spec): array
+    {
+        $audiences = [];
+
+        foreach ($spec as $optionId => $who) {
+            $childIds = array_map('intval', $who['children'] ?? []);
+
+            if ($who['roots'] ?? []) {
+                $childIds = array_merge($childIds, DB::table('category_parent_child as pc')
+                    ->join('categories as c', 'c.id', '=', 'pc.parent_id')
+                    ->whereIn('c.slug', $who['roots'])
+                    ->pluck('pc.child_id')->map(fn ($id) => (int) $id)->all());
+            }
+
+            $audiences[(int) $optionId] = array_fill_keys(array_unique($childIds), true);
+        }
+
+        return $audiences;
     }
 
     /**

@@ -190,9 +190,31 @@ return [
             'move_from' => [
                 'group' => 'بنود المنيو',
                 'option' => 'مأكولات بحرية',
+                /*
+                 * Two producers came off this list on 2026-08-16, and both are
+                 * withdrawals already in the decisions ledger:
+                 *
+                 *   مزارع سمكية  the owner's own, at 02:06 — a fish FARM names
+                 *                its species (بلطي، بوري، قراميط، زريعة), it
+                 *                does not stock a supermarket counter.
+                 *   دواجن        a poultry trade, not a fishmonger; it had
+                 *                already lost this under «المحلات» on
+                 *                2026-08-10 and lost it under «زراعية
+                 *                وحيوانية» today.
+                 *
+                 * Named here as well as in the ledger because this seeder
+                 * grants by NAME and reads neither the ledger nor
+                 * `child_option_scopes.php` — left in the list, it hands fresh
+                 * seafood back to both on its next run.
+                 *
+                 * «خضار وفاكهة» stays: the owner withdrew it under «زراعية
+                 * وحيوانية» alone and it still answers the counter under
+                 * «المحلات» and «شركات», which is his to change and not this
+                 * file's to assume.
+                 */
                 'children' => [
-                    'مجمدات', 'خضار وفاكهة', 'دواجن', 'أسماك',
-                    'مزارع سمكية', 'سوبر ماركت', 'مني ماركت', 'هايبر ماركت',
+                    'مجمدات', 'خضار وفاكهة', 'أسماك',
+                    'سوبر ماركت', 'مني ماركت', 'هايبر ماركت',
                 ],
             ],
         ],

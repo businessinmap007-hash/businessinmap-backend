@@ -262,6 +262,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | The two aisle groups, taken off the two producers, 2026-08-16
+    |--------------------------------------------------------------------------
+    | «حبوب وغلال - دواجن الخيارات بها هى خيارات السوبر ماركت وليست انواع الحبوب
+    | الحقيقة ولا الدواجن من فراخ وسمان وبط وحمام الخ».
+    |
+    | An aisle is a place a SHOPPER looks; these two sell the goods themselves,
+    | wholesale and for export. Both now have a real line of their own in
+    | `agriculture_child_vocabularies.php` — «أنواع الدواجن والطيور» and «أنواع
+    | الحبوب والغلال» — and the aisle is no longer a question they are asked.
+    |
+    | The groups keep every other carrier: the three markets and the grocery
+    | trades answer them correctly, and «خضار وفاكهة» #114 went the same way on
+    | 2026-08-14. Nothing is deleted; only these children's view narrows.
+    */
+    'أقسام الطازج واللحوم' => [
+        229 => [], // دواجن — sells birds, not cheese, herring and frozen goods
+    ],
+
+    'أقسام البقالة الجافة' => [
+        128 => [], // حبوب وغلال — «مواد غذائية» was its whole trade in one word
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | قطع الغيار حسب الآلة
     |--------------------------------------------------------------------------
     | #1742 سيارات · #1743 معدات ثقيلة · #1744 أجهزة منزلية · #1745 مكن صناعي

@@ -129,6 +129,83 @@ class GroceryAisleSplitTest extends TestCase
     }
 
     /**
+     * A producer is not an aisle.
+     *
+     * «حبوب وغلال - دواجن الخيارات بها هى خيارات السوبر ماركت وليست انواع
+     * الحبوب الحقيقة ولا الدواجن من فراخ وسمان وبط وحمام الخ» — owner,
+     * 2026-08-16.
+     *
+     * The split above put every carrier of the old grab-bag onto the counter it
+     * answered, and for the shops that was right. For three children it carried
+     * the original mistake forward intact: they are not shops at all. «دواجن»
+     * answered the fresh counter — أجبان، فسيخ، رنجة — and could not say «بط»;
+     * «حبوب وغلال» answered the dry aisle with «مواد غذائية», its whole trade
+     * in one shelf label; «خضار وفاكهة» had gone the same way on 2026-08-14.
+     *
+     * An aisle is where a SHOPPER finds a thing. These three sell the thing, by
+     * the tonne, to traders and exporters — so each has a line of its own now,
+     * and none of them is asked the aisle. What proves the direction is the
+     * modifier each already carried: «حالة الدواجن» (حي · مذبوح · مقطّع) and
+     * «وحدة البيع» (بالكيلو · بالأردب · بالطن) only mean anything on top of a
+     * line, and there was no line under them.
+     *
+     * @dataProvider producers
+     */
+    public function test_a_producer_names_its_trade_and_is_not_asked_an_aisle(
+        string $childNameAr,
+        string $ownGroup,
+        string $mustSay
+    ): void {
+        /*
+         * Under «زراعية وحيوانية», the root the complaint named and the root
+         * these three are producers in. Two of them sit under «المحلات أو
+         * أونلاين» as well, where the same child is a SHOP — and «خضار وفاكهة»
+         * still answers the fresh counter there by the owner's own choice
+         * (withdrawn under agriculture on 2026-08-15, kept under the other
+         * two). Asserting «no aisle anywhere» would overrule that.
+         */
+        $root = (int) DB::table('categories')->where('slug', 'agriculture-and-animals')->value('id');
+
+        $offered = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('c.name_ar', $childNameAr)
+            ->whereIn('cco.category_id', [0, $root])
+            ->whereIn('g.name_ar', self::COUNTERS)
+            ->distinct()
+            ->pluck('g.name_ar');
+
+        $this->assertSame([], $offered->all(),
+            "«{$childNameAr}» is still being asked a supermarket aisle under «زراعية وحيوانية»");
+
+        $words = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('c.name_ar', $childNameAr)
+            ->where('g.name_ar', $ownGroup)
+            ->pluck('o.name_ar');
+
+        $this->assertContains($mustSay, $words->all(),
+            "«{$childNameAr}» cannot say «{$mustSay}» — its own trade is missing");
+
+        // …and the line is a LINE. A trade whose goods are the priced thing and
+        // whose group is `descriptive` is a shop window nobody can buy from.
+        $this->assertSame('line', DB::table('option_groups')->where('name_ar', $ownGroup)->value('price_role'));
+    }
+
+    /** @return array<string,array{0:string,1:string,2:string}> */
+    public static function producers(): array
+    {
+        return [
+            'دواجن' => ['دواجن', 'أنواع الدواجن والطيور', 'بط'],
+            'حبوب وغلال' => ['حبوب وغلال', 'أنواع الحبوب والغلال', 'قمح'],
+            'خضار وفاكهة' => ['خضار وفاكهة', 'أصناف الخضار والفاكهة', 'مانجو'],
+        ];
+    }
+
+    /**
      * «بن يبيع حبوب فقط، عصائر مطبخ» — owner, 2026-08-10.
      *
      * The two were the one case the split could not decide, because nothing in
@@ -263,13 +340,25 @@ class GroceryAisleSplitTest extends TestCase
     {
         $this->assertContains('أسماك ومأكولات بحرية طازجة', $this->optionsOf('أقسام الطازج واللحوم'));
 
-        foreach (['أسماك', 'مزارع سمكية'] as $name) {
-            $this->assertContains(
-                'أسماك ومأكولات بحرية طازجة',
-                $this->optionNamesOf($name),
-                "«{$name}» cannot say it sells fish"
-            );
-        }
+        // The SHOP. «مزارع سمكية» was on this line until 2026-08-16 02:06, when
+        // the owner withdrew the aisle word from it — and he is right: a fish
+        // farm is not a fish counter. It says what it sells through «أنواع
+        // الثروة الحيوانية والسمكية» — بلطي، بوري، قراميط، زريعة — which names
+        // the species where the aisle only said «fish». Asserted below, because
+        // the claim this test owns is «a fishmonger can say it sells fish», not
+        // «by way of this particular word».
+        $this->assertContains(
+            'أسماك ومأكولات بحرية طازجة',
+            $this->optionNamesOf('أسماك'),
+            '«أسماك» cannot say it sells fish'
+        );
+
+        $farm = $this->optionNamesOf('مزارع سمكية');
+
+        $this->assertNotEmpty(
+            array_intersect(['بلطي', 'بوري', 'قراميط', 'زريعة وإصبعيات'], $farm),
+            '«مزارع سمكية» can name neither an aisle nor a species — it went mute'
+        );
 
         // And the menu band still belongs to the people who cook it.
         $this->assertContains('مأكولات بحرية', $this->optionNamesOf('مطعم'));

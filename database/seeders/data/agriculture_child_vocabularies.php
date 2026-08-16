@@ -166,6 +166,88 @@ return [
         ],
 
         /*
+        | ── the bird, and the grain, 2026-08-16 ────────────────────────────
+        |
+        | «حبوب وغلال - دواجن الخيارات بها هى خيارات السوبر ماركت وليست انواع
+        | الحبوب الحقيقة ولا الدواجن من فراخ وسمان وبط وحمام الخ».
+        |
+        | The same fault «خضار وفاكهة» had two days ago, on the two children
+        | beside it. Their `line` was a supermarket AISLE:
+        |
+        |   دواجن #229      answered «أقسام الطازج واللحوم» — أجبان، فسيخ، رنجة،
+        |                   ألبان وبيض، خضار وفاكهة. A poultry trader offering
+        |                   herring and cheese, and unable to say «بط».
+        |   حبوب وغلال #128 answered «أقسام البقالة الجافة» with two words —
+        |                   «مواد غذائية» and «مكرونات وأرز وحبوب». A grain
+        |                   merchant whose whole trade is one shelf label.
+        |
+        | An aisle is where a SHOPPER finds a thing; these two children sell the
+        | thing itself, by the tonne, to traders and exporters. Both already
+        | carry the right price axis — «وحدة البيع» on the grain, «حالة الدواجن»
+        | on the bird — so only the line was missing, and the modifier is what
+        | proves the line belongs: «بط حي» and «بط مذبوح ومنظف» are two prices
+        | of one row, which is exactly what a modifier is for.
+        |
+        | `line` and shared (not root-scoped): «دواجن» sits under «المحلات أو
+        | أونلاين» as well, and a poultry shop sells the same birds a poultry
+        | wholesaler does.
+        |
+        | The aisle groups themselves are untouched — they are the supermarket's
+        | own vocabulary and five markets answer them correctly. What changes is
+        | that these two children are no longer asked. Declared empty for them
+        | in `child_option_scopes.php`.
+        */
+        'أنواع الدواجن والطيور' => [
+            'name_en' => 'Poultry & Fowl', 'price_role' => 'line', 'children' => [229],
+            'options' => [
+                'فراخ بيضاء' => 'White Broiler Chicken',
+                'فراخ بلدي' => 'Baladi Chicken',
+                'فراخ ساسو' => 'Sasso Chicken',
+                'بط' => 'Duck',
+                'وز' => 'Goose',
+                'رومي' => 'Turkey',
+                'حمام' => 'Pigeon',
+                'سمان' => 'Quail',
+                'كتاكيت' => 'Day-old Chicks',
+                'بيض مائدة' => 'Table Eggs',
+                'بيض تفريخ' => 'Hatching Eggs',
+            ],
+        ],
+
+        /*
+         * Grain, pulse and oilseed — the three things «حبوب وغلال» means in
+         * Egypt. Milled output belongs here too: a grain merchant sells the
+         * wheat and the flour and the bran that come out of it, at three
+         * different prices.
+         *
+         * Feed is deliberately absent — «أعلاف» #107 is its own child and has
+         * its own trade.
+         */
+        'أنواع الحبوب والغلال' => [
+            'name_en' => 'Grains & Cereals', 'price_role' => 'line', 'children' => [128],
+            'options' => [
+                'قمح' => 'Wheat',
+                'ذرة صفراء' => 'Yellow Corn',
+                'ذرة بيضاء' => 'White Corn',
+                'أرز شعير' => 'Paddy Rice',
+                'أرز أبيض' => 'White Rice',
+                'شعير' => 'Barley',
+                'شوفان' => 'Oats',
+                'فول' => 'Fava Beans',
+                'عدس' => 'Lentils',
+                'حمص' => 'Chickpeas',
+                'لوبيا' => 'Cowpeas',
+                'فاصوليا جافة' => 'Dry Beans',
+                'سمسم' => 'Sesame',
+                'عباد شمس' => 'Sunflower Seeds',
+                'كتان' => 'Flaxseed',
+                'فول سوداني' => 'Peanuts',
+                'دقيق' => 'Flour',
+                'ردة ونخالة' => 'Bran',
+            ],
+        ],
+
+        /*
         | ── what a produce trader actually deals in, 2026-08-14 ─────────────
         |
         | «خضار وفاكهه فى زراعية وحيوانية يجب ان يكون لها خيارات منجو فراولة

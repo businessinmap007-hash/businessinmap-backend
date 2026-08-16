@@ -980,8 +980,31 @@ class ChildTradeVocabulariesTest extends TestCase
     private const NO_MODIFIER_BY_DESIGN = [
         64, 65, 108, 143, 245, 246,          // مطاعم وكافيهات
         163, 215, 252, 513, 514, 515, 542,   // الصحة
-        102,                                  // مزارع سمكية — «أرانب» #236 folded
-                                              // into «مواشي وأرانب» on 2026-08-12 and reaches no root
+        /*
+         * «معدات زراعية» #12. It IS named in `condition_children`, so the file
+         * still offers it جديد and مستعمل — and the owner withdrew both by hand
+         * on 2026-08-16 02:06:51, in the same pass that took the supermarket
+         * aisle off the fish farm. The ledger blocks the grant on every run,
+         * which is the mechanism working exactly as intended: his hand beats the
+         * file, and the file is left saying what it would offer if he changed
+         * his mind.
+         *
+         * Listed here rather than argued with. Un-withdrawing it in the screen
+         * is all it takes to take this entry off again.
+         */
+        12,
+
+        102, 170,                             // مزارع سمكية · مواشي وأرانب — «أرانب» #236 folded
+                                              // into #170 on 2026-08-12 and reaches no root.
+                                              // #170 joined its twin on 2026-08-16 for the reason
+                                              // already written for #102: both sell live stock by
+                                              // the head or by weight, and neither has a second
+                                              // rate for one line — a buffalo is a buffalo. They
+                                              // had been answering «مستلزمات المزارع», a grab-bag
+                                              // restating the child's own name, which
+                                              // child_option_scopes.php has declared empty for both
+                                              // since 2026-08-12 and which reached the live
+                                              // database on 2026-08-16.
         272,                                  // سوبر ماركت
         101,                                  // أسماك — narrowed by hand under «المحلات» on
                                               // 2026-08-12: it had been answering with the whole

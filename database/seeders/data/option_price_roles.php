@@ -197,6 +197,12 @@ return [
          * strawberries is what is sold, and «وحدة البيع» is what modifies it.
          */
         'أصناف الخضار والفاكهة',   // طن فراولة ≠ طن بصل
+        // Same trade, same reading, 2026-08-16: the bird and the grain ARE what
+        // is bought. «حالة الدواجن» and «وحدة البيع» are the modifiers on top —
+        // «بط حي» and «بط مذبوح ومنظف» being two prices of one row is what
+        // proves these are lines and not the other way round.
+        'أنواع الدواجن والطيور',   // بط ≠ سمان
+        'أنواع الحبوب والغلال',    // أردب قمح ≠ أردب عدس
     ],
 
     /*

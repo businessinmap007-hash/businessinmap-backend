@@ -35,6 +35,57 @@ return [
     'name_en_suffix' => 'Stray',
 
     /*
+    |--------------------------------------------------------------------------
+    | «قسّم مرافق النادي الرياضي» — owner, 2026-08-16
+    |--------------------------------------------------------------------------
+    | It was written as one `descriptive` list and it was two. Eight of its rows
+    | are the PLACE and three of them are the BILL, and a group can only have
+    | one price role, so as long as they shared a name the trainer, the
+    | nutritionist and the bath attendant could not be priced at all.
+    |
+    | ## The line the split is drawn on
+    |
+    | A FACILITY is a room the member uses himself — the pool, the sauna, the
+    | lockers, the car park. A SERVICE is a person the club assigns and bills
+    | for. That is why «كيدز ايريا» and «حضانة أطفال» both exist and are now on
+    | opposite sides: one is a room with toys in it, the other is staff watching
+    | your child while you train, and every club in Egypt sells the second by
+    | the month.
+    |
+    | It is also why «ساونا» and «حمام مغربي» part company, which is the pair
+    | that makes the rule earn its keep. Both are hot rooms. You walk into the
+    | sauna alone and it comes with the membership; a حمام مغربي is an
+    | appointment with an attendant, and the platform already prices it that way
+    | — «حمام مغربي وسبا» is a `line` in «خدمات الكوافير والتجميل».
+    |
+    | ## Precedent for the shape
+    |
+    | «صيدلية» carries «أقسام الصيدلية» and «خدمات الصيدلية» — the shelves and
+    | the counter — and 42 of the platform's 206 children carry more than one
+    | `line` group. And a hotel already has exactly the descriptive half of this:
+    | «مرافق الإقامة» lists سبا beside المسبح and prices neither, because what a
+    | hotel sells is the room. What a gym sells is the subscription, which is
+    | «الأنشطة الرياضية», and now also the three things it charges extra for.
+    |
+    | ## What moves
+    |
+    | Only `options.group_id`, the same promise MenuBandSplitSeeder and
+    | GroceryAisleSplitSeeder make. Not one `category_child_option` row is
+    | touched: every club keeps every row it had, under two headings instead of
+    | one. The five carriers are unchanged and so is every withdrawal the owner
+    | has made against them — «ملاعب كرة» is not in this file's children and
+    | does not become one.
+    */
+    'regroup' => [
+        'خدمات النادي الرياضي' => [
+            'name_en' => 'Club Services',
+            'price_role' => 'line',
+            'from' => 'مرافق النادي الرياضي',
+            'options' => ['مدرب شخصي', 'استشارة تغذية', 'حمام مغربي', 'حضانة أطفال'],
+        ],
+    ],
+
+    /*
     | ── and the axis «الرياضة» was missing ────────────────────────────────
     |
     | «جيم» #130 carried «الأنشطة الرياضية» and NOTHING else — not one word
@@ -44,6 +95,12 @@ return [
     |
     | Descriptive, because none of it is priced on its own — the same shape as
     | «تسهيلات ومرافق طبية» under «الصحة» and «نوع العملاء» under «مكاتب».
+    |
+    | Eight rows since the 2026-08-16 split; the three the club bills for moved
+    | to «خدمات النادي الرياضي» below. «كيدز ايريا» was added in the admin by
+    | hand and is written down here so the file describes what exists — this
+    | seeder matches an option by group AND Arabic name, so naming it creates
+    | nothing and only stops the next reader wondering where it came from.
     */
     'groups' => [
         'مرافق النادي الرياضي' => [
@@ -54,12 +111,37 @@ return [
                 'حمام سباحة' => 'Swimming Pool',
                 'ساونا' => 'Sauna',
                 'جاكوزي' => 'Jacuzzi',
-                'حمام مغربي' => 'Moroccan Bath',
                 'قسم سيدات' => 'Ladies Section',
-                'مدرب شخصي' => 'Personal Trainer',
-                'استشارة تغذية' => 'Nutrition Advice',
                 'خزائن ودش' => 'Lockers & Showers',
                 'انتظار سيارات' => 'Parking',
+                'كيدز ايريا' => "Kids' Area",
+            ],
+        ],
+
+        /*
+        | ── what the club charges extra for ────────────────────────────────
+        |
+        | `line`, and the second one these children carry: «الأنشطة الرياضية» is
+        | the subscription and this is everything sold beside it. Both are
+        | things a member buys, which is what a line means — «صيدلية» has held
+        | the same pair, shelves and services, since it was written.
+        |
+        | Three of the four are one person's time. «حضانة أطفال» is the fourth
+        | and it is the one that looks like a facility until you ask who is in
+        | the room: «كيدز ايريا» is the room, and it stayed above.
+        |
+        | Same five carriers as the facilities list. The links already exist —
+        | `regroup` moved the options, not the rows — and this entry is what
+        | keeps them if the group is ever rebuilt from nothing.
+        */
+        'خدمات النادي الرياضي' => [
+            'name_en' => 'Club Services',
+            'price_role' => 'line',
+            'children' => [130, 519, 521, 516, 520],
+            'options' => [
+                'مدرب شخصي' => 'Personal Trainer',
+                'استشارة تغذية' => 'Nutrition Advice',
+                'حمام مغربي' => 'Moroccan Bath',
                 'حضانة أطفال' => 'Creche',
             ],
         ],

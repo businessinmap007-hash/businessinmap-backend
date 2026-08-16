@@ -31,7 +31,14 @@ class RootWideOptionSlipTest extends TestCase
     use DatabaseTransactions;
 
     /** Groups that describe a sports venue and nothing a farm sells. */
-    private const SPORTS_GROUPS = ['الأنشطة الرياضية', 'مرافق النادي الرياضي'];
+    private const SPORTS_GROUPS = [
+        'الأنشطة الرياضية',
+        'مرافق النادي الرياضي',
+        // Split off the facilities on 2026-08-16 and carried by the same five
+        // clubs, so it belongs on the same list — a farm has no more business
+        // offering a personal trainer than a swimming pool.
+        'خدمات النادي الرياضي',
+    ];
 
     private function rootId(string $name): int
     {

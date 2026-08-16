@@ -158,6 +158,12 @@ return [
         // a line. The price test separates the two lists cleanly.
         'خدمات الصيدلية',         // قياس ضغط
         'الأنشطة الرياضية',       // حصة سباحة
+        // «قسّم مرافق النادي الرياضي» — owner, 2026-08-16, and the same cut the
+        // pharmacy got two lines up: what the place HAS stayed descriptive and
+        // what somebody DOES for you became a line. A personal trainer, a
+        // nutritionist, a bath attendant and a creche are four people's time,
+        // and a gym sells all four beside the subscription.
+        'خدمات النادي الرياضي',   // مدرب شخصي، حضانة أطفال
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة
         'اللغات',                  // كورس إنجليزي
@@ -446,11 +452,17 @@ return [
         'تسهيلات ومرافق طبية',    // يقبل التأمين / أشعة داخلية
         'تجهيزات مساحة العمل',    // بروجيكتور / لوكرز / دخول ٢٤٧
         /*
-         * «مرافق النادي الرياضي» stays descriptive and it is the one genuinely
-         * mixed group left: خزائن ودش and انتظار سيارات are facilities, while
-         * مدرب شخصي، استشارة تغذية and حمام مغربي are things a gym charges for.
-         * Splitting it is a decision about the trade and is the owner's —
-         * flagged rather than guessed.
+         * «مرافق النادي الرياضي» was flagged as the one genuinely mixed group
+         * left — the rooms and the bill under one name — and «قسّم مرافق النادي
+         * الرياضي» (owner, 2026-08-16) settled it. What stayed here is the
+         * PLACE: المسبح، الساونا، الجاكوزي، قسم سيدات، خزائن ودش، انتظار
+         * سيارات، كيدز ايريا. What a club charges for went to «خدمات النادي
+         * الرياضي» in `line`, and the rule that divides them is written out in
+         * stray_child_vocabularies.php.
+         *
+         * Descriptive is right for what remains, and for the same reason
+         * «مرافق الإقامة» is: a member does not buy the locker, he buys the
+         * subscription and the locker comes with it.
          */
         'مرافق النادي الرياضي',
     ],

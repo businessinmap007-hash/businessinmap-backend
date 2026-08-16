@@ -1545,6 +1545,76 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * «قسّم مرافق النادي الرياضي» — owner, 2026-08-16.
+     *
+     * One `descriptive` list was two: the rooms a member walks into, and the
+     * three or four things a club bills him for on top of the subscription.
+     * While they shared a group the trainer could not be priced at all, because
+     * a group carries one role.
+     *
+     * The split moves `options.group_id` and nothing else, so what is asserted
+     * is the pair: the rows landed on the right side, AND every club kept every
+     * row it had. A regroup that quietly dropped a link would look identical to
+     * a correct one from the group's side alone.
+     */
+    public function test_the_club_facilities_split_into_the_place_and_the_bill(): void
+    {
+        $groupOf = fn (string $option) => (string) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.name_ar', $option)->where('g.name_ar', 'like', '%النادي الرياضي')
+            ->value('g.name_ar');
+
+        // The room the member uses himself.
+        foreach (['حمام سباحة', 'ساونا', 'جاكوزي', 'قسم سيدات', 'خزائن ودش', 'انتظار سيارات', 'كيدز ايريا'] as $facility) {
+            $this->assertSame('مرافق النادي الرياضي', $groupOf($facility), "«{$facility}» is a room, not a bill");
+        }
+
+        // Somebody's time, and every club in Egypt sells it.
+        foreach (['مدرب شخصي', 'استشارة تغذية', 'حمام مغربي', 'حضانة أطفال'] as $service) {
+            $this->assertSame('خدمات النادي الرياضي', $groupOf($service), "«{$service}» is somebody's time and must be priceable");
+        }
+
+        $this->assertSame(
+            'descriptive',
+            DB::table('option_groups')->where('name_ar', 'مرافق النادي الرياضي')->value('price_role')
+        );
+
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'خدمات النادي الرياضي')->value('price_role'),
+            'the half that exists so a club can price it must be a line'
+        );
+    }
+
+    /**
+     * …and the promise the regroup makes: only the heading moved.
+     *
+     * Five clubs carry these words. Re-running the seeder must leave every one
+     * of them holding exactly what it held — including «ملاعب كرة», which is not
+     * in this file's children list and picked up three of the rows from a save
+     * of the owner's. A split that re-grants by list rather than moving by id
+     * would either lose that or hand it the rest.
+     */
+    public function test_the_regroup_moved_headings_and_not_rows(): void
+    {
+        $carriers = fn () => DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+            ->whereIn('g.name_ar', ['مرافق النادي الرياضي', 'خدمات النادي الرياضي'])
+            ->distinct()->orderBy('c.name_ar')->orderBy('o.name_ar')
+            ->pluck(DB::raw("concat(c.name_ar, ' · ', o.name_ar) as label"))->all();
+
+        $before = $carriers();
+
+        $this->assertNotEmpty($before);
+
+        (new \Database\Seeders\ChildTradeVocabulariesSeeder)->run();
+
+        $this->assertSame($before, $carriers(), 'a club gained or lost a row in a move that only changes a heading');
+    }
+
     /** Re-running it changes nothing. */
     public function test_the_seeder_is_idempotent(): void
     {

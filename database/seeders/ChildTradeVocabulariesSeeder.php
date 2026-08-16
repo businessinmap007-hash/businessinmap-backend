@@ -85,6 +85,8 @@ class ChildTradeVocabulariesSeeder extends Seeder
                     ->update(['name_ar' => $toAr, 'name_en' => $toEn, 'updated_at' => now()]);
             }
 
+            $this->regroup($map['regroup'] ?? []);
+
             $created = 0;
             $linked = 0;
             $refused = 0;
@@ -233,6 +235,64 @@ class ChildTradeVocabulariesSeeder extends Seeder
             $this->command?->line("  - روابط رفضها سجل السحب : {$refused}");
             $this->command?->line("  - روابط ضُيّقت على هذا الجذر : {$pruned}");
         });
+    }
+
+    /**
+     * Take rows OUT of a group this file already wrote and into a new one.
+     *
+     * A group carries one price role, so a list that turned out to be two
+     * lists cannot be fixed by editing it: «مرافق النادي الرياضي» described a
+     * gym's rooms AND the three things it bills for, and while they shared a
+     * group the trainer could not be priced at all. Splitting it in `groups`
+     * alone would leave the four rows in the old group and CREATE four more in
+     * the new one — `option()` matches on group and Arabic name — so the child
+     * links would stay behind on the originals and the new rows would reach
+     * nobody.
+     *
+     * Runs after `rename` and before everything else, for the same reason
+     * `rename` runs first: nothing may look a group up by name until the groups
+     * are where this file says they are.
+     *
+     * Only `options.group_id` moves — the promise MenuBandSplitSeeder and
+     * GroceryAisleSplitSeeder both make. No `category_child_option` row is
+     * touched, so a merchant keeps every row he had under a new heading, and
+     * every withdrawal the owner has made still points at the same option id.
+     *
+     * Scoped to the SOURCE group, which makes it idempotent and makes it safe:
+     * a row already moved stays moved, and an option of the same name living in
+     * some other group is none of this file's business.
+     *
+     * @param  array<string,array<string,mixed>>  $regroups
+     */
+    private function regroup(array $regroups): void
+    {
+        foreach ($regroups as $nameAr => $spec) {
+            $sourceId = (int) DB::table('option_groups')->where('name_ar', $spec['from'])->value('id');
+
+            if ($sourceId <= 0) {
+                $this->command?->warn("  ! «{$spec['from']}» غير موجودة — لا شيء ليُقسم.");
+
+                continue;
+            }
+
+            $targetId = $this->group($nameAr, $spec['name_en'], $spec['price_role']);
+
+            $moving = DB::table('options')
+                ->where('group_id', $sourceId)
+                ->whereIn('name_ar', $spec['options'])
+                ->pluck('name_ar');
+
+            if ($moving->isEmpty()) {
+                continue;
+            }
+
+            DB::table('options')
+                ->where('group_id', $sourceId)
+                ->whereIn('name_ar', $spec['options'])
+                ->update(['group_id' => $targetId, 'updated_at' => now()]);
+
+            $this->command?->line("  - «{$nameAr}» ← «{$spec['from']}» : " . $moving->implode('، '));
+        }
     }
 
     private function group(string $nameAr, string $nameEn, string $role): int

@@ -157,6 +157,84 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | One answer, one row — the same disease one level down
+    |--------------------------------------------------------------------------
+    | A group can ask two questions; a ROW can restate two answers that are
+    | already in the list beside it. «ادمج التسليم والاستلام» — owner,
+    | 2026-08-16.
+    |
+    | «شحن وتوصيل» is not a third method. It is «شحن» and «توصيل طلبات» joined
+    | by a واو, and both stand in the same group. The link data says so without
+    | being asked: of its 110 children, 92 also carry «شحن», 73 also carry
+    | «توصيل طلبات», and only SIX carry it alone. The other 104 were answering
+    | one question twice and once more compounded.
+    |
+    | Dissolving is not deleting. Every child holding the compound is given the
+    | two rows it stands for — under the same root scope, and never against a
+    | withdrawal — so nobody loses a way to say what they do. The six who had
+    | only the compound gain both and are the ones this actually rescues: بن،
+    | ستائر و ديكور، جنوط وكاوتش، فضة، مشتقات التدخين، قطع غيار أجهزة كهربائية
+    | could each say «شحن وتوصيل» and neither «شحن» nor «توصيل».
+    |
+    | ## Retiring the row it leaves behind
+    |
+    | The emptied option is moved to «صفوف متقاعدة», which is INACTIVE. Both the
+    | admin picker and MerchantOfferingVocabulary filter on
+    | `option_groups.is_active`, so an inactive group is offered to nobody while
+    | the row itself survives, keeps its id and can be read back — the same
+    | tombstone «أقسام السوبر ماركت» is, one level down.
+    |
+    | It is deliberately NOT `group_id = NULL`, which is what
+    | VehicleOptionGroupsSeeder does. A groupless option fails
+    | TaxonomyRedistributionTest and for a good reason written there: it can
+    | never be shown, edited or restored through any screen, and it keeps a
+    | `name_en` that is UNIQUE platform-wide, so a dead row silently costs a
+    | live one its English name.
+    |
+    | ## What was NOT merged
+    |
+    | «تيك أواى» and «تسليم أرض المصنع» are one logistical answer — you collect
+    | from us — and 48 of the 55 children carrying the first carry the second
+    | too. They are still two rows, because they are two trades' words: an EXW
+    | delivery is an incoterm a factory quotes and تيك أواى is what you say at a
+    | counter. Merging them would have a café answering «تسليم أرض المصنع».
+    | The real defect there is that the whole six-row group is granted per child
+    | by this map, which is how «تيك أواى» reached a gold dealer and a
+    | heavy-equipment yard — a scoping job, and it needs his list.
+    |
+    | «توصيل مجانى» is a price and not a method, and it stays. It is the widest
+    | row in the group (113 children) and it is a real commercial claim a
+    | customer filters on; folding it into «توصيل طلبات» would cost every one of
+    | them the word «مجانى» to fix a tidiness problem.
+    |
+    | ## Run ChildOptionGroupsSeeder after this
+    |
+    | Dissolving hands each part to every child that held the compound, and it
+    | knows nothing about which children are OFFERED the fulfilment group at
+    | all. Eleven service children — دعاية وإعلان، تسويق، تحويل أموال، صرافة،
+    | تأمين، سياحة، أمن، طباعة، مقاولات ×2، تنسيق حفلات — held «شحن وتوصيل»
+    | under «شركات» and came out of the merge holding «توصيل طلبات», which a
+    | marketing agency has no business answering. child_option_groups.php is the
+    | authority on who gets this group and it prunes exactly those eleven. Their
+    | compound row had been standing against the same map and would have been
+    | pruned the same way; the merge only changed which row it takes.
+    */
+    'row_merges' => [
+        [
+            'group' => 'التسليم والاستلام',
+            'from' => 109,          // شحن وتوصيل
+            'into' => [322, 108],   // شحن + توصيل طلبات
+        ],
+    ],
+
+    /** Where a dissolved row goes. Inactive, so no screen offers it. */
+    'retired_group' => [
+        'name_ar' => 'صفوف متقاعدة',
+        'name_en' => 'Retired Rows',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Folded back: sports, specialties and lab tests are ONE list each
     |--------------------------------------------------------------------------
     | These three were briefly cut into families. Owner's call to fold them back

@@ -127,6 +127,86 @@ class OptionGroupCohesionTest extends TestCase
         }
     }
 
+    /**
+     * «ادمج التسليم والاستلام» — owner, 2026-08-16, and the same disease one
+     * level down: not a group asking two questions but a ROW restating two
+     * answers standing beside it.
+     *
+     * «شحن وتوصيل» was «شحن» and «توصيل طلبات» joined by a واو, with all three
+     * in one list. Dissolved, not deleted — the row survives in an inactive
+     * group and every child it reached kept a way to say what it does.
+     */
+    public function test_a_compound_row_was_dissolved_into_the_rows_it_was_made_of(): void
+    {
+        $this->assertNotContains('شحن وتوصيل', $this->namesIn('التسليم والاستلام'));
+        $this->assertContains('شحن', $this->namesIn('التسليم والاستلام'));
+        $this->assertContains('توصيل طلبات', $this->namesIn('التسليم والاستلام'));
+
+        $compound = (int) DB::table('options')->where('name_ar', 'شحن وتوصيل')->value('id');
+
+        $this->assertSame(
+            0,
+            DB::table('category_child_option')->where('option_id', $compound)->count(),
+            'a dissolved row still reaches children'
+        );
+
+        // Retired, not orphaned. `group_id = NULL` is what the vehicle seeder
+        // does and what TaxonomyRedistributionTest forbids.
+        $group = DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.id', $compound)->first(['g.name_ar', 'g.is_active']);
+
+        $this->assertNotNull($group, 'the retired row was left groupless');
+        $this->assertSame(0, (int) $group->is_active, 'a retired row must sit in a group no screen offers');
+    }
+
+    /**
+     * …and the half that makes the merge stick.
+     *
+     * `child_option_groups.php` grants the whole fulfilment list per child, so
+     * a dissolved id left in that array is handed straight back to every goods
+     * child on the next run — which is how two seeders end up undoing each
+     * other over one row.
+     */
+    public function test_the_per_child_map_no_longer_offers_the_dissolved_row(): void
+    {
+        $compound = (int) DB::table('options')->where('name_ar', 'شحن وتوصيل')->value('id');
+        $map = require database_path('seeders/data/child_option_groups.php');
+
+        $this->assertNotContains($compound, $map['groups']['fulfilment']['options']);
+
+        foreach (['شحن', 'توصيل طلبات'] as $part) {
+            $this->assertContains(
+                (int) DB::table('options')->where('name_ar', $part)->value('id'),
+                $map['groups']['fulfilment']['options'],
+                "«{$part}» must stay in the map — it is what the compound dissolved into"
+            );
+        }
+    }
+
+    /**
+     * Nobody went mute, and nobody got back what he had taken off.
+     *
+     * Eighteen of the compound's children had withdrawn «شحن» by hand while
+     * still carrying a row that CONTAINS shipping — the contradiction the merge
+     * resolves. The ledger blocks the grant, so they come out saying delivery
+     * and not shipping, which is what the withdrawal meant. What must never
+     * happen is a child left with no way to answer the group at all.
+     */
+    public function test_the_merge_left_no_child_unable_to_answer(): void
+    {
+        $groupId = (int) DB::table('option_groups')->where('name_ar', 'التسليم والاستلام')->value('id');
+
+        $mute = DB::table('category_children_master as c')
+            ->join('category_parent_child as pc', 'pc.child_id', '=', 'c.id')
+            ->whereExists(fn ($q) => $q->from('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->whereColumn('co.child_id', 'c.id')
+                ->where('o.group_id', '=', DB::raw((string) $groupId)))
+            ->distinct()->count('c.id');
+
+        $this->assertGreaterThanOrEqual(110, $mute, 'the group reaches fewer children than the compound alone did');
+    }
+
     public function test_property_types_no_longer_hold_a_deal_or_a_payment_term(): void
     {
         $property = $this->namesIn('عقارات وممتلكات');

@@ -49,11 +49,25 @@ return [
             'reorder' => 41,
             'options' => [262, 368], // جديد، مستعمل
         ],
+        /*
+        | «ادمج التسليم والاستلام» — owner, 2026-08-16.
+        |
+        | #109 «شحن وتوصيل» is gone from this list and from the taxonomy. It was
+        | never a third answer: it is «شحن» AND «توصيل طلبات», both of which are
+        | in this very line, and 104 of its 110 children already carried at
+        | least one of them. A merchant was being asked the same question twice
+        | and once more compounded.
+        |
+        | Removing the id here is half the merge and the half that makes it
+        | stick — this seeder grants the whole list per child, so a dissolved
+        | row left in the array is handed back to every goods child on the next
+        | run. See `row_merges` in option_group_splits.php for the other half.
+        */
         'fulfilment' => [
             'name_ar' => 'التسليم والاستلام',
             'name_en' => 'Delivery & Pickup',
             'reorder' => 42,
-            'options' => [108, 152, 322, 109, 134, 356],
+            'options' => [108, 152, 322, 134, 356],
         ],
         'payment_terms' => [
             'name_ar' => 'الدفع والسداد',

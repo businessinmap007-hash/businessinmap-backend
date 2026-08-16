@@ -470,5 +470,15 @@ return [
          * subscription and the locker comes with it.
          */
         'مرافق النادي الرياضي',
+
+        /*
+         * The tombstone. INACTIVE, so no screen offers it and the role never
+         * shows — declared anyway because this file's own rule says a group
+         * whose role is an absence is one rename away from being a surprise,
+         * and because the seeder reports every undeclared group on every run.
+         * A row that was dissolved into others is described by nothing and
+         * prices nothing.
+         */
+        'صفوف متقاعدة',
     ],
 ];

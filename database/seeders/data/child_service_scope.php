@@ -40,7 +40,12 @@ return [
         // the carriers that were never offered the service at all
         'shipping-delivery:68' => ['mode_freight', 'mode_distribution'], // شركة
         'shipping-delivery:243' => ['mode_distribution'],                // مندوب
-        'companies:166' => ['mode_freight'],                             // شحن بري وبحري وجوى
+        // Moved out of «شركات» into this root on 2026-08-16 — it is a freight
+        // company and it was filed with the marketing and insurance firms.
+        // The key carries the root, so re-keying it is part of the move: left
+        // as `companies:166` it would rule on a membership that no longer
+        // exists and the child would fall back to the root default.
+        'shipping-delivery:166' => ['mode_freight'],                     // شحن بري وبحري وجوى
         'companies:154' => ['mode_freight'],                             // نقل دولي
     ],
 

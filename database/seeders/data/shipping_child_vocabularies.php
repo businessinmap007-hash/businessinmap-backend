@@ -35,6 +35,16 @@
 | See `links` at the foot of the file for what it gets and what it does not,
 | and note that none of it is a new word: all three groups exist and two of
 | them were written for this root.
+|
+| ── «شحن بري وبحري وجوى» #166 joined this root on 2026-08-16 ──────────────
+|
+| «انقل شحن بري وبحري وجوى الى شحن وتوصيل». It had been filed under «شركات»
+| beside the marketing and insurance firms while being the same trade as
+| «شركة» #68, and it is named in all four groups above now — the two written
+| for this root included. Its own name says «دولي» in three words, so it takes
+| «نطاق الشحن» whole where «مندوب» takes three quarters of it.
+|
+| The move carried six tables with it; see `bim:move-child`.
 */
 
 return [
@@ -46,7 +56,7 @@ return [
     'groups' => [
 
         'نطاق الشحن' => [
-            'name_en' => 'Shipping Range', 'price_role' => 'modifier', 'children' => [68, 198],
+            'name_en' => 'Shipping Range', 'price_role' => 'modifier', 'children' => [68, 198, 166],
             'options' => [
                 'داخل المدينة' => 'Within the City',
                 'بين المحافظات' => 'Intercity',
@@ -56,7 +66,7 @@ return [
         ],
 
         'سرعة الشحن' => [
-            'name_en' => 'Delivery Speed', 'price_role' => 'modifier', 'children' => [68, 198],
+            'name_en' => 'Delivery Speed', 'price_role' => 'modifier', 'children' => [68, 198, 166],
             'options' => [
                 'عادي' => 'Standard',
                 'سريع' => 'Express',

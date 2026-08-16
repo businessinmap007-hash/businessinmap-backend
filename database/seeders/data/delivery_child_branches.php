@@ -14,6 +14,13 @@ return [
         'شركة' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
         'مكتب' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
         'مندوب' => ['delivery_freight', 'delivery_courier_ondemand', 'delivery_documents'],
+        // «انقل شحن بري وبحري وجوى الى شحن وتوصيل» — owner, 2026-08-16. It
+        // was in the «شركات» block, filed with the marketing and insurance
+        // firms while being the same trade as «شركة» above. The line moved
+        // with the child: this map is keyed by ROOT and an add-only seeder
+        // reading it from the old block puts the child back under the root it
+        // left — the same trap the note below records for «عفشجى».
+        'شحن بري وبحري وجوى' => ['delivery_freight', 'delivery_international'],
         // Moved here from the workshops block on 2026-08-10, following the child
         // itself (ChildRootMovesSeeder: ورش → شحن وتوصيل). Left where it was, an
         // add-only seeder keyed by ROOT quietly puts the child back under the
@@ -263,7 +270,6 @@ return [
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
         'سيفتى ومقاومة حرائق' => ['delivery_freight'],
-        'شحن بري وبحري وجوى' => ['delivery_freight', 'delivery_international'],
         'صينى وخزف' => ['delivery_freight'],
         'طباعة' => ['delivery_freight'],
         'طوب' => ['delivery_freight'],

@@ -328,11 +328,29 @@ class ChildTradeVocabulariesSeeder extends Seeder
             return $optionId;
         }
 
-        // `options.name_en` collides across groups — «تصوير وإنتاج» already
-        // belongs to the advertising list, «كاميرات مراقبة» to two trades that
-        // fit them. Same handling as the hotel seeder.
+        /*
+         * `options.name_en` collides across groups — «تصوير وإنتاج» already
+         * belongs to the advertising list, «كاميرات مراقبة» to two trades that
+         * fit them. Same handling as the hotel seeder.
+         *
+         * Numbered when the suffixed name is taken too, because one escape
+         * hatch is not enough and the failure is a crash rather than a
+         * duplicate. «دعاسات» was spelled with a ع here and with a و in the
+         * database, so this method could never find its own row: the first run
+         * made «Door Mats (Factory)», and the second had nowhere left to go and
+         * took the whole seeder down on a unique-key violation.
+         *
+         * Reaching this loop at all means a by-name map has drifted from the
+         * data, which is a defect to fix in the file — the counter keeps the
+         * chain running while somebody does.
+         */
         if (DB::table('options')->where('name_en', $en)->exists()) {
-            $en .= " ({$this->suffix})";
+            $base = "{$en} ({$this->suffix})";
+            $en = $base;
+
+            for ($n = 2; DB::table('options')->where('name_en', $en)->exists(); $n++) {
+                $en = "{$base} {$n}";
+            }
         }
 
         $created++;

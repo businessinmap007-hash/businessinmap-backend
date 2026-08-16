@@ -138,7 +138,14 @@ return [
                 'سجاد مشجر' => 'Patterned Rugs', 'سجاد سادة' => 'Plain Rugs',
                 'سجاد شيرازي' => 'Shirazi Rugs', 'سجاد صوف' => 'Wool Rugs',
                 'موكيت' => 'Wall-to-Wall Carpet', 'كليم' => 'Kilim',
-                'سجاد أطفال' => 'Kids Rugs', 'دعاسات' => 'Door Mats',
+                // «دواسات» and not «دعاسات». The file was spelled with a ع and
+                // the owner corrected the row to a و — دواسة is the word. An
+                // option is matched by GROUP and Arabic name, so the file went
+                // on failing to find its own row and creating a second one,
+                // and the third run crashed outright: «Door Mats» was taken so
+                // the first duplicate became «Door Mats (Factory)», and the
+                // suffix has no second escape hatch. His spelling, written down.
+                'سجاد أطفال' => 'Kids Rugs', 'دواسات' => 'Door Mats',
             ],
         ],
 

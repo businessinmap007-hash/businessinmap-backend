@@ -212,7 +212,12 @@ return [
         'companies:231' => $fieldWork,   // طباعة
         'companies:72' => $fieldWork,    // مقاولات
         'companies:152' => $fieldWork,   // مقاولات بنية تحتية
-        'companies:166' => ['fulfilment', 'service_mode', 'payment_terms'], // شحن بري وبحري وجوى
+        // «شحن بري وبحري وجوى» #166 had an override here while it stood under
+        // «شركات», whose default is the goods bundle and wrong for a carrier.
+        // It moved to «شحن وتوصيل» on 2026-08-16 and that root's default is
+        // fulfilment + service_mode + payment_terms — the same three, word for
+        // word. An override that restates the default is noise, so it is gone
+        // rather than re-keyed.
         'companies:154' => ['fulfilment', 'service_mode', 'payment_terms'], // نقل دولي
         'companies:150' => ['trade_scope', 'fulfilment', 'payment_terms'],  // استيراد وتصدير
     ],

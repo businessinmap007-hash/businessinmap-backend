@@ -172,6 +172,12 @@ return [
         'root_slug' => 'companies',
         'service_key' => 'schedules',
         'copy_from_child_ar' => 'شحن بري وبحري وجوى',
+        // The donor left «شركات» for «شحن وتوصيل» on 2026-08-16, and it is the
+        // same donor either way — the shape being copied is a CARRIER's, not a
+        // root's. Without this the seeder looks for it beside the recipient,
+        // finds nothing, and skips the entry silently; the two trades stay
+        // where they are and the copy is simply never available again.
+        'copy_from_root_slug' => 'shipping-delivery',
         'why' => 'ناقل ثقيل بلا أي سطح بيع — إعداد التوصيل عنده هو إعداد النقل الثقيل نفسه، وأخواه في الجذر ينشران الرحلات — ٣ حسابات',
     ],
 

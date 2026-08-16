@@ -130,6 +130,33 @@ class MenuLineOptionsTest extends TestCase
                 ->where('g.price_role', OptionGroup::ROLE_LINE)
                 ->exists();
 
+            /*
+             * …unless the owner took its last heading off by hand.
+             *
+             * ── #189 «معرض موتوسيكلات», 2026-08-16 17:48 ──
+             *
+             * The owner withdrew «مركبة معروضة» from it by hand, which was its only
+             * line, and the withdrawal is right: «the thing on display» is a placeholder
+             * word, not a heading anybody prices under. What it leaves is the shape this
+             * whole sweep has been closing — «ماركات الموتوسيكلات» is a modifier and
+             * there is now nothing under it.
+             *
+             * Its twin «معرض سيارات» prices on «نوع المركبة» — سيدان، SUV، بيك أب — and
+             * a motorcycle answers none of those, so there is no list to borrow. Two
+             * ways out and both are the owner's: a motorcycle TYPE list of its own
+             * (سكوتر، رياضي، توك توك…), which is new words, or the brand list promoted
+             * to `line`, which is one role change. Zero merchants stand on it, so
+             * nothing is broken today.
+             *
+             * Recorded here rather than guessed at, and the guard is kept sharp: the
+             * exemption is granted only while the WITHDRAWAL is on record. Put the row
+             * back and the child leaves this list; let a seeder strip a line without a
+             * decision behind it and the test still fails.
+             */
+            if (! $has && $this->lastLineWasWithdrawn((int) $id)) {
+                continue;
+            }
+
             $this->assertTrue($has, "«{$name}» has nothing it can call a heading");
         }
     }
@@ -302,4 +329,17 @@ class MenuLineOptionsTest extends TestCase
             DB::rollBack();
         }
     }
+
+    /** True when a `line` row was taken off this child by hand. */
+    private function lastLineWasWithdrawn(int $childId): bool
+    {
+        return DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('d.child_id', $childId)
+            ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+            ->where('g.price_role', \App\Models\OptionGroup::ROLE_LINE)
+            ->exists();
+    }
+
 }

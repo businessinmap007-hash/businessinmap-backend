@@ -660,7 +660,31 @@ class ChildTradeVocabulariesTest extends TestCase
             ->where('g.name_ar', $group)->exists();
 
         $this->assertFalse($under($factories, 'حالة المنتج'), 'a kiln fires new brick only');
-        $this->assertTrue($under($companies, 'حالة المنتج'), 'the wholesaler still answers it');
+
+        /*
+         * The wholesaler answered it too, on the reading in the docblock above:
+         * used brick off a demolition really does pass through a يارد. The
+         * owner withdrew جديد and مستعمل from it under «شركات» on 2026-08-16
+         * 17:30, in the pass that took the goods vocabulary off that root's
+         * service children, and his hand outranks the argument.
+         *
+         * The withdrawal record is consulted rather than the assertion deleted,
+         * so what is still guarded is the thing this test is for: the SEEDER
+         * must not take it away. If the row goes without a withdrawal behind
+         * it, the mirror pass has broken.
+         */
+        $withdrawn = DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE)
+            ->where('child_id', 34)
+            ->where('kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+            ->whereIn('option_id', DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('g.name_ar', 'حالة المنتج')->pluck('o.id'))
+            ->exists();
+
+        $this->assertTrue(
+            $under($companies, 'حالة المنتج') || $withdrawn,
+            'the wholesaler lost it and nobody recorded the decision'
+        );
 
         $this->assertTrue($under($factories, 'الاستبدال والإرجاع'));
         $this->assertTrue($under($factories, 'نطاق التعامل'));
@@ -1736,6 +1760,59 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertContains('صرافة عملات', $rows);
         $this->assertContains('تحويلات دولية', $rows);
+    }
+
+    /**
+     * «انقل شحن بري وبحري وجوى الى شحن وتوصيل» — owner, 2026-08-16.
+     *
+     * It was filed under «شركات» beside the marketing and insurance firms while
+     * being the same trade as «شركة» #68, three roots' worth of vocabulary
+     * away from the one written for it.
+     *
+     * What is asserted is not the membership row — that is one UPDATE and
+     * nobody gets it wrong. It is the six other tables that key on (root,
+     * child) and do NOT follow when the row is moved by hand in the admin:
+     * left behind, every one points at a root the child no longer stands
+     * under, which makes it unreachable, and the child arrives mute and
+     * unwired while the old rows sit there looking intact. Nine such service
+     * rows were found on this database the same day, left by exactly that.
+     *
+     * The ledger is the sharpest of the six. The owner withdrew eight goods
+     * words from this child at 17:05 and it moved at 17:35; keyed to the root
+     * he made them under, those withdrawals would have stopped applying the
+     * moment the child left it, and the next seeder run would have handed all
+     * eight back.
+     */
+    public function test_the_freight_company_moved_root_with_everything_that_named_the_old_one(): void
+    {
+        $child = 166;
+        $shipping = (int) DB::table('categories')->where('slug', 'shipping-delivery')->value('id');
+        $companies = (int) DB::table('categories')->where('slug', 'companies')->value('id');
+
+        $this->assertSame(
+            [$shipping],
+            DB::table('category_parent_child')->where('child_id', $child)->pluck('parent_id')->map(fn ($id) => (int) $id)->all()
+        );
+
+        foreach ([
+            'category_child_option' => 'child_id',
+            'category_child_option_decisions' => 'child_id',
+            'category_child_service_fees' => 'child_id',
+            'category_platform_services' => 'child_id',
+            'category_service_configs' => 'child_id',
+            'users' => 'category_child_id',
+        ] as $table => $childCol) {
+            $this->assertSame(
+                0,
+                DB::table($table)->where($childCol, $child)->where('category_id', $companies)->count(),
+                "{$table} still names «شركات» for a child that has left it"
+            );
+        }
+
+        // …and it can now say the things this root exists to ask. Its own name
+        // says «دولي» in three words, so it takes the range axis whole.
+        $this->assertContains('شحن دولي', $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'نطاق الشحن'));
+        $this->assertCount(4, $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'سرعة الشحن'));
     }
 
     /** @return array<int,string> */

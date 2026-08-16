@@ -89,8 +89,20 @@ class ServiceReinstatementTest extends TestCase
                 return $types;
             };
 
+            // A donor may stand under a different root from its recipient —
+            // «شحن بري وبحري وجوى» moved to «شحن وتوصيل» on 2026-08-16 and is
+            // still the right shape for «معدات ثقيلة», because what is copied
+            // is a carrier's and not a root's.
+            $donorRootId = isset($entry['copy_from_root_slug'])
+                ? $this->rootId($entry['copy_from_root_slug'])
+                : $rootId;
+
+            $donorConfigAt = fn (int $childId) => json_decode((string) DB::table('category_service_configs')
+                ->where('category_id', $donorRootId)->where('child_id', $childId)
+                ->where('platform_service_id', $serviceId)->where('is_active', 1)->value('config'), true) ?: [];
+
             $mineConfig = $config($this->childId($entry['child_name_ar'], $rootId));
-            $donorConfig = $config($this->childId($entry['copy_from_child_ar'], $rootId));
+            $donorConfig = $donorConfigAt($this->childId($entry['copy_from_child_ar'], $donorRootId));
 
             $mine = $sorted($mineConfig);
             $donor = $sorted($donorConfig);
@@ -158,12 +170,24 @@ class ServiceReinstatementTest extends TestCase
      */
     public function test_the_heavy_hauler_can_publish_a_trip_like_its_siblings(): void
     {
-        $rootId = $this->rootId('companies');
         $schedules = (int) DB::table('platform_services')->where('key', 'schedules')->value('id');
 
-        // «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12 (owner) —
-        // one trade under two names, and «دولي» is a scope it already answers.
-        foreach (['معدات ثقيلة', 'شحن بري وبحري وجوى'] as $name) {
+        /*
+         * «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12 (owner) —
+         * one trade under two names, and «دولي» is a scope it already answers.
+         *
+         * The donor then left «شركات» for «شحن وتوصيل» on 2026-08-16, so the
+         * pair is asserted under a root each rather than one: the recipient is
+         * still a heavy hauler filed with the companies, and the donor is now
+         * beside the carriers where it belongs. Reading both at «شركات» is what
+         * this test did, and it is exactly the assumption a root move breaks.
+         */
+        foreach ([
+            'معدات ثقيلة' => 'companies',
+            'شحن بري وبحري وجوى' => 'shipping-delivery',
+        ] as $name => $slug) {
+            $rootId = $this->rootId($slug);
+
             $this->assertTrue(
                 DB::table('category_platform_services')->where('category_id', $rootId)
                     ->where('child_id', $this->childId($name, $rootId))

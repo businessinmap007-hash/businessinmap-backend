@@ -300,7 +300,21 @@ class CoworkingWorkspaceTest extends TestCase
                 ->where('co.child_id', (int) $row->child_id)
                 ->where('g.price_role', 'line')->exists();
 
-            if (! $hasLine) {
+            /*
+             * A line the OWNER took off by hand is his answer, not a debt.
+             *
+             * «معرض موتوسيكلات» #189 lost «مركبة معروضة» on 2026-08-16 17:48 —
+             * its only heading, and «the thing on display» is a placeholder
+             * rather than something anybody prices under. Its twin «معرض
+             * سيارات» prices on «نوع المركبة», which a motorcycle answers none
+             * of, so there is no list to borrow: either a motorcycle TYPE list
+             * of its own, or «ماركات الموتوسيكلات» promoted to `line`. Both are
+             * the owner's and zero merchants stand on it.
+             *
+             * The guard stays sharp — the exemption lasts only while the
+             * withdrawal is on record, so a SEEDER stripping a line still fails.
+             */
+            if (! $hasLine && ! $this->lastLineWasWithdrawn((int) $row->child_id)) {
                 $nameless[(int) $row->child_id] = true;
             }
         }
@@ -341,4 +355,17 @@ class CoworkingWorkspaceTest extends TestCase
             'children #' . implode(', #', $settled) . ' are settled — take them off NAMELESS_UNITS'
         );
     }
+
+    /** True when a `line` row was taken off this child by hand. */
+    private function lastLineWasWithdrawn(int $childId): bool
+    {
+        return DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('d.child_id', $childId)
+            ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+            ->where('g.price_role', 'line')
+            ->exists();
+    }
+
 }

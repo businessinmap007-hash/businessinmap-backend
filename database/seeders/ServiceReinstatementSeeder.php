@@ -35,7 +35,20 @@ class ServiceReinstatementSeeder extends Seeder
             foreach ($rows as $row) {
                 $rootId = (int) DB::table('categories')->where('slug', $row['root_slug'])->value('id');
                 $childId = $this->standingChild($row['child_name_ar'], $rootId);
-                $donorId = $this->standingChild($row['copy_from_child_ar'], $rootId);
+                /*
+                 * The donor normally stands beside the recipient — that is what
+                 * makes this safe, a shape somebody under that root already
+                 * chose. It does not have to: a carrier's schedules shape is a
+                 * carrier's wherever the carrier is filed, and «شحن بري وبحري
+                 * وجوى» moved to its own root on 2026-08-16. Named explicitly
+                 * when it differs, never guessed, because a donor found under
+                 * the wrong root is how a child takes somebody else's shelf.
+                 */
+                $donorRootId = isset($row['copy_from_root_slug'])
+                    ? (int) DB::table('categories')->where('slug', $row['copy_from_root_slug'])->value('id')
+                    : $rootId;
+
+                $donorId = $this->standingChild($row['copy_from_child_ar'], $donorRootId);
                 $serviceId = (int) DB::table('platform_services')->where('key', $row['service_key'])->value('id');
 
                 if ($childId <= 0 || $donorId <= 0 || $rootId <= 0 || $serviceId <= 0) {
@@ -55,7 +68,7 @@ class ServiceReinstatementSeeder extends Seeder
                 }
 
                 $config = json_decode((string) DB::table('category_service_configs')
-                    ->where('category_id', $rootId)->where('child_id', $donorId)
+                    ->where('category_id', $donorRootId)->where('child_id', $donorId)
                     ->where('platform_service_id', $serviceId)->value('config'), true);
 
                 if (! $config) {

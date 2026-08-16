@@ -66,11 +66,16 @@ class CoworkingWorkspaceTest extends TestCase
      * in — «أصناف المنتجات الغذائية» — which the owner made a `line` by hand,
      * the last group of that shape left on the platform.
      *
-     * The two left are the ones still genuinely without a priced list:
-     * #23 «شركات الأمن» and #263 «قطع غيار».
+     * And #263 «قطع غيار» on 2026-08-16, by the third: «قطع الغيار حسب الآلة»
+     * is held by that child alone and IS what the any-machine wholesaler sells,
+     * so it became a `line`. It had been a modifier with nothing under it, and
+     * the reader's promotion rule was quietly selling «أصلي وكيل» as a priced
+     * row to cover the hole.
+     *
+     * One left, and it is genuinely without a priced list: #23 «شركات الأمن».
      */
     private const NAMELESS_UNITS = [
-        23, 263,
+        23,
     ];
 
     private function childId(string $name): int

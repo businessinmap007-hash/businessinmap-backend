@@ -580,6 +580,21 @@ document.addEventListener('DOMContentLoaded', function () {
             badge.className = 'a2-badge';
             badge.style.marginInlineStart = 'auto';
             badge.style.cursor = 'pointer';
+
+            /*
+             * «بعضهم لا يوجد العدد ما السبب فى ذلك» — owner, 2026-08-16.
+             *
+             * The number was never missing; it was squeezed to nothing. The card
+             * is a flex row and its name span is `flex: 1 1 auto`, so it grows —
+             * while the badge, a plain flex item, defaults to `flex-shrink: 1`
+             * and gives up its own width first. A short name left room and a
+             * long one did not, which is why «كتب» showed a number and
+             * «مصنوعات خشبية ومستلزمات ديكور» showed an empty pill.
+             *
+             * The count is the whole point of the badge — a child nobody has
+             * configured must be visible as a zero — so it does not shrink.
+             */
+            badge.style.flex = '0 0 auto';
             badge.title = @json(__('اعرض الخيارات المسجّلة لهذا القسم'));
 
             // The badge lives inside a <label>, so a plain click would toggle the
@@ -1391,6 +1406,65 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshRegistered();
     renderGroupChips([]);
     seedFromRegistered();
+
+    /*
+     * ── 419 Page Expired on save ──────────────────────────────────────────
+     *
+     * «عند الحفظ يعطى 419 Page Expired» — owner, 2026-08-16.
+     *
+     * This is the screen an admin leaves open for an hour while he reads a
+     * root child by child, and `session.lifetime` is 120 minutes of INACTIVITY.
+     * A page open that long has made no request since it loaded, so the session
+     * is already gone when the form posts and the token matches nothing —
+     * Laravel's answer to that is 419, and the whole edit is lost with it. No
+     * other admin screen is open long enough to reach it.
+     *
+     * A GET refreshes the session's last activity, so a heartbeat is the fix.
+     * The token in the reply is written back for the other case: a session that
+     * was rotated rather than expired, where the page's baked-in token is stale
+     * while the session is perfectly alive.
+     *
+     * Every ten minutes, and once more immediately before the form is
+     * submitted — the last one is what actually saves an edit that began
+     * before the last beat.
+     */
+    const PING_URL = @json(route('admin.session.ping', [], false));
+
+    function keepSessionAlive() {
+        return fetch(PING_URL, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data || !data.token) {
+                    return;
+                }
+
+                document.querySelectorAll('input[name="_token"]').forEach(function (input) {
+                    input.value = data.token;
+                });
+            })
+            .catch(function () { /* offline or logged out — the POST will say so */ });
+    }
+
+    setInterval(keepSessionAlive, 10 * 60 * 1000);
+
+    const bulkForm = document.getElementById('bulkOptionsForm');
+
+    if (bulkForm) {
+        let refreshed = false;
+
+        bulkForm.addEventListener('submit', function (event) {
+            if (refreshed) {
+                return;
+            }
+
+            // Hold the submit for one round trip, then let it through with a
+            // token that is certainly current.
+            event.preventDefault();
+            refreshed = true;
+
+            keepSessionAlive().then(function () { bulkForm.submit(); });
+        });
+    }
 });
 </script>
 @endsection

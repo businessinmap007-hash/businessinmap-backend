@@ -114,6 +114,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Shared search-as-you-type business picker for every form/filter.
             Route::get('business-lookup', \App\Http\Controllers\AdminV2\BusinessLookupController::class)->name('business-lookup');
             Route::post('upload/image', [UploadController::class, 'store'])->name('upload.image');
+
+            /*
+             * Keeps a long-lived editing page's session alive, and hands back a
+             * current CSRF token.
+             *
+             * «فى category-child-options/bulk/update عند الحفظ يعطى 419 Page
+             * Expired» — owner, 2026-08-16. The bulk options screen is the one
+             * an admin leaves open for an hour while he reads a root child by
+             * child, and `session.lifetime` is 120 minutes of INACTIVITY: a page
+             * open that long has made no request since it loaded, so the session
+             * is gone by the time the form posts and the token no longer matches
+             * anything. Every other admin screen is a short form and never hits
+             * it.
+             *
+             * A GET on any route refreshes the session's last activity, so a
+             * heartbeat is the whole fix; the token in the response is for the
+             * case where the session was rotated rather than expired.
+             */
+            Route::get('session/ping', function () {
+                return response()->json(['ok' => true, 'token' => csrf_token()]);
+            })->name('session.ping');
         });
 
         Route::prefix('users')->name('users.')->middleware('can:' . AdminAbility::USERS)->group(function () {

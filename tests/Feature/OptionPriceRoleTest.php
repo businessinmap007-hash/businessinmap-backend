@@ -228,6 +228,71 @@ class OptionPriceRoleTest extends TestCase
         }
     }
 
+    /**
+     * A group may be declared in exactly ONE tier.
+     *
+     * This file is read top to bottom and the later block wins, silently.
+     * «قطع الغيار حسب الآلة» was promoted to `line` on 2026-08-16 and left in
+     * `modifier` twelve blocks down, so the seeder reported the promotion,
+     * wrote it, and then overwrote it in the same run — nothing anywhere said
+     * a word, and the child it was written for kept the defect it was meant to
+     * fix.
+     */
+    public function test_no_group_is_declared_in_two_tiers(): void
+    {
+        $declared = require database_path('seeders/data/option_price_roles.php');
+        $twice = [];
+
+        foreach (['line', 'modifier', 'descriptive'] as $tier) {
+            foreach (['line', 'modifier', 'descriptive'] as $other) {
+                if ($tier >= $other) {
+                    continue;
+                }
+
+                $twice = array_merge($twice, array_intersect($declared[$tier], $declared[$other]));
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($twice)),
+            'declared in two tiers, and the later one wins in silence: ' . implode('، ', array_unique($twice)));
+
+        // …and no tier repeats a name either, which reads as two decisions.
+        foreach (['line', 'modifier', 'descriptive'] as $tier) {
+            $this->assertSame(
+                count($declared[$tier]),
+                count(array_unique($declared[$tier])),
+                "«{$tier}» names a group twice"
+            );
+        }
+    }
+
+    /**
+     * «راجع باقي أبناء الشركات بنفس الطريقة» — owner, 2026-08-16.
+     *
+     * Sixty-three children, none mute, and one wrong shape: «قطع غيار» #263,
+     * the any-machine wholesaler, had no line at all. The reader's promotion
+     * rule then lifted BOTH of its modifiers, so «أصلي وكيل» from «درجة قطعة
+     * الغيار» was offered as a thing to price. Promotion is all-or-nothing by
+     * design; a real line is what stops it.
+     *
+     * «قطع الغيار حسب الآلة» is held by that child alone and IS what he sells.
+     * Its sibling #44 prices on «نوع قطع الغيار» — WHICH SYSTEM against WHICH
+     * MACHINE, two axes settled on 2026-08-12 — and keeps the grade as the
+     * modifier it is.
+     */
+    public function test_the_parts_wholesaler_prices_the_machine_and_qualifies_by_grade(): void
+    {
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+        $wholesaler = $vocabulary->for(0, 263, 22);
+
+        $this->assertSame(['قطع الغيار حسب الآلة'], array_keys($wholesaler['lines']->all()));
+        $this->assertNull($wholesaler['promoted'], 'a promoted modifier is still being sold as a line');
+        $this->assertArrayHasKey('درجة قطعة الغيار', $wholesaler['modifiers']->all());
+
+        // The specialist beside him is untouched: a different axis, still a line.
+        $this->assertSame(['نوع قطع الغيار'], array_keys($vocabulary->for(0, 44, 22)['lines']->all()));
+    }
+
     public function test_the_seeder_is_idempotent(): void
     {
         $before = [

@@ -64,6 +64,24 @@ return [
          * the two ways out, and the one that invents no words.
          */
         'ماركات الموتوسيكلات',    // ياماها، بينيلي — the heading a bike showroom sells under
+        /*
+         * «قطع الغيار حسب الآلة» — «راجع باقي أبناء الشركات», 2026-08-16, and
+         * the same reasoning one line up.
+         *
+         * Held by «قطع غيار» #263 alone, the any-machine wholesaler, and it IS
+         * what he sells: قطع غيار سيارات، معدات ثقيلة، أجهزة منزلية، مصاعد. As
+         * a modifier it left him with no line at all, and the reader's
+         * promotion rule then lifted BOTH his modifiers — so «أصلي وكيل» from
+         * «درجة قطعة الغيار» was offered as a thing to price, which it is not.
+         * Promotion is all-or-nothing by design; giving the child a real line
+         * is what stops it, and the grade goes back to qualifying the part.
+         *
+         * Costs nothing elsewhere: one carrier. Its sibling #44 «قطع غيار
+         * سيارات» prices on «نوع قطع الغيار» (WHICH SYSTEM) and is untouched —
+         * the two lists are different axes, which company_child_vocabularies.php
+         * settled on 2026-08-12.
+         */
+        'قطع الغيار حسب الآلة',   // قطع غيار مصاعد ≠ قطع غيار دراجات
         // Was «فئات الغرف» until the owner merged the hotel room kinds into the
         // existing «الغرف» (2026-08-05), which already held استوديو/غرفة/غرفتين
         // for property listings. One group now answers both: جناح ≠ غرفة فردية
@@ -406,7 +424,10 @@ return [
          * trade lists that sat beside it here are lines now.
          */
         'نظام التصنيع',           // حسب الطلب ≠ من المخزون
-        'قطع الغيار حسب الآلة',   // renamed from «أنواع قطع الغيار» 2026-08-12
+        // «قطع الغيار حسب الآلة» moved to `line` on 2026-08-16 — see the block
+        // in that list. Declared in two tiers it was silently the later one,
+        // which is worth knowing: this file is read top to bottom and a name in
+        // two blocks takes the LAST, with no warning from anywhere.
         'درجة قطعة الغيار',       // أصلي وكيل ≠ تجاري — the trade's real price axis
         'حالة المنتج',            // جديد ≠ مستعمل
         // A PS4 hour and a PS5 hour are two prices for one line.

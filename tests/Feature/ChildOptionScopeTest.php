@@ -150,11 +150,21 @@ class ChildOptionScopeTest extends TestCase
         );
 
         // A fabric merchant is still a different trade, and stays scoped. The
-        // list repeats because #95 sits under three roots and the link is
-        // per-root — unique() is the assertion, not the raw row count.
+        /*
+         * «أقمشة» #95 was narrowed to the single row «أقمشة» here, and on
+         * 2026-08-16 that became a declared EMPTY.
+         *
+         * The narrowing never changed — a fabric merchant sells none of the
+         * fashion product list, which is what the map always said. What changed
+         * is that one row left behind was a LINE, and a line present however
+         * empty pre-empts MerchantOfferingVocabulary's promotion rule: he was
+         * priced on «I sell fabric» under two of his roots and on his fifteen
+         * fabric types under the other two. Declaring the empty lets the
+         * promotion fire everywhere.
+         */
         $fabric = array_values(array_unique($this->offered($this->childId('أقمشة'), 'موضة وعناية شخصية')));
 
-        $this->assertSame(['أقمشة'], $fabric);
+        $this->assertSame([], $fabric, 'a fabric merchant is offered a garment');
     }
 
     /**

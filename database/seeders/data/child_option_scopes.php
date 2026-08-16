@@ -141,7 +141,27 @@ return [
     | a priced line.
     */
     'موضة وعناية شخصية' => [
-        95 => [135],             // أقمشة — a fabric merchant is a different trade
+        /*
+         * «أقمشة» #95 — a fabric merchant is a different trade, and the
+         * narrowing was right while it left him with the wrong ONE row.
+         *
+         * Cut to #135 «أقمشة», this group became a one-row line that says only
+         * «I sell fabric», which the child's own name already says. And a line
+         * present, however empty, pre-empts the promotion rule: under «المحلات»
+         * and «مصانع» he was offered that single row to price, while under
+         * «معارض» and «شركات» — where the row had never been written — the
+         * reader promoted «أنواع الأقمشة» and he priced قطن، كتان، حرير، دنيم,
+         * all fifteen. The same trade, two pricing screens, and the two worse
+         * ones were the roots most fabric merchants stand under.
+         *
+         * A declared EMPTY says what the comment always meant: he answers none
+         * of the fashion product list. «أخشاب» #301 shows the finished shape —
+         * its timber list is a `line` in its own right and needs no promotion —
+         * and «أنواع الأقمشة» cannot follow it, because it is a shared modifier
+         * that genuinely qualifies a garment for ملابس and مفروشات. Promotion
+         * is the mechanism for exactly that case; this only stops blocking it.
+         */
+        95 => [],                // أقمشة — none of the fashion list; he sells cloth
         // #59 ملابس، #168 جلود وشنط وأحذية and #8 اكسسوار keep the WHOLE list as of
         // 2026-08-08: root #14 collapsed to those three, and scoping them is
         // exactly what left «كوتشي» unable to name a single thing it sold. The

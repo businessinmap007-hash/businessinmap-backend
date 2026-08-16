@@ -220,6 +220,7 @@ class ChildTradeVocabulariesTest extends TestCase
         ];
 
         $rootId = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
 
         $mute = [];
 
@@ -1936,6 +1937,7 @@ class ChildTradeVocabulariesTest extends TestCase
     public function test_every_factory_child_can_name_what_it_makes(): void
     {
         $rootId = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
 
         $mute = [];
 
@@ -1944,14 +1946,15 @@ class ChildTradeVocabulariesTest extends TestCase
                 ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
                 ->where('pc.parent_id', $rootId)->get(['c.id', 'c.name_ar']) as $child
         ) {
-            $hasLine = DB::table('category_child_option as co')
-                ->join('options as o', 'o.id', '=', 'co.option_id')
-                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-                ->where('co.child_id', (int) $child->id)
-                ->whereIn('co.category_id', [0, $rootId])
-                ->where('g.price_role', 'line')->exists();
-
-            if (! $hasLine) {
+            /*
+             * Read through MerchantOfferingVocabulary and not off the `line`
+             * role, because the role is a PREFERENCE and not a gate: a child
+             * with no line group sells its modifiers, which is how «أقمشة» #95
+             * prices its fifteen fabric types without owning a line group at
+             * all. Asserting the raw role would call that child mute while its
+             * merchant looks at a full pricing screen.
+             */
+            if ($vocabulary->for(0, (int) $child->id, $rootId)['lines']->isEmpty()) {
                 $mute[] = "{$child->name_ar}#{$child->id}";
             }
         }
@@ -2060,6 +2063,74 @@ class ChildTradeVocabulariesTest extends TestCase
         }
 
         $this->assertSame([], array_intersect($metres, $feddans), 'the two ladders share a row');
+    }
+
+    /**
+     * «راجع باقي أبناء المعارض بنفس الطريقة» — owner, 2026-08-16, and the
+     * finding was not a missing list. It was one child priced on TWO DIFFERENT
+     * vocabularies depending on which root the merchant came through.
+     *
+     * «أقمشة» #95, 8 merchants. `child_option_scopes.php` narrowed it inside
+     * «موضة وعناية شخصية» to one row — «أقمشة» — on the reasoning that a fabric
+     * merchant is a different trade from a clothes shop, which is right. But a
+     * line group present, however empty, pre-empts MerchantOfferingVocabulary's
+     * promotion rule: under «المحلات» and «مصانع» he was offered that single row
+     * to price, saying only «I sell fabric», which his own name already says.
+     * Under «معارض» and «شركات», where the row had never been written, the
+     * reader promoted «أنواع الأقمشة» and he priced قطن، كتان، حرير، دنيم — all
+     * fifteen. The two worse screens were the roots most fabric merchants stand
+     * under.
+     *
+     * A declared EMPTY says what the comment always meant. The narrowing is
+     * unchanged; what stopped is its blocking of the promotion built for
+     * exactly this case.
+     *
+     * The invariant is the general form and it holds at zero: a SUPERSET under
+     * one root is a factory answering more than the showroom, which is what
+     * root scoping is for — «مفروشات» takes «أثاث وتشطيب منزلي» under «مصانع»
+     * and not elsewhere. A DISJOINT set is two different trades wearing one
+     * name, and no child may be one.
+     */
+    public function test_no_trade_is_priced_on_a_different_vocabulary_per_root(): void
+    {
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+        $disjoint = [];
+
+        foreach (DB::table('category_parent_child')->select('child_id')->distinct()->pluck('child_id') as $childId) {
+            $roots = DB::table('category_parent_child')->where('child_id', $childId)->pluck('parent_id');
+
+            if ($roots->count() < 2) {
+                continue;
+            }
+
+            $sets = [];
+
+            foreach ($roots as $rootId) {
+                $sets[(int) $rootId] = array_keys($vocabulary->for(0, (int) $childId, (int) $rootId)['lines']->all());
+            }
+
+            foreach ($sets as $a => $first) {
+                foreach ($sets as $b => $second) {
+                    if ($a >= $b || $first === [] || $second === [] || array_intersect($first, $second)) {
+                        continue;
+                    }
+
+                    $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+                    $disjoint[] = "{$name}#{$childId}";
+                }
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($disjoint)),
+            'these are priced on unrelated vocabularies depending on the root: ' . implode('، ', array_unique($disjoint)));
+
+        // The case that found the rule, under every root it stands beneath.
+        foreach ([17, 21, 22, 23] as $rootId) {
+            $lines = $vocabulary->for(0, 95, $rootId)['lines'];
+
+            $this->assertSame(['أنواع الأقمشة'], array_keys($lines->all()), "«أقمشة» prices something else under root {$rootId}");
+            $this->assertCount(15, $lines->first(), "«أقمشة» is offered a short list under root {$rootId}");
+        }
     }
 
     /** @return array<int,string> */

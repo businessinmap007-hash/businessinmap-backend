@@ -43,14 +43,26 @@
 | «100–150 م²» on its own is not a thing anybody buys. It joins «مستوى
 | التشطيب» and «نوع التعامل», which qualify the same line the same way.
 |
-| ── What is NOT here ──────────────────────────────────────────────────────
+| ── The farm, and why it is a SECOND ladder ───────────────────────────────
 |
-| The فدان. Egyptian farmland is quoted in أفدنة (1 فدان ≈ 4200 م²), so
-| «أرض زراعية» and «مزرعة» land in «أكثر من 10000 م²» and stop resolving —
-| two feddans and twenty read the same. Mixing a second unit into this ladder
-| would make «5000–10000 م²» and «فدان – 5 أفدنة» overlap, so the ladder stays
-| in one unit and the farm axis is left open rather than half-built. It is a
-| second group when the owner wants it.
+| «اضف مجموعة ثانية للمساحة بالفدان للأراضي الزراعية والمزارع» — owner,
+| 2026-08-16, and the reason it is a second group and not eight more rows on
+| the first is the unit. A فدان is ≈4200 م², so «5000 – 10000 م²» and «فدان –
+| 3 أفدنة» describe overlapping ground: dropped into one ladder they would give
+| a search two rows covering the same plot, which is the opposite of «محدد».
+| Two ladders in two units, each internally clean, and the merchant answers the
+| one his trade quotes in — a farm is advertised in أفدنة and never in metres,
+| a flat the reverse.
+|
+| Both groups sit on all three children because all three list both kinds:
+| «عقارات وممتلكات» holds «أرض زراعية» and «مزرعة» beside «شقة». The platform
+| has no conditional options, so nothing can offer the metres to a flat and the
+| feddans to a farm — what it can do is give each unit a clean ladder and let
+| the listing decide, which is what a merchant does anyway.
+|
+| Sub-feddan land is quoted in قراريط (1/24 فدان ≈ 175 م²), and «أقل من فدان»
+| is the row that carries them: a ladder of twenty-four قيراط steps is a
+| precision no listing is written with.
 |
 | @see \Database\Seeders\ChildTradeVocabulariesSeeder
 */
@@ -77,6 +89,20 @@ return [
                 '2000 – 5000 م²' => '2000–5000 m²',
                 '5000 – 10000 م²' => '5000–10000 m²',
                 'أكثر من 10000 م²' => 'Over 10000 m²',
+            ],
+        ],
+
+        'المساحة بالفدان' => [
+            'name_en' => 'Area in Feddans', 'price_role' => 'modifier', 'children' => [517, 518, 522],
+            'options' => [
+                'أقل من فدان (قراريط)' => 'Under 1 Feddan',
+                'فدان – 3 أفدنة' => '1–3 Feddans',
+                '3 – 5 أفدنة' => '3–5 Feddans',
+                '5 – 10 أفدنة' => '5–10 Feddans',
+                '10 – 20 فدان' => '10–20 Feddans',
+                '20 – 50 فدان' => '20–50 Feddans',
+                '50 – 100 فدان' => '50–100 Feddans',
+                'أكثر من 100 فدان' => 'Over 100 Feddans',
             ],
         ],
     ],

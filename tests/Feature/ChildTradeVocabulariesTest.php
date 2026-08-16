@@ -2017,6 +2017,51 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame(count($bands), count(array_unique($bands)), 'the ladder repeats a band');
     }
 
+    /**
+     * «اضف مجموعة ثانية للمساحة بالفدان للأراضي الزراعية والمزارع» — owner,
+     * 2026-08-16.
+     *
+     * A SECOND ladder and not eight more rows on the first, and the unit is the
+     * reason: a فدان is ≈4200 م², so «5000 – 10000 م²» and «فدان – 3 أفدنة»
+     * describe overlapping ground. In one group they would give a search two
+     * rows covering the same plot, which is the opposite of «محدد». In two
+     * groups each ladder is internally clean and the merchant answers the one
+     * his trade quotes in — a farm is advertised in أفدنة and never in metres.
+     *
+     * What is asserted is the separation: no row of one may name the other's
+     * unit, which is the only thing that could quietly undo the split.
+     */
+    public function test_the_farm_is_measured_in_its_own_unit(): void
+    {
+        foreach ([517, 518, 522] as $childId) {
+            $name = (string) DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+            $this->assertCount(
+                8,
+                $this->optionsOfChildInGroup($name, 'المساحة بالفدان'),
+                "«{$name}» is missing part of the feddan ladder"
+            );
+        }
+
+        $this->assertSame(
+            'modifier',
+            DB::table('option_groups')->where('name_ar', 'المساحة بالفدان')->value('price_role')
+        );
+
+        $metres = $this->optionsOfChildInGroup('مكتب عقاري', 'المساحة');
+        $feddans = $this->optionsOfChildInGroup('مكتب عقاري', 'المساحة بالفدان');
+
+        foreach ($metres as $band) {
+            $this->assertStringNotContainsString('فدان', $band, 'a feddan row leaked into the metre ladder');
+        }
+
+        foreach ($feddans as $band) {
+            $this->assertStringNotContainsString('م²', $band, 'a metre row leaked into the feddan ladder');
+        }
+
+        $this->assertSame([], array_intersect($metres, $feddans), 'the two ladders share a row');
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

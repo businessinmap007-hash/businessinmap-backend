@@ -450,6 +450,11 @@ return [
          * It qualifies the same line «مستوى التشطيب» does, one row down.
          */
         'المساحة',                // 100 – 150 م² ≠ 2000 – 5000 م²
+        // The farm's own unit, added the same day. A فدان is ≈4200 م², so the
+        // two ladders would overlap if they were one — a search offering two
+        // rows for one plot is the opposite of «محدد». Two units, two clean
+        // ladders, and the merchant answers the one his trade quotes in.
+        'المساحة بالفدان',        // فدان – 3 أفدنة
         'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
 
         /*

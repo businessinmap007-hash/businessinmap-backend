@@ -35,8 +35,21 @@
 |                    wooden door and no manual shutter.
 |   رحلات #285     ← the trip rows of «خدمات السياحة والسفر» below. A trip
 |                    operator issues no visa and books no hotel.
-|   تحويل أموال #283 ← the transfer rows of «خدمات الصرافة والتحويل». It does
-|                    not trade currency over a counter.
+|
+| ── The borrow that became a merge (2026-08-16) ───────────────────────────
+|
+| «تحويل أموال» #283 used to stand here, lent the transfer rows of «خدمات
+| الصرافة والتحويل» and denied the two counter rows: it moves money, it does
+| not trade currency. That is a true sentence about a trade and it was the
+| wrong shape — the difference between the two children WAS those two rows,
+| and a difference of two rows is an option, not a child.
+|
+| Both stood under «شركات» and nowhere else, both carried this same group
+| whose own name joins the two words, both sold through booking and
+| business_offers, and between them they had one merchant. Folded into #187,
+| renamed «صرافة وتحويل أموال». A remittance shop now ticks six rows and
+| leaves «صرافة عملات» alone, which says the same thing per MERCHANT instead
+| of per trade.
 |
 | ── The question that was open, now settled (2026-08-12) ──────────────────
 |
@@ -459,18 +472,17 @@ return [
             'نوع العملاء' => 'all',
         ],
 
-        // It moves money; it does not trade currency over a counter.
-        283 => [
-            'خدمات الصرافة والتحويل' => [
-                'تحويلات محلية',
-                'تحويلات دولية',
-                'استلام حوالات',
-                'محافظ إلكترونية',
-                'دفع فواتير',
-                'شحن رصيد',
-            ],
-            'نوع العملاء' => 'all',
-        ],
+        /*
+         * «تحويل أموال» #283 stood here with the transfer rows and without the
+         * two counter rows, on the reading that it moves money and does not
+         * trade currency. It was folded into #187 on 2026-08-16 and the child
+         * is gone — see the note at the head of this file.
+         *
+         * The narrowing it expressed is gone with it, and correctly: a shop
+         * that only sends remittances now ticks the six transfer rows and
+         * leaves «صرافة عملات» alone, which is the same statement made in the
+         * place that can also be true of one merchant and false of the next.
+         */
 
         /*
          * «نوع العملاء», built for «مكاتب» hours earlier. These nine are B2B

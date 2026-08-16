@@ -164,6 +164,11 @@ return [
         // nutritionist, a bath attendant and a creche are four people's time,
         // and a gym sells all four beside the subscription.
         'خدمات النادي الرياضي',   // مدرب شخصي، حضانة أطفال
+        // «شحن بري وبحري وجوى» was named for three modes and could say none of
+        // them; its only line was a lorry list. The mode IS what a freight
+        // company sells and it is priced per mode — a container by sea, a kilo
+        // by air — so descriptive would have left the hole where it was.
+        'وسيلة الشحن',            // شحن بحري، شحن جوي
         // Same cut again, for the guest: «نقل من المطار» is a driver, a car and
         // a fare, and it spent its life in «مرافق الإقامة» beside المسبح where
         // no price could reach it. One row, and a group of one is right when it
@@ -378,6 +383,11 @@ return [
          */
         'نطاق الشحن',             // دولي ≠ داخل المدينة
         'سرعة الشحن',             // نفس اليوم ≠ عادي
+        // The third axis on the same lorry: a refrigerated run and a dry one
+        // are the same vehicle at two prices. «مقطورة» is NOT in it — that is
+        // «مركبات النقل والركاب», and which vehicle is a different question
+        // from how the load is carried.
+        'تجهيز الشحن البري',      // مبرد ≠ جاف
         'فترة الحجز',             // يوم كامل ≠ فترة صباحية
         'وحدة البيع',             // بالطن ≠ بالكيلو
         'درجة التحميص والطحن',    // غامق ≠ فاتح

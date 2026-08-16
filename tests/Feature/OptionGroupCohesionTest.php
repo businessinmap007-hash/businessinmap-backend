@@ -191,20 +191,44 @@ class OptionGroupCohesionTest extends TestCase
      * resolves. The ledger blocks the grant, so they come out saying delivery
      * and not shipping, which is what the withdrawal meant. What must never
      * happen is a child left with no way to answer the group at all.
+     *
+     * Asserted against the MAP and not against a count. The first version of
+     * this counted children and demanded at least as many as the compound had
+     * reached, which read as an invariant and was a snapshot: reverting the
+     * «شركات» pins took the fulfilment group off eleven service companies —
+     * correctly, a money-transfer office has no delivery terms — and the count
+     * fell to 106. The rule is «every child the map OFFERS this group can
+     * answer it», and that survives a narrowing.
      */
     public function test_the_merge_left_no_child_unable_to_answer(): void
     {
+        $map = require database_path('seeders/data/child_option_groups.php');
         $groupId = (int) DB::table('option_groups')->where('name_ar', 'التسليم والاستلام')->value('id');
 
-        $mute = DB::table('category_children_master as c')
-            ->join('category_parent_child as pc', 'pc.child_id', '=', 'c.id')
-            ->whereExists(fn ($q) => $q->from('category_child_option as co')
-                ->join('options as o', 'o.id', '=', 'co.option_id')
-                ->whereColumn('co.child_id', 'c.id')
-                ->where('o.group_id', '=', DB::raw((string) $groupId)))
-            ->distinct()->count('c.id');
+        $mute = [];
 
-        $this->assertGreaterThanOrEqual(110, $mute, 'the group reaches fewer children than the compound alone did');
+        foreach (DB::table('category_parent_child as pc')->join('categories as c', 'c.id', '=', 'pc.parent_id')
+            ->get(['c.slug', 'pc.child_id']) as $row) {
+            if (! isset($map['root_defaults'][$row->slug])) {
+                continue;
+            }
+
+            $bundle = $map['child_overrides']["{$row->slug}:{$row->child_id}"] ?? $map['root_defaults'][$row->slug];
+
+            if (! in_array('fulfilment', $bundle, true)) {
+                continue;
+            }
+
+            $answers = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->where('co.child_id', $row->child_id)->where('o.group_id', $groupId)->exists();
+
+            if (! $answers) {
+                $mute[] = "{$row->slug}:{$row->child_id}";
+            }
+        }
+
+        $this->assertSame([], $mute, 'offered the delivery group and unable to answer it: ' . implode('، ', $mute));
     }
 
     public function test_property_types_no_longer_hold_a_deal_or_a_payment_term(): void

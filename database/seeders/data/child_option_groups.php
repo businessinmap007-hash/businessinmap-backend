@@ -202,14 +202,13 @@ return [
         // ── companies: the service firms among the goods traders
         'companies:253' => $fieldWork,   // أمن
         'companies:261' => $fieldWork,   // برمجيات
-        'companies:283' => $fieldWork,   // تحويل أموال
         'companies:177' => $fieldWork,   // تسويق
         'companies:70' => $fieldWork,    // تنسيق حفلات
         'companies:11' => $fieldWork,    // دعاية وإعلان
         'companies:285' => $fieldWork,   // رحلات
         'companies:279' => $fieldWork,   // سياحة
         'companies:153' => $fieldWork,   // شركات تأمين
-        'companies:187' => $fieldWork,   // صرافة نقود
+        'companies:187' => $fieldWork,   // صرافة وتحويل أموال
         'companies:231' => $fieldWork,   // طباعة
         'companies:72' => $fieldWork,    // مقاولات
         'companies:152' => $fieldWork,   // مقاولات بنية تحتية

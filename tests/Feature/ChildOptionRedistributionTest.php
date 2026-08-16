@@ -139,6 +139,55 @@ class ChildOptionRedistributionTest extends TestCase
         ];
     }
 
+    /**
+     * «ارجع تثبيت شركات» — owner, 2026-08-16.
+     *
+     * A bulk save under «شركات» on 2026-08-11 23:41, two timestamps one second
+     * apart, pinned an entire GOODS vocabulary onto eleven service companies:
+     * تصدير، إستيراد، تجزئة، جملة، جديد، مستعمل، تغيير، استبدال، شحن، تسليم أرض
+     * المصنع، توصيل مجانى. An insurance company was answering «جديد / مستعمل»
+     * and a money-transfer office was quoting ex-works.
+     *
+     * The pins were what kept them there: a pin outranks the map, so the
+     * narrowing could not reach them and neither could ChildOptionGroupsSeeder.
+     *
+     * Reverted per CHILD, not per save. The same two timestamps legitimately
+     * gave 26 goods children their كاش/تقسيط and their trade scope, and undoing
+     * that would be the accident again in the other direction. Which children
+     * are service is not my reading either — it is `child_option_groups.php`'s
+     * own bundle for them under «شركات»: service_mode and payment_terms, and
+     * nothing that describes goods.
+     */
+    public function test_no_service_company_answers_a_goods_question(): void
+    {
+        $map = require database_path('seeders/data/child_option_groups.php');
+        $goodsBundles = ['trade_scope', 'product_condition', 'fulfilment', 'returns_policy'];
+
+        $companies = (int) DB::table('categories')->where('slug', 'companies')->value('id');
+
+        $offenders = [];
+
+        foreach (DB::table('category_parent_child')->where('parent_id', $companies)->pluck('child_id') as $childId) {
+            $bundle = $map['child_overrides']["companies:{$childId}"] ?? $map['root_defaults']['companies'];
+
+            if (array_intersect($bundle, $goodsBundles)) {
+                continue;   // a company that really does sell goods
+            }
+
+            $held = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+                ->where('co.child_id', $childId)
+                ->whereIn('g.name_ar', ['التسليم والاستلام', 'نطاق التعامل', 'حالة المنتج', 'الاستبدال والإرجاع'])
+                ->distinct()->pluck(DB::raw("concat(c.name_ar, ' · ', o.name_ar) as label"))->all();
+
+            $offenders = array_merge($offenders, $held);
+        }
+
+        $this->assertSame([], $offenders, 'a service company is answering about goods: ' . implode('، ', $offenders));
+    }
+
     /** The trades each word was kept for are still able to say it. */
     public function test_the_narrowing_did_not_silence_the_trades_the_words_belong_to(): void
     {

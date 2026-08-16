@@ -1518,7 +1518,13 @@ class ChildTradeVocabulariesTest extends TestCase
         // OptionPriceRolesSeeder runs, silently — six times so far.
         $roles = [];
 
-        foreach (['office_child_vocabularies.php', 'technology_child_vocabularies.php'] as $file) {
+        foreach ([
+            'office_child_vocabularies.php',
+            'technology_child_vocabularies.php',
+            // Added 2026-08-16 with «وسيلة الشحن» and «تجهيز الشحن البري»,
+            // both of which price and both of which would have been reset.
+            'shipping_child_vocabularies.php',
+        ] as $file) {
             foreach ((require database_path("seeders/data/{$file}"))['groups'] ?? [] as $group => $spec) {
                 $roles[$group] = $spec['price_role'];
             }
@@ -1626,6 +1632,100 @@ class ChildTradeVocabulariesTest extends TestCase
         (new \Database\Seeders\ChildTradeVocabulariesSeeder)->run();
 
         $this->assertSame($before, $carriers(), 'a club gained or lost a row in a move that only changes a heading');
+    }
+
+    /**
+     * «اضافة مجموعة خيارات تعبر عن شحن بري وبحري وجوى» — owner, 2026-08-16.
+     *
+     * «شحن بري وبحري وجوى» #166 is named for three modes and could say none of
+     * them. Its only `line` was «مركبات النقل والركاب», a lorry list, so a
+     * company moving containers by sea and pallets by air was selling trucks.
+     * #68 and #198 both tick «شحن دولي» and had the same hole: how far and how
+     * fast, never by what.
+     */
+    public function test_an_international_carrier_can_name_the_mode_it_ships_by(): void
+    {
+        foreach (['شحن بري وبحري وجوى', 'شركة', 'مكتب'] as $carrier) {
+            $modes = $this->optionsOfChildInGroup($carrier, 'وسيلة الشحن');
+
+            $this->assertSame(['شحن بري', 'شحن بحري', 'شحن جوي'], $modes, "«{$carrier}» cannot name a freight mode");
+        }
+
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'وسيلة الشحن')->value('price_role'),
+            'the mode IS what a carrier sells and is priced per mode'
+        );
+    }
+
+    /**
+     * …and what the load travels in. «مبرد» and «مجمد» existed nowhere on the
+     * platform: a refrigerated run and a dry one are the same lorry at two
+     * prices, which is the definition of a modifier.
+     *
+     * «مقطورة» is asserted ABSENT from the new group and present in the old
+     * one. It already lives in «مركبات النقل والركاب» and restating it would
+     * put one word in two groups, where a merchant can tick it in one and not
+     * the other — the duplication this taxonomy keeps having to undo.
+     */
+    public function test_the_load_axis_is_new_and_does_not_restate_the_vehicle(): void
+    {
+        foreach (['شحن بري وبحري وجوى', 'شركة', 'مكتب', 'سيارات نقل'] as $carrier) {
+            $kit = $this->optionsOfChildInGroup($carrier, 'تجهيز الشحن البري');
+
+            $this->assertContains('مبرد', $kit, "«{$carrier}» cannot say refrigerated");
+            $this->assertContains('مجمد', $kit);
+            $this->assertNotContains('مقطورة', $kit, 'the trailer belongs to the vehicle list');
+        }
+
+        $this->assertContains('مقطورة', $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'مركبات النقل والركاب'));
+
+        // A local courier is not an international carrier and the owner stripped
+        // it bare by hand on 2026-08-11; handing it two new axes would be
+        // reading his intent rather than his instruction.
+        $this->assertSame([], $this->optionsOfChildInGroup('مندوب', 'تجهيز الشحن البري'));
+        $this->assertSame([], $this->optionsOfChildInGroup('مندوب', 'وسيلة الشحن'));
+    }
+
+    /**
+     * «دمج صرافة نقود - تحويل أموال … هل هذا افضل» — owner, 2026-08-16, and
+     * yes: the difference between the two children WAS two rows.
+     *
+     * Both stood under «شركات» and nowhere else, both carried «خدمات الصرافة
+     * والتحويل» — a group whose own name joins the two words — both sold
+     * through booking and business_offers, and «تحويل أموال» held six of the
+     * eight rows while «صرافة نقود» held all eight. A difference of two rows is
+     * an option, not a child.
+     */
+    public function test_the_exchange_and_transfer_trades_are_one_child(): void
+    {
+        $keeper = DB::table('category_children_master')->where('id', 187)->first(['name_ar']);
+
+        $this->assertSame('صرافة وتحويل أموال', $keeper->name_ar);
+
+        $this->assertSame(
+            0,
+            DB::table('category_parent_child')->where('child_id', 283)->count(),
+            'the folded child is retired, not deleted — it must simply stand under no root'
+        );
+
+        // The narrowing that used to be a child is now a merchant's own tick:
+        // a remittance shop leaves «صرافة عملات» alone.
+        $rows = $this->optionsOfChildInGroup('صرافة وتحويل أموال', 'خدمات الصرافة والتحويل');
+
+        $this->assertContains('صرافة عملات', $rows);
+        $this->assertContains('تحويلات دولية', $rows);
+    }
+
+    /** @return array<int,string> */
+    private function optionsOfChildInGroup(string $child, string $group): array
+    {
+        return DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+            ->where('c.name_ar', $child)->where('g.name_ar', $group)
+            ->distinct()->orderBy('o.id')->pluck('o.name_ar')->all();
     }
 
     /** Re-running it changes nothing. */

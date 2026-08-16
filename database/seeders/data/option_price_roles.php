@@ -441,6 +441,15 @@ return [
         // as a `line` group now: once a hotel's جناح and a flat's ثلاث غرف sit
         // in one list, that list IS the thing being paid for, not a modifier on
         // it. Left here it would be a third name matching no group.
+        /*
+         * «مساحات … تتناسب مع فروع مجموعة عقارات وممتلكات حتى يكون العرض سهل
+         * وايضا البحث يكون محدد» — owner, 2026-08-16.
+         *
+         * A modifier and not a line: what is bought is the PROPERTY — «شقة»،
+         * «مخازن» — and «100 – 150 م²» on its own is not a thing anybody buys.
+         * It qualifies the same line «مستوى التشطيب» does, one row down.
+         */
+        'المساحة',                // 100 – 150 م² ≠ 2000 – 5000 م²
         'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
 
         /*

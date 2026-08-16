@@ -602,6 +602,26 @@ return [
 
     'links' => [
         /*
+         * ── «قطع غيار سيارات» #44 was mute under two of its three roots ──────
+         *
+         * The one gap in the whole «مصانع» walk, 2026-08-16: 42 of its 43
+         * children carry a `line` and this one carried four modifiers and
+         * nothing under them. It could say which BRAND it fits (43 marques),
+         * what GRADE it is and how it is MADE, and not what it makes.
+         *
+         * The list existed the whole time. «نوع قطع الغيار» #260 — ميكانيكا،
+         * فرامل، فتيس، عوادم — was written for this child and is held by it
+         * alone, scoped to «المحلات» and only «المحلات». So the SHOP could name
+         * the system and the FACTORY and the wholesaler could not, which is the
+         * mute-under-one-root shape the mirror pass exists for.
+         *
+         * A brake-pad factory makes brakes and the wholesaler next door sells
+         * brakes: same trade, same answer, so the row is SHARED rather than
+         * mirrored per root. `links` writes at scope 0, which is exactly that.
+         */
+        44 => ['نوع قطع الغيار' => 'all'],
+
+        /*
          * The fire half of «أنظمة الأمن والسلامة», built hours earlier for
          * «أمن وسلامة» #254. A fire-equipment factory installs no intercom and
          * no attendance terminal, so the manpower-adjacent rows stay behind —

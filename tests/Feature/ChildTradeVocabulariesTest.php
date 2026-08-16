@@ -1918,6 +1918,105 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * «راجع باقي أبناء المصانع بنفس الطريقة» — owner, 2026-08-16, and the walk
+     * found ONE gap in 43 children.
+     *
+     * «قطع غيار سيارات» #44 carried four modifiers and nothing under them: it
+     * could say which BRAND it fits — all 43 marques — what GRADE it is and how
+     * it is MADE, and not what it makes. The list existed the whole time: «نوع
+     * قطع الغيار» #260 is held by this child alone and was scoped to «المحلات»
+     * and only «المحلات», so the SHOP could name the system and the FACTORY and
+     * the wholesaler could not.
+     *
+     * Shared rather than mirrored per root, because a brake-pad factory makes
+     * brakes and the wholesaler next door sells brakes — the same trade
+     * answering the same, which is the rule this file keeps proving.
+     */
+    public function test_every_factory_child_can_name_what_it_makes(): void
+    {
+        $rootId = (int) DB::table('categories')->where('slug', 'factories')->value('id');
+
+        $mute = [];
+
+        foreach (
+            DB::table('category_parent_child as pc')
+                ->join('category_children_master as c', 'c.id', '=', 'pc.child_id')
+                ->where('pc.parent_id', $rootId)->get(['c.id', 'c.name_ar']) as $child
+        ) {
+            $hasLine = DB::table('category_child_option as co')
+                ->join('options as o', 'o.id', '=', 'co.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('co.child_id', (int) $child->id)
+                ->whereIn('co.category_id', [0, $rootId])
+                ->where('g.price_role', 'line')->exists();
+
+            if (! $hasLine) {
+                $mute[] = "{$child->name_ar}#{$child->id}";
+            }
+        }
+
+        $this->assertSame([], $mute, 'these factories cannot name what they make: ' . implode('، ', $mute));
+
+        // …and the specific one, under all three of its roots.
+        foreach ([17, 22, 23] as $root) {
+            $this->assertTrue(
+                DB::table('category_child_option as co')
+                    ->join('options as o', 'o.id', '=', 'co.option_id')
+                    ->where('co.child_id', 44)->where('o.group_id', 260)
+                    ->whereIn('co.category_id', [0, $root])->exists(),
+                "«قطع غيار سيارات» cannot name a system under root {$root}"
+            );
+        }
+    }
+
+    /**
+     * «اضافة الى عقارات واراضى مخازن - جمالون» and «مساحات … تتناسب مع فروع
+     * مجموعة عقارات وممتلكات حتى يكون العرض سهل وايضا البحث يكون محدد» —
+     * owner, 2026-08-16.
+     *
+     * A warehouse is the commonest commercial listing in Egypt after the shop
+     * and a «جمالون» is how a light factory or a storage yard is advertised;
+     * «مصنع» and «ورشة» were carrying both by implication.
+     *
+     * ONE area ladder and not one per property type, because the platform has
+     * no conditional options: three groups would make the customer filtering
+     * «100–150» choose which to open first. It meets «تتناسب مع الفروع» by
+     * being fine where the small properties live and coarse where the large
+     * ones do — a flat is answered in the first five rows and a warehouse
+     * starts where the flat stops.
+     */
+    public function test_a_property_listing_can_say_what_it_is_and_how_big(): void
+    {
+        foreach ([517, 518, 522] as $childId) {
+            $name = (string) DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+            $types = $this->optionsOfChildInGroup($name, 'عقارات وممتلكات');
+
+            $this->assertContains('مخازن', $types, "«{$name}» cannot list a warehouse");
+            $this->assertContains('جمالون', $types, "«{$name}» cannot list a steel-frame shed");
+
+            $this->assertCount(
+                11,
+                $this->optionsOfChildInGroup($name, 'المساحة'),
+                "«{$name}» is missing part of the area ladder"
+            );
+        }
+
+        // A modifier: «شقة × 100–150 م²» is a price, «100–150 م²» is not a
+        // thing anybody buys. Same role as «مستوى التشطيب» beside it.
+        $this->assertSame(
+            'modifier',
+            DB::table('option_groups')->where('name_ar', 'المساحة')->value('price_role')
+        );
+
+        // The ladder must not double back on itself — a search that offers two
+        // rows covering 120 م² is not «محدد».
+        $bands = $this->optionsOfChildInGroup('مكتب عقاري', 'المساحة');
+
+        $this->assertSame(count($bands), count(array_unique($bands)), 'the ladder repeats a band');
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

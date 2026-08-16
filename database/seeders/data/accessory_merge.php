@@ -74,9 +74,24 @@ return [
     ],
 
     /*
-    | Given the vocabulary, kept as its own child.
+    | Given the vocabulary, kept as its own child — and it has since been given
+    | a better one, so the list here is empty.
+    |
+    | On 2026-08-16 «موبيلات و اكسسوار» #186 got «أجهزة الموبايل وملحقاتها», a
+    | thirteen-row LINE written for it: موبايل جديد، تابلت، جرابات وكفرات،
+    | صيانة وبرمجة، شرائح وشحن رصيد. Four of this group's rows are said again in
+    | it — اكسسوار موبايل، شواحن وكابلات، سماعات، أغطية وحافظات — and the ten
+    | that are not are حقائب وشنط، مجوهرات، إكسسوار شعر وتجميل on a phone
+    | counter.
+    |
+    | So the compensation this file granted has been superseded by the real
+    | thing, and `child_option_scopes.php` declares the group empty for #186.
+    | The name is removed from here rather than left: an add-only seeder and a
+    | scope seeder both running on a list they disagree about is two seeders
+    | undoing each other on every seed, which is the loop this taxonomy keeps
+    | having to unpick.
+    |
+    | #186 is still NOT folded, which was and is the judgement of this file.
     */
-    'carry_only' => [
-        'موبيلات و اكسسوار',
-    ],
+    'carry_only' => [],
 ];

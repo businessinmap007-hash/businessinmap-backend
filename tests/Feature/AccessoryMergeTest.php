@@ -130,7 +130,23 @@ class AccessoryMergeTest extends TestCase
             'the phone merchants were moved off it'
         );
 
-        $this->assertContains('اكسسوار موبايل', $this->typesOf('موبيلات و اكسسوار'));
+        /*
+         * It used to be asserted that it carries «اكسسوار موبايل» from this
+         * group, which was the compensation for not being folded. It has since
+         * been given the real thing — «أجهزة الموبايل وملحقاتها», thirteen rows
+         * written for it on 2026-08-16 — and this group's four overlapping rows
+         * came with ten that do not overlap: حقائب وشنط and مجوهرات on a phone
+         * counter. The group is declared empty for it now.
+         *
+         * What this test is for survives intact: the phone shop kept its row
+         * and its merchants, and it can say what it sells.
+         */
+        $this->assertSame([], $this->typesOf('موبيلات و اكسسوار'), 'the phone shop is offered a handbag again');
+
+        $this->assertNotEmpty(
+            app(\App\Services\MerchantOfferingVocabulary::class)->for(0, $childId, 17)['lines'],
+            'the phone shop has nothing to price'
+        );
     }
 
     /** Re-running writes nothing. */

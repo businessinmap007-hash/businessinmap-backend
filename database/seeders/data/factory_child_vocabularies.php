@@ -254,8 +254,23 @@ return [
             ],
         ],
 
+        /*
+        | Root-scoped, and it had to become so on 2026-08-16.
+        |
+        | «مفاتيح» #159 is one child row meaning two trades: an electrical
+        | wholesaler under «مصانع», and under «المحلات» the man on the corner who
+        | cuts a key and changes a lock — which is why he was given «خدمات
+        | المفاتيح والأقفال», root-scoped, in shop_child_vocabularies.php. That
+        | file says «the switchgear list is untouched», and it was reaching him
+        | anyway: written SHARED, one row of it — «كابلات وأسلاك» — followed the
+        | child to the shop, so a locksmith was offered cable by the metre.
+        |
+        | A factory's product list is a factory's. The shared row and its
+        | root-17 copy are gone and the seven live under «مصانع» alone.
+        */
         'المفاتيح والتوزيع الكهربائي' => [
-            'name_en' => 'Switchgear & Wiring', 'price_role' => 'line', 'children' => [159],
+            'name_en' => 'Switchgear & Wiring', 'price_role' => 'line',
+            'scope' => 'root', 'children' => [159],
             'options' => [
                 'مفاتيح كهرباء' => 'Switches', 'بريزات' => 'Sockets',
                 'لوحات توزيع' => 'Distribution Boards', 'قواطع' => 'Circuit Breakers',

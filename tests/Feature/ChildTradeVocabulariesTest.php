@@ -2065,6 +2065,28 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame([], array_intersect($metres, $feddans), 'the two ladders share a row');
     }
 
+
+    /**
+     * The children that are deliberately TWO TRADES under one row.
+     *
+     * The rule below — a child's priced vocabulary may be a superset under one
+     * root but never disjoint — is about accidents, and there is one case that
+     * is not an accident.
+     *
+     * «مفاتيح» #159: under «مصانع» it is an electrical wholesaler and prices
+     * switches, sockets and distribution boards; under «المحلات» it is the man
+     * on the corner who cuts a key and changes a lock, and prices «نسخ مفاتيح»
+     * and «تصليح كوالين». Two lists with not one row in common, and both are
+     * right — the owner said so on 2026-08-16, and both files say so in prose.
+     * Root scoping exists for exactly this.
+     *
+     * The list may only SHRINK. A new entry means somebody split a trade in two
+     * without deciding to.
+     *
+     * @var array<int,int>
+     */
+    private const TWO_TRADES_BY_DESIGN = [159];
+
     /**
      * «راجع باقي أبناء المعارض بنفس الطريقة» — owner, 2026-08-16, and the
      * finding was not a missing list. It was one child priced on TWO DIFFERENT
@@ -2115,6 +2137,10 @@ class ChildTradeVocabulariesTest extends TestCase
                         continue;
                     }
 
+                    if (in_array((int) $childId, self::TWO_TRADES_BY_DESIGN, true)) {
+                        continue;
+                    }
+
                     $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
                     $disjoint[] = "{$name}#{$childId}";
                 }
@@ -2131,6 +2157,55 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertSame(['أنواع الأقمشة'], array_keys($lines->all()), "«أقمشة» prices something else under root {$rootId}");
             $this->assertCount(15, $lines->first(), "«أقمشة» is offered a short list under root {$rootId}");
         }
+    }
+
+    /**
+     * «راجع باقي أبناء المحلات أو أونلاين بنفس الطريقة» — owner, 2026-08-16.
+     *
+     * Sixty-three children, none mute, and the two findings are the same shape
+     * as «أقمشة» the hour before: a row left behind from somebody else's list
+     * after the right one was written.
+     *
+     * «مفاتيح» #159 is one child row meaning two trades — an electrical
+     * wholesaler under «مصانع» and the man who cuts a key under «المحلات». He
+     * was given «خدمات المفاتيح والأقفال» root-scoped on 2026-08-16 and the
+     * file said «the switchgear list is untouched». It was reaching him anyway:
+     * written SHARED, one row of it — «كابلات وأسلاك» — followed the child to
+     * the shop, so a locksmith was offered cable by the metre.
+     *
+     * «موبيلات و اكسسوار» #186 was given «أجهزة الموبايل وملحقاتها» the same
+     * day because it had no word for a phone, and kept the fashion accessory
+     * list it had been answering instead. Four rows were then said twice —
+     * اكسسوار موبايل، شواحن وكابلات، سماعات، أغطية وحافظات — and what did not
+     * repeat was حقائب وشنط and مجوهرات on a phone counter.
+     */
+    public function test_a_shop_is_not_offered_the_list_it_was_rescued_from(): void
+    {
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+
+        // One child, two trades, and each root prices its own.
+        $this->assertSame(
+            ['خدمات المفاتيح والأقفال'],
+            array_keys($vocabulary->for(0, 159, 17)['lines']->all()),
+            'the locksmith is selling switchgear'
+        );
+
+        $this->assertSame(
+            ['المفاتيح والتوزيع الكهربائي'],
+            array_keys($vocabulary->for(0, 159, 23)['lines']->all()),
+            'the switchgear factory lost its list'
+        );
+
+        // The phone shop says everything it sells once, in its own list.
+        $this->assertSame(
+            ['أجهزة الموبايل وملحقاتها'],
+            array_keys($vocabulary->for(0, 186, 17)['lines']->all()),
+            'the phone shop is offered a handbag'
+        );
+
+        // …and «اكسسوار» #8 keeps the group whole: that IS the fashion
+        // accessory trade, and the child this list was written for.
+        $this->assertCount(14, $vocabulary->for(0, 8, 17)['lines']->first());
     }
 
     /** @return array<int,string> */

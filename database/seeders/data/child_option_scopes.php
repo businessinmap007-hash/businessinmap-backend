@@ -140,6 +140,28 @@ return [
     | answering WHO it is for and WHAT is sold at once, and only the second is
     | a priced line.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | أنواع الإكسسوارات — a phone shop is not offered a handbag
+    |--------------------------------------------------------------------------
+    | «موبيلات و اكسسوار» #186 (17 merchants) was given «أجهزة الموبايل
+    | وملحقاتها» on 2026-08-16 because it had no word for a phone. What was not
+    | done that day is take away the list it had been answering instead, and
+    | the two overlap badly: اكسسوار موبايل، شواحن وكابلات، سماعات and أغطية
+    | وحافظات are said twice, once in each group, and what does NOT repeat is
+    | حقائب وشنط، مجوهرات، إكسسوار شعر وتجميل، إكسسوار رياضي — a fashion
+    | accessory shop's stock on a phone counter.
+    |
+    | Declared empty rather than narrowed to the four that overlap, because the
+    | overlap is the reason: everything a mobile shop sells is already in its
+    | own thirteen-row list, said once. «اكسسوار» #8 keeps the group whole —
+    | that IS the fashion accessory trade, and it is the child this list was
+    | written for.
+    */
+    'أنواع الإكسسوارات' => [
+        186 => [],               // موبيلات و اكسسوار — its own list says it all
+    ],
+
     'موضة وعناية شخصية' => [
         /*
          * «أقمشة» #95 — a fabric merchant is a different trade, and the

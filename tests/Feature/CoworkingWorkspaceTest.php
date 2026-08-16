@@ -61,12 +61,16 @@ class CoworkingWorkspaceTest extends TestCase
      * could name its stock but not price it can now do both — which is what
      * this debt list has always been measuring.
      *
-     * The three left are the ones still genuinely without a priced list:
-     * #23 «شركات الأمن», #110 «مواد غذائية ومنظفات» and #263 «قطع غيار» — a
-     * wholesaler whose only axis is the RANGE it deals in.
+     * A fourth came off on 2026-08-16 by exactly the same mechanism, five days
+     * later: #110 «مواد غذائية ومنظفات». Its only axis was the RANGE it deals
+     * in — «أصناف المنتجات الغذائية» — which the owner made a `line` by hand,
+     * the last group of that shape left on the platform.
+     *
+     * The two left are the ones still genuinely without a priced list:
+     * #23 «شركات الأمن» and #263 «قطع غيار».
      */
     private const NAMELESS_UNITS = [
-        23, 110, 263,
+        23, 263,
     ];
 
     private function childId(string $name): int

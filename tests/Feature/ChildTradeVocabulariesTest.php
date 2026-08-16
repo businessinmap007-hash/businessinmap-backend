@@ -479,23 +479,29 @@ class ChildTradeVocabulariesTest extends TestCase
     /**
      * Every (root, child) that still cannot name its trade.
      *
-     * On 2026-08-11 this held 52 entries across five roots. It now holds ONE,
-     * and that one is not a gap: **«مندوب» #243 carries 159 merchants, more
-     * than any other child on the platform, and the owner withdrew all
-     * thirteen of its options by hand** — «ربع نقل» and «ربع نقل صندوق» among
-     * them. Curation, recorded in `category_child_option_decisions`.
+     * On 2026-08-11 this held 52 entries across five roots. It held ONE for
+     * five days — «مندوب» #243, 159 merchants, more than any other child on
+     * the platform — and on 2026-08-16 it holds none.
+     *
+     * That last one was never really curation, and the distinction matters.
+     * The owner had withdrawn thirteen options from it by hand, so the file
+     * that gave this root «نطاق الشحن» and «سرعة الشحن» kept them from it
+     * deliberately rather than read intent into a strip. But what he removed
+     * was a GOODS vocabulary — تجزئة، جملة، تسليم أرض المصنع، توصيل مجانى — and
+     * three vans. He never refused a courier's own words, because none had
+     * ever been offered. «راجع باقي أبناء شحن وتوصيل» was the instruction that
+     * had been missing, and its two siblings had both axes all along.
      *
      * Keyed by ROOT because the links are per-root: a child can name its trade
      * under «شركات» and be mute under «مصانع», which is what seven factory
      * children were until the mirror pass.
      *
-     * The list may only SHRINK.
+     * The list may only SHRINK, and it is now empty. Anything appearing in
+     * `muteTrades()` from here is a new gap, not a known one.
      *
      * @var array<int,string>
      */
-    private const MUTE_TRADES = [
-        'shipping-delivery:243',
-    ];
+    private const MUTE_TRADES = [];
 
     /** @return array<int,string> every (root, child) that owns no trade word */
     private function muteTrades(): array
@@ -1680,11 +1686,26 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertContains('مقطورة', $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'مركبات النقل والركاب'));
 
-        // A local courier is not an international carrier and the owner stripped
-        // it bare by hand on 2026-08-11; handing it two new axes would be
-        // reading his intent rather than his instruction.
-        $this->assertSame([], $this->optionsOfChildInGroup('مندوب', 'تجهيز الشحن البري'));
+        /*
+         * «مندوب» takes a slice of this and none of the mode group, and both
+         * halves are read from its own service configs rather than from a view
+         * about couriers.
+         *
+         * Its `schedules` config allows exactly `distribution_van` and
+         * `distribution_refrigerated`, so «مبرد» and «مجمد» are things the
+         * platform already says it does; حاوية، صهريج، سطحة، سائبة، ثقيل and
+         * خطرة are a fleet it does not have. And a rep is not an international
+         * carrier, so «وسيلة الشحن» stays off it entirely.
+         */
+        $kit = $this->optionsOfChildInGroup('مندوب', 'تجهيز الشحن البري');
+
+        $this->assertSame(['جاف / عادي', 'مبرد', 'مجمد'], $kit);
         $this->assertSame([], $this->optionsOfChildInGroup('مندوب', 'وسيلة الشحن'));
+
+        // …and the one exclusion on the range axis: domestic by definition.
+        $this->assertNotContains('شحن دولي', $this->optionsOfChildInGroup('مندوب', 'نطاق الشحن'));
+        $this->assertContains('الصعيد والحدود', $this->optionsOfChildInGroup('مندوب', 'نطاق الشحن'));
+        $this->assertCount(4, $this->optionsOfChildInGroup('مندوب', 'سرعة الشحن'));
     }
 
     /**

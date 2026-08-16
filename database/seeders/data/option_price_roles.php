@@ -109,6 +109,23 @@ return [
          * product behind it would be a second price for one thing.
          */
         'أصناف المفروشات',
+        /*
+         * Moved out of `modifier` on 2026-08-16, by the owner's hand in the
+         * admin and recorded here rather than argued with.
+         *
+         * The file kept it a modifier on a reading that was true of the group
+         * and blind to its carriers: «which ranges do you deal in» is a real
+         * question for a wholesaler, and answering it does not say what he
+         * sells. But «مواد غذائية» #109 carries this group and NOTHING else
+         * that prices — a modifier with no line under it, which is the exact
+         * shape this whole sweep has been closing, and the last surviving
+         * example of it.
+         *
+         * grocery_aisle_split.php still calls it a modifier in prose and that
+         * prose is now history, not instruction; the two duplicate-vocabulary
+         * findings it records are untouched by this.
+         */
+        'أصناف المنتجات الغذائية', // زيوت وسمن، أغذية أطفال
         'أعمال البنية التحتية',
         'أنواع التأمين',
         'خدمات التسويق',
@@ -417,11 +434,10 @@ return [
          * a warning about the past: «نوع قطع الغيار» was created on 2026-08-09
          * and was already one run away from being reset to descriptive.
          */
-        // The stock RANGE a wholesaler deals in, which is the one survivor of
-        // this pattern: it belongs to the three children with no market list —
-        // «مواد غذائية»، «استيراد وتصدير» — and answers «which ranges», not
-        // «what do you sell». See GroceryAisleSplitTest.
-        'أصناف المنتجات الغذائية', // زيوت وسمن ≠ أغذية أطفال
+        // «أصناف المنتجات الغذائية» left this block on 2026-08-16 — see the
+        // `line` list above. It was the one survivor of the modifier pattern
+        // and it was the clearest case against it: a modifier with no line
+        // under it prices nothing at all.
         // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. The
         // fabric list stays a modifier: a bolt of cotton is a catalog product
         // and the fibre qualifies its price. «أصناف المفروشات» went the other

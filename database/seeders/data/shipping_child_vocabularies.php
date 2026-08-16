@@ -16,14 +16,25 @@
 | answers on different axes, and a merchant may compete on one and not the
 | other.
 |
-| ── «مندوب» #243 is deliberately not here ─────────────────────────────────
+| ── «مندوب» #243, and the restraint that has now been lifted ──────────────
 |
-| It carries 159 merchants, more than any child on the platform, and the owner
-| stripped all thirteen of its options by hand on 2026-08-11 — including
-| «شحن وتوصيل» and «توصيل مجانى». Handing it two NEW axes hours later would be
-| reading his intent rather than his instruction. The seeder would grant these
-| happily because they are not in the withdrawal record; that is exactly why
-| the restraint has to be in the data file.
+| It was deliberately kept out of both groups on 2026-08-11: 159 merchants,
+| more than any child on the platform, and the owner had stripped all thirteen
+| of its options by hand that morning. Handing it two NEW axes hours later
+| would have been reading his intent rather than his instruction, and the
+| seeder would have granted them happily because they were not in the
+| withdrawal record — which is why the restraint had to live in this file.
+|
+| «راجع باقي أبناء شحن وتوصيل بنفس الطريقة» — owner, 2026-08-16, is that
+| instruction. The gap it leaves is the largest on the platform by merchant
+| count: its two siblings can say how far they go and how fast, and the child
+| carrying 159 merchants could say neither. It had one descriptive group and a
+| lone «فردي» — a modifier with no line under it, which is the shape this whole
+| sweep has been closing.
+|
+| See `links` at the foot of the file for what it gets and what it does not,
+| and note that none of it is a new word: all three groups exist and two of
+| them were written for this root.
 */
 
 return [
@@ -118,6 +129,52 @@ return [
                 'نقل ثقيل واستثنائي' => 'Heavy & Oversize',
                 'بضائع خطرة' => 'Hazardous Goods',
             ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | «مندوب» #243 — the biggest child on the platform, and the quietest
+    |--------------------------------------------------------------------------
+    | Narrowed rather than handed the groups whole, and every cut is read from
+    | the child's own service configs rather than from an opinion about couriers.
+    |
+    | ── نطاق الشحن: three of four ──
+    | «شحن دولي» is left out and it is the only exclusion. A مندوب is domestic
+    | by definition; the other three are real answers for him, and «الصعيد
+    | والحدود» especially — a courier company sending a rep to Aswan is the
+    | ordinary case, not the edge.
+    |
+    | ── سرعة الشحن: all four ──
+    | «في نفس اليوم» is literally a courier's product, and his delivery config
+    | already carries `same_day_pickup` to prove it.
+    |
+    | ── تجهيز الشحن البري: three of nine ──
+    | His `schedules` config allows exactly `distribution_van` and
+    | `distribution_refrigerated`. So «مبرد» and «مجمد» are things the platform
+    | ALREADY says he does and had no word for, and «جاف / عادي» is their
+    | opposite. The other six — حاوية، صهريج، سطحة، سائبة، ثقيل، خطرة — are for
+    | a fleet he does not have, and are the leak this review exists to avoid.
+    |
+    | ── What he does NOT get, and the contradiction to report ──
+    | No vehicle. «مركبات النقل والركاب» held ربع نقل، ربع نقل صندوق and ميني
+    | ڤان 7 for him and the owner withdrew all three on 2026-08-11 02:36 — he
+    | has ruled on that axis and this file does not reopen it. Worth knowing
+    | that the ruling and the service wiring disagree: `distribution_van` says
+    | he runs a van and the withdrawal says he may not name one. One of the two
+    | is wrong and only he can say which.
+    |
+    | No `line` either, and that is not a gap. A delivery merchant prices per
+    | ITEM TYPE — rep_errand، document_courier، small_parcel، same_day_pickup —
+    | and that axis is already his. Inventing an option group beside it would be
+    | a second pricing system for one thing, which is the reason «مطاعم
+    | وكافيهات» carries no modifier either.
+    */
+    'links' => [
+        243 => [
+            'نطاق الشحن' => ['داخل المدينة', 'بين المحافظات', 'الصعيد والحدود'],
+            'سرعة الشحن' => 'all',
+            'تجهيز الشحن البري' => ['جاف / عادي', 'مبرد', 'مجمد'],
         ],
     ],
 ];

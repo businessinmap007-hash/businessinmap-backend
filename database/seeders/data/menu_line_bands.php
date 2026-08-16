@@ -35,6 +35,12 @@ return [
         // 2026-08-16. A food court is a row of counters, and it already carried
         // thirteen of the fourteen bands; «كريب» was the one nobody had.
         'كريب'                   => 'Crêpes',
+        // «اضف فطائر كبند فى بنود المنيو» — owner, 2026-08-16. It sat down here
+        // among the aisles because the first split sent it out with them; it is
+        // a menu section, and it is listed with the menu sections now. The row
+        // itself is unchanged — see `kept` in menu_band_split.php for the move
+        // and why there is still only one «فطائر» on the platform.
+        'فطائر'                 => 'Pies',
         'مستلزمات زراعية'  => 'Agricultural Supplies',
         'ماشية وطيور'        => 'Livestock & Poultry',
         'معدات ومستلزمات'  => 'Equipment & Supplies',
@@ -48,7 +54,6 @@ return [
         'آيس كريم'            => 'Ice Cream',
         'عصائر'                 => 'Juices',
         'ألبان وبيض'        => 'Dairy & Eggs',
-        'فطائر'                 => 'Pies',
         'فسيخ'                   => 'Salted fish',
         'رنجة'                   => 'Smoked fish',
         'بهارات'               => 'Spices',
@@ -191,21 +196,23 @@ return [
         ],
         /*
         | A food court is not one kitchen — it is a row of them, so it takes
-        | every band there is. It already had thirteen and «كريب» is new.
+        | every band there is. «مأكولات بحرية»، «مشويات» and «ساندوتشات» it
+        | already had; «كريب» and «فطائر» complete the five the owner named on
+        | 2026-08-16.
         |
-        | «فطائر» is NOT added here and that is deliberate: the word already
-        | exists on «بنود المخبوزات والحلويات», the counter «حلويات» and «مخابز»
-        | work. Lending that whole counter to the court and then narrowing it
-        | back to two rows put the borrow seeder and the scope seeder in a loop
-        | over one child, each undoing the other every run. A second «فطائر» in
-        | this list would be the duplication this taxonomy keeps having to undo.
-        | Open for the owner: either is one line, and it is his call which.
+        | «فطائر» is the SAME option the bakery counter uses — the one that moved
+        | back into «بنود المنيو» rather than a second row beside it. The
+        | alternative was lending the court the whole bakery counter and then
+        | narrowing it back to two rows, which put the borrow seeder and the
+        | scope seeder in a loop over one child, each undoing the other every
+        | run. Moving one option's group ends that: it is a menu band now, so no
+        | borrowing is needed and no narrowing has to be undone.
         */
         'مجمع مطاعم' => [
             'مقبلات', 'سلطات', 'شوربة', 'مشويات',
             'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
             'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
-            'مشروبات باردة', 'وجبات أطفال', 'كريب',
+            'مشروبات باردة', 'وجبات أطفال', 'كريب', 'فطائر',
         ],
         'مخابز' => [
             'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',

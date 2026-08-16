@@ -53,7 +53,8 @@ class MenuBandSplitTest extends TestCase
     public static function splitGroups(): array
     {
         return [
-            'المطعم' => ['بنود المنيو', 15, 'مشويات'], // «كريب» added 2026-08-16
+            // «كريب» added and «فطائر» reclaimed, both 2026-08-16.
+            'المطعم' => ['بنود المنيو', 16, 'مشويات'],
             'المزارع' => ['مستلزمات المزارع', 3, 'ماشية وطيور'],
             'المعروضات' => ['صفوف معروضة', 3, 'مركبة معروضة'],
         ];
@@ -68,8 +69,8 @@ class MenuBandSplitTest extends TestCase
             $all = array_merge($all, $this->bandsOf($group));
         }
 
-        // 21 since «كريب» was added for the food court on 2026-08-16.
-        $this->assertSame(21, count($all));
+        // 22 since «كريب» and «فطائر» joined the menu for the food court.
+        $this->assertSame(22, count($all));
         $this->assertSame(count($all), count(array_unique($all)));
     }
 
@@ -136,5 +137,68 @@ class MenuBandSplitTest extends TestCase
         $this->artisan('db:seed', ['--class' => 'MenuBandSplitSeeder', '--no-interaction' => true])->run();
 
         $this->assertSame($before, count($this->bandsOf('بنود المنيو')));
+    }
+
+    /**
+     * «اضف فطائر كبند فى بنود المنيو» — owner, 2026-08-16.
+     *
+     * The split only ever pushed bands out, which is why `kept` had to become a
+     * rule instead of a comment: «فطائر» had been carried out twice, once with
+     * the aisles and once with the bakery counter, and taking its name off both
+     * lists would have moved nothing — neither seeder touches an option that is
+     * not standing in its own source group.
+     *
+     * Both halves are asserted, because either alone is a silent regression: the
+     * band has to arrive, AND the two seeders that put it in the bakery have to
+     * leave it alone afterwards.
+     */
+    public function test_a_kept_band_is_reclaimed_from_the_group_a_split_left_it_in(): void
+    {
+        $groupOf = fn (string $band) => (string) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.name_ar', $band)->where('g.name_ar', '!=', 'أقسام السوبر ماركت')
+            ->value('g.name_ar');
+
+        $this->assertSame('بنود المنيو', $groupOf('فطائر'));
+
+        $bakery = (int) DB::table('option_groups')->where('name_ar', 'بنود المخبوزات والحلويات')->value('id');
+        $option = (int) DB::table('options')->where('name_ar', 'فطائر')->value('id');
+
+        // Put it back where the second split had it, then let the chain run in
+        // its real order and prove it comes home.
+        DB::table('options')->where('id', $option)->update(['group_id' => $bakery]);
+
+        $this->artisan('db:seed', ['--class' => 'MenuBandSplitSeeder', '--no-interaction' => true])->run();
+        $this->artisan('db:seed', ['--class' => 'GroceryAisleSplitSeeder', '--no-interaction' => true])->run();
+
+        $this->assertSame('بنود المنيو', $groupOf('فطائر'));
+    }
+
+    /**
+     * And the reason it was reclaimed: «مجمع مطاعم يحتاج فروع اخرى» — the five
+     * counters the owner named for a food court. Four were already there.
+     *
+     * One «فطائر» and not two. The bakery keeps the same option id it always
+     * had, so this is the whole cost of the move: a heading changed, nothing
+     * was duplicated, and nobody lost a row.
+     */
+    public function test_the_food_court_carries_every_counter_the_owner_named(): void
+    {
+        $bandsOfChild = fn (string $child) => DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('c.name_ar', $child)->distinct()->pluck('o.name_ar')->all();
+
+        $court = $bandsOfChild('مجمع مطاعم');
+
+        foreach (['مأكولات بحرية', 'مشويات', 'فطائر', 'كريب', 'ساندوتشات'] as $counter) {
+            $this->assertContains($counter, $court, "«{$counter}» is missing from the food court");
+        }
+
+        $this->assertCount(1, DB::table('options')->where('name_ar', 'فطائر')->get());
+
+        foreach (['مخابز', 'حلويات'] as $kitchen) {
+            $this->assertContains('فطائر', $bandsOfChild($kitchen), "«{$kitchen}» lost «فطائر» in the move");
+        }
     }
 }

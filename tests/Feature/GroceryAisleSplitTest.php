@@ -95,7 +95,8 @@ class GroceryAisleSplitTest extends TestCase
     {
         return [
             'الطازج' => ['أقسام الطازج واللحوم', 9, 'لحوم ودواجن'],
-            'المخبوزات' => ['بنود المخبوزات والحلويات', 5, 'فطائر'],
+            // Four since «فطائر» was reclaimed as a menu band on 2026-08-16.
+            'المخبوزات' => ['بنود المخبوزات والحلويات', 4, 'وافل'],
             // Seven since «بن وشاي» was added on the owner's «بن يبيع حبوب فقط».
             'البقالة' => ['أقسام البقالة الجافة', 7, 'بن وشاي'],
             'المشروبات' => ['أقسام المشروبات', 2, 'عصائر'],
@@ -379,12 +380,16 @@ class GroceryAisleSplitTest extends TestCase
      * 2026-08-10, closing the last of the shop-versus-kitchen questions.
      *
      * The bakery counter is the one group both kinds of trade share, and the
-     * line runs THROUGH it rather than around it: two of its five are only ever
-     * made fresh and three are also sold wrapped.
+     * line runs THROUGH it rather than around it: what is only ever made fresh
+     * stays with the kitchens, and what is also sold wrapped is on both.
      *
      * That is why this group is «بنود» and its four siblings are «أقسام» — it
      * is a counter somebody works at, and the grocers keep only the part of it
      * that comes in a packet.
+     *
+     * Four rows, not five: «فطائر» became a menu band on 2026-08-16 and is
+     * asserted where it lives now, one test down. The ruling it was made under
+     * is untouched — a grocer still does not claim it.
      */
     public function test_only_a_kitchen_bakes_and_a_grocer_stocks_the_wrapped_version(): void
     {
@@ -396,7 +401,7 @@ class GroceryAisleSplitTest extends TestCase
             ->distinct()->pluck('c.name_ar')->sort()->values()->all();
 
         // Made fresh: the two kitchens and nobody else.
-        foreach (['فطائر', 'وافل'] as $prepared) {
+        foreach (['وافل'] as $prepared) {
             $this->assertSame(
                 ['حلويات', 'مخابز'],
                 $carriersOf($prepared),

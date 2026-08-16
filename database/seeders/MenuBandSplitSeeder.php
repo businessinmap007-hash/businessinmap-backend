@@ -44,6 +44,7 @@ class MenuBandSplitSeeder extends Seeder
                 $this->moveInto($group, $sourceId);
             }
 
+            $this->reclaim($data['kept'], $sourceId);
             $this->reportLeftovers($sourceId, $data['kept']);
         });
     }
@@ -86,6 +87,81 @@ class MenuBandSplitSeeder extends Seeder
         foreach ($missing as $band) {
             $this->command?->warn("      ! البند «{$band}» غير موجود.");
         }
+    }
+
+    /**
+     * Pull the bands named in `kept` back into «بنود المنيو».
+     *
+     * The split only ever pushed. That was enough while every ruling moved a
+     * band OUT, and it stopped being enough the first time one had to come back:
+     * «فطائر» left with the aisles in this split and left again with the bakery
+     * counter in the grocery one, so removing its name from both lists would
+     * have changed nothing at all — neither seeder touches an option that is not
+     * standing in its own source.
+     *
+     * Scoped to the groups the two splits created, and no further. Reclaiming by
+     * name from the whole table would be the mistake `moveInto()` names three
+     * lines up: «حلويات» is a restaurant heading here and something else
+     * somewhere, and only ids can tell them apart. The family is bounded, so an
+     * option filed elsewhere on purpose is safe from this.
+     *
+     * Only `options.group_id` moves — the promise in this file's docblock holds.
+     * A child that carried the band still carries the same option id.
+     *
+     * @param  array<int,string>  $kept
+     */
+    private function reclaim(array $kept, int $sourceId): void
+    {
+        $family = $this->familyOf($sourceId);
+
+        if ($family === []) {
+            return;
+        }
+
+        $returning = DB::table('options')
+            ->whereIn('group_id', $family)
+            ->whereIn('name_ar', $kept)
+            ->pluck('name_ar');
+
+        if ($returning->isEmpty()) {
+            return;
+        }
+
+        DB::table('options')
+            ->whereIn('group_id', $family)
+            ->whereIn('name_ar', $kept)
+            ->update(['group_id' => $sourceId, 'updated_at' => now()]);
+
+        $this->command?->line('  - عادت إلى «' . self::SOURCE . '» : ' . $returning->implode('، '));
+    }
+
+    /**
+     * Every group either split produced, plus the one the second split emptied.
+     *
+     * Read from the data files rather than listed, for the reason the grocery
+     * file's `renames` block exists: these groups are found by NAME, and a name
+     * that changes in one place and not the other strands options in a group
+     * nothing declares.
+     *
+     * @return array<int,int>
+     */
+    private function familyOf(int $sourceId): array
+    {
+        $grocery = require __DIR__ . '/data/grocery_aisle_split.php';
+
+        $names = array_merge(
+            array_column((require __DIR__ . '/data/menu_band_split.php')['groups'], 'name_ar'),
+            array_keys($grocery['groups']),
+            [$grocery['source_group']],
+            array_values($grocery['renames'] ?? []),
+        );
+
+        return DB::table('option_groups')
+            ->whereIn('name_ar', $names)
+            ->where('id', '!=', $sourceId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /** @param array<int,string> $kept */

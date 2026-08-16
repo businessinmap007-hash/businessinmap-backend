@@ -48,7 +48,7 @@ return [
                 'خضار وفاكهة', 'مواد غذائية', 'ألبان وبيض', 'أجبان', 'لحوم ودواجن',
                 'مجمدات', 'مكرونات وأرز وحبوب', 'معلبات', 'زيوت وسمن', 'بهارات',
                 'سناكس وتسالي', 'حلويات وشوكولاتة', 'مشروبات', 'عصائر', 'مخبوزات',
-                'فطائر', 'وافل', 'آيس كريم', 'سلطة فواكة', 'فسيخ', 'رنجة', 'فحم',
+                'وافل', 'آيس كريم', 'سلطة فواكة', 'فسيخ', 'رنجة', 'فحم',
                 'منظفات', 'عناية شخصية', 'منتجات أطفال', 'مستلزمات حيوانات أليفة',
                 'أدوات منزلية',
             ],
@@ -81,12 +81,36 @@ return [
     ],
 
     /*
-    | Left in «بنود المنيو» — the fourteen it was named for. Listed so the split
-    | can be checked in one place rather than inferred from what is missing.
+    | Left in «بنود المنيو» — the fourteen it was named for, and the two added
+    | since. Listed so the split can be checked in one place rather than
+    | inferred from what is missing.
+    |
+    | This list is ENFORCED, not reported. It used to be documentation, and
+    | documentation is not enough for a band that has to come BACK: «فطائر» was
+    | sent out with the aisles in the first split and out again into «بنود
+    | المخبوزات والحلويات» in the second, so nothing short of a rule that says
+    | «these belong to the menu» could return it. `reclaim()` reads this list and
+    | pulls its bands home from any group the two splits created — and only from
+    | those, so a band deliberately filed elsewhere is still nobody's business
+    | but the file that filed it.
+    |
+    | «فطائر» — «اضف فطائر كبند فى بنود المنيو», owner, 2026-08-16, answering the
+    | question this file's own rule had left open: «a band belonging to two
+    | worlds keeps ONE row and stays where it is most at home». A pie is a menu
+    | section a food court and a pie shop sell hot, and a grocer carries it out
+    | of the menu group — which is exactly what «ساندوتشات» does in the other
+    | direction, and the reason there is still ONE «فطائر» and not two.
+    |
+    | Nobody loses it: «مخابز» and «حلويات» keep the same option id and both
+    | already carry «ساندوتشات» out of this group, so not one child sees a
+    | heading it was not already showing.
+    |
+    | «كريب» was added by MenuLineOptionsSeeder on 2026-08-16 and belonged here
+    | from the start; unlisted, it tripped the leftovers warning on every run.
     */
     'kept' => [
         'مقبلات', 'سلطات', 'شوربة', 'مشويات', 'أطباق رئيسية', 'ساندوتشات', 'بيتزا',
         'مكرونة / باستا', 'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
-        'مشروبات باردة', 'وجبات أطفال',
+        'مشروبات باردة', 'وجبات أطفال', 'كريب', 'فطائر',
     ],
 ];

@@ -85,8 +85,18 @@ return [
 
         /*
         | Carried by: مخابز، حلويات + the three markets. The counter that BAKES
-        | — which is why «فطائر» and «وافل» are here and not in the dry grocery
-        | with the packaged goods: they are made on the premises.
+        | — which is why «وافل» is here and not in the dry grocery with the
+        | packaged goods: it is made on the premises.
+        |
+        | «فطائر» was here too until 2026-08-16, when the owner ruled it a menu
+        | band: «اضف فطائر كبند فى بنود المنيو». Both are true — a pie is baked
+        | on the premises AND it is a section of a menu — and an option lives in
+        | exactly one group, so the tie goes to the trade that sells the most of
+        | them. It is reclaimed by MenuBandSplitSeeder from `kept`, and dropping
+        | it from this list is the other half: this seeder only moves what stands
+        | in the SOURCE group, so leaving the name here would do nothing today
+        | and take the band back the day anyone refills «أقسام السوبر ماركت».
+        | «مخابز» and «حلويات» keep the option — only its heading moved.
         |
         | «بنود» and not «أقسام», since «المخابز والحلويات مطابخ» (owner,
         | 2026-08-10). Every other group in this file is a shelf a grocer stocks;
@@ -104,7 +114,7 @@ return [
             'name_en' => 'Bakery & Confectionery Headings',
             'reorder' => 61,
             'options' => [
-                'مخبوزات', 'فطائر', 'وافل', 'حلويات وشوكولاتة', 'آيس كريم',
+                'مخبوزات', 'وافل', 'حلويات وشوكولاتة', 'آيس كريم',
             ],
         ],
 

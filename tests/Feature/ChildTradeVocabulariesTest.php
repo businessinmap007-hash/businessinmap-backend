@@ -2864,6 +2864,44 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('كوتش', $stray['links'][85]['مركبات النقل والركاب']);
     }
 
+    /**
+     * A shop called «اكسسوار» does not price a row that says «اكسسوارات».
+     *
+     * The fashion remodel deliberately leaves «ملابس», «جلود وشنط وأحذية» and
+     * «اكسسوار» sharing one product list — scoping them is what once left
+     * «كوتشي» unable to name a single thing it sold, and the narrowing is the
+     * merchant's own ticks. The owner then narrowed #8 by hand on 2026-08-14,
+     * which is that design working: nine of its ten rows went, and the tenth
+     * was the child's own name.
+     *
+     * The cure is the one #95 «أقمشة» already had four lines above it in the
+     * scope file — and here it costs no promotion, because #8 has fourteen
+     * real accessory rows to price.
+     */
+    public function test_the_accessory_shop_is_not_offered_its_own_name(): void
+    {
+        $this->assertSame([], $this->optionsOfChildInGroup('اكسسوار', 'موضة وعناية شخصية'));
+        $this->assertCount(14, $this->optionsOfChildInGroup('اكسسوار', 'أنواع الإكسسوارات'));
+
+        // The two that keep the whole product list, and must: a shop carrying
+        // clothes AND shoes AND bags has to be able to say all three.
+        $this->assertContains('جلود وشنط وأحذية', $this->optionsOfChildInGroup('ملابس', 'موضة وعناية شخصية'));
+        $this->assertContains('أحذية', $this->optionsOfChildInGroup('جلود وشنط وأحذية', 'موضة وعناية شخصية'));
+
+        /*
+         * And the absence this review nearly filled. #8 carries كاش and تقسيط
+         * under مصانع، شركات and المحلات and neither under root 14 — which
+         * reads like per-root drift and is a root-scoped withdrawal he made in
+         * the same 00:45 save. Pinned so nobody hands it back.
+         */
+        $payment = DB::table('category_child_option')
+            ->where('child_id', 8)->whereIn('option_id', [66, 203])
+            ->pluck('category_id')->unique()->sort()->values()->all();
+
+        $this->assertNotContains(14, $payment);
+        $this->assertNotEmpty($payment, 'the accessory shop lost the payment axis everywhere');
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

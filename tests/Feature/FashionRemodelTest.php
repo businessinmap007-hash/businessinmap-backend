@@ -105,8 +105,32 @@ class FashionRemodelTest extends TestCase
                 . 'the remodel put these on one axis precisely so one shop could'
         );
 
-        foreach ($byChild as $childId => $offered) {
-            $this->assertNotEmpty($offered, "child #{$childId} can name nothing it sells");
+        /*
+         * «nothing may be left with no word at all» — re-pointed on 2026-08-17
+         * rather than dropped.
+         *
+         * The invariant is about the CHILD, not about this group. «اكسسوار» #8
+         * ended that day holding one row of the fashion list, #21 «اكسسوارات»,
+         * which is the child's own name said back at it; it was declared empty
+         * in `child_option_scopes.php` for the reason #95 «أقمشة» was, and it
+         * cost nothing because the same week gave #8 «أنواع الإكسسوارات» and
+         * fourteen rows of real stock.
+         *
+         * So the question is «can this child name something it sells», asked of
+         * every LINE group it carries — which is what the guard was written to
+         * catch and what a group-shaped assertion had stopped measuring.
+         */
+        foreach ($byChild->keys() as $childId) {
+            $this->assertNotEmpty(
+                DB::table('category_child_option as cco')
+                    ->join('options as o', 'o.id', '=', 'cco.option_id')
+                    ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->where('cco.child_id', $childId)
+                    ->where('g.price_role', 'line')
+                    ->where('g.is_active', 1)
+                    ->pluck('o.name_ar')->all(),
+                "child #{$childId} can name nothing it sells"
+            );
         }
     }
 

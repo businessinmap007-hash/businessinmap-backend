@@ -197,7 +197,32 @@ return [
          * is the mechanism for exactly that case; this only stops blocking it.
          */
         95 => [],                // أقمشة — none of the fashion list; he sells cloth
-        // #59 ملابس، #168 جلود وشنط وأحذية and #8 اكسسوار keep the WHOLE list as of
+        /*
+         * «اكسسوار» #8 joined it on 2026-08-17, and for once the owner had
+         * already done nine tenths of the work.
+         *
+         * On 2026-08-14 00:45 he took NINE of its ten rows off by hand —
+         * أحذية، كوتشي، شنط وحقائب، the four garment rows and both wedding
+         * rows. What survived is #21 «اكسسوارات»: one row, on a child called
+         * «اكسسوار», saying the child's own name back at it. Under its other
+         * three roots he had already cleared the group completely.
+         *
+         * Unlike #95 this costs no promotion — #8 has «أنواع الإكسسوارات» and
+         * fourteen real rows to price — so the row is only noise on a pricing
+         * screen. Declared empty so the tenth follows the nine.
+         *
+         * What that same save ALSO did, and what this review nearly undid: it
+         * withdrew «كاش» and «تقسيط» from #8 under root 14 alone. The child
+         * carries both under مصانع، شركات and المحلات, so the accessory shop
+         * answers «how do I pay you» in three storefronts and stays silent in
+         * the fourth — which reads exactly like the per-root drift that
+         * `category_child_option.category_id` makes easy to get wrong, and is
+         * a deliberate root-scoped ruling. The seeder refused the links; the
+         * mistake was reading a `tail`-truncated ledger dump for the second
+         * time in one sweep.
+         */
+        8 => [],                 // اكسسوار — its own name is not a product line
+        // #59 ملابس and #168 جلود وشنط وأحذية keep the WHOLE list as of
         // 2026-08-08: root #14 collapsed to those three, and scoping them is
         // exactly what left «كوتشي» unable to name a single thing it sold. The
         // shop that carries clothes AND shoes AND accessories must be able to

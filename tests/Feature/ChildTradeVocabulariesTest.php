@@ -2688,6 +2688,42 @@ class ChildTradeVocabulariesTest extends TestCase
         );
     }
 
+    /**
+     * A repair trade that could not say whether it comes to you.
+     *
+     * All six children of «ورش ومراكز صيانة» carried «نمط تقديم الخدمة» with
+     * the same two answers — فردي and فريق عمل, one man or a crew — and none
+     * of them could say WHERE the work happens, which is what actually decides
+     * the price of a repair in Egypt: «الفني بيجيلك البيت» is a different quote
+     * from «هاتها الورشة».
+     *
+     * «زيارة منزلية» #1979 already lived in that group. Nobody in this root
+     * had it because every one of the six was curated BEFORE the row joined
+     * the group on 2026-08-16 — the third time this sweep has hit a pin
+     * freezing a list, after «سنوي» in الرياضة and the gender rows in الفنادق.
+     */
+    public function test_a_workshop_can_say_it_comes_to_the_customer(): void
+    {
+        foreach (['نجار باب وشباك', 'تبريد وتكييف', 'ورشة صيانة أجهزة'] as $child) {
+            $this->assertContains(
+                'زيارة منزلية',
+                $this->optionsOfChildInGroup($child, 'نمط تقديم الخدمة'),
+                "«{$child}» cannot say it works at the customer's address"
+            );
+        }
+
+        // You bring the car to the workshop, and the lathe and the upholstery
+        // bench are what a workshop with a floor exists for. Both do fit work
+        // on site, but a modifier that is true half the time is noise.
+        foreach (['ورشة سيارات', 'ورشة أثاث ونجارة', 'ورشة حدادة وخراطة'] as $bench) {
+            $this->assertSame(
+                ['فردي', 'فريق عمل'],
+                $this->optionsOfChildInGroup($bench, 'نمط تقديم الخدمة'),
+                "«{$bench}» was given a house call"
+            );
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

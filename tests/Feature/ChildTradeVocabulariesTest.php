@@ -3095,6 +3095,59 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * A camera supplied and a camera installed are two prices for one row.
+     *
+     * «توريد» did not exist on the platform except as «تجميع وتوريد» inside a
+     * factory's «نظام التصنيع», and «تركيب» existed only welded into thirteen
+     * craft LINES — «تركيب دش»، «تركيب سخانات»، «تركيب كوالين». Thirteen trades
+     * each writing the same distinction out longhand is an axis nobody had
+     * factored out.
+     *
+     * The hardware children get it and «برمجة» does not: nobody supplies a
+     * website. The role matters as much as the links — as a `descriptive` this
+     * would filter and never price, which is the whole point of the row.
+     */
+    public function test_the_installer_can_price_supply_apart_from_fitting(): void
+    {
+        $this->assertSame(
+            'modifier',
+            DB::table('option_groups')->where('name_ar', 'نطاق العمل')->value('price_role'),
+            'OptionPriceRolesSeeder reset it — «نطاق العمل» must be named in option_price_roles.php'
+        );
+
+        $vocab = app(\App\Services\MerchantOfferingVocabulary::class);
+
+        foreach ([67 => 'إتصالات', 254 => 'أمن وسلامة'] as $childId => $name) {
+            $modifiers = $vocab->for(0, $childId, 15)['modifiers'];
+
+            $this->assertTrue(
+                $modifiers->has('نطاق العمل'),
+                "«{$name}» #{$childId} cannot say whether it supplies or installs"
+            );
+
+            $this->assertEqualsCanonicalizing(
+                ['توريد', 'تركيب'],
+                collect($modifiers['نطاق العمل'])->pluck('name_ar')->all()
+            );
+        }
+
+        // Written work is neither supplied nor fitted.
+        $this->assertFalse($vocab->for(0, 233, 15)['modifiers']->has('نطاق العمل'));
+
+        /*
+         * And it must not have swallowed the maintenance each child already
+         * PRICES as a line. One word in two groups is the duplication this
+         * taxonomy keeps having to undo — a merchant could tick it in one and
+         * not the other and mean nothing by either.
+         */
+        foreach ([67 => 'صيانة شبكات وأعطال', 233 => 'صيانة وتطوير أنظمة قائمة', 254 => 'عقود صيانة وفحص دوري'] as $childId => $row) {
+            $lines = $vocab->for(0, $childId, 15)['lines']->flatten(1);
+
+            $this->assertContains($row, collect($lines)->pluck('name_ar')->all());
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

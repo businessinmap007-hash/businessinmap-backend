@@ -434,6 +434,15 @@ return [
          * trade lists that sat beside it here are lines now.
          */
         'نظام التصنيع',           // حسب الطلب ≠ من المخزون
+        /*
+         * «تكنولوجيا», 2026-08-17 — and it is «نظام التصنيع» exactly. A camera
+         * supplied is one price and the same camera mounted and configured is
+         * another, so «كاميرات مراقبة» carries two rates and neither is the
+         * line. Thirteen craft lists had already written the distinction out
+         * longhand inside their own rows («تركيب دش»، «تركيب سخانات») — this is
+         * the first time it is an axis.
+         */
+        'نطاق العمل',             // توريد ≠ تركيب
         // «قطع الغيار حسب الآلة» moved to `line` on 2026-08-16 — see the block
         // in that list. Declared in two tiers it was silently the later one,
         // which is worth knowing: this file is read top to bottom and a name in

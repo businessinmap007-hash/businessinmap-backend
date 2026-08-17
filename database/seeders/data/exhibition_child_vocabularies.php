@@ -44,6 +44,50 @@ return [
     'name_en_suffix' => 'Showroom',
 
     /*
+    |--------------------------------------------------------------------------
+    | 2026-08-17 — «راجع باقي أبناء المعارض بنفس الطريقة»
+    |--------------------------------------------------------------------------
+    | Twenty-nine children now, and the second pass found one thing, root-wide.
+    |
+    | **Twenty-one of the twenty-nine cannot say «كاش» or «تقسيط» here.**
+    |
+    | It is not a set of withdrawals. The whole root holds exactly ONE payment
+    | ruling — «صينى وخزف» #228, pinned on 2026-08-16 03:58 — and «حلويات» #210
+    | is blocked from another root. Everything else is simply an absence.
+    |
+    | And the same children say it everywhere else. «سجاد» #52 carries كاش and
+    | تقسيط under المحلات، شركات and مصانع; «آثاث» #116 under شركات and مصانع;
+    | «مراتب»، «إسفنج»، «أصواف»، «لعب أطفال»، «مفروشات» the same. The rows are
+    | ROOT-SCOPED, so a grant that never ran for #21 leaves the trade answering
+    | in three storefronts and silent in the fourth — and the fourth is the
+    | showroom, which in Egypt is the one place «تقسيط» is the first question
+    | anybody asks. A furniture, appliance, carpet or mattress معرض sells on
+    | instalments before it sells anything else.
+    |
+    | `child_option_groups.php` has said so the whole time: its root bundle for
+    | «معارض» is `$goods`, and `$goods` contains `payment_terms`. This does not
+    | decide anything new — it delivers a grant the map already declares and
+    | that reached three roots out of four.
+    |
+    | `children: 'all'` is used here for the reason that file states — it is
+    | safe only for an axis the ROOT asks, and every showroom on earth takes
+    | cash. A child that joins «معارض» tomorrow inherits it, and the withdrawal
+    | record still has the last word: #210 is refused on every run.
+    */
+    'groups' => [
+        'الدفع والسداد' => [
+            'name_en' => 'Payment Terms',
+            'price_role' => 'descriptive',
+            'scope' => 'root',
+            'children' => 'all',
+            'options' => [
+                'كاش' => 'Cash',
+                'تقسيط' => 'Instalment',
+            ],
+        ],
+    ],
+
+    /*
     | «باب وشباك» #50 took معارض on 2026-08-12 so that two showroom accounts
     | filed under «ألمونتال» — «معرض الوميتال مطابخ و شبابيك و ابواب» and
     | «مطابخ الوميتال وحشب حديثه» — had somewhere to be moved to. The standing

@@ -2984,6 +2984,56 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * A showroom is where «تقسيط» is the first question, and 21 of 29 could
+     * not answer it.
+     *
+     * Not a set of withdrawals: the whole of «معارض» held ONE payment ruling —
+     * «صينى وخزف» pinned on 2026-08-16 — and «حلويات» blocked from another
+     * root. The rest was an absence, and the same children say كاش and تقسيط
+     * under المحلات، شركات and مصانع, because the rows are ROOT-SCOPED and the
+     * grant reached three roots out of four.
+     *
+     * `child_option_groups.php` has declared it the whole time: the root bundle
+     * for «معارض» is `$goods`, and `$goods` contains `payment_terms`.
+     */
+    public function test_every_showroom_can_say_cash_or_instalments(): void
+    {
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+        $blocked = app(\App\Services\Catalog\ChildOptionDecisions::class)->blockedByChild();
+
+        $mute = [];
+
+        foreach (DB::table('category_parent_child')->where('parent_id', 21)->pluck('child_id') as $childId) {
+            if (isset($blocked[$childId][66]) || isset($blocked[$childId][203])) {
+                continue; // his ruling outranks the bundle
+            }
+
+            $held = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $scope->idsFor((int) $childId, 21))
+                ->where('g.name_ar', 'الدفع والسداد')
+                ->count();
+
+            if ($held === 0) {
+                $mute[] = (int) $childId;
+            }
+        }
+
+        $this->assertSame([], $mute, 'showroom children with no payment axis: #' . implode(', #', $mute));
+
+        // …and the ruling that must survive it. «حلويات» #210 is refused on
+        // every run, which is what `children: 'all'` is safe to use beside.
+        $this->assertTrue(isset($blocked[210][66]) || isset($blocked[210][203]));
+        $this->assertSame(
+            0,
+            DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $scope->idsFor(210, 21))
+                ->where('g.name_ar', 'الدفع والسداد')->count()
+        );
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

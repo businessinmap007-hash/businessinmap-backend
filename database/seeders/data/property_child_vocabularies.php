@@ -124,9 +124,72 @@ return [
     | option_group_splits.php, not to this file, so the links are named here
     | and the three children take both.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | 2026-08-17 — «راجع باقي أبناء عقارات و أراضي بنفس الطريقة»
+    |--------------------------------------------------------------------------
+    | Three children, thirteen ledger rows, and twelve of the thirteen are one
+    | sweep: «نمط تقديم الخدمة» emptied off all three within forty-three seconds
+    | on 2026-08-11. The thirteenth is «تبديل» pinned onto مكتب عقاري on
+    | 2026-08-16. Both stand.
+    |
+    | **«مطور عقاري» #518 can name neither the rooms nor the finish.**
+    |
+    | Its two siblings carry «الغرف» (6) and «مستوى التشطيب» (6); it carries
+    | zero of each, and the ledger holds no row for either — it was never
+    | granted them. This file's own opening argument is that «a broker, an owner
+    | and a developer list the same kinds of property», which is why every group
+    | it writes goes to all three; the two OLDER groups are the ones that do not.
+    |
+    | And of the three it is the developer who is defined by the finish. A
+    | مطور عقاري in Egypt is quoted by what he HANDS OVER — «يُسلَّم على
+    | المحارة»، «نصف تشطيب»، «تشطيب كامل» is the headline on every hoarding, and
+    | the one axis a buyer compares two compounds on. He could not say it.
+    |
+    | ── Why the links are written here and not left to the seeder ─────────────
+    |
+    | `PropertyModifierOptionsSeeder` created both groups and links them to
+    | «children that already carry the property types» — a live query, not a
+    | list, so #518 would be picked up automatically. Two things stop that.
+    |
+    | It is in NO seeder list. Nothing runs it; the only mention of its name
+    | anywhere outside itself is a comment in FurnitureStyleOptionsSeeder. Like
+    | ChildOptionScopeSeeder, it self-heals in a chain it is not part of.
+    |
+    | And its query has drifted since it was written. «شقق فندقية» #537 and
+    | «منتجع» #538 each hold ONE row of «عقارات وممتلكات» — شقة، and ڤيلا for
+    | the resort — as accommodation types, which is correct and deliberate. That
+    | single row now pulls both into the query, so running the seeder today
+    | hands a resort «على المحارة» and «نصف تشطيب» and puts it into «الغرف»,
+    | whose contents are governed for hotels by HotelRoomKindOptionsSeeder. Two
+    | seeders on one group is the fight this taxonomy keeps producing. The
+    | seeder's child list is narrowed to the property ROOT in the same change —
+    | the exception is a root, not a list of ids, exactly as PrepaymentScopeSeeder
+    | puts it.
+    |
+    | ── «الغرف» is named row by row, never 'all' ──────────────────────────────
+    |
+    | The group holds twenty-eight options: the six room counts a listing uses
+    | AND the twenty-two hotel kinds — جناح رئاسي، شاليه، كابينة ديلوكس، سرير في
+    | غرفة مشتركة. `'all'` would hand a property developer a royal suite. The
+    | six are the six the siblings hold.
+    |
+    | ── What is NOT copied across ─────────────────────────────────────────────
+    |
+    | «تبديل». مكتب عقاري holds all three of «نوع التعامل» and the other two hold
+    | two; the third is a PIN the owner placed by hand on 2026-08-16, an hour
+    | before he built the area ladders. A pin on one child is a statement about
+    | that child, and swapping a flat for a flat is a different trade from
+    | building one. Left exactly as he set it.
+    */
     'links' => [
         517 => ['عقارات وممتلكات' => ['مخازن', 'جمالون']],
-        518 => ['عقارات وممتلكات' => ['مخازن', 'جمالون']],
         522 => ['عقارات وممتلكات' => ['مخازن', 'جمالون']],
+
+        518 => [
+            'عقارات وممتلكات' => ['مخازن', 'جمالون'],
+            'الغرف' => ['استوديو', 'غرفة', 'غرفتين', 'ثلاث غرف', 'أربع غرف', 'خمس غرف فأكثر'],
+            'مستوى التشطيب' => 'all',
+        ],
     ],
 ];

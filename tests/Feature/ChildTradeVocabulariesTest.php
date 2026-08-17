@@ -3148,6 +3148,62 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * A developer is quoted by what he hands over.
+     *
+     * All three property children list the same kinds of property, which is
+     * that file's opening argument, and «مطور عقاري» #518 carried neither the
+     * room count nor the finishing level while both siblings carried six of
+     * each. Nothing was withdrawn — the two older groups were linked by
+     * PropertyModifierOptionsSeeder, which is in no seeder list.
+     *
+     * The second half is the containment. «الغرف» holds twenty-eight rows: six
+     * room counts and twenty-two hotel kinds. A property child must hold the
+     * six and none of the rest, or a developer is offered a royal suite and
+     * HotelRoomKindOptionsSeeder — which prunes what it does not name — starts
+     * fighting whoever put it there.
+     */
+    public function test_a_developer_can_say_how_many_rooms_and_how_finished(): void
+    {
+        $vocab = app(\App\Services\MerchantOfferingVocabulary::class);
+
+        $rooms = ['استوديو', 'غرفة', 'غرفتين', 'ثلاث غرف', 'أربع غرف', 'خمس غرف فأكثر'];
+
+        foreach ([517 => 'مكتب عقاري', 518 => 'مطور عقاري', 522 => 'مالك عقار'] as $childId => $name) {
+            $v = $vocab->for(0, $childId, 18);
+
+            $this->assertTrue($v['lines']->has('الغرف'), "«{$name}» cannot say how many rooms");
+            $this->assertTrue($v['modifiers']->has('مستوى التشطيب'), "«{$name}» cannot say how finished");
+
+            // Exactly the six, so the hotel kinds never leak in.
+            $this->assertEqualsCanonicalizing($rooms, collect($v['lines']['الغرف'])->pluck('name_ar')->all());
+        }
+
+        /*
+         * And the reverse: the two hotel children hold one row of «عقارات
+         * وممتلكات» each — شقة, plus ڤيلا for the resort — as accommodation
+         * types. That row used to be enough to pull them into the seeder's
+         * «who carries the property types» query, which would have handed a
+         * resort «على المحارة». It reads the property ROOT now.
+         */
+        foreach ([537, 538] as $hotel) {
+            $this->assertSame(0, DB::table('category_child_option as l')
+                ->join('options as o', 'o.id', '=', 'l.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('l.child_id', $hotel)->where('g.name_ar', 'مستوى التشطيب')->count());
+        }
+
+        // «تبديل» is a pin on the broker alone and stays one.
+        $swap = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'نوع التعامل')->where('o.name_ar', 'تبديل')->value('o.id');
+
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        $this->assertContains($swap, $scope->idsFor(517, 18));
+        $this->assertNotContains($swap, $scope->idsFor(518, 18));
+        $this->assertNotContains($swap, $scope->idsFor(522, 18));
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

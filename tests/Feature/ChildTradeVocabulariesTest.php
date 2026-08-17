@@ -2902,6 +2902,49 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotEmpty($payment, 'the accessory shop lost the payment axis everywhere');
     }
 
+    /**
+     * The one craft in «مهن وحرفيين» that is bought again next week.
+     *
+     * Twenty-five children, all fluent, all carrying the same two contract
+     * rows — يومي and بالمهمة — with a third, «بالزيارة», for the five call-out
+     * trades. The root is otherwise finished, and no ledger row anywhere in it
+     * touches «نظام التعاقد», so what is missing is missing rather than ruled.
+     *
+     * A نقاش paints the flat once and leaves. Cleaning is the only trade here
+     * sold on a REPEATING contract, and its twin under «مكاتب» — which shares
+     * this very line group — has said so all along.
+     */
+    public function test_a_cleaning_company_can_sell_a_weekly_contract(): void
+    {
+        $cleaning = $this->optionsOfChildInGroup('خدمات نظافة', 'نظام التعاقد');
+        sort($cleaning);
+
+        $this->assertSame(['أسبوعي', 'بالزيارة', 'بالمهمة', 'شهري', 'يومي'], $cleaning);
+
+        // Not the staffing office's rungs: «بالإقامة» is live-in and #58 holds
+        // none of the domestic-staff rows it would go with.
+        $this->assertNotContains('بالإقامة', $cleaning);
+
+        // The twin keeps its own wider basis — the two are different children
+        // on purpose, and only the cleaning half is shared.
+        $twin = $this->optionsOfChildInGroup('خدمات منزلية', 'نظام التعاقد');
+        $this->assertContains('بالإقامة', $twin);
+        $this->assertContains('عاملة منزلية', $this->optionsOfChildInGroup('خدمات منزلية', 'الخدمات المنزلية'));
+        $this->assertNotContains('عاملة منزلية', $this->optionsOfChildInGroup('خدمات نظافة', 'الخدمات المنزلية'));
+
+        // …and the rest of the root keeps the two answers it was given, with
+        // the third only where a visit is the product.
+        foreach (['نقاش', 'مبلط', 'حداد', 'باركيه'] as $trade) {
+            $held = $this->optionsOfChildInGroup($trade, 'نظام التعاقد');
+            sort($held);
+            $this->assertSame(['بالمهمة', 'يومي'], $held, "«{$trade}» drifted off the two answers");
+        }
+
+        foreach (['كهربائي', 'سباك', 'صيانة تكيف'] as $callOut) {
+            $this->assertContains('بالزيارة', $this->optionsOfChildInGroup($callOut, 'نظام التعاقد'));
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

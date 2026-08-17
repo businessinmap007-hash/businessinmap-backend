@@ -248,7 +248,30 @@ return [
                 'تنظيف سجاد ومفروشات', 'تنظيف خزانات', 'تنظيف واجهات زجاجية',
                 'تعقيم وتطهير', 'مكافحة حشرات',
             ],
-        'نظام التعاقد' => ['يومي', 'بالمهمة']],
+        /*
+         * ── the one craft that is bought again next week ──────────────────
+         *
+         * Two rows until 2026-08-17, like the other nineteen, and «خدمات
+         * نظافة» is not like the other nineteen. A نقاش paints the flat once
+         * and leaves; cleaning is the only trade in this root sold on a
+         * REPEATING contract — an office every week, a flat every month — and
+         * the one-off deep clean after a move is quoted «بالزيارة» by every
+         * company in Cairo.
+         *
+         * Its twin says so already and has since the offices root was written:
+         * «خدمات منزلية» #144 under «مكاتب» shares this very line group and
+         * carries يومي · أسبوعي · شهري · ربع سنوي · بالزيارة · بالإقامة ·
+         * سنوي. The two are correctly DIFFERENT children — #144 also staffs a
+         * house with عاملة منزلية، جليسة أطفال، رعاية مسنين، طباخ منزلي, and
+         * #58 holds only the eight cleaning rows — but the basis a cleaning
+         * contract is written on does not change between them.
+         *
+         * Three of its seven, not all seven. «بالإقامة» is live-in and belongs
+         * to the staffing half #58 does not do; «ربع سنوي» and «سنوي» are the
+         * office's own contract rungs, and a cleaning company quotes the month
+         * and renews it.
+         */
+        'نظام التعاقد' => ['يومي', 'بالمهمة', 'بالزيارة', 'أسبوعي', 'شهري']],
 
         18 => [
             'أنواع الأبواب والشبابيك' => [

@@ -445,6 +445,12 @@ return [
         261 => [
             'خدمات البرمجة والتطوير' => 'all',
             'نوع العملاء' => 'all',
+            // 2026-08-16, with «برمجة» #233 under «تكنولوجيا»: it is one trade
+            // and it answers the same under both roots. A software house is
+            // quoted for the build and kept on a retainer, and neither half had
+            // a word — «أمن» #253 two entries down has had this axis since the
+            // offices pass while its own twin under تكنولوجيا did not.
+            'نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي'],
         ],
 
         // #174 «رخام وجرانيت» keeps its own child row; only the words are shared.

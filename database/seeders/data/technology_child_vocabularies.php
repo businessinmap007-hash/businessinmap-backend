@@ -107,4 +107,53 @@ return [
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | «راجع باقي أبناء التكنولوجيا بنفس الطريقة» — owner, 2026-08-16
+    |--------------------------------------------------------------------------
+    | Three children, all three fluent: a real `line`, a modifier and a
+    | descriptive. What the walk found is the same shape as «قطع غيار سيارات»
+    | and «أقمشة» before it — the SAME TRADE answering less here than it does
+    | under another root.
+    |
+    | ── «نوع العملاء» ──
+    | Every service child of «شركات» carries it and none of these three does.
+    | «برمجيات» #261 is «برمجة» #233 under another root and has it; «أمن» #253
+    | is «أمن وسلامة» #254 and has it. Nothing was withdrawn — the technology
+    | file was written before that group existed, which was built for «مكاتب».
+    |
+    | These are B2B trades and «who do you serve» is precisely what a customer
+    | narrows on: a software house that works for government bodies is a
+    | different supplier from one that builds shop websites, and neither could
+    | say so.
+    |
+    | ── «نظام التعاقد» ──
+    | All three sell the same commercial shape — install a system, then keep it
+    | running — and could name neither half of it. «بالمهمة» is the install,
+    | «شهري» the support retainer, «سنوي» the maintenance contract, and every
+    | one of the three is quoted on exactly those. «أمن» #253 already has this
+    | axis under «شركات» while its twin here does not, which is the same
+    | one-trade-two-answers gap the rest of this sweep has been closing.
+    |
+    | Not «بالساعة» and not the subscription rungs: nobody buys an ERP by the
+    | hour, and «ربع سنوي» is a gym's ladder.
+    |
+    | #261 «برمجيات» is given the basis in company_child_vocabularies.php in the
+    | same change, so the trade answers the same under both roots.
+    */
+    'links' => [
+        67 => [
+            'نوع العملاء' => 'all',
+            'نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي'],
+        ],
+        233 => [
+            'نوع العملاء' => 'all',
+            'نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي'],
+        ],
+        254 => [
+            'نوع العملاء' => 'all',
+            'نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي'],
+        ],
+    ],
 ];

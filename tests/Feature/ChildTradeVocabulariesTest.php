@@ -2224,6 +2224,52 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertCount(14, $vocabulary->for(0, 8, 17)['lines']->first());
     }
 
+    /**
+     * «راجع باقي أبناء التكنولوجيا بنفس الطريقة» — owner, 2026-08-16.
+     *
+     * Three children, all three fluent — and each answering LESS than the same
+     * trade does under another root, which is the shape this sweep keeps
+     * finding. «برمجيات» #261 is «برمجة» #233 under «شركات» and carried «نوع
+     * العملاء»; «أمن» #253 is «أمن وسلامة» #254 and carried «نظام التعاقد».
+     * Nothing had been withdrawn: the technology file was written before the
+     * customer-type group existed, which was built for «مكاتب».
+     *
+     * These are B2B trades. «who do you serve» is what a customer narrows on —
+     * a software house that works for government bodies is a different supplier
+     * from one that builds shop websites — and «install then maintain» is how
+     * all three are quoted: «بالمهمة» for the build, «شهري» for support,
+     * «سنوي» for the contract.
+     */
+    public function test_a_technology_trade_answers_the_same_under_every_root(): void
+    {
+        foreach ([67, 233, 254] as $childId) {
+            $name = (string) DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+            $this->assertNotEmpty(
+                $this->optionsOfChildInGroup($name, 'نوع العملاء'),
+                "«{$name}» cannot say who it serves"
+            );
+
+            // Sorted: the reader orders by option id, and the ids were minted
+            // when the coworking desks needed them — the file's order says
+            // nothing about the screen's.
+            $basis = $this->optionsOfChildInGroup($name, 'نظام التعاقد');
+            sort($basis);
+
+            $this->assertSame(
+                ['بالمهمة', 'سنوي', 'شهري'],
+                $basis,
+                "«{$name}» cannot say whether it is a project or a contract"
+            );
+        }
+
+        // …and the twin under «شركات», so the trade reads the same either way.
+        $twin = $this->optionsOfChildInGroup('برمجيات', 'نظام التعاقد');
+        sort($twin);
+
+        $this->assertSame(['بالمهمة', 'سنوي', 'شهري'], $twin);
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

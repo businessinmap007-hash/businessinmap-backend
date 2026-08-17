@@ -51,6 +51,56 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | 2026-08-17 — the counter that is also a cash machine
+        |----------------------------------------------------------------------
+        | Owner: «إضافة سحب وإيداع المحفظة الالكترونية وانيستا باى لمحلات
+        | الموبايلات والسوبر ماركت والمنيا ماركت».
+        |
+        | These three are where Egypt actually banks. The mobile shop and the
+        | grocery on the corner are the agent counter for فودافون كاش and its
+        | rivals: you hand cash over and it lands in the wallet, or you show the
+        | code and take cash out. InstaPay is the same errand a layer up. It is
+        | the reason a customer walks into THAT shop rather than the one beside
+        | it, and none of the three had a word for it.
+        |
+        | ── Why a new group and not «خدمات الصرافة والتحويل» ──────────────────
+        |
+        | That group already holds «محافظ إلكترونية» and would have been the
+        | cheap answer. It is the wrong home: it is a `line` — the priced list
+        | of a صرافة — and its heading would read «خدمات الصرافة والتحويل» on a
+        | supermarket's screen. A grocer does not run a bureau de change; he
+        | does two errands beside the till.
+        |
+        | ── Why descriptive ──────────────────────────────────────────────────
+        |
+        | The price test decides it. A `line` is the thing bought, and these
+        | shops' priced lists are groceries and handsets — a withdrawal is not a
+        | row beside the rice. Nor is there a merchant-set rate for a modifier
+        | to move: the commission on a wallet cash-out is the operator's, not
+        | the shop's. It is a FACILITY, and its whole value is the search —
+        | «محل بيسحب فودافون كاش قريب مني» is a question the platform could not
+        | answer.
+        |
+        | Two rows, the two he named. «شحن رصيد» is not restated: #186 already
+        | prices it as «شرائح وشحن رصيد» in its own line group, and «دفع فواتير»
+        | stays with the صرافة list until he says otherwise.
+        |
+        | «هايبر ماركت» #149 (6 merchants) is deliberately NOT here. It is the
+        | same errand and arguably the same trade, and he named three children —
+        | reported rather than assumed.
+        */
+        'الخدمات المالية بالمحل' => [
+            'name_en' => 'In-Store Financial Services',
+            'price_role' => 'descriptive',
+            'children' => [186, 272, 185],   // موبيلات و اكسسوار، سوبر ماركت، مني ماركت
+            'options' => [
+                'سحب وإيداع محفظة إلكترونية' => 'E-Wallet Cash In & Out',
+                'انستا باي' => 'InstaPay',
+            ],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
         | Five shops that were answering somebody else's question, 2026-08-16
         |----------------------------------------------------------------------
         | Found by reviewing the root the way «زراعية وحيوانية» was reviewed.

@@ -3261,6 +3261,89 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertTrue(isset($blocked[70][294]));
     }
 
+    /**
+     * The corner shop is where Egypt banks, and it could not say so.
+     *
+     * Descriptive on purpose: a withdrawal is not a row beside the rice, and
+     * the commission on a wallet cash-out is the operator's, so there is no
+     * merchant-set rate for a modifier to move. Its value is the search.
+     */
+    public function test_a_grocer_can_say_it_does_wallet_cash_in_and_out(): void
+    {
+        $group = DB::table('option_groups')->where('name_ar', 'الخدمات المالية بالمحل')->first();
+
+        $this->assertNotNull($group);
+        $this->assertSame('descriptive', $group->price_role);
+
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        $ids = DB::table('options')->where('group_id', $group->id)->pluck('name_ar', 'id');
+
+        $this->assertEqualsCanonicalizing(
+            ['سحب وإيداع محفظة إلكترونية', 'انستا باي'],
+            $ids->values()->all()
+        );
+
+        foreach ([186 => 'موبيلات و اكسسوار', 272 => 'سوبر ماركت', 185 => 'مني ماركت'] as $childId => $name) {
+            $held = collect($scope->idsFor($childId, 17))->map(fn ($id) => (int) $id)->all();
+
+            $this->assertSame(
+                [],
+                array_values(array_diff($ids->keys()->all(), $held)),
+                "«{$name}» #{$childId} cannot say it does wallet cash in/out"
+            );
+        }
+
+        // «هايبر ماركت» #149 is the same errand and was not named. Left out
+        // deliberately, and asserted so the omission stays a decision.
+        $this->assertSame([], array_values(array_intersect(
+            $ids->keys()->all(),
+            collect($scope->idsFor(149, 17))->map(fn ($id) => (int) $id)->all()
+        )));
+    }
+
+    /**
+     * «كسر زيرو» is a third point on جديد → مستعمل, not a fourth axis.
+     *
+     * A car off the floor with a few thousand kilometres is priced between the
+     * two and searched for by name. It reaches the three vehicle showrooms and
+     * none of the other 110 children of «حالة المنتج» — a sofa is never كسر
+     * زيرو — which is why it is minted with `extend` and kept out of
+     * `product_condition.options`, the array ChildOptionGroupsSeeder manages.
+     */
+    public function test_a_showroom_can_say_a_car_is_nearly_new(): void
+    {
+        $row = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.name_ar', 'كسر زيرو')
+            ->first(['o.id', 'g.name_ar as grp', 'g.price_role']);
+
+        $this->assertNotNull($row, '«كسر زيرو» does not exist');
+        $this->assertSame('حالة المنتج', $row->grp, 'it must answer the question جديد/مستعمل already asks');
+        $this->assertSame('modifier', $row->price_role);
+
+        $map = require database_path('seeders/data/child_option_groups.php');
+        $this->assertNotContains((int) $row->id, $map['groups']['product_condition']['options']);
+
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        foreach ([53 => 'سيارات', 188 => 'معرض سيارات', 189 => 'معرض موتوسيكلات'] as $childId => $name) {
+            $held = collect($scope->idsFor($childId, 21))->map(fn ($id) => (int) $id)->all();
+
+            $this->assertContains((int) $row->id, $held, "«{$name}» cannot say كسر زيرو");
+            $this->assertContains(262, $held, "«{$name}» lost جديد");
+            $this->assertContains(368, $held, "«{$name}» lost مستعمل");
+        }
+
+        // Everyone else who holds the axis keeps two answers, not three.
+        $strays = DB::table('category_child_option')
+            ->where('option_id', $row->id)
+            ->whereNotIn('child_id', [53, 188, 189])
+            ->count();
+
+        $this->assertSame(0, $strays, 'كسر زيرو leaked outside the vehicle showrooms');
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

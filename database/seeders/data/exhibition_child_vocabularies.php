@@ -113,4 +113,63 @@ return [
         116 => ['نوع التعامل' => 'all'],   // آثاث
         115 => ['نوع التعامل' => 'all'],   // مفروشات
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2026-08-17 — «كسر زيرو»
+    |--------------------------------------------------------------------------
+    | Owner: «وايضا من ضمن حالات السيارات كسر زيرو وهى وصف للسيارات قليلة
+    | الكيلو مترات».
+    |
+    | It is a third point on the axis that already exists, not a new axis.
+    | «حالة المنتج» reads جديد → مستعمل and the Egyptian car market reads
+    | جديد → كسر زيرو → مستعمل: a car off the showroom floor with a few thousand
+    | kilometres on it, first owner, still under warranty. It is priced BETWEEN
+    | the two and a buyer searches for it by name. Sold as «مستعمل» it is
+    | undersold, and as «جديد» it is a lie.
+    |
+    | ── Why it goes in «حالة المنتج» and not a car-only group ────────────────
+    |
+    | Same question, same answer set. A second group would ask «ما حالة
+    | السيارة؟» beside a group asking «ما حالة المنتج؟», and a merchant could
+    | tick «مستعمل» in one and «كسر زيرو» in the other and mean nothing by
+    | either — the two half-populated versions of one idea that
+    | option_group_splits.php names as the disease. It is a `modifier` because
+    | the group is: the same model is three prices.
+    |
+    | ── And why it does not reach the other 111 children ─────────────────────
+    |
+    | «حالة المنتج» is one of the widest groups on the platform — 113 children
+    | hold «جديد» — and a sofa is never «كسر زيرو». The row is minted with
+    | `extend`, which creates and links NOTHING, and handed out by name to the
+    | three vehicle showrooms alone.
+    |
+    | It is deliberately NOT added to `product_condition.options` in
+    | `child_option_groups.php`. That array is what ChildOptionGroupsSeeder
+    | manages — it grants the list per root and prunes it — so a row left out of
+    | it is neither handed to every goods child nor deleted from these three.
+    | «دفع مسبق» and «الدفع عند الاستلام» both stand in that exact position.
+    |
+    | ── The three ────────────────────────────────────────────────────────────
+    |
+    | «سيارات» #53، «معرض سيارات» #188 and «معرض موتوسيكلات» #189 — the only
+    | children on the platform that sell a vehicle rather than a service around
+    | one, and all three already carry جديد and مستعمل. A low-mileage motorbike
+    | is «كسر زيرو» in the same breath as a car.
+    |
+    | «قطع غيار سيارات» #44 is not among them: a spare part is «أصلي وكيل» or
+    | «تجاري» — it has «درجة قطعة الغيار» for that — and mileage says nothing
+    | about a part.
+    */
+    'extend' => [
+        'حالة المنتج' => [
+            'كسر زيرو' => 'Nearly New',
+        ],
+    ],
+
+    'links' => [
+        53 => ['حالة المنتج' => ['كسر زيرو']],    // سيارات
+        188 => ['حالة المنتج' => ['كسر زيرو']],   // معرض سيارات
+        189 => ['حالة المنتج' => ['كسر زيرو']],   // معرض موتوسيكلات
+    ],
 ];

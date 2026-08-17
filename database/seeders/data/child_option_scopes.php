@@ -515,14 +515,48 @@ return [
     | #4010 جراحة اليوم الواحد · #4011 ولادة طبيعية · #4012 ولادة قيصرية
     | #4013 غسيل كلوي · #4014 جلسة علاج كيماوي · #4015 نقل بسيارة إسعاف
     |
-    | This entry is the whole point of the group. «مستشفى» and «مركز طبي» were
+    | The group was added on 2026-08-17 because «مستشفى» and «مركز طبي» were
     | indistinguishable — identical specialties, identical scans, identical
-    | tests — and the difference between them is one question: does the patient
-    | sleep here. The hospital answers all twelve; the medical centre answers
-    | the three a day-case unit really runs and holds no bed, no theatre for an
-    | overnight operation, and no delivery room.
+    | tests — and nothing on the platform had a word for an admission.
+    |
+    | It was also narrowed here, on the reading that the difference between the
+    | two is whether the patient sleeps there: #515 was cut to the three rows a
+    | day-case unit runs. **The owner pinned all nine back the same hour**
+    | (2026-08-17 01:00, `category_child_option_decisions`), which is him saying
+    | an Egyptian «مركز طبي» does keep beds — and it does; the word covers
+    | everything from a polyclinic to a small private hospital.
+    |
+    | So the entry is gone rather than argued with, and the group is left in the
+    | map with no children so the next reader does not re-derive the same
+    | narrowing. A pin is restored dead-last by `ChildOptionDecisionsSeeder`, so
+    | leaving the scope in place would only have made the two seeders take the
+    | rows off and put them back on every seed — the exact fight this file has
+    | caused before.
     */
     'الرعاية والتنويم' => [
-        515 => [4010, 4013, 4014], // مركز طبي — جراحة اليوم الواحد، غسيل كلوي، كيماوي
+        // deliberately empty — see above
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | ملاءمة المكان
+    |--------------------------------------------------------------------------
+    | #137 عائلي · #264 ممنوع التدخين · #2389 سيدات · #2390 رجال · #2391 ميكس
+    |
+    | The last three arrived on 2026-08-13 for the twenty trades where the ROOM
+    | is segregated — a gym, a pool, a hall, a trainer. «فندق عائم / بوت نيلي»
+    | is not one of them; it holds them only because
+    | `HospitalityOptionRestoreSeeder` restores whole groups and this group grew
+    | after that file was written. A Nile cruiser sells cabins to a mixed
+    | manifest, and its four intact siblings hold exactly the two rows below.
+    |
+    | The restore file was corrected in the same change so it names the two
+    | rather than the group — this is what removes the links already granted,
+    | since a restore only ever adds. «بيت ضيافة» is deliberately NOT here: a
+    | بيت ضيافة للسيدات is a real listing, and it re-declares the three in
+    | `hospitality_child_vocabularies.php` on purpose.
+    */
+    'ملاءمة المكان' => [
+        541 => [137, 264], // فندق عائم / بوت نيلي
     ],
 ];

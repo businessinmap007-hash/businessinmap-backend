@@ -2275,37 +2275,44 @@ class ChildTradeVocabulariesTest extends TestCase
      *
      * «مستشفى» and «مركز طبي» held the identical vocabulary — the same 41
      * specialties, the same 13 scans, the same 28 tests — because the platform
-     * had no word for an admission anywhere in it. This is what tells them
-     * apart, and the direction matters as much as the presence: the hospital
-     * keeps a bed overnight and the medical centre sends the patient home, so
-     * the day-case rows are the ONLY ones they share.
+     * had no word for an admission anywhere in it.
+     *
+     * The first version of this test also asserted the reverse for «مركز طبي»:
+     * day-case rows only, no bed. The owner pinned all nine back within the
+     * hour, so the assertion is the other way round now — an Egyptian «مركز
+     * طبي» does keep beds, and both children answer the whole list. What is
+     * still worth pinning down is that the vocabulary EXISTS and is priced.
      */
-    public function test_a_hospital_can_name_the_bed_and_a_medical_centre_cannot(): void
+    public function test_a_hospital_can_name_the_bed_it_admits_a_patient_to(): void
     {
-        $hospital = $this->optionsOfChildInGroup('مستشفى', 'الرعاية والتنويم');
-        $centre = $this->optionsOfChildInGroup('مركز طبي', 'الرعاية والتنويم');
+        foreach (['مستشفى', 'مركز طبي'] as $child) {
+            $held = $this->optionsOfChildInGroup($child, 'الرعاية والتنويم');
 
-        $this->assertContains('تنويم بغرفة خاصة', $hospital);
-        $this->assertContains('رعاية مركزة', $hospital);
-        $this->assertContains('ولادة قيصرية', $hospital);
-        $this->assertCount(12, $hospital);
-
-        // The day-case unit, and nothing that needs a bed behind it.
-        sort($centre);
-        $this->assertSame(['جراحة اليوم الواحد', 'جلسة علاج كيماوي', 'غسيل كلوي'], $centre);
-
-        // …and the two are no longer the same business on the screen.
-        $this->assertNotSame(
-            $this->everyOptionOf('مستشفى'),
-            $this->everyOptionOf('مركز طبي'),
-            'a hospital and a polyclinic still read identically'
-        );
+            $this->assertCount(12, $held, "«{$child}» lost part of the admission list");
+            $this->assertContains('تنويم بغرفة خاصة', $held);
+            $this->assertContains('رعاية مركزة', $held);
+            $this->assertContains('ولادة قيصرية', $held);
+        }
 
         // It is priced, not merely described: a night in a private room is a
         // nightly rate the way «غرفة مزدوجة» is.
         $this->assertSame(
             'line',
             DB::table('option_groups')->where('name_ar', 'الرعاية والتنويم')->value('price_role')
+        );
+
+        /*
+         * And the scope file must stay out of it. A pin is restored dead-last
+         * by ChildOptionDecisionsSeeder, so a narrowing here would take the
+         * nine rows off and put them back on every single seed — the pair of
+         * seeders undoing each other that this file has produced before.
+         */
+        $scopes = require database_path('seeders/data/child_option_scopes.php');
+
+        $this->assertSame(
+            [],
+            $scopes['الرعاية والتنويم'] ?? [],
+            'the scope file is narrowing a child whose owner pinned the rows back'
         );
     }
 
@@ -2370,13 +2377,93 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
-    /** Everything a child can answer, as one comparable list. */
-    private function everyOptionOf(string $child): array
+    /**
+     * A hotel sells more than a room and an airport transfer.
+     *
+     * «خدمات الفندق» held exactly one row, so the pricing screen offered a
+     * hotel its room list and «نقل من المطار». The facilities list it was cut
+     * from still holds «سبا» and «مسبح» — the FACILITY half of the rule the gym
+     * and the clinic were sorted by — and the service half had no words at all.
+     *
+     * Scoped, like the room list beside it: what a resort charges for is not
+     * what a hostel charges for.
+     */
+    public function test_a_hotel_can_price_what_it_sells_beside_the_room(): void
     {
-        return DB::table('category_child_option as co')
-            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
-            ->where('c.name_ar', $child)
-            ->distinct()->orderBy('co.option_id')->pluck('co.option_id')->all();
+        $hotel = $this->optionsOfChildInGroup('فندق', 'خدمات الفندق');
+
+        $this->assertCount(8, $hotel);
+        $this->assertContains('جلسة سبا ومساج', $hotel);
+        $this->assertContains('دخول المسبح (Day Use)', $hotel);
+
+        // The four every place that lets a bed charges for, everywhere.
+        foreach (['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل', 'بيت ضيافة', 'فندق عائم / بوت نيلي'] as $child) {
+            $held = $this->optionsOfChildInGroup($child, 'خدمات الفندق');
+
+            foreach (['نقل من المطار', 'سرير إضافي', 'غسيل وكي', 'تسجيل دخول مبكر أو مغادرة متأخرة'] as $row) {
+                $this->assertContains($row, $held, "«{$child}» cannot charge for «{$row}»");
+            }
+        }
+
+        // …and the ones that belong to one kind of place only.
+        $flats = $this->optionsOfChildInGroup('شقق فندقية', 'خدمات الفندق');
+        $this->assertNotContains('جلسة سبا ومساج', $flats);
+        $this->assertNotContains('تأجير قاعة اجتماعات', $flats);
+
+        $hostel = $this->optionsOfChildInGroup('نُزل / هوستل', 'خدمات الفندق');
+        $this->assertContains('جولة سياحية يومية', $hostel);
+        $this->assertNotContains('جلسة سبا ومساج', $hostel);
+
+        // A swim is not sold on a moving boat.
+        $this->assertNotContains(
+            'دخول المسبح (Day Use)',
+            $this->optionsOfChildInGroup('فندق عائم / بوت نيلي', 'خدمات الفندق')
+        );
+
+        // It is a price, not a description — that is why the group exists.
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'خدمات الفندق')->value('price_role')
+        );
+    }
+
+    /**
+     * The gender axis sits on the trade that sells a bed in a shared room.
+     *
+     * «سيدات / رجال / ميكس» reached «بيت ضيافة» and «فندق عائم» through
+     * `HospitalityOptionRestoreSeeder`, which restores whole GROUPS and so
+     * handed over rows added to the group four days after it was written. The
+     * hostel — the only child in the root whose product IS a bed in a shared
+     * room — had none of them.
+     */
+    public function test_the_hostel_can_say_whose_dorm_it_is(): void
+    {
+        $gendered = ['سيدات', 'رجال', 'ميكس'];
+
+        foreach (['نُزل / هوستل', 'بيت ضيافة'] as $child) {
+            $held = $this->optionsOfChildInGroup($child, 'ملاءمة المكان');
+
+            foreach ($gendered as $row) {
+                $this->assertContains($row, $held, "«{$child}» cannot say «{$row}»");
+            }
+        }
+
+        // A cruiser sells cabins to a mixed manifest; it is back on the base
+        // its four intact siblings hold.
+        foreach (['فندق عائم / بوت نيلي', 'فندق', 'شقق فندقية', 'منتجع'] as $child) {
+            $this->assertSame(
+                ['عائلي', 'ممنوع التدخين'],
+                $this->optionsOfChildInGroup($child, 'ملاءمة المكان'),
+                "«{$child}» answers a question its trade does not ask"
+            );
+        }
+
+        // The restore file must not name the group again, or it re-grants the
+        // three on every seed and this test passes only until the next run.
+        $restore = require database_path('seeders/data/hospitality_option_restore.php');
+
+        $this->assertNotContains('ملاءمة المكان', $restore['base_groups']);
+        $this->assertContains('عائلي', $restore['base_options']);
     }
 
     /** @return array<int,string> */

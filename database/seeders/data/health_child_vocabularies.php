@@ -43,11 +43,14 @@
 | vocabulary here is outpatient — who you see, what they scan, what they test —
 | and the admission it exists for cannot be named, let alone priced.
 |
-| So «الرعاية والتنويم», a line group, and it is the axis that separates the
-| two: the hospital admits and operates overnight, the medical centre sends the
-| patient home the same day. #515 is narrowed to the day-case slice in
-| `child_option_scopes.php` — جراحة اليوم الواحد، غسيل كلوي، جلسة علاج كيماوي —
-| which is exactly the three a polyclinic really runs, and holds no bed.
+| So «الرعاية والتنويم», a line group. It was first narrowed for #515 to the
+| three rows a day-case unit runs, on the reading that the difference between
+| the two children is whether the patient sleeps there. **The owner pinned all
+| nine back the same hour** (2026-08-17 01:00) — an Egyptian «مركز طبي» does
+| keep beds; the word covers everything from a polyclinic to a small private
+| hospital. The narrowing is withdrawn and both children answer all twelve.
+| What separates them is now the merchant's own ticks, which is the right place
+| for a difference this fine.
 |
 | What is deliberately NOT here:
 |
@@ -102,9 +105,9 @@ return [
         | «رعاية مركزة» as a descriptive would say a hospital HAS an ICU and
         | still leave the family ringing round for what a night in it costs.
         |
-        | Both children are named. The narrowing that keeps them apart is in
-        | `child_option_scopes.php`, not here, so the list stays one list — the
-        | same reading the sports pools and the furniture group get.
+        | Both children are named, and both keep the whole list: the day-case
+        | narrowing this file first put on «مركز طبي» was pinned away by the
+        | owner within the hour. See the header.
         */
         'الرعاية والتنويم' => [
             'name_en' => 'Inpatient & Critical Care',
@@ -117,10 +120,9 @@ return [
                 'رعاية متوسطة' => 'Intermediate Care',
                 'حضانة حديثي الولادة' => 'Neonatal Incubator',
                 'عملية جراحية' => 'Surgical Operation',
-                // The one row a مركز طبي shares with the hospital, and the
-                // reason it is in this group rather than a group of its own:
-                // it is the SAME question — do you keep the patient — with the
-                // answer «no, he walks out the same evening».
+                // In this group rather than one of its own because it is the
+                // SAME question — do you keep the patient — with the answer
+                // «no, he walks out the same evening».
                 'جراحة اليوم الواحد' => 'Day Surgery',
                 'ولادة طبيعية' => 'Natural Delivery',
                 'ولادة قيصرية' => 'Caesarean Delivery',

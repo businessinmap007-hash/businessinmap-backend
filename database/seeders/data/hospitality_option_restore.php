@@ -39,13 +39,25 @@ return [
     /** Present on every one of the four intact siblings. */
     'base_groups' => [
         'مرافق الإقامة',
-        'ملاءمة المكان',
         'إطلالة الوحدة',
         'نظام الوجبات',
     ],
 
     /*
-    | From «الدفع والسداد», which is a big group — only these are shared.
+    | Named options rather than whole groups, and «ملاءمة المكان» had to join
+    | them on 2026-08-17.
+    |
+    | A `base_group` grants everything in the group FOREVER, including rows
+    | added to it later — and on 2026-08-13 «ملاءمة المكان» gained سيدات، رجال،
+    | ميكس for the trades where the room itself is segregated: a gym, a pool, a
+    | hall, a trainer. This file then handed all three to «بيت ضيافة» and «فندق
+    | عائم», which is not what the header above promises. It says the base is
+    | the INTERSECTION of the four intact siblings, and those four hold exactly
+    | عائلي and ممنوع التدخين — so that is what is named now.
+    |
+    | Where the gender rows really belong is decided in
+    | `hospitality_child_vocabularies.php`, which gives them to the hostel that
+    | sells a bed in a shared room and could not say whose room it is.
     |
     | Was «تقسيط بدون فوائد» until 2026-08-10, when the owner made that one
     | hand-set only («سأحددهم يدويا»). Restoring it here would have handed the
@@ -56,6 +68,8 @@ return [
     'base_options' => [
         'كاش',
         'تقسيط',
+        'عائلي',
+        'ممنوع التدخين',
     ],
 
     'children' => [

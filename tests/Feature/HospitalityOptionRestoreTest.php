@@ -157,7 +157,13 @@ class HospitalityOptionRestoreTest extends TestCase
         // شقق فندقية 28→35 and نُزل 26→33, while فندق and منتجع already held it
         // and did not move. The restore seeder is still not the one that wrote
         // them, which is the whole point of the assertion.
-        foreach (['فندق' => 44, 'شقق فندقية' => 35, 'منتجع' => 48, 'نُزل / هوستل' => 33] as $name => $expected) {
+        //
+        // 2026-08-17: «خدمات الفندق» went from one row to eight
+        // (hospitality_child_vocabularies.php), scoped per child — فندق and
+        // منتجع take all seven new ones, شقق فندقية three, نُزل four plus the
+        // three dorm-gender rows this same change moved onto it. Still not the
+        // restore seeder's doing.
+        foreach (['فندق' => 51, 'شقق فندقية' => 38, 'منتجع' => 55, 'نُزل / هوستل' => 40] as $name => $expected) {
             $this->assertSame(
                 $expected,
                 DB::table('category_child_option')->where('child_id', $this->childId($name))->count(),

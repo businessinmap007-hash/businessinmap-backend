@@ -367,6 +367,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | The three units a live animal is quoted in
+    |--------------------------------------------------------------------------
+    | «وحدة البيع» went to the four bulk CROP traders and stopped there, and its
+    | own note above says why it matters: «a crop with no unit is half an
+    | answer». The livestock half of this root is in exactly that position, and
+    | worse — the five rows it would have inherited do not fit it at all. Nobody
+    | sells a buffalo «بالأردب».
+    |
+    | Egypt quotes a live animal three ways the crop list cannot say:
+    |
+    |   بالرأس   a cow, a buffalo, a goat, a duck — the unit of the whole animal
+    |   بالطبق   eggs, thirty to the tray, which is how every egg price is given
+    |   بالألف   fingerlings and day-old chicks, quoted per thousand and never
+    |            per kilo — «الألف صوص» and «الألف زريعة» are the trade's words
+    |
+    | Minted with `extend` and handed out in `links`, deliberately: adding them
+    | to the group's own `children` would offer a fertiliser merchant a price
+    | per head. The crop traders keep the five they have.
+    */
+    'extend' => [
+        'وحدة البيع' => [
+            'بالرأس' => 'Per Head',
+            'بالطبق' => 'Per Tray',
+            'بالألف' => 'Per Thousand',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Borrowed, not written twice
     |--------------------------------------------------------------------------
     | «ذرة صفراء» and «ردة ونخالة» are the two raw materials the feed merchant
@@ -381,5 +410,28 @@ return [
         107 => [
             'أنواع الحبوب والغلال' => ['ذرة صفراء', 'ردة ونخالة'],
         ],
+
+        /*
+         * A fish farm quotes the pond by the kilo, the wholesale lot by the
+         * tonne, and the fry by the thousand. Nothing else in the group is a
+         * fish price — a sack and an ardeb are dry measures.
+         */
+        102 => ['وحدة البيع' => ['بالكيلو', 'بالطن', 'بالألف']],
+
+        /*
+         * Livestock is bought per head and settled on the scale — «بالرأس» is
+         * the deal and «بالكيلو» is the live weight it is priced off. The
+         * merchant's own tick decides which he quotes on.
+         */
+        170 => ['وحدة البيع' => ['بالرأس', 'بالكيلو']],
+
+        /*
+         * Poultry is the one child that needs all four: birds per head, meat
+         * on the scale, table eggs by the tray, day-old chicks by the thousand.
+         * Its «حالة الدواجن» modifier (حي / مذبوح / مقطّع) already says WHAT
+         * state it is in and never how much of it — the two are the two halves
+         * of one quote.
+         */
+        229 => ['وحدة البيع' => ['بالرأس', 'بالكيلو', 'بالطبق', 'بالألف']],
     ],
 ];

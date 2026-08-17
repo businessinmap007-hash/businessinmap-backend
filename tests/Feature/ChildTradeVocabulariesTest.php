@@ -804,6 +804,15 @@ class ChildTradeVocabulariesTest extends TestCase
         // better. Seven of them now name their trade and the group is down to
         // the three bulk traders it is actually true of.
         'arts-entertainment:ألعاب ومرافق الترفيه',
+        /*
+         * «وحدة البيع» reached 7 of the 9 on 2026-08-17, and this is the case
+         * the exception exists for: «how much do you sell it by» IS the
+         * question a farm-produce root asks, of the crop trader and the cattle
+         * dealer alike. The two that do NOT hold it are the two that sell
+         * machines — a tractor has no selling unit — which is the proof it
+         * spread by trade and not by accident.
+         */
+        'agriculture-and-animals:وحدة البيع',
     ];
 
     public function test_no_vocabulary_is_spread_across_a_whole_root(): void
@@ -1155,17 +1164,19 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         12,
 
-        102, 170,                             // مزارع سمكية · مواشي وأرانب — «أرانب» #236 folded
-                                              // into #170 on 2026-08-12 and reaches no root.
-                                              // #170 joined its twin on 2026-08-16 for the reason
-                                              // already written for #102: both sell live stock by
-                                              // the head or by weight, and neither has a second
-                                              // rate for one line — a buffalo is a buffalo. They
-                                              // had been answering «مستلزمات المزارع», a grab-bag
-                                              // restating the child's own name, which
-                                              // child_option_scopes.php has declared empty for both
-                                              // since 2026-08-12 and which reached the live
-                                              // database on 2026-08-16.
+        /*
+         * #102 «مزارع سمكية» and #170 «مواشي وأرانب» LEFT this list on
+         * 2026-08-17, and the entry that held them is worth keeping as a
+         * record of how a wrong reading survives.
+         *
+         * It argued that «both sell live stock by the head or by weight, and
+         * neither has a second rate for one line — a buffalo is a buffalo».
+         * The first half names the modifier and the second half denies it: by
+         * the head and by weight are TWO rates for one buffalo, and they are
+         * the two the Egyptian market actually quotes. What was missing was
+         * not the axis, it was the word — «وحدة البيع» held five dry measures
+         * and «بالرأس» was not among them, so the gap looked like a rule.
+         */
         272,                                  // سوبر ماركت
         /*
          * «مخابز» #27، «مجمدات» #113 and «مني ماركت» #185, on the owner's own
@@ -2574,6 +2585,58 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('حضانة أطفال', $this->optionsOfChildInGroup('جيم', 'خدمات النادي الرياضي'));
         $this->assertNotContains('أونلاين', $this->optionsOfChildInGroup('حمام سباحة', 'نمط تقديم الخدمة'));
         $this->assertNotContains('فريق عمل', $this->optionsOfChildInGroup('مدرب', 'نمط تقديم الخدمة'));
+    }
+
+    /**
+     * A live animal is not quoted in ardebs.
+     *
+     * «وحدة البيع» reached the four bulk CROP traders and stopped, and its own
+     * note says why that matters — «a crop with no unit is half an answer».
+     * The livestock half of the root was in the same position and worse: the
+     * five rows it would have inherited are dry measures, and nobody sells a
+     * buffalo «بالأردب».
+     *
+     * The three added rows are the trade's own words: بالرأس for the whole
+     * animal, بالطبق for the thirty-egg tray every egg price is given in, and
+     * بالألف for fingerlings and day-old chicks.
+     */
+    public function test_livestock_and_fish_can_name_the_unit_they_are_sold_in(): void
+    {
+        $cattle = $this->optionsOfChildInGroup('مواشي وأرانب', 'وحدة البيع');
+        sort($cattle);
+        $this->assertSame(['بالرأس', 'بالكيلو'], $cattle);
+
+        // Poultry needs all four: birds per head, meat on the scale, eggs by
+        // the tray, chicks by the thousand.
+        $poultry = $this->optionsOfChildInGroup('دواجن', 'وحدة البيع');
+        $this->assertCount(4, $poultry);
+        $this->assertContains('بالطبق', $poultry);
+        $this->assertContains('بالألف', $poultry);
+
+        // A sack and an ardeb are dry measures; neither is a fish price.
+        $fish = $this->optionsOfChildInGroup('مزارع سمكية', 'وحدة البيع');
+        $this->assertContains('بالألف', $fish);
+        $this->assertNotContains('بالشيكارة', $fish);
+        $this->assertNotContains('بالأردب', $fish);
+
+        // The crop traders keep exactly the five they had — the new rows are
+        // minted with `extend` and handed out per child, so a fertiliser
+        // merchant is never offered a price per head.
+        foreach (['تقاوي وأسمدة ومبيدات', 'أعلاف', 'حبوب وغلال', 'خضار وفاكهة'] as $crop) {
+            $held = $this->optionsOfChildInGroup($crop, 'وحدة البيع');
+
+            $this->assertCount(5, $held, "«{$crop}» picked up a livestock unit");
+            $this->assertNotContains('بالرأس', $held);
+        }
+
+        /*
+         * And the rulings this root already carries, which read like gaps and
+         * are not: a used tractor (#12 حالة المنتج, withdrawn 2026-08-16), the
+         * organic claim on a seed merchant (#14 بدون مبيدات), and the payment
+         * axis on three of the nine.
+         */
+        $this->assertSame([], $this->optionsOfChildInGroup('معدات زراعية', 'حالة المنتج'));
+        $this->assertSame([], $this->optionsOfChildInGroup('تقاوي وأسمدة ومبيدات', 'مواصفات المنتج الغذائي'));
     }
 
     /** @return array<int,string> */

@@ -521,4 +521,72 @@ return [
         187 => ['نوع العملاء' => 'all'],
         279 => ['نوع العملاء' => 'all'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2026-08-17 — three trades that go silent when you browse «شركات»
+    |--------------------------------------------------------------------------
+    | Found reviewing «مكاتب», and the children are the ones that stand under
+    | both roots. «دعاية وإعلان» #11، «طباعة» #231 and «أمن» #253 each answer
+    | «نمط تقديم الخدمة» under مكاتب and answer NOTHING under شركات. It is the
+    | same child row and the same firm; only the storefront differs.
+    |
+    | It is not a ruling. Every withdrawal these three carry in that group is
+    | scoped to root 19 — «خاص» off #11 and #231, «أونلاين» off #253, all on
+    | 2026-08-10 — and there is no scope-22 decision on the group for any of
+    | them. And `child_option_groups.php` DECLARES the axis for all three:
+    | 'companies:11', 'companies:231' and 'companies:253' are each `$fieldWork`,
+    | which is `service_mode` + `payment_terms`.
+    |
+    | ── Why a declared bundle never arrived ───────────────────────────────────
+    |
+    | Two halves, and neither is wrong on its own.
+    |
+    | `CategoryChildOptionScope::syncFor()` grants at `category_id = $rootId`:
+    | anything the owner ADDS with a root in hand becomes a row for that root
+    | alone. That is exactly right — it is what lets «آثاث» mean one thing under
+    | ورش and another under معارض.
+    |
+    | `ChildOptionGroupsSeeder::applyChildTargets()` then asks whether the child
+    | already holds the bundle's options with `where('child_id')->whereIn(
+    | 'option_id', $managed)` — **no `category_id` filter**. A root-19 row
+    | answers yes, `$toAdd` comes back empty, and the declaration for شركات can
+    | never be delivered. The row written under one root MASKS the grant under
+    | the other.
+    |
+    | Left alone rather than fixed there: teaching that seeder about scope would
+    | change what it writes for every one of the 247 children it manages, which
+    | is not a change to make while chasing one axis on three of them. It is
+    | worth knowing that it can only ever see a child, never a child under a
+    | root.
+    |
+    | ── The four are named, and never `'all'` ─────────────────────────────────
+    |
+    | The GROUP holds seven rows, not four: «سيارة بسائق» and «سيارة بدون سائق»
+    | belong to the car-hire trades and «زيارة منزلية» to the workshops that
+    | come to you. `'all'` was tried here first and handed an advertising agency
+    | a chauffeured car — the same trap «الغرف» sets in the property file. What
+    | `child_option_groups.php` declares for these children is `service_mode`,
+    | and `service_mode` is those four ids.
+    |
+    | The ledger then does the narrowing on its own:
+    | `ChildOptionDecisions::blockedByChild()` is ROOT-AGNOSTIC, so a withdrawal
+    | under مكاتب refuses the grant under شركات too. Naming all four lands each
+    | child on exactly the three rows it already shows under مكاتب — #11 and
+    | #231 without «خاص», #253 without «أونلاين» — and says so in one list
+    | instead of three.
+    |
+    | ── What is NOT copied ────────────────────────────────────────────────────
+    |
+    | «نظام التعاقد» on «تنسيق حفلات» #70 and «طباعة» #231, which is also root-19
+    | only. He was in the شركات screen for #70 on 2026-08-16 at 17:27 — he
+    | withdrew «خاص» there — and pinned #11's and #253's contract rows under root
+    | 22 two minutes earlier in the same sitting. He handled that axis under
+    | شركات and left those two as they are.
+    */
+    'root_links' => [
+        11 => ['نمط تقديم الخدمة' => ['فردي', 'أونلاين', 'خاص', 'فريق عمل']],   // دعاية وإعلان
+        231 => ['نمط تقديم الخدمة' => ['فردي', 'أونلاين', 'خاص', 'فريق عمل']],  // طباعة
+        253 => ['نمط تقديم الخدمة' => ['فردي', 'أونلاين', 'خاص', 'فريق عمل']],  // أمن
+    ],
 ];

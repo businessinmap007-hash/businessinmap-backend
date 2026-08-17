@@ -3204,6 +3204,63 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains($swap, $scope->idsFor(522, 18));
     }
 
+    /**
+     * A firm that stands in two storefronts describes itself in both.
+     *
+     * «دعاية وإعلان» #11، «طباعة» #231 and «أمن» #253 stand under مكاتب AND
+     * شركات. Each answered «نمط تقديم الخدمة» under مكاتب and answered nothing
+     * under شركات, although `child_option_groups.php` declares `service_mode`
+     * for all three as `companies:*` overrides.
+     *
+     * The cause is worth keeping a test on. `syncFor()` grants at
+     * `category_id = $rootId`, so anything added with a root in hand belongs to
+     * that root — correct, and what lets «آثاث» differ between ورش and معارض.
+     * But `ChildOptionGroupsSeeder` asks whether the child holds the option
+     * with no `category_id` filter, so the root-19 row answers yes and the
+     * declaration for شركات can never be delivered.
+     */
+    public function test_a_dual_root_firm_says_how_it_works_under_both(): void
+    {
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        $modes = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'نمط تقديم الخدمة')
+            ->pluck('o.name_ar', 'o.id');
+
+        foreach ([11 => 'دعاية وإعلان', 231 => 'طباعة', 253 => 'أمن'] as $childId => $name) {
+            $under = fn (int $root) => $modes->only($scope->idsFor($childId, $root))->values()->sort()->values()->all();
+
+            $this->assertNotSame([], $under(19), "«{$name}» lost its service mode under مكاتب");
+            $this->assertSame($under(19), $under(22), "«{$name}» describes itself differently under شركات");
+        }
+
+        /*
+         * And never `'all'`. The group holds seven rows — the four the bundle
+         * names plus «سيارة بسائق»، «سيارة بدون سائق» for the car-hire trades
+         * and «زيارة منزلية» for the workshops that come to you. Writing 'all'
+         * hands an advertising agency a chauffeured car.
+         */
+        $strays = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'نمط تقديم الخدمة')
+            ->whereIn('o.name_ar', ['سيارة بسائق', 'سيارة بدون سائق', 'زيارة منزلية'])
+            ->pluck('o.id');
+
+        foreach ([11, 231, 253] as $childId) {
+            $held = collect($scope->idsFor($childId, 22))->map(fn ($id) => (int) $id)->all();
+
+            $this->assertSame([], array_values(array_intersect($strays->all(), $held)));
+        }
+
+        // The three differences that ARE his: #253 was stripped of كاش/تقسيط
+        // under مكاتب alone, and #70's «خاص» was withdrawn in the شركات screen.
+        $blocked = app(\App\Services\Catalog\ChildOptionDecisions::class)->blockedByChild();
+
+        $this->assertTrue(isset($blocked[253][66]) && isset($blocked[253][203]));
+        $this->assertTrue(isset($blocked[70][294]));
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

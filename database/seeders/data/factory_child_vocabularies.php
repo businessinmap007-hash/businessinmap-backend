@@ -703,4 +703,59 @@ return [
             ],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2026-08-17 — «ابدا فى المصنع»
+    |--------------------------------------------------------------------------
+    | Forty-three children, NINE HUNDRED AND SEVENTY-TWO ledger rows — second
+    | only to «شركات» — and every one of the forty-three can name what it makes.
+    | «نظام التصنيع» sits on all forty-three, «حالة المنتج» on forty, and the
+    | three without it are right to be without it: a brick works, a packaging
+    | printer and a cable works sell new and nothing else, which is why
+    | `$madeHere` leaves `product_condition` out of the factory bundle in the
+    | first place.
+    |
+    | Every declared bundle was measured against what each child actually holds
+    | under root 23. **One child came back short, and only one.**
+    |
+    | ── «ألمونتال» #17 cannot say كاش or تقسيط in a factory ───────────────────
+    |
+    | It stands under FOUR roots — شركات، معارض، المحلات، مصانع — and holds
+    | كاش and تقسيط under three of them as ROOT-SCOPED pairs: one row per
+    | storefront, written per root. Under مصانع it holds neither, and there is
+    | no shared row to cover it.
+    |
+    | It is not a ruling, and the ledger says so twice over. The only two
+    | decisions #17 carries on those options are PINS — «كاش» and «تقسيط»
+    | pinned under شركات on 2026-08-11 23:41:43, him keeping them by hand — and
+    | there is no withdrawal of either at any scope. What the map says is
+    | plainer still: the factory bundle is `$madeHere`, and `$madeHere` contains
+    | `payment_terms`.
+    |
+    | ── Why a declared grant never arrived, for the second time ───────────────
+    |
+    | The identical mechanism found under «مكاتب» on 2026-08-17, and finding it
+    | again in a different root is what makes it worth naming.
+    |
+    | `CategoryChildOptionScope::syncFor()` grants at `category_id = $rootId`,
+    | so a row added with a root in hand belongs to that root alone — correct,
+    | and the reason «آثاث» can mean one thing under ورش and another under
+    | معارض. `ChildOptionGroupsSeeder::applyChildTargets()` then asks whether
+    | the child already holds the bundle's options with `where('child_id')
+    | ->whereIn('option_id', $managed)` and **no `category_id` filter**. The
+    | shop-root row answers yes, `$toAdd` comes back empty, and the factory
+    | grant can never be delivered. A row written under one root MASKS the
+    | grant under another.
+    |
+    | An aluminium works quoting «تقسيط» on a kitchen or a façade is the
+    | ordinary Egyptian job, not the edge — and it is the one storefront of the
+    | four where the order is big enough for the question to matter.
+    |
+    | Root-scoped, matching the three rows it already has. A shared row would
+    | flatten four deliberate per-root decisions into one.
+    */
+    'root_links' => [
+        17 => ['الدفع والسداد' => ['كاش', 'تقسيط']],   // ألمونتال
+    ],
 ];

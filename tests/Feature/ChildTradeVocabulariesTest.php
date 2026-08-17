@@ -3436,6 +3436,67 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('شراء', $held->all());
     }
 
+    /**
+     * The aluminium works that could not say «تقسيط» in a factory.
+     *
+     * «ألمونتال» #17 stands under four roots and held كاش and تقسيط under three
+     * of them as root-scoped pairs, one per storefront. Under مصانع it held
+     * neither — no shared row, no withdrawal at any scope, and the only two
+     * decisions it carries on those options are PINS placed under شركات.
+     * `$madeHere`, the factory bundle, contains `payment_terms`.
+     *
+     * Same cause as «مكاتب»: a row written under one root MASKS the grant under
+     * another, because ChildOptionGroupsSeeder asks whether the child holds the
+     * option with no `category_id` filter. Finding it twice in two roots is why
+     * this test names the mechanism rather than just the child.
+     */
+    public function test_the_aluminium_works_takes_instalments_in_every_storefront(): void
+    {
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        $paymentUnder = fn (int $root) => DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereIn('o.id', $scope->idsFor(17, $root))
+            ->where('g.name_ar', 'الدفع والسداد')
+            ->orderBy('o.id')->pluck('o.name_ar')->all();
+
+        $roots = DB::table('category_parent_child')->where('child_id', 17)->pluck('parent_id');
+
+        $this->assertCount(4, $roots, '«ألمونتال» should stand under four roots');
+
+        foreach ($roots as $root) {
+            $this->assertSame(
+                ['كاش', 'تقسيط'],
+                $paymentUnder((int) $root),
+                "«ألمونتال» answers the payment axis differently under root #{$root}"
+            );
+        }
+
+        // And it was the only child of the forty-three that was short — the
+        // rest of this root's absences are all complete withdrawals.
+        $mute = [];
+
+        foreach (DB::table('category_parent_child')->where('parent_id', 23)->pluck('child_id') as $childId) {
+            $held = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $scope->idsFor((int) $childId, 23))
+                ->where('g.name_ar', 'الدفع والسداد')->count();
+
+            if ($held === 0) {
+                $mute[] = (int) $childId;
+            }
+        }
+
+        $blocked = app(\App\Services\Catalog\ChildOptionDecisions::class)->blockedByChild();
+
+        foreach ($mute as $childId) {
+            $this->assertTrue(
+                isset($blocked[$childId][66]) && isset($blocked[$childId][203]),
+                "factory child #{$childId} carries no payment axis and nobody decided that"
+            );
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

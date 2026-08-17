@@ -2724,6 +2724,46 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * A `units` child with one line option prices every room the same.
+     *
+     * «قاعات تدريب» #282 held a single row, «قاعة كورسات». Two more were named
+     * in `hall_child_vocabularies.php` and the owner had withdrawn both by hand
+     * on 2026-08-14 — «قاعة اجتماعات» and «قاعة مؤتمرات», and rightly, because
+     * the child that IS a meeting venue stands beside it. So the file asked for
+     * three, the seeder was refused two on every run, and the disagreement
+     * lived only in the log.
+     *
+     * One row matters more here than anywhere else in the sweep: #282 is
+     * classified `units`, so each registered room points at a line option to be
+     * priced by. With one option, room A and room B are the same money by
+     * construction.
+     */
+    public function test_a_training_hall_can_price_its_rooms_apart(): void
+    {
+        $rooms = $this->optionsOfChildInGroup('قاعات تدريب', 'مساحات العمل');
+
+        $this->assertCount(3, $rooms);
+        $this->assertContains('معمل كمبيوتر', $rooms);
+        $this->assertContains('قاعة محاضرات', $rooms);
+
+        // His withdrawals stay withdrawn, and the data file no longer asks.
+        $this->assertNotContains('قاعة اجتماعات', $rooms);
+        $this->assertNotContains('قاعة مؤتمرات', $rooms);
+
+        $file = require database_path('seeders/data/hall_child_vocabularies.php');
+        $this->assertSame(
+            ['قاعة كورسات', 'معمل كمبيوتر', 'قاعة محاضرات'],
+            $file['links'][282]['مساحات العمل']
+        );
+
+        // The group belongs to the coworking floor, which lets desks and not a
+        // computer lab. `extend` mints without linking, and this is the proof.
+        $coworking = $this->optionsOfChildInGroup('منطقة عمل مشتركة', 'مساحات العمل');
+        $this->assertNotContains('معمل كمبيوتر', $coworking);
+        $this->assertNotContains('قاعة محاضرات', $coworking);
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

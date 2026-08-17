@@ -660,6 +660,33 @@ return [
         44 => ['نوع قطع الغيار' => 'all'],
 
         /*
+         * ── «سيراميك وأدوات صحية» #138 arrived in two roots with no trade
+         *    scope, 2026-08-17 ─────────────────────────────────────────────
+         *
+         * `CeramicsAndSanitaryWareSeeder` stood it under «معارض» and «المحلات»
+         * on 2026-08-16 and copied its SERVICE shape from «صينى وخزف» #228,
+         * which is the child that already stands under all four roots. What a
+         * service copy does not carry is options, and the landmine is the one
+         * `HealthRemodelSeeder` wrote down a fortnight ago: **a child arriving
+         * in a root starts there with nothing.**
+         *
+         * So the tile shop could name nine kinds of porcelain and nine kinds of
+         * sanitary ware and could not say whether it sells them by the piece or
+         * by the pallet. Its donor says «جملة | تجزئة» in that very root.
+         *
+         * SHARED rather than per-root: retail-or-wholesale is true of this
+         * trade under every root it stands in, and #305/#384 are already PINNED
+         * on it under «مصانع» — this only stops the answer from depending on
+         * which storefront the customer walked into.
+         *
+         * The other two goods axes are NOT here and cannot be: he withdrew
+         * «تغيير», «استبدال», «جديد» and «مستعمل» from this child under «شركات»
+         * on 2026-08-16, and `blockedByChild()` reads a withdrawal without
+         * looking at its root. The mechanism has already answered them.
+         */
+        138 => ['نطاق التعامل' => ['تجزئة', 'جملة']],
+
+        /*
          * The fire half of «أنظمة الأمن والسلامة», built hours earlier for
          * «أمن وسلامة» #254. A fire-equipment factory installs no intercom and
          * no attendance terminal, so the manpower-adjacent rows stay behind —

@@ -2945,6 +2945,45 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
+    /**
+     * A child arriving in a root starts there with nothing.
+     *
+     * `CeramicsAndSanitaryWareSeeder` stood «سيراميك وأدوات صحية» #138 under
+     * «معارض» and «المحلات» on 2026-08-16 and copied its SERVICE shape from
+     * «صينى وخزف» #228. A service copy carries no options, which is the
+     * landmine `HealthRemodelSeeder` wrote down a fortnight earlier — so the
+     * tile shop could name nine kinds of porcelain and nine kinds of sanitary
+     * ware and could not say whether it sold them by the piece or the pallet,
+     * while its donor said «جملة | تجزئة» in that very root.
+     */
+    public function test_the_ceramics_shop_can_say_retail_or_wholesale(): void
+    {
+        foreach ([17, 21, 22, 23] as $rootId) {
+            $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+            $held = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $scope->idsFor(138, $rootId))
+                ->where('g.name_ar', 'نطاق التعامل')
+                ->pluck('o.name_ar')->all();
+
+            $this->assertContains('تجزئة', $held, "«سيراميك وأدوات صحية» is mute on trade scope under root {$rootId}");
+            $this->assertContains('جملة', $held);
+        }
+
+        /*
+         * And the two axes that are NOT handed over, because the mechanism has
+         * already answered them: he withdrew تغيير، استبدال، جديد and مستعمل
+         * from this child under «شركات» on 2026-08-16, and a withdrawal is read
+         * without looking at its root.
+         */
+        $blocked = app(\App\Services\Catalog\ChildOptionDecisions::class)->blockedByChild();
+
+        foreach ([70, 303, 262, 368] as $optionId) {
+            $this->assertArrayHasKey($optionId, $blocked[138] ?? []);
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

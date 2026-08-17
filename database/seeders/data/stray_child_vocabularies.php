@@ -195,7 +195,53 @@ return [
          */
         130 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'أسبوعي', 'شهري', 'ربع سنوي', 'سنوي']],
         519 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'شهري', 'ربع سنوي', 'سنوي']],
-        521 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'شهري']],
+        521 => ['نظام التعاقد' => ['بالساعة', 'يومي', 'شهري', 'سنوي']],
+
+        /*
+         * ── the subscription a pin froze ────────────────────────────────
+         *
+         * «سنوي» #1447 was minted at 14:54 on 2026-08-11, eighty minutes after
+         * the five rows above it. On 2026-08-13 23:22 the owner pinned the
+         * contract axis on «ملاعب كرة», «أكاديمية رياضية» and «حمام سباحة» —
+         * and pinned exactly the five that existed at 13:34. He recorded no
+         * ruling on «سنوي» at all: on «مدرب», where he DID see it, he pinned
+         * it and withdrew بالزيارة، بالإقامة and بالمهمة beside it.
+         *
+         * So this is not an overrule, it is the row he was never shown. An
+         * Egyptian sports academy sells an اشتراك سنوي — the season IS its
+         * contract — and an annual pool membership is just as ordinary. The
+         * other five stay unnamed here because they are his pins and the file
+         * should not start re-granting what he might later take off.
+         *
+         * «ملاعب كرة» is deliberately left out: a five-a-side pitch is sold by
+         * the hour and its longest honest contract is the quarterly league
+         * block it already carries.
+         */
+        520 => [
+            'نظام التعاقد' => ['سنوي'],
+
+            /*
+             * …and who the session is for. «أطفال» is a MODIFIER here, not a
+             * shop's department: a karate class for children prices apart from
+             * the adult one, which is exactly why the owner pinned it onto
+             * «جيم» on 2026-08-16. The academy is the child in this root that
+             * is mostly children, and it was the one that could not say so.
+             */
+            'الجمهور المستهدف' => ['أطفال'],
+        ],
+
+        /*
+         * The trainer sells a plan as well as an hour.
+         *
+         * «مدرب» #547 carries all 45 activities and none of «خدمات النادي
+         * الرياضي», with no ruling either way — the same silence «سنوي» sat in.
+         * «مدرب شخصي» would be circular on this child and «حمام مغربي» is a
+         * club's bathhouse, but «استشارة تغذية» is a separate thing a trainer
+         * charges separately for, and the platform already knows it: the
+         * training module gives a trainer workout AND nutrition plans, so his
+         * vocabulary could deliver the second and not price it.
+         */
+        547 => ['خدمات النادي الرياضي' => ['استشارة تغذية']],
 
 
         /*

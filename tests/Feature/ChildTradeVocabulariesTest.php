@@ -2525,6 +2525,57 @@ class ChildTradeVocabulariesTest extends TestCase
         );
     }
 
+    /**
+     * The row a pin froze, and the row a pin protects.
+     *
+     * «الرياضة» is the most hand-curated root on the platform — 219 ledger
+     * entries across six children — so almost every difference between them is
+     * a ruling. Two were not.
+     *
+     * «سنوي» #1447 was minted eighty minutes after the five contract rows
+     * beside it, and the owner pinned the contract axis on ملاعب كرة، أكاديمية
+     * رياضية and حمام سباحة as it stood at 13:34 on 2026-08-11. On «مدرب»,
+     * where he did see «سنوي», he pinned it and withdrew three others — so the
+     * silence on the other three is a row never shown, not a row declined.
+     */
+    public function test_a_sports_academy_can_sell_a_season(): void
+    {
+        foreach (['أكاديمية رياضية', 'حمام سباحة'] as $child) {
+            $this->assertContains(
+                'سنوي',
+                $this->optionsOfChildInGroup($child, 'نظام التعاقد'),
+                "«{$child}» cannot sell an annual subscription"
+            );
+        }
+
+        // A pitch is sold by the hour; its longest honest contract is the
+        // quarterly league block it already carries.
+        $pitch = $this->optionsOfChildInGroup('ملاعب كرة', 'نظام التعاقد');
+        $this->assertContains('ربع سنوي', $pitch);
+        $this->assertNotContains('سنوي', $pitch);
+
+        // Who the session is for — a modifier, not a shop department. Pinned
+        // onto «جيم» by hand on 2026-08-16; the academy is the child in this
+        // root that is mostly children and could not say so.
+        $this->assertContains('أطفال', $this->optionsOfChildInGroup('أكاديمية رياضية', 'الجمهور المستهدف'));
+
+        // The trainer delivers a nutrition plan and could not price one.
+        $this->assertSame(
+            ['استشارة تغذية'],
+            $this->optionsOfChildInGroup('مدرب', 'خدمات النادي الرياضي')
+        );
+
+        /*
+         * And the rulings this review must not undo. Each is a withdrawal the
+         * owner made by hand between 2026-08-13 and 2026-08-16, and each is the
+         * kind of absence that reads like a gap.
+         */
+        $this->assertNotContains('سباحة', $this->optionsOfChildInGroup('جيم', 'الأنشطة الرياضية'));
+        $this->assertNotContains('حضانة أطفال', $this->optionsOfChildInGroup('جيم', 'خدمات النادي الرياضي'));
+        $this->assertNotContains('أونلاين', $this->optionsOfChildInGroup('حمام سباحة', 'نمط تقديم الخدمة'));
+        $this->assertNotContains('فريق عمل', $this->optionsOfChildInGroup('مدرب', 'نمط تقديم الخدمة'));
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

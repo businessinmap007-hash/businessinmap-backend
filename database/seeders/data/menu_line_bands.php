@@ -199,8 +199,26 @@ return [
             'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
             'مجمدات',
         ],
+        /*
+        | Four bands until 2026-08-17, and «عربية قهوة ومأكولات» — a CART — had
+        | eleven. The café was outsold by the pavement outside it.
+        |
+        | Unlike «عصائر» above, nothing ruled it: the decisions ledger holds no
+        | menu row for #64 at all, only the payment and shipping withdrawals of
+        | 2026-08-10, so the four were what a seeder left rather than a ruling.
+        | An Egyptian café sells a sandwich, a crêpe, a fiteer and a plate of
+        | chips all day long.
+        |
+        | It stops there, and that is the whole point of the entry. مشويات،
+        | أطباق رئيسية، مأكولات بحرية، مكرونة are the grill, and the child that
+        | runs a grill AND a coffee machine is «مطعم وكافيه», standing right
+        | next to it. Handing #64 the restaurant list is how two children
+        | become one word again — the same reason «عصائر» keeps a blender and
+        | not a fridge.
+        */
         'كافيه' => [
-            'إفطار', 'حلويات', 'مشروبات ساخنة', 'مشروبات باردة',
+            'مقبلات', 'ساندوتشات', 'إفطار', 'حلويات',
+            'مشروبات ساخنة', 'مشروبات باردة', 'فطائر', 'كريب',
         ],
         'مجمدات' => [
             'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',

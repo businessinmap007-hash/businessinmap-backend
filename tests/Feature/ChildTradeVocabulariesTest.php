@@ -2466,6 +2466,65 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertContains('عائلي', $restore['base_options']);
     }
 
+    /**
+     * The café sold less than the cart parked outside it.
+     *
+     * «كافيه» #64 carried four bands — إفطار، حلويات and the two drinks lists —
+     * while «عربية قهوة ومأكولات», which is a CART, carried eleven. The ledger
+     * holds no menu ruling for #64 at all, so the four were what a seeder left
+     * rather than what anybody decided.
+     *
+     * The direction is half the test: a café gets a sandwich, a crêpe, a fiteer
+     * and a plate of chips, and does NOT get the grill — «مطعم وكافيه» is the
+     * child standing next to it, and handing #64 the restaurant list is how two
+     * children become one word again.
+     */
+    public function test_a_cafe_sells_more_than_two_kinds_of_drink(): void
+    {
+        $cafe = $this->optionsOfChildInGroup('كافيه', 'بنود المنيو');
+
+        foreach (['مقبلات', 'ساندوتشات', 'فطائر', 'كريب'] as $band) {
+            $this->assertContains($band, $cafe, "«كافيه» cannot sell «{$band}»");
+        }
+
+        foreach (['مشويات', 'أطباق رئيسية', 'مأكولات بحرية', 'مكرونة / باستا'] as $kitchen) {
+            $this->assertNotContains($kitchen, $cafe, "«كافيه» is being sold as a restaurant («{$kitchen}»)");
+        }
+
+        /*
+         * …and the bands are declared in the map that OWNS this group, not in
+         * a links file. `menu_line_bands.php` is closed — a child carries what
+         * it names and no others — so a link written anywhere else is added by
+         * one seeder and taken off by the next, every run. That is exactly what
+         * happened on the way to this test.
+         */
+        $bands = require database_path('seeders/data/menu_line_bands.php');
+
+        foreach (['مقبلات', 'ساندوتشات', 'فطائر', 'كريب'] as $band) {
+            $this->assertContains($band, $bands['children']['كافيه'] ?? []);
+        }
+
+        // The food court's seating area — the one of the four with a room big
+        // enough for wifi to matter, and the only one that lacked it.
+        $this->assertContains('واي فاي', $this->optionsOfChildInGroup('مجمع مطاعم', 'مرافق ومعدات'));
+
+        /*
+         * And the one this review got wrong on the way in. «عربية قهوة
+         * ومأكولات» has no «تيك أواى», which reads backwards for a cart with a
+         * window — but the owner withdrew it by hand on 2026-08-10 along with
+         * توصيل مجانى, شحن, both payment terms and five bands. A written link
+         * was refused by the seeder and taken back out of the data file.
+         *
+         * Pinned here so nobody re-derives the same conclusion: this absence is
+         * a ruling, not a gap.
+         */
+        $this->assertNotContains(
+            'تيك أواى',
+            $this->optionsOfChildInGroup('عربية قهوة ومأكولات', 'التسليم والاستلام'),
+            'a withdrawn row was handed back to the coffee cart'
+        );
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

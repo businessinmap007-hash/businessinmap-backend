@@ -139,12 +139,33 @@ return [
         |
         | Borrowed rather than rewritten: the group is declared in the halls file
         | with its five options, and naming it here adds these children to it.
-        | «فوتوجرافر» and «استوديوهات» are left out — a shoot is priced by what
-        | is shot and a studio by the room, and both already have a modifier.
+        |
+        | ── two more on 2026-08-17, and one exclusion narrowed ─────────────
+        |
+        | The list above was «the five children with NO modifier at all», which
+        | is a symptom and not the question. Asked properly — is the same thing
+        | two prices at two times — two more say yes.
+        |
+        | **«منطقة أطفال» #525** was never looked at, because it had a modifier:
+        | «نمط تقديم الخدمة», فردي and فريق عمل. That answers WHO books the
+        | soft-play area, a single child or a party, and says nothing about how
+        | long. Every mall play area in Egypt is sold by the hour, and it was
+        | the one child of this root with no way to say a time at all.
+        |
+        | **«استوديوهات» #271** was excluded here on 2026-08-15 with the reason
+        | «a studio by the room». The room is the LINE — that is what «أنواع
+        | الاستوديوهات» is — and the reason mistook a line for a price: the same
+        | recording room is one figure for an hour and another for the day, and
+        | hourly hire is the unit the whole trade quotes in.
+        |
+        | **«فوتوجرافر» #217 keeps the exclusion**, and it is the half of that
+        | sentence that was right: a shoot IS priced by what is shot. «تصوير
+        | أفراح» is a package with a day inside it, not a room somebody rents
+        | by the hour.
         */
         'فترة الحجز' => [
             'name_en' => 'Booking Slot', 'price_role' => 'modifier',
-            'children' => [30, 33, 239, 523, 526],
+            'children' => [30, 33, 239, 523, 526, 525, 271],
             'options' => [
                 'فترة صباحية' => 'Morning Slot',
                 'فترة مسائية' => 'Evening Slot',
@@ -195,6 +216,28 @@ return [
                 'زحاليق مائية', 'حمام سباحة ترفيهي', 'منطقة رمل ولعب',
                 'ملاهي أطفال', 'حفلات وأعياد ميلاد',
             ],
+
+            /*
+             * ── the ladies' day an aqua park could not advertise ──────────
+             *
+             * «سيدات / رجال / ميكس» #2389–2391 were minted at 23:19 on
+             * 2026-08-13 and the owner then went through this root venue by
+             * venue. From 23:54 onward he pinned all three onto every one he
+             * touched — بلياردو، بولينج، بلاي ستيشن، مركز ترفيهي، صالة ألعاب،
+             * رحلات ومراكب, six in a row. The one venue he had finished BEFORE
+             * that, at 23:49, is this one, and it carries no decision on them
+             * either way.
+             *
+             * A ladies' day is an ordinary thing at an Egyptian aqua park and
+             * a customer filters on it, so the axis is handed over. This is
+             * read off the ORDERING rather than off a recorded ruling — one
+             * click in the screen reverses it, and a withdrawal outranks this.
+             *
+             * «منطقة أطفال», which he reached at 00:04 and did NOT give it to,
+             * is left alone: a children's play area does not segregate, and
+             * that is a decision made after the pattern had started.
+             */
+            'ملاءمة المكان' => ['سيدات', 'رجال', 'ميكس'],
         ],
 
         524 => [
@@ -226,6 +269,7 @@ return [
         526 => [
             'خدمات السياحة والسفر' => ['رحلات داخلية', 'رحلات بحرية', 'رحلات سفاري وبرية', 'برامج سياحية'],
         ],
+
 
         /*
          * «استوديوهات» #271 was the one child on the platform that could not be

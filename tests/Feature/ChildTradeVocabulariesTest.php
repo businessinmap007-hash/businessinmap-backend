@@ -813,6 +813,17 @@ class ChildTradeVocabulariesTest extends TestCase
          * spread by trade and not by accident.
          */
         'agriculture-and-animals:وحدة البيع',
+        /*
+         * «فترة الحجز» reached 7 of the 10 on 2026-08-17, and this file's own
+         * opening paragraph is the argument for it: «a billiards hall, a
+         * bowling alley and a PlayStation lounge all sell an HOUR, they are
+         * all on `booking_time`». WHEN is the question a leisure root asks.
+         *
+         * The three that do not hold it are the three the same paragraph calls
+         * «NOT venues»: the photographer priced by what he shoots, and the two
+         * console floors, whose modifier is WHICH MACHINE.
+         */
+        'arts-entertainment:فترة الحجز',
     ];
 
     public function test_no_vocabulary_is_spread_across_a_whole_root(): void
@@ -2637,6 +2648,44 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         $this->assertSame([], $this->optionsOfChildInGroup('معدات زراعية', 'حالة المنتج'));
         $this->assertSame([], $this->optionsOfChildInGroup('تقاوي وأسمدة ومبيدات', 'مواصفات المنتج الغذائي'));
+    }
+
+    /**
+     * The play area and the studio, both let by the hour.
+     *
+     * «فترة الحجز» was given to «the five children of this root with NO
+     * modifier at all» on 2026-08-15 — which is a symptom, not the question.
+     * Asked properly (is the same thing two prices at two times) two more say
+     * yes: «منطقة أطفال» was skipped because it HAD a modifier, «نمط تقديم
+     * الخدمة», which answers who books the soft-play area and not for how
+     * long; and «استوديوهات» was excluded with the reason «a studio by the
+     * room», which mistook the line for the price.
+     */
+    public function test_the_hour_is_a_price_in_the_leisure_root(): void
+    {
+        foreach (['منطقة أطفال', 'استوديوهات'] as $child) {
+            $this->assertContains(
+                'بالساعة',
+                $this->optionsOfChildInGroup($child, 'فترة الحجز'),
+                "«{$child}» cannot say the same thing costs two amounts at two times"
+            );
+        }
+
+        // …and the half of that exclusion which was right: a shoot IS priced
+        // by what is shot. «تصوير أفراح» is a package with a day inside it.
+        $this->assertSame([], $this->optionsOfChildInGroup('فوتوجرافر', 'فترة الحجز'));
+
+        // The ladies' day. Read off the ordering of his own saves — he pinned
+        // the gender axis onto six venues from 23:54 on 2026-08-13, and the
+        // one he had finished five minutes earlier carries no ruling on it.
+        $this->assertContains('سيدات', $this->optionsOfChildInGroup('اكوا بارك', 'ملاءمة المكان'));
+
+        // …and the one he reached AFTER the pattern started and still skipped.
+        $this->assertSame(
+            ['عائلي', 'ممنوع التدخين'],
+            $this->optionsOfChildInGroup('منطقة أطفال', 'ملاءمة المكان'),
+            'a children\'s play area was given a gender axis'
+        );
     }
 
     /** @return array<int,string> */

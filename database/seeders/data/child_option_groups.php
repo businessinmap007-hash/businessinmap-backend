@@ -199,6 +199,30 @@ return [
         'restaurants-cafes:143' => ['fulfilment', 'payment_terms'], // أكل بيتى
         'restaurants-cafes:65' => ['fulfilment', 'payment_terms'],                     // عربية قهوة ومأكولات
 
+        /*
+        | ── the two children that SELL a car in a root full of car SERVICES ──
+        |
+        | «سيارات» #13 is a service root — a driver, a car wash, a recovery
+        | truck, a limousine — so its default is `$fieldWork`. On 2026-08-17
+        | «معرض سيارات» #188 moved into it from «معارض», carrying 21 merchants,
+        | and «سيارة من المالك» #549 was created beside it. Both sell a vehicle.
+        |
+        | Without these two lines the root default applies and this seeder
+        | DELETES what it does not declare: a dry run had it taking تجزئة،
+        | تصدير، إستيراد، شحن، استبدال، تغيير and — the one that matters —
+        | «جديد» and «مستعمل» off the showroom, which is «حالة المنتج», the group
+        | «كسر زيرو» was added to the same day. A car showroom unable to say
+        | whether the car is new. `taxonomy:capture-withdrawals` would then read
+        | all eight as the owner's rulings and freeze them.
+        |
+        | #188 gets `$goods` — the bundle it carried under «معارض» and still
+        | holds row for row. #549 gets two of the five: a private seller says
+        | what condition his car is in and how he takes the money, and neither
+        | wholesales nor exports nor accepts returns.
+        */
+        'cars:188' => $goods,                                 // معرض سيارات
+        'cars:549' => ['product_condition', 'payment_terms'], // سيارة من المالك
+
         // ── companies: the service firms among the goods traders
         'companies:253' => $fieldWork,   // أمن
         'companies:261' => $fieldWork,   // برمجيات

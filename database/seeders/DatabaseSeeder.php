@@ -162,6 +162,23 @@ class DatabaseSeeder extends Seeder
            // the coworking seeder, which closed the same gap on the same day.
            ChildTradeVocabulariesSeeder::class,
 
+           /*
+            * The private half of the car market, 2026-08-17. It creates a
+            * CHILD, so it must run before anything that reads the root's
+            * children — and after the vocabulary seeder, because it copies its
+            * words from «معرض سيارات» and one of them («كسر زيرو») is minted
+            * there.
+            *
+            * VehicleDealTypeSeeder beside it splits «بيع وشراء» into بيع and
+            * شراء for the showrooms alone. Neither was in this list before —
+            * VehicleDealTypeSeeder had been running by hand since 2026-08-08,
+            * which is the same defect PropertyModifierOptionsSeeder was found
+            * with the day before: a seeder that self-heals in a chain it is not
+            * part of heals nothing.
+            */
+           VehicleDealTypeSeeder::class,
+           CarOwnerListingSeeder::class,
+
            // Sixteen children that could say what they DO and not what they are
            // made of, lent an existing list from a sibling. After the seeder
            // above, because a donor must already hold what it lends.

@@ -20,8 +20,9 @@
 |
 | ── What WAS missing ──────────────────────────────────────────────────────
 |
-| «نوع التعامل» — بيع وشراء · إيجار · تبديل — reached three of the twenty-eight:
-| the two vehicle showrooms and «سيارات». The narrowness is CORRECT and was
+| «نوع التعامل» — بيع · شراء · إيجار · تبديل — reached three of the
+| twenty-eight: the two vehicle showrooms and «سيارات», which was folded into
+| «معرض سيارات» on 2026-08-17. The narrowness is CORRECT and was
 | left alone: a carpet showroom neither rents nor part-exchanges, so the axis
 | would offer it one possible answer, and a modifier with one answer is noise
 | on a pricing screen rather than a question.
@@ -109,9 +110,21 @@ return [
     | Links written against THIS root rather than shared. Same shape as
     | `links`, and every child appears once.
     */
+    /*
+    | Named row by row since 2026-08-17, and `'all'` here was a live seeder
+    | fight. «بيع وشراء» #53 was split into «بيع» and «شراء» that day and the
+    | merged row RETIRED — kept in the group with no child link, as the record
+    | of what the halves came from. `'all'` handed it straight back to «آثاث»
+    | on every run and VehicleDealTypeSeeder took it off again on its own,
+    | which VehicleDealTypeTest's idempotency check caught.
+    |
+    | A retired row is exactly what `'all'` cannot see, and this is the second
+    | time in two days the wildcard has read a group wider than the question —
+    | «الغرف» offering a developer a royal suite was the first.
+    */
     'root_links' => [
-        116 => ['نوع التعامل' => 'all'],   // آثاث
-        115 => ['نوع التعامل' => 'all'],   // مفروشات
+        116 => ['نوع التعامل' => ['بيع', 'شراء', 'إيجار']],   // آثاث
+        115 => ['نوع التعامل' => ['بيع', 'شراء', 'إيجار']],   // مفروشات
     ],
 
     /*
@@ -142,7 +155,7 @@ return [
     | «حالة المنتج» is one of the widest groups on the platform — 113 children
     | hold «جديد» — and a sofa is never «كسر زيرو». The row is minted with
     | `extend`, which creates and links NOTHING, and handed out by name to the
-    | three vehicle showrooms alone.
+    | vehicle showrooms alone.
     |
     | It is deliberately NOT added to `product_condition.options` in
     | `child_option_groups.php`. That array is what ChildOptionGroupsSeeder
@@ -150,16 +163,23 @@ return [
     | it is neither handed to every goods child nor deleted from these three.
     | «دفع مسبق» and «الدفع عند الاستلام» both stand in that exact position.
     |
-    | ── The three ────────────────────────────────────────────────────────────
+    | ── The two ────────────────────────────────────────────────────────────
     |
-    | «سيارات» #53، «معرض سيارات» #188 and «معرض موتوسيكلات» #189 — the only
-    | children on the platform that sell a vehicle rather than a service around
-    | one, and all three already carry جديد and مستعمل. A low-mileage motorbike
-    | is «كسر زيرو» in the same breath as a car.
+    | «معرض سيارات» #188 and «معرض موتوسيكلات» #189 — the only children left on
+    | the platform that sell a vehicle rather than a service around one, and
+    | both already carry جديد and مستعمل. A low-mileage motorbike is «كسر زيرو»
+    | in the same breath as a car.
     |
     | «قطع غيار سيارات» #44 is not among them: a spare part is «أصلي وكيل» or
     | «تجاري» — it has «درجة قطعة الغيار» for that — and mileage says nothing
     | about a part.
+    |
+    | #188 left this root for «سيارات» hours after the row was written, and the
+    | link is kept HERE on purpose: `links` are shared (`category_id = 0`), and
+    | a shared row is every root's — it travelled with the child. Splitting the
+    | pair across two files to chase the move would put one question in two
+    | places for no gain. «سيارات» #53 was folded into #188 in the same change
+    | and is retired, so its line is gone rather than re-keyed.
     */
     'extend' => [
         'حالة المنتج' => [
@@ -168,8 +188,7 @@ return [
     ],
 
     'links' => [
-        53 => ['حالة المنتج' => ['كسر زيرو']],    // سيارات
-        188 => ['حالة المنتج' => ['كسر زيرو']],   // معرض سيارات
+        188 => ['حالة المنتج' => ['كسر زيرو']],   // معرض سيارات — now under «سيارات»
         189 => ['حالة المنتج' => ['كسر زيرو']],   // معرض موتوسيكلات
     ],
 ];

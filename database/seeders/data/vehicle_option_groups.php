@@ -92,9 +92,24 @@ return [
             42,  // زيت سيارات
             43,  // قطع غيار سيارات (مصانع)
             44,  // قطع غيار سيارات (محلات)
-            53,  // سيارات
+            // «سيارات» #53 folded into #188 on 2026-08-17 and is retired.
             169, // خدمة ليموزين — a Mercedes limo is not a Hyundai one
             188, // معرض سيارات
+            /*
+             * «سيارة من المالك» #549, created 2026-08-17 beside the showroom.
+             *
+             * It was GIVEN the 43 marques on the day it was made and never named
+             * here, so this file — which is the declared authority and prunes
+             * what it does not list — took all 43 straight back off on its next
+             * run. The add/remove loop this taxonomy keeps producing, and the
+             * reason `ChildOptionDecisionTest` went red: a seeder that grants
+             * and a seeder that declares, disagreeing in the dark.
+             *
+             * The marque is the first word of any private listing — «هيونداي
+             * النترا ٢٠١٩ من المالك» — so it belongs to this child at least as
+             * plainly as to the showroom.
+             */
+            549, // سيارة من المالك
             249, // جنوط وكاوتش سيارات
         ],
         'motorcycle_brands' => [

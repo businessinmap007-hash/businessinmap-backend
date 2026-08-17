@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -45,13 +46,44 @@ class VehicleDealTypeSeeder extends Seeder
     /** What it used to be called, so a re-run finds it either way. */
     private const FORMER_NAME_AR = 'نوع التعامل العقاري';
 
-    /** بيع وشراء، إيجار — the pair real estate already answers. */
-    private const SHARED_OPTIONS = [53, 302];
+    /**
+     * «إيجار» — the row every child on this axis answers identically.
+     *
+     * «بيع وشراء» #53 used to be here beside it, and on 2026-08-17 the owner
+     * split it: «والتقسيم على الكل». A trader who BUYS from you — «بنشترى
+     * عربيتك» on the showroom window, «بنشترى الذهب» over the goldsmith's
+     * counter — is making a different offer from one who sells to you, and a
+     * customer looks for exactly one of the two. Merged into a single row they
+     * could not be told apart, and every child on the axis was making both
+     * claims whether it meant them or not.
+     *
+     * ON THE WHOLE AXIS, not the vehicles. That is the instruction and it is
+     * also the only coherent reading: the split exists so a merchant TICKS what
+     * he does, so an owner listing his own flat says «بيع» and nothing else,
+     * while the office two doors down says both. Leaving nine children merged
+     * would have kept the ambiguity exactly where the private seller is.
+     */
+    private const SHARED_OPTIONS = [302];
 
-    /** The showrooms that sell a vehicle, not the shops that service one. */
+    /** The two halves «بيع وشراء» was hiding. */
+    private const SALE_OPTIONS = [
+        ['بيع', 'For Sale'],
+        ['شراء', 'We Buy'],
+    ];
+
+    /** The row the split replaces, everywhere it is linked. */
+    private const MERGED_SALE_OPTION = 53;
+
+    /**
+     * The showrooms that sell a vehicle, not the shops that service one.
+     *
+     * «سيارات» #53 — the CHILD, not to be confused with option #53 above — was
+     * folded into «معرض سيارات» #188 on 2026-08-17 and is retired. #188 moved
+     * from «معارض» to «سيارات» in the same change, which is why the root that
+     * is named for cars now contains one.
+     */
     private const VEHICLE_CHILDREN = [
         188, // معرض سيارات
-        53,  // سيارات
         189, // معرض موتوسيكلات
     ];
 
@@ -75,12 +107,17 @@ class VehicleDealTypeSeeder extends Seeder
                 'updated_at' => now(),
             ]);
 
-            $tradeIn = $this->tradeInOption($groupId);
+            $tradeIn = $this->option($groupId, 'تبديل', 'Trade-in');
+
+            $sale = [];
+            foreach (self::SALE_OPTIONS as [$ar, $en]) {
+                $sale[] = $this->option($groupId, $ar, $en);
+            }
 
             $linked = 0;
 
             foreach (self::VEHICLE_CHILDREN as $childId) {
-                foreach (array_merge(self::SHARED_OPTIONS, [$tradeIn]) as $optionId) {
+                foreach (array_merge(self::SHARED_OPTIONS, $sale, [$tradeIn]) as $optionId) {
                     /*
                      * category_id = 0 means «under every root this child sits
                      * under». A showroom answers بيع/إيجار the same way whatever
@@ -106,18 +143,22 @@ class VehicleDealTypeSeeder extends Seeder
                 }
             }
 
+            $migrated = $this->splitMergedSale($sale);
+            $unmerged = $this->retireMergedSale();
+
             $this->command?->info(
-                'Deal type: group renamed to «' . self::NAME_AR . "», تبديل #{$tradeIn}, {$linked} new child link(s)."
+                'Deal type: group «' . self::NAME_AR . "», تبديل #{$tradeIn}, {$linked} new child link(s), "
+                . "{$migrated} link(s) migrated to بيع/شراء, «بيع وشراء» removed from {$unmerged} child(ren)."
             );
         });
     }
 
     /** Created once, found forever after — matched inside its own group. */
-    private function tradeInOption(int $groupId): int
+    private function option(int $groupId, string $ar, string $en): int
     {
         $id = (int) DB::table('options')
             ->where('group_id', $groupId)
-            ->where('name_ar', 'تبديل')
+            ->where('name_ar', $ar)
             ->value('id');
 
         if ($id > 0) {
@@ -126,10 +167,100 @@ class VehicleDealTypeSeeder extends Seeder
 
         return (int) DB::table('options')->insertGetId([
             'group_id' => $groupId,
-            'name_ar' => 'تبديل',
-            'name_en' => 'Trade-in',
+            'name_ar' => $ar,
+            'name_en' => $en,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Give «بيع» and «شراء» to everyone «بيع وشراء» reached.
+     *
+     * AT THE SAME SCOPE, row for row. The merged option is held at four
+     * different scopes — shared for the property children, root 14 for
+     * «اكسسوار» and «ملابس» and «جلود», root 21 for «آثاث», root 17 for «ذهب» —
+     * and each of those is a decision somebody made about which storefront the
+     * word belongs in. Granting the halves shared would quietly widen every one
+     * of them, which is the leak this taxonomy keeps closing.
+     *
+     * The withdrawal ledger still has the last word: a child that was refused
+     * the merged row under some root is refused both halves there too.
+     *
+     * @param  array<int,int>  $sale
+     */
+    private function splitMergedSale(array $sale): int
+    {
+        $blocked = app(ChildOptionDecisions::class)->blockedByChild();
+
+        $rows = DB::table('category_child_option')
+            ->where('option_id', self::MERGED_SALE_OPTION)
+            ->get(['child_id', 'category_id', 'reorder']);
+
+        $added = 0;
+
+        foreach ($rows as $row) {
+            $childId = (int) $row->child_id;
+
+            foreach ($sale as $optionId) {
+                if (isset($blocked[$childId][$optionId])) {
+                    continue;
+                }
+
+                $exists = DB::table('category_child_option')
+                    ->where('child_id', $childId)
+                    ->where('category_id', (int) $row->category_id)
+                    ->where('option_id', $optionId)
+                    ->exists();
+
+                if ($exists) {
+                    continue;
+                }
+
+                DB::table('category_child_option')->insert([
+                    'child_id' => $childId,
+                    'category_id' => (int) $row->category_id,
+                    'option_id' => $optionId,
+                    'reorder' => (int) $row->reorder,
+                ]);
+
+                $added++;
+            }
+        }
+
+        return $added;
+    }
+
+    /**
+     * Take «بيع وشراء» off every child, now that both halves are there.
+     *
+     * Without this a showroom would hold all three and be asked the same
+     * question twice, which is worse than the merged row was.
+     *
+     * The option ROW is not deleted and not unfiled. It stays in «نوع التعامل»
+     * with no child link — unreachable by `idsFor()`, which is what retirement
+     * means here, and readable as the record of what the two halves came from.
+     *
+     * A merchant's own tick outranks all of it: none had ticked it when this
+     * ran, and if one ever has, that child's link stays and is reported rather
+     * than cut from under a live answer.
+     */
+    private function retireMergedSale(): int
+    {
+        $chosen = DB::table('option_user as ou')
+            ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->where('ou.option_id', self::MERGED_SALE_OPTION)
+            ->pluck('u.category_child_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        foreach ($chosen as $childId) {
+            $this->command?->warn("  ! تاجر على الابن #{$childId} مؤشّر على «بيع وشراء» — تُرك له.");
+        }
+
+        return DB::table('category_child_option')
+            ->where('option_id', self::MERGED_SALE_OPTION)
+            ->when($chosen->isNotEmpty(), fn ($q) => $q->whereNotIn('child_id', $chosen->all()))
+            ->delete();
     }
 }

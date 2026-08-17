@@ -824,6 +824,17 @@ class ChildTradeVocabulariesTest extends TestCase
          * console floors, whose modifier is WHICH MACHINE.
          */
         'arts-entertainment:فترة الحجز',
+        /*
+         * «نوع المركبة» reached 6 of the 9 on 2026-08-17, when the car
+         * showroom and the private seller joined the root that is named for
+         * cars. سيدان / SUV / بيك أب is WHAT KIND OF VEHICLE, which is the one
+         * question this root asks of everybody in it.
+         *
+         * The three that do not hold it are the three that never touch a car
+         * the customer chooses: «سائق» sells himself, «جراج» sells a space, and
+         * «سيارات نقل» sells a lorry and has its own list for it.
+         */
+        'cars:نوع المركبة',
     ];
 
     public function test_no_vocabulary_is_spread_across_a_whole_root(): void
@@ -3335,13 +3346,94 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertContains(368, $held, "«{$name}» lost مستعمل");
         }
 
-        // Everyone else who holds the axis keeps two answers, not three.
-        $strays = DB::table('category_child_option')
-            ->where('option_id', $row->id)
-            ->whereNotIn('child_id', [53, 188, 189])
+        /*
+         * Everyone else who holds the axis keeps two answers, not three.
+         *
+         * REACHABLE children only. «سيارات» #53 was folded into #188 on
+         * 2026-08-17 and still carries the row: a fold retires by unlinking
+         * ROOTS, not options, and the leftover link is part of the undo record
+         * this taxonomy keeps rather than debris to sweep. Nothing can reach
+         * it — `idsFor()` is only ever called with a root the child is under.
+         */
+        $strays = DB::table('category_child_option as l')
+            ->join('category_parent_child as pc', 'pc.child_id', '=', 'l.child_id')
+            ->where('l.option_id', $row->id)
+            ->whereNotIn('l.child_id', [188, 189, $this->childId('سيارة من المالك')])
             ->count();
 
         $this->assertSame(0, $strays, 'كسر زيرو leaked outside the vehicle showrooms');
+
+        // …and the retired child keeps its copy, unreachable.
+        $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 53)->count());
+    }
+
+    /**
+     * The root named for cars now contains one.
+     *
+     * «سيارات» #13 held seven children and not one of them sold a car — a car
+     * wash, a driver, a garage, a limousine service, a recovery truck, a
+     * passenger service and a haulier. The two children that DID sell cars
+     * stood under «معارض» beside the carpets, and they were the same trade with
+     * the same eight option groups row for row.
+     *
+     * On 2026-08-17 the owner folded «سيارات» #53 into «معرض سيارات» #188 and
+     * moved #188 to the cars root: «خليه معرض سيارات ونفذ الطى والنقل».
+     */
+    public function test_the_car_root_contains_a_car(): void
+    {
+        $showroom = 188;
+
+        $roots = DB::table('category_parent_child')->where('child_id', $showroom)->pluck('parent_id')
+            ->map(fn ($id) => (int) $id)->all();
+
+        $this->assertSame([13], $roots, '«معرض سيارات» is not under «سيارات» alone');
+
+        // The fold is a RETIREMENT, never a delete: the row stays as the undo
+        // record, standing under no root, exactly as the eighty children left
+        // by earlier remodels do.
+        $this->assertNotNull(DB::table('category_children_master')->where('id', 53)->first());
+        $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 53)->count());
+        $this->assertSame(0, DB::table('users')->where('category_child_id', 53)->count());
+
+        // Every merchant landed, and under the new root rather than the old.
+        $this->assertSame(21, DB::table('users')->where('category_child_id', $showroom)->count());
+        $this->assertSame(0, DB::table('users')->where('category_child_id', $showroom)
+            ->where('category_id', '!=', 13)->count());
+
+        /*
+         * And nothing was left behind pointing at «معارض». That is what the
+         * move command exists for — six tables key on (root, child) and a row
+         * left at the old root is unreachable, because every reader is only
+         * ever called with a root the child IS under.
+         */
+        foreach ([
+            'category_child_option' => 'child_id',
+            'category_child_option_decisions' => 'child_id',
+            'category_platform_services' => 'child_id',
+            'category_service_configs' => 'child_id',
+        ] as $table => $column) {
+            $this->assertSame(0, DB::table($table)->where($column, $showroom)->where('category_id', 21)->count(),
+                "{$table} still points at «معارض»");
+        }
+
+        // The private seller, and the reason it is a CHILD: a معرض must not be
+        // able to label itself «من المالك» or the filter is worthless.
+        $owner = DB::table('category_children_master')->where('name_ar', 'سيارة من المالك')->first();
+
+        $this->assertNotNull($owner, 'the owner side of the car market has no child');
+        $this->assertSame([13], DB::table('category_parent_child')->where('child_id', $owner->id)
+            ->pluck('parent_id')->map(fn ($id) => (int) $id)->all());
+
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+        $held = DB::table('options')->whereIn('id', $scope->idsFor((int) $owner->id, 13))->pluck('name_ar');
+
+        foreach (['سيدان', 'كسر زيرو', 'بيع', 'إيجار', 'تبديل'] as $word) {
+            $this->assertContains($word, $held->all(), "«سيارة من المالك» cannot say «{$word}»");
+        }
+
+        // …and «شراء» is the showroom's own offer. An individual selling his
+        // car is not in the business of buying yours.
+        $this->assertNotContains('شراء', $held->all());
     }
 
     /** @return array<int,string> */

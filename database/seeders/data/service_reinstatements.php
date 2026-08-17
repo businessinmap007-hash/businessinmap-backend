@@ -213,16 +213,18 @@ return [
     |     would undo that.
     */
 
-    // 27 of the 28 children under معارض carry retail. This is the one that does
-    // not, and «معرض سيارات» beside it is the same trade with the same six car
-    // item types. Twelve merchants who cannot list the car they are selling.
-    [
-        'child_name_ar' => 'سيارات',
-        'root_slug' => 'exhibitions',
-        'service_key' => 'retail',
-        'copy_from_child_ar' => 'معرض سيارات',
-        'why' => 'معرض سيارات لا يستطيع إدراج سيارة، و٢٧ من ٢٨ ابنًا في الجذر يستطيعون — ١٢ حسابًا',
-    ],
+    /*
+     * «سيارات» under معارض was reinstated here on 2026-08-10, copying retail
+     * from «معرض سيارات» because the two were the same trade with the same six
+     * car item types and one of them could not list a car.
+     *
+     * On 2026-08-17 the owner drew the conclusion the entry was arguing
+     * towards: «خليه معرض سيارات ونفذ الطى والنقل». #53 is folded into #188
+     * and retired, and #188 stands under «سيارات», so the entry names a child
+     * under a root neither of them is in. Its retail service went with the
+     * fold. Removed rather than re-keyed — a reinstatement is a repair, and
+     * this one is repaired.
+     */
 
     /*
      * The mirror image of the entry above, found by the same audit and

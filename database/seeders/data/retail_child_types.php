@@ -137,7 +137,6 @@ return [
     // Both readings are named here, and the intersection picks the right one
     // per root on its own.
     'اكسسوار' => ['mobiles_accessories', 'auto_accessories', 'leather_bags_shoes'],
-    'سيارات' => ['cars_showroom'],
     'قطع غيار' => ['auto_spare_parts', 'auto_accessories'],
     // The donors, narrowed with the trades they seeded. ServiceReinstatementTest
     // holds a reinstated child to «lists the same catalog as the shop beside

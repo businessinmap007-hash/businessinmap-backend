@@ -48,6 +48,16 @@
 return [
 
     // ── معارض (showrooms) ──
+    /*
+    | «معرض سيارات» #188 moved معارض → سيارات on 2026-08-17, folding «سيارات»
+    | #53 into itself first — owner: «خليه معرض سيارات ونفذ الطى والنقل». The
+    | shelf does not change with the root: a showroom lists cars either way.
+    | The root had no retail block at all before this.
+    */
+    'cars' => [
+        'معرض سيارات' => ['vehicles_parts'],
+    ],
+
     'exhibitions' => [
         // Stood under «معارض» and «المحلات» on 2026-08-16 — the two roots a
         // customer actually looks for a bathroom shop in, and it was in
@@ -73,7 +83,8 @@ return [
         'جلود وشنط وأحذية' => ['fashion_textiles'],
         'رخام' => ['building_hardware'],
         'مراتب' => ['home_furnishings'],
-        'معرض سيارات' => ['vehicles_parts'],
+        // «معرض سيارات» left this root for «سيارات» on 2026-08-17 and is named
+        // in the `cars` block above. A line left here would re-file it.
         'معرض موتوسيكلات' => ['vehicles_parts'],
         'حدايد وبويات' => ['building_hardware'],
         // hobbies_general until 2026-08-11, which the header of this file has
@@ -89,11 +100,9 @@ return [
         'إسفنج' => ['home_furnishings'],
         'لعب أطفال' => ['hobbies_general'],
         'أصواف' => ['fashion_textiles'],
-        // Reinstated 2026-08-10 by ServiceReinstatementSeeder (pass 5, donor
-        // «معرض سيارات») and never named here, so the narrowing could not
-        // reach it and a car showroom was also being offered motorcycles,
-        // spare parts, tyres and oils.
-        'سيارات' => ['vehicles_parts'],
+        // «سيارات» #53 was folded into «معرض سيارات» on 2026-08-17 and is
+        // retired; the narrowing this line carried lives on in the `cars`
+        // block above, on the child that survived.
     ],
 
     // ── المحلات أو أونلاين (shops, non-food) ──

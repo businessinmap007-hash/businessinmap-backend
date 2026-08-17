@@ -277,9 +277,19 @@ class ServiceReinstatementTest extends TestCase
     public static function catalogPairs(): array
     {
         return [
-            // The one child of 28 under معارض without retail, and 12 merchants
-            // who could not list the car they were selling.
-            'معرض سيارات' => ['exhibitions', 'سيارات', 'معرض سيارات'],
+            /*
+             * «سيارات» ← «معرض سيارات» under معارض stood here from 2026-08-10:
+             * the one child of 28 without retail, and 12 merchants who could not
+             * list the car they were selling.
+             *
+             * It is gone on 2026-08-17 because the pair is gone — «خليه معرض
+             * سيارات ونفذ الطى والنقل». #53 was folded into #188 and retired,
+             * and #188 moved معارض → سيارات carrying the retail service the
+             * reinstatement had given it. A pair needs two children under one
+             * root and there is now one child under another root, so the case
+             * this guarded cannot recur. The repair held; it is not deleted for
+             * being wrong.
+             */
             // One trade at three sizes; only the middle one had the catalog.
             'هايبر' => ['shops-online', 'هايبر ماركت', 'سوبر ماركت'],
             'مني' => ['shops-online', 'مني ماركت', 'سوبر ماركت'],

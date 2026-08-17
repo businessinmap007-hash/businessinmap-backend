@@ -72,6 +72,19 @@ return [
 
     // ── سيارات ──
     'cars' => [
+        /*
+        | «معرض سيارات» #188 arrived here on 2026-08-17, folding «سيارات» #53
+        | into itself on the way — owner: «خليه معرض سيارات ونفذ الطى والنقل».
+        | Both stood under «معارض» and both were the same trade with the same
+        | eight option groups, row for row. The root «سيارات» held seven
+        | children and not one of them sold a car; it held a car wash, a driver
+        | and a limousine service. A buyer opening «سيارات» found no car.
+        |
+        | Its branch is unchanged by the move — a showroom hands over a vehicle
+        | and that is freight either way.
+        */
+        'معرض سيارات' => ['delivery_freight'],
+
         // Children removed on 2026-08-10 by the owner's rule «حجز بدون توصيل
         // هو حجز وقت او مدة فلا نستخدم خدمة التوصيل» — they book time and sell
         // no goods. BookingWithoutDeliverySeeder is the authority; withdrawing
@@ -108,13 +121,15 @@ return [
         'رخام' => ['delivery_freight'],
         'زجاج' => ['delivery_freight'],
         'سجاد' => ['delivery_freight'],
-        'سيارات' => ['delivery_freight'],
         'سيفتى ومقاومة حرائق' => ['delivery_freight'],
         'صينى وخزف' => ['delivery_freight'],
         'لعب أطفال' => ['delivery_freight'],
         'مراتب' => ['delivery_freight'],
         'مستلزمات مطاعم' => ['delivery_freight'],
-        'معرض سيارات' => ['delivery_freight'],
+        // «معرض سيارات» left this root for «سيارات» on 2026-08-17 and is named
+        // in the `cars` block above; «سيارات» #53 was folded into it and is
+        // retired. Left here, this map would re-wire delivery under a root
+        // neither child stands under.
         'معرض موتوسيكلات' => ['delivery_freight'],
         'مفروشات' => ['delivery_freight'],
         'ملابس جاهزة' => ['delivery_freight'],

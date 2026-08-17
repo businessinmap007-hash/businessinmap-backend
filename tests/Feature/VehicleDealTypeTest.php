@@ -26,7 +26,21 @@ class VehicleDealTypeTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private const SHOWROOMS = [188, 53, 189]; // معرض سيارات، سيارات، معرض موتوسيكلات
+    /*
+     * «سيارات» #53 was folded into «معرض سيارات» #188 on 2026-08-17 and is
+     * retired — owner: «خليه معرض سيارات ونفذ الطى والنقل». Two showrooms left,
+     * and #188 now stands under «سيارات» rather than «معارض».
+     */
+    private const SHOWROOMS = [188, 189]; // معرض سيارات، معرض موتوسيكلات
+
+    /*
+     * «بيع وشراء» was split into two rows for VEHICLES ONLY on the same day —
+     * «التقسيم على السيارات وحدها». A showroom that BUYS your car is making a
+     * different offer from one that sells you one, and a buyer filters on one
+     * of the two. Real estate, gold, furniture and clothing keep the merged row
+     * and the test below holds them to it.
+     */
+    private const VEHICLE_DEALS = ['إيجار', 'بيع', 'تبديل', 'شراء'];
 
     /*
      * #238 «تسويق عقاري» folded into #517 «مكتب عقاري» on 2026-08-12 (owner):
@@ -102,11 +116,15 @@ class VehicleDealTypeTest extends TestCase
         foreach (self::SHOWROOMS as $childId) {
             $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
 
-            $this->assertSame(
-                ['إيجار', 'بيع وشراء', 'تبديل'],
+            $this->assertEqualsCanonicalizing(
+                self::VEHICLE_DEALS,
                 $this->answersOf($childId),
                 "«{$name}» cannot say what kind of deal it does"
             );
+
+            // The merged row is the thing the split replaced — holding both
+            // would ask the same question twice.
+            $this->assertNotContains('بيع وشراء', $this->answersOf($childId));
         }
     }
 
@@ -135,10 +153,24 @@ class VehicleDealTypeTest extends TestCase
                 ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::PINNED)
                 ->pluck('o.name_ar')->all();
 
-            $unexplained = array_values(array_diff($this->answersOf($childId), ['إيجار', 'بيع وشراء'], $pinned));
+            /*
+             * The pair is THREE rows since 2026-08-17 — «والتقسيم على الكل».
+             * «بيع وشراء» was one word making two claims, and a property office
+             * that also buys is a different offer from one that only lists. It
+             * is the private seller the split is really for: «مالك عقار» ticks
+             * «بيع» and leaves «شراء» alone, which the merged row made
+             * impossible to say.
+             */
+            $unexplained = array_values(array_diff($this->answersOf($childId), ['إيجار', 'بيع', 'شراء'], $pinned));
 
             $this->assertSame([], $unexplained, "«{$name}» drifted: " . implode('، ', $unexplained));
-            $this->assertContains('بيع وشراء', $this->answersOf($childId), "«{$name}» lost the pair");
+
+            foreach (['بيع', 'شراء'] as $half) {
+                $this->assertContains($half, $this->answersOf($childId), "«{$name}» lost «{$half}»");
+            }
+
+            // And the word they came from reaches nobody.
+            $this->assertNotContains('بيع وشراء', $this->answersOf($childId));
         }
     }
 
@@ -173,6 +205,6 @@ class VehicleDealTypeTest extends TestCase
         (new VehicleDealTypeSeeder)->run();
 
         $this->assertSame($before, DB::table('category_child_option')->count());
-        $this->assertSame(['إيجار', 'بيع وشراء', 'تبديل'], $this->answersOf(188));
+        $this->assertEqualsCanonicalizing(self::VEHICLE_DEALS, $this->answersOf(188));
     }
 }

@@ -3034,6 +3034,67 @@ class ChildTradeVocabulariesTest extends TestCase
         );
     }
 
+    /**
+     * The courier can name the moment he is paid.
+     *
+     * The platform held exactly one word about when money changes hands —
+     * «دفع مسبق», which PrepaymentScopeSeeder keeps on this root alone — and no
+     * word for its opposite. «مندوب» #243 carries 159 merchants, more than any
+     * child on the platform, and being paid at the door is the whole trade.
+     *
+     * The three that get it are read from their delivery configs: they carry
+     * the parcel item types (`rep_errand`, `document_courier`, `small_parcel`,
+     * `same_day_pickup`) and COD is a parcel word. «شحن بري وبحري وجوى» #166
+     * carries none of them and is deliberately left out.
+     */
+    public function test_a_courier_can_say_he_is_paid_at_the_door(): void
+    {
+        $cod = (int) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'الدفع والسداد')
+            ->where('o.name_ar', 'الدفع عند الاستلام')
+            ->value('o.id');
+
+        $this->assertGreaterThan(0, $cod, 'the other half of «دفع مسبق» does not exist');
+
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        // The parcel carriers say it…
+        foreach ([68 => 'شركة', 198 => 'مكتب', 243 => 'مندوب'] as $childId => $name) {
+            $this->assertContains(
+                $cod,
+                $scope->idsFor($childId, 5),
+                "«{$name}» #{$childId} cannot say «الدفع عند الاستلام»"
+            );
+        }
+
+        // …and the consignment forwarder does not.
+        $this->assertNotContains($cod, $scope->idsFor(166, 5));
+
+        /*
+         * It must stay OUT of `payment_terms.options`. That array is what
+         * ChildOptionGroupsSeeder manages — it grants the list per root and
+         * prunes everything in it that a child should not hold — so naming this
+         * row there would hand it to every goods child on the platform, which
+         * is the mistake «دفع مسبق» was pulled out of the list to end.
+         */
+        $map = require database_path('seeders/data/child_option_groups.php');
+        $this->assertNotContains($cod, $map['groups']['payment_terms']['options']);
+
+        // And the two rulings underneath it are untouched: neither #198 nor
+        // #243 is handed «دفع مسبق» back, and no carrier is handed كاش/تقسيط.
+        $prepay = (int) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'الدفع والسداد')->where('o.name_ar', 'دفع مسبق')->value('o.id');
+
+        foreach ([198, 243] as $childId) {
+            $held = $scope->idsFor($childId, 5);
+            $this->assertNotContains($prepay, $held);
+            $this->assertNotContains(66, $held);
+            $this->assertNotContains(203, $held);
+        }
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

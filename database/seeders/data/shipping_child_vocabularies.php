@@ -144,6 +144,76 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | 2026-08-17 — «راجع باقي أبناء شحن وتوصيل بنفس الطريقة», second pass
+    |--------------------------------------------------------------------------
+    | Four children, forty-five ledger rows, and every ruling in them holds up.
+    | One thing is missing and it is not missing from this root — it is missing
+    | from the platform.
+    |
+    | **Nobody can say «الدفع عند الاستلام».**
+    |
+    | The whole database holds exactly ONE word about WHEN the money changes
+    | hands: «دفع مسبق» #292, and PrepaymentScopeSeeder exists solely to keep it
+    | on this root because «paying before you receive is what a carrier asks
+    | for». Its opposite — paying when you receive — has never existed. Not in
+    | «الدفع والسداد», not in any group, and not in the app either: there is no
+    | COD anywhere in the payment code, so this is not a second name for a thing
+    | the runtime already models.
+    |
+    | An axis with one pole is half an axis, and this is the half that matters
+    | here. «مندوب» #243 carries 159 merchants — more than any child on the
+    | platform — and a مندوب in Egypt IS the man who hands you the parcel and
+    | takes the money at the door. That is the trade. He could not name it.
+    |
+    | ── The withdrawal that looks like a refusal and is the opposite ──────────
+    |
+    | On 2026-08-11 the owner emptied «الدفع والسداد» across this root: #68 lost
+    | كاش and تقسيط, #198 and #243 lost كاش، تقسيط AND دفع مسبق. Read quickly
+    | that says «carriers are not asked about payment» and this file should stop.
+    |
+    | Read properly it says the reverse. كاش and تقسيط are SHOP words — the
+    | question a counter is asked — and he took them off all four. He then KEPT
+    | «دفع مسبق» on «شركة», the one carrier word available, and took it off the
+    | broker and the rep. A مندوب does not get paid in advance; being paid on
+    | delivery is his entire commercial position, and on 2026-08-11 there was no
+    | row that said so. He withdrew the three words that existed. He could not
+    | withdraw or keep a fourth that did not.
+    |
+    | ── Who gets it, read from the service wiring rather than from an opinion ──
+    |
+    | #68، #198 and #243 all carry `rep_errand`, `document_courier`,
+    | `small_parcel` and `same_day_pickup` in their delivery config — the parcel
+    | types, and COD is a parcel word.
+    |
+    | #166 carries none of them. Its delivery types are `full_truckload`,
+    | `partial_load`, `sea_freight`, `air_freight`, `customs_clearance`: it moves
+    | consignments, and it holds «تصدير» and «إستيراد» pinned by hand. A freight
+    | forwarder settles against an invoice, not at a doorstep. It is left out for
+    | the same reason «شحن دولي» was left out of «مندوب» below — the exclusion
+    | is symmetric and both halves are read from the child's own wiring.
+    |
+    | ── Why `extend` and not a new group ─────────────────────────────────────
+    |
+    | It goes into «الدفع والسداد» beside «دفع مسبق», because it answers the same
+    | question, and a second group asking it would be the two half-populated
+    | versions of one idea that `option_group_splits.php` names as the disease.
+    |
+    | It is deliberately NOT added to `payment_terms.options` in
+    | `child_option_groups.php`. That list is what ChildOptionGroupsSeeder
+    | MANAGES — grants per root and prunes — so a row left out of it is neither
+    | handed to 286 children nor deleted from these three. «دفع مسبق» has stood
+    | in that exact position since 2026-08-08 and this follows it precisely: in
+    | the group, out of the bundle, granted by name to the children whose trade
+    | it is.
+    */
+    'extend' => [
+        'الدفع والسداد' => [
+            'الدفع عند الاستلام' => 'Cash on Delivery',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | «مندوب» #243 — the biggest child on the platform, and the quietest
     |--------------------------------------------------------------------------
     | Narrowed rather than handed the groups whole, and every cut is read from
@@ -185,6 +255,27 @@ return [
             'نطاق الشحن' => ['داخل المدينة', 'بين المحافظات', 'الصعيد والحدود'],
             'سرعة الشحن' => 'all',
             'تجهيز الشحن البري' => ['جاف / عادي', 'مبرد', 'مجمد'],
+
+            // The word his trade is named for. See the 2026-08-17 block above:
+            // his three payment withdrawals are what makes the case for it, not
+            // what argues against it.
+            'الدفع والسداد' => ['الدفع عند الاستلام'],
+        ],
+
+        // «شركة» — it already says «دفع مسبق» and now says the other half. A
+        // carrier that takes money up front for a consignment and collects at
+        // the door for a parcel is the ordinary Egyptian shipping company, and
+        // it could previously describe only one of the two.
+        68 => [
+            'الدفع والسداد' => ['الدفع عند الاستلام'],
+        ],
+
+        // «مكتب» — the broker. He withdrew «دفع مسبق» from it on 2026-08-11 and
+        // that ruling stands untouched: an office is not paid in advance. It is
+        // paid when the goods are handed over at the counter, which is this row
+        // and nothing else, and it left the child with no payment word at all.
+        198 => [
+            'الدفع والسداد' => ['الدفع عند الاستلام'],
         ],
     ],
 ];

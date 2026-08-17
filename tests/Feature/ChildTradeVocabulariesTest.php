@@ -2795,6 +2795,75 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertCount(5, $this->optionsOfChildInGroup('حضانات', 'المواد الدراسية'));
     }
 
+    /**
+     * The car wash priced what drove in, not what it did.
+     *
+     * Six of the seven children of «سيارات» ARE the vehicle — a driver, a tow
+     * truck, a passenger fleet, a haulier all sell the ميني ڤان or the مقطورة
+     * itself, so «مركبات النقل والركاب» is correctly their line. «مغسلة
+     * سيارات» is the one that is not: it sells work performed ON a vehicle,
+     * and it had only the vehicle. A rinse and a ceramic coat on the same
+     * sedan were one figure by construction.
+     */
+    public function test_a_car_wash_prices_the_work_and_not_the_car(): void
+    {
+        $services = $this->optionsOfChildInGroup('مغسلة سيارات', 'خدمات غسيل السيارات');
+
+        $this->assertCount(8, $services);
+        $this->assertContains('غسيل بالبخار', $services);
+        $this->assertContains('معالجة نانو سيراميك', $services);
+
+        // It is a price, not a description. The authority file decides that,
+        // and a group absent from it is reset to `descriptive` on every seed —
+        // which is exactly what happened on the first run of this change.
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'خدمات غسيل السيارات')->value('price_role')
+        );
+
+        // The vehicle list stays: a wash bay really does charge a microbus
+        // more than a sedan, and he curated it by hand on 2026-08-14 — باص ٥٠
+        // راكب، معدات ثقيلة، جامبو and مقطورة off, سيدان/SUV/بيك أب pinned.
+        $vehicles = $this->optionsOfChildInGroup('مغسلة سيارات', 'مركبات النقل والركاب');
+        $this->assertNotContains('مقطورة', $vehicles);
+        $this->assertContains('ربع نقل', $vehicles);
+
+        // …and the wash bay's own list reaches nobody else in the root.
+        foreach (['سائق', 'ونش إنقاذ', 'نقل ركاب', 'سيارات نقل', 'جراج', 'خدمة ليموزين'] as $sibling) {
+            $this->assertSame([], $this->optionsOfChildInGroup($sibling, 'خدمات غسيل السيارات'));
+        }
+    }
+
+    /**
+     * Two files that had been arguing with his hand on every run.
+     *
+     * A scope GRANTS and the ledger TAKES BACK, so a disagreement between them
+     * is invisible except as a refusal count in the log. Both of these were
+     * settled by writing his answer into the file.
+     */
+    public function test_the_car_root_files_say_what_the_owner_said(): void
+    {
+        $scopes = require database_path('seeders/data/child_option_scopes.php');
+
+        // «خدمة ليموزين» was scoped to exactly the three he withdrew from it —
+        // كوتش، ميكروباص ١٥، ميني ڤان ٧. A limousine company hires out a CAR.
+        $this->assertSame([], $scopes['مركبات النقل والركاب'][169]);
+        $this->assertSame([], $this->optionsOfChildInGroup('خدمة ليموزين', 'مركبات النقل والركاب'));
+
+        // «سائق» was declared passenger-only and he ruled the opposite way on
+        // both ends: heavy plant and a trailer pinned ON, the fifty-seat coach
+        // taken OFF.
+        $driver = $this->optionsOfChildInGroup('سائق', 'مركبات النقل والركاب');
+
+        $this->assertContains('مقطورة', $driver);
+        $this->assertContains('معدات ثقيلة', $driver);
+        $this->assertNotContains('كوتش', $driver);
+
+        $stray = require database_path('seeders/data/stray_child_vocabularies.php');
+        $this->assertContains('مقطورة', $stray['links'][85]['مركبات النقل والركاب']);
+        $this->assertNotContains('كوتش', $stray['links'][85]['مركبات النقل والركاب']);
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

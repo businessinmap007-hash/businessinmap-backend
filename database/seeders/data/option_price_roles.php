@@ -122,6 +122,10 @@ return [
         // «جراج» #119, 2026-08-12: booking and no retail, so the priced row is
         // the stay itself — an hour, a night, a monthly space.
         'خدمات الجراج والانتظار',
+        // The work done TO the car, beside the list of what drives in. Added
+        // 2026-08-17: «مغسلة سيارات» priced on the vehicle alone, so a rinse
+        // and a ceramic coat on the same sedan were one figure.
+        'خدمات غسيل السيارات',   // غسيل بالبخار، تلميع وبوليش
         // The farm cluster, 2026-08-12: no retail and no catalog behind them,
         // so the type IS what the customer pays for.
         'الآلات والمعدات الزراعية',

@@ -81,8 +81,21 @@ return [
     */
     'مركبات النقل والركاب' => [
         // passenger fleets
-        278 => [51, 220, 248, 250, 251],   // نقل ركاب
-        169 => [220, 248, 251],            // خدمة ليموزين
+        278 => [51, 220, 248, 250, 251],   // نقل ركاب — «كوتش» #220 withdrawn by hand 2026-08-14
+        /*
+         * «خدمة ليموزين» #169 — declared EMPTY on 2026-08-17.
+         *
+         * The three it was scoped to are the three the owner withdrew from it
+         * on 2026-08-14 00:32: كوتش، ميكروباص ١٥، ميني ڤان ٧. The scope granted
+         * them, the ledger took them back, and the entry had been asking for a
+         * minibus on behalf of a limousine service on every run since.
+         *
+         * His reading is the trade's: a ليموزين company hires out a CAR, and
+         * «نوع المركبة» — سيدان، SUV — is its whole line. The fleet sizes
+         * belong to «نقل ركاب» standing beside it, which is why both children
+         * exist.
+         */
+        169 => [],                         // خدمة ليموزين
         /*
          * «سائق» #85, added 2026-08-11 when the last mute children were given
          * a vocabulary. Declaring it here was NOT optional: linking the five

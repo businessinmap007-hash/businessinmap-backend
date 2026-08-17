@@ -177,6 +177,46 @@ return [
                 'غسيل داخل الجراج' => 'In-garage Wash',
             ],
         ],
+
+        /*
+        | ── «مغسلة سيارات» #46 was priced on the wrong axis, 2026-08-17 ────
+        |
+        | Six of the seven children of «سيارات» are the vehicle. A driver, a tow
+        | truck, a passenger fleet, a haulier — what each of them sells IS the
+        | ميني ڤان or the مقطورة, so «مركبات النقل والركاب» is correctly their
+        | line and the trade reads straight off it.
+        |
+        | A car wash is the one that is not. It sells WORK PERFORMED ON a
+        | vehicle, and it had only the vehicle: its line was ميكروباص، ربع نقل،
+        | سيدان، SUV — which is what the customer ARRIVES in, never what he
+        | pays for. Two cars in the same bay, one for a rinse and one for a
+        | ceramic coat, were one price by construction.
+        |
+        | The owner has already curated the vehicle half: on 2026-08-14 he took
+        | باص ٥٠ راكب، معدات ثقيلة، جامبو and مقطورة off it — nothing that size
+        | fits through a wash bay — and pinned سيدان، SUV، بيك أب. That list is
+        | right and stays; it is simply the modifier wearing the line's clothes,
+        | and a wash bay really does charge a microbus more than a sedan.
+        |
+        | So the service becomes the line beside it. Eight rows, and every one
+        | of them is a separate figure on the board outside an Egyptian
+        | مغسلة — a rinse is not a steam wash and neither is a nano coat.
+        */
+        'خدمات غسيل السيارات' => [
+            'name_en' => 'Car Wash Services',
+            'price_role' => 'line',
+            'children' => [46],
+            'options' => [
+                'غسيل خارجي' => 'Exterior Wash',
+                'غسيل داخلي وخارجي' => 'Interior & Exterior Wash',
+                'غسيل بالبخار' => 'Steam Wash',
+                'تلميع وبوليش' => 'Polish & Buffing',
+                'تنظيف مقاعد وفرش' => 'Seat & Upholstery Cleaning',
+                'معالجة نانو سيراميك' => 'Nano Ceramic Coating',
+                'غسيل موتور' => 'Engine Wash',
+                'تشميع وتلميع زجاج' => 'Wax & Glass Polish',
+            ],
+        ],
     ],
 
     'links' => [
@@ -257,13 +297,27 @@ return [
         ],
 
         /*
-         * A driver is booked WITH a vehicle. The freight sizes stay with the
-         * freight trades.
+         * A driver is booked WITH a vehicle — and the owner answered which
+         * vehicles on 2026-08-14 00:33, the other way round from this entry.
+         *
+         * It used to read «the freight sizes stay with the freight trades — a
+         * driver-for-hire is not a haulier», and named the five passenger
+         * sizes. He PINNED معدات ثقيلة، جامبو، ربع نقل، ربع نقل صندوق and
+         * مقطورة onto it, and WITHDREW «كوتش» — which is the opposite ruling on
+         * both ends, and the right one: a سائق in Egypt is hired to drive
+         * whatever is standing there, and the man who drives a trailer for a
+         * day is exactly this child. What he does not drive is a fifty-seat
+         * coach, which comes with its own company.
+         *
+         * Written down here rather than left to the ledger: the file asked for
+         * كوتش on every run and was refused, and asked for nothing else that he
+         * had put there.
          */
         85 => [
             'مركبات النقل والركاب' => [
-                'ميني ڤان 7', 'ميكروباص 15', 'ميني باص 25 راكب',
-                'كوتش', 'باص 50 راكب',
+                'باص 50 راكب', 'معدات ثقيلة', 'جامبو',
+                'ميكروباص 15', 'ميني باص 25 راكب', 'ميني ڤان 7',
+                'ربع نقل', 'ربع نقل صندوق', 'مقطورة',
             ],
         ],
     ],

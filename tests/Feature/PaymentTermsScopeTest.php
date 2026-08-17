@@ -96,17 +96,29 @@ class PaymentTermsScopeTest extends TestCase
 
         $this->assertGreaterThan(0, $option, 'the option was retired — it must stay selectable');
 
-        $ticked = DB::table('option_user')->where('option_id', $option)->count();
+        /*
+         * «فسأحددهم يدويا» is the whole rule, so the count that matters is the
+         * one nobody chose: a child holding it with neither a merchant's tick
+         * nor a PIN behind it is the wholesale grant this test exists to stop.
+         *
+         * «ونش إنقاذ» #244 was pinned by hand on 2026-08-15, and
+         * ChildOptionDecisionsSeeder is last in the chain precisely so a pin
+         * survives the map that withdraws it. Asserting a flat zero was
+         * asserting that he had not used the mechanism he asked for.
+         */
+        $pinned = DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE)
+            ->where('option_id', $option)
+            ->where('kind', \App\Services\Catalog\ChildOptionDecisions::PINNED)
+            ->distinct()->pluck('child_id')->map(fn ($id) => (int) $id)->all();
 
-        $this->assertSame(
-            $ticked > 0 ? $this->childCount('تقسيط بدون فوائد') : 0,
-            $this->childCount('تقسيط بدون فوائد'),
-            'it is still being handed out in bulk'
-        );
+        $ticked = DB::table('option_user as ou')
+            ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->where('ou.option_id', $option)
+            ->distinct()->pluck('u.category_child_id')->map(fn ($id) => (int) $id)->all();
 
-        if ($ticked === 0) {
-            $this->assertSame(0, $this->childCount('تقسيط بدون فوائد'));
-        }
+        $unexplained = array_values(array_diff($this->childrenWith('تقسيط بدون فوائد'), $pinned, $ticked));
+
+        $this->assertSame([], $unexplained, 'it is still being handed out in bulk: #' . implode(', #', $unexplained));
     }
 
     /** It stays a live option in its own group — withdrawn, not retired. */
@@ -148,6 +160,12 @@ class PaymentTermsScopeTest extends TestCase
 
         $this->artisan('db:seed', ['--class' => 'ChildOptionGroupsSeeder', '--no-interaction' => true])->run();
         $this->artisan('db:seed', ['--class' => 'HospitalityOptionRestoreSeeder', '--no-interaction' => true])->run();
+
+        // …and the backstop after them, which is the real chain order: the map
+        // withdraws #204 wholesale and a PIN puts it back on the one child the
+        // owner chose. Running only the first half asserted the state halfway
+        // through a seed, which no database is ever left in.
+        $this->artisan('db:seed', ['--class' => 'ChildOptionDecisionsSeeder', '--no-interaction' => true])->run();
 
         $this->assertSame($before, $this->childCount('تقسيط بدون فوائد'));
     }

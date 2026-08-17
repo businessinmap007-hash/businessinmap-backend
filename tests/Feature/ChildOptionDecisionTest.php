@@ -172,6 +172,74 @@ class ChildOptionDecisionTest extends TestCase
         );
     }
 
+    /**
+     * A pin does not resurrect a link into a root the child has left.
+     *
+     * This seeder is last in the chain so a pin survives the maps that withdraw
+     * it — but a pin is keyed to (child, root), and a child moves. «مفاتيح»
+     * left «مصانع» on 2026-08-16 and «حلويات» left «شركات» the same day; their
+     * pins outlived the membership and this seeder wrote thirty-one option rows
+     * naming roots those children no longer stand under. Unreachable by every
+     * reader, and the exact debris a detachment exists to clear — put back by
+     * the seeder that runs after it.
+     *
+     * The ledger row is deliberately NOT deleted: it is the record of a
+     * decision, and if the child ever returns to that root the pin should hold
+     * again.
+     */
+    public function test_a_pin_does_not_reach_into_a_root_the_child_left(): void
+    {
+        (new \Database\Seeders\ChildOptionDecisionsSeeder)->run();
+
+        $strays = DB::table('category_child_option as cco')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->join('categories as cat', 'cat.id', '=', 'cco.category_id')
+            ->where('cco.category_id', '>', 0)
+            ->whereNotExists(fn ($q) => $q->from('category_parent_child as pc')
+                ->whereColumn('pc.child_id', 'cco.child_id')
+                ->whereColumn('pc.parent_id', 'cco.category_id'))
+            ->distinct()
+            ->pluck(DB::raw("concat(c.name_ar, ' → ', cat.name_ar) as label"))
+            ->all();
+
+        $this->assertSame([], $strays, 'rows naming a root their child has left: ' . implode('، ', $strays));
+    }
+
+    /**
+     * …and a dissolved row takes its decisions with it.
+     *
+     * «شحن وتوصيل» was pinned on 45 children before it was dissolved into «شحن»
+     * and «توصيل طلبات» on 2026-08-16. The pins outlived the row, so the
+     * backstop put all 45 links back — a retired option, live again, on children
+     * that had just been given the two rows it stands for.
+     *
+     * Unlike a detachment, where the ledger must survive because a withdrawal is
+     * read without looking at its root, here the option itself is gone: a
+     * decision about a row nobody can hold is not a decision.
+     */
+    public function test_a_dissolved_row_leaves_no_decision_behind(): void
+    {
+        $retired = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.is_active', 0)->pluck('o.id');
+
+        if ($retired->isEmpty()) {
+            $this->markTestSkipped('Nothing has been retired in this database.');
+        }
+
+        $this->assertSame(
+            0,
+            DB::table(ChildOptionDecisions::TABLE)->whereIn('option_id', $retired)->count(),
+            'a retired row still carries pins, and the backstop will restore it'
+        );
+
+        $this->assertSame(
+            0,
+            DB::table('category_child_option')->whereIn('option_id', $retired)->count(),
+            'a retired row still reaches children'
+        );
+    }
+
     /** @return array<string,array{0:class-string}> */
     public static function broadSeeders(): array
     {

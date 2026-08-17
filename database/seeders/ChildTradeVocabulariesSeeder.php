@@ -112,9 +112,28 @@ class ChildTradeVocabulariesSeeder extends Seeder
                 // list, so a child added to it tomorrow inherits the axis. Safe
                 // only for an axis the ROOT asks — which is why the two that
                 // use it are also the two that are root-scoped.
+                /*
+                 * A child may be named instead of numbered, and one has to be:
+                 * «كابلات وقواطع كهرباء» is created by its own seeder and has no
+                 * id to write down here. A name resolves at run time and an
+                 * unknown one is said out loud — a silent miss would leave the
+                 * child this group was written for holding nothing.
+                 */
                 $children = $spec['children'] === 'all'
                     ? DB::table('category_parent_child')->where('parent_id', $rootId)->pluck('child_id')->all()
-                    : $spec['children'];
+                    : array_values(array_filter(array_map(function ($child) {
+                        if (! is_string($child)) {
+                            return (int) $child;
+                        }
+
+                        $id = (int) DB::table('category_children_master')->where('name_ar', $child)->value('id');
+
+                        if ($id <= 0) {
+                            $this->command?->warn("  ! ابن «{$child}» غير موجود — تُخطّى.");
+                        }
+
+                        return $id;
+                    }, $spec['children'])));
 
                 foreach ($spec['options'] as $ar => $en) {
                     $optionId = $this->option($groupId, $ar, $en, $created);

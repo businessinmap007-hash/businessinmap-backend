@@ -2190,10 +2190,26 @@ class ChildTradeVocabulariesTest extends TestCase
             'the locksmith is selling switchgear'
         );
 
+        /*
+         * …and on 2026-08-16 the two stopped sharing a row at all: «قم بتعديله
+         * الى لمصنع كابلات وقواطع كهرباء». A name cannot be root-scoped, so the
+         * factory was still called «مفاتيح» while being a switchgear plant. It
+         * is «كابلات وقواطع كهرباء» #548 now, and #159 keeps «المحلات» alone.
+         */
+        $factory = (int) DB::table('category_children_master')->where('name_ar', 'كابلات وقواطع كهرباء')->value('id');
+
+        $this->assertGreaterThan(0, $factory, 'the cable factory was never split off');
+
         $this->assertSame(
             ['المفاتيح والتوزيع الكهربائي'],
-            array_keys($vocabulary->for(0, 159, 23)['lines']->all()),
+            array_keys($vocabulary->for(0, $factory, 23)['lines']->all()),
             'the switchgear factory lost its list'
+        );
+
+        $this->assertSame(
+            [17],
+            DB::table('category_parent_child')->where('child_id', 159)->pluck('parent_id')->map(fn ($id) => (int) $id)->all(),
+            'the locksmith is standing under a factory root again'
         );
 
         // The phone shop says everything it sells once, in its own list.

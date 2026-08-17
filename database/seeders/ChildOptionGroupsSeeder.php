@@ -147,9 +147,30 @@ class ChildOptionGroupsSeeder extends Seeder
 
         $chosen = app(MerchantOptionCommitments::class)->anywhere($optionIds);
 
+        /*
+         * A PIN is the hand this list exists to defer to.
+         *
+         * «فسأحددهم يدويا» — the whole point of `hand_set_options` is that the
+         * owner sets these himself, and pinning one in the screen is him doing
+         * exactly that. Withdrawing it anyway made this seeder and
+         * ChildOptionDecisionsSeeder — which is last in the chain so a pin
+         * survives — take the same row off and put it back on every seed.
+         * «ونش إنقاذ» #244 was the pair's whole argument, pinned 2026-08-15.
+         */
+        $pinned = app(ChildOptionDecisions::class)->pinnedByChild();
+
+        $spared = [];
+
+        foreach (DB::table('category_child_option')->whereIn('option_id', $optionIds)->get(['id', 'child_id', 'option_id']) as $row) {
+            if (isset($pinned[(int) $row->child_id][(int) $row->option_id])) {
+                $spared[] = (int) $row->id;
+            }
+        }
+
         $removed = DB::table('category_child_option')
             ->whereIn('option_id', $optionIds)
             ->whereNotIn('option_id', $chosen ?: [0])
+            ->whereNotIn('id', $spared ?: [0])
             ->delete();
 
         foreach ($chosen as $id) {

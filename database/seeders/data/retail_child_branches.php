@@ -303,7 +303,14 @@ return [
         'حديد تسليح' => ['building_hardware'],
         'حدايد وبويات' => ['building_hardware'],
         'رخام وجرانيت' => ['building_hardware'],
-        'مفاتيح' => ['building_hardware'],
+        // «مفاتيح» left «مصانع» on 2026-08-16 and its factory half became
+        // «كابلات وقواطع كهرباء». The line is REMOVED rather than renamed: the
+        // catalog has no shelf for cable. `building_hardware` holds keys_locks،
+        // marble_stone، timber_boards, and an entry here with no narrowing in
+        // retail_child_types.php means EVERY type of the branch — a cable
+        // factory listing marble. It sells through delivery and offers until
+        // there is an item type that fits, which is the owner's call and the
+        // catalog axis.
         'كبس خراطيم' => ['building_hardware'],
         'مستلزمات نجارة' => ['building_hardware'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],

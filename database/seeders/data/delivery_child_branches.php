@@ -358,7 +358,10 @@ return [
         'مستلزمات طبية' => ['delivery_freight'],
         'مستلزمات مطاعم' => ['delivery_freight'],
         'مستلزمات نجارة' => ['delivery_freight'],
-        'مفاتيح' => ['delivery_freight'],
+        // «مفاتيح» left «مصانع» on 2026-08-16: the factory half became
+        // «كابلات وقواطع كهرباء», a child of its own. The line follows the
+        // trade, and this map is keyed by ROOT and by NAME.
+        'كابلات وقواطع كهرباء' => ['delivery_freight'],
         'مفروشات' => ['delivery_freight'],
         'ملابس جاهزة' => ['delivery_freight'],
         'منظفات' => ['delivery_freight'],

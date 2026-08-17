@@ -352,8 +352,21 @@ return [
             ],
         ],
 
+        /*
+        | `line` since 2026-08-16, and this file's own price_role had to move
+        | with option_price_roles.php or the two seeders overwrite each other on
+        | every run — the vocabulary seeder writes the role it declares here and
+        | the authority corrects it afterwards, so a disagreement is a flip-flop
+        | nobody sees.
+        |
+        | «قطع غيار» #263 held this group and NOTHING that priced, so the
+        | reader's promotion rule lifted both its modifiers and offered «أصلي
+        | وكيل» as a thing to buy. This list IS what the any-machine wholesaler
+        | sells, so it is the line, and «درجة قطعة الغيار» goes back to
+        | qualifying it. See the block in option_price_roles.php.
+        */
         'قطع الغيار حسب الآلة' => [
-            'name_en' => 'Spare Parts by Machine', 'price_role' => 'modifier', 'children' => [263],
+            'name_en' => 'Spare Parts by Machine', 'price_role' => 'line', 'children' => [263],
             'options' => [
                 'قطع غيار سيارات' => 'Automotive Spares',
                 'قطع غيار معدات ثقيلة' => 'Heavy Equipment Spares',

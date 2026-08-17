@@ -88,6 +88,26 @@ class ChildOptionDecisionsSeeder extends Seeder
      */
     private function restore(int $childId, int $rootId, int $optionId): int
     {
+        /*
+         * Not into a root the child has left.
+         *
+         * A pin is a standing order and this seeder is last in the chain so it
+         * can enforce one — but a pin is keyed to (child, root), and a child
+         * moves. «مفاتيح» left «مصانع» on 2026-08-16 and «حلويات» left «شركات»
+         * the same day; their pins outlived the membership, so this loop wrote
+         * fourteen and four option rows naming roots those children no longer
+         * stand under. Unreachable by every reader — `idsFor()` is only ever
+         * called with a root the child IS under — and the exact debris a
+         * detachment exists to clear, put back by the seeder that runs after it.
+         *
+         * The ledger row is LEFT ALONE. It is the record of a decision he made,
+         * and if the child ever returns to that root the pin should hold again.
+         */
+        if ($rootId > ChildOptionDecisions::ALL_ROOTS && ! DB::table('category_parent_child')
+            ->where('child_id', $childId)->where('parent_id', $rootId)->exists()) {
+            return 0;
+        }
+
         $reaches = DB::table('category_child_option')
             ->where('child_id', $childId)
             ->where('option_id', $optionId)

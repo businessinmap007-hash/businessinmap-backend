@@ -268,14 +268,37 @@ return [
         | A factory's product list is a factory's. The shared row and its
         | root-17 copy are gone and the seven live under «مصانع» alone.
         */
+        /*
+        | Root-scoped, and the child it belongs to changed name on 2026-08-16.
+        |
+        | «مفاتيح» #159 was one row meaning two trades: an electrical wholesaler
+        | under «مصانع», and under «المحلات» the man on the corner who cuts a key
+        | — which is why he was given «خدمات المفاتيح والأقفال» root-scoped. The
+        | scoping worked and the NAME could not be scoped, so the factory was
+        | still called «مفاتيح», the shop's word. «قم بتعديله الى لمصنع كابلات
+        | وقواطع كهرباء مثل مصنع السويدى للكابلات» — so it is a child of its own
+        | now, «كابلات وقواطع كهرباء», and #159 keeps «المحلات» alone.
+        |
+        | Six cable rows added with it. The list had ONE — «كابلات وأسلاك» — for
+        | a factory named after cable, while El Sewedy's product line is copper
+        | against aluminium and low against medium voltage, which is the whole of
+        | how such a factory is quoted. The seven switchgear rows stay: the same
+        | factories make both, which is what the group's name has always said.
+        */
         'المفاتيح والتوزيع الكهربائي' => [
             'name_en' => 'Switchgear & Wiring', 'price_role' => 'line',
-            'scope' => 'root', 'children' => [159],
+            'scope' => 'root', 'children' => ['كابلات وقواطع كهرباء'],
             'options' => [
                 'مفاتيح كهرباء' => 'Switches', 'بريزات' => 'Sockets',
                 'لوحات توزيع' => 'Distribution Boards', 'قواطع' => 'Circuit Breakers',
                 'كابلات وأسلاك' => 'Cables & Wiring', 'مواسير وعلب كهرباء' => 'Conduits & Boxes',
                 'مفاتيح ذكية' => 'Smart Switches',
+                'كابلات نحاس' => 'Copper Cables',
+                'كابلات ألومنيوم' => 'Aluminium Cables',
+                'كابلات ضغط منخفض' => 'Low-Voltage Cables',
+                'كابلات ضغط متوسط' => 'Medium-Voltage Cables',
+                'كابلات تحكم وإشارة' => 'Control & Signal Cables',
+                'أسلاك مرنة' => 'Flexible Wire',
             ],
         ],
 

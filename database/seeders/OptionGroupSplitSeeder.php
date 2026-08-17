@@ -201,6 +201,24 @@ class OptionGroupSplitSeeder extends Seeder
             DB::table('option_user')->where('option_id', $from)->delete();
             DB::table('category_child_option')->where('option_id', $from)->delete();
 
+            /*
+             * …and the ledger rows that point at it, which is the half the
+             * first version forgot.
+             *
+             * A PIN is a standing order to restore a link, and
+             * ChildOptionDecisionsSeeder is the last seeder in the chain
+             * precisely so it can enforce them. «شحن وتوصيل» was pinned on 45
+             * children before it was dissolved, so the backstop put all 45
+             * links back on its next run — a retired row, live again, on a
+             * child that had just been given the two rows it stands for.
+             *
+             * Unlike a DETACHMENT, where the ledger has to survive because
+             * `byChild()` reads a withdrawal without looking at its root, here
+             * the option itself is gone. A decision about a row nobody can hold
+             * is not a decision, and keeping it is what undid the merge.
+             */
+            DB::table(ChildOptionDecisions::TABLE)->where('option_id', $from)->delete();
+
             if ($retiredGroup) {
                 DB::table('options')->where('id', $from)
                     ->update(['group_id' => $this->retiredGroupId($retiredGroup), 'updated_at' => now()]);

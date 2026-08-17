@@ -201,6 +201,14 @@ class DatabaseSeeder extends Seeder
             */
            CeramicsAndSanitaryWareSeeder::class,
 
+           /*
+            * «مفاتيح» under «مصانع» becomes «كابلات وقواطع كهرباء» — one child
+            * row was two trades, and a name cannot be root-scoped. Before the
+            * option seeders, which name the new child in
+            * factory_child_vocabularies.php and need it to exist.
+            */
+           CableAndSwitchgearFactorySeeder::class,
+
            OptionGroupSplitSeeder::class,
 
            /*

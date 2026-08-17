@@ -48,6 +48,7 @@ class ChildTradeVocabulariesSeeder extends Seeder
         'property_child_vocabularies.php',
         'hospitality_child_vocabularies.php',
         'restaurant_child_vocabularies.php',
+        'education_child_vocabularies.php',
     ];
 
     public function run(): void

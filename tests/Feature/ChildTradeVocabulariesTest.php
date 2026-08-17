@@ -2764,6 +2764,37 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('قاعة محاضرات', $coworking);
     }
 
+    /**
+     * A nursery is bought by the day and the month, not by the subject.
+     *
+     * «حضانات» #195 had one modifier, «نمط تقديم الخدمة», which answers neither
+     * of the two questions that decide a nursery's fee in Egypt: نص يوم ولا يوم
+     * كامل, and الاشتراك شهري ولا سنوي. Every price in the trade is quoted as
+     * the pair.
+     *
+     * Its five SUBJECTS are not thin by accident and are deliberately left
+     * alone: `EducationalStagesSeeder` holds a closed per-stage matrix and
+     * gives the nursery the same foundation set as «رياض أطفال».
+     */
+    public function test_a_nursery_can_say_half_day_and_monthly(): void
+    {
+        $slot = $this->optionsOfChildInGroup('حضانات', 'فترة الحجز');
+        sort($slot);
+        $this->assertSame(['فترة صباحية', 'فترة مسائية', 'يوم كامل'], $slot);
+
+        // A nursery closes at the weekend and does not sell an hour of a
+        // three-year-old.
+        $this->assertNotContains('نهاية الأسبوع', $slot);
+        $this->assertNotContains('بالساعة', $slot);
+
+        $basis = $this->optionsOfChildInGroup('حضانات', 'نظام التعاقد');
+        sort($basis);
+        $this->assertSame(['سنوي', 'شهري', 'يومي'], $basis);
+
+        // The closed matrix keeps the foundation set — five subjects, not 38.
+        $this->assertCount(5, $this->optionsOfChildInGroup('حضانات', 'المواد الدراسية'));
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

@@ -2270,6 +2270,115 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame(['بالمهمة', 'سنوي', 'شهري'], $twin);
     }
 
+    /**
+     * A hospital can say the thing that makes it a hospital.
+     *
+     * «مستشفى» and «مركز طبي» held the identical vocabulary — the same 41
+     * specialties, the same 13 scans, the same 28 tests — because the platform
+     * had no word for an admission anywhere in it. This is what tells them
+     * apart, and the direction matters as much as the presence: the hospital
+     * keeps a bed overnight and the medical centre sends the patient home, so
+     * the day-case rows are the ONLY ones they share.
+     */
+    public function test_a_hospital_can_name_the_bed_and_a_medical_centre_cannot(): void
+    {
+        $hospital = $this->optionsOfChildInGroup('مستشفى', 'الرعاية والتنويم');
+        $centre = $this->optionsOfChildInGroup('مركز طبي', 'الرعاية والتنويم');
+
+        $this->assertContains('تنويم بغرفة خاصة', $hospital);
+        $this->assertContains('رعاية مركزة', $hospital);
+        $this->assertContains('ولادة قيصرية', $hospital);
+        $this->assertCount(12, $hospital);
+
+        // The day-case unit, and nothing that needs a bed behind it.
+        sort($centre);
+        $this->assertSame(['جراحة اليوم الواحد', 'جلسة علاج كيماوي', 'غسيل كلوي'], $centre);
+
+        // …and the two are no longer the same business on the screen.
+        $this->assertNotSame(
+            $this->everyOptionOf('مستشفى'),
+            $this->everyOptionOf('مركز طبي'),
+            'a hospital and a polyclinic still read identically'
+        );
+
+        // It is priced, not merely described: a night in a private room is a
+        // nightly rate the way «غرفة مزدوجة» is.
+        $this->assertSame(
+            'line',
+            DB::table('option_groups')->where('name_ar', 'الرعاية والتنويم')->value('price_role')
+        );
+    }
+
+    /**
+     * The 2026-08-12 pass reached four of the seven, and «مركز حجامة» was not
+     * one of them: a cupping room was still claiming an in-house pharmacy, an
+     * in-house laboratory, an in-house imaging department and a 24-hour
+     * emergency service. Same rule he used on the other four — keep what is
+     * true of this trade — so the lab keeps its own laboratory and the
+     * radiology suite keeps its own imaging.
+     */
+    public function test_a_cupping_room_does_not_advertise_an_mri(): void
+    {
+        $cupping = $this->optionsOfChildInGroup('مركز حجامة', 'تسهيلات ومرافق طبية');
+
+        foreach (['صيدلية داخلية', 'معمل تحاليل داخلي', 'أشعة داخلية', 'خدمة طوارئ ٢٤ ساعة'] as $false) {
+            $this->assertNotContains($false, $cupping, "«مركز حجامة» still claims «{$false}»");
+        }
+
+        $this->assertContains('قسم سيدات', $cupping);
+        $this->assertContains('انتظار سيارات', $cupping);
+
+        // The narrowing is per-trade, never per-group: what each of these two
+        // kept is the facility it IS, and taking it away would be tidying at
+        // the owner's expense.
+        $this->assertContains('معمل تحاليل داخلي', $this->optionsOfChildInGroup('معمل تحاليل', 'تسهيلات ومرافق طبية'));
+        $this->assertContains('أشعة داخلية', $this->optionsOfChildInGroup('مراكز أشعة', 'تسهيلات ومرافق طبية'));
+    }
+
+    /**
+     * «الدفع والسداد» is missing from every health child, and that is the one
+     * gap in this root that must stay open: كاش and تقسيط were withdrawn from
+     * all seven by hand on 2026-08-10. Every other root's sweep ended by
+     * handing the payment axis back, and doing it here would be the seeder
+     * overruling the owner — the exact failure the withdrawal record exists to
+     * prevent.
+     */
+    public function test_the_health_root_is_not_handed_back_the_payment_axis(): void
+    {
+        $children = DB::table('category_parent_child')->where('parent_id', 20)->pluck('child_id');
+
+        foreach ($children as $childId) {
+            $name = (string) DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+            $withdrawn = DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+                ->join('options as o', 'o.id', '=', 'd.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('d.child_id', $childId)
+                ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+                ->where('g.name_ar', 'الدفع والسداد')
+                ->exists();
+
+            if (! $withdrawn) {
+                continue;
+            }
+
+            $this->assertSame(
+                [],
+                $this->optionsOfChildInGroup($name, 'الدفع والسداد'),
+                "«{$name}» was handed back a payment term its owner took off"
+            );
+        }
+    }
+
+    /** Everything a child can answer, as one comparable list. */
+    private function everyOptionOf(string $child): array
+    {
+        return DB::table('category_child_option as co')
+            ->join('category_children_master as c', 'c.id', '=', 'co.child_id')
+            ->where('c.name_ar', $child)
+            ->distinct()->orderBy('co.option_id')->pluck('co.option_id')->all();
+    }
+
     /** @return array<int,string> */
     private function optionsOfChildInGroup(string $child, string $group): array
     {

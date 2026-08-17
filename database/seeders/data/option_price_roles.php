@@ -197,6 +197,12 @@ return [
         'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
+        // A night in a private room is a nightly rate and an operation is a
+        // quoted figure — the same shape as «غرفة مزدوجة», which is why this
+        // is not another facilities tick. Added 2026-08-17: until then the
+        // platform had no word for admission at all, and a hospital and a
+        // medical centre carried identical vocabularies.
+        'الرعاية والتنويم',       // تنويم بغرفة خاصة، رعاية مركزة
         'خدمات الكوافير والتجميل', // قص شعر
         // «خيارات قابلة للتسعير» — the owner's own words for it. A cupping
         // centre performs sessions; a wet cupping session has a price the way a

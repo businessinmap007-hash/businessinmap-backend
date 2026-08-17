@@ -475,4 +475,54 @@ return [
         // cycle, and not one row in common with the four-legged stock.
         102 => [2159, 2160, 2161, 2162, 2163],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | تسهيلات ومرافق طبية
+    |--------------------------------------------------------------------------
+    | #1973 يقبل التأمين الطبي · #1974 حجز مواعيد أونلاين · #1975 خدمة طوارئ ٢٤
+    | ساعة · #1976 صيدلية داخلية · #1977 معمل تحاليل داخلي · #1978 أشعة داخلية
+    | #1980 مدخل لذوي الاحتياجات · #1981 انتظار سيارات · #1982 قسم سيدات
+    |
+    | The list was handed to all seven health children whole, and the owner then
+    | went through it by hand on 2026-08-12 on ONE rule: keep what is true of
+    | this trade. A lab lost «أشعة داخلية» and kept «معمل تحاليل داخلي». A
+    | radiology suite lost «معمل تحاليل داخلي» and kept «أشعة داخلية». A clinic
+    | lost all three. A pharmacy lost the whole block.
+    |
+    | He reached four of the seven. «مركز حجامة» was one of the three he did not,
+    | and it was still claiming an in-house pharmacy, an in-house laboratory, an
+    | in-house imaging department and a 24-hour emergency service — a cupping
+    | room advertising an MRI. This applies his rule to it and stops there:
+    | «مستشفى» and «مركز طبي» are the other two he did not reach, and for them
+    | all nine are plausible, so neither is narrowed.
+    |
+    | Recorded here rather than as a withdrawal because a scope is the right
+    | shape for it — the child may not answer these at all, under any root — and
+    | because `health_child_vocabularies.php` names #542 in the group's own
+    | `children` list and would hand them straight back on the next seed.
+    */
+    'تسهيلات ومرافق طبية' => [
+        542 => [1973, 1974, 1980, 1981, 1982], // مركز حجامة
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | الرعاية والتنويم
+    |--------------------------------------------------------------------------
+    | #4004 تنويم بغرفة خاصة · #4005 تنويم بغرفة مشتركة · #4006 رعاية مركزة
+    | #4007 رعاية متوسطة · #4008 حضانة حديثي الولادة · #4009 عملية جراحية
+    | #4010 جراحة اليوم الواحد · #4011 ولادة طبيعية · #4012 ولادة قيصرية
+    | #4013 غسيل كلوي · #4014 جلسة علاج كيماوي · #4015 نقل بسيارة إسعاف
+    |
+    | This entry is the whole point of the group. «مستشفى» and «مركز طبي» were
+    | indistinguishable — identical specialties, identical scans, identical
+    | tests — and the difference between them is one question: does the patient
+    | sleep here. The hospital answers all twelve; the medical centre answers
+    | the three a day-case unit really runs and holds no bed, no theatre for an
+    | overnight operation, and no delivery room.
+    */
+    'الرعاية والتنويم' => [
+        515 => [4010, 4013, 4014], // مركز طبي — جراحة اليوم الواحد، غسيل كلوي، كيماوي
+    ],
 ];

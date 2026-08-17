@@ -27,6 +27,37 @@
 | where the SAME line prices two ways, and «كشف» does not: what changes a
 | consultation's price here is the specialty, and the specialty is already the
 | line. Inventing one would be the noise this whole sweep has been removing.
+|
+| ── 2026-08-17: «راجع باقي أبناء الصحة بنفس الطريقة» ─────────────────────
+|
+| Every child reads FLUENT — a real line group each, nothing promoted, nothing
+| narrowed to silence. What the sweep found instead is that **«مستشفى» #513 and
+| «مركز طبي» #515 hold the identical vocabulary**: the same 41 specialties, the
+| same 13 scans, the same 28 tests, the same modifier and the same nine
+| facilities. Byte for byte, 92 links each. Nothing a patient can read tells the
+| two apart.
+|
+| And the reason is that the thing which MAKES a hospital a hospital has no word
+| anywhere on the platform. A search of every option row for تنويم، عمليات،
+| رعاية مركزة، سرير returns hotel bedrooms and a gym creche. A hospital's whole
+| vocabulary here is outpatient — who you see, what they scan, what they test —
+| and the admission it exists for cannot be named, let alone priced.
+|
+| So «الرعاية والتنويم», a line group, and it is the axis that separates the
+| two: the hospital admits and operates overnight, the medical centre sends the
+| patient home the same day. #515 is narrowed to the day-case slice in
+| `child_option_scopes.php` — جراحة اليوم الواحد، غسيل كلوي، جلسة علاج كيماوي —
+| which is exactly the three a polyclinic really runs, and holds no bed.
+|
+| What is deliberately NOT here:
+|
+|   - «الدفع والسداد». Its absence looks like the gap every other root had, and
+|     it is not: كاش and تقسيط were withdrawn from all seven by hand on
+|     2026-08-10. Handing them back is what the withdrawal record exists to stop.
+|   - «طوارئ واستقبال» as a line. Nobody books an emergency, and «خدمة طوارئ ٢٤
+|     ساعة» already says it in the facilities axis, where a filter can use it.
+|   - «علاج طبيعي وتأهيل» and «مناظير». Both are already specialties in
+|     «تخصصات طبية»; saying them twice is a second axis for one answer.
 */
 
 return [
@@ -57,6 +88,45 @@ return [
                 'مدخل لذوي الاحتياجات' => 'Accessible Entrance',
                 'انتظار سيارات' => 'Parking',
                 'قسم سيدات' => 'Women\'s Section',
+            ],
+        ],
+
+        /*
+        | The night a patient spends, and everything that only happens because
+        | there is a bed behind it.
+        |
+        | Every row here is priced the way the hotel's «غرفة مزدوجة» is priced —
+        | a private room is a nightly rate, an ICU bed is a nightly rate, an
+        | operation and a caesarean are each a quoted figure. That is the price
+        | test, and it is why this is a `line` and not another facilities tick:
+        | «رعاية مركزة» as a descriptive would say a hospital HAS an ICU and
+        | still leave the family ringing round for what a night in it costs.
+        |
+        | Both children are named. The narrowing that keeps them apart is in
+        | `child_option_scopes.php`, not here, so the list stays one list — the
+        | same reading the sports pools and the furniture group get.
+        */
+        'الرعاية والتنويم' => [
+            'name_en' => 'Inpatient & Critical Care',
+            'price_role' => 'line',
+            'children' => [513, 515],
+            'options' => [
+                'تنويم بغرفة خاصة' => 'Private Room Admission',
+                'تنويم بغرفة مشتركة' => 'Shared Room Admission',
+                'رعاية مركزة' => 'Intensive Care',
+                'رعاية متوسطة' => 'Intermediate Care',
+                'حضانة حديثي الولادة' => 'Neonatal Incubator',
+                'عملية جراحية' => 'Surgical Operation',
+                // The one row a مركز طبي shares with the hospital, and the
+                // reason it is in this group rather than a group of its own:
+                // it is the SAME question — do you keep the patient — with the
+                // answer «no, he walks out the same evening».
+                'جراحة اليوم الواحد' => 'Day Surgery',
+                'ولادة طبيعية' => 'Natural Delivery',
+                'ولادة قيصرية' => 'Caesarean Delivery',
+                'غسيل كلوي' => 'Dialysis',
+                'جلسة علاج كيماوي' => 'Chemotherapy Session',
+                'نقل بسيارة إسعاف' => 'Ambulance Transfer',
             ],
         ],
     ],

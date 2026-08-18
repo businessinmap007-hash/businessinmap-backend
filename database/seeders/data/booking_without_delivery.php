@@ -68,6 +68,8 @@ return [
         */
         'معدات ثقيلة',
         // «نقل دولي» folded into «شحن بري وبحري وجوى» on 2026-08-12.
-        'شحن بري وبحري وجوى',
+        // «شحن بري وبحري وجوى» folded into «شركة» #68 on 2026-08-18 — the mode
+        // became an option all three carriers hold, so the child was a
+        // specialty wearing a child's clothes. #68 is named just above.
     ],
 ];

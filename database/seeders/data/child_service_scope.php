@@ -45,7 +45,8 @@ return [
         // The key carries the root, so re-keying it is part of the move: left
         // as `companies:166` it would rule on a membership that no longer
         // exists and the child would fall back to the root default.
-        'shipping-delivery:166' => ['mode_freight'],                     // شحن بري وبحري وجوى
+        // «shipping-delivery:166» folded into #68 on 2026-08-18; the rule
+        // below already covers the keeper.
         'companies:154' => ['mode_freight'],                             // نقل دولي
     ],
 

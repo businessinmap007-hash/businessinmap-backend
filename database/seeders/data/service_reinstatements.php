@@ -176,7 +176,13 @@ return [
         'child_name_ar' => 'معدات ثقيلة',
         'root_slug' => 'companies',
         'service_key' => 'schedules',
-        'copy_from_child_ar' => 'شحن بري وبحري وجوى',
+        /*
+         * Was «شحن بري وبحري وجوى» until 2026-08-18, when it folded into
+         * «شركة» #68 — the keeper absorbed its schedules config along with its
+         * three merchants, so the shape being copied is the same shape. Left
+         * naming a folded child the seeder finds nothing and skips silently.
+         */
+        'copy_from_child_ar' => 'شركة',
         // The donor left «شركات» for «شحن وتوصيل» on 2026-08-16, and it is the
         // same donor either way — the shape being copied is a CARRIER's, not a
         // root's. Without this the seeder looks for it beside the recipient,

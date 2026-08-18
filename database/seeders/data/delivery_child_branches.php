@@ -20,7 +20,8 @@ return [
         // with the child: this map is keyed by ROOT and an add-only seeder
         // reading it from the old block puts the child back under the root it
         // left — the same trap the note below records for «عفشجى».
-        'شحن بري وبحري وجوى' => ['delivery_freight', 'delivery_international'],
+        // «شحن بري وبحري وجوى» folded into «شركة» on 2026-08-18. Its second
+        // branch is the half «شركة» did not carry, so the keeper takes both.
         // Moved here from the workshops block on 2026-08-10, following the child
         // itself (ChildRootMovesSeeder: ورش → شحن وتوصيل). Left where it was, an
         // add-only seeder keyed by ROOT quietly puts the child back under the

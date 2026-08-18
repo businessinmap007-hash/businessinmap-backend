@@ -1173,19 +1173,6 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         215, 252,                            // الصحة
         /*
-         * «مستكشف لاعبين» #550, 2026-08-18. Its seven rows moved from `modifier`
-         * to `line` the day after it was created, because each is a job a scout
-         * is paid for and the child had no line at all — the reader was
-         * promoting the group to fill the slot.
-         *
-         * With a real line it now carries no modifier, and that is right: what
-         * a scout charges does not vary along a second axis. «الرياضات
-         * المستهدفة» is descriptive on purpose — كرة قدم against سلة is who he
-         * looks at, not a second rate for the same trial, and the owner's whole
-         * point was that a scout may tick football alone.
-         */
-        550,                                 // الرياضة
-        /*
          * «معدات زراعية» #12. It IS named in `condition_children`, so the file
          * still offers it جديد and مستعمل — and the owner withdrew both by hand
          * on 2026-08-16 02:06:51, in the same pass that took the supermarket
@@ -1765,7 +1752,7 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     public function test_an_international_carrier_can_name_the_mode_it_ships_by(): void
     {
-        foreach (['شحن بري وبحري وجوى', 'شركة', 'مكتب'] as $carrier) {
+        foreach (['شركة', 'مكتب'] as $carrier) {
             $modes = $this->optionsOfChildInGroup($carrier, 'وسيلة الشحن');
 
             $this->assertSame(['شحن بري', 'شحن بحري', 'شحن جوي'], $modes, "«{$carrier}» cannot name a freight mode");
@@ -1790,7 +1777,7 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     public function test_the_load_axis_is_new_and_does_not_restate_the_vehicle(): void
     {
-        foreach (['شحن بري وبحري وجوى', 'شركة', 'مكتب', 'سيارات نقل'] as $carrier) {
+        foreach (['شركة', 'مكتب', 'سيارات نقل'] as $carrier) {
             $kit = $this->optionsOfChildInGroup($carrier, 'تجهيز الشحن البري');
 
             $this->assertContains('مبرد', $kit, "«{$carrier}» cannot say refrigerated");
@@ -1798,7 +1785,7 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertNotContains('مقطورة', $kit, 'the trailer belongs to the vehicle list');
         }
 
-        $this->assertContains('مقطورة', $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'مركبات النقل والركاب'));
+        $this->assertContains('مقطورة', $this->optionsOfChildInGroup('شركة', 'مركبات النقل والركاب'));
 
         /*
          * «مندوب» takes a slice of this and none of the mode group, and both
@@ -1875,7 +1862,17 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     public function test_the_freight_company_moved_root_with_everything_that_named_the_old_one(): void
     {
-        $child = 166;
+        /*
+         * FOLDED on 2026-08-18 — «حذف برى بحرى جوى من الشحن والتوصيل لانها
+         * بالفعل خدمة شركات الشحن تحت نفس الاب». Once «وسيلة الشحن» reached all
+         * three carriers the child WAS «شركة» with the modes ticked.
+         *
+         * The test keeps its subject by following it: everything the move
+         * carried on 2026-08-16, the fold had to carry again onto the keeper —
+         * and the sharpest of the six is still the ledger, because a withdrawal
+         * keyed to a child nobody stands on stops applying.
+         */
+        $child = 68;
         $shipping = (int) DB::table('categories')->where('slug', 'shipping-delivery')->value('id');
         $companies = (int) DB::table('categories')->where('slug', 'companies')->value('id');
 
@@ -1901,8 +1898,8 @@ class ChildTradeVocabulariesTest extends TestCase
 
         // …and it can now say the things this root exists to ask. Its own name
         // says «دولي» in three words, so it takes the range axis whole.
-        $this->assertContains('شحن دولي', $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'نطاق الشحن'));
-        $this->assertCount(4, $this->optionsOfChildInGroup('شحن بري وبحري وجوى', 'سرعة الشحن'));
+        $this->assertContains('شحن دولي', $this->optionsOfChildInGroup('شركة', 'نطاق الشحن'));
+        $this->assertCount(4, $this->optionsOfChildInGroup('شركة', 'سرعة الشحن'));
     }
 
     /**
@@ -3093,7 +3090,13 @@ class ChildTradeVocabulariesTest extends TestCase
         }
 
         // …and the consignment forwarder does not.
-        $this->assertNotContains($cod, $scope->idsFor(166, 5));
+        /*
+         * #166 folded into «شركة» #68 on 2026-08-18 — once «وسيلة الشحن»
+         * reached all three carriers the child WAS #68 with the modes ticked.
+         * The COD exclusion it demonstrated is now carried by the keeper's own
+         * evidence, so what is asserted is that the retired row reaches nobody.
+         */
+        $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 166)->count());
 
         /*
          * It must stay OUT of `payment_terms.options`. That array is what
@@ -3579,7 +3582,7 @@ class ChildTradeVocabulariesTest extends TestCase
          * And the farm rows stay on the farm. «بالأردب» on a freight company
          * would be the leak that sharing a group always risks.
          */
-        foreach ([68, 166, 198, 243] as $childId) {
+        foreach ([68, 198, 243] as $childId) {
             foreach (['بالأردب', 'بالشيكارة', 'بالطبق', 'بالرأس'] as $farm) {
                 $this->assertNotContains($farm, $units($childId));
             }

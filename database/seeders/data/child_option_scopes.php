@@ -109,7 +109,8 @@ return [
         284 => [184, 214, 280, 281, 365],  // سيارات نقل
         68 => [184, 214, 280, 281, 365],   // شركة شحن
         198 => [184, 214, 280, 281, 365],  // مكتب شحن
-        166 => [184, 214, 280, 281, 365],  // شحن بري وبحري وجوى
+        // «شحن بري وبحري وجوى» #166 folded into «شركة» #68 on 2026-08-18. Its
+        // narrowing goes with it: #68 already holds the same five vehicles.
         // «نقل دولي» #154 folded into «شحن بري وبحري وجوى» #166 on 2026-08-12
         // and reaches no root; a narrowing cannot reach it either.
         243 => [251, 280, 281],            // مندوب — a courier, not a convoy

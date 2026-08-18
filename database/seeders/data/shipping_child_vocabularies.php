@@ -45,6 +45,28 @@
 | «نطاق الشحن» whole where «مندوب» takes three quarters of it.
 |
 | The move carried six tables with it; see `bim:move-child`.
+|
+| ── …and folded into «شركة» #68 on 2026-08-18 ────────────────────────────
+|
+| «ما رايك فى حذف برى بحرى جوى من الشحن والتوصيل لانها بالفعل خدمة شركات
+| الشحن تحت نفس الاب» — and he is right, by the evidence this file created.
+|
+| «وسيلة الشحن» was written on 2026-08-16 and granted to #68, #198 and #166
+| together. From that moment the child WAS «شركة» with all three modes
+| ticked: same lorry list, same modes, same speed and range axes, three
+| merchants against twenty. A trade that has become an option is a specialty
+| wearing a child's clothes — the rule the workshop remodel is built on.
+|
+| The fold carried its three merchants, seven options, five service links
+| and five configs onto the keeper, and the three modes were ticked into
+| `option_user` for those three accounts so nothing their child's NAME said
+| is lost. «تصدير» and «إستيراد» came with them, which widens «شركة» — a
+| freight company that clears customs both ways is ordinary, and the pins
+| were his.
+|
+| Every list below that named 166 has dropped it. The narrowing in
+| `child_option_scopes.php` went too: leaving one half is how a child ends
+| up scoped with no grant, or granted with no scope.
 */
 
 return [
@@ -56,7 +78,7 @@ return [
     'groups' => [
 
         'نطاق الشحن' => [
-            'name_en' => 'Shipping Range', 'price_role' => 'modifier', 'children' => [68, 198, 166],
+            'name_en' => 'Shipping Range', 'price_role' => 'modifier', 'children' => [68, 198],
             'options' => [
                 'داخل المدينة' => 'Within the City',
                 'بين المحافظات' => 'Intercity',
@@ -66,7 +88,7 @@ return [
         ],
 
         'سرعة الشحن' => [
-            'name_en' => 'Delivery Speed', 'price_role' => 'modifier', 'children' => [68, 198, 166],
+            'name_en' => 'Delivery Speed', 'price_role' => 'modifier', 'children' => [68, 198],
             'options' => [
                 'عادي' => 'Standard',
                 'سريع' => 'Express',
@@ -97,7 +119,7 @@ return [
         | list, the way «تسليم أرض المصنع» is its own definition.
         */
         'وسيلة الشحن' => [
-            'name_en' => 'Freight Mode', 'price_role' => 'line', 'children' => [68, 198, 166],
+            'name_en' => 'Freight Mode', 'price_role' => 'line', 'children' => [68, 198],
             'options' => [
                 'شحن بري' => 'Land Freight',
                 'شحن بحري' => 'Sea Freight',
@@ -127,7 +149,7 @@ return [
         | international carrier, so it takes this and not the mode above.
         */
         'تجهيز الشحن البري' => [
-            'name_en' => 'Land Freight Equipment', 'price_role' => 'modifier', 'children' => [68, 198, 166, 284],
+            'name_en' => 'Land Freight Equipment', 'price_role' => 'modifier', 'children' => [68, 198, 284],
             'options' => [
                 'جاف / عادي' => 'Dry Cargo',
                 'مبرد' => 'Refrigerated',
@@ -336,18 +358,6 @@ return [
         // that ruling stands untouched: an office is not paid in advance. It is
         // paid when the goods are handed over at the counter, which is this row
         // and nothing else, and it left the child with no payment word at all.
-        /*
-        | «شحن بري وبحري وجوى» #166 carries every freight type and NO parcel type
-        | — no `small_parcel`, no `document_courier` — so it takes six of the
-        | seven and not «بالطرد». It moves consignments; a parcel rate is a
-        | courier's word, and it is the same evidence that kept COD off it.
-        |
-        | Its only entry in this file, so a whole key rather than a merged line.
-        */
-        166 => [
-            'وحدة البيع' => ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر'],
-        ],
-
         198 => [
             'الدفع والسداد' => ['الدفع عند الاستلام'],
             'وحدة البيع' => ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر', 'بالطرد'],

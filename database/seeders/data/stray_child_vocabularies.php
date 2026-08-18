@@ -103,6 +103,75 @@ return [
     | nothing and only stops the next reader wondering where it came from.
     */
     'groups' => [
+
+        /*
+        |----------------------------------------------------------------------
+        | 2026-08-18 — «مستكشف لاعبين» #550
+        |----------------------------------------------------------------------
+        | Owner: «مستكشف لاعبين … المستكشف يحدد الرياضات الخاصة به ومن الممكن
+        | ان تكون لكرة القدم فقط».
+        |
+        | Two groups, because he answers two questions, and the platform's
+        | one-role-per-group rule decides which is which.
+        |
+        | ── What he sells ────────────────────────────────────────────────────
+        |
+        | A scout is not paid per sport; he is paid per JOB — a look at a boy, a
+        | written report, a trial camp, a placement. That is the `line`, and it
+        | is why «الأنشطة الرياضية» #28 could not be reused for it: that group is
+        | already a `line` naming what a club TEACHES, held by the gym, the
+        | academy, the coach and the pool. Handing it to the scout would price
+        | him per sport and say he sells football.
+        |
+        | ── Which market he works in ─────────────────────────────────────────
+        |
+        | `descriptive`, because it is a filter and not a price — «ومن الممكن ان
+        | تكون لكرة القدم فقط» is exactly a filter. It overlaps #28 by design and
+        | not by accident: that list mixes competitive sports with gym classes —
+        | يوجا، كارديو، سبينينج، آيروبكس، بيلاتس — and nobody scouts yoga. These
+        | are the sports that actually have academies, trials and transfers in
+        | Egypt, which is the only list a scout's filter should offer.
+        */
+        'خدمات استكشاف اللاعبين' => [
+            'name_en' => 'Player Scouting Services',
+            'price_role' => 'line',
+            'children' => [550],
+            'options' => [
+                'معاينة وتقييم لاعب' => 'Player Assessment',
+                'تقرير كشفي مكتوب' => 'Written Scouting Report',
+                'معسكر اختبارات' => 'Trial Camp',
+                'إلحاق بأكاديمية أو نادي' => 'Academy & Club Placement',
+                'تمثيل ووكالة لاعبين' => 'Player Representation',
+                'متابعة موسم كامل' => 'Full-Season Tracking',
+                'تصوير فيديو احترافي للاعب' => 'Professional Player Reel',
+            ],
+        ],
+
+        'الرياضات المستهدفة' => [
+            'name_en' => 'Scouted Sports',
+            'price_role' => 'descriptive',
+            'children' => [550],
+            'options' => [
+                'كرة قدم' => 'Scouting — Football',
+                'كرة سلة' => 'Scouting — Basketball',
+                'كرة يد' => 'Scouting — Handball',
+                'كرة طائرة' => 'Scouting — Volleyball',
+                'سباحة' => 'Scouting — Swimming',
+                'ألعاب قوى' => 'Scouting — Athletics',
+                'تنس' => 'Scouting — Tennis',
+                'تنس طاولة' => 'Scouting — Table Tennis',
+                'جمباز' => 'Scouting — Gymnastics',
+                'ملاكمة' => 'Scouting — Boxing',
+                'مصارعة' => 'Scouting — Wrestling',
+                'جودو' => 'Scouting — Judo',
+                'كاراتيه' => 'Scouting — Karate',
+                'تايكوندو' => 'Scouting — Taekwondo',
+                'رفع أثقال' => 'Scouting — Weightlifting',
+                'مبارزة' => 'Scouting — Fencing',
+                'فروسية' => 'Scouting — Equestrian',
+                'دراجات' => 'Scouting — Cycling',
+            ],
+        ],
         'مرافق النادي الرياضي' => [
             'name_en' => 'Club Facilities',
             'price_role' => 'descriptive',

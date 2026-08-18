@@ -31,12 +31,24 @@ class Post extends Model
     'salary',
     'requirements',
     'interview_starts_at',
+
+    // Talent fields (type='talent' only — see 2026_08_18_000000_add_talent_posts).
+    // A young player's card, read by «مستكشف لاعبين» under «الرياضة».
+    'sport',
+    'playing_position',
+    'birth_date',
+    'height_cm',
+    'weight_kg',
+    'preferred_foot',
+    'current_club',
+    'video_url',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'expire_at' => 'datetime',
         'interview_starts_at' => 'datetime',
+        'birth_date' => 'date',
     ];
 
     // ✅ رجع الـ body الخام من العمود (بدون ترجمة)

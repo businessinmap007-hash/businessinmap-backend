@@ -35,6 +35,27 @@ return [
 
     'root_slug' => 'workshops',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Benches that changed their name after they were minted
+    |--------------------------------------------------------------------------
+    | `upsertOptions()` matches a bench by `name_ar` inside its group, so
+    | editing a name in the lists below does NOT rename anything — it mints a
+    | second row and leaves every child linked to the first. This map is
+    | applied before the lists and moves the existing row instead.
+    |
+    | Owner, 2026-08-17: «يستحسن تعديل بنشر الى جنوط، هو الدارج فى مصر».
+    | A puncture is what the bench DOES; جنوط is what the customer walks in
+    | asking for, and «كاوتش وجنوط» is what is painted on the shop. The child
+    | «جنوط وكاوتش سيارات» #249 under المحلات already used the pair — the
+    | workshop bench was the odd one out.
+    */
+    'option_renames' => [
+        'تخصصات ورش السيارات' => [
+            'كاوتش وبنشر' => ['كاوتش وجنوط', 'Tyre & Rim Service'],
+        ],
+    ],
+
     'domains' => [
 
         /*
@@ -66,7 +87,7 @@ return [
             'extra_options' => [
                 'بوية وتلميع' => 'Paint & Polishing',
                 'تكييف سيارات' => 'Car Air Conditioning',
-                'كاوتش وبنشر' => 'Tyres & Puncture Repair',
+                'كاوتش وجنوط' => 'Tyre & Rim Service',
                 'فرامل وتعليق' => 'Brakes & Suspension',
                 'تغيير زيت وفلاتر' => 'Oil & Filter Change',
                 'فحص كمبيوتر' => 'Diagnostics',
@@ -116,6 +137,17 @@ return [
                 'ورنيش وسيلر' => 'Varnish & Sealer',
                 'تعتيق وباتينا' => 'Antiquing & Patina',
                 'أرابيسك ومشربية' => 'Arabesque & Mashrabiya',
+                /*
+                 * 2026-08-17: «نحتاج فى ورش أثاث ونجارة CNC ايضا».
+                 *
+                 * A separate bench from the metal shop's «تشغيل CNC»
+                 * #1224 and deliberately named differently. A wood CNC
+                 * is a ROUTER — it cuts panels, engraves doors and
+                 * profiles kitchen fronts — while the metal shop's is a
+                 * milling machine. One name in two groups would read as
+                 * one trade and price as two.
+                 */
+                'راوتر CNC' => 'CNC Router',
             ],
         ],
 

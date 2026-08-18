@@ -46,10 +46,67 @@ class WorkshopRemodelSeeder extends Seeder
 
             $this->command?->info('Workshop remodel:');
 
+            $renamed = $this->applyOptionRenames($data['option_renames'] ?? []);
+
+            if ($renamed > 0) {
+                $this->command?->line("  - مقاعد أُعيدت تسميتها : {$renamed}");
+            }
+
             foreach ($data['domains'] as $domain) {
                 $this->applyDomain($rootId, $domain);
             }
         });
+    }
+
+    /**
+     * Move a bench's name instead of minting a second row under the new one.
+     *
+     * `upsertOptions()` finds a bench by `name_ar` within its group, so editing
+     * a name in `workshop_taxonomy.php` alone creates a NEW option and leaves
+     * every child linked to the old one — two benches for one job, and the
+     * merchant who priced the first keeps a row nobody can find. This runs
+     * first so the lists below match what is already there.
+     *
+     * Scoped to the group, because a bench name is only unique inside one:
+     * «تشغيل CNC» in the metal shop and «راوتر CNC» in the joinery are two
+     * different machines that must never collapse into each other.
+     *
+     * Idempotent — a row already carrying the new name is left alone, and its
+     * English half is corrected if only the Arabic moved.
+     *
+     * @param  array<string,array<string,array{0:string,1:string}>>  $renames
+     */
+    private function applyOptionRenames(array $renames): int
+    {
+        $moved = 0;
+
+        foreach ($renames as $groupNameAr => $pairs) {
+            $groupId = (int) DB::table('option_groups')->where('name_ar', $groupNameAr)->value('id');
+
+            if ($groupId <= 0) {
+                continue;
+            }
+
+            foreach ($pairs as $from => [$toAr, $toEn]) {
+                $already = DB::table('options')->where('group_id', $groupId)->where('name_ar', $toAr)->first(['id', 'name_en']);
+
+                if ($already) {
+                    if ($already->name_en !== $toEn) {
+                        DB::table('options')->where('id', $already->id)
+                            ->update(['name_en' => $toEn, 'updated_at' => now()]);
+                    }
+
+                    continue;
+                }
+
+                $moved += DB::table('options')
+                    ->where('group_id', $groupId)
+                    ->where('name_ar', $from)
+                    ->update(['name_ar' => $toAr, 'name_en' => $toEn, 'updated_at' => now()]);
+            }
+        }
+
+        return $moved;
     }
 
     /** @param array<string,mixed> $domain */

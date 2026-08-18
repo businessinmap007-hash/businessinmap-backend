@@ -33,6 +33,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Talent cards — who pays, and how much
+    |--------------------------------------------------------------------------
+    | Owner, 2026-08-18: «يكون هو المستهدف المباشر والاساسى… والكشاف ايضا سيدفع
+    | مقابل الفيديو اذا قام بالتواصل او طلب البيانات لان بيانات الناشئ سوف تكون
+    | مخفية».
+    |
+    | THE SCOUT PAYS, NEVER THE PLAYER. The card is free to publish: a fee on
+    | uploading would tax the boy for being watched, and the more scouts opened
+    | his video the more he would owe — a bill that grows with his talent, sent
+    | to a fourteen-year-old with no wallet. The party with a budget is the one
+    | looking, and he is also the one the owner named as the direct target.
+    |
+    | `view` is charged ONCE per (player, scout) no matter how often he reopens
+    | the card — «واذا شاهده اكثر من مرة تحسب مرة واحدة فقط».
+    |
+    | `reveal` is the real product and is deliberately NOT symbolic. A pound
+    | does not stop a fake scout harvesting a hundred minors' phone numbers; a
+    | real price plus a named, dated row is what makes that expensive and
+    | traceable. Raise it before you lower it.
+    |
+    | Set either to 0 to switch that half off — a free launch charges nothing
+    | and still records who looked.
+    */
+    'talent' => [
+        'view_fee' => (float) env('BIM_TALENT_VIEW_FEE', 5),
+        'reveal_fee' => (float) env('BIM_TALENT_REVEAL_FEE', 50),
+        'scout_child_id' => (int) env('BIM_TALENT_SCOUT_CHILD_ID', 550),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Account deletion (BIM-15.1)
     |--------------------------------------------------------------------------
     | A deletion request soft-deletes the account and freezes its wallet; the

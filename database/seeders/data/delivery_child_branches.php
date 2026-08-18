@@ -57,7 +57,7 @@ return [
     // ── ورش ومراكز صيانة ──
     'workshops' => [
         // «عفشجى» left this root — see the shipping-delivery block at the top.
-        'نجار باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
+        'ورشة باب وشباك' => ['delivery_freight', 'delivery_courier_ondemand'],
         // The benches folded into the four workshop domains on 2026-08-10
         // (WorkshopRemodelSeeder). A cabinet leaves on a lorry; a repaired
         // kettle goes back by courier, so the appliance bench keeps only the

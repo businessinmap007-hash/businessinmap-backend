@@ -42,7 +42,7 @@
 |
 | Three get it, and the split is where the work physically happens:
 |
-|   #84  نجار باب وشباك    a door is measured and hung at the address
+|   #84  ورشة باب وشباك    a door is measured and hung at the address
 |   #240 تبريد وتكييف       the split unit is on the customer's wall
 |   #546 ورشة صيانة أجهزة  a washing machine is repaired in the kitchen
 |

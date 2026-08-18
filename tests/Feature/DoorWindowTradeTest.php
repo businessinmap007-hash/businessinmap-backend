@@ -148,13 +148,13 @@ class DoorWindowTradeTest extends TestCase
         $this->assertFalse(
             DB::table('category_parent_child')
                 ->where('parent_id', $this->rootId('workshops'))->where('child_id', $childId)->exists(),
-            'the trade is back under ورش beside «نجار باب وشباك»'
+            'the trade is back under ورش beside «ورشة باب وشباك»'
         );
 
         $this->assertTrue(
             DB::table('category_parent_child as p')
                 ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
-                ->where('p.parent_id', $this->rootId('workshops'))->where('c.name_ar', 'نجار باب وشباك')->exists(),
+                ->where('p.parent_id', $this->rootId('workshops'))->where('c.name_ar', 'ورشة باب وشباك')->exists(),
             'ورش has no doors workshop at all'
         );
     }
@@ -341,7 +341,7 @@ class DoorWindowTradeTest extends TestCase
     public function test_the_workshop_carries_the_same_list(): void
     {
         $trade = $this->typesOf('باب وشباك');
-        $workshop = $this->typesOf('نجار باب وشباك');
+        $workshop = $this->typesOf('ورشة باب وشباك');
         sort($trade);
         sort($workshop);
 

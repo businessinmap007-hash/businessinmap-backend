@@ -147,7 +147,7 @@ class BookingWithoutDeliveryTest extends TestCase
         return [
             'نجار موبيليا' => ['نجار موبيليا', 'professions'],
             'منجد' => ['منجد', 'professions'],
-            'نجار باب وشباك' => ['نجار باب وشباك', 'workshops'],
+            'ورشة باب وشباك' => ['ورشة باب وشباك', 'workshops'],
         ];
     }
 

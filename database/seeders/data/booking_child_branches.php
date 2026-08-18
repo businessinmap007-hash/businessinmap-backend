@@ -77,7 +77,7 @@ return [
     // ── ورش ومراكز صيانة ──
     'workshops' => [
         'تبريد وتكييف' => ['services_tasks'],
-        'نجار باب وشباك' => ['services_tasks'],
+        'ورشة باب وشباك' => ['services_tasks'],
         // The twenty benches that used to be children here became options
         // inside these four on 2026-08-10 (WorkshopRemodelSeeder). Naming a
         // folded child would only report it missing on every run.

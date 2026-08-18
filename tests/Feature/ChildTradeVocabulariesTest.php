@@ -2755,7 +2755,7 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     public function test_a_workshop_can_say_it_comes_to_the_customer(): void
     {
-        foreach (['نجار باب وشباك', 'تبريد وتكييف', 'ورشة صيانة أجهزة'] as $child) {
+        foreach (['ورشة باب وشباك', 'تبريد وتكييف', 'ورشة صيانة أجهزة'] as $child) {
             $this->assertContains(
                 'زيارة منزلية',
                 $this->optionsOfChildInGroup($child, 'نمط تقديم الخدمة'),

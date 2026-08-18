@@ -38,6 +38,11 @@ return [
     ],
 
     /*
+    | ⚠ #84 was renamed «ورشة باب وشباك» on 2026-08-18 (`child_renames.php`).
+    | The reasoning below is left in the words it was decided in — «نجار» is
+    | the name it carried that day, and rewriting the record would erase the
+    | very argument the rename later settled.
+    |
     | The doors-and-windows TRADE took شركات and المحلات this morning and stands
     | under مصانع beside them — the three roots a doors business sells from. The
     | workshop form of it has always had its own child, «نجار باب وشباك» #84,

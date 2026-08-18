@@ -201,7 +201,7 @@ return [
             'price_role' => 'line',
             'children' => [
                 'باب وشباك',
-                'نجار باب وشباك',
+                'ورشة باب وشباك',
                 // «أبواب مصفحة» was folded on 2026-08-10 and «بي في سي» on
                 // 2026-08-12: each is one of the sixteen types below, and the
                 // trade itself stands under the roots they stood under, so the

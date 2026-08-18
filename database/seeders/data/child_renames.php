@@ -74,4 +74,34 @@ return [
         'to_ar' => 'مواشي وأرانب',
         'to_en' => 'Livestock & Rabbits',
     ],
+
+    /*
+    | ── rename, without a merge: «نجار باب وشباك» #84 ─────────────────────
+    | Owner, 2026-08-18. The only entry here that folds nothing — #84 swallowed
+    | no sibling; it was simply carrying the wrong kind of name.
+    |
+    | «نجار» names the CRAFTSMAN, and the craftsman already has his own child:
+    | «نجار موبيليا» #49, under مهن وحرفيين. #84 stands under ورش ومراكز صيانة
+    | and nowhere else — it is a PLACE, and it now reads like the sibling it
+    | sits beside, «ورشة أثاث ونجارة» #544. That leaves «باب وشباك» #50 to the
+    | trader under مصانع، شركات، المحلات and معارض, which is the split
+    | `child_root_detachments.php` was written to protect: the old name argued
+    | against it, this one states it.
+    |
+    | The English is corrected in the same breath: the row came from the live
+    | tree as `Door and window Workshop`, with a lower-case `window` that
+    | matches nothing else in the table.
+    |
+    | ⚠ Applied to the live tree BEFORE it was recorded here, which is why this
+    | entry exists at all: the rename was real and nothing in the repository
+    | knew it, so the next seed would have handed #84 its old name back. The
+    | seeder reports it as «بالفعل» and writes nothing — recording what happened
+    | is the entire point, not repeating it.
+    */
+    [
+        'id' => 84,
+        'from_ar' => 'نجار باب وشباك',
+        'to_ar' => 'ورشة باب وشباك',
+        'to_en' => 'Door & Window Workshop',
+    ],
 ];

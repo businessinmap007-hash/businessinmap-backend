@@ -239,7 +239,7 @@ class ChildRootDetachTest extends TestCase
 
         // Both craftsmen roots are answered by the same child, which is why
         // neither detachment left anything unsaid.
-        $this->assertTrue($this->standsUnder('نجار باب وشباك', 'workshops'));
+        $this->assertTrue($this->standsUnder('ورشة باب وشباك', 'workshops'));
     }
 
     /**

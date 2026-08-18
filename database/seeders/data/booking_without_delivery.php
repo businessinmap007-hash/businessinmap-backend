@@ -37,7 +37,7 @@ return [
     'keep_delivery' => [
         'نجار موبيليا',
         'منجد',
-        'نجار باب وشباك',
+        'ورشة باب وشباك',
 
         /*
         | Added 2026-08-10 by the same reasoning, one pass later. «طباعة» under

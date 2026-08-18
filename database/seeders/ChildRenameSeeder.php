@@ -50,6 +50,24 @@ class ChildRenameSeeder extends Seeder
         }
 
         if ((string) $row->name_ar === (string) $entry['to_ar']) {
+            /*
+             * Already carrying the new Arabic name — but the English can still
+             * be behind it. A rename applied by hand in the live tree sets the
+             * name a person typed, and #84 arrived here as
+             * `Door and window Workshop`; the entry below is the reviewed
+             * spelling. Aligning it costs nothing when they already agree and
+             * is the only chance to fix it when they do not, because the
+             * Arabic match returns before the update ever runs.
+             */
+            if ((string) $row->name_en !== (string) $entry['to_en']) {
+                DB::table('category_children_master')->where('id', $id)
+                    ->update(['name_en' => $entry['to_en'], 'updated_at' => now()]);
+
+                $this->command?->line("  - #{$id} «{$entry['to_ar']}» بالفعل — والإنجليزى صُحّح إلى «{$entry['to_en']}».");
+
+                return;
+            }
+
             $this->command?->line("  - #{$id} «{$entry['to_ar']}» بالفعل.");
 
             return;

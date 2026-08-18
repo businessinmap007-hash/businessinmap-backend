@@ -516,8 +516,15 @@ class ServiceKindsPruneTest extends TestCase
 
         $this->assertNotEmpty($byTime);
 
-        // The two that sell a person or a departure, not a duration.
-        $notPlaces = ['فوتوجرافر', 'رحلات ومراكب'];
+        /*
+         * The ones that sell a person or a departure, not a duration.
+         *
+         * «ناشئ موهوب» #551 joined them on 2026-08-18: it is the one child of
+         * الرياضة that owns no ground at all. A scout pays to see the boy and
+         * then books a trial — an appointment with him — where every other
+         * child of this root rents an hour on a pitch, a court or a lane.
+         */
+        $notPlaces = ['فوتوجرافر', 'رحلات ومراكب', 'ناشئ موهوب'];
 
         foreach ($byTime as $row) {
             if (in_array($row->name_ar, $notPlaces, true)) {

@@ -184,7 +184,12 @@ class ServiceReinstatementTest extends TestCase
          */
         foreach ([
             'معدات ثقيلة' => 'companies',
-            'شحن بري وبحري وجوى' => 'shipping-delivery',
+            // The donor folded into «شركة» #68 on 2026-08-18 — once «وسيلة
+            // الشحن» reached all three carriers the child WAS #68 with the
+            // modes ticked. The keeper is asserted in its place: what this
+            // guards is that a hauler publishes a leg beside the carriers, and
+            // that is still true of both rows.
+            'شركة' => 'shipping-delivery',
         ] as $name => $slug) {
             $rootId = $this->rootId($slug);
 

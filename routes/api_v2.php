@@ -60,6 +60,7 @@ use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\CommentController;
 use App\Http\Controllers\Api\V2\BusinessPageController;
 use App\Http\Controllers\Api\V2\PostController;
+use App\Http\Controllers\Api\V2\TalentController;
 use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
@@ -267,6 +268,21 @@ Route::prefix('v2')->group(function () {
         // {post} is numeric-constrained, so the two never collide.
         // update is POST, not PUT: PHP does not parse multipart bodies on PUT,
         // so an image edit would arrive empty.
+        /*
+         * Talent cards. A young player publishes one from his own «ناشئ موهوب»
+         * business account through the ordinary posts endpoints; these are the
+         * SCOUT's side of it.
+         *
+         * `index` is free — a grid of forty locked cards must not debit a scout
+         * forty times. `show` is the charged moment, once per boy, and `reveal`
+         * buys the name, the club and the video. Both charges and the
+         * scout-only gate live in TalentScoutingService, not here.
+         */
+        Route::get('talents', [TalentController::class, 'index']);
+        Route::get('talents/mine/views', [TalentController::class, 'myViews']);
+        Route::get('talents/{talent}', [TalentController::class, 'show'])->whereNumber('talent');
+        Route::post('talents/{talent}/reveal', [TalentController::class, 'reveal'])->whereNumber('talent');
+
         Route::get('posts/mine', [PostController::class, 'mine']);
         // Static before {post}: what this account can link a post to.
         Route::get('posts/subject-options', [PostController::class, 'subjectOptions']);

@@ -147,10 +147,27 @@ return [
             ],
         ],
 
-        'الرياضات المستهدفة' => [
-            'name_en' => 'Scouted Sports',
+        /*
+        | Renamed from «الرياضات المستهدفة» on 2026-08-18, and the rename had to
+        | land HERE in the same change: this file declares the group by name, so
+        | left as it was the next run would mint the old name again as an empty
+        | second group and link 550 to it — one list of sports becoming two.
+        |
+        | «ناشئ موهوب» #551 answers the same eighteen. The heading is neutral
+        | because it now reads on both screens: on a scout it is the sports he
+        | covers, on a boy the sport he plays. A separate «موهوب فى» holding the
+        | identical rows would make the match this whole feature exists for — the
+        | scout's sports against the boy's — a join across two vocabularies.
+        |
+        | The option `name_en` values still say «Scouting — …». They are globally
+        | unique and already linked, so renaming eighteen of them buys a tidier
+        | English label at the price of a collision hunt; left for a day when
+        | something else touches them.
+        */
+        'الرياضات' => [
+            'name_en' => 'Sports',
             'price_role' => 'descriptive',
-            'children' => [550],
+            'children' => [550, 551],
             'options' => [
                 'كرة قدم' => 'Scouting — Football',
                 'كرة سلة' => 'Scouting — Basketball',

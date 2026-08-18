@@ -798,6 +798,25 @@ class ChildTradeVocabulariesTest extends TestCase
      * @var array<int,string>
      */
     private const ROOT_WIDE_BY_NATURE = [
+        /*
+         * «الرياضة» became visible to this guard on 2026-08-18 and not because
+         * anything spread: the root had SEVEN children and the check skips
+         * anything under eight. «ناشئ موهوب» #551 made it eight, and three
+         * long-standing club vocabularies surfaced at once.
+         *
+         * They are the root's own question. The children that hold them are the
+         * five places you walk into — جيم، ملاعب كرة، نادي رياضي، أكاديمية،
+         * حمام سباحة — plus «مدرب» for the first two, and the ones that do NOT
+         * are exactly «مستكشف لاعبين» and «ناشئ موهوب»: a scout and a boy run
+         * no club, have no pool and no locker room. A spread whose exceptions
+         * are that precise is a trade fact, not a leak.
+         *
+         * «مرافق النادي الرياضي» excludes «مدرب» as well, and correctly — a
+         * trainer brings himself, not a sauna.
+         */
+        'sports:الأنشطة الرياضية',
+        'sports:خدمات النادي الرياضي',
+        'sports:مرافق النادي الرياضي',
         // «مستلزمات المزارع» left this list on 2026-08-12. It was never really
         // the root's question — three rows that restate the child's own name,
         // spread across ten children because nobody had written them anything
@@ -1172,6 +1191,17 @@ class ChildTradeVocabulariesTest extends TestCase
          * line — which scan — is the whole of its price.
          */
         215, 252,                            // الصحة
+        /*
+         * «ناشئ موهوب» #551, 2026-08-18 — and it is the only child on the
+         * platform that carries no modifier because it SELLS NOTHING at all.
+         *
+         * Every other entry on this list prices something and simply has no
+         * second axis. The boy has no line either: his card is a post, the
+         * SCOUT pays for it (TalentScoutingService), and the one axis he
+         * answers — «الرياضات» — is descriptive because a fourteen-year-old
+         * does not quote a rate for being watched.
+         */
+        551,                                 // الرياضة
         /*
          * «معدات زراعية» #12. It IS named in `condition_children`, so the file
          * still offers it جديد and مستعمل — and the owner withdrew both by hand
@@ -3622,10 +3652,10 @@ class ChildTradeVocabulariesTest extends TestCase
         // line the scout starts selling football instead of scouting.
         $this->assertSame(
             'descriptive',
-            DB::table('option_groups')->where('name_ar', 'الرياضات المستهدفة')->value('price_role')
+            DB::table('option_groups')->where('name_ar', 'الرياضات')->value('price_role')
         );
 
-        $this->assertFalse($vocab['lines']->has('الرياضات المستهدفة'));
+        $this->assertFalse($vocab['lines']->has('الرياضات'));
 
         /*
          * And it is NOT «الأنشطة الرياضية» #28 under another name. That group is
@@ -3653,7 +3683,7 @@ class ChildTradeVocabulariesTest extends TestCase
         }
     }
 
-    /** «ناشئ موهوب» is a post type, and the table can hold one. */
+    /** «ناشئ موهوب»: a post type AND, since 2026-08-18, the child that authors it. */
     public function test_a_talented_youngster_is_a_post_and_not_a_child(): void
     {
         $type = DB::selectOne("SHOW COLUMNS FROM posts WHERE Field = 'type'")->Type;
@@ -3673,12 +3703,45 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame(\App\Models\Post::class, $talent->getMorphClass(), 'images would be written under a stray type');
         $this->assertSame('post_id', $talent->getForeignKey(), 'comments and likes would look for talent_post_id');
 
-        // And the youngster is NOT a taxonomy child.
+        /*
+         * REVERSED on 2026-08-18. He IS a child, and the owner's objection is
+         * the decisive one: «فى bim لا يستطيع احد كتابة منشور غير الحسابات
+         * البزنس فقط، فكيف لناشئ سيكتب بوست ويعرض فيه موهبته؟»
+         *
+         * Every author on this platform is an account with a child and a
+         * vocabulary. A card written by a `client` would be the only post on
+         * BIM with no trade behind it — no options screen, no discovery filter,
+         * and nothing for a scout's search to match on. The earlier objection
+         * to making him a child was that he would inherit an empty catalogue,
+         * and the answer is that he inherits no `line` at all: he sells
+         * nothing, the scout pays, and «الرياضات» is the one axis he answers.
+         */
+        $youngster = DB::table('category_children_master')->where('name_ar', 'ناشئ موهوب')->value('id');
+
+        $this->assertNotNull($youngster, 'the youngster needs a child to author from');
+
+        $sports = DB::table('category_child_option as l')
+            ->join('options as o', 'o.id', '=', 'l.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('l.child_id', $youngster)->where('g.name_ar', 'الرياضات')->count();
+
+        $this->assertSame(18, $sports, 'he cannot say which sport he plays');
+
+        // One list of sports for both sides, or the match this feature exists
+        // for becomes a join across two vocabularies.
         $this->assertSame(
-            0,
-            DB::table('category_children_master')->where('name_ar', 'like', '%ناشئ%')->count(),
-            'the youngster was filed as a child — he sells nothing and would inherit an empty catalog'
+            1,
+            DB::table('option_groups')->where('name_ar', 'like', '%الرياضات%')->count(),
+            'the sports list was split in two'
         );
+
+        // He sells nothing, so he must carry no `line`.
+        $lines = DB::table('category_child_option as l')
+            ->join('options as o', 'o.id', '=', 'l.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('l.child_id', $youngster)->where('g.price_role', 'line')->count();
+
+        $this->assertSame(0, $lines, 'a fourteen-year-old was given a price list');
     }
 
     /** @return array<int,string> */

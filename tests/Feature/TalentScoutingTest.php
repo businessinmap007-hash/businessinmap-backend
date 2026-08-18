@@ -218,6 +218,69 @@ class TalentScoutingTest extends TestCase
         $this->assertSame(0.0, $this->balance($scout));
     }
 
+    /**
+     * «اخفى الاسم والنادى والفيديو قبل الدفع» — through the API, end to end.
+     *
+     * The three hidden fields are the three that make him findable off the
+     * platform. What is left is enough to decide whether to pay and useless for
+     * anything else.
+     */
+    public function test_the_api_hides_the_name_club_and_video_until_paid(): void
+    {
+        $talent = $this->talent();
+        $talent->forceFill([
+            'current_club' => 'نادي الاتحاد',
+            'video_url' => 'https://example.test/clip.mp4',
+            'birth_date' => now()->subYears(16),
+        ])->save();
+
+        $scout = $this->scout();
+
+        $open = $this->actingAs($scout, 'sanctum')->getJson("/api/v2/talents/{$talent->id}");
+        $open->assertOk();
+
+        foreach (['name', 'current_club', 'video_url', 'contact'] as $hidden) {
+            $this->assertArrayNotHasKey($hidden, $open->json('data'), "«{$hidden}» leaked before payment");
+        }
+
+        $open->assertJsonPath('data.revealed', false);
+        $open->assertJsonPath('data.sport', 'كرة قدم');
+        $open->assertJsonPath('data.age', 16);
+        $this->assertContains('video_url', $open->json('data.locked_fields'));
+
+        $paid = $this->actingAs($scout, 'sanctum')->postJson("/api/v2/talents/{$talent->id}/reveal");
+        $paid->assertOk()
+            ->assertJsonPath('data.revealed', true)
+            ->assertJsonPath('data.current_club', 'نادي الاتحاد')
+            ->assertJsonPath('data.video_url', 'https://example.test/clip.mp4');
+
+        $this->assertNotNull($paid->json('data.contact.phone'));
+
+        // …and it stays revealed without paying again.
+        $again = $this->actingAs($scout, 'sanctum')->getJson("/api/v2/talents/{$talent->id}");
+        $again->assertJsonPath('data.revealed', true);
+    }
+
+    /** The browsable grid is free, and locked for everyone. */
+    public function test_the_list_never_charges_and_never_reveals(): void
+    {
+        $talent = $this->talent();
+        $talent->forceFill(['video_url' => 'https://example.test/x.mp4'])->save();
+
+        $scout = $this->scout();
+        $before = $this->balance($scout);
+
+        $list = $this->actingAs($scout, 'sanctum')->getJson('/api/v2/talents?sport=' . urlencode('كرة قدم'));
+        $list->assertOk();
+
+        $this->assertSame($before, $this->balance($scout), 'browsing the grid charged the scout');
+
+        foreach ($list->json('data') as $card) {
+            $this->assertArrayNotHasKey('video_url', $card);
+            $this->assertFalse($card['revealed']);
+        }
+    }
+
     /** The «once» rule is the database's, not the code's. */
     public function test_the_pair_is_unique_in_the_schema(): void
     {

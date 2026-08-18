@@ -103,6 +103,7 @@ class DatabaseSeeder extends Seeder
            // becomes the child. Root-scoped, so it must follow the moves above.
            WorkshopRemodelSeeder::class,
            FullServiceCentreSeeder::class,
+           TalentChildSeeder::class,
            PlayerScoutSeeder::class,
 
            // «بنود المنيو» was four vocabularies wearing one name. Moves options

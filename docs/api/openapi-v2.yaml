@@ -33,6 +33,16 @@ security:
   - bearerAuth: []
 
 tags:
+  - name: Talents
+    description: |
+      Young players publish a card from their own «ناشئ موهوب» business account
+      through the ordinary posts endpoints; these are the SCOUT's side of it.
+
+      The identity is behind a paywall because the subject is a minor: the name,
+      the club and the video are hidden until a «مستكشف لاعبين» account pays,
+      and every reveal is recorded against that account and dated. Opening a
+      card is charged once per (player, scout) no matter how often it is
+      reopened, and the player is never charged for being watched.
   - name: Auth
   - name: Password Reset
   - name: Account deletion
@@ -4129,6 +4139,62 @@ paths:
         '200': { description: 'Appeal submitted' }
         '404': { description: 'Not found, or not yours' }
         '422': { $ref: '#/components/responses/Validation' }
+
+  /talents:
+    get:
+      tags: [Talents]
+      summary: 'Browse young players — free, and locked for everyone'
+      description: >
+        The shop window. Never returns a name, club or video for any caller and
+        never charges: a scout scrolling forty cards must not be debited forty
+        times. Opening one card is GET /talents/{talent}, which is the charged
+        moment.
+      parameters:
+        - { in: query, name: sport, schema: { type: string }, description: 'e.g. كرة قدم' }
+        - { in: query, name: position, schema: { type: string } }
+        - { in: query, name: age_min, schema: { type: integer, minimum: 5, maximum: 60 } }
+        - { in: query, name: age_max, schema: { type: integer, minimum: 5, maximum: 60 } }
+      responses:
+        '200': { description: 'Locked cards, paginated' }
+
+  /talents/mine/views:
+    get:
+      tags: [Talents]
+      summary: 'Which players this scout has already paid for'
+      description: >
+        So a scout can reopen a card knowing it will not cost again — the
+        question the «counted once» rule exists to answer.
+      responses:
+        '200': { description: 'This scout''s views, newest first' }
+
+  /talents/{talent}:
+    get:
+      tags: [Talents]
+      summary: 'Open one card — charged once per (player, scout)'
+      description: >
+        The first open charges bim.talent.view_fee to the SCOUT; every reopen is
+        free and only increments view_count. The player is never charged. Only a
+        «مستكشف لاعبين» business account may call this — anyone else gets 422.
+      parameters:
+        - { in: path, name: talent, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'The card; name, club and video only if already revealed' }
+        '422': { description: 'Not a scout account, or insufficient balance' }
+
+  /talents/{talent}/reveal:
+    post:
+      tags: [Talents]
+      summary: 'Pay to see the name, club, video and contact'
+      description: >
+        Charges bim.talent.reveal_fee once. Idempotent — a scout who has already
+        revealed gets the card back and is not charged again. The reveal is
+        recorded against his account and dated, because the data belongs to a
+        minor.
+      parameters:
+        - { in: path, name: talent, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'The full card' }
+        '422': { description: 'Not a scout account, or insufficient balance' }
 
   /posts:
     get:

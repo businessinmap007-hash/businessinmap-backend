@@ -172,25 +172,21 @@ return [
     | stops three live merchants from standing on a child that offers no way to
     | say anything at all.
     */
-    [
-        'child_name_ar' => 'معدات ثقيلة',
-        'root_slug' => 'companies',
-        'service_key' => 'schedules',
-        /*
-         * Was «شحن بري وبحري وجوى» until 2026-08-18, when it folded into
-         * «شركة» #68 — the keeper absorbed its schedules config along with its
-         * three merchants, so the shape being copied is the same shape. Left
-         * naming a folded child the seeder finds nothing and skips silently.
-         */
-        'copy_from_child_ar' => 'شركة',
-        // The donor left «شركات» for «شحن وتوصيل» on 2026-08-16, and it is the
-        // same donor either way — the shape being copied is a CARRIER's, not a
-        // root's. Without this the seeder looks for it beside the recipient,
-        // finds nothing, and skips the entry silently; the two trades stay
-        // where they are and the copy is simply never available again.
-        'copy_from_root_slug' => 'shipping-delivery',
-        'why' => 'ناقل ثقيل بلا أي سطح بيع — إعداد التوصيل عنده هو إعداد النقل الثقيل نفسه، وأخواه في الجذر ينشران الرحلات — ٣ حسابات',
-    ],
+    /*
+     * «معدات ثقيلة» ← «شحن بري وبحري وجوى», 2026-08-12: a heavy hauler with no
+     * selling surface at all, given the carrier's schedules config so its three
+     * merchants could publish a trip.
+     *
+     * REMOVED on 2026-08-18, and for the reason the entry above was removed.
+     * The donor folded into «شركة» #68 that day, and no live carrier now
+     * carries the shape this one was copied from — #68 and #198 both publish
+     * courier item groups the hauler has no use for. Re-pointing it would widen
+     * the recipient rather than repair it.
+     *
+     * Nothing is lost: the repair HELD. #139 keeps the config it was given and
+     * publishes trips exactly as before. A reinstatement is a repair, and this
+     * one is repaired.
+     */
 
     /*
     |--------------------------------------------------------------------------

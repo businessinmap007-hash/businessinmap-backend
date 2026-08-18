@@ -165,7 +165,30 @@ class VehicleDealTypeTest extends TestCase
 
             $this->assertSame([], $unexplained, "«{$name}» drifted: " . implode('، ', $unexplained));
 
+            /*
+             * The ledger has the last word in BOTH directions.
+             *
+             * The paragraph above says what the split is for — «مالك عقار»
+             * ticks «بيع» and leaves «شراء» alone — and then this loop used to
+             * demand both halves of every child, which forbade the one thing
+             * the split was built to allow. An owner did exactly that on
+             * 2026-08-18 and the suite called it a loss.
+             *
+             * A half may be absent only when a withdrawal says who took it. The
+             * direction that stays absolute is unchanged: silence is still a
+             * loss, because a row that vanishes with nothing behind it is drift.
+             */
+            $withdrawn = DB::table(\App\Services\Catalog\ChildOptionDecisions::TABLE . ' as d')
+                ->join('options as o', 'o.id', '=', 'd.option_id')
+                ->where('d.child_id', $childId)
+                ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
+                ->pluck('o.name_ar')->all();
+
             foreach (['بيع', 'شراء'] as $half) {
+                if (in_array($half, $withdrawn, true)) {
+                    continue;
+                }
+
                 $this->assertContains($half, $this->answersOf($childId), "«{$name}» lost «{$half}»");
             }
 

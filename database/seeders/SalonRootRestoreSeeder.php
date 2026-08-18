@@ -63,6 +63,32 @@ class SalonRootRestoreSeeder extends Seeder
 
     private const CHILDREN = [164, 184]; // كوافير حريمى، كوافير رجالي
 
+    /**
+     * The services a salon actually sells through — named, not inferred.
+     *
+     * A chair is booked by appointment and that is the whole surface. Every
+     * other service on these children is a config the detach left behind, and
+     * a sleeping config is not evidence that the trade wanted it.
+     */
+    private const SELLS = ['booking'];
+
+    /**
+     * Not this seeder's to decide, whatever the salon sells.
+     *
+     * `business_offers` is DERIVED every run from «does this child have an
+     * active typed service» (BusinessOffersEnablementSeeder), so sleeping it
+     * here does not settle anything — the next derivation switches it straight
+     * back on, and the two seeders take turns undoing each other. Booking is
+     * live on these children, so the derivation is right and this is simply
+     * not the file that owns the answer.
+     */
+    private const DERIVED = ['business_offers'];
+
+    /** Where the keeper stands, and the mark the carry leaves on a config. */
+    private const KEEPER_ROOT = 6;
+
+    private const CARRY_SOURCE = 'salon-remodel';
+
     public function run(): void
     {
         DB::transaction(function () {
@@ -78,7 +104,7 @@ class SalonRootRestoreSeeder extends Seeder
                 ->where('is_active', 0)
                 ->update(['is_active' => 1, 'updated_at' => now()]);
 
-            $attached = $options = $services = $configs = 0;
+            $attached = $options = $services = $configs = $slept = 0;
 
             foreach (self::CHILDREN as $childId) {
                 $attached += DB::table('category_parent_child')->insertOrIgnore([
@@ -92,7 +118,10 @@ class SalonRootRestoreSeeder extends Seeder
                 $services += $this->rebuildServiceLinks($childId);
 
                 $configs += $this->reactivateBoundedConfigs($childId);
+                $slept += $this->sleepWhatItDoesNotSell($childId);
             }
+
+            $slept += $this->sleepWhatTheCarryBrought();
 
             $this->command?->info('Salon root restore:');
             $this->command?->line('  - الجذر أُعيد تفعيله : ' . ($reactivated ? 'نعم' : 'كان مفعّلًا'));
@@ -100,6 +129,7 @@ class SalonRootRestoreSeeder extends Seeder
             $this->command?->line("  - خيارات أُعيدت : {$options}");
             $this->command?->line("  - روابط خدمات أُعيدت : {$services}");
             $this->command?->line("  - إعدادات أُعيد تفعيلها : {$configs}");
+            $this->command?->line("  - خدمات لا يبيعها أُنيمت : {$slept}");
         });
     }
 
@@ -124,11 +154,16 @@ class SalonRootRestoreSeeder extends Seeder
     {
         $woken = 0;
 
-        foreach (DB::table('category_service_configs')
-            ->where('child_id', $childId)
-            ->where('category_id', self::ROOT_ID)
-            ->where('is_active', 0)
-            ->get(['id', 'config']) as $cfg) {
+        foreach (DB::table('category_service_configs as c')
+            ->join('platform_services as s', 's.id', '=', 'c.platform_service_id')
+            ->where('c.child_id', $childId)
+            ->where('c.category_id', self::ROOT_ID)
+            ->where('c.is_active', 0)
+            ->get(['c.id', 'c.config', 's.key']) as $cfg) {
+            if (! in_array((string) $cfg->key, self::SELLS, true)) {
+                continue;
+            }
+
             $allowed = json_decode((string) $cfg->config, true)['allowed_item_types'] ?? [];
 
             if ($allowed === []) {
@@ -140,6 +175,90 @@ class SalonRootRestoreSeeder extends Seeder
         }
 
         return $woken;
+    }
+
+    /**
+     * Put back to sleep anything this seeder woke that the salon does not sell.
+     *
+     * The bounded rule above was necessary and not sufficient. `menu` on these
+     * children was bounded — to `menu_food` — and woke on the first run, so a
+     * hairdresser was offered a FOOD menu, and SalonRemodelSeeder then carried
+     * it onto «كوافير» #136 exactly as it carried the unbounded ones. Being
+     * bounded says a config names its types; it says nothing about whether the
+     * types belong to this trade.
+     *
+     * Both halves go down together. A live link over a sleeping config is a
+     * service that says it is sold and cannot be — `ServiceWiringIntegrityTest`
+     * fails on precisely that, and it is how a dormant service wakes up half
+     * wired.
+     *
+     * Scoped to the salon's own root, and to the two children this seeder
+     * touched: whatever another root asks of these ids is that root's business.
+     */
+    private function sleepWhatItDoesNotSell(int $childId): int
+    {
+        $ids = DB::table('platform_services')
+            ->whereNotIn('key', array_merge(self::SELLS, self::DERIVED))->pluck('id');
+
+        $n = 0;
+
+        foreach (['category_service_configs', 'category_platform_services'] as $table) {
+            $n += DB::table($table)
+                ->where('child_id', $childId)
+                ->where('category_id', self::ROOT_ID)
+                ->whereIn('platform_service_id', $ids)
+                ->where('is_active', 1)
+                ->update(['is_active' => 0, 'updated_at' => now()]);
+        }
+
+        return $n;
+    }
+
+    /**
+     * Follow the mistake to where it was copied.
+     *
+     * `SalonRemodelSeeder::carryServices()` puts whatever is LIVE on the
+     * retiring root's children onto the keeper, so the food menu this seeder
+     * woke on #164 was carried to «كوافير» #136 under مهن وحرفيين — a second
+     * child holding a menu it cannot cook, in a root this seeder never touches.
+     * Sleeping the source is not enough: the carry already happened, and it
+     * copies rather than syncs, so nothing later takes it back.
+     *
+     * Matched by the mark the carry leaves — `config_source` — and not by
+     * service alone. That is the difference between undoing this seeder's own
+     * consequence and reaching into wiring somebody else decided: #136 also
+     * holds `booking` from services_bulk and `business_offers` derived every
+     * run, and neither is any of this seeder's business.
+     */
+    private function sleepWhatTheCarryBrought(): int
+    {
+        $ids = DB::table('platform_services')
+            ->whereNotIn('key', array_merge(self::SELLS, self::DERIVED))->pluck('id');
+
+        $carried = DB::table('category_service_configs')
+            ->where('child_id', self::DONOR_CHILD)
+            ->where('category_id', self::KEEPER_ROOT)
+            ->whereIn('platform_service_id', $ids)
+            ->where('is_active', 1)
+            ->where('config', 'like', '%"config_source":"' . self::CARRY_SOURCE . '"%')
+            ->pluck('platform_service_id');
+
+        if ($carried->isEmpty()) {
+            return 0;
+        }
+
+        $n = 0;
+
+        foreach (['category_service_configs', 'category_platform_services'] as $table) {
+            $n += DB::table($table)
+                ->where('child_id', self::DONOR_CHILD)
+                ->where('category_id', self::KEEPER_ROOT)
+                ->whereIn('platform_service_id', $carried)
+                ->where('is_active', 1)
+                ->update(['is_active' => 0, 'updated_at' => now()]);
+        }
+
+        return $n;
     }
 
     /**

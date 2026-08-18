@@ -258,9 +258,35 @@ class VehicleDealTypeSeeder extends Seeder
             $this->command?->warn("  ! تاجر على الابن #{$childId} مؤشّر على «بيع وشراء» — تُرك له.");
         }
 
+        /*
+         * A pin is spared exactly as a merchant's tick is.
+         *
+         * «ملابس» #59 and «ذهب» #127 were both pinned on the merged row by hand
+         * — the 14th and the 16th — and this method deleted it on every run
+         * regardless, so the seeder and the ledger took turns and neither ever
+         * won. Sparing only merchants who ticked the option reads the ledger in
+         * one direction: a withdrawal refuses a grant, but a pin was not
+         * allowed to refuse a deletion.
+         *
+         * What that leaves behind is a child holding all three of «بيع وشراء»،
+         * «بيع» and «شراء», which looks wrong and is not: the merged row is a
+         * live answer somebody chose to keep, and unpinning it is a decision
+         * for the admin screen, not for a seeder running unattended.
+         */
+        $pinned = app(ChildOptionDecisions::class)
+            ->byChild(ChildOptionDecisions::PINNED);
+
+        $spared = $chosen->merge(collect($pinned)
+            ->filter(fn ($opts) => isset($opts[self::MERGED_SALE_OPTION]))
+            ->keys())->unique();
+
+        foreach ($spared->diff($chosen) as $childId) {
+            $this->command?->warn("  ! «بيع وشراء» مثبّتة على الابن #{$childId} — تُركت.");
+        }
+
         return DB::table('category_child_option')
             ->where('option_id', self::MERGED_SALE_OPTION)
-            ->when($chosen->isNotEmpty(), fn ($q) => $q->whereNotIn('child_id', $chosen->all()))
+            ->when($spared->isNotEmpty(), fn ($q) => $q->whereNotIn('child_id', $spared->all()))
             ->delete();
     }
 }

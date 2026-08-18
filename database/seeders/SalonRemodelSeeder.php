@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionDecisions;
 use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -81,10 +82,29 @@ class SalonRemodelSeeder extends Seeder
             ->map(fn ($id) => (int) $id)
             ->unique();
 
+        /*
+         * What the owner took away stays away.
+         *
+         * This list is a starting point, not a ruling. «كاش» and «واي فاي»
+         * were both withdrawn from #136 by hand on 2026-08-18, and an add-only
+         * pass handed them straight back on the next run — the seeder and the
+         * curation taking turns, which is how a seeder that looks idempotent
+         * reports two additions for ever.
+         *
+         * The ledger is read root-agnostically on purpose: this writes SHARED
+         * rows, which reach every root the keeper stands under, so a withdrawal
+         * recorded under any one of them refuses the grant outright.
+         */
+        $blocked = app(ChildOptionDecisions::class)->blockedByChild()[$keeper] ?? [];
+
         $added = 0;
         $order = (int) DB::table('category_child_option')->where('child_id', $keeper)->max('reorder');
 
         foreach ($optionIds as $optionId) {
+            if (isset($blocked[$optionId])) {
+                continue;
+            }
+
             $exists = DB::table('category_child_option')
                 ->where('child_id', $keeper)
                 ->where('option_id', $optionId)

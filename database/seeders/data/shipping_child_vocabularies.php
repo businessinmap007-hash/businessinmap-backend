@@ -210,6 +210,46 @@ return [
         'الدفع والسداد' => [
             'الدفع عند الاستلام' => 'Cash on Delivery',
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | 2026-08-18 — «وحدة التسعير»
+        |----------------------------------------------------------------------
+        | Owner: «نفذ وحدة التسعير».
+        |
+        | A freight price with no unit is half a price. The four carriers could
+        | say how far they go, how fast, by what mode and in what kind of body —
+        | and not the one thing that makes two quotes comparable: per WHAT. A
+        | merchant quoting 900 and a merchant quoting 4,000 are not expensive and
+        | cheap until you know one means a tonne and the other a trip.
+        |
+        | ── Why «وحدة البيع» and not a new group ──────────────────────────────
+        |
+        | Because it is the same question, and «بالطن» #2010 and «بالكيلو» #2008
+        | are already IN it. A second group named «وحدة التسعير» would ask «فى
+        | إيه؟» beside a group asking «فى إيه؟», and a merchant could answer one
+        | and not the other — the two half-populated versions of one idea that
+        | `option_group_splits.php` names as this taxonomy's oldest disease. The
+        | group is already a `modifier`, which is the right role: the same lorry
+        | is one rate by the tonne and another by the trip.
+        |
+        | Its farm rows — بالأردب، بالشيكارة، بالطبق — do not follow. A group is
+        | shared; a CHILD's view of it is not, and the links below are the gate.
+        |
+        | ── The five that had to be minted ────────────────────────────────────
+        |
+        | «بالمتر المكعب» is what LCL and a furniture move are quoted in;
+        | «بالحاوية» is the 20ft/40ft box; «بالرحلة» is the full truckload and
+        | the مشوار both; «بالكيلومتر» is the long haul; «بالطرد» is the courier.
+        | None existed anywhere on the platform.
+        */
+        'وحدة البيع' => [
+            'بالمتر المكعب' => 'Per Cubic Metre',
+            'بالحاوية' => 'Per Container',
+            'بالرحلة' => 'Per Trip',
+            'بالكيلومتر' => 'Per Kilometre',
+            'بالطرد' => 'Per Parcel',
+        ],
     ],
 
     /*
@@ -251,10 +291,31 @@ return [
     | وكافيهات» carries no modifier either.
     */
     'links' => [
+        /*
+        | Who quotes in what, read from each child's own delivery and schedules
+        | item types rather than from an opinion about carriers.
+        |
+        | «شركة» #68 and «مكتب» #198 carry the containers, the LCL consolidation,
+        | air freight AND the parcel types, so they quote in all seven.
+        |
+        | «شحن بري وبحري وجوى» #166 carries every freight type and NO parcel type
+        | — no `small_parcel`, no `document_courier` — so it takes six and not
+        | «بالطرد». It moves consignments; a parcel rate is a courier's word, and
+        | it is the same evidence that kept COD off this child.
+        |
+        | «مندوب» #243 is the reverse. His schedules allow `distribution_van` and
+        | `distribution_refrigerated` and nothing else, so the tonne, the
+        | container, the cubic metre and the kilometre are all a fleet he does not
+        | have. He is paid per parcel, per kilo, or per مشوار.
+        */
         243 => [
             'نطاق الشحن' => ['داخل المدينة', 'بين المحافظات', 'الصعيد والحدود'],
             'سرعة الشحن' => 'all',
             'تجهيز الشحن البري' => ['جاف / عادي', 'مبرد', 'مجمد'],
+
+            // Paid per parcel, per kilo, or per مشوار — the tonne, the
+            // container and the kilometre are a fleet he does not have.
+            'وحدة البيع' => ['بالطرد', 'بالكيلو', 'بالرحلة'],
 
             // The word his trade is named for. See the 2026-08-17 block above:
             // his three payment withdrawals are what makes the case for it, not
@@ -268,14 +329,28 @@ return [
         // it could previously describe only one of the two.
         68 => [
             'الدفع والسداد' => ['الدفع عند الاستلام'],
+            'وحدة البيع' => ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر', 'بالطرد'],
         ],
 
         // «مكتب» — the broker. He withdrew «دفع مسبق» from it on 2026-08-11 and
         // that ruling stands untouched: an office is not paid in advance. It is
         // paid when the goods are handed over at the counter, which is this row
         // and nothing else, and it left the child with no payment word at all.
+        /*
+        | «شحن بري وبحري وجوى» #166 carries every freight type and NO parcel type
+        | — no `small_parcel`, no `document_courier` — so it takes six of the
+        | seven and not «بالطرد». It moves consignments; a parcel rate is a
+        | courier's word, and it is the same evidence that kept COD off it.
+        |
+        | Its only entry in this file, so a whole key rather than a merged line.
+        */
+        166 => [
+            'وحدة البيع' => ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر'],
+        ],
+
         198 => [
             'الدفع والسداد' => ['الدفع عند الاستلام'],
+            'وحدة البيع' => ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر', 'بالطرد'],
         ],
     ],
 ];

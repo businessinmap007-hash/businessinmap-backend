@@ -3098,9 +3098,32 @@ class ChildTradeVocabulariesTest extends TestCase
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('g.name_ar', 'الدفع والسداد')->where('o.name_ar', 'دفع مسبق')->value('o.id');
 
+        /*
+         * CORRECTED 2026-08-17. This asserted that «مندوب» #243 had been
+         * stripped of «دفع مسبق» too, and the ledger never said so: its only
+         * two decisions on the payment axis are كاش and تقسيط, withdrawn
+         * 2026-08-11 02:36:44. The prose around the original commit read the
+         * absence of a LINK as a ruling — the exact mistake this sweep keeps
+         * correcting in the data, made here in a test.
+         *
+         * «مكتب» #198 IS blocked, and PrepaymentScopeSeeder holds «دفع مسبق»
+         * on the other three carriers by design. The trade argument for COD
+         * never rested on the withdrawal anyway: a مندوب is paid at the door
+         * whether or not he can also be paid in advance.
+         */
+        $blockedRows = app(\App\Services\Catalog\ChildOptionDecisions::class)->blockedByChild();
+
+        $this->assertTrue(isset($blockedRows[198][$prepay]), '«مكتب» lost its prepayment ruling');
+        $this->assertNotContains($prepay, $scope->idsFor(198, 5));
+
+        $this->assertFalse(
+            isset($blockedRows[243][$prepay]),
+            'the ledger has no prepayment ruling for «مندوب» — do not assert one'
+        );
+
+        // What IS ruled on both: the two shop words.
         foreach ([198, 243] as $childId) {
             $held = $scope->idsFor($childId, 5);
-            $this->assertNotContains($prepay, $held);
             $this->assertNotContains(66, $held);
             $this->assertNotContains(203, $held);
         }
@@ -3494,6 +3517,59 @@ class ChildTradeVocabulariesTest extends TestCase
                 isset($blocked[$childId][66]) && isset($blocked[$childId][203]),
                 "factory child #{$childId} carries no payment axis and nobody decided that"
             );
+        }
+    }
+
+    /**
+     * A freight price with no unit is half a price.
+     *
+     * The carriers could say how far, how fast, by what mode and in what kind
+     * of body — and not per WHAT, which is the one axis that makes two quotes
+     * comparable. 900 and 4,000 are not expensive and cheap until you know one
+     * means a tonne and the other a trip.
+     *
+     * It extends «وحدة البيع» rather than minting «وحدة التسعير»: same question,
+     * and «بالطن» and «بالكيلو» were already in it. The farm rows do not follow
+     * — a group is shared, a child's view of it is not.
+     */
+    public function test_a_carrier_says_what_its_price_is_per(): void
+    {
+        $this->assertSame(
+            'modifier',
+            DB::table('option_groups')->where('name_ar', 'وحدة البيع')->value('price_role'),
+            'the same lorry is one rate by the tonne and another by the trip'
+        );
+
+        $units = fn (int $childId) => DB::table('category_child_option as l')
+            ->join('options as o', 'o.id', '=', 'l.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('l.child_id', $childId)->where('g.name_ar', 'وحدة البيع')
+            ->pluck('o.name_ar')->all();
+
+        $freight = ['بالطن', 'بالكيلو', 'بالمتر المكعب', 'بالحاوية', 'بالرحلة', 'بالكيلومتر', 'بالطرد'];
+
+        // The two that carry containers, LCL, air freight AND parcels.
+        foreach ([68 => 'شركة', 198 => 'مكتب'] as $childId => $name) {
+            $this->assertEqualsCanonicalizing($freight, $units($childId), "«{$name}» cannot say what it charges per");
+        }
+
+        // Consignments, never parcels — the same evidence that kept COD off it.
+        $this->assertEqualsCanonicalizing(
+            array_values(array_diff($freight, ['بالطرد'])),
+            $units(166)
+        );
+
+        // A van and a rep: per parcel, per kilo, per مشوار.
+        $this->assertEqualsCanonicalizing(['بالطرد', 'بالكيلو', 'بالرحلة'], $units(243));
+
+        /*
+         * And the farm rows stay on the farm. «بالأردب» on a freight company
+         * would be the leak that sharing a group always risks.
+         */
+        foreach ([68, 166, 198, 243] as $childId) {
+            foreach (['بالأردب', 'بالشيكارة', 'بالطبق', 'بالرأس'] as $farm) {
+                $this->assertNotContains($farm, $units($childId));
+            }
         }
     }
 

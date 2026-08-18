@@ -1173,6 +1173,19 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         215, 252,                            // الصحة
         /*
+         * «مستكشف لاعبين» #550, 2026-08-18. Its seven rows moved from `modifier`
+         * to `line` the day after it was created, because each is a job a scout
+         * is paid for and the child had no line at all — the reader was
+         * promoting the group to fill the slot.
+         *
+         * With a real line it now carries no modifier, and that is right: what
+         * a scout charges does not vary along a second axis. «الرياضات
+         * المستهدفة» is descriptive on purpose — كرة قدم against سلة is who he
+         * looks at, not a second rate for the same trial, and the owner's whole
+         * point was that a scout may tick football alone.
+         */
+        550,                                 // الرياضة
+        /*
          * «معدات زراعية» #12. It IS named in `condition_children`, so the file
          * still offers it جديد and مستعمل — and the owner withdrew both by hand
          * on 2026-08-16 02:06:51, in the same pass that took the supermarket
@@ -3571,6 +3584,98 @@ class ChildTradeVocabulariesTest extends TestCase
                 $this->assertNotContains($farm, $units($childId));
             }
         }
+    }
+
+    /**
+     * The scout is a business; the boy is a post.
+     *
+     * Owner, 2026-08-18. «مستكشف لاعبين» advertises, is booked, is paid and is
+     * rated, so he is a child. «ناشئ موهوب» sells nothing — filed as a child he
+     * would inherit a catalog, a booking service and a wallet, all permanently
+     * empty — so he is `posts.type = 'talent'` beside the vacancy.
+     *
+     * The role split is the substance: a scout is paid per JOB, never per sport,
+     * and «ومن الممكن ان تكون لكرة القدم فقط» is a filter.
+     */
+    public function test_the_scout_sells_scouting_and_filters_by_sport(): void
+    {
+        $childId = (int) DB::table('category_children_master')
+            ->where('name_ar', 'مستكشف لاعبين')->value('id');
+
+        $this->assertGreaterThan(0, $childId);
+
+        $this->assertSame(
+            7,
+            (int) DB::table('category_parent_child')->where('child_id', $childId)->value('parent_id'),
+            'the scout belongs under «الرياضة»'
+        );
+
+        $vocab = app(\App\Services\MerchantOfferingVocabulary::class)->for(0, $childId, 7);
+
+        $this->assertTrue($vocab['lines']->has('خدمات استكشاف اللاعبين'), 'the scout cannot price his work');
+        $this->assertNull($vocab['promoted'], 'a real line must not need promotion');
+
+        // The sports are a FILTER, not a price. If this group ever becomes a
+        // line the scout starts selling football instead of scouting.
+        $this->assertSame(
+            'descriptive',
+            DB::table('option_groups')->where('name_ar', 'الرياضات المستهدفة')->value('price_role')
+        );
+
+        $this->assertFalse($vocab['lines']->has('الرياضات المستهدفة'));
+
+        /*
+         * And it is NOT «الأنشطة الرياضية» #28 under another name. That group is
+         * a line naming what a club TEACHES — held by the gym, the academy, the
+         * coach and the pool — and it mixes competitive sports with gym classes
+         * nobody scouts.
+         */
+        $this->assertSame(
+            0,
+            DB::table('category_child_option as l')
+                ->join('options as o', 'o.id', '=', 'l.option_id')
+                ->where('l.child_id', $childId)->where('o.group_id', 28)->count(),
+            'the scout was given the club-activities line'
+        );
+
+        // Both halves of the wiring, as for any new child.
+        foreach ([true] as $_) {
+            $links = DB::table('category_platform_services')->where('child_id', $childId)
+                ->where('category_id', 7)->where('is_active', 1)->count();
+            $configs = DB::table('category_service_configs')->where('child_id', $childId)
+                ->where('category_id', 7)->where('is_active', 1)->count();
+
+            $this->assertGreaterThan(0, $links, 'the scout sells nothing');
+            $this->assertSame($links, $configs, 'the scout is wired by one half');
+        }
+    }
+
+    /** «ناشئ موهوب» is a post type, and the table can hold one. */
+    public function test_a_talented_youngster_is_a_post_and_not_a_child(): void
+    {
+        $type = DB::selectOne("SHOW COLUMNS FROM posts WHERE Field = 'type'")->Type;
+
+        $this->assertStringContainsString("'talent'", $type, 'posts.type cannot hold a talent card');
+
+        foreach (['sport', 'playing_position', 'birth_date', 'height_cm', 'preferred_foot', 'current_club', 'video_url'] as $column) {
+            $this->assertTrue(
+                \Illuminate\Support\Facades\Schema::hasColumn('posts', $column),
+                "a scouting card cannot record «{$column}»"
+            );
+        }
+
+        // The model must constrain the slice both ways, the way JobPost does.
+        $talent = new \App\Models\TalentPost;
+
+        $this->assertSame(\App\Models\Post::class, $talent->getMorphClass(), 'images would be written under a stray type');
+        $this->assertSame('post_id', $talent->getForeignKey(), 'comments and likes would look for talent_post_id');
+
+        // And the youngster is NOT a taxonomy child.
+        $this->assertSame(
+            0,
+            DB::table('category_children_master')->where('name_ar', 'like', '%ناشئ%')->count(),
+            'the youngster was filed as a child — he sells nothing and would inherit an empty catalog'
+        );
     }
 
     /** @return array<int,string> */

@@ -108,6 +108,11 @@ return [
         'خدمات الطباعة',
         'خدمات الأمن والحراسة',
         'خدمات المأذون الشرعي',
+        // «مستكشف لاعبين» #550, 2026-08-18. A scout is paid per JOB — a look at
+        // a boy, a written report, a trial camp, a placement — never per sport.
+        // The sports he covers are «الرياضات المستهدفة», left unnamed in this
+        // file on purpose so it stays the `descriptive` filter the owner asked
+        // for: «ومن الممكن ان تكون لكرة القدم فقط».
         // …and «تكنولوجيا», whose three children were all mute. «أنظمة الأمن
         // والسلامة» is the SYSTEMS half of security; «خدمات الأمن والحراسة»
         // above is the manpower half, on a different child under a different
@@ -126,6 +131,20 @@ return [
         // 2026-08-17: «مغسلة سيارات» priced on the vehicle alone, so a rinse
         // and a ceramic coat on the same sedan were one figure.
         'خدمات غسيل السيارات',   // غسيل بالبخار، تلميع وبوليش
+        /*
+         * «مستكشف لاعبين» #550, 2026-08-18. Declared a `modifier` on the day it
+         * was created and it is a `line` — every one of its seven rows is a job
+         * a scout is PAID for: a trial, a written report, a testing camp, a
+         * season's follow-up, agency representation.
+         *
+         * The reader had already said so. The child holds no other line, so the
+         * promotion rule lifted this group into the line slot to give it
+         * something to price — the exact tell «قطع غيار» #263 gave one block
+         * up. Promotion is all-or-nothing by design, and leaning on it is how a
+         * grade like «أصلي وكيل» ends up offered as a thing to buy. A child
+         * with a real line never needs it.
+         */
+        'خدمات استكشاف اللاعبين', // معسكر اختبارات ≠ تقرير كشفي
         // The farm cluster, 2026-08-12: no retail and no catalog behind them,
         // so the type IS what the customer pays for.
         'الآلات والمعدات الزراعية',

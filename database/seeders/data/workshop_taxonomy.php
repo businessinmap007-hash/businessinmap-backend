@@ -80,7 +80,22 @@ return [
                 'سروجي' => ['فرش وتنجيد سيارات', 'Car Upholstery'],
                 'اصلاح زجاج السيارات' => ['إصلاح زجاج السيارات', 'Auto Glass Repair'],
                 'ابواب سيارات' => ['أبواب سيارات', 'Car Doors'],
-                'مركز سيارات' => ['مركز خدمة متكامل', 'Full Service Centre'],
+                /*
+                 * «مركز سيارات» #39 was folded here on 2026-08-10 and is
+                 * UNFOLDED again on 2026-08-17 — owner: «مركز خدمة متكامل
+                 * يجب ان يكون ابن منفصل يحمل كل خيارات ورشة سيارات، لان
+                 * ورشة سيارات ممكن ان تكون ميكانيكا وتعليق فقط».
+                 *
+                 * The other thirteen benches name a JOB; this one named a
+                 * SIZE, and a bench whose meaning is «all the other
+                 * benches» tells a customer nothing. It is a child again,
+                 * revived by its original id — see FullServiceCentreSeeder.
+                 *
+                 * The line must stay OUT of this list: `detach()` unlinks
+                 * every folded child from the root on every run, so a name
+                 * left here would tear #39 back out of «ورش ومراكز صيانة»
+                 * each seed and take its 2 merchants with it.
+                 */
                 'فيبر جلاس' => ['فيبر جلاس', 'Fibreglass Work'],
             ],
             // Benches every garage has and no child ever named.

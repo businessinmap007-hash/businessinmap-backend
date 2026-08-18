@@ -34,7 +34,32 @@
 
 return [
 
-    /** The trade root being retired, and the domain root that absorbs it. */
+    /*
+    |--------------------------------------------------------------------------
+    | REVERSED on 2026-08-17 — the root is a place of work after all
+    |--------------------------------------------------------------------------
+    | Owner: «الاب كوافير حذف بالخطأ وهو محل عمل بالفعل. اما الموجود فى مهن
+    | وحرفيين هو الفني نفسه، ويمكن ان يكون بيعمل بالمهمة او قام بالتسجيل حتى
+    | يتلقى عرض وظائف».
+    |
+    | The rule this file was built on — every root answers WHERE a business
+    | stands — is right. The reading of THIS trade was not: «كوافير» is both a
+    | shop with chairs and a rent, and a person with a kit, and the platform
+    | keeps that pair apart everywhere else. `workshop_taxonomy.php` says so in
+    | as many words about «حداد»: the workshop and the tradesman are two rows,
+    | ruled by the owner on 2026-08-09 — the same day this file retired the
+    | salon's.
+    |
+    | Set, this flag keeps everything the remodel got RIGHT — the keeper's
+    | vocabulary, «الجمهور المستهدف» as the axis, the accounts already moved and
+    | their audience preserved — and stops only the last two steps, the detach
+    | and the deactivation. Without it a full seed would tear the root down and
+    | SalonRootRestoreSeeder would put it back on the next line: the add/remove
+    | loop this taxonomy keeps producing.
+    */
+    'root_restored_on' => '2026-08-17',
+
+    /** The trade root that WAS being retired, and the domain root that absorbed it. */
     'retire_root_id' => 443,
     'target_root_id' => 6,
 

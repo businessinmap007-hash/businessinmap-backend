@@ -102,6 +102,7 @@ class DatabaseSeeder extends Seeder
            // a garage. The bench becomes a priced option and the workshop
            // becomes the child. Root-scoped, so it must follow the moves above.
            WorkshopRemodelSeeder::class,
+           FullServiceCentreSeeder::class,
 
            // «بنود المنيو» was four vocabularies wearing one name. Moves options
            // between groups only — no child link is touched, so every merchant
@@ -126,6 +127,7 @@ class DatabaseSeeder extends Seeder
            // a ROOT: the trade folds back under مهن وحرفيين, and رجالي/حريمي
            // stop being two children a family salon has to choose between.
            SalonRemodelSeeder::class,
+           SalonRootRestoreSeeder::class,
 
            // The 18 children that carried only delivery + offers and so could
            // sell nothing at all: goods write their own menu, services take a

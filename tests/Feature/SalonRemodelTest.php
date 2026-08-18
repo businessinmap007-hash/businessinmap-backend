@@ -28,18 +28,55 @@ class SalonRemodelTest extends TestCase
     private const RETIRED_ROOT = 443;
     private const PROFESSIONS = 6;
 
-    /** The trade root is gone from the customer's top row. */
-    public function test_the_salon_root_is_no_longer_offered(): void
+    /**
+     * REVERSED on 2026-08-17. The root is a place of work after all.
+     *
+     * Owner: «الاب كوافير حذف بالخطأ وهو محل عمل بالفعل، اما الموجود فى مهن
+     * وحرفيين هو الفني نفسه». The rule this file was built on — a root answers
+     * WHERE a business stands — still holds; the reading of this trade did not.
+     * A salon is a shop with chairs and a rent; the row under مهن وحرفيين is a
+     * person with a kit who may work بالمهمة or be registered only to be
+     * offered work. `workshop_taxonomy.php` keeps exactly that pair apart for
+     * «حداد», by the owner's ruling on the very same day this root was retired.
+     *
+     * What the test now guards is the restoration AND the thing that would undo
+     * it: SalonRemodelSeeder still runs in the chain, and only the
+     * `root_restored_on` flag stops its detach and its deactivation.
+     */
+    public function test_the_salon_root_is_a_place_of_work_again(): void
     {
         $root = DB::table('categories')->where('id', self::RETIRED_ROOT)->first();
 
         $this->assertNotNull($root, 'the row was deleted — it is half the undo record');
-        $this->assertSame(0, (int) $root->is_active, '«كوافير» is still a live root');
+        $this->assertSame(1, (int) $root->is_active, '«كوافير» is not a live root');
 
-        $this->assertSame(
-            0,
-            DB::table('category_parent_child')->where('parent_id', self::RETIRED_ROOT)->count(),
-            'the retired root still has children'
+        $children = DB::table('category_parent_child')->where('parent_id', self::RETIRED_ROOT)->pluck('child_id');
+
+        $this->assertCount(2, $children, 'the restored root lost its children');
+
+        // Restored MUTE is the failure mode: the detach deleted their option and
+        // service rows, and only deactivated the configs.
+        foreach ($children as $childId) {
+            $this->assertGreaterThan(
+                0,
+                DB::table('category_child_option')->where('child_id', $childId)->count(),
+                "salon child #{$childId} came back with no vocabulary"
+            );
+
+            $this->assertSame(
+                DB::table('category_service_configs')->where('child_id', $childId)
+                    ->where('category_id', self::RETIRED_ROOT)->where('is_active', 1)->count(),
+                DB::table('category_platform_services')->where('child_id', $childId)
+                    ->where('category_id', self::RETIRED_ROOT)->where('is_active', 1)->count(),
+                "salon child #{$childId} is wired by one half"
+            );
+        }
+
+        $map = require database_path('seeders/data/salon_taxonomy.php');
+
+        $this->assertNotEmpty(
+            $map['root_restored_on'] ?? null,
+            'without this flag SalonRemodelSeeder tears the root down on every seed'
         );
     }
 

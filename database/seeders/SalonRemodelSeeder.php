@@ -40,8 +40,20 @@ class SalonRemodelSeeder extends Seeder
             $vocab = $this->giveKeeperTheVocabulary($data, $keeper);
             $services = $this->carryServices($retiring, $target, $keeper);
             $moved = $this->moveAccounts($data, $keeper, $target, $retiring);
-            $detached = $this->detach($data, $retiring);
-            $rootOff = $this->retireRoot($retiring);
+            /*
+             * The last two steps are REVERSED as of 2026-08-17 — see
+             * `root_restored_on` in the data file. Everything above stays: the
+             * keeper's vocabulary, the carried services and the moved accounts
+             * with their audience written out are all still right, and all
+             * still idempotent. Only the teardown stops, because the owner
+             * ruled the root a real place of work. Left running, it would
+             * detach the two children on every seed and SalonRootRestoreSeeder
+             * would re-attach them on the next line.
+             */
+            $restored = ! empty($data['root_restored_on']);
+
+            $detached = $restored ? 0 : $this->detach($data, $retiring);
+            $rootOff = $restored ? false : $this->retireRoot($retiring);
 
             $this->command?->info('Salon remodel applied:');
             $this->command?->line("  - خيارات أُضيفت إلى «كوافير» #{$keeper} : {$vocab}");

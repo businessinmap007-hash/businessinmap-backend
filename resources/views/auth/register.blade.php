@@ -18,7 +18,7 @@
                          choice sets the hidden `auth` field and reveals the
                          business-only fields. Defaults to the value already in
                          the URL (?auth=business) if present. --}}
-                    @php $preselect = request('auth') === 'business' || request('auth') === 'vendor' ? 'business' : 'client'; @endphp
+                    @php $__auth = old('auth', request('auth')); $preselect = $__auth === 'business' || $__auth === 'vendor' ? 'business' : 'client'; @endphp
                     <div class="account-path btn-group btn-group-toggle d-flex mb-4" role="group">
                         <button type="button" class="btn btn-outline-primary flex-fill {{ $preselect === 'client' ? 'active' : '' }}" data-path="client">
                             حساب مستخدم
@@ -28,20 +28,29 @@
                         </button>
                     </div>
 
+                    {{-- لم يكن لهذه الصفحة مكانٌ تتكلّم منه: كل كتل الأخطاء
+                         فيها معلَّقة داخل تعليق منذ نسختها الأولى، فكان
+                         المستخدم يُردّ إليها فارغةً بلا سببٍ معلن. --}}
+                    @if(session('error') || $errors->any())
+                        <div class="alert alert-danger">
+                            {{ session('error') ?: $errors->first() }}
+                        </div>
+                    @endif
+
                     <form class="needs-validation submission-form" novalidate method="post" action="{{ route('user.signup') }}">
                         {{ csrf_field() }}
                         <input type="hidden" name="auth" id="auth-path" value="{{ $preselect }}" />
                         <div>
-                            <input type="text" name="first_name" class="form-control"  placeholder="الإسم الأول "  required />
+                            <input type="text" name="first_name" value="{{ old('first_name') }}" class="form-control"  placeholder="الإسم الأول "  required />
                         </div>
                         <div>
-                            <input type="text" name="last_name" class="form-control"  placeholder="الإسم الأخير "  required />
+                            <input type="text" name="last_name" value="{{ old('last_name') }}" class="form-control"  placeholder="الإسم الأخير "  required />
                         </div>
                         <div>
-                            <input type="email" name="email" class="form-control" placeholder=" البريد الإلكترونى "  required />
+                            <input type="email" name="email" value="{{ old('email') }}" class="form-control" placeholder=" البريد الإلكترونى "  required />
                         </div>
                         <div>
-                            <input type="text" name="phone" class="form-control" placeholder="رقم الجوال"  required />
+                            <input type="text" name="phone" value="{{ old('phone') }}" class="form-control" placeholder="رقم الجوال"  required />
                         </div>
 
                         {{-- Business-only: sector → business type. category_child_id
@@ -52,7 +61,7 @@
                                 <select name="category_id" id="sector-select" class="form-control">
                                     <option value="">اختر القطاع</option>
                                     @foreach($sectors as $sector)
-                                        <option value="{{ $sector->id }}">{{ $sector->name_ar ?: $sector->name_en }}</option>
+                                        <option value="{{ $sector->id }}" @selected((string) old('category_id') === (string) $sector->id)>{{ $sector->name_ar ?: $sector->name_en }}</option>
                                     @endforeach
                                 </select>
                             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\AdminV2;
 
+use App\Enums\BookingPattern;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
@@ -296,17 +297,35 @@ class ServiceCatalogMatrixController extends Controller
     protected function mergeServiceConfig(array $current, array $itemTypes, Request $request, PlatformService $service): array
     {
         $current['allowed_item_types'] = array_values($itemTypes);
-        // Default to what is ALREADY stored, not to true-for-booking: the
-        // direct-booking classification sets this false per child, and a blanket
-        // true here would silently re-arm the unit list on the next admin save.
-        // Only a child with no stored value at all falls back to the old rule.
-        $current['requires_bookable_item'] = $request->boolean(
-            'requires_bookable_item',
-            $current['requires_bookable_item'] ?? ((string) $service->key === PlatformService::KEY_BOOKING)
-        );
-        $current['supports_quantity'] = $request->boolean('supports_quantity', true);
-        $current['supports_guest_count'] = $request->boolean('supports_guest_count', false);
-        $current['supports_extras'] = $request->boolean('supports_extras', false);
+
+        /*
+         * شكل الحجز يأتى من النمط، لا من هذه الشاشة.
+         *
+         * كانت هذه الأسطر تكتب المفاتيح الثلاثة بافتراضاتٍ ثابتة على كل حفظ —
+         * `supports_quantity` بـ true و`supports_guest_count` بـ false مهما
+         * كان التصنيف — فتمحو ما قرّره النمط. وهذه شاشةُ **الأنواع المسموحة**
+         * لا شاشةُ الشكل؛ تعديلُ الشكل مكانه شاشةُ الخدمات المجمّعة.
+         *
+         * ومن لا نمطَ له تبقى مفاتيحه كما كانت: الغياب سكوتٌ لا حكم.
+         */
+        $pattern = BookingPattern::tryFromConfig($current);
+
+        if ($pattern) {
+            $unitWas = $current['requires_bookable_item'] ?? null;
+
+            foreach ($pattern->legacyFlags() as $key => $value) {
+                $current[$key] = $value;
+            }
+
+            if ($pattern->unit() === BookingPattern::UNIT_OPTIONAL && $unitWas !== null) {
+                $current['requires_bookable_item'] = $unitWas;
+            }
+        } elseif ((string) $service->key === PlatformService::KEY_BOOKING) {
+            $current['requires_bookable_item'] = $request->boolean(
+                'requires_bookable_item',
+                $current['requires_bookable_item'] ?? true
+            );
+        }
         $current['notes'] = trim((string) $request->input('notes', '')) ?: null;
         $current['catalog_source'] = 'service_catalog_matrix';
         $current['catalog_synced_at'] = now()->toDateTimeString();

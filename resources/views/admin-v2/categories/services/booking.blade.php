@@ -16,6 +16,11 @@
         $supportsGuestCount = (string) old('supports_guest_count', (int) ($bookingConfig['supports_guest_count'] ?? 0)) === '1';
         $supportsExtras = (string) old('supports_extras', (int) ($bookingConfig['supports_extras'] ?? 0)) === '1';
 
+        $pattern = \App\Enums\BookingPattern::tryFrom((string) old('booking_pattern', $bookingConfig['booking_pattern'] ?? ''));
+        $openPatterns = collect($bookingConfig['booking_patterns'] ?? [])
+            ->map(fn ($p) => \App\Enums\BookingPattern::tryFrom((string) $p))
+            ->filter()->values();
+
         $selectedAllowedItemTypes = old('allowed_item_types', $bookingConfig['allowed_item_types'] ?? []);
         $selectedRequiredFields = old('required_fields', $bookingConfig['required_fields'] ?? []);
 
@@ -106,40 +111,53 @@
         </select>
     </div>
 
+    {{-- ── نمط الحجز ──────────────────────────────────────────────────────
+         كانت هنا خمسةُ مربّعات مستقلّة وقائمةُ حقولٍ مطلوبة. على ١٩٤ إعدادًا
+         نشطًا كان اثنان من ثمانية مفاتيح مضبوطَين، والستّة الباقية مطفأةً بلا
+         استثناءٍ واحد — لأن ثمانية مفاتيح لا تُملأ يدويًا صحيحةً مرّتين.
+         النمط يُذكر باسمه فيأتى بشكله كاملًا، ولا يُنسى نصفه. --}}
     <div class="a2-check-section" style="margin-top:18px;">
-        <div class="a2-check-section-title">Booking Flags</div>
+        <div class="a2-check-section-title">{{ __('نمط الحجز') }}</div>
 
-        <div class="a2-flag-grid">
-            <label class="a2-check-card">
-                <input type="hidden" name="requires_bookable_item" value="0">
-                <input type="checkbox" name="requires_bookable_item" value="1" @checked($requiresBookableItem)>
-                <span>Requires Bookable Item</span>
-            </label>
-
-            <label class="a2-check-card">
-                <input type="hidden" name="requires_start_end" value="0">
-                <input type="checkbox" name="requires_start_end" value="1" @checked($requiresStartEnd)>
-                <span>Requires Start / End</span>
-            </label>
-
-            <label class="a2-check-card">
-                <input type="hidden" name="supports_quantity" value="0">
-                <input type="checkbox" name="supports_quantity" value="1" @checked($supportsQuantity)>
-                <span>Supports Quantity</span>
-            </label>
-
-            <label class="a2-check-card">
-                <input type="hidden" name="supports_guest_count" value="0">
-                <input type="checkbox" name="supports_guest_count" value="1" @checked($supportsGuestCount)>
-                <span>Supports Guest Count</span>
-            </label>
-
-            <label class="a2-check-card">
-                <input type="hidden" name="supports_extras" value="0">
-                <input type="checkbox" name="supports_extras" value="1" @checked($supportsExtras)>
-                <span>Supports Extras</span>
-            </label>
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <select name="booking_pattern" class="a2-input">
+                    <option value="">{{ __('— بلا نمط —') }}</option>
+                    @foreach(\App\Enums\BookingPattern::cases() as $case)
+                        <option value="{{ $case->value }}" @selected($pattern === $case)>
+                            {{ $case->label() }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </div>
+
+        @if($openPatterns->count() > 1)
+            <div class="a2-card-sub" style="margin-top:8px;">
+                {{ __('الأنماط التى يفتحها هذا التصنيف، ويختار النشاط بينها:') }}
+                {{ $openPatterns->map(fn ($p) => $p->label())->implode('، ') }}
+            </div>
+        @endif
+
+        @if($pattern)
+            {{-- نتيجةُ النمط، معروضةً لا محرَّرة: هذه المفاتيح تُشتقّ منه. --}}
+            <div class="a2-card-sub" style="margin-top:12px;line-height:2;">
+                <strong>{{ __('الوحدة') }}:</strong>
+                @switch($pattern->unit())
+                    @case(\App\Enums\BookingPattern::UNIT_ALWAYS) {{ __('مطلوبة دائماً') }} @break
+                    @case(\App\Enums\BookingPattern::UNIT_NEVER) {{ __('لا وحدة') }} @break
+                    @default {{ __('يقرّرها النشاط') }}
+                @endswitch
+                &nbsp;·&nbsp;
+                <strong>{{ __('يُعرض على العميل') }}:</strong>
+                @foreach($pattern->asks() as $field)
+                    <span class="a2-badge">{{ __('booking.field.' . $field) }}@if(in_array($field, $pattern->requires(), true)) *@endif</span>
+                @endforeach
+            </div>
+            <div class="a2-card-sub" style="margin-top:6px;opacity:.75;">
+                {{ __('* ما لا يُقبل الحجز بدونه. وما عداه يشترطه صاحب النشاط من شاشته.') }}
+            </div>
+        @endif
     </div>
 
     <div class="a2-booking-config-grid" style="margin-top:18px;">
@@ -159,20 +177,5 @@
             </div>
         </div>
 
-        <div class="a2-check-section">
-            <div class="a2-check-section-title">Required Fields</div>
-
-            <div class="a2-check-grid a2-check-grid--sm">
-                @foreach($requiredFieldOptions as $fieldValue => $fieldLabel)
-                    <label class="a2-check-card">
-                        <input type="checkbox"
-                               name="required_fields[]"
-                               value="{{ $fieldValue }}"
-                               @checked(in_array($fieldValue, $selectedRequiredFields, true))>
-                        <span>{{ $fieldLabel }}</span>
-                    </label>
-                @endforeach
-            </div>
-        </div>
     </div>
 </div>

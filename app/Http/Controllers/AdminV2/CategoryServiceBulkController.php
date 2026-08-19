@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\AdminV2;
 
+use App\Enums\BookingPattern;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
@@ -178,24 +179,44 @@ class CategoryServiceBulkController extends Controller
         ], true) ? $type : null;
     }
 
+    /**
+     * شكل الحجز: نمطٌ واحد يُختار، والمفاتيح الستّة تُشتقّ منه.
+     *
+     * كانت الشاشة تعرض ثمانية مربّعات مستقلّة، وكان ستّةٌ منها مطفأةً على
+     * ١٩٤ إعدادًا نشطًا بلا استثناءٍ واحد — لأن ثمانية مفاتيح لا تُملأ يدويًا
+     * صحيحةً مرّتين. فما يُحفظ الآن هو النمط، وما عداه نتيجةٌ له.
+     *
+     * والأنماط الإضافية تبقى كما هى: هى قرارُ ملفّ التوزيع المعتمد
+     * (`data/booking_patterns.php`)، وليست شيئًا يُبتّ فيه من شاشةِ حفظ.
+     */
     private function bookingConfigPayload(Request $request, array $stored = []): array
     {
+        $pattern = BookingPattern::tryFrom((string) $request->input('booking_pattern'))
+            ?? BookingPattern::tryFrom((string) ($stored['booking_pattern'] ?? ''));
+
+        if (! $pattern) {
+            // تصنيفٌ لم يصله النمط بعد: يُترك كما هو ولا يُخمَّن له شكل.
+            return [
+                'booking_modes' => $this->normalizeArray($request->input('booking_modes')),
+                'item_family' => trim((string) $request->input('item_family', '')) ?: null,
+            ];
+        }
+
+        $declared = $stored['booking_patterns'] ?? [$pattern->value];
+
+        if (! in_array($pattern->value, (array) $declared, true)) {
+            $declared = array_merge([$pattern->value], (array) $declared);
+        }
+
         return [
             'booking_modes' => $this->normalizeArray($request->input('booking_modes')),
             'item_family' => trim((string) $request->input('item_family', '')) ?: null,
-            // Falls back to the STORED value, not a blanket true: the
-            // direct-booking classification turns this off per child, and a
-            // default of true would silently re-arm the unit list on any save.
-            'requires_bookable_item' => $this->toBool(
-                $request->input('requires_bookable_item'),
-                (bool) ($stored['requires_bookable_item'] ?? true)
-            ),
-            'requires_start_end' => $this->toBool($request->input('requires_start_end'), true),
-            'supports_quantity' => $this->toBool($request->input('supports_quantity')),
-            'supports_guest_count' => $this->toBool($request->input('supports_guest_count')),
-            'supports_extras' => $this->toBool($request->input('supports_extras')),
-            'required_fields' => $this->normalizeArray($request->input('required_fields')),
-        ];
+            'booking_pattern' => $pattern->value,
+            'booking_patterns' => array_values(array_unique((array) $declared)),
+        ] + $pattern->legacyFlags() + array_filter(
+            ['requires_bookable_item' => $stored['requires_bookable_item'] ?? null],
+            fn ($v) => $v !== null
+        );
     }
 
     private function menuConfigPayload(Request $request): array

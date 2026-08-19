@@ -2681,5 +2681,6 @@
     "كم فردًا؟": "How many people?",
     "حدّد الكمية.": "Choose the quantity.",
     "اختر: حضوريًا أم أونلاين؟": "Choose: in person or online?",
-    "هذا الحقل مطلوب: :field": "This field is required: :field"
+    "هذا الحقل مطلوب: :field": "This field is required: :field",
+    "انتهت صلاحية الصفحة لطول فتحها. بياناتك محفوظة — أعد الإرسال.": "This page expired after being open too long. Your details are kept — submit again."
 }

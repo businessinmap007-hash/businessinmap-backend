@@ -813,101 +813,67 @@ class ServiceExecutionEngine
         $basePrice = $unitPrice;
 
         /*
-         * الليالى، كلُّ ليلةٍ بسعرها.
+         * صيغةٌ واحدة لكل حجزٍ فى المنصّة:
          *
-         * كان الحسابُ سعرًا واحدًا × كمّية، وقاعدةُ اليوم تُقرأ ليومِ الوصول
-         * وحده — فإقامةُ خميسٍ إلى أحدٍ بقاعدة «الجمعة أغلى» تُحاسَب بسعر
-         * الخميس ثلاثَ مرّات. الليلةُ الآن وحدةُ الحساب: لكلٍّ قاعدتُها
-         * وزياداتُها، والمجموعُ مجموعُها.
+         *     الإجمالى = مجموعُ الفترات × عددِ الوحدات
          *
-         * والمُوصِّفاتُ تُحسب لكل ليلة: «إفطار +٥٠» خمسون كلَّ صباح، لا خمسون
-         * على الإقامة. والنسبةُ تُقرأ من أساس ليلتها، فليلةٌ أغلى نسبتُها أعلى.
+         * الفترةُ تأتى من النافذة ووحدةِ صنفِ العنصر: ليلةٌ للإقامة، ساعةٌ
+         * للبلايستيشن، وفترةٌ واحدة لما لا امتدادَ له — كشفٍ أو طاولة. والعددُ
+         * هو `quantity`، ولا يعنى شيئًا آخر: غرفتان، طاولتان، جهازان.
          *
-         * ولا شىءَ يتحرّك بلا قاعدة: مجموعُ ن ليلةٍ متساوية = سعرٌ واحد × ن،
-         * وهو الرقمُ نفسُه الذى كان يخرج. فالفواتيرُ القائمة لا تتغيّر.
+         * كان الحسابُ طريقين: «سعرٌ × كمّية» يُخلط فيه الزمنُ بالعدد، فامتلأ
+         * `quantity` بعدد الليالى فى كل حجزٍ قائم ولم يبقَ للنزيل بابٌ يحجز به
+         * غرفتين. والزمنُ الآن من النافذة وحدها، والعددُ من `quantity` وحده.
+         *
+         * ولكل فترةٍ قاعدتُها وزياداتُها: «الجمعة أغلى» تُقرأ لليلة الجمعة لا
+         * ليوم الوصول، و«إفطار +٥٠» خمسون كلَّ صباح لا خمسون على الإقامة.
+         * والنسبةُ تُقرأ من أساس فترتها، فليلةٌ أغلى نسبتُها أعلى.
          */
-        $nights = $this->nightsBetween($pricingDate, $until);
+        $periods = $this->periodsBetween($pricingDate, $until, $this->granularityOf($bookable));
 
-        // الزياداتُ تُقرأ مرّةً واحدة: صفوفُها لا تتغيّر بتغيّر الليلة، وإنما
+        // الزياداتُ تُقرأ مرّةً واحدة: صفوفُها لا تتغيّر بتغيّر الفترة، وإنما
         // مقاديرُها. وإقامةُ شهرٍ كانت ثلاثين استعلامًا لنفس الصفوف.
         $modifierRows = $this->modifierRowsFor($businessPrice, $optionIds);
 
-        $nightLines = [];
+        $periodLines = [];
         $ruleApplied = null;
 
-        foreach ($nights as $index => $night) {
-            $nightBase = $basePrice;
+        foreach ($periods as $index => $period) {
+            $periodBase = $basePrice;
             $rule = null;
 
             if ($bookable) {
                 $ruled = $this->bookablePricingService->applyRulesTo(
                     item: $bookable,
-                    basePrice: $nightBase,
-                    date: $night,
+                    basePrice: $periodBase,
+                    date: $period,
                     quantity: $quantity
                 );
 
-                $nightBase = (float) $ruled['price'];
+                $periodBase = (float) $ruled['price'];
                 $rule = $ruled['rule'];
             }
 
-            $nightModifiers = $this->applyModifiers($modifierRows, $nightBase);
-            $nightPrice = max(round($nightBase + $nightModifiers['total'], 2), 0);
+            $periodModifiers = $this->applyModifiers($modifierRows, $periodBase);
+            $periodPrice = max(round($periodBase + $periodModifiers['total'], 2), 0);
 
             if ($index === 0) {
                 $ruleApplied = $rule;
+                $modifiers = $periodModifiers;
             }
 
-            $nightLines[] = [
-                'date' => $night->toDateString(),
-                'base_price' => round($nightBase, 2),
-                'modifiers_total' => $nightModifiers['total'],
-                'price' => $nightPrice,
+            $periodLines[] = [
+                'date' => $period->toDateString(),
+                'base_price' => round($periodBase, 2),
+                'modifiers_total' => $periodModifiers['total'],
+                'price' => $periodPrice,
                 'rule' => $rule,
             ];
         }
 
-        if ($nightLines !== []) {
-            /*
-             * والنافذةُ هى الكمّية، لا ما أرسله العميل.
-             *
-             * `quantity` كانت تُملأ بعدد الليالى فى كل حجزٍ قائم — نفسِ رقم
-             * `duration_value` — فالضربُ فيها مرّةً ثانية بعد جمع الليالى
-             * يحسب الإقامةَ مرّتين. النافذةُ تعرف عددَ لياليها، فتحلّ محلَّها.
-             */
-            $quantity = count($nightLines);
-            $unitPrice = (float) $nightLines[0]['price'];
-            $originalPrice = round(array_sum(array_column($nightLines, 'price')), 2);
-
-            $modifiers = [
-                'base' => (float) $nightLines[0]['base_price'],
-                'total' => (float) $nightLines[0]['modifiers_total'],
-                'lines' => $this->applyModifiers($modifierRows, (float) $nightLines[0]['base_price'])['lines'],
-            ];
-        } else {
-            /*
-             * ولا نافذةَ: ساعةُ بلايستيشن، كشفُ طبيب، طاولةُ مطعم.
-             *
-             * الحسابُ كما كان — سعرُ الوحدة × الكمّية — وقاعدةُ اليوم تُقرأ
-             * لتاريخ التسعير. الليلةُ ليست وحدةَ كلِّ حجز.
-             */
-            if ($bookable) {
-                $ruled = $this->bookablePricingService->applyRulesTo(
-                    item: $bookable,
-                    basePrice: $unitPrice,
-                    date: $pricingDate,
-                    quantity: $quantity
-                );
-
-                $unitPrice = (float) $ruled['price'];
-                $ruleApplied = $ruled['rule'];
-            }
-
-            $modifiers = $this->applyModifiers($modifierRows, $unitPrice);
-
-            $unitPrice = max(round($unitPrice + $modifiers['total'], 2), 0);
-            $originalPrice = round($unitPrice * $quantity, 2);
-        }
+        $units = max($quantity, 1);
+        $unitPrice = (float) $periodLines[0]['price'];
+        $originalPrice = round(array_sum(array_column($periodLines, 'price')) * $units, 2);
 
         $discountEnabled = (bool) ($businessPrice->discount_enabled ?? false);
         $discountPercent = $discountEnabled ? (int) ($businessPrice->discount_percent ?? 0) : 0;
@@ -928,10 +894,13 @@ class ServiceExecutionEngine
             'price_rule' => $ruleApplied,
             'modifiers' => $modifiers['lines'],
             'modifiers_total' => $modifiers['total'],
-            // ليلةً ليلة، بتاريخها وقاعدتها — فالفاتورةُ تُقرأ ولا تُصدَّق.
-            // فارغةٌ لما ليس إقامة: الساعةُ والكشفُ والطاولةُ لا ليالىَ لها.
-            'nights' => $nightLines,
-            'nights_count' => count($nightLines),
+            // فترةً فترة، بتاريخها وقاعدتها — فالفاتورةُ تُقرأ ولا تُصدَّق.
+            'periods' => $periodLines,
+            'periods_count' => count($periodLines),
+            'period_unit' => $this->granularityOf($bookable)['unit'] ?? null,
+            // وعددُ الوحدات، منفصلًا عن الزمن: غرفتان لثلاث ليالٍ ستُّ فواتير
+            // ليلة، لا ستُّ ليالٍ ولا غرفتان.
+            'units' => $units,
             'quantity' => $quantity,
             'original_price' => $originalPrice,
             'discount_enabled' => $discountEnabled,
@@ -982,38 +951,77 @@ class ServiceExecutionEngine
      * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
      */
     /**
-     * ليالى النافذة: يومُ الوصول محسوب، ويومُ المغادرة لا.
+     * وحدةُ الزمن التى يُباع بها هذا العنصر — من صنفه، لا من الطلب.
      *
-     * والحدُّ الفاصلُ طبيعىٌّ لا مُعلَن: بدايةٌ ونهايةٌ فى يومٍ واحد تعطى صفرًا،
-     * فساعةُ البلايستيشن وكشفُ الطبيب وطاولةُ المطعم تسقط من هذا الطريق بلا
-     * أن يُسأل عن نمطها. وما عبر منتصفَ الليل إقامة.
+     * «يكون البوكينج باليوم والعيادات بالساعة»: `platform_service_item_types.meta`
+     * تحملها، وهى نفسُ الوحدة التى يفرضها `applyKindGranularity` على الطلب.
+     * فلا رقمَ يقرّر بنفسه أنه ليلةٌ أو ساعة.
      *
-     * @return array<int,\Carbon\Carbon>
+     * @return array{unit:string,slot_minutes:int,all_day:bool}|null
      */
-    protected function nightsBetween(mixed $from, mixed $until): array
+    protected function granularityOf(?BookableItem $bookable): ?array
     {
-        if (! $from || ! $until) {
-            return [];
+        $itemType = trim((string) ($bookable->item_type ?? ''));
+
+        if ($itemType === '') {
+            return null;
+        }
+
+        return \App\Models\PlatformServiceItemType::query()
+            ->where('platform_service_id', (int) $bookable->service_id)
+            ->where('key', $itemType)
+            ->first()?->granularity();
+    }
+
+    /**
+     * فتراتُ النافذة المحاسَبة، وأقلُّها واحدة.
+     *
+     * ليلةً ليلة لما يُباع باليوم — ويومُ المغادرة لا يُحاسَب. وساعةً ساعة لما
+     * يُباع بالساعة. وما لا امتدادَ له فترةٌ واحدة: الكشفُ زيارةٌ لا ثلاثون
+     * دقيقة، والطاولةُ جلسةٌ لا ساعتان.
+     *
+     * والواحدةُ هى الأصل: بلا نافذةٍ يبقى الحسابُ سعرًا واحدًا × عددِ الوحدات،
+     * وهو ما كان يخرج قبل هذا كلِّه.
+     *
+     * @return array<int,\Carbon\Carbon>  تاريخُ كل فترة، لقراءة قاعدتها
+     */
+    protected function periodsBetween(mixed $from, mixed $until, ?array $granularity = null): array
+    {
+        $unit = (string) ($granularity['unit'] ?? 'day');
+
+        try {
+            $start = $from ? Carbon::parse($from) : Carbon::now();
+        } catch (\Throwable $e) {
+            $start = Carbon::now();
+        }
+
+        $one = [$start->copy()->startOfDay()];
+
+        if (! $until || ! in_array($unit, ['day', 'hour'], true)) {
+            return $one;
         }
 
         try {
-            $start = Carbon::parse($from)->startOfDay();
-            $end = Carbon::parse($until)->startOfDay();
+            $end = Carbon::parse($until);
         } catch (\Throwable $e) {
-            return [];
+            return $one;
         }
 
-        $count = $start->diffInDays($end, false);
+        $count = $unit === 'day'
+            ? $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay(), false)
+            : $start->diffInHours($end, false);
 
         if ($count < 1) {
-            return [];
+            return $one;
         }
 
         // حارسٌ من نافذةٍ مفتوحة بخطأٍ مطبعىّ: سنتان لا تُسعَّران ليلةً ليلة.
-        $count = min($count, 366);
+        $count = min($count, $unit === 'day' ? 366 : 24 * 31);
 
         return collect(range(0, $count - 1))
-            ->map(fn (int $offset) => $start->copy()->addDays($offset))
+            ->map(fn (int $offset) => $unit === 'day'
+                ? $start->copy()->startOfDay()->addDays($offset)
+                : $start->copy()->addHours($offset)->startOfDay())
             ->all();
     }
 

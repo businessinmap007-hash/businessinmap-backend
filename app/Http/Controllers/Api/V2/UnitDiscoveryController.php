@@ -183,7 +183,7 @@ final class UnitDiscoveryController extends Controller
     private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?array $window = null): array
     {
         if (! $price) {
-            return ['price' => null, 'total' => null, 'nights' => null, 'modifiers' => []];
+            return ['price' => null, 'total' => null, 'periods' => null, 'period_unit' => null, 'modifiers' => []];
         }
 
         $ownOptions = $unit->relationLoaded('offeringOptions')
@@ -202,15 +202,16 @@ final class UnitDiscoveryController extends Controller
             until: $window[1] ?? null
         );
 
-        $nights = (int) ($breakdown['nights_count'] ?? 0);
+        $periods = (int) ($breakdown['periods_count'] ?? 1);
 
         return [
-            // سعرُ الليلة، وهو ما يُعرض فى القائمة. و`total` مجموعُ الإقامة
-            // حين تُعطى النافذة — «٦٠٠ لليلة · ١٨٠٠ لثلاث ليالٍ» — فلا يُفاجأ
-            // النزيلُ بالفرق فى شاشة الدفع.
+            // سعرُ الفترة الواحدة — ليلةٍ أو ساعة — وهو ما يُعرض فى القائمة.
+            // و`total` مجموعُ النافذة حين تُعطى: «٦٠٠ لليلة · ١٨٠٠ لثلاث
+            // ليالٍ»، فلا يُفاجأ النزيلُ بالفرق فى شاشة الدفع.
             'price' => (float) $breakdown['unit_price'],
-            'total' => $nights > 0 ? (float) $breakdown['final_price'] : null,
-            'nights' => $nights ?: null,
+            'total' => $window ? (float) $breakdown['final_price'] : null,
+            'periods' => $window ? $periods : null,
+            'period_unit' => $breakdown['period_unit'] ?? null,
             'modifiers' => $breakdown['modifiers'],
         ];
     }

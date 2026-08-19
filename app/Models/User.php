@@ -36,9 +36,6 @@ class User extends Authenticatable
         'type',
         'activated_at',
 
-        'booking_hold_enabled',
-        'booking_hold_amount',
-
         'action_code',
         'code',
         'logo',
@@ -83,9 +80,6 @@ class User extends Authenticatable
 
         'latitude'          => 'float',
         'longitude'         => 'float',
-
-        'booking_hold_enabled' => 'boolean',
-        'booking_hold_amount'  => 'decimal:2',
 
         'guarantee_enabled' => 'boolean',
         'rating_enabled' => 'boolean',
@@ -592,23 +586,6 @@ class User extends Authenticatable
             ])
             ->latest('id')
             ->first();
-    }
-
-    public function bookingHoldEnabled(): bool
-    {
-        return (bool) $this->booking_hold_enabled;
-    }
-
-    public function bookingHoldAmount(): float
-    {
-        return round((float) ($this->booking_hold_amount ?? 0), 2);
-    }
-
-    public function requiresBookingHold(): bool
-    {
-        return $this->isBusiness()
-            && $this->bookingHoldEnabled()
-            && $this->bookingHoldAmount() > 0;
     }
 
     public static function actionCode($code)

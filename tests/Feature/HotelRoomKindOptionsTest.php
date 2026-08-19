@@ -33,6 +33,49 @@ class HotelRoomKindOptionsTest extends TestCase
         return (int) DB::table('category_children_master')->where('name_ar', $name)->value('id');
     }
 
+    /**
+     * فندقٌ يملكه هذا الملفّ: عدةُ أنواعٍ تحت مفتاحِ عنصرٍ واحد.
+     *
+     * كانت هذه الحراسةُ تقرأ صفوفَ «فندق الاندلس» الحيّة، فلمّا أفرغ المالكُ
+     * أسعارَ فندقَيه — «كل بزنس يسعر ما لديه» — لم تجد ما تقيسه: تخطّت نفسَها
+     * مرّةً ومرّت بلا تأكيدٍ واحد مرّة. وحراسةٌ تصمت حين تفرغ البياناتُ ليست
+     * حراسة. الصفوفُ الآن من صنعها، والمعاملةُ تُرجعها.
+     *
+     * @return array<int,BusinessServicePrice>
+     */
+    private function seedTwoKindsOnOneItemType(): array
+    {
+        $business = \App\Models\User::query()->where('type', 'business')
+            ->whereNotNull('category_child_id')->firstOrFail();
+
+        $group = OptionGroup::query()->where('name_ar', 'الغرف')->firstOrFail();
+
+        $kinds = DB::table('options')->where('group_id', $group->id)
+            ->orderBy('id')->limit(2)->pluck('id');
+
+        if ($kinds->count() < 2) {
+            $this->markTestSkipped('«الغرف» holds fewer than two kinds.');
+        }
+
+        $serviceId = (int) DB::table('platform_services')->where('key', 'booking')->value('id');
+
+        return $kinds->map(function (int $kindId, int $i) use ($business, $serviceId) {
+            $row = BusinessServicePrice::create([
+                'business_id' => (int) $business->id,
+                'child_id' => (int) $business->category_child_id,
+                'service_id' => $serviceId,
+                'bookable_item_type' => 'booking_stay',
+                'price' => 600 + (100 * $i),
+                'currency' => 'EGP',
+                'is_active' => 1,
+            ]);
+
+            $row->syncOfferingOptions($kindId, []);
+
+            return $row->refresh();
+        })->all();
+    }
+
     /** @return array<int,string> */
     private function lineOptionsOf(int $childId): array
     {
@@ -231,41 +274,58 @@ class HotelRoomKindOptionsTest extends TestCase
     }
 
     /**
-     * The reason the seeder skips rather than merges. Six rows share one item
-     * type now, so the line option is the only thing keeping them apart — and a
-     * price is the one thing a merchant notices missing.
+     * The reason the seeder skips rather than merges: several rows share one
+     * item type, so the line option is the only thing keeping them apart.
+     *
+     * This used to assert that business 212 («فندق الاندلس») still held its six
+     * priced rows. That anchored a rule to one merchant's data, and on
+     * 2026-08-20 the owner cleared both test hotels' prices — «كل بزنس يسعر ما
+     * لديه» — so the guard failed for a reason it was never about. The rule it
+     * protects does not need that account: wherever a merchant DOES sell
+     * several kinds under one item type, they must stay told apart and priced.
      */
-    public function test_the_hotel_kept_every_price_and_they_are_told_apart(): void
+    public function test_rows_sharing_an_item_type_are_told_apart_and_priced(): void
     {
-        $rows = BusinessServicePrice::query()
-            ->where('business_id', 212)
-            ->where('bookable_item_type', 'booking_stay')
-            ->get();
+        $this->seedTwoKindsOnOneItemType();
 
-        $this->assertGreaterThanOrEqual(6, $rows->count(), 'the hotel lost priced rows');
+        $groups = BusinessServicePrice::query()
+            ->where('is_active', 1)
+            ->where('line_option_id', '>', 0)
+            ->get()
+            ->groupBy(fn ($row) => $row->business_id . ':' . $row->bookable_item_type)
+            ->filter(fn ($rows) => $rows->count() > 1);
 
-        $priced = $rows->where('line_option_id', '>', 0);
+        $this->assertNotEmpty($groups, 'the fixture did not produce two rows on one item type');
 
-        $this->assertGreaterThanOrEqual(5, $priced->count(), 'the repaired rows lost their line option');
+        foreach ($groups as $key => $rows) {
+            $this->assertSame(
+                $rows->count(),
+                $rows->pluck('line_option_id')->unique()->count(),
+                "two rows share a line option on {$key} — the unique key would have rejected one"
+            );
 
-        $this->assertSame(
-            $priced->count(),
-            $priced->pluck('line_option_id')->unique()->count(),
-            'two stay rows share a line option — the unique key would have rejected one'
-        );
-
-        foreach ($priced as $row) {
-            $this->assertGreaterThan(0, (float) $row->price, 'a price was zeroed');
-            $this->assertNotSame('', $row->offeringLabel(''), 'a repaired row cannot say which room it is');
+            foreach ($rows as $row) {
+                $this->assertGreaterThan(0, (float) $row->price, "a price was zeroed on {$key}");
+                $this->assertNotSame('', $row->offeringLabel(''), "a row on {$key} cannot say which kind it is");
+            }
         }
     }
 
-    /** line_option_id is a mirror; only syncOfferingOptions may write it. */
+    /**
+     * line_option_id is a mirror; only syncOfferingOptions may write it.
+     *
+     * Seeded rather than read, for the same reason as above: with no merchant
+     * row carrying a line option this loop ran zero times and reported green.
+     */
     public function test_the_mirror_matches_the_offering_options(): void
     {
-        foreach (
-            BusinessServicePrice::query()->where('line_option_id', '>', 0)->get() as $row
-        ) {
+        $this->seedTwoKindsOnOneItemType();
+
+        $mirrored = BusinessServicePrice::query()->where('line_option_id', '>', 0)->get();
+
+        $this->assertNotEmpty($mirrored, 'nothing carries a line option to check');
+
+        foreach ($mirrored as $row) {
             $this->assertSame(
                 (int) $row->line_option_id,
                 (int) optional($row->lineOption())->id,

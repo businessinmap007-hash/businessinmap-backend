@@ -221,35 +221,52 @@ class TaxonomyRedistributionTest extends TestCase
     }
 
     /**
-     * Business 212 («فندق الاندلس», a real 2020 account) prices six room kinds.
+     * A collapse retires KEYS, never prices.
      *
-     * ServiceKindsCollapseSeeder retired those keys on 2026-08-04 — a room kind
-     * is vocabulary, and vocabulary belongs in `offering_options` — but the
-     * prices themselves are the one thing a merchant notices missing. The rows
-     * must survive the collapse whole, keys and amounts intact, whether or not
-     * the key is still offered in a picker.
+     * ServiceKindsCollapseSeeder retired the room-kind keys on 2026-08-04 — a
+     * room kind is vocabulary, and vocabulary belongs in `offering_options` —
+     * but the prices are the one thing a merchant notices missing.
+     *
+     * This used to read business 212's six rows specifically. The owner cleared
+     * that account's prices on 2026-08-20 by intent, and a guard that dies when
+     * one merchant tidies up was measuring the wrong thing. What the collapse
+     * must never do holds for every row there is: no price zeroed, and no row
+     * left pointing at an item-type key that no longer exists.
      */
-    public function test_the_hotels_prices_survived_the_collapse(): void
+    public function test_no_priced_row_was_zeroed_or_stranded_by_a_collapse(): void
     {
-        $rows = DB::table('business_service_prices')->where('business_id', 212)->get(['bookable_item_type', 'price']);
+        $rows = DB::table('business_service_prices')
+            ->where('is_active', 1)
+            ->get(['id', 'business_id', 'bookable_item_type', 'price', 'charge_mode']);
 
-        $this->assertGreaterThanOrEqual(6, $rows->count(), 'the hotel lost priced rows');
-
-        foreach ($rows as $row) {
-            $this->assertGreaterThan(0, (float) $row->price, 'a price was zeroed by the collapse');
-
-            $this->assertDatabaseHas('platform_service_item_types', ['key' => $row->bookable_item_type]);
+        if ($rows->isEmpty()) {
+            $this->markTestSkipped('No active priced rows to check.');
         }
 
-        // Five of them still sit on retired keys, because six room kinds all
-        // collapse onto «حجز فندق» and the unique key allows one row per
-        // (business, child, service, kind, line option). They are waiting on a
-        // room-kind option group to tell them apart — merging them would have
-        // destroyed five prices.
-        $this->assertTrue(
-            $rows->pluck('bookable_item_type')->unique()->count() > 1,
-            'the rows were merged onto one key — five prices would have been lost'
-        );
+        $keys = DB::table('platform_service_item_types')->pluck('key')->flip();
+
+        foreach ($rows as $row) {
+            $type = trim((string) ($row->bookable_item_type ?? ''));
+
+            // صفٌّ لا يسمّى نوعًا أصلًا ليس تائهًا: السُّلَّمُ له درجةٌ تقرؤه،
+            // وهو سعرُ التاجر العامّ. التائهُ من يسمّى مفتاحًا لم يعد موجودًا.
+            if ($type !== '') {
+                $this->assertTrue(
+                    isset($keys[$type]),
+                    "row #{$row->id} points at a retired item-type key «{$type}»"
+                );
+            }
+
+            // «مجّانًا» و«رسم حجز» و«حدّ أدنى» تتجاهل `price` عمدًا، فصفرُها
+            // قرارٌ لا فقدان. الصفرُ لا يكون خسارةً إلا فى الوضع العادىّ.
+            if ((string) ($row->charge_mode ?? 'standard') === 'standard') {
+                $this->assertGreaterThan(
+                    0,
+                    (float) $row->price,
+                    "row #{$row->id} (business {$row->business_id}) was zeroed"
+                );
+            }
+        }
     }
 
     /**

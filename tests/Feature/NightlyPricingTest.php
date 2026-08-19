@@ -130,7 +130,7 @@ class NightlyPricingTest extends TestCase
 
         $breakdown = $this->stay($room, Carbon::today()->addDay()->setTime(14, 0), 3);
 
-        $this->assertSame(3, (int) $breakdown['nights_count']);
+        $this->assertSame(3, (int) $breakdown['periods_count']);
         $this->assertSame(1800.0, (float) $breakdown['final_price']);
     }
 
@@ -142,7 +142,7 @@ class NightlyPricingTest extends TestCase
 
         $from = Carbon::today()->addDay()->setTime(14, 0);
 
-        $this->assertSame(2, (int) $this->stay($room, $from, 2)['nights_count']);
+        $this->assertSame(2, (int) $this->stay($room, $from, 2)['periods_count']);
         $this->assertSame(1200.0, (float) $this->stay($room, $from, 2)['final_price']);
     }
 
@@ -169,7 +169,7 @@ class NightlyPricingTest extends TestCase
 
         $this->assertSame([600.0, 800.0, 600.0], array_map(
             fn (array $night) => (float) $night['price'],
-            $breakdown['nights']
+            $breakdown['periods']
         ));
 
         $this->assertSame(2000.0, (float) $breakdown['final_price']);
@@ -182,7 +182,7 @@ class NightlyPricingTest extends TestCase
         $room = $this->roomOf(self::SINGLE, 'Z101');
 
         $from = Carbon::today()->addDays(2)->setTime(14, 0);
-        $nights = $this->stay($room, $from, 3)['nights'];
+        $nights = $this->stay($room, $from, 3)['periods'];
 
         $this->assertSame($from->toDateString(), $nights[0]['date']);
         $this->assertSame($from->copy()->addDays(2)->toDateString(), $nights[2]['date']);
@@ -235,7 +235,7 @@ class NightlyPricingTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $nights = $this->stay($room, $this->nextWeekday(4), 2)['nights'];
+        $nights = $this->stay($room, $this->nextWeekday(4), 2)['periods'];
 
         $this->assertSame(660.0, (float) $nights[0]['price'], 'الخميس: ٦٠٠ + ١٠٪');
         $this->assertSame(1100.0, (float) $nights[1]['price'], 'الجمعة: ١٠٠٠ + ١٠٪');
@@ -258,29 +258,42 @@ class NightlyPricingTest extends TestCase
     }
 
     /**
-     * والنافذةُ هى الكمّية، لا ما أرسله العميل.
+     * والنافذةُ تقول الزمن، و`quantity` تقول العدد — وهما شيئان.
      *
-     * كلُّ حجزٍ قائم يملأ `quantity` بعدد الليالى، فلو ضُربت فيها بعد جمع
-     * الليالى لحُسبت الإقامةُ مرّتين.
+     * كانا حقلًا واحدًا: `quantity` تُملأ بعدد الليالى، فلم يكن للنزيل بابٌ
+     * يحجز به غرفتين، ولا للمحرّك طريقٌ يعرف الفرق. غرفتان لثلاث ليالٍ =
+     * ٦ فواتير ليلة.
      */
-    public function test_the_window_decides_the_nights_not_the_posted_quantity(): void
+    public function test_the_window_gives_the_time_and_the_quantity_gives_the_units(): void
     {
         $this->priceFor(self::SINGLE, 600);
         $room = $this->roomOf(self::SINGLE, 'Z101');
 
         $from = Carbon::today()->addDay()->setTime(14, 0);
 
-        $this->assertSame(1800.0, (float) $this->stay($room, $from, 3, quantity: 3)['final_price']);
-        $this->assertSame(1800.0, (float) $this->stay($room, $from, 3, quantity: 99)['final_price']);
+        $this->assertSame(1800.0, (float) $this->stay($room, $from, 3)['final_price'], 'غرفة × ٣ ليالٍ');
+        $this->assertSame(3600.0, (float) $this->stay($room, $from, 3, quantity: 2)['final_price'], 'غرفتان × ٣ ليالٍ');
+    }
+
+    /** والعددُ يُعلَن فى الفاتورة منفصلًا عن عدد الفترات. */
+    public function test_the_breakdown_separates_the_units_from_the_periods(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $breakdown = $this->stay($room, Carbon::today()->addDay()->setTime(14, 0), 3, quantity: 2);
+
+        $this->assertSame(3, (int) $breakdown['periods_count']);
+        $this->assertSame(2, (int) $breakdown['units']);
     }
 
     /**
-     * وما لا نافذةَ له لا ليالىَ له.
+     * وما يُباع باليوم ونافذتُه داخل يومٍ واحد فترةٌ واحدة.
      *
-     * ثلاثُ ساعاتٍ على البلايستيشن تبدأ وتنتهى فى اليوم نفسه: الحسابُ كما كان
-     * — سعرُ الوحدة × الكمّية — والليلةُ ليست وحدةَ كلِّ حجز.
+     * ثلاثُ وحداتٍ من صنفٍ يُباع بالليلة، فى يومٍ واحد: ليلةٌ واحدة × ثلاث
+     * وحدات. الفترةُ لا تنزل تحت واحدة أبدًا — حجزٌ بلا فترةٍ حجزٌ بلا ثمن.
      */
-    public function test_a_same_day_window_keeps_the_old_path(): void
+    public function test_a_same_day_window_is_a_single_period(): void
     {
         $this->priceFor(self::SINGLE, 100);
         $room = $this->roomOf(self::SINGLE, 'Z101');
@@ -296,12 +309,12 @@ class NightlyPricingTest extends TestCase
             until: $start->copy()->addHours(3)->toDateTimeString()
         )['price_breakdown'];
 
-        $this->assertSame(0, (int) $breakdown['nights_count']);
-        $this->assertSame(300.0, (float) $breakdown['final_price'], '٣ ساعات × ١٠٠');
+        $this->assertSame(1, (int) $breakdown['periods_count']);
+        $this->assertSame(300.0, (float) $breakdown['final_price'], 'فترة × ٣ وحدات');
     }
 
     /** وكذلك ما لا نهايةَ له أصلًا: كشفُ طبيبٍ أو طاولةُ مطعم. */
-    public function test_a_booking_with_no_window_keeps_the_old_path(): void
+    public function test_a_booking_with_no_window_is_a_single_period(): void
     {
         $this->priceFor(self::SINGLE, 250);
         $room = $this->roomOf(self::SINGLE, 'Z101');
@@ -314,8 +327,8 @@ class NightlyPricingTest extends TestCase
             pricingDate: Carbon::today()->addDay()->toDateTimeString()
         )['price_breakdown'];
 
-        $this->assertSame(0, (int) $breakdown['nights_count']);
-        $this->assertSame(500.0, (float) $breakdown['final_price']);
+        $this->assertSame(1, (int) $breakdown['periods_count']);
+        $this->assertSame(500.0, (float) $breakdown['final_price'], 'طاولتان');
     }
 
     /*

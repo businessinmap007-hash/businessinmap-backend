@@ -4,6 +4,7 @@ namespace App\Models\Concerns;
 
 use App\Models\OfferingOption;
 use App\Models\Option;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,24 @@ trait HasOfferingOptions
     protected function lineOptionColumnIsNullable(): bool
     {
         return false;
+    }
+
+    /**
+     * ومفرداتُ العرض تموت معه.
+     *
+     * الجدولُ متعدّدُ الأشكال ومشترك، فحذفُ سطرِ سعرٍ كان يترك صفوفَه فيه
+     * تشير إلى عدمٍ إلى الأبد — تسعةَ عشرَ صفًّا يتيمًا وُجدت فعلًا. ولا
+     * يكفى أن ينظّف من يحذف: السطرُ يُحذف من لوحة الإدارة ومن لوحة النشاط
+     * ومن الـAPI، وقاعدةٌ تسكن أحدَها ليست قاعدة.
+     *
+     * **والحذفُ الجماعىُّ على استعلامٍ يتخطّى هذا**، كعادة أحداث Eloquent.
+     * من حذف صفوفًا تملك مفردات فليجلبها ويحذفها واحدًا واحدًا.
+     */
+    public static function bootHasOfferingOptions(): void
+    {
+        static::deleting(function (Model $model) {
+            $model->offeringOptions()->delete();
+        });
     }
 
     public function offeringOptions(): MorphMany

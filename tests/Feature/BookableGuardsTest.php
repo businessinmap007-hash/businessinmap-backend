@@ -59,6 +59,27 @@ class BookableGuardsTest extends TestCase
             $item->forceFill(['quantity' => 1])->save();
         }
 
+        /*
+         * وسعرٌ لهذه الوحدة، إن لم يكن لها.
+         *
+         * هذه الاختباراتُ عن قاعدة «حجزٌ واحد يغلق الوحدة»، لا عمّا إذا كان
+         * التاجرُ قد أنهى تسعيرَه. وكانت تلتقط أوّلَ وحدةٍ حيّة وتعتمد على أن
+         * لصاحبها سعرًا — فلمّا أفرغ المالكُ أسعارَ فندقَيه سقطت، وسبَبُ
+         * السقوط لا علاقةَ له بما تحرسه. المعاملةُ تُرجِع الصفَّ بعدها.
+         */
+        if (! app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($item)) {
+            \App\Models\BusinessServicePrice::create([
+                'business_id' => (int) $item->business_id,
+                'child_id' => (int) DB::table('users')->where('id', $item->business_id)->value('category_child_id'),
+                'service_id' => (int) $item->service_id,
+                'bookable_item_type' => (string) $item->item_type,
+                'line_option_id' => (int) ($item->line_option_id ?? 0),
+                'price' => 500,
+                'currency' => 'EGP',
+                'is_active' => 1,
+            ]);
+        }
+
         return [(int) $row->business_id, $serviceId, $item];
     }
 

@@ -1088,9 +1088,16 @@ class BookingController extends Controller
 
             $data['duration_unit'] = $durationUnit;
 
-            if (in_array($durationUnit, ['day', 'hour', 'minute', 'week', 'month', 'year'], true)) {
-                $data['quantity'] = max((int) $data['duration_value'], 1);
-            }
+            /*
+             * والكمّيةُ لا تُملأ بالمدّة.
+             *
+             * كان هذا السطرُ يكتب `quantity = duration_value`، فصارت الكمّيةُ
+             * فى كلِّ حجزٍ قائم عددَ الليالى — ولم يبقَ للنزيل بابٌ يحجز به
+             * غرفتين، ولا للمحرّك طريقٌ يعرف الفرق بين ثلاث ليالٍ وثلاث غرف.
+             *
+             * الزمنُ الآن من النافذة وحدها (`periodsBetween`)، و`quantity`
+             * عددُ الوحدات وحده. وهما يُضربان: غرفتان لثلاث ليالٍ ستُّ ليالٍ.
+             */
         }
 
         if ($isUpdate) {

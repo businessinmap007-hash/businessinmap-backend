@@ -175,10 +175,22 @@ class DiscoveryJourneyTest extends TestCase
      */
     private function seedSellableBusiness(): array
     {
-        $template = DB::table('business_service_prices')->where('is_active', 1)->first();
+        /*
+         * والصفُّ المُحتذى لا بدّ أن يسمّى تخصّصًا حقيقيًّا.
+         *
+         * كان يأخذ أوّلَ صفٍّ مفعَّل أيًّا كان، ثم يكتب `child_id`ـه على حساب
+         * النشاط — فصفٌّ بلا تخصّص (صفر) يكسر المفتاحَ الأجنبىَّ على
+         * `category_children_master` ويسقط الاختبارُ برسالةِ قاعدةِ بيانات لا
+         * علاقةَ لها بما يقيسه. ظهر ذلك حين حُذفت أسعارُ فندقٍ فتقدّم صفٌّ آخر.
+         */
+        $template = DB::table('business_service_prices')
+            ->where('is_active', 1)
+            ->where('child_id', '>', 0)
+            ->whereIn('child_id', fn ($q) => $q->from('category_children_master')->select('id'))
+            ->first();
 
         if (! $template) {
-            $this->markTestSkipped('Needs at least one active business_service_prices row to mirror.');
+            $this->markTestSkipped('Needs an active business_service_prices row naming a real child.');
         }
 
         $business = $this->makeUser(User::TYPE_BUSINESS);

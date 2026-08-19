@@ -413,11 +413,13 @@ class BookingController extends Controller
         $rows = $query
             ->orderBy('title')
             ->limit(50)
+            ->with('lineOption:id,name_ar,name_en')
             ->get([
                 'id',
                 'business_id',
                 'service_id',
                 'item_type',
+                'line_option_id',
                 'title',
                 'code',
                 'capacity',
@@ -427,11 +429,13 @@ class BookingController extends Controller
         if ($selectedBookableId > 0 && ! $rows->contains('id', $selectedBookableId)) {
             $selectedItem = BookableItem::query()
                 ->where('id', $selectedBookableId)
+                ->with('lineOption:id,name_ar,name_en')
                 ->first([
                     'id',
                     'business_id',
                     'service_id',
                     'item_type',
+                    'line_option_id',
                     'title',
                     'code',
                     'capacity',
@@ -442,6 +446,9 @@ class BookingController extends Controller
                 $rows->prepend($selectedItem);
             }
         }
+
+        /** @var array<string,float|null> سعرُ كل نوع، محلولًا مرّةً */
+        $priceCache = [];
 
         return response()->json([
             'ok' => true,
@@ -458,17 +465,43 @@ class BookingController extends Controller
                 'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
                 'required_fields' => data_get($config, 'required_fields', []),
             ],
-            'items' => $rows->map(function (BookableItem $item) {
+            /*
+             * السعرُ الحقيقىُّ لكل وحدة، وكلمةُ نوعها.
+             *
+             * كان هذا الحقلُ صفرًا ثابتًا لكل وحدةٍ على الإطلاق، بحجّة أن
+             * الوحدةَ مخزونٌ لا سعرَ لها — وهو صحيحٌ عن الجدول وكاذبٌ على
+             * الشاشة: القائمةُ تقرأ «R101 — 0.00 EGP» فيقرؤها الأدمن «غرفةٌ
+             * بلا ثمن»، ثم يُرفَض الحجزُ بأنه لا سعرَ لنوعها. رقمان
+             * متناقضان عن الشىء نفسه فى شاشةٍ واحدة.
+             *
+             * والنوعُ يُذكر لأنه سببُ الرفض: «R101» لا يقول إنها فردية،
+             * والفرديةُ هى ما لم يُسعَّر.
+             *
+             * والحلُّ مرّةً لكل نوع لا لكل وحدة: ستُّ غرفٍ فردية سطرُ سعرٍ
+             * واحد، فخمسون وحدةً تكلّف عددَ أنواعها لا عددَها.
+             */
+            'items' => $rows->map(function (BookableItem $item) use (&$priceCache) {
+                $key = ((string) $item->item_type) . ':' . (int) ($item->line_option_id ?? 0);
+
+                if (! array_key_exists($key, $priceCache)) {
+                    $row = app(\App\Services\BusinessServicePriceResolver::class)
+                        ->resolveForBookableItem($item);
+
+                    $priceCache[$key] = $row ? round((float) $row->baseUnitPrice(), 2) : null;
+                }
+
+                $kind = optional($item->lineOption)->name_ar ?: optional($item->lineOption)->name_en;
+
                 return [
                     'id' => (int) $item->id,
                     'business_id' => (int) $item->business_id,
                     'service_id' => (int) $item->service_id,
                     'item_type' => (string) ($item->item_type ?? ''),
+                    'kind' => $kind ? (string) $kind : null,
                     'title' => (string) ($item->title ?? ''),
                     'code' => (string) ($item->code ?? ''),
-                    // Units are inventory only; price/deposit come from
-                    // business_service_prices (resolved by the pricing preview).
-                    'price' => 0.0,
+                    // null تعنى «لم يُسعَّر نوعُها»، وهى ليست صفرًا.
+                    'price' => $priceCache[$key],
                     'capacity' => $item->capacity !== null ? (int) $item->capacity : null,
                     'quantity' => $item->quantity !== null ? (int) $item->quantity : null,
                     'deposit_enabled' => false,

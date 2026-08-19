@@ -1,13 +1,7 @@
-@if ($errors->any())
-    <div class="a2-alert a2-alert-danger bk-form-errors">
-        <ul class="bk-error-list">
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
+{{-- الأخطاءُ تُطبع مرّةً واحدة.
+     كانت هنا وفى الصفحتين اللتين تُدرجانِ هذا الجزء — `create` و`edit` —
+     فيقرأ الأدمن نفسَ السطر مرّتين متتاليتين ويظنّهما خطأين. النسخةُ الباقية
+     هى نسخةُ الصفحة، لأنها تحمل عنوانًا يقول ما هى. --}}
 @php
     $booking = $booking ?? new \App\Models\Booking();
 
@@ -721,7 +715,14 @@ document.addEventListener('DOMContentLoaded', function () {
             data.items.forEach(item => {
                 const opt = document.createElement('option');
                 opt.value = item.id;
-                opt.textContent = `${item.title}${item.code ? ' (' + item.code + ')' : ''} — ${money(item.price || 0)}`;
+                // النوعُ أوّلًا لأنه سببُ السعر، والسعرُ إن وُجد. و«بلا سعر»
+                // صراحةً: صفرٌ مكتوب يعنى «مجّانًا»، وهو غيرُ «لم يُسعَّر».
+                const name = [item.kind, item.title].filter(Boolean).join(' — ') || item.code || `#${item.id}`;
+                const shown = (item.price === null || item.price === undefined)
+                    ? @json(__('بلا سعر'))
+                    : money(item.price);
+
+                opt.textContent = `${name}${item.code ? ' (' + item.code + ')' : ''} — ${shown}`;
                 opt.dataset.price = item.price ?? 0;
                 opt.dataset.depositEnabled = item.deposit_enabled ? '1' : '0';
                 opt.dataset.depositPercent = item.deposit_percent ?? 0;

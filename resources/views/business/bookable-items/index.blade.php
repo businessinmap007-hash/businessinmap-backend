@@ -67,6 +67,7 @@
                     <th>{{ __('الخدمة') }}</th>
                     <th>{{ __('النوع') }}</th>
                     <th>{{ __('نوع الوحدة') }}</th>
+                    <th>{{ __('السعر') }}</th>
                     <th>{{ __('السعة') }}</th>
                     <th>{{ __('الكمية') }}</th>
                     <th>{{ __('الحالة') }}</th>
@@ -82,6 +83,16 @@
                         <td>{{ $displayName($row->service) }}</td>
                         <td dir="ltr">{{ $row->item_type }}</td>
                         <td>{{ optional($row->lineOption)->name_ar ?: '—' }}</td>
+                        {{-- «بلا سعر» صراحةً: وحدةٌ لا يُسعَّر نوعُها تُرفَض
+                             عند الحجز، وشرطةٌ صامتة لا تقول ذلك. --}}
+                        @php $unitPrice = $prices[((string) $row->item_type) . ':' . (int) ($row->line_option_id ?? 0)] ?? null; @endphp
+                        <td>
+                            @if($unitPrice === null)
+                                <a href="{{ route('business.bookable-items.edit', $row->id) }}" class="a2-danger">{{ __('بلا سعر') }}</a>
+                            @else
+                                {{ rtrim(rtrim(number_format($unitPrice, 2, '.', ''), '0'), '.') }}
+                            @endif
+                        </td>
                         <td>{{ $row->capacity ?: '—' }}</td>
                         <td>{{ (int) $row->quantity }}</td>
                         <td>
@@ -104,7 +115,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="a2-empty">{{ __('لا توجد وحدات بعد. ابدأ بإضافة وحداتك.') }}</td>
+                        <td colspan="11" class="a2-empty">{{ __('لا توجد وحدات بعد. ابدأ بإضافة وحداتك.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

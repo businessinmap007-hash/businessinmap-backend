@@ -264,6 +264,40 @@ class UnitPriceOnEditScreenTest extends TestCase
         $this->assertContains(self::FULL_BOARD, $room->fresh()->modifierOptionIds()->all());
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ما تقوله القوائم
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * «وحداتى» تقول أىُّ وحدةٍ بلا سعر.
+     *
+     * وحدةٌ لا يُسعَّر نوعُها تُرفَض عند الحجز، ولم يكن فى القائمة ما يقوله —
+     * فيظنّ صاحبُها كلَّ شىءٍ جاهزًا حتى يفشل حجزٌ حقيقىّ. وهو ما حدث: فندقٌ
+     * سعّر المزدوجةَ والجناحَ ولم يسعّر الفردية، فرُفض حجزُ غرفةٍ فردية.
+     */
+    public function test_the_units_list_says_which_kind_has_no_price(): void
+    {
+        $room = $this->room();
+
+        $html = $this->actingAs($this->hotel)
+            ->get(route('business.bookable-items.index', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('بلا سعر', $html);
+
+        // ثم يُسعَّر، فتختفى الكلمةُ ويظهر الرقم.
+        $this->savePricing($room, ['price' => 640])->assertRedirect();
+
+        $html = $this->actingAs($this->hotel)
+            ->get(route('business.bookable-items.index', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('بلا سعر', $html);
+        $this->assertStringContainsString('640', $html);
+    }
+
     /** ولا يسعّر تاجرٌ وحدةَ تاجرٍ آخر. */
     public function test_one_merchant_cannot_price_another_merchants_unit(): void
     {

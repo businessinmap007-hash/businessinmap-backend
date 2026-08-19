@@ -68,7 +68,40 @@ class BookableItemController extends Controller
             'serviceId' => $serviceId,
             'q' => $q,
             'childId' => $this->childId(),
+            'prices' => $this->pricesByKind($rows->getCollection()),
         ]);
+    }
+
+    /**
+     * سعرُ كل نوعٍ فى هذه الصفحة — و`null` تعنى «لم يُسعَّر».
+     *
+     * وحدةٌ لا يُسعَّر نوعُها تُرفَض عند الحجز، ولم يكن فى «وحداتى» ما يقوله:
+     * القائمةُ تعرض الكودَ والسعةَ والحالة، فيظنّ صاحبُها كلَّ شىءٍ جاهزًا حتى
+     * يفشل حجزٌ حقيقىّ. العمودُ يقولها قبل ذلك.
+     *
+     * ويُحلّ مرّةً لكل نوع لا لكل وحدة: خمسون غرفةً على ثلاثة أنواعٍ ثلاثةُ
+     * استعلامات.
+     *
+     * @param  \Illuminate\Support\Collection<int,BookableItem>  $items
+     * @return array<string,float|null>
+     */
+    private function pricesByKind($items): array
+    {
+        $resolver = app(\App\Services\BusinessServicePriceResolver::class);
+        $out = [];
+
+        foreach ($items as $item) {
+            $key = ((string) $item->item_type) . ':' . (int) ($item->line_option_id ?? 0);
+
+            if (array_key_exists($key, $out)) {
+                continue;
+            }
+
+            $row = $resolver->resolveForBookableItem($item);
+            $out[$key] = $row ? round((float) $row->baseUnitPrice(), 2) : null;
+        }
+
+        return $out;
     }
 
     public function create(): View

@@ -22,6 +22,7 @@ use App\Http\Controllers\Business\BookingSettingsController;
 use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
+use App\Http\Controllers\Business\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -77,6 +78,17 @@ Route::prefix('business')->name('business.')->group(function () {
         // نمط الحجز وتفاصيله — ما يقرّره صاحب النشاط داخل ما فتحه له الطفل.
         Route::get('booking-settings', [BookingSettingsController::class, 'edit'])->name('booking-settings.edit');
         Route::put('booking-settings', [BookingSettingsController::class, 'update'])->name('booking-settings.update');
+
+        /*
+         * ملفُّ النشاط — اسمُه وشعارُه ونبذتُه وموقعُه ومواعيدُه.
+         *
+         * بلا حَجب: الأعمدةُ على `users` نفسها، وكلُّ نشاطٍ له اسمٌ وشعارٌ
+         * ومواعيد مهما باع. وكانت تُكتب من لوحة الإدارة والـAPI فقط، فصاحبُ
+         * المحل داخل لوحته لا يستطيع تغيير شعاره.
+         */
+        Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('profile/hours', [ProfileController::class, 'updateHours'])->name('profile.hours');
 
         // Delegated staff: grant an employee scoped management of the page.
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');

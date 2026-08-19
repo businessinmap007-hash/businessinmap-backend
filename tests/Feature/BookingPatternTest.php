@@ -229,12 +229,20 @@ class BookingPatternTest extends TestCase
         }
     }
 
-    /** الفندق يسأل «كم نزيلًا»، والمطعم «كم فردًا» — أول مرّة على المنصّة. */
+    /**
+     * الفندق يسأل «كم نزيلًا»، والمطعم «كم فردًا» — أول مرّة على المنصّة.
+     *
+     * يسأل ولا يشترط. جعلتُ عددَ النزلاء شرطًا على نمط «إقامة» فرفضت المنصّةُ
+     * تأجيرَ سيارة — والسيارة تُحجَز بالمدّة كما تُحجَز الغرفة ولا نزلاءَ
+     * فيها. الشرط قرارٌ تجارىٌّ يملكه الفندق من شاشته، لا صفةٌ فى الشكل.
+     */
     public function test_a_stay_and_a_table_ask_for_the_head_count(): void
     {
-        $this->assertContains('guest_count', BookingPattern::STAY->requires());
-        $this->assertContains('party_size', BookingPattern::TABLE->requires());
+        $this->assertContains('guest_count', BookingPattern::STAY->asks());
+        $this->assertContains('party_size', BookingPattern::TABLE->asks());
         $this->assertContains('quantity', BookingPattern::DURATION->asks());
+
+        $this->assertNotContains('guest_count', BookingPattern::STAY->requires(), 'تأجير السيارة سيُرفض');
 
         $this->apply();
 

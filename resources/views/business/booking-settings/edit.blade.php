@@ -175,6 +175,29 @@
         </div>
     </div>
 
+    @if($chosen && array_diff($chosen->asks(), $chosen->requires()))
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('ما لا أقبل الحجز بدونه') }}</div>
+                <div class="a2-card-sub">{{ __('نمطك يضمن أن الحجز قابل للتنفيذ؛ وهذا ما تشترطه أنت فوقه.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            @foreach(array_diff($chosen->asks(), $chosen->requires()) as $field)
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-check">
+                    <input type="checkbox" name="requires[]" value="{{ $field }}"
+                        @checked(in_array($field, old('requires', $row->requires ?? []), true))>
+                    <span>{{ __('booking.field.' . $field) }}</span>
+                </label>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     @if($shape)
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
@@ -187,7 +210,7 @@
         <div class="a2-form-grid">
             <div class="a2-form-group a2-field-full">
                 @foreach($shape['asks'] as $field)
-                    <span class="a2-badge">{{ __($field) }}@if(in_array($field, $shape['requires'], true)) *@endif</span>
+                    <span class="a2-badge">{{ __('booking.field.' . $field) }}@if(in_array($field, $shape['requires'], true)) *@endif</span>
                 @endforeach
             </div>
         </div>

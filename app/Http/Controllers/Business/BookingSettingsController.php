@@ -57,6 +57,8 @@ class BookingSettingsController extends Controller
             'channels' => ['nullable', 'array'],
             'channels.*' => [Rule::in(BusinessBookingSetting::channels())],
             'notes_label' => ['nullable', 'string', 'max:120'],
+            'requires' => ['nullable', 'array'],
+            'requires.*' => ['string', 'max:40'],
         ], [], [
             'pattern' => 'نمط الحجز',
             'slot_minutes' => 'طول الفترة',
@@ -77,10 +79,37 @@ class BookingSettingsController extends Controller
                 'visit_mode' => $data['visit_mode'] ?? null,
                 'channels' => $data['channels'] ?? null,
                 'notes_label' => $data['notes_label'] ?? null,
+                /*
+                 * ما يرفض هذا النشاط الحجزَ بدونه، فوق ما يضمنه النمط.
+                 *
+                 * النمط يضمن أن الحجز قابلٌ للتنفيذ فقط — مدّةٌ أو لحظة. أمّا
+                 * «لا أقبل حجزًا بلا عدد نزلاء» فقرارٌ تجارىّ يخصّ فندقًا
+                 * بعينه، ولا يخصّ تأجير سيارةٍ يشاركه النمطَ نفسه.
+                 *
+                 * ولا يُقبل إلا ما يعرضه النمط: شرطٌ على حقلٍ مخفىٍّ بابٌ مسدود.
+                 */
+                'requires' => $this->requirable($data['pattern'] ?? null, $data['requires'] ?? []),
             ]
         );
 
         return back()->with('success', 'تم حفظ إعدادات الحجز بنجاح.');
+    }
+
+    /** لا يُشترط إلا ما يعرضه النمط، ولا يُعاد تخزين ما يضمنه أصلًا. */
+    private function requirable(?string $pattern, array $wanted): ?array
+    {
+        $chosen = BookingPattern::tryFrom((string) $pattern);
+
+        if (! $chosen) {
+            return null;
+        }
+
+        $extra = array_values(array_intersect(
+            $wanted,
+            array_diff($chosen->asks(), $chosen->requires())
+        ));
+
+        return $extra ?: null;
     }
 
     /**

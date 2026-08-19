@@ -2673,5 +2673,13 @@
     "هذه الوحدة محجوزة بالفعل في هذا الوقت.": "This unit is already booked at that time.",
     "النشاط مغلق في هذا الوقت": "The business is closed at this time",
     "نوع الزيارة غير متاح لدى هذه العيادة.": "That visit type is not available at this clinic.",
-    "العيادة مغلقة في هذا الوقت.": "The clinic is closed at this time."
+    "العيادة مغلقة في هذا الوقت.": "The clinic is closed at this time.",
+    "حدّد بداية المدة ونهايتها.": "Choose the start and end of the period.",
+    "حدّد وقت البداية والنهاية.": "Choose the start and end time.",
+    "حدّد موعد الحجز.": "Choose the booking time.",
+    "كم نزيلًا؟": "How many guests?",
+    "كم فردًا؟": "How many people?",
+    "حدّد الكمية.": "Choose the quantity.",
+    "اختر: حضوريًا أم أونلاين؟": "Choose: in person or online?",
+    "هذا الحقل مطلوب: :field": "This field is required: :field"
 }

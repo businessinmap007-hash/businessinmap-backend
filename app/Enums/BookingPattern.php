@@ -106,16 +106,26 @@ enum BookingPattern: string
         };
     }
 
-    /** ما لا يُقبل الحجز بدونه. مجموعةٌ جزئية من asks(). */
+    /**
+     * ما لا يمكن تنفيذ الحجز بدونه — لا ما يودّ صاحبُ المحل معرفته.
+     *
+     * الخطّ بنيوىٌّ لا تجارىّ، وقد كلّف اختبارًا أحمر ليُرسَم: جعلتُ «كم
+     * نزيلًا» شرطًا على نمط «إقامة»، فرفضت المنصّةُ تأجير سيارة — والسيارة
+     * تُحجَز بالمدّة كما تُحجَز الغرفة، ولا نزلاءَ فيها. عددُ النزلاء سؤالٌ
+     * يخصّ الفندق، لا شرطٌ يخصّ الشكل.
+     *
+     * فما هنا يضمن أن الحجز **قابلٌ للتنفيذ**: مدّةٌ لما يُحجَز بمدّة، ولحظةٌ
+     * لما يُحجَز بلحظة. وما يرفض صاحبُ المحل الحجزَ بدونه يضيفه هو من شاشته،
+     * ولا يستطيع أن ينقص من هذا — BusinessBookingSetting::resolve.
+     *
+     * مجموعةٌ جزئية من asks() دائمًا: شرطٌ على حقلٍ لا يُعرض بابٌ مسدود.
+     */
     public function requires(): array
     {
         return match ($this) {
-            self::STAY => ['date_range', 'guest_count'],
-            self::TABLE => ['datetime', 'party_size'],
+            self::STAY, self::COURSE => ['date_range'],
             self::DURATION => ['datetime', 'duration'],
-            self::CONSULTATION => ['datetime', 'channel'],
-            self::COURSE => ['date_range'],
-            self::APPOINTMENT => ['datetime'],
+            self::TABLE, self::CONSULTATION, self::APPOINTMENT => ['datetime'],
         };
     }
 

@@ -96,6 +96,9 @@ final class BookingController extends Controller
             $this->agenda->assertFree((int) $user->id, $start, $end, null, 'starts_at');
         }
 
+        // ما يشترطه شكلُ هذا النشاط تحديدًا — قبل أىِّ عملِ تسعير.
+        $this->serviceExecutionEngine->assertShapeSatisfied((int) $data['business_id'], $data);
+
         $quantity = max((int) ($data['quantity'] ?? 1), 1);
         $bookableId = ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null;
         $offering = $this->resolveOffering($data, (int) $data['business_id']);

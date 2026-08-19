@@ -127,11 +127,21 @@ class DiscoveryJourneyTest extends TestCase
         );
 
         // ── Book it, with ids the app actually holds.
+        /*
+         * `ends_at` أُضيف حين صار الشكل يُفرَض (2026-08-19).
+         *
+         * هذه الرحلة تبنى نشاطها من أول صفِّ سعرٍ نشط، وهو اليوم «فندق» #536 —
+         * نمطُه «إقامة». وحجزُ إقامةٍ بتاريخ وصولٍ بلا مغادرة كان يُقبَل ويُكتب
+         * بنهايةٍ NULL، وهو بالضبط ما بُنى النمط ليمنعه. فالنقص كان فى الحمولة،
+         * لا فى الحارس.
+         */
         $booking = $this->actingWithToken($token)->postJson('/api/v2/bookings', [
             'business_id' => (int) $business->id,
             'service_id' => (int) $serviceId,
             'date' => now()->addDays(2)->toDateString(),
             'time' => '14:00',
+            'starts_at' => now()->addDays(2)->setTime(14, 0)->toDateTimeString(),
+            'ends_at' => now()->addDays(4)->setTime(12, 0)->toDateTimeString(),
             'quantity' => 1,
         ])->assertSuccessful()->json('data.booking');
 

@@ -12,6 +12,7 @@ use App\Models\GuaranteeLevel;
 use App\Models\OperationGuarantor;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\OperationGuarantorService;
+use App\Enums\BookingPattern;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Models\User;
 use App\Models\Wallet;
@@ -33,6 +34,7 @@ class ServiceExecutionEngine
         protected GuaranteeOperationCoverageService $operationCoverageService,
         protected BusinessServicePriceResolver $businessServicePriceResolver,
         protected OperationGuarantorService $operationGuarantors,
+        protected BookingShapeResolver $bookingShapes,
     ) {
     }
 
@@ -85,7 +87,7 @@ class ServiceExecutionEngine
             $bookable = $this->resolveBookableItem($businessId, $serviceId, $bookableId);
         }
 
-        $this->assertBookableItemChosen($service, $categoryId, $childId, $bookable);
+        $this->assertBookableItemChosen($service, $categoryId, $childId, $bookable, $businessId);
 
         $itemType = $bookable
             ? trim((string) ($bookable->item_type ?? ''))
@@ -1037,7 +1039,8 @@ class ServiceExecutionEngine
         PlatformService $service,
         ?int $categoryId,
         ?int $childId,
-        ?BookableItem $bookable
+        ?BookableItem $bookable,
+        ?int $businessId = null
     ): void {
         if ($bookable || (string) $service->key !== PlatformService::KEY_BOOKING || ! $categoryId || ! $childId) {
             return;
@@ -1050,7 +1053,24 @@ class ServiceExecutionEngine
             ->where('is_active', 1)
             ->value('config'), true) ?: [];
 
-        if (! (bool) ($config['requires_bookable_item'] ?? false)) {
+        /*
+         * الشكل يسبق العلم المخزَّن، لا يلغيه.
+         *
+         * BookingShapeResolver يجمع نمطَ الطفل بما قرّره هذا النشاط — وحين
+         * يمتنع النمط ولم يقرّر صاحبُ المحل شيئًا، يعود إلى هذا العلم نفسه.
+         * فصالةُ بلايستيشن أعلنت أن عندها أجهزة تُحجَز صارت تطالب بالوحدة وإن
+         * كان تصنيفها صامتًا، والجيمُ الذى أعلن أنه يبيع دخولًا كفّ عن مطالبةٍ
+         * لا معنى لها — والفرق بينهما لم يكن للتصنيف أن يعرفه.
+         */
+        $shape = $businessId
+            ? $this->bookingShapes->forBusiness($businessId)
+            : null;
+
+        $needsUnit = $shape
+            ? $shape['unit'] === BookingPattern::UNIT_ALWAYS
+            : (bool) ($config['requires_bookable_item'] ?? false);
+
+        if (! $needsUnit) {
             return;
         }
 
@@ -1073,6 +1093,32 @@ class ServiceExecutionEngine
         throw ValidationException::withMessages([
             'bookable_id' => __('هذا النشاط يحجز وحدة بعينها — اختر الوحدة المطلوبة أولًا.'),
         ]);
+    }
+
+    /**
+     * ما يشترطه شكلُ هذا النشاط — يُفرَض هنا، مرّةً واحدة، قبل الكتابة.
+     *
+     * `party_size` و`quantity` و`notes` كلُّها `nullable` فى قواعد التحقّق،
+     * وستبقى كذلك: النقطةُ الواحدة تخدم ستّةَ أشكالٍ مختلفة، فلا قاعدةَ ثابتة
+     * تصلح لها جميعًا. الشكلُ هو ما يحوّل `nullable` إلى «مطلوبٌ هنا» — الفندق
+     * يرفض حجزًا بلا عدد نزلاء، والمطعم بلا عدد أفراد، ولا يُسأل النجّار عن
+     * أىٍّ منهما.
+     *
+     * وتصنيفٌ بلا نمط لا يشترط شيئًا: الغياب سكوتٌ لا حكم.
+     */
+    public function assertShapeSatisfied(int $businessId, array $payload): void
+    {
+        $shape = $this->bookingShapes->forBusiness($businessId);
+
+        if (! $shape) {
+            return;
+        }
+
+        $missing = $this->bookingShapes->missingFrom($shape, $payload);
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages($missing);
+        }
     }
 
     /**

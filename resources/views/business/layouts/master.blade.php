@@ -10,70 +10,86 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
 </head>
 <body class="admin-v2 @yield('body_class')">
-    <div class="a2-shell" style="display:block;">
-        <header class="a2-topbar" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 20px;border-bottom:1px solid var(--a2-border-2);background:#fff;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <span class="a2-fw-900">{{ __('لوحة النشاط التجاري') }}</span>
-                @auth
-                    <span class="a2-pill a2-pill-sub">{{ auth()->user()->name }}</span>
-                @endauth
+
+    {{--
+        قائمةٌ جانبية بدل شريطٍ من سبعةَ عشرَ زرًّا.
+
+        كان كلُّ شاشةٍ فى المنصّة بنفس الوزن فى صفٍّ أفقىٍّ واحد، ولا شىء يقول
+        أىُّ زرٍّ يخصّ أىَّ خدمة. الآن فرعٌ لكل خدمةٍ يبيعها صاحبُ المحل وتحته
+        كلُّ ما يخصّها.
+
+        وتستعمل هيكلَ لوحة الإدارة وأصنافَها كما هى — الملفُّ نفسه محمَّلٌ هنا
+        منذ البداية — فلا ورقةَ أنماطٍ ثانية تفترق عن الأولى عند أول تعديل.
+    --}}
+    <div class="a2-shell">
+
+        <div class="a2-overlay" id="a2Overlay" aria-hidden="true"></div>
+
+        <aside class="a2-sidebar" id="a2Sidebar" aria-label="{{ __('قائمة النشاط') }}">
+            <div class="a2-side-top">
+                <a class="a2-brand" href="{{ route('business.dashboard') }}">
+                    <span class="a2-brand-badge">BIM</span>
+                    <span class="a2-brand-text">{{ __('لوحة النشاط') }}</span>
+                </a>
+
+                <button class="a2-burger" type="button" id="a2CloseSidebar" aria-label="{{ __('إغلاق القائمة') }}">
+                    <svg class="a2-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M18.3 5.71 12 12.01l-6.29-6.3-1.42 1.42 6.3 6.29-6.3 6.29 1.42 1.42 6.29-6.3 6.29 6.3 1.42-1.42-6.3-6.29 6.3-6.29z"/></svg>
+                </button>
             </div>
 
-            {{-- «فتحت حساب تسويق واعطانى منيو وحجوزات والخطط التدريبية» —
-                 المالك 2026-08-19. كان الشريط سبعةَ عشرَ رابطًا بلا شرطٍ
-                 واحد: لم يسأل يومًا عمّا يبيعه صاحبُ المحل. البيانات كانت
-                 صحيحة — «تسويق» #177 لا يفعّل إلا الحجز — والشاشة وحدها هى
-                 التى لم تقرأها. --}}
-            <nav style="display:flex;align-items:center;gap:8px;">
-                <a href="{{ route('business.dashboard') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الرئيسية') }}</a>
-                <a href="{{ route('business.offerings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('عروضي') }}</a>
-                @if(\App\Support\BusinessPanelNav::shows('bookable-items'))
-                <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('وحداتي') }}</a>
-                @endif
-                <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('أسعاري') }}</a>
-                @if(\App\Support\BusinessPanelNav::shows('menu'))
-                <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __(\App\Support\BusinessPanelNav::catalogLabel()) }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('tables'))
-                <a href="{{ route('business.tables.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطاولات') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('table-calls'))
-                <a href="{{ route('business.table-calls.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('نداءات الطاولات') }}</a>
-                @endif
-                <a href="{{ route('business.share-store') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('شارك متجرك') }}</a>
-                @if(\App\Support\BusinessPanelNav::shows('products'))
-                <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('منتجاتي') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('schedules'))
-                <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('خطوط التشغيل') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('training-plans'))
-                <a href="{{ route('business.training-plans.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الخطط التدريبية') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('bookings'))
-                <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('حجوزاتي') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('booking-settings'))
-                <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('إعدادات الحجز') }}</a>
-                @endif
-                @if(\App\Support\BusinessPanelNav::shows('orders'))
-                <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطلبات') }}</a>
-                @endif
-                <a href="{{ route('business.staff.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الموظفون') }}</a>
-                <a href="{{ route('business.locale.switch', $__other) }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ $__locale === 'ar' ? 'EN' : 'ع' }}</a>
-                @auth
-                    <form method="POST" action="{{ route('business.logout') }}">
-                        @csrf
-                        <button type="submit" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('خروج') }}</button>
-                    </form>
-                @endauth
+            <nav class="a2-nav" aria-label="{{ __('قائمة النشاط') }}">
+                @include('business.layouts._partials.menu')
             </nav>
-        </header>
+        </aside>
 
-        <main style="padding:20px;max-width:1100px;margin:0 auto;">
-            @yield('content')
-        </main>
+        <div class="a2-main">
+
+            <header class="a2-topbar">
+                <div class="a2-topbar-left">
+                    <button class="a2-burger a2-burger--mobile" type="button" id="a2OpenSidebar" aria-label="{{ __('فتح القائمة') }}">
+                        <svg class="a2-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z"/></svg>
+                    </button>
+
+                    <div class="a2-topbar-title">@yield('title', __('لوحة النشاط التجاري'))</div>
+                </div>
+
+                <div class="a2-topbar-right" style="display:flex;align-items:center;gap:8px;">
+                    @auth
+                        <span class="a2-pill a2-pill-sub">{{ auth()->user()->name }}</span>
+                    @endauth
+
+                    <a href="{{ route('business.locale.switch', $__other) }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ $__locale === 'ar' ? 'EN' : 'ع' }}</a>
+
+                    @auth
+                        <form method="POST" action="{{ route('business.logout') }}">
+                            @csrf
+                            <button type="submit" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('خروج') }}</button>
+                        </form>
+                    @endauth
+                </div>
+            </header>
+
+            <main class="a2-content" id="a2MainContent" tabindex="-1">
+                @yield('content')
+            </main>
+
+        </div>
     </div>
+
+    <script>
+        (function () {
+            var body = document.body;
+            var open = document.getElementById('a2OpenSidebar');
+            var close = document.getElementById('a2CloseSidebar');
+            var overlay = document.getElementById('a2Overlay');
+
+            var toggle = function (on) { body.classList.toggle('a2-sidebar-open', on); };
+
+            open && open.addEventListener('click', function () { toggle(true); });
+            close && close.addEventListener('click', function () { toggle(false); });
+            overlay && overlay.addEventListener('click', function () { toggle(false); });
+        })();
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     @stack('scripts')

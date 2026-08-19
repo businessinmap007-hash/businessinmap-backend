@@ -74,16 +74,58 @@
         | duplicated the bulk screen) and «رسوم الأبناء (جماعي)» appears for the
         | first time — the screen existed and no menu entry ever pointed at it.
         */
-        ['label' => 'الخدمات والتسعير', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.service-fee-rules.', 'admin.platform-service-fee-promotions.'], 'children' => [
+        /*
+        | ── الخدمات: شجرةٌ واحدة، فرعٌ لكل خدمة ──────────────────────────────
+        |
+        | «جمع الخدمات فى شجرة واحدة» — المالك، 2026-08-19.
+        |
+        | كانت الخدمةُ الواحدة موزّعةً على أربع مجموعات عليا: من يتابع الحجز
+        | يزور «الخدمات والتسعير» لإعداده، و«العمليات» لحجوزاته ووحداته،
+        | و«الجدولة والخطوط» لحجوزات الرحلات، و«التوصيل والطاولات» للطاولات.
+        | لا شىء فى الشاشة كان يقول إنها شىءٌ واحد.
+        |
+        | فصارت الخدمةُ قسمًا: تعريفُها وإعدادُها ومخزونُها وعملياتُها تحت
+        | عنوانها. وما يعبر الخدماتِ كلَّها — النزاعات، المحادثات — بقى فى
+        | «العمليات»، لأنه ليس خدمةً بل ما يقع بين طرفَى أىِّ عملية.
+        */
+        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.service-fee-rules.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.', 'admin.projects.'], 'children' => [
+            ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
+                ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
+                ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
+                ['label' => 'فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => ['admin.service-branches.', 'admin.platform-service-item-groups.']],
+            ]],
             ['label' => 'إعداد الابن', 'type' => 'section', 'children' => [
                 ['label' => 'طاولة عمل الابن', 'route' => 'admin.child-workbench.index', 'active' => 'admin.child-workbench.'],
                 ['label' => 'ربط الخدمات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
                 ['label' => 'رسوم الأبناء (جماعي)', 'route' => 'admin.category-child-service-fees.bulk.edit', 'active' => 'admin.category-child-service-fees.'],
             ]],
-            ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
-                ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
-                ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
-                ['label' => 'فروع الخدمات', 'route' => 'admin.service-branches.index', 'active' => ['admin.service-branches.', 'admin.platform-service-item-groups.']],
+            ['label' => 'الحجز', 'type' => 'section', 'children' => [
+                ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
+                ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
+                ['label' => 'عناصر الحجز', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
+                ['label' => 'عمليات الحجز الجماعية', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
+                // مخصصاتُ الحجز حجزٌ قبل أن تكون شراكة: مقاعدُ يحجزها وسيطٌ
+                // لعملائه، فمكانُها مع ما تحجزه لا مع من يبيعها.
+                ['label' => 'مخصصات الحجز', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
+            ]],
+            ['label' => 'المنيو والطاولات', 'type' => 'section', 'children' => [
+                ['label' => 'عناصر المنيو', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
+                ['label' => 'إنشاء عنصر منيو', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
+                ['label' => 'طاولات المطاعم', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
+            ]],
+            ['label' => 'التوصيل', 'type' => 'section', 'children' => [
+                ['label' => 'سائقو التوصيل', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
+                ['label' => 'عمليات التوصيل المكتملة', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
+            ]],
+            ['label' => 'خطوط التشغيل', 'type' => 'section', 'children' => [
+                ['label' => 'الخطوط', 'route' => 'admin.trip-schedules.index', 'active_routes' => ['admin.trip-schedules.index']],
+                ['label' => 'حجوزات الرحلات', 'route' => 'admin.trip-schedules.reservations', 'active_routes' => ['admin.trip-schedules.reservations']],
+            ]],
+            ['label' => 'التدريب والعيادات والمشاريع', 'type' => 'section', 'children' => [
+                ['label' => 'خطط التدريب (إشراف)', 'route' => 'admin.training-plans.index', 'active' => 'admin.training-plans.'],
+                ['label' => 'مواعيد العيادات (إشراف)', 'route' => 'admin.clinic-appointments.index', 'active' => 'admin.clinic-appointments.'],
+                ['label' => 'الجداول الشخصية (إشراف)', 'route' => 'admin.agenda.index', 'active' => 'admin.agenda.'],
+                ['label' => 'مشاريع الأعمال (إشراف)', 'route' => 'admin.projects.index', 'active' => 'admin.projects.'],
             ]],
             ['label' => 'التسعير والرسوم', 'type' => 'section', 'children' => [
                 ['label' => 'أسعار خدمات الأعمال', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
@@ -98,7 +140,6 @@
         ['label' => 'العروض والشراكات', 'route' => 'admin.business-partnerships.index', 'icon' => 'ticket', 'active' => ['admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
             ['label' => 'الشراكات', 'type' => 'section', 'children' => [
                 ['label' => 'شراكات الأعمال', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
-                ['label' => 'مخصصات الحجز', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
                 ['label' => 'العروض التجارية', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
             ]],
             ['label' => 'التسويق', 'type' => 'section', 'children' => [
@@ -110,37 +151,15 @@
             ]],
         ]],
         ['label' => '🧪 مختبر تنظيم الخدمات والخيارات', 'route' => 'admin.taxonomy-lab.index', 'icon' => 'folder', 'active' => ['admin.taxonomy-lab.']],
-        ['label' => 'العمليات', 'route' => 'admin.bookings.index', 'icon' => 'ticket', 'active' => ['admin.bookings.', 'admin.bookable-items.', 'admin.disputes.', 'admin.menu-items.', 'admin.operation-chats.', 'admin.chats.', 'admin.projects.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.'], 'children' => [
-            ['label' => 'الحجوزات', 'type' => 'section', 'children' => [
-                ['label' => 'كل الحجوزات', 'route' => 'admin.bookings.index', 'active' => 'admin.bookings.'],
-                ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
-                ['label' => 'عناصر الحجز', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
-                ['label' => 'إنشاء عنصر حجز', 'route' => 'admin.bookable-items.create', 'active_routes' => ['admin.bookable-items.create']],
-                ['label' => 'عمليات الحجز الجماعية', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
-                ['label' => 'النزاعات', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
-            ]],
-            ['label' => 'المنيو', 'type' => 'section', 'children' => [
-                ['label' => 'عناصر المنيو', 'route' => 'admin.menu-items.index', 'active' => 'admin.menu-items.'],
-                ['label' => 'إنشاء عنصر منيو', 'route' => 'admin.menu-items.create', 'active_routes' => ['admin.menu-items.create']],
-            ]],
-            ['label' => 'المشاريع', 'type' => 'section', 'children' => [
-                ['label' => 'مشاريع الأعمال (إشراف)', 'route' => 'admin.projects.index', 'active' => 'admin.projects.'],
-            ]],
-            ['label' => 'التدريبات', 'type' => 'section', 'children' => [
-                ['label' => 'خطط التدريب (إشراف)', 'route' => 'admin.training-plans.index', 'active' => 'admin.training-plans.'],
-            ]],
-            ['label' => 'العيادات', 'type' => 'section', 'children' => [
-                ['label' => 'مواعيد العيادات (إشراف)', 'route' => 'admin.clinic-appointments.index', 'active' => 'admin.clinic-appointments.'],
-                ['label' => 'الجداول الشخصية (إشراف)', 'route' => 'admin.agenda.index', 'active' => 'admin.agenda.'],
-            ]],
-            ['label' => 'المحادثات', 'type' => 'section', 'children' => [
-                ['label' => 'المحادثات (إشراف)', 'route' => 'admin.chats.index', 'active' => 'admin.chats.'],
-                ['label' => 'محادثات العمليات المنتهية', 'route' => 'admin.operation-chats.index', 'active' => 'admin.operation-chats.'],
-            ]],
-        ]],
-        ['label' => 'الجدولة والخطوط', 'route' => 'admin.trip-schedules.index', 'icon' => 'ticket', 'active' => ['admin.trip-schedules.'], 'children' => [
-            ['label' => 'خطوط التشغيل', 'route' => 'admin.trip-schedules.index', 'active_routes' => ['admin.trip-schedules.index']],
-            ['label' => 'حجوزات الرحلات', 'route' => 'admin.trip-schedules.reservations', 'active_routes' => ['admin.trip-schedules.reservations']],
+        /*
+        | ما يقع بين طرفَى عمليةٍ أيًّا كانت خدمتُها — لا يخصّ خدمةً بعينها،
+        | فلا يسكن شجرتها. وما كان هنا من حجزٍ ومنيو وتدريبٍ وعيادات انتقل
+        | إلى «الخدمات» تحت عنوان كلٍّ منها.
+        */
+        ['label' => 'العمليات', 'route' => 'admin.disputes.index', 'icon' => 'ticket', 'active' => ['admin.disputes.', 'admin.operation-chats.', 'admin.chats.'], 'children' => [
+            ['label' => 'النزاعات', 'route' => 'admin.disputes.index', 'active' => 'admin.disputes.'],
+            ['label' => 'المحادثات (إشراف)', 'route' => 'admin.chats.index', 'active' => 'admin.chats.'],
+            ['label' => 'محادثات العمليات المنتهية', 'route' => 'admin.operation-chats.index', 'active' => 'admin.operation-chats.'],
         ]],
         ['label' => 'المحفظة والمالية', 'route' => 'admin.wallet-transactions.index', 'icon' => 'wallet', 'active' => ['admin.wallet-overview.', 'admin.wallet-transactions.', 'admin.wallet-ops.', 'admin.wallet-notes.', 'admin.payments.', 'admin.subscriptions.', 'admin.guarantees.', 'admin.guarantee-levels.', 'admin.held-deletions.', 'admin.fines.'], 'children' => [
             ['label' => 'نظرة عامة على المحفظة', 'route' => 'admin.wallet-overview.index', 'active' => 'admin.wallet-overview.'],
@@ -155,10 +174,11 @@
             ['label' => 'مراجعة الاحتيال', 'route' => 'admin.fraud-flags.index', 'active' => 'admin.fraud-flags.'],
             ['label' => 'طلبات حذف موقوفة', 'route' => 'admin.held-deletions.index', 'active' => 'admin.held-deletions.'],
         ]],
-        ['label' => 'التوصيل والطاولات', 'route' => 'admin.delivery.drivers.index', 'icon' => 'ticket', 'active' => ['admin.delivery.', 'admin.business-tables.', 'admin.wallet-topups.', 'admin.merchant-payments.'], 'children' => [
-            ['label' => 'سائقو التوصيل', 'route' => 'admin.delivery.drivers.index', 'active' => 'admin.delivery.drivers.'],
-            ['label' => 'عمليات التوصيل المكتملة', 'route' => 'admin.delivery.completions.index', 'active' => 'admin.delivery.completions.'],
-            ['label' => 'طاولات المطاعم', 'route' => 'admin.business-tables.index', 'active' => 'admin.business-tables.'],
+        /*
+        | «التوصيل والطاولات» حُلّت: التوصيلُ والطاولاتُ خدمتان ومكانُهما
+        | شجرتُهما، وما بقى منها مالٌ — فلحق بالمال.
+        */
+        ['label' => 'المدفوعات الواردة', 'route' => 'admin.wallet-topups.index', 'icon' => 'wallet', 'active' => ['admin.wallet-topups.', 'admin.merchant-payments.'], 'children' => [
             ['label' => 'شحن الأرصدة', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
             ['label' => 'مدفوعات التجّار', 'route' => 'admin.merchant-payments.index', 'active' => 'admin.merchant-payments.'],
         ]],

@@ -2709,5 +2709,14 @@
     "«غرفة فردية» — وهو ما يربط كل وحدة بسطر سعرها.": "«Single room» — this is what points each unit at its own priced row.",
     "المدى أكبر من :max وحدة فى الدفعة الواحدة.": "The range is larger than :max units in one batch.",
     "أُضيفت :created وحدة، وتُخطّيت :skipped موجودة.": ":created units added, :skipped already existed and were skipped.",
-    "غرفة ": "Room "
+    "غرفة ": "Room ",
+    "قائمة النشاط": "Business menu",
+    "لوحة النشاط": "Business Panel",
+    "إغلاق القائمة": "Close menu",
+    "فتح القائمة": "Open menu",
+    "الإعدادات": "Settings",
+    "الحجز": "Booking",
+    "التجزئة": "Retail",
+    "التدريب": "Training",
+    "العروض والأسعار": "Offers & prices"
 }

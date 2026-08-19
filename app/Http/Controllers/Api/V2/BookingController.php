@@ -242,7 +242,10 @@ final class BookingController extends Controller
             // booking is about — a flat's asking price is not what a viewing
             // costs — so it never reaches the pricing ladder.
             offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
-            optionIds: $data['option_ids'] ?? []
+            optionIds: $data['option_ids'] ?? [],
+            // النافذةُ تُسعَّر ليلةً ليلة. وهى أيضًا التى تحدّد عددَ الليالى،
+            // فلا يُضرب `quantity` فيها مرّةً ثانية.
+            until: $data['ends_at'] ?? null
         );
 
         $bookable = $calc['bookable'] ?? null;

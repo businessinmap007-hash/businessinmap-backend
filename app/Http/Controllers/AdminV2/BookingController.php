@@ -117,7 +117,8 @@ class BookingController extends Controller
             serviceId: (int) $data['service_id'],
             bookableId: ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null,
             quantity: (int) ($data['quantity'] ?? 1),
-            pricingDate: $data['starts_at'] ?? $data['date'] ?? now()
+            pricingDate: $data['starts_at'] ?? $data['date'] ?? now(),
+            until: $data['ends_at'] ?? null
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -238,7 +239,8 @@ class BookingController extends Controller
             serviceId: $serviceId,
             bookableId: $bookableId,
             quantity: $quantity,
-            pricingDate: $data['starts_at'] ?? $data['date'] ?? $booking->starts_at ?? now()
+            pricingDate: $data['starts_at'] ?? $data['date'] ?? $booking->starts_at ?? now(),
+            until: $data['ends_at'] ?? $booking->ends_at ?? null
         );
 
         $bookable = $calc['bookable'] ?? null;

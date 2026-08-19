@@ -152,7 +152,7 @@ final class UnitDiscoveryController extends Controller
             'images' => $unit->imagePayload(),
         ];
 
-        $payload += $this->pricingOf($unit, $price, $window[0] ?? null);
+        $payload += $this->pricingOf($unit, $price, $window);
 
         if (! $window) {
             return $payload;
@@ -180,10 +180,10 @@ final class UnitDiscoveryController extends Controller
      *
      * @return array<string,mixed>
      */
-    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?string $on = null): array
+    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?array $window = null): array
     {
         if (! $price) {
-            return ['price' => null, 'modifiers' => []];
+            return ['price' => null, 'total' => null, 'nights' => null, 'modifiers' => []];
         }
 
         $ownOptions = $unit->relationLoaded('offeringOptions')
@@ -195,14 +195,22 @@ final class UnitDiscoveryController extends Controller
             businessPrice: $price,
             bookable: $unit,
             quantity: 1,
-            // بتاريخ الوصول حين يُعطى: قاعدةُ «الجمعة أغلى» تُقرأ فى
-            // القائمة كما ستُقرأ فى الفاتورة، لا بعدها.
-            pricingDate: $on,
-            optionIds: array_map('intval', $ownOptions)
+            // بالنافذة حين تُعطى: قاعدةُ «الجمعة أغلى» تُقرأ فى القائمة كما
+            // ستُقرأ فى الفاتورة، وليلةً ليلة كما ستُحاسَب.
+            pricingDate: $window[0] ?? null,
+            optionIds: array_map('intval', $ownOptions),
+            until: $window[1] ?? null
         );
 
+        $nights = (int) ($breakdown['nights_count'] ?? 0);
+
         return [
+            // سعرُ الليلة، وهو ما يُعرض فى القائمة. و`total` مجموعُ الإقامة
+            // حين تُعطى النافذة — «٦٠٠ لليلة · ١٨٠٠ لثلاث ليالٍ» — فلا يُفاجأ
+            // النزيلُ بالفرق فى شاشة الدفع.
             'price' => (float) $breakdown['unit_price'],
+            'total' => $nights > 0 ? (float) $breakdown['final_price'] : null,
+            'nights' => $nights ?: null,
             'modifiers' => $breakdown['modifiers'],
         ];
     }

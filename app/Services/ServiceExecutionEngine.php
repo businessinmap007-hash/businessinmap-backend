@@ -17,6 +17,7 @@ use App\Enums\BookingPattern;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Models\User;
 use App\Models\Wallet;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -45,6 +46,10 @@ class ServiceExecutionEngine
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * @param  mixed  $pricingDate  بدايةُ النافذة — وهى يومُ التسعير لما لا نافذةَ له
+     * @param  mixed  $until        نهايتُها، فتُسعَّر الإقامةُ ليلةً ليلة
+     */
     public function prepare(
         int $businessId,
         int $serviceId,
@@ -52,7 +57,8 @@ class ServiceExecutionEngine
         int $quantity = 1,
         mixed $pricingDate = null,
         ?int $offeringId = null,
-        array $optionIds = []
+        array $optionIds = [],
+        mixed $until = null
     ): array {
         $quantity = max($quantity, 1);
 
@@ -142,7 +148,8 @@ class ServiceExecutionEngine
             bookable: $bookable,
             quantity: $quantity,
             pricingDate: $pricingDate,
-            optionIds: $optionIds
+            optionIds: $optionIds,
+            until: $until
         );
 
         $depositPolicy = $this->resolveDepositPolicy(
@@ -199,7 +206,10 @@ class ServiceExecutionEngine
             serviceId: $serviceId,
             bookableId: $bookableId,
             quantity: $quantity,
-            pricingDate: $startsAt
+            // كانت `preview` تستقبل نهايةَ النافذة وتستعملها للتوفّر وحده،
+            // فتعرض سعرَ ليلةٍ واحدة لإقامةِ أسبوع.
+            pricingDate: $startsAt,
+            until: $endsAt
         );
 
         $availability = null;
@@ -757,7 +767,8 @@ class ServiceExecutionEngine
         ?BookableItem $bookable = null,
         int $quantity = 1,
         mixed $pricingDate = null,
-        array $optionIds = []
+        array $optionIds = [],
+        mixed $until = null
     ): array {
         $quantity = max($quantity, 1);
 
@@ -785,35 +796,104 @@ class ServiceExecutionEngine
          * فى هذا اليوم، ثم تُضاف صفاتُ الغرفة إلى ما قالته. والعكسُ يجعل
          * «١٢٠٠ ثابت» تمحو زيادةَ الإطلالة بدل أن تحملها.
          */
-        $ruleApplied = null;
-
-        if ($bookable) {
-            $ruled = $this->bookablePricingService->applyRulesTo(
-                item: $bookable,
-                basePrice: $unitPrice,
-                date: $pricingDate,
-                quantity: $quantity
-            );
-
-            $unitPrice = (float) $ruled['price'];
-            $ruleApplied = $ruled['rule'];
-        }
+        $basePrice = $unitPrice;
 
         /*
-         * زياداتُ المُوصِّفات تُضاف إلى سعر **الوحدة** قبل الكمّية.
+         * الليالى، كلُّ ليلةٍ بسعرها.
          *
-         * «شاشة كبيرة +٢٠» تعنى عشرين على كل ساعة، لا عشرين على الحجز كلِّه —
-         * وهذه هى القراءة التى ينطق بها صاحبُ المحل حين يكتبها. والنسبةُ
-         * تُحسب من السعر الأصلىّ لا من المتراكم، فلا يغيّر ترتيبُ الاختيار
-         * الناتجَ.
+         * كان الحسابُ سعرًا واحدًا × كمّية، وقاعدةُ اليوم تُقرأ ليومِ الوصول
+         * وحده — فإقامةُ خميسٍ إلى أحدٍ بقاعدة «الجمعة أغلى» تُحاسَب بسعر
+         * الخميس ثلاثَ مرّات. الليلةُ الآن وحدةُ الحساب: لكلٍّ قاعدتُها
+         * وزياداتُها، والمجموعُ مجموعُها.
          *
-         * وقبل الخصم أيضًا: الخصمُ خصمٌ على ما اشتراه العميل فعلًا، بزياداته.
+         * والمُوصِّفاتُ تُحسب لكل ليلة: «إفطار +٥٠» خمسون كلَّ صباح، لا خمسون
+         * على الإقامة. والنسبةُ تُقرأ من أساس ليلتها، فليلةٌ أغلى نسبتُها أعلى.
+         *
+         * ولا شىءَ يتحرّك بلا قاعدة: مجموعُ ن ليلةٍ متساوية = سعرٌ واحد × ن،
+         * وهو الرقمُ نفسُه الذى كان يخرج. فالفواتيرُ القائمة لا تتغيّر.
          */
-        $modifiers = $this->resolvePriceModifiers($businessPrice, $optionIds, $unitPrice);
+        $nights = $this->nightsBetween($pricingDate, $until);
 
-        $unitPrice = max(round($unitPrice + $modifiers['total'], 2), 0);
+        // الزياداتُ تُقرأ مرّةً واحدة: صفوفُها لا تتغيّر بتغيّر الليلة، وإنما
+        // مقاديرُها. وإقامةُ شهرٍ كانت ثلاثين استعلامًا لنفس الصفوف.
+        $modifierRows = $this->modifierRowsFor($businessPrice, $optionIds);
 
-        $originalPrice = round($unitPrice * $quantity, 2);
+        $nightLines = [];
+        $ruleApplied = null;
+
+        foreach ($nights as $index => $night) {
+            $nightBase = $basePrice;
+            $rule = null;
+
+            if ($bookable) {
+                $ruled = $this->bookablePricingService->applyRulesTo(
+                    item: $bookable,
+                    basePrice: $nightBase,
+                    date: $night,
+                    quantity: $quantity
+                );
+
+                $nightBase = (float) $ruled['price'];
+                $rule = $ruled['rule'];
+            }
+
+            $nightModifiers = $this->applyModifiers($modifierRows, $nightBase);
+            $nightPrice = max(round($nightBase + $nightModifiers['total'], 2), 0);
+
+            if ($index === 0) {
+                $ruleApplied = $rule;
+            }
+
+            $nightLines[] = [
+                'date' => $night->toDateString(),
+                'base_price' => round($nightBase, 2),
+                'modifiers_total' => $nightModifiers['total'],
+                'price' => $nightPrice,
+                'rule' => $rule,
+            ];
+        }
+
+        if ($nightLines !== []) {
+            /*
+             * والنافذةُ هى الكمّية، لا ما أرسله العميل.
+             *
+             * `quantity` كانت تُملأ بعدد الليالى فى كل حجزٍ قائم — نفسِ رقم
+             * `duration_value` — فالضربُ فيها مرّةً ثانية بعد جمع الليالى
+             * يحسب الإقامةَ مرّتين. النافذةُ تعرف عددَ لياليها، فتحلّ محلَّها.
+             */
+            $quantity = count($nightLines);
+            $unitPrice = (float) $nightLines[0]['price'];
+            $originalPrice = round(array_sum(array_column($nightLines, 'price')), 2);
+
+            $modifiers = [
+                'base' => (float) $nightLines[0]['base_price'],
+                'total' => (float) $nightLines[0]['modifiers_total'],
+                'lines' => $this->applyModifiers($modifierRows, (float) $nightLines[0]['base_price'])['lines'],
+            ];
+        } else {
+            /*
+             * ولا نافذةَ: ساعةُ بلايستيشن، كشفُ طبيب، طاولةُ مطعم.
+             *
+             * الحسابُ كما كان — سعرُ الوحدة × الكمّية — وقاعدةُ اليوم تُقرأ
+             * لتاريخ التسعير. الليلةُ ليست وحدةَ كلِّ حجز.
+             */
+            if ($bookable) {
+                $ruled = $this->bookablePricingService->applyRulesTo(
+                    item: $bookable,
+                    basePrice: $unitPrice,
+                    date: $pricingDate,
+                    quantity: $quantity
+                );
+
+                $unitPrice = (float) $ruled['price'];
+                $ruleApplied = $ruled['rule'];
+            }
+
+            $modifiers = $this->applyModifiers($modifierRows, $unitPrice);
+
+            $unitPrice = max(round($unitPrice + $modifiers['total'], 2), 0);
+            $originalPrice = round($unitPrice * $quantity, 2);
+        }
 
         $discountEnabled = (bool) ($businessPrice->discount_enabled ?? false);
         $discountPercent = $discountEnabled ? (int) ($businessPrice->discount_percent ?? 0) : 0;
@@ -834,6 +914,10 @@ class ServiceExecutionEngine
             'price_rule' => $ruleApplied,
             'modifiers' => $modifiers['lines'],
             'modifiers_total' => $modifiers['total'],
+            // ليلةً ليلة، بتاريخها وقاعدتها — فالفاتورةُ تُقرأ ولا تُصدَّق.
+            // فارغةٌ لما ليس إقامة: الساعةُ والكشفُ والطاولةُ لا ليالىَ لها.
+            'nights' => $nightLines,
+            'nights_count' => count($nightLines),
             'quantity' => $quantity,
             'original_price' => $originalPrice,
             'discount_enabled' => $discountEnabled,
@@ -883,18 +967,59 @@ class ServiceExecutionEngine
      *
      * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
      */
-    protected function resolvePriceModifiers(
-        BusinessServicePrice $businessPrice,
-        array $optionIds,
-        float $unitPrice
-    ): array {
+    /**
+     * ليالى النافذة: يومُ الوصول محسوب، ويومُ المغادرة لا.
+     *
+     * والحدُّ الفاصلُ طبيعىٌّ لا مُعلَن: بدايةٌ ونهايةٌ فى يومٍ واحد تعطى صفرًا،
+     * فساعةُ البلايستيشن وكشفُ الطبيب وطاولةُ المطعم تسقط من هذا الطريق بلا
+     * أن يُسأل عن نمطها. وما عبر منتصفَ الليل إقامة.
+     *
+     * @return array<int,\Carbon\Carbon>
+     */
+    protected function nightsBetween(mixed $from, mixed $until): array
+    {
+        if (! $from || ! $until) {
+            return [];
+        }
+
+        try {
+            $start = Carbon::parse($from)->startOfDay();
+            $end = Carbon::parse($until)->startOfDay();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $count = $start->diffInDays($end, false);
+
+        if ($count < 1) {
+            return [];
+        }
+
+        // حارسٌ من نافذةٍ مفتوحة بخطأٍ مطبعىّ: سنتان لا تُسعَّران ليلةً ليلة.
+        $count = min($count, 366);
+
+        return collect(range(0, $count - 1))
+            ->map(fn (int $offset) => $start->copy()->addDays($offset))
+            ->all();
+    }
+
+    /**
+     * صفوفُ الزيادة التى يعرفها هذا السطر — بلا حساب.
+     *
+     * فُصلت عن الحساب لأن الليالى تكرّره: الصفوفُ واحدة، والمقاديرُ تختلف
+     * بأساس كل ليلة. وإقامةُ شهرٍ كانت ثلاثين استعلامًا لنفس الصفوف.
+     *
+     * @return \Illuminate\Support\Collection<int,OfferingOption>
+     */
+    protected function modifierRowsFor(BusinessServicePrice $businessPrice, array $optionIds)
+    {
         $ids = collect($optionIds)->map(fn ($id) => (int) $id)->filter()->unique();
 
         if ($ids->isEmpty()) {
-            return ['base' => $unitPrice, 'total' => 0.00, 'lines' => []];
+            return collect();
         }
 
-        $rows = OfferingOption::query()
+        return OfferingOption::query()
             ->where('offering_type', $businessPrice->getMorphClass())
             ->where('offering_id', (int) $businessPrice->id)
             ->where('role', OfferingOption::ROLE_MODIFIER)
@@ -902,6 +1027,19 @@ class ServiceExecutionEngine
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * ما تزيده تلك الصفوف على أساسٍ بعينه.
+     *
+     * @param  \Illuminate\Support\Collection<int,OfferingOption>  $rows
+     * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
+     */
+    protected function applyModifiers($rows, float $unitPrice): array
+    {
+        if ($rows->isEmpty()) {
+            return ['base' => $unitPrice, 'total' => 0.00, 'lines' => []];
+        }
 
         $names = DB::table('options')->whereIn('id', $rows->pluck('option_id'))->pluck('name_ar', 'id');
 
@@ -927,6 +1065,14 @@ class ServiceExecutionEngine
         }
 
         return ['base' => $unitPrice, 'total' => round($total, 2), 'lines' => $lines];
+    }
+
+    protected function resolvePriceModifiers(
+        BusinessServicePrice $businessPrice,
+        array $optionIds,
+        float $unitPrice
+    ): array {
+        return $this->applyModifiers($this->modifierRowsFor($businessPrice, $optionIds), $unitPrice);
     }
 
     /*

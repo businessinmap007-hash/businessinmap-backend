@@ -22,10 +22,10 @@ class BusinessStaffController extends Controller
     {
     }
 
-    /** GET /api/v2/business/capabilities — the one place: all manageable services. */
-    public function capabilities()
+    /** GET /api/v2/business/capabilities — ما يستطيع هذا النشاط تفويضه. */
+    public function capabilities(Request $request)
     {
-        return response()->json(['success' => true, 'data' => ['capabilities' => BusinessCapability::catalog()]]);
+        return response()->json(['success' => true, 'data' => ['capabilities' => BusinessCapability::catalogFor($request->user())]]);
     }
 
     /** GET /api/v2/business/staff — my delegated staff. */

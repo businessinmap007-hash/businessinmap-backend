@@ -24,6 +24,12 @@ class StaffController extends Controller
     {
     }
 
+    /** النشاط الذى تُدار صلاحياته — تصنيفُه هو ما يحدّ ما يستطيع تفويضه. */
+    private function actingBusiness(): ?User
+    {
+        return \App\Support\BusinessContext::business(request()) ?: Auth::user();
+    }
+
     private function businessId(): int
     {
         return (int) Auth::id();
@@ -33,7 +39,7 @@ class StaffController extends Controller
     {
         return view('business.staff.index', [
             'staff' => $this->access->roster($this->businessId()),
-            'capabilities' => BusinessCapability::registry(),
+            'capabilities' => BusinessCapability::forBusiness($this->actingBusiness()),
         ]);
     }
 
@@ -65,7 +71,9 @@ class StaffController extends Controller
             $this->businessId(),
             (int) $user->id,
             $data['title'] ?? null,
-            $data['capabilities'],
+            // إخفاءُ المربّع لا يكفى: الحفظ يُرسَل، ومن يرسله بيده يمنح
+            // موظّفه صلاحيةً لا يملكها هو.
+            BusinessCapability::sanitizeFor($this->actingBusiness(), $data['capabilities']),
             true,
         );
 
@@ -90,7 +98,7 @@ class StaffController extends Controller
             $this->businessId(),
             $user,
             $data['title'] ?? $existing->title,
-            $data['capabilities'] ?? [],
+            BusinessCapability::sanitizeFor($this->actingBusiness(), $data['capabilities'] ?? []),
             $request->boolean('is_active'),
         );
 

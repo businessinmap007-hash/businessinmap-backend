@@ -17,6 +17,18 @@ class BusinessStaffPanelTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * تصنيفٌ يفعّل المنيو والحجز — «مطعم» #245 تحت «مطاعم وكافيهات».
+     *
+     * أُضيف 2026-08-19 حين صار سجلُّ الصلاحيات مقصورًا على ما يستطيع النشاط
+     * فعله. كان النشاطُ هنا يُصنع بلا تصنيفٍ أصلًا، فصار «امنح موظفك المنيو»
+     * اختبارًا على حسابٍ لا منيوَ له — وهو حالٌ لا توجد فى الواقع: التسجيل
+     * يشترط `category_child_id` على مسار البزنس.
+     */
+    private const RESTAURANT_CHILD = 245;
+
+    private const RESTAURANT_ROOT = 16;
+
     private function makeUser(string $type, string $tag): User
     {
         $u = new User();
@@ -26,6 +38,12 @@ class BusinessStaffPanelTest extends TestCase
         $u->password = 'secret-password';
         $u->type = $type;
         $u->api_token = Str::random(80);
+
+        if ($type === User::TYPE_BUSINESS) {
+            $u->category_id = self::RESTAURANT_ROOT;
+            $u->category_child_id = self::RESTAURANT_CHILD;
+        }
+
         $u->save();
 
         return $u;

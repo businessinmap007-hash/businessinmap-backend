@@ -279,18 +279,32 @@ class OptionPriceRoleTest extends TestCase
      * Its sibling #44 prices on «نوع قطع الغيار» — WHICH SYSTEM against WHICH
      * MACHINE, two axes settled on 2026-08-12 — and keeps the grade as the
      * modifier it is.
+     *
+     * ── ومن 2026-08-19: الأول لا الوحيد ─────────────────────────────────────
+     *
+     * صار الحاجزُ مفتوحًا — كل كلمةٍ يقولها التاجر عن نفسه تصلح للخانتين — فما
+     * تسمّيه المنصّة سطرًا يُعرض **أوّلًا** ولم يعد وحدَه. والمقصودُ هنا لم
+     * يتغيّر: «قطع الغيار حسب الآلة» هى الجوابُ البديهىّ، والدرجةُ مُوصِّفٌ
+     * تظلّ متاحةً لمن يبيعها بذاتها ولا تسبقه.
      */
     public function test_the_parts_wholesaler_prices_the_machine_and_qualifies_by_grade(): void
     {
         $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
         $wholesaler = $vocabulary->for(0, 263, 22);
 
-        $this->assertSame(['قطع الغيار حسب الآلة'], array_keys($wholesaler['lines']->all()));
+        $this->assertSame(
+            'قطع الغيار حسب الآلة',
+            array_key_first($wholesaler['lines']->all()),
+            'الجواب البديهىّ لم يعد أوّل ما يراه'
+        );
         $this->assertNull($wholesaler['promoted'], 'a promoted modifier is still being sold as a line');
         $this->assertArrayHasKey('درجة قطعة الغيار', $wholesaler['modifiers']->all());
 
         // The specialist beside him is untouched: a different axis, still a line.
-        $this->assertSame(['نوع قطع الغيار'], array_keys($vocabulary->for(0, 44, 22)['lines']->all()));
+        $this->assertSame(
+            'نوع قطع الغيار',
+            array_key_first($vocabulary->for(0, 44, 22)['lines']->all())
+        );
     }
 
     public function test_the_seeder_is_idempotent(): void

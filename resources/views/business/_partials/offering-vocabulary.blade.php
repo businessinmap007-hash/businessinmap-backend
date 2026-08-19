@@ -23,6 +23,35 @@
     $adjustValues = collect(old('modifier_adjust', $modifierAdjust ?? []));
     $adjustTypes = collect(old('modifier_adjust_type', $modifierAdjustType ?? []));
 
+    /**
+     * ما تسمّيه المنصّة سطرًا وما تسمّيه وصفًا.
+     *
+     * الحاجز مفتوح — كل كلمةٍ يقولها التاجر عن نفسه تصلح للخانتين — لكن فتحه
+     * بلا ترتيب يحوّل قائمتين مفهومتين إلى قائمتين متطابقتين. فالمألوف يُعرض
+     * أولًا تحت عنوانه، والباقي تحت «كلمات أخرى»: البديهيُّ يبقى بديهيًّا،
+     * والاستثناء متاحٌ لمن يحتاجه.
+     */
+    $preferredLines = collect($vocabulary['preferred_lines'] ?? []);
+    $preferredModifiers = collect($vocabulary['preferred_modifiers'] ?? []);
+
+    $split = function ($groups, $preferred) {
+        $usual = collect();
+        $rest = collect();
+
+        foreach ($groups as $groupName => $options) {
+            $in = collect($options)->filter(fn ($o) => $preferred->contains((int) $o->id))->values();
+            $out = collect($options)->reject(fn ($o) => $preferred->contains((int) $o->id))->values();
+
+            if ($in->isNotEmpty()) { $usual[$groupName] = $in; }
+            if ($out->isNotEmpty()) { $rest[$groupName] = $out; }
+        }
+
+        return [$usual, $rest];
+    };
+
+    [$usualLines, $otherLines] = $split($lines, $preferredLines);
+    [$usualModifiers, $otherModifiers] = $split($modifiers, $preferredModifiers);
+
     // the panel is bilingual, and these rows carry both names
     $say = function ($ar, $en) {
         $primary = app()->getLocale() === 'en' ? $en : $ar;
@@ -52,8 +81,16 @@
                     <label class="a2-label" for="line_option_id">{{ __('النوع') }}</label>
                     <select class="a2-input" id="line_option_id" name="line_option_id">
                         <option value="">{{ __('— بدون تحديد —') }}</option>
-                        @foreach($lines as $groupName => $options)
+                        @foreach($usualLines as $groupName => $options)
                             <optgroup label="{{ $groupName }}">
+                                @foreach($options as $option)
+                                    <option value="{{ $option->id }}" @selected($selectedLine === (int) $option->id)>{{ $say($option->name_ar, $option->name_en) }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+
+                        @foreach($otherLines as $groupName => $options)
+                            <optgroup label="{{ $groupName }} — {{ __('إن كنت تبيعه بذاته') }}">
                                 @foreach($options as $option)
                                     <option value="{{ $option->id }}" @selected($selectedLine === (int) $option->id)>{{ $say($option->name_ar, $option->name_en) }}</option>
                                 @endforeach
@@ -74,9 +111,10 @@
                 <div class="a2-form-group a2-field-full">
                     <label class="a2-label">{{ __('ما يميّزه') }}</label>
 
-                    @foreach($modifiers as $groupName => $options)
+                    @foreach([[$usualModifiers, null], [$otherModifiers, __('إن كان يغيّر السعر عندك')]] as [$set, $note])
+                    @foreach($set as $groupName => $options)
                         <div class="bv-group">
-                            <div class="bv-group-head">{{ $groupName }}</div>
+                            <div class="bv-group-head">{{ $groupName }}@if($note) — {{ $note }}@endif</div>
                             <div class="bv-chips">
                                 @foreach($options as $option)
                                     <label class="bv-chip">
@@ -97,10 +135,12 @@
                             </div>
                         </div>
                     @endforeach
+                    @endforeach
 
                     <small class="a2-help">
                         {{ __('لا يُباع وحده لكنه يغيّر السعر — «مودرن»، «إيجار»، «سوبر لوكس».') }}
                         {{ __('اكتب بجواره كم يزيد على سعر الوحدة الواحدة: «شاشة كبيرة +٢٠». اتركه فارغًا إن كان يصف فقط.') }}
+                        {{ __('والكلمة الواحدة تصلح للخانتين: بِعها بذاتها من «النوع»، أو اجعلها زيادة هنا — أنت أدرى بمحلك.') }}
                     </small>
                 </div>
             @endif

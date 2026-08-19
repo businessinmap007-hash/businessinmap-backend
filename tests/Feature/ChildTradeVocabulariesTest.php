@@ -2274,8 +2274,8 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertGreaterThan(0, $factory, 'the cable factory was never split off');
 
         $this->assertSame(
-            ['المفاتيح والتوزيع الكهربائي'],
-            array_keys($vocabulary->for(0, $factory, 23)['lines']->all()),
+            'المفاتيح والتوزيع الكهربائي',
+            array_key_first($vocabulary->for(0, $factory, 23)['lines']->all()),
             'the switchgear factory lost its list'
         );
 
@@ -2285,10 +2285,19 @@ class ChildTradeVocabulariesTest extends TestCase
             'the locksmith is standing under a factory root again'
         );
 
-        // The phone shop says everything it sells once, in its own list.
-        $this->assertSame(
-            ['أجهزة الموبايل وملحقاتها'],
-            array_keys($vocabulary->for(0, 186, 17)['lines']->all()),
+        /*
+         * The phone shop says everything it sells once, in its own list.
+         *
+         * Asserted as «nothing foreign» rather than «exactly one group»: since
+         * 2026-08-19 the merchant may sell any word he claims about himself, so
+         * his own «ماركات الموبيلات» is offered beside the handset list. What
+         * this guards is that a handbag never is.
+         */
+        $shopLines = array_keys($vocabulary->for(0, 186, 17)['lines']->all());
+
+        $this->assertSame('أجهزة الموبايل وملحقاتها', $shopLines[0], 'the phone shop lost its own list');
+        $this->assertEmpty(
+            array_diff($shopLines, ['أجهزة الموبايل وملحقاتها', 'ماركات الموبيلات']),
             'the phone shop is offered a handbag'
         );
 

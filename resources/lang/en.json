@@ -2686,5 +2686,8 @@
     "الكتالوج": "Catalogue",
     "حتى": "up to",
     "حسب اختيار العميل": "depending on the customer’s choices",
-    "كتبت :price فى خانة السعر، ونمط التحصيل لا يقرأها — المحصَّل :base.": "You typed :price in the price field; this charge mode ignores it — :base is what is charged."
+    "كتبت :price فى خانة السعر، ونمط التحصيل لا يقرأها — المحصَّل :base.": "You typed :price in the price field; this charge mode ignores it — :base is what is charged.",
+    "إن كنت تبيعه بذاته": "if you sell it on its own",
+    "إن كان يغيّر السعر عندك": "if it changes your price",
+    "والكلمة الواحدة تصلح للخانتين: بِعها بذاتها من «النوع»، أو اجعلها زيادة هنا — أنت أدرى بمحلك.": "One word fits both slots: sell it on its own from «Type», or make it a surcharge here — you know your shop."
 }

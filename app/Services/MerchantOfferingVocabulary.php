@@ -87,7 +87,11 @@ class MerchantOfferingVocabulary
         $allowed = $this->scope->idsFor($childId, $rootId);
 
         if ($allowed->isEmpty()) {
-            return ['lines' => collect(), 'modifiers' => collect(), 'narrowed' => false, 'promoted' => null];
+            return [
+                'lines' => collect(), 'modifiers' => collect(),
+                'narrowed' => false, 'promoted' => null,
+                'preferred_lines' => [], 'preferred_modifiers' => [],
+            ];
         }
 
         $ticked = DB::table('option_user')
@@ -105,26 +109,58 @@ class MerchantOfferingVocabulary
         // had ticked one descriptive option could not name a single room kind.
         [$options, $narrowed] = $this->sellable($own, $allowed);
 
-        $lines = $options->where('price_role', OptionGroup::ROLE_LINE)->values();
-        $modifiers = $options->where('price_role', OptionGroup::ROLE_MODIFIER)->values();
-        $promoted = null;
+        /*
+         * ── الحاجز مفتوح: الدور ترتيبٌ لا إذن ────────────────────────────────
+         *
+         * كانت الترقيةُ لا تعمل إلا حين يخلو التصنيفُ من سطر — وهذا صحيحٌ فى
+         * ٢ من ١٣٠ تصنيفًا حيًّا. والمائة والثمانية والعشرون الباقية كان
+         * أصحابُها ممنوعين من قول ما يبيعونه: صاحبُ صالة البلايستيشن لا يستطيع
+         * بيعَ «ساعة بلايستيشن ٥» لأن المنصّة سمّت فئةَ الجهاز مُوصِّفًا، وصاحبُ
+         * الغرفة لا يستطيع جعلَ الغرفة زيادةً على ساعة الجهاز.
+         *
+         * فكل كلمةٍ أشّرها التاجرُ عن نفسه تظهر الآن فى الخانتين، **ودورُ
+         * المنصّة يقرّر الترتيب لا الإتاحة**: ما تسمّيه سطرًا يُعرض أوّلًا،
+         * وما تسمّيه مُوصِّفًا بعده. فالافتراضىُّ يبقى هو الجواب البديهىَّ ولا
+         * يصير سجنًا.
+         *
+         * والمجموعاتُ الواسعة تظلّ خارج خانة البيع (BUSINESS_LEVEL): كلمةٌ
+         * يقولها مئةُ تاجرٍ عن نفسه — «كاش»، «جديد» — ليست منتجَ أحد، وهى
+         * مُوصِّفٌ صالح ولا شىء غير ذلك.
+         */
+        $platformLines = $options->where('price_role', OptionGroup::ROLE_LINE)->values();
+        $platformModifiers = $options->where('price_role', OptionGroup::ROLE_MODIFIER)->values();
 
-        if ($lines->isEmpty()) {
-            $candidates = $modifiers->isNotEmpty() ? $modifiers : $options->values();
-            $lines = $candidates->reject(
-                fn ($o) => in_array($o->group_name, self::BUSINESS_LEVEL, true)
-            )->values();
+        $sellable = $options
+            ->reject(fn ($o) => in_array($o->group_name, self::BUSINESS_LEVEL, true))
+            ->values();
 
-            $promoted = $lines->isEmpty()
-                ? null
-                : ($modifiers->isNotEmpty() ? OptionGroup::ROLE_MODIFIER : OptionGroup::ROLE_DESCRIPTIVE);
-        }
+        // ما تسمّيه المنصّة سطرًا أوّلًا، ثم البقية — والترتيب هو كل الفرق.
+        $lines = $platformLines
+            ->merge($sellable->whereNotIn('id', $platformLines->pluck('id')))
+            ->values();
+
+        // وكل ما يُباع يصلح وصفًا لغيره: الغرفةُ الخاصة تزيد على ساعة الجهاز.
+        $modifiers = $platformModifiers
+            ->merge($sellable->whereNotIn('id', $platformModifiers->pluck('id')))
+            ->values();
+
+        /*
+         * `promoted` تخصّ نصَّ المساعدة وحده: حين لا يكون للتصنيف سطرٌ أصلًا،
+         * المثالُ المضروب فى الشاشة يجب أن يكون من كلماته هو — «زان»، «MDF» —
+         * لا «غرفة نوم» التى لا يجدها فى قائمته.
+         */
+        $promoted = $platformLines->isNotEmpty()
+            ? null
+            : ($platformModifiers->isNotEmpty() ? OptionGroup::ROLE_MODIFIER : OptionGroup::ROLE_DESCRIPTIVE);
 
         return [
             'lines' => $this->group($lines),
             'modifiers' => $this->group($modifiers),
             'narrowed' => $narrowed,
             'promoted' => $promoted,
+            // ما تسمّيه المنصّة سطرًا — تستعمله الشاشة لتفصل المألوف عن الباقى.
+            'preferred_lines' => $platformLines->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            'preferred_modifiers' => $platformModifiers->pluck('id')->map(fn ($id) => (int) $id)->all(),
         ];
     }
 

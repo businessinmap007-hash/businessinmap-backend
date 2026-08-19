@@ -182,6 +182,16 @@ class ListingServiceLinkTest extends TestCase
             // is deliberately absent: it held menu_food until 2026-08-11
             // because menu_child_branches.php still called it a drinks seller.
             'مخابز', 'حلويات', 'عصائر',
+            /*
+             * «البلايستشن يمكن ان يقدم مشروبات ساخنة وسناكس وساندويتشات خفيفة
+             * مثلا هيحتاج منيو» — المالك، 2026-08-19.
+             *
+             * ولا يناقض القاعدة أعلاه: القاعدة تمنع أن يحمل منيوَ طعامٍ **مَن
+             * يعرض أثاثًا أو سيارات أو عقارات**، وصالةُ الألعاب لا تعرض شيئًا
+             * من ذلك — تبيع وقتًا، وتبيع معه شايًا وساندويتشًا. أُضيف عبر
+             * SnackMenuSeeder وحده، بقائمةٍ مُقرّة، لا بالحدس.
+             */
+            'بلاي ستيشن',
         ];
 
         $holders = DB::table('category_service_configs as c')

@@ -211,6 +211,13 @@ class DatabaseSeeder extends Seeder
            BookingPatternSeeder::class,
 
            /*
+            * منيو طعامٍ لمكانِ ترفيهٍ يبيع شايًا وساندويتشًا بجوار خدمته
+            * الأصلية. بعد بذرات الفروع لأنه يكتب `allowed_item_types` بنفسه،
+            * وبعد الأنماط لأنه لا يمسّ الحجز أصلًا فلا ترتيبَ بينهما يُخشى.
+            */
+           SnackMenuSeeder::class,
+
+           /*
             * One group, one question. Moves `options.group_id` and nothing
             * else — no child link is touched, so this is safe anywhere after
             * the option seeders and it must run before the roles below: a row

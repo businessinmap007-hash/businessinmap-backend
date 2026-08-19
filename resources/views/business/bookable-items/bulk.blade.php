@@ -22,6 +22,11 @@
     $currentService = (int) old('service_id', 0);
     $currentType = (string) old('item_type', '');
     $selectedOptions = collect(old('option_ids', []))->map(fn ($id) => (int) $id);
+    $selectedChoices = collect(old('choice_ids', []))->map(fn ($id) => (int) $id);
+    $optionAdjust = collect(old('option_adjust', []));
+    $optionAdjustType = collect(old('option_adjust_type', []));
+    $choiceAdjust = collect(old('choice_adjust', []));
+    $choiceAdjustType = collect(old('choice_adjust_type', []));
 @endphp
 
 <form method="POST" action="{{ route('business.bookable-items.bulk.store') }}">
@@ -78,6 +83,16 @@
                 <label class="a2-label" for="capacity">{{ __('السعة') }}</label>
                 <input type="number" min="1" class="a2-input" id="capacity" name="capacity" value="{{ old('capacity') }}">
             </div>
+
+            {{-- وصفٌ واحد للدفعة كلِّها: عشرُ غرفٍ مزدوجة تشترك فى وصفها،
+                 وما يخصّ غرفةً بعينها يُكتب لها من شاشتها. والصورُ تبقى
+                 لكل وحدة على حدة — ملفٌّ واحد يُشار إليه من عشرة صفوف
+                 يموت مع أوّل حذف. --}}
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="description">{{ __('الوصف (يظهر للعميل، للدفعة كلها)') }}</label>
+                <textarea class="a2-input" id="description" name="description" rows="2"
+                          placeholder="{{ __('غرفة مزدوجة بتكييف وتليفزيون وحمام خاص.') }}">{{ old('description') }}</textarea>
+            </div>
         </div>
     </div>
 
@@ -120,6 +135,28 @@
         </div>
     </div>
 
+    {{-- ───────── السعر ─────────
+         «٦ غرف فردى سعرها ٦٠٠» — السعرُ يُكتب مع الدفعة، لا فى شاشةٍ أخرى
+         بعدها. ويُكتب حيث يُقرأ: على سطر سعر هذا النوع، وهو مصدرُ السعر
+         الوحيد فى المنصّة — فالوحدةُ لا تحمل سعرًا وإنما تشير إلى نوعها. --}}
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('السعر') }}</div>
+                <div class="a2-card-sub">{{ __('سعر الوحدة الواحدة — لليلة أو للساعة حسب نمط حجزك — قبل أى إضافات.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group">
+                <label class="a2-label" for="price">{{ __('سعر الوحدة') }}</label>
+                <input type="number" step="0.01" min="0" class="a2-input" id="price" name="price"
+                       value="{{ old('price') }}" placeholder="600">
+                <small class="a2-help">{{ __('اتركه فارغًا إن كنت قد سعّرت هذا النوع من «أسعاري».') }}</small>
+            </div>
+        </div>
+    </div>
+
     @if($unitOptions->isNotEmpty())
         <div class="a2-card a2-card--section">
             <div class="a2-card-head">
@@ -143,6 +180,60 @@
                                         <input type="checkbox" name="option_ids[]" value="{{ $option->id }}"
                                                @checked($selectedOptions->contains((int) $option->id))>
                                         <span>{{ $option->name_ar ?: $option->name_en }}</span>
+                                        <input type="number" step="0.01" class="bv-adjust"
+                                               name="option_adjust[{{ $option->id }}]"
+                                               value="{{ $optionAdjust[$option->id] ?? '' }}" placeholder="0"
+                                               title="{{ __('يُضاف إلى سعر الوحدة تلقائيًا') }}">
+                                        <select class="bv-adjust-type" name="option_adjust_type[{{ $option->id }}]">
+                                            <option value="amount" @selected(($optionAdjustType[$option->id] ?? 'amount') === 'amount')>{{ __('ج') }}</option>
+                                            <option value="percent" @selected(($optionAdjustType[$option->id] ?? '') === 'percent')>%</option>
+                                        </select>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($unitOptions->isNotEmpty())
+        {{-- ───────── ما يختاره النزيل ─────────
+             الفرقُ عن البطاقة التى فوقها ليس فى الكلمات بل فيمن يقرّرها:
+             «إطلالة بحرية» صفةُ الغرفة — مكتوبةٌ عليها ولا يُسأل عنها —
+             و«إفطار» قرارُ النزيل، فتسكن سطرَ السعر وحده فتُعرض عليه وقت
+             الحجز وتُحسَب إن اختارها. غرفةٌ فردى ٦٠٠ + إفطار ٥٠ = ٦٥٠. --}}
+        <div class="a2-card a2-card--section">
+            <div class="a2-card-head">
+                <div>
+                    <div class="a2-card-title">{{ __('ما يختاره النزيل عند الحجز') }}</div>
+                    <div class="a2-card-sub">
+                        {{ __('«إفطار»، «إقامة كاملة» — لكل واحدة سعرها، ويُضاف إلى سعر الوحدة إن اختارها.') }}
+                        {{ __('لا تُثبَّت على الغرفة: تُعرض عليه ليقرّر.') }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="a2-form-grid">
+                <div class="a2-form-group a2-field-full">
+                    @foreach($unitOptions as $groupName => $options)
+                        <div class="bv-group">
+                            <div class="bv-group-head">{{ $groupName }}</div>
+                            <div class="bv-chips">
+                                @foreach($options as $option)
+                                    <label class="bv-chip">
+                                        <input type="checkbox" name="choice_ids[]" value="{{ $option->id }}"
+                                               @checked($selectedChoices->contains((int) $option->id))>
+                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
+                                        <input type="number" step="0.01" class="bv-adjust"
+                                               name="choice_adjust[{{ $option->id }}]"
+                                               value="{{ $choiceAdjust[$option->id] ?? '' }}" placeholder="0"
+                                               title="{{ __('يُضاف إلى سعر الوحدة إن اختاره النزيل') }}">
+                                        <select class="bv-adjust-type" name="choice_adjust_type[{{ $option->id }}]">
+                                            <option value="amount" @selected(($choiceAdjustType[$option->id] ?? 'amount') === 'amount')>{{ __('ج') }}</option>
+                                            <option value="percent" @selected(($choiceAdjustType[$option->id] ?? '') === 'percent')>%</option>
+                                        </select>
                                     </label>
                                 @endforeach
                             </div>
@@ -167,6 +258,15 @@
                border: 1px solid rgba(128,128,128,.35); border-radius: 999px;
                font-size: 13px; cursor: pointer; }
     .bv-chip:has(input:checked) { border-color: currentColor; font-weight: 600; }
+    /* خانةُ السعر لا تظهر إلا على كلمةٍ مختارة: صندوقٌ فارغ بجوار كل كلمة
+       يحوّل قائمةً تُقرأ بلمحة إلى استمارة. */
+    .bv-chip .bv-adjust, .bv-chip .bv-adjust-type { display: none; }
+    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust,
+    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust-type { display: inline-block; }
+    .bv-adjust { width: 66px; padding: 1px 4px; font-size: 12px; border-radius: 6px;
+                 border: 1px solid rgba(128,128,128,.35); }
+    .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;
+                      border: 1px solid rgba(128,128,128,.35); }
 </style>
 @endpush
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasOfferingOptions;
+use App\Models\Concerns\HasOwnedImages;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,6 +25,16 @@ class BookableItem extends Model
      */
     use HasOfferingOptions;
 
+    /**
+     * وللغرفة صورُها.
+     *
+     * الوحدةُ كانت رقمًا وسعة: لا يراها النزيل قبل أن يحجزها. والصورةُ لا
+     * تسكن عمودًا واحدًا لأن الغرفةَ الواحدة عدةُ لقطات — فهى نفسُ معرض
+     * `HasOwnedImages` الذى يحمل صورَ صنف المنيو، بنفس الحدّ وبنفس القاعدة:
+     * حذفُ الوحدة يحذف الصفوفَ والملفات معًا.
+     */
+    use HasOwnedImages;
+
     /** المفتاح الأجنبىّ هنا يرفض الصفر — «بلا نوع» تُكتب NULL. */
     protected function lineOptionColumnIsNullable(): bool
     {
@@ -44,6 +55,11 @@ class BookableItem extends Model
         // only this can point the unit at its own priced row.
         'line_option_id',
         'title',
+        // يقرؤه النزيل: «إطلالة على النيل، الدور السادس».
+        'description',
+        // ولا يقرؤه أحدٌ خارج المحل: «التكييف يحتاج صيانة». لا يخرج فى أىِّ
+        // واجهةِ عميل — راجع UnitDiscoveryController::unitPayload().
+        'notes',
         'code',
         'capacity',
         'quantity',

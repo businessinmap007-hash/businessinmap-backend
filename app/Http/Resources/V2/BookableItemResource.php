@@ -29,6 +29,11 @@ class BookableItemResource extends JsonResource
             'code' => $this->code,
             'title' => $this->title,
             'label' => $this->resource->displayLabel(),
+            // هذا مورِدُ صاحبِ المحل، فالملاحظةُ الداخلية مسموحةٌ هنا وحدها.
+            // واجهةُ العميل (UnitDiscoveryController) لا ترسلها أبدًا.
+            'description' => $this->description,
+            'notes' => $this->notes,
+            'images' => $this->whenLoaded('images', fn () => $this->resource->imagePayload(), []),
             'capacity' => $this->capacity !== null ? (int) $this->capacity : null,
             'quantity' => (int) $this->quantity,
             'is_active' => (bool) $this->is_active,

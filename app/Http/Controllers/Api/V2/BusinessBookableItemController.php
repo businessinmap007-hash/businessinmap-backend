@@ -141,6 +141,8 @@ final class BusinessBookableItemController extends Controller
             'line_option_id' => ['nullable', 'integer'],
             'code' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:191'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable', 'boolean'],
@@ -160,6 +162,10 @@ final class BusinessBookableItemController extends Controller
             'line_option_id' => $this->sanitizeLineOption($data['line_option_id'] ?? null),
             'code' => trim((string) $data['code']),
             'title' => trim((string) ($data['title'] ?? '')) ?: null,
+            // الوصفُ للنزيل والملاحظةُ للمحل — نفسُ حقلَى الشاشة، فالبابان
+            // يكتبان الشىء نفسه.
+            'description' => trim((string) ($data['description'] ?? '')) ?: null,
+            'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
             'capacity' => ! empty($data['capacity']) ? (int) $data['capacity'] : null,
             'quantity' => max(1, (int) ($data['quantity'] ?? 1)),
             'is_active' => (int) $request->boolean('is_active', true),

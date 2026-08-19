@@ -80,6 +80,21 @@
                 <input class="a2-input" id="title" name="title" value="{{ old('title', $row->title ?? '') }}" placeholder="{{ __('غرفة بإطلالة بحر') }}">
             </div>
 
+            {{-- جمهوران، فحقلان. ما يقرؤه النزيل لا يُخلط بما تكتبه لموظّفك. --}}
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="description">{{ __('الوصف (يظهر للعميل)') }}</label>
+                <textarea class="a2-input" id="description" name="description" rows="3"
+                          placeholder="{{ __('إطلالة على النيل، الدور السادس، بلكونة.') }}">{{ old('description', $row->description ?? '') }}</textarea>
+                <div class="a2-hint a2-mt-8">{{ __('يُعرض فى قائمة الوحدات داخل التطبيق بجانب السعر.') }}</div>
+            </div>
+
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="notes">{{ __('ملاحظة داخلية (لك ولموظفيك)') }}</label>
+                <textarea class="a2-input" id="notes" name="notes" rows="2"
+                          placeholder="{{ __('التكييف يحتاج صيانة.') }}">{{ old('notes', $row->notes ?? '') }}</textarea>
+                <div class="a2-hint a2-mt-8">{{ __('لا تظهر للعميل أبدًا.') }}</div>
+            </div>
+
             <div class="a2-form-group">
                 <label class="a2-label" for="capacity">{{ __('السعة / عدد الأفراد') }}</label>
                 <input class="a2-input" id="capacity" name="capacity" type="number" min="1" value="{{ old('capacity', $row->capacity ?? '') }}" placeholder="2">

@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
+use App\Models\BusinessServicePrice;
+use App\Models\OfferingOption;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\BookableAvailabilityService;
 use App\Services\BusinessServicePriceResolver;
+use App\Services\ServiceExecutionEngine;
 use Illuminate\Http\Request;
 
 /**
@@ -30,7 +33,8 @@ final class UnitDiscoveryController extends Controller
 {
     public function __construct(
         private readonly BusinessServicePriceResolver $prices,
-        private readonly BookableAvailabilityService $availability
+        private readonly BookableAvailabilityService $availability,
+        private readonly ServiceExecutionEngine $engine
     ) {
     }
 
@@ -57,7 +61,9 @@ final class UnitDiscoveryController extends Controller
             ?: (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');
 
         $units = BookableItem::query()
-            ->with('lineOption:id,name_ar,name_en')
+            // الصورُ والمُوصِّفات محمَّلةٌ مقدَّمًا: عشرون غرفةً كانت عشرين
+            // استعلامًا لكلٍّ منهما.
+            ->with(['lineOption:id,name_ar,name_en', 'images', 'offeringOptions', 'service'])
             ->where('business_id', $biz->id)
             ->where('is_active', 1)
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
@@ -81,7 +87,7 @@ final class UnitDiscoveryController extends Controller
             $first = $inKind->first();
             $price = $this->prices->resolveForBookableItem($first);
 
-            $rows = $inKind->map(fn (BookableItem $unit) => $this->unitPayload($unit, $window));
+            $rows = $inKind->map(fn (BookableItem $unit) => $this->unitPayload($unit, $window, $price));
 
             $groups[] = [
                 'line_option_id' => $kindId ?: null,
@@ -94,6 +100,9 @@ final class UnitDiscoveryController extends Controller
                 // The row the price came from, so a client can send it back as
                 // `offering_id` and be priced off exactly what it was shown.
                 'offering_id' => $price ? (int) $price->id : null,
+                // ما يُعرض على النزيل ليقرّره: «إفطار +٥٠»، «إقامة كاملة
+                // +١٥٠». يُرسَل مع النوع لا مع الوحدة، لأنه سعرُ النوع.
+                'choices' => $this->choicesOf($price, $inKind),
                 'units' => $rows->values(),
             ];
         }
@@ -119,16 +128,31 @@ final class UnitDiscoveryController extends Controller
         ]);
     }
 
-    /** @param  array{0:string,1:string}|null  $window */
-    private function unitPayload(BookableItem $unit, ?array $window): array
+    /**
+     * غرفةٌ كما تُعرض فى قائمة: صورةٌ ووصفٌ وسعرُها هى.
+     *
+     * كانت رقمًا وسعة — لا صورةَ ولا كلمة — فقائمةُ الغرف لا تشبه المنيو فى
+     * شىء. والسعرُ هنا سعرُ هذه الغرفة بعينها لا سعرُ نوعها: «إطلالة بحرية»
+     * مكتوبةٌ على الغرفة نفسها، وزيادتُها على سطر السعر تُضاف قبل أن تُعرض،
+     * فتُقرأ ١٠١ بسبعمئة و١٠٢ بستّمئة من سطرٍ واحد.
+     *
+     * و`notes` لا يخرج من هنا أبدًا: هو ما يكتبه صاحبُ المحل لموظّفيه.
+     *
+     * @param  array{0:string,1:string}|null  $window
+     */
+    private function unitPayload(BookableItem $unit, ?array $window, ?BusinessServicePrice $price = null): array
     {
         $payload = [
             'id' => (int) $unit->id,
             'code' => (string) ($unit->code ?? ''),
             'title' => $unit->title,
             'label' => $unit->displayLabel(),
+            'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
+            'images' => $unit->imagePayload(),
         ];
+
+        $payload += $this->pricingOf($unit, $price);
 
         if (! $window) {
             return $payload;
@@ -142,6 +166,95 @@ final class UnitDiscoveryController extends Controller
         $payload['reason'] = $check['reason'];
 
         return $payload;
+    }
+
+    /**
+     * ما تعلنه الوحدةُ عن نفسها، وما يكلّفه.
+     *
+     * المُوصِّفاتُ المسعَّرة تُقرأ بنفس الحساب الذى يحسب به المحرّك الفاتورة
+     * — `resolvePriceBreakdown` نفسها — فما يُعرض هنا هو ما سيُحاسَب عليه
+     * النزيل، لا تقديرًا موازيًا له.
+     *
+     * وسطرُ سعرٍ ناقص يعنى نوعًا لم يُسعَّر بعد: تُعرض الوحدةُ بلا سعر بدل
+     * أن تُخفى، فصاحبُ المحل يرى ما ينقصه.
+     *
+     * @return array<string,mixed>
+     */
+    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price): array
+    {
+        if (! $price) {
+            return ['price' => null, 'modifiers' => []];
+        }
+
+        $ownOptions = $unit->relationLoaded('offeringOptions')
+            ? $unit->offeringOptions->where('role', OfferingOption::ROLE_MODIFIER)->pluck('option_id')->all()
+            : $unit->modifierOptionIds()->all();
+
+        $breakdown = $this->engine->resolvePriceBreakdown(
+            service: $unit->service ?: new PlatformService(),
+            businessPrice: $price,
+            bookable: $unit,
+            quantity: 1,
+            pricingDate: null,
+            optionIds: array_map('intval', $ownOptions)
+        );
+
+        return [
+            'price' => (float) $breakdown['unit_price'],
+            'modifiers' => $breakdown['modifiers'],
+        ];
+    }
+
+    /**
+     * ما يُعرض على النزيل مع هذا النوع، وسعرُ كلٍّ منه.
+     *
+     * «غرفة فردى ٦٠٠» ثم «إفطار +٥٠» و«إقامة كاملة +١٥٠»، كما تُقرأ فى أىِّ
+     * موقع حجز. وهى مُوصِّفاتُ سطر السعر — إلا ما أعلنته الغرفةُ عن نفسها
+     * أصلًا: «إطلالة بحرية» محسوبةٌ فى سعرها المعروض، فعرضُها ثانيةً كخيارٍ
+     * يُحصِّل ثمنَها مرتين.
+     *
+     * @param  \Illuminate\Support\Collection<int,BookableItem>  $inKind
+     * @return array<int,array<string,mixed>>
+     */
+    private function choicesOf(?BusinessServicePrice $price, $inKind): array
+    {
+        if (! $price) {
+            return [];
+        }
+
+        $declared = $inKind->flatMap(
+            fn (BookableItem $unit) => $unit->relationLoaded('offeringOptions')
+                ? $unit->offeringOptions->where('role', OfferingOption::ROLE_MODIFIER)->pluck('option_id')
+                : $unit->modifierOptionIds()
+        )->map(fn ($id) => (int) $id)->unique();
+
+        $rows = $price->offeringOptions()
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
+            ->where('adjust_value', '!=', 0)
+            ->whereNotIn('option_id', $declared->all() ?: [0])
+            ->with('option:id,name_ar,name_en')
+            ->get();
+
+        return $rows->map(fn (OfferingOption $row) => [
+            'option_id' => (int) $row->option_id,
+            'name' => $this->say($row->option),
+            'adjust_type' => (string) $row->adjust_type,
+            'adjust_value' => (float) $row->adjust_value,
+            // ما ستدفعه فعلًا إن اخترتَه، محسوبًا على سعر هذا النوع.
+            'amount' => $row->appliedTo(round((float) $price->baseUnitPrice(), 2)),
+        ])->values()->all();
+    }
+
+    private function say(?object $option): ?string
+    {
+        if (! $option) {
+            return null;
+        }
+
+        $primary = app()->getLocale() === 'en' ? $option->name_en : $option->name_ar;
+
+        return ($primary !== null && $primary !== '') ? $primary : (($option->name_ar ?: $option->name_en) ?: null);
     }
 
     private function kindName(BookableItem $unit): ?string

@@ -45,6 +45,14 @@ class BusinessPanelLocaleTest extends TestCase
             ->assertDontSee('طلبات المنيو');
     }
 
+    /**
+     * كان يقيس الترجمة على «نداءات الطاولات».
+     *
+     * وصار الشريط يُخفى ما لا يبيعه صاحبُ الحساب (2026-08-19)، ونداءُ الطاولة
+     * من منيو الطعام وحده — والنشاطُ هنا هو أوّلُ نشاطٍ فى الجدول، أيًّا كان.
+     * فالقياسُ الآن على روابطَ لا تُحجَب عن أحد، لأن المقصود هو الترجمة لا
+     * الحَجب — و«الطاولات» لها اختبارها فى BusinessPanelNavTest.
+     */
     public function test_the_dashboard_and_nav_localize(): void
     {
         $this->actingAs($this->business)
@@ -52,7 +60,8 @@ class BusinessPanelLocaleTest extends TestCase
             ->get('/business')
             ->assertOk()
             ->assertSee('Home')          // nav
-            ->assertSee('Table Calls')   // nav
+            ->assertSee('Staff')         // nav
+            ->assertSee('My Prices')     // nav
             ->assertSee('Next steps');   // dashboard body
     }
 

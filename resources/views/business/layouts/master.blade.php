@@ -56,7 +56,9 @@
                 @if(\App\Support\BusinessPanelNav::shows('booking-settings'))
                 <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('إعدادات الحجز') }}</a>
                 @endif
+                @if(\App\Support\BusinessPanelNav::shows('orders'))
                 <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطلبات') }}</a>
+                @endif
                 <a href="{{ route('business.staff.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الموظفون') }}</a>
                 <a href="{{ route('business.locale.switch', $__other) }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ $__locale === 'ar' ? 'EN' : 'ع' }}</a>
                 @auth

@@ -53,15 +53,23 @@ class BusinessPanelNavTest extends TestCase
 
         $this->assertContains('booking', BusinessPanelNav::servicesOf($marketer));
 
-        foreach (['bookings', 'booking-settings', 'bookable-items'] as $link) {
+        // «وحداتي» ليست هنا عمدًا: الحجزُ مفعَّلٌ عليه، لكن نمطه «استشارة»
+        // ولا وحدةَ فيها — وهو ما يقيسه test_units_follow_the_shape_not_the_service.
+        foreach (['bookings', 'booking-settings'] as $link) {
             $this->assertTrue(BusinessPanelNav::shows($link, $marketer), "«{$link}» مخفىٌّ عمّن يبيعه");
         }
     }
 
-    /** وإدارةُ الحساب ليست خدمةً تُباع — تظهر للجميع. */
+    /**
+     * وإدارةُ الحساب ليست خدمةً تُباع — تظهر للجميع.
+     *
+     * و«الطلبات» خرجت من هذه القائمة بعد أن تبيّن أنها ليست إدارةَ حساب: الطلبُ
+     * يأتى من منيو أو توصيل أو تجزئة، ووكالةُ التسويق لا تملك واحدةً منها،
+     * فكانت تفتح شاشةً لا تمتلئ أبدًا.
+     */
     public function test_account_management_is_never_gated(): void
     {
-        foreach (['dashboard', 'prices', 'staff', 'orders', 'offerings'] as $link) {
+        foreach (['dashboard', 'prices', 'staff', 'offerings'] as $link) {
             $this->assertTrue(BusinessPanelNav::shows($link, $this->marketer()));
         }
     }
@@ -78,18 +86,109 @@ class BusinessPanelNavTest extends TestCase
         $response->assertSee(route('business.bookings.index', [], false), false);
     }
 
-    /** ونشاطٌ على مطعم يرى منيوه — الحارس يقرأ التصنيف، لا يخفى بالجملة. */
+    /**
+     * الشريط مقصورٌ على (الجذر، الابن) لا على الابن وحده.
+     *
+     * «آثاث» #116 يقف تحت ثلاثة جذور بثلاث حزمٍ مختلفة — يحجز تحت «شركات»
+     * ولا يحجز تحت جذر المحلات. وقراءةُ الابن وحده كانت تعطى صاحبَ المحل
+     * حجوزاتٍ ووحداتٍ يفعلها ابنُه فى مكانٍ لا يقف هو فيه.
+     */
+    public function test_the_bar_is_scoped_to_the_root_the_business_stands_on(): void
+    {
+        $childId = 116;
+
+        $roots = DB::table('category_platform_services as l')
+            ->join('platform_services as s', 's.id', '=', 'l.platform_service_id')
+            ->where('l.child_id', $childId)->where('l.is_active', 1)->where('s.key', 'booking')
+            ->pluck('l.category_id')->map(fn ($r) => (int) $r)->all();
+
+        $without = DB::table('category_platform_services')
+            ->where('child_id', $childId)->where('is_active', 1)
+            ->whereNotIn('category_id', $roots ?: [0])
+            ->value('category_id');
+
+        if (! $roots || ! $without) {
+            $this->markTestSkipped('«آثاث» لم يعد يقف على جذرين يختلفان فى الحجز.');
+        }
+
+        $here = new User(['type' => User::TYPE_BUSINESS]);
+        $here->category_child_id = $childId;
+        $here->category_id = $roots[0];
+
+        $there = new User(['type' => User::TYPE_BUSINESS]);
+        $there->category_child_id = $childId;
+        $there->category_id = (int) $without;
+
+        $this->assertTrue(BusinessPanelNav::shows('bookings', $here));
+        $this->assertFalse(
+            BusinessPanelNav::shows('bookings', $there),
+            'ابنٌ يحجز تحت جذرٍ آخر منح صاحبَ هذا الجذر حجوزات'
+        );
+    }
+
+    /** والطاولةُ سؤالُ طعامٍ لا سؤالُ منيو: تاجرُ الأثاث لا طاولاتِ عنده. */
+    public function test_only_a_food_menu_gets_tables(): void
+    {
+        $restaurant = $this->onChildWithMenuKind('menu_food');
+        $trader = $this->onChildWithMenuKind('menu_furniture') ?? $this->onChildWithMenuKind('menu_market');
+
+        if (! $restaurant || ! $trader) {
+            $this->markTestSkipped('لا حسابان على منيو طعامٍ ومنيو غيره.');
+        }
+
+        $this->assertTrue(BusinessPanelNav::shows('tables', $restaurant));
+        $this->assertFalse(BusinessPanelNav::shows('tables', $trader), 'تاجرٌ يجد «الطاولات» فى لوحته');
+        $this->assertFalse(BusinessPanelNav::shows('table-calls', $trader));
+        $this->assertTrue(BusinessPanelNav::shows('menu', $trader), 'المنيو هى كتالوجه — لا تُخفى');
+    }
+
+    /** و«وحداتي» سؤالُ شكلٍ لا سؤالُ خدمة. */
+    public function test_units_follow_the_shape_not_the_service(): void
+    {
+        $marketer = $this->marketer();
+
+        $this->assertContains('booking', BusinessPanelNav::servicesOf($marketer));
+        $this->assertFalse(
+            BusinessPanelNav::shows('bookable-items', $marketer),
+            'استشارةٌ لا وحدةَ فيها، والشاشة تبقى فارغة'
+        );
+    }
+
+    private function onChildWithMenuKind(string $kind): ?User
+    {
+        $serviceId = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
+
+        $rows = DB::table('category_service_configs')
+            ->where('platform_service_id', $serviceId)->where('is_active', 1)
+            ->where('config', 'like', '%"' . $kind . '"%')
+            ->get(['category_id', 'child_id']);
+
+        foreach ($rows as $row) {
+            $owner = User::query()->where('type', User::TYPE_BUSINESS)
+                ->where('category_child_id', $row->child_id)
+                ->where('category_id', $row->category_id)->first();
+
+            if ($owner) {
+                return $owner;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * ونشاطٌ على مطعم يرى منيوه — الحارس يقرأ التصنيف، لا يخفى بالجملة.
+     *
+     * كان يختار أىَّ حسابٍ ابنُه يفعّل المنيو **فى أىِّ جذر**، فصار يسقط حين
+     * صار الحارس مقصورًا على (الجذر، الابن): الحسابُ المختار كان يقف على جذرٍ
+     * لا منيوَ فيه. والاختيارُ الآن بالزوج، وهو ما يقيسه الاختبار أصلًا.
+     */
     public function test_a_restaurant_still_sees_its_menu(): void
     {
-        $restaurant = User::query()->where('type', User::TYPE_BUSINESS)
-            ->whereIn('category_child_id', function ($q) {
-                $q->select('l.child_id')->from('category_platform_services as l')
-                    ->join('platform_services as s', 's.id', '=', 'l.platform_service_id')
-                    ->where('s.key', 'menu')->where('l.is_active', 1);
-            })->first();
+        $restaurant = $this->onChildWithMenuKind('menu_food');
 
         if (! $restaurant) {
-            $this->markTestSkipped('لا نشاط على تصنيفٍ يفعّل المنيو.');
+            $this->markTestSkipped('لا نشاط على تصنيفٍ يفعّل منيو الطعام.');
         }
 
         $this->assertTrue(BusinessPanelNav::shows('menu', $restaurant));

@@ -139,20 +139,6 @@ class UnitPriceOnEditScreenTest extends TestCase
         $this->assertStringContainsString(route('business.bookable-items.pricing.store', $room->id, false), $html);
     }
 
-    /** وتعرض الإضافاتِ التى يختارها النزيل بأسعارها. */
-    public function test_the_edit_screen_offers_the_guest_choices(): void
-    {
-        $price = $this->priceRow(600);
-        $price->syncOfferingOptions(self::SINGLE, [self::BREAKFAST], [
-            self::BREAKFAST => ['type' => 'amount', 'value' => 50],
-        ]);
-
-        $html = $this->editScreen($this->room());
-
-        $this->assertStringContainsString('name="choice_ids[]"', $html);
-        $this->assertStringContainsString('name="option_ids[]"', $html);
-    }
-
     /*
     |--------------------------------------------------------------------------
     | الحفظ
@@ -182,71 +168,18 @@ class UnitPriceOnEditScreenTest extends TestCase
         $this->assertSame(850.0, (float) $this->currentPrice()->price);
     }
 
-    /** والإضافاتُ تُضاف بأسعارها المنفصلة. */
-    public function test_the_guest_choices_are_saved_with_their_own_prices(): void
-    {
-        $this->priceRow(600);
-        $room = $this->room();
-
-        $this->savePricing($room, [
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST, self::FULL_BOARD],
-            'choice_adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 150],
-            'choice_adjust_type' => [self::BREAKFAST => 'amount', self::FULL_BOARD => 'amount'],
-        ])->assertRedirect();
-
-        $adjustments = $this->currentPrice()->currentOfferingAdjustments();
-
-        $this->assertSame(50.0, $adjustments[self::BREAKFAST]['value']);
-        $this->assertSame(150.0, $adjustments[self::FULL_BOARD]['value']);
-    }
-
-    /** وتُرفع قيمتُها كما يُرفع السعر: من ٥٠ إلى ٧٥. */
-    public function test_a_choices_price_can_be_changed(): void
-    {
-        $price = $this->priceRow(600);
-        $price->syncOfferingOptions(self::SINGLE, [self::BREAKFAST], [
-            self::BREAKFAST => ['type' => 'amount', 'value' => 50],
-        ]);
-
-        $room = $this->room();
-
-        $this->savePricing($room, [
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 75],
-        ])->assertRedirect();
-
-        $this->assertSame(75.0, $this->currentPrice()->currentOfferingAdjustments()[self::BREAKFAST]['value']);
-    }
-
     /**
-     * وتُرفع الإضافةُ حين تُنزع علامتُها.
+     * والشاشةُ تدلّ على مكان نظام الوجبات بدل أن تحمله.
      *
-     * والحفظُ من هذه الشاشة يقول ما عليه السطرُ كلَّه، فالدمجُ الذى تحتاجه
-     * الإضافةُ بالجملة — لأنها لا تعرف ما قبلها — لا مكانَ له هنا: من فتح
-     * الشاشةَ يرى القائمةَ كاملةً، فما تركه تركَه قصدًا.
+     * «إفطار» و«إقامة كاملة» نفسُهما فى كل غرفة، فكتابتُهما داخل غرفةٍ بعينها
+     * تُوهم أنهما يخصّانها — وتجعل صاحبَها يعيد إدخالهما مع كل نوع.
      */
-    public function test_unticking_a_choice_removes_it(): void
+    public function test_the_screen_points_at_where_meal_plans_live(): void
     {
-        $price = $this->priceRow(600);
-        $price->syncOfferingOptions(self::SINGLE, [self::BREAKFAST, self::FULL_BOARD], [
-            self::BREAKFAST => ['type' => 'amount', 'value' => 50],
-            self::FULL_BOARD => ['type' => 'amount', 'value' => 150],
-        ]);
+        $html = $this->editScreen($this->room());
 
-        $room = $this->room();
-
-        $this->savePricing($room, [
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-        ])->assertRedirect();
-
-        $adjustments = $this->currentPrice()->currentOfferingAdjustments();
-
-        $this->assertArrayHasKey(self::BREAKFAST, $adjustments);
-        $this->assertArrayNotHasKey(self::FULL_BOARD, $adjustments, 'الإقامةُ الكاملة بقيت بعد نزع علامتها');
+        $this->assertStringContainsString(route('business.booking-add-ons.index', [], false), $html);
+        $this->assertStringNotContainsString('name="choice_ids[]"', $html);
     }
 
     /** وصفةُ الغرفة تُثبَّت عليها، لا على السطر وحده. */

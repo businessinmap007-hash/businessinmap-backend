@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Business\Auth\LoginController;
 use App\Http\Controllers\Business\BookableItemCalendarController;
+use App\Http\Controllers\Business\BookingAddOnController;
 use App\Http\Controllers\Business\BookableItemController;
 use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
@@ -50,6 +51,15 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('offerings', [OfferingController::class, 'index'])->name('offerings.index');
         // The owner's own sequence: which offering leads his list.
         Route::post('offerings/reorder', [OfferingController::class, 'reorder'])->name('offerings.reorder');
+
+        /*
+         * إضافاتُ الحجز — نظامُ الوجبات وما شابهه.
+         *
+         * ما يقرّره النزيلُ وهو نفسُه فى كل غرفة، فيُكتب مرّةً على كل سطور
+         * أسعار الحجز. وما يخصّ غرفةً بعينها — إطلالتُها — يبقى على شاشتها.
+         */
+        Route::get('booking-add-ons', [BookingAddOnController::class, 'index'])->name('booking-add-ons.index');
+        Route::put('booking-add-ons', [BookingAddOnController::class, 'update'])->name('booking-add-ons.update');
 
         Route::get('bookable-items', [BookableItemController::class, 'index'])->name('bookable-items.index');
         Route::get('bookable-items/create', [BookableItemController::class, 'create'])->name('bookable-items.create');

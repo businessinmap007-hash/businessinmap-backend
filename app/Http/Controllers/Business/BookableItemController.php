@@ -176,12 +176,6 @@ class BookableItemController extends Controller
             // زيادةُ كل صفةٍ من صفات الوحدات: «إطلالة بحرية +١٠٠».
             'option_adjust' => ['nullable', 'array'],
             'option_adjust_type' => ['nullable', 'array'],
-            // وما يختاره النزيلُ بنفسه: «إفطار +٥٠»، «إقامة كاملة +١٥٠».
-            // لا يُثبَّت على الغرفة، فيُسأل عنه وقت الحجز ويُسعَّر إن اختير.
-            'choice_ids' => ['nullable', 'array'],
-            'choice_ids.*' => ['integer'],
-            'choice_adjust' => ['nullable', 'array'],
-            'choice_adjust_type' => ['nullable', 'array'],
         ], [], [
             'service_id' => 'الخدمة',
             'item_type' => 'نوع العنصر',
@@ -206,19 +200,6 @@ class BookableItemController extends Controller
 
         $lineOptionId = $this->sanitizeLineOption($data['line_option_id'] ?? null);
         $modifiers = $this->sanitizeUnitOptions($data['option_ids'] ?? [], $lineOptionId);
-
-        /*
-         * الخياراتُ التى يختارها النزيل لا تُثبَّت على الغرفة.
-         *
-         * وهذا هو الفرق كلُّه: «إطلالة بحرية» صفةُ الغرفة — مكتوبةٌ عليها،
-         * تُضاف تلقائيًا ولا يُسأل عنها. و«إفطار» ليست صفةَ الغرفة بل قرارُ
-         * النزيل، فتسكن سطرَ السعر وحده فيُعرض عليه ويُحسَب إن اختاره.
-         * وما وُضع فى القائمتين معًا تفوز فيه الغرفة: الأثبتُ يغلب المسؤول.
-         */
-        $choices = array_values(array_diff(
-            $this->sanitizeUnitOptions($data['choice_ids'] ?? [], $lineOptionId),
-            $modifiers
-        ));
 
         $prefix = trim((string) ($data['prefix'] ?? ''));
         $pad = (int) ($data['pad'] ?? 0);
@@ -268,8 +249,7 @@ class BookableItemController extends Controller
             lineOptionId: $lineOptionId,
             price: $data['price'] ?? null,
             unitModifiers: $modifiers,
-            choiceModifiers: $choices,
-            adjustments: $this->readAdjustments($data, $modifiers, $choices)
+            adjustments: $this->readAdjustments($data, $modifiers)
         );
 
         $message = __('أُضيفت :created وحدة، وتُخطّيت :skipped موجودة.', [
@@ -297,8 +277,7 @@ class BookableItemController extends Controller
      * دفعةً ثانية على نفس النوع كان يمحو زيادةً كتبها من شاشة الأسعار.
      * القراءةُ من `currentOfferingAdjustments()` قبل الكتابة تمنع ذلك.
      *
-     * @param  array<int,int>  $unitModifiers   ما هو مثبَّتٌ على الغرفة
-     * @param  array<int,int>  $choiceModifiers ما يختاره النزيل عند الحجز
+     * @param  array<int,int>  $unitModifiers  ما هو مثبَّتٌ على غرف هذه الدفعة
      * @param  array<int,array{type:string,value:float}>  $adjustments
      * @return bool  هل كُتب شىء؟
      */
@@ -308,12 +287,11 @@ class BookableItemController extends Controller
         ?int $lineOptionId,
         mixed $price,
         array $unitModifiers,
-        array $choiceModifiers,
         array $adjustments
     ): bool {
         $hasPrice = $price !== null && $price !== '';
 
-        if (! $hasPrice && $adjustments === [] && $choiceModifiers === []) {
+        if (! $hasPrice && $adjustments === []) {
             return false;
         }
 
@@ -348,7 +326,7 @@ class BookableItemController extends Controller
             ->where('role', OfferingOption::ROLE_MODIFIER)
             ->pluck('option_id')->map(fn ($id) => (int) $id)->all();
 
-        $merged = array_values(array_unique(array_merge($existingIds, $unitModifiers, $choiceModifiers)));
+        $merged = array_values(array_unique(array_merge($existingIds, $unitModifiers)));
 
         $row->syncOfferingOptions(
             $lineOptionId,
@@ -366,16 +344,14 @@ class BookableItemController extends Controller
      * وهى حالٌ مقصودة لا نقصٌ فى الإدخال.
      *
      * @param  array<int,int>  $unitModifiers
-     * @param  array<int,int>  $choiceModifiers
      * @return array<int,array{type:string,value:float}>
      */
-    private function readAdjustments(array $data, array $unitModifiers, array $choiceModifiers): array
+    private function readAdjustments(array $data, array $unitModifiers): array
     {
         $out = [];
 
         foreach ([
             ['option_adjust', 'option_adjust_type', $unitModifiers],
-            ['choice_adjust', 'choice_adjust_type', $choiceModifiers],
         ] as [$valueKey, $typeKey, $allowed]) {
             foreach ((array) ($data[$valueKey] ?? []) as $optionId => $value) {
                 $optionId = (int) $optionId;
@@ -455,6 +431,21 @@ class BookableItemController extends Controller
         return back()->with('success', 'تم تحديث الوحدة بنجاح.');
     }
 
+    /**
+     * ما أعلنته وحداتُ هذا التاجر عن نفسها — إطلالةً أو بلكونة.
+     *
+     * @return \Illuminate\Support\Collection<int,int>
+     */
+    private function declaredByUnits(): \Illuminate\Support\Collection
+    {
+        return OfferingOption::query()
+            ->where('offering_type', (new BookableItem)->getMorphClass())
+            ->whereIn('offering_id', BookableItem::query()
+                ->where('business_id', $this->businessId())->select('id'))
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            ->pluck('option_id')->map(fn ($id) => (int) $id)->unique();
+    }
+
     /** سطرُ سعرِ نوعِ هذه الوحدة، إن وُجد. */
     private function priceRowFor(BookableItem $item): ?BusinessServicePrice
     {
@@ -486,10 +477,6 @@ class BookableItemController extends Controller
             'option_ids.*' => ['integer'],
             'option_adjust' => ['nullable', 'array'],
             'option_adjust_type' => ['nullable', 'array'],
-            'choice_ids' => ['nullable', 'array'],
-            'choice_ids.*' => ['integer'],
-            'choice_adjust' => ['nullable', 'array'],
-            'choice_adjust_type' => ['nullable', 'array'],
         ], [], [
             'price' => 'السعر',
         ]);
@@ -497,10 +484,6 @@ class BookableItemController extends Controller
         $lineOptionId = (int) ($item->line_option_id ?? 0) ?: null;
 
         $modifiers = $this->sanitizeUnitOptions($data['option_ids'] ?? [], $lineOptionId);
-        $choices = array_values(array_diff(
-            $this->sanitizeUnitOptions($data['choice_ids'] ?? [], $lineOptionId),
-            $modifiers
-        ));
 
         $row = $this->priceRowFor($item) ?: BusinessServicePrice::create([
             'business_id' => $this->businessId(),
@@ -514,10 +497,27 @@ class BookableItemController extends Controller
 
         $row->update(['price' => (float) $data['price']]);
 
+        /*
+         * وإضافاتُ الحجز تبقى كما هى.
+         *
+         * هذه الشاشةُ تدير صفاتِ هذه الغرفة، ولا تعرض «إفطارًا» ولا تُسأل عنه.
+         * و`syncOfferingOptions` تمسح ثم تكتب — فلو كتبت ما عندها وحده لمحت
+         * نظامَ الوجبات كلَّه من هذا النوع، صامتةً. وهو نفسُ الحرص المعكوس فى
+         * `BookingAddOnController`: كلٌّ يحفظ نطاقَه ويترك نطاقَ الآخر.
+         *
+         * والفصلُ بينهما ليس علمًا ثانيًا: الصفةُ ما أعلنته وحدةٌ عن نفسها،
+         * والإضافةُ ما لم تعلنه — وهو نفسُ الفصل الذى تقرأ به واجهةُ العميل.
+         */
+        $declared = $this->declaredByUnits();
+
+        $addOns = collect($row->currentOfferingAdjustments())
+            ->reject(fn ($adjust, $id) => $declared->contains((int) $id))
+            ->all();
+
         $row->syncOfferingOptions(
             $lineOptionId,
-            array_merge($modifiers, $choices),
-            $this->readAdjustments($data, $modifiers, $choices)
+            array_merge($modifiers, array_map('intval', array_keys($addOns))),
+            $this->readAdjustments($data, $modifiers) + $addOns
         );
 
         /*

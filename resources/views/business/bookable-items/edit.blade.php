@@ -35,15 +35,10 @@
      */
     $kindName = optional($row->lineOption)->name_ar ?: optional($row->lineOption)->name_en;
 
-    $storedChoices = collect(array_keys($priceAdjustments ?? []))
-        ->map(fn ($id) => (int) $id)
-        ->diff($unitModifierIds ?? collect());
-
     $pickedUnit = collect(old('option_ids', ($unitModifierIds ?? collect())->all()))->map(fn ($id) => (int) $id);
-    $pickedChoice = collect(old('choice_ids', $storedChoices->all()))->map(fn ($id) => (int) $id);
 
-    $oldAdjust = collect(old('option_adjust', []))->merge(old('choice_adjust', []));
-    $oldAdjustType = collect(old('option_adjust_type', []))->merge(old('choice_adjust_type', []));
+    $oldAdjust = collect(old('option_adjust', []));
+    $oldAdjustType = collect(old('option_adjust_type', []));
 
     $adjustValue = function (int $id) use ($oldAdjust, $priceAdjustments) {
         if ($oldAdjust->has($id)) {
@@ -167,7 +162,7 @@
             <div class="a2-form-grid" style="margin-top:6px;">
                 <div class="a2-form-group a2-field-full">
                     <label class="a2-label">{{ __('صفات هذه الوحدة') }}</label>
-                    <div class="a2-hint a2-mb-8">{{ __('«إطلالة بحرية» — مثبّتة على الغرفة، تُحسب في سعرها ولا يُسأل عنها العميل.') }}</div>
+                    <div class="a2-hint a2-mb-8">{{ __('ما يخصّ هذه الغرفة وحدها — «إطلالة بحرية» لغرفة و«على المسبح» لأخرى من نفس النوع. تُحسب في سعرها ولا يُسأل عنها العميل.') }}</div>
 
                     @foreach($unitOptions as $groupName => $options)
                         <div class="bv-group">
@@ -192,35 +187,14 @@
                     @endforeach
                 </div>
 
+                {{-- وما يختاره النزيل ليس هنا.
+                     «إفطار» و«إقامة كاملة» نفسُهما فى كل غرفة، فكتابتُهما داخل
+                     غرفةٍ بعينها تُوهم أنهما يخصّانها. مكانُهما «الإضافات». --}}
                 <div class="a2-form-group a2-field-full">
-                    <label class="a2-label">{{ __('ما يختاره النزيل عند الحجز') }}</label>
-                    <div class="a2-hint a2-mb-8">{{ __('«إفطار»، «إقامة كاملة» — تُعرض عليه بسعرها، وتُضاف إن اختارها.') }}</div>
-
-                    @foreach($unitOptions as $groupName => $options)
-                        <div class="bv-group">
-                            <div class="bv-group-head">{{ $groupName }}</div>
-                            <div class="bv-chips">
-                                @foreach($options as $option)
-                                    <label class="bv-chip">
-                                        <input type="checkbox" name="choice_ids[]" value="{{ $option->id }}"
-                                               @checked($pickedChoice->contains((int) $option->id))>
-                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
-                                        <input type="number" step="0.01" class="bv-adjust"
-                                               name="choice_adjust[{{ $option->id }}]"
-                                               value="{{ $adjustValue($option->id) }}" placeholder="0">
-                                        <select class="bv-adjust-type" name="choice_adjust_type[{{ $option->id }}]">
-                                            <option value="amount" @selected($adjustType($option->id) === 'amount')>{{ __('ج') }}</option>
-                                            <option value="percent" @selected($adjustType($option->id) === 'percent')>%</option>
-                                        </select>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-
-                    {{-- ما يُنزع تأشيرُه يُرفع: هذه الشاشةُ تقول حالَ السطر
-                         كاملًا، بخلاف الإضافة بالجملة التى لا ترى ما قبلها. --}}
-                    <small class="a2-help">{{ __('ما تُزيل علامته يُحذف من السطر عند الحفظ.') }}</small>
+                    <div class="a2-hint">
+                        {{ __('نظام الوجبات وما يختاره النزيل عند الحجز يُضبط مرّة واحدة من') }}
+                        <a href="{{ route('business.booking-add-ons.index') }}">{{ __('إضافات الحجز') }}</a>.
+                    </div>
                 </div>
             </div>
         @endif

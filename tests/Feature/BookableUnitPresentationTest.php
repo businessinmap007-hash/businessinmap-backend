@@ -245,71 +245,12 @@ class BookableUnitPresentationTest extends TestCase
         $this->assertNull($this->priceRowOf($hotel));
     }
 
-    /** «فردى ٦٠٠، وإفطار ٥٠، فالمجموع ٦٥٠». */
-    public function test_a_guest_choice_carries_its_own_price_and_adds_to_the_room(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9006,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-            'choice_adjust_type' => [self::BREAKFAST => 'amount'],
-        ])->assertRedirect();
-
-        $room = BookableItem::where('business_id', $hotel->id)->firstOrFail();
-
-        $this->assertSame(600.0, $this->nightly($room), 'بلا إفطار');
-        $this->assertSame(650.0, $this->nightly($room, [self::BREAKFAST]));
-    }
-
-    /**
-     * ولكلٍّ سعرُه: الإفطارُ ٥٠ والإقامةُ الكاملة ١٥٠.
+    /*
+     * اختباراتُ «ما يختاره النزيل» انتقلت إلى BookingAddOnsTest يوم 2026-08-20.
      *
-     * وهو المعنى الذى لأجله لا يكفى رقمٌ واحد على الدفعة: النزيلُ يختار
-     * واحدةً منهما، لا «إضافات» بسعرٍ واحد.
+     * «افطار» و«اقامة كاملة» صارت لها شاشتُها — تُكتب مرّةً وتُعرض على كل نوع
+     * — لأنها ليست صفةَ غرفةٍ بعينها. وما بقى هنا هو ما يخصّ الغرفةَ نفسها.
      */
-    public function test_each_choice_is_priced_separately(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9002,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST, self::FULL_BOARD],
-            'choice_adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 150],
-            'choice_adjust_type' => [self::BREAKFAST => 'amount', self::FULL_BOARD => 'amount'],
-        ])->assertRedirect();
-
-        $room = BookableItem::where('business_id', $hotel->id)->firstOrFail();
-
-        $this->assertSame(650.0, $this->nightly($room, [self::BREAKFAST]));
-        $this->assertSame(750.0, $this->nightly($room, [self::FULL_BOARD]));
-    }
-
-    /**
-     * وما يختاره النزيلُ لا يُثبَّت على الغرفة.
-     *
-     * وإلا صارت كلُّ غرفةٍ «شاملة الإفطار» بلا أن يطلبه أحد، ودُفع ثمنُه فى
-     * كل حجز — وهو الفرقُ كلُّه بين البطاقتين على الشاشة.
-     */
-    public function test_a_guest_choice_is_not_stamped_on_the_room(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9002,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-        ])->assertRedirect();
-
-        $room = BookableItem::where('business_id', $hotel->id)->firstOrFail();
-
-        $this->assertNotContains(self::BREAKFAST, $room->modifierOptionIds()->all());
-        $this->assertSame(600.0, $this->nightly($room), 'الإفطارُ حُسب بلا أن يُطلَب');
-    }
 
     /** وصفةُ الغرفة عكسُه: مثبَّتةٌ عليها، محسوبةٌ بلا أن يؤشّرها أحد. */
     public function test_a_room_attribute_is_stamped_and_priced_without_being_asked_for(): void
@@ -329,27 +270,6 @@ class BookableUnitPresentationTest extends TestCase
         $this->assertSame(700.0, $this->nightly($room), 'الصفةُ لم تُحسَب بنفسها');
     }
 
-    /** والقائمةُ تعرض الاختيارات بأسعارها، فتُقرأ كما يُقرأ أىُّ موقع حجز. */
-    public function test_the_customer_list_offers_the_choices_with_their_prices(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9002,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-        ])->assertRedirect();
-
-        $kind = $this->getJson('/api/v2/discovery/units/' . $hotel->id)
-            ->assertOk()->json('data.kinds.0');
-
-        $this->assertSame(600.0, (float) $kind['price']);
-        $this->assertCount(1, $kind['choices']);
-        $this->assertSame(self::BREAKFAST, $kind['choices'][0]['option_id']);
-        $this->assertSame(50.0, (float) $kind['choices'][0]['amount']);
-    }
-
     /** وما أعلنته الغرفةُ عن نفسها لا يُعرض خيارًا: ثمنُه محسوبٌ مرةً. */
     public function test_what_the_room_already_declares_is_not_offered_again(): void
     {
@@ -367,57 +287,5 @@ class BookableUnitPresentationTest extends TestCase
 
         $this->assertSame([], $kind['choices']);
         $this->assertSame(700.0, (float) $kind['units'][0]['price'], 'سعرُ الغرفة يشمل صفتها');
-    }
-
-    /**
-     * ودفعةٌ ثانية لا تمحو سعرًا كُتب من شاشةٍ أخرى.
-     *
-     * `syncOfferingOptions` تمسح ثم تكتب، فمن أضاف ست غرفٍ أخرى بعد شهر كان
-     * يمحو «شامل الإفطار +٥٠» صامتًا ولا يعرف.
-     */
-    public function test_a_second_batch_does_not_erase_a_surcharge_written_before_it(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9002,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-        ])->assertRedirect();
-
-        // دفعةٌ ثانية لا تعرف شيئًا عن الإفطار.
-        $this->postBatch($hotel, ['from' => 9003, 'to' => 9004, 'price' => 620])->assertRedirect();
-
-        $room = BookableItem::where('business_id', $hotel->id)->orderByDesc('id')->firstOrFail();
-
-        $this->assertSame(620.0, $this->nightly($room), 'السعرُ الجديد لم يُكتب');
-        $this->assertSame(670.0, $this->nightly($room, [self::BREAKFAST]), 'الإفطارُ مُحى');
-    }
-
-    /** والزيادةُ تُكتب على سطر السعر لا على الوحدة: مصدرُ السعر واحد. */
-    public function test_the_surcharge_lives_on_the_price_row_not_on_the_unit(): void
-    {
-        $hotel = $this->hotel();
-
-        $this->postBatch($hotel, [
-            'from' => 9001, 'to' => 9002,
-            'price' => 600,
-            'choice_ids' => [self::BREAKFAST],
-            'choice_adjust' => [self::BREAKFAST => 50],
-        ])->assertRedirect();
-
-        $row = $this->priceRowOf($hotel);
-
-        $written = DB::table('offering_options')
-            ->where('offering_type', $row->getMorphClass())
-            ->where('offering_id', $row->id)
-            ->where('role', OfferingOption::ROLE_MODIFIER)
-            ->where('option_id', self::BREAKFAST)
-            ->first();
-
-        $this->assertNotNull($written);
-        $this->assertSame('amount', $written->adjust_type);
-        $this->assertSame(50.0, (float) $written->adjust_value);
     }
 }

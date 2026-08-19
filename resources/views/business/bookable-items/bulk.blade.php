@@ -22,11 +22,8 @@
     $currentService = (int) old('service_id', 0);
     $currentType = (string) old('item_type', '');
     $selectedOptions = collect(old('option_ids', []))->map(fn ($id) => (int) $id);
-    $selectedChoices = collect(old('choice_ids', []))->map(fn ($id) => (int) $id);
     $optionAdjust = collect(old('option_adjust', []));
     $optionAdjustType = collect(old('option_adjust_type', []));
-    $choiceAdjust = collect(old('choice_adjust', []));
-    $choiceAdjustType = collect(old('choice_adjust_type', []));
 @endphp
 
 <form method="POST" action="{{ route('business.bookable-items.bulk.store') }}">
@@ -163,8 +160,8 @@
                 <div>
                     <div class="a2-card-title">{{ __('صفات هذه الوحدات') }}</div>
                     <div class="a2-card-sub">
-                        {{ __('ما تشترك فيه كل وحدات هذه الدفعة — «إطلالة بحرية»، «بلكونة».') }}
-                        {{ __('وإن كان لها سعر على سطر سعرك، يُضاف تلقائيًا ولا يُسأل عنه العميل.') }}
+                        {{ __('ما تشترك فيه كل وحدات هذه الدفعة — «بلكونة»، «تكييف».') }}
+                        {{ __('وما يخصّ غرفة بعينها — D117 على المسبح وD118 على البحر — يُضبط من شاشة تلك الغرفة بعد الإضافة.') }}
                     </div>
                 </div>
             </div>
@@ -198,51 +195,15 @@
         </div>
     @endif
 
-    @if($unitOptions->isNotEmpty())
-        {{-- ───────── ما يختاره النزيل ─────────
-             الفرقُ عن البطاقة التى فوقها ليس فى الكلمات بل فيمن يقرّرها:
-             «إطلالة بحرية» صفةُ الغرفة — مكتوبةٌ عليها ولا يُسأل عنها —
-             و«إفطار» قرارُ النزيل، فتسكن سطرَ السعر وحده فتُعرض عليه وقت
-             الحجز وتُحسَب إن اختارها. غرفةٌ فردى ٦٠٠ + إفطار ٥٠ = ٦٥٠. --}}
-        <div class="a2-card a2-card--section">
-            <div class="a2-card-head">
-                <div>
-                    <div class="a2-card-title">{{ __('ما يختاره النزيل عند الحجز') }}</div>
-                    <div class="a2-card-sub">
-                        {{ __('«إفطار»، «إقامة كاملة» — لكل واحدة سعرها، ويُضاف إلى سعر الوحدة إن اختارها.') }}
-                        {{ __('لا تُثبَّت على الغرفة: تُعرض عليه ليقرّر.') }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="a2-form-grid">
-                <div class="a2-form-group a2-field-full">
-                    @foreach($unitOptions as $groupName => $options)
-                        <div class="bv-group">
-                            <div class="bv-group-head">{{ $groupName }}</div>
-                            <div class="bv-chips">
-                                @foreach($options as $option)
-                                    <label class="bv-chip">
-                                        <input type="checkbox" name="choice_ids[]" value="{{ $option->id }}"
-                                               @checked($selectedChoices->contains((int) $option->id))>
-                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
-                                        <input type="number" step="0.01" class="bv-adjust"
-                                               name="choice_adjust[{{ $option->id }}]"
-                                               value="{{ $choiceAdjust[$option->id] ?? '' }}" placeholder="0"
-                                               title="{{ __('يُضاف إلى سعر الوحدة إن اختاره النزيل') }}">
-                                        <select class="bv-adjust-type" name="choice_adjust_type[{{ $option->id }}]">
-                                            <option value="amount" @selected(($choiceAdjustType[$option->id] ?? 'amount') === 'amount')>{{ __('ج') }}</option>
-                                            <option value="percent" @selected(($choiceAdjustType[$option->id] ?? '') === 'percent')>%</option>
-                                        </select>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
+    {{-- ونظامُ الوجبات ليس هنا.
+         «إفطار» و«إقامة كاملة» نفسُهما فى كل غرفة، فتكرارُهما مع كل دفعةٍ
+         يعيد إدخالَ الشىء نفسه. يُضبطان مرّةً من «إضافات الحجز». --}}
+    <div class="a2-card a2-card--soft" style="margin-top:12px;">
+        <div class="a2-card-sub">
+            {{ __('نظام الوجبات وما يختاره النزيل عند الحجز يُضبط مرّة واحدة من') }}
+            <a href="{{ route('business.booking-add-ons.index') }}">{{ __('إضافات الحجز') }}</a>.
         </div>
-    @endif
+    </div>
 
     <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
         <button type="submit" class="a2-btn a2-btn-primary">{{ __('إضافة الدفعة') }}</button>

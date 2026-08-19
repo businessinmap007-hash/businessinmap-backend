@@ -741,6 +741,14 @@ Route::prefix('v2')->group(function () {
 
         Route::prefix('bookings')->group(function () {
             Route::get('/', [BookingController::class, 'index']);
+            /*
+             * شكل شاشة الحجز عند نشاطٍ بعينه.
+             *
+             * التطبيق لا يعرف شيئًا عن الفنادق ولا البلايستيشن: يسأل، فيُقال
+             * له أىُّ حقلٍ يظهر وأيُّه مطلوب. ولهذا لا يحتاج نشاطٌ جديد إصدارَ
+             * تطبيق. قبل `{booking}` لأن «form» ليست رقمًا لكن الترتيب أوضح.
+             */
+            Route::get('form/{business}', [BookingController::class, 'form'])->whereNumber('business');
             // Owe a ruling, start no new business until it is met.
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');

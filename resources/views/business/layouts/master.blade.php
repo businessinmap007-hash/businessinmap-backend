@@ -19,20 +19,43 @@
                 @endauth
             </div>
 
+            {{-- «فتحت حساب تسويق واعطانى منيو وحجوزات والخطط التدريبية» —
+                 المالك 2026-08-19. كان الشريط سبعةَ عشرَ رابطًا بلا شرطٍ
+                 واحد: لم يسأل يومًا عمّا يبيعه صاحبُ المحل. البيانات كانت
+                 صحيحة — «تسويق» #177 لا يفعّل إلا الحجز — والشاشة وحدها هى
+                 التى لم تقرأها. --}}
             <nav style="display:flex;align-items:center;gap:8px;">
                 <a href="{{ route('business.dashboard') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الرئيسية') }}</a>
                 <a href="{{ route('business.offerings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('عروضي') }}</a>
+                @if(\App\Support\BusinessPanelNav::shows('bookable-items'))
                 <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('وحداتي') }}</a>
+                @endif
                 <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('أسعاري') }}</a>
+                @if(\App\Support\BusinessPanelNav::shows('menu'))
                 <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('المنيو') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('tables'))
                 <a href="{{ route('business.tables.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطاولات') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('table-calls'))
                 <a href="{{ route('business.table-calls.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('نداءات الطاولات') }}</a>
+                @endif
                 <a href="{{ route('business.share-store') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('شارك متجرك') }}</a>
+                @if(\App\Support\BusinessPanelNav::shows('products'))
                 <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('منتجاتي') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('schedules'))
                 <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('خطوط التشغيل') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('training-plans'))
                 <a href="{{ route('business.training-plans.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الخطط التدريبية') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('bookings'))
                 <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('حجوزاتي') }}</a>
+                @endif
+                @if(\App\Support\BusinessPanelNav::shows('booking-settings'))
                 <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('إعدادات الحجز') }}</a>
+                @endif
                 <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطلبات') }}</a>
                 <a href="{{ route('business.staff.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الموظفون') }}</a>
                 <a href="{{ route('business.locale.switch', $__other) }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ $__locale === 'ar' ? 'EN' : 'ع' }}</a>

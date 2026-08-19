@@ -2460,6 +2460,8 @@ paths:
   /bookings:
     get: { tags: [Bookings], summary: My bookings, responses: { '200': { description: OK } } }
     post: { tags: [Bookings], summary: 'Create a booking. offering_id + offering_type say what the booking is about — a price row (service_price, the default) names «كشف عظام» rather than «كشف» and decides the amount; a listing (menu_item) is what a showroom or estate agent is booked ON and never sets the price, since a flat''s asking price is not what a viewing costs.', responses: { '201': { description: Created }, '422': { description: 'The offering does not belong to this business, or is switched off.' } } }
+  /bookings/form/{business}:
+    get: { tags: [Bookings], summary: 'The booking screen for ONE business: which fields to show, which are required, and its bookable units. The app knows nothing about hotels or playstations — it draws what this returns, which is why a new trade needs no app release. `shape` is null when the business''s category carries no booking pattern.', parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'No such business.' } } }
   /bookings/{booking}:
     get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/financial-preview:

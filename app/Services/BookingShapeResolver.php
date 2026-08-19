@@ -34,20 +34,21 @@ class BookingShapeResolver
         'notes' => 'notes',
     ];
 
-    /** @var array<int, array> */
-    private array $cache = [];
-
+    /*
+     * بلا ذاكرة داخلية، عن قصد.
+     *
+     * كانت هنا ذاكرةٌ لكل نشاط توفّر استعلامين. وكشفها اختبارٌ يسأل عن الشكل،
+     * ثم يحفظ إعدادَ النشاط، ثم يسأل ثانيةً — فيأتيه الجوابُ الأول. مهما كان
+     * سببُ بقاء النسخة حيّة بين النداءين، فالحساب الذى يقرأ صفًّا قد يتغيّر
+     * لا يُحفظ داخل الكائن: استعلامان أرخص من شاشةٍ تعرض شرطًا رُفع للتوّ.
+     */
     public function forBusiness(int $businessId): ?array
     {
-        if (array_key_exists($businessId, $this->cache)) {
-            return $this->cache[$businessId];
-        }
-
         $business = User::query()
             ->where('id', $businessId)
             ->first(['id', 'category_id', 'category_child_id']);
 
-        return $this->cache[$businessId] = $business ? $this->forContext(
+        return $business ? $this->forContext(
             (int) $business->category_id,
             (int) $business->category_child_id,
             $businessId

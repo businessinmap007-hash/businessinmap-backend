@@ -9,6 +9,7 @@ use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
 use App\Services\BookingReminderService;
+use App\Services\BookingShapeResolver;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
@@ -26,8 +27,91 @@ final class BookingController extends Controller
         protected ServiceEventDispatcher $serviceEventDispatcher,
         protected BookingReminderService $bookingReminderService,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
-        protected AgendaService $agenda
+        protected AgendaService $agenda,
+        protected BookingShapeResolver $bookingShapes
     ) {
+    }
+
+    /**
+     * شكل شاشة الحجز عند هذا النشاط — ما يُعرض، وما يُشترط، وبأى اسم.
+     *
+     * التطبيق لا يعرف شيئًا عن الفنادق ولا عن البلايستيشن ولا عن العيادات:
+     * يسأل هنا فيُقال له أىُّ حقلٍ يظهر وأيُّه لا يُقبل الحجز بدونه وأىُّ
+     * وحداتٍ تُعرض. ولهذا لا يحتاج نشاطٌ جديد إصدارَ تطبيق.
+     *
+     * والأسماء تصل مترجَمةً بلغة الطالب: «كم نزيلًا» عند الفندق و«كم فردًا»
+     * عند المطعم — وهما فى قاعدة البيانات عمودٌ واحد.
+     *
+     * وتصنيفٌ بلا نمط يردّ `shape = null` بدل خطأ: الغياب سكوتٌ لا حكم،
+     * والتطبيق يرسم عندئذٍ شاشته العامّة كما كان يفعل قبل الأنماط.
+     */
+    public function form(Request $request, int $business)
+    {
+        $target = User::query()
+            ->where('id', $business)
+            ->where('type', User::TYPE_BUSINESS)
+            ->first(['id', 'name', 'category_id', 'category_child_id']);
+
+        if (! $target) {
+            return $this->error(__('البزنس غير موجود أو غير صحيح.'), 404);
+        }
+
+        $shape = $this->bookingShapes->forBusiness((int) $target->id);
+
+        if (! $shape) {
+            return response()->json([
+                'success' => true,
+                'data' => ['business_id' => (int) $target->id, 'shape' => null],
+            ]);
+        }
+
+        $required = $shape['requires'];
+
+        $fields = array_map(fn (string $field) => [
+            'key' => $field,
+            'label' => __('booking.field.' . $field),
+            'required' => in_array($field, $required, true),
+        ], $shape['asks']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+            'business_id' => (int) $target->id,
+            'shape' => [
+                'pattern' => $shape['pattern'],
+                'pattern_label' => $shape['label'],
+                'available_patterns' => $shape['available_patterns'],
+                'unit' => $shape['unit'],
+                'fields' => $fields,
+                'slot_minutes' => $shape['slot_minutes'],
+                'min_nights' => $shape['min_nights'],
+                'lead_time_minutes' => $shape['lead_time_minutes'],
+                'visit_mode' => $shape['visit_mode'],
+                'channels' => $shape['channels'],
+                'notes_label' => $shape['notes_label'] ?: __('booking.field.notes'),
+            ],
+            // الوحدات لا تُعرض إلا حين يكون لها معنى فى هذا الشكل.
+            'units' => $shape['unit'] === \App\Enums\BookingPattern::UNIT_NEVER ? [] : $this->unitsOf($target),
+            ],
+        ]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function unitsOf(User $business): array
+    {
+        return BookableItem::query()
+            ->where('business_id', $business->id)
+            ->where('is_active', 1)
+            ->orderBy('title')
+            ->get(['id', 'title', 'code', 'item_type', 'capacity', 'quantity'])
+            ->map(fn (BookableItem $item) => [
+                'id' => (int) $item->id,
+                'title' => $item->title,
+                'code' => $item->code,
+                'item_type' => $item->item_type,
+                'capacity' => $item->capacity,
+                'quantity' => $item->quantity,
+            ])->all();
     }
 
     public function index(Request $request)

@@ -112,6 +112,30 @@ class ServiceExecutionEngine
             ]);
         }
 
+        /*
+         * ما تعلنه الوحدةُ عن نفسها يُسعَّر بلا أن يؤشّره النزيل.
+         *
+         * «غرفة ١٠١ — إطلالة بحرية» تحمل الإطلالة صفةً ثابتة فيها، وسطرُ السعر
+         * يحمل «إطلالة بحرية +١٠٠». فمطالبةُ العميل بتأشيرها تسأله عن شىءٍ لا
+         * يملك تغييره، وتركُها تُسقط مئةَ جنيهٍ من فاتورةٍ صحيحة.
+         *
+         * والدمجُ فريد: لو أشّرها العميلُ أيضًا لا تُحسب مرّتين.
+         */
+        $optionIds = $this->withUnitOwnOptions($bookable, $optionIds);
+
+        /*
+         * ما يميّز الوحدةَ نفسها يُسعَّر كما لو اختاره العميل.
+         *
+         * «إطلالة بحرية» ليست اختيارًا يُعرض عند الحجز — هى صفةُ غرفة ١٠١ ولا
+         * تنطبق على ١٠٢. فصاحبُ الفندق يكتب الزيادةَ مرّةً على سطر السعر،
+         * ويؤشّر أىَّ غرفٍ تطلّ على البحر، فتخرج ١٠١ أغلى من ١٠٢ بلا سطرٍ ثانٍ
+         * ولا سؤالٍ يُطرح على النزيل.
+         */
+        $optionIds = array_values(array_unique(array_merge(
+            $optionIds,
+            $bookable ? $bookable->modifierOptionIds()->all() : []
+        )));
+
         $priceBreakdown = $this->resolvePriceBreakdown(
             service: $service,
             businessPrice: $businessPrice,
@@ -801,6 +825,25 @@ class ServiceExecutionEngine
      *
      * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
      */
+    /**
+     * اختياراتُ العميل، ومعها ما تعلنه الوحدةُ المحجوزة عن نفسها.
+     *
+     * @return array<int,int>
+     */
+    public function withUnitOwnOptions(?BookableItem $bookable, array $optionIds): array
+    {
+        if (! $bookable) {
+            return $optionIds;
+        }
+
+        $own = $bookable->offeringOptions
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            ->pluck('option_id');
+
+        return collect($optionIds)->merge($own)
+            ->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
+    }
+
     /**
      * ما يزيده ما اختاره العميلُ على سعر هذا السطر.
      *

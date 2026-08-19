@@ -2,13 +2,34 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOfferingOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
 
 class BookableItem extends Model
 {
+    /**
+     * الوحدةُ تصف نفسها بكلمات المنصّة، لا بكودها وحده.
+     *
+     * «غرفة ١٠١ — إطلالة بحرية — بلكونة». وليست زينةً على الاسم: سطرُ السعر
+     * يحمل زيادةً لكل مُوصِّف منذ 2026-08-19، فغرفةٌ تعلن إطلالتَها تُسعِّر
+     * نفسها — ولا يُطلب من النزيل أن يؤشّر صفةً هى فى الغرفة أصلًا.
+     *
+     * و`line_option_id` يبقى العمودَ الذى يشير إلى السطر المسعَّر؛ السِّمة
+     * تكتبه بنفسها حين تُزامن، فلا يفترق العمودُ عن الصفوف.
+     */
+    use HasOfferingOptions;
+
+    /** المفتاح الأجنبىّ هنا يرفض الصفر — «بلا نوع» تُكتب NULL. */
+    protected function lineOptionColumnIsNullable(): bool
+    {
+        return true;
+    }
+
     protected $table = 'bookable_items';
 
     // Units are inventory only. Price and deposit are single-source in
@@ -56,6 +77,28 @@ class BookableItem extends Model
     public function lineOption(): BelongsTo
     {
         return $this->belongsTo(Option::class, 'line_option_id');
+    }
+
+    /**
+     * ما يميّز هذه الوحدة بعينها — «إطلالة بحرية»، «على المسبح».
+     *
+     * النوعُ (`line_option_id`) يقول ما هى: غرفة مزدوجة. وهذا يقول ما يفرّقها
+     * عن مزدوجةٍ أخرى — والزيادةُ المكتوبة على «إطلالة بحرية» فى سطر السعر
+     * تُقرأ منه فتصير غرفةُ ١٠١ أغلى من ١٠٢ بلا سطرٍ ثانٍ.
+     *
+     * ويسكن `offering_options` نفسه الذى يحمل مفردات صفوف السعر وأصناف المنيو،
+     * فلا آليةَ ثانية: `HasOfferingOptions` مضافةٌ إلى هذا النموذج أصلًا،
+     * و`syncOfferingOptions()` تكتب السطرَ والمُوصِّفات وتُطابق `line_option_id`
+     * بنفسها.
+     *
+     * @return \Illuminate\Support\Collection<int,int>
+     */
+    public function modifierOptionIds(): Collection
+    {
+        return $this->offeringOptions()
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            ->pluck('option_id')
+            ->map(fn ($id) => (int) $id);
     }
 
     public function blockedSlots(): HasMany

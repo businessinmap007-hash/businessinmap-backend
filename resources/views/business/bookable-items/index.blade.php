@@ -15,6 +15,7 @@
         <div class="a2-page-subtitle">{{ __('الوحدات الفعلية التي تعرضها للحجز — تخصّك أنت فقط.') }}</div>
     </div>
     <div class="a2-page-actions">
+        <a href="{{ route('business.bookable-items.bulk') }}" class="a2-btn a2-btn-ghost">{{ __('إضافة بالجملة') }}</a>
         <a href="{{ route('business.bookable-items.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة وحدة') }}</a>
     </div>
 </div>

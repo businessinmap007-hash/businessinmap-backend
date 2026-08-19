@@ -53,6 +53,10 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('bookable-items/create', [BookableItemController::class, 'create'])->name('bookable-items.create');
         Route::post('bookable-items', [BookableItemController::class, 'store'])->name('bookable-items.store');
         Route::get('bookable-items/{id}/edit', [BookableItemController::class, 'edit'])->whereNumber('id')->name('bookable-items.edit');
+        // «٦ غرف فردى و١٠ مزدوجة» — المدى كلُّه فى حفظٍ واحد.
+        Route::get('bookable-items/bulk', [BookableItemController::class, 'bulk'])->name('bookable-items.bulk');
+        Route::post('bookable-items/bulk', [BookableItemController::class, 'bulkStore'])->name('bookable-items.bulk.store');
+
         Route::put('bookable-items/{id}', [BookableItemController::class, 'update'])->whereNumber('id')->name('bookable-items.update');
         Route::delete('bookable-items/{id}', [BookableItemController::class, 'destroy'])->whereNumber('id')->name('bookable-items.destroy');
 

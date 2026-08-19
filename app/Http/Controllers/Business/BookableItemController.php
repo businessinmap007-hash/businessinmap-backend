@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -20,6 +21,9 @@ use Illuminate\View\View;
 class BookableItemController extends Controller
 {
     use ResolvesOwnerCatalog;
+
+    /** أكثر ما تنشئه دفعةٌ واحدة — حارسٌ من خطأٍ مطبعىٍّ فى «إلى». */
+    private const BULK_LIMIT = 200;
 
     private function scopedItem(int $id): BookableItem
     {
@@ -83,6 +87,137 @@ class BookableItemController extends Controller
         return redirect()
             ->route('business.bookable-items.index', ['service_id' => $data['service_id']])
             ->with('success', 'تمت إضافة الوحدة بنجاح.');
+    }
+
+    /**
+     * «٦ غرف فردى و١٠ مزدوجة و٥ أجنحة، من ١٠١ إلى ١٠٦ ومن ١٠٧ إلى ١١١».
+     *
+     * الشاشةُ القديمة تُنشئ وحدةً واحدة لكل حفظ، فواحدٌ وعشرون غرفةً واحدٌ
+     * وعشرون نموذجًا لا يتغيّر بينها إلا رقم.
+     */
+    public function bulk(): View
+    {
+        $services = $this->servicesForChild();
+
+        return view('business.bookable-items.bulk', [
+            'services' => $services,
+            'allowedTypesByService' => $this->allowedTypesByService($services),
+            'lineOptions' => $this->lineOptionsForUnits(),
+            'unitOptions' => $this->unitOptions(),
+        ]);
+    }
+
+    /**
+     * ينشئ المدى دفعةً واحدة، ويتخطّى ما هو موجود.
+     *
+     * التخطّى لا الفشل: من أضاف ١٠١–١٠٦ ثم عاد ليضيف ١٠١–١١٠ يقصد الأربعةَ
+     * الناقصة، ورفضُ الدفعة كلِّها لأجل صفٍّ قائم يجعله يحسب المدى بنفسه —
+     * وهذا هو العمل الذى جاء ليتخلّص منه.
+     */
+    public function bulkStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'service_id' => ['required', 'integer'],
+            'item_type' => ['required', 'string', 'max:100'],
+            'line_option_id' => ['nullable', 'integer'],
+            'prefix' => ['nullable', 'string', 'max:40'],
+            'from' => ['required', 'integer', 'min:0'],
+            'to' => ['required', 'integer', 'min:0', 'gte:from'],
+            'pad' => ['nullable', 'integer', 'min:0', 'max:6'],
+            'capacity' => ['nullable', 'integer', 'min:1'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer'],
+        ], [], [
+            'service_id' => 'الخدمة',
+            'item_type' => 'نوع العنصر',
+            'from' => 'من',
+            'to' => 'إلى',
+        ]);
+
+        $serviceId = (int) $data['service_id'];
+        $itemType = trim((string) $data['item_type']);
+
+        $this->assertAllowed($serviceId, $itemType);
+
+        $from = (int) $data['from'];
+        $to = (int) $data['to'];
+
+        // حدٌّ أعلى للدفعة: خطأٌ مطبعىٌّ فى «إلى» لا يجوز أن يصنع ألف غرفة.
+        if (($to - $from) >= self::BULK_LIMIT) {
+            throw ValidationException::withMessages([
+                'to' => __('المدى أكبر من :max وحدة فى الدفعة الواحدة.', ['max' => self::BULK_LIMIT]),
+            ]);
+        }
+
+        $lineOptionId = $this->sanitizeLineOption($data['line_option_id'] ?? null);
+        $modifiers = $this->sanitizeUnitOptions($data['option_ids'] ?? [], $lineOptionId);
+
+        $prefix = trim((string) ($data['prefix'] ?? ''));
+        $pad = (int) ($data['pad'] ?? 0);
+
+        $existing = BookableItem::query()
+            ->where('business_id', $this->businessId())
+            ->pluck('code')
+            ->map(fn ($code) => (string) $code)
+            ->flip();
+
+        $created = 0;
+        $skipped = 0;
+
+        for ($n = $from; $n <= $to; $n++) {
+            $code = $prefix . ($pad > 0 ? str_pad((string) $n, $pad, '0', STR_PAD_LEFT) : (string) $n);
+
+            if (isset($existing[$code])) {
+                $skipped++;
+
+                continue;
+            }
+
+            $item = BookableItem::create([
+                'business_id' => $this->businessId(),
+                'service_id' => $serviceId,
+                'item_type' => $itemType,
+                'line_option_id' => $lineOptionId,
+                'code' => $code,
+                'capacity' => ! empty($data['capacity']) ? (int) $data['capacity'] : null,
+                'quantity' => 1,
+                'is_active' => 1,
+            ]);
+
+            // صفاتُ الوحدة نفسها — الإطلالة، البلكونة — تُسعِّرها لاحقًا بلا
+            // أن يؤشّرها النزيل. ولا زيادةَ تُكتب هنا: السعرُ صفةُ سطرِ السعر.
+            if ($modifiers !== []) {
+                $item->syncOfferingOptions($lineOptionId, $modifiers);
+            }
+
+            $created++;
+        }
+
+        return redirect()
+            ->route('business.bookable-items.index', ['service_id' => $serviceId])
+            ->with('success', __('أُضيفت :created وحدة، وتُخطّيت :skipped موجودة.', [
+                'created' => $created,
+                'skipped' => $skipped,
+            ]));
+    }
+
+    /** ما يصلح صفةً للوحدة: مُوصِّفاتُ هذا التاجر. */
+    private function unitOptions()
+    {
+        return app(\App\Services\MerchantOfferingVocabulary::class)
+            ->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'];
+    }
+
+    /** @return array<int,int> */
+    private function sanitizeUnitOptions(array $ids, ?int $lineOptionId): array
+    {
+        $allowed = app(\App\Services\MerchantOfferingVocabulary::class)
+            ->pickableIds($this->businessId(), $this->childId(), $this->rootId())['modifiers'];
+
+        return collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== (int) $lineOptionId && $allowed->contains($id))
+            ->unique()->values()->all();
     }
 
     public function edit(int $id): View

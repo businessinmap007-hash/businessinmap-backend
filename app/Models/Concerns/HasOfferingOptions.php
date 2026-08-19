@@ -26,6 +26,16 @@ use Illuminate\Support\Facades\DB;
  */
 trait HasOfferingOptions
 {
+    /**
+     * هل يقبل عمودُ `line_option_id` قيمة NULL على هذا النموذج؟
+     *
+     * يُعلَن ولا يُستنتج: قراءةُ المخطّط استعلامٌ فى كل حفظ، وتخمينُه صامتٌ.
+     */
+    protected function lineOptionColumnIsNullable(): bool
+    {
+        return false;
+    }
+
     public function offeringOptions(): MorphMany
     {
         return $this->morphMany(OfferingOption::class, 'offering')
@@ -127,7 +137,20 @@ trait HasOfferingOptions
             // mirrors the line for that key, keep the mirror honest here — this
             // is the only place that writes it.
             if ($this->exists && in_array('line_option_id', $this->getFillable(), true)) {
-                $this->forceFill(['line_option_id' => (int) $lineId])->saveQuietly();
+                /*
+                 * «لا سطر» تُكتب كما يقبلها العمود.
+                 *
+                 * `(int) null` صفر. وعلى `bookable_items` مفتاحٌ أجنبىٌّ على
+                 * هذا العمود، فوحدةٌ بلا نوعٍ كانت تُسقط الحفظ كلَّه بخطأ قيد.
+                 * وعلى `business_service_prices` العمودُ NOT NULL، فالصفرُ هو
+                 * جوابُه الوحيد. والجدولان يستعملان السِّمة نفسها، فالنموذجُ
+                 * يعلن أيَّهما هو بدل أن تخمّن هى.
+                 */
+                $this->forceFill([
+                    'line_option_id' => $lineId
+                        ? (int) $lineId
+                        : ($this->lineOptionColumnIsNullable() ? null : 0),
+                ])->saveQuietly();
             }
         });
 

@@ -32,6 +32,7 @@
                 <a href="{{ route('business.schedules.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('خطوط التشغيل') }}</a>
                 <a href="{{ route('business.training-plans.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الخطط التدريبية') }}</a>
                 <a href="{{ route('business.bookings.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('حجوزاتي') }}</a>
+                <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('إعدادات الحجز') }}</a>
                 <a href="{{ route('business.orders.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطلبات') }}</a>
                 <a href="{{ route('business.staff.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الموظفون') }}</a>
                 <a href="{{ route('business.locale.switch', $__other) }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ $__locale === 'ar' ? 'EN' : 'ع' }}</a>

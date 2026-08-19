@@ -18,6 +18,7 @@ use App\Http\Controllers\Business\TableController;
 use App\Http\Controllers\Business\TrainingPlanController;
 use App\Http\Controllers\Business\TripReservationController;
 use App\Http\Controllers\Business\TripScheduleController;
+use App\Http\Controllers\Business\BookingSettingsController;
 use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
@@ -64,6 +65,10 @@ Route::prefix('business')->name('business.')->group(function () {
 
         Route::get('menu-settings', [MenuSettingsController::class, 'edit'])->name('menu-settings.edit');
         Route::put('menu-settings', [MenuSettingsController::class, 'update'])->name('menu-settings.update');
+
+        // نمط الحجز وتفاصيله — ما يقرّره صاحب النشاط داخل ما فتحه له الطفل.
+        Route::get('booking-settings', [BookingSettingsController::class, 'edit'])->name('booking-settings.edit');
+        Route::put('booking-settings', [BookingSettingsController::class, 'update'])->name('booking-settings.update');
 
         // Delegated staff: grant an employee scoped management of the page.
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');

@@ -217,10 +217,13 @@ class UnitDiscoveryTest extends TestCase
         $this->assertCount(2, $kinds);
         $this->assertSame('غرفة مزدوجة', $kinds[0]['name']);
 
-        // It falls back to the ordinary ladder, which finds the only row there
-        // is — so it reports a price rather than nothing, and says which row.
+        // And it appears as what it is: a kind with no price. It used to borrow
+        // the double room's row and report 900, which is the failure mode this
+        // test's own docblock warns about — a missing price wearing someone
+        // else's number.
         $this->assertSame('جناح', $kinds[1]['name']);
-        $this->assertNotNull($kinds[1]['offering_id']);
+        $this->assertNull($kinds[1]['offering_id']);
+        $this->assertNull($kinds[1]['price']);
     }
 
     public function test_an_unknown_business_is_not_found(): void

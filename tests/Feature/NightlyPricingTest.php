@@ -370,4 +370,51 @@ class NightlyPricingTest extends TestCase
 
         $this->assertSame(6000.0, (float) $this->stay($room, Carbon::today()->addDay()->setTime(14, 0), 3)['final_price']);
     }
+
+    /**
+     * ونوعٌ بلا سطرٍ خاصٍّ به لا يستعير سطرَ نوعٍ آخر.
+     *
+     * كان السقوطُ غيرَ المقيَّد يأخذ أحدثَ سطرٍ للخدمة أيًّا كان نوعُه. وقد حدث
+     * فى الحيّ مرّتين: غرفةٌ فردية بيعت بسعر «شقة» (٢٠٠٠)، وتسعُ غرفٍ مزدوجة
+     * بيعت بسعر «فردية» (٦٠٠).
+     */
+    public function test_an_unpriced_kind_does_not_borrow_another_kinds_row(): void
+    {
+        $this->priceFor(self::SUITE, 2000);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->assertNull(
+            app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($room),
+            'الفرديةُ استعارت سطرَ الجناح'
+        );
+    }
+
+    /** بل يسقط إلى السطر العامّ — وهو ما تَعِد به الشاشةُ حرفيًّا. */
+    public function test_an_unpriced_kind_falls_to_the_generic_row(): void
+    {
+        $this->priceFor(self::SUITE, 2000);
+        $this->priceFor(0, 500); // «بدون تحديد — يأخذ السعر العام للنوع»
+
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->assertSame(500.0, (float) $this->stay($room, Carbon::today()->addDay()->setTime(14, 0), 1)['final_price']);
+    }
+
+    /** وبلا سطرٍ عامّ يُرفَض الحجزُ برسالةٍ تسمّى النوعَ الناقص. */
+    public function test_booking_an_unpriced_kind_is_refused_by_name(): void
+    {
+        $this->priceFor(self::SUITE, 2000);
+        $room = $this->roomOf(self::DOUBLE, 'Z201');
+
+        try {
+            $this->stay($room, Carbon::today()->addDay()->setTime(14, 0), 2);
+            $this->fail('بيعت غرفةٌ لم يُسعَّر نوعُها');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertStringContainsString(
+                'غرفة مزدوجة',
+                implode(' ', $e->validator->errors()->all()),
+                'الرسالةُ لا تقول أىُّ نوعٍ ينقصه سعر'
+            );
+        }
+    }
 }

@@ -645,6 +645,7 @@
     "لا يوجد Deposit لهذا الحجز.": "There is no deposit for this booking.",
     "لا يوجد Deposit مرتبط بهذا الحجز.": "No deposit is linked to this booking.",
     "لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر (:type).": "No active price exists for this business, service and item type (:type).",
+    "لا يوجد سعر لهذا النوع (:kind). أضِف له سعرًا من شاشة الأسعار.": "No price is set for this kind (:kind). Add one from the prices screen.",
     "لا يوجد ضمان مفعل لهذه العملية.": "No active guarantee exists for this operation.",
     "لا يوجد ضمان نشط قابل للفكّ.": "There is no active guarantee to release.",
     "لا يوجد ضمان نشط لهذا المستخدم.": "This user has no active guarantee.",

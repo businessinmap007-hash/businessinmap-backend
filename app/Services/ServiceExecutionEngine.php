@@ -111,10 +111,24 @@ class ServiceExecutionEngine
         );
 
         if (! $businessPrice) {
+            /*
+             * الرسالةُ تسمّى ما ينقص بلغة صاحبه.
+             *
+             * `booking_stay` مفتاحٌ داخلىّ لا يعرفه أحد، و«غرفة مزدوجة» هو ما
+             * سيبحث عنه صاحبُ الفندق فى شاشة الأسعار. وهذا هو الطريقُ الذى
+             * تسلكه وحدةٌ لم يُسعَّر نوعُها منذ أن كفَّ السُّلَّمُ عن إعارتها
+             * سطرَ نوعٍ آخر.
+             */
+            $kind = $bookable
+                ? (string) (optional($bookable->lineOption)->name_ar ?: optional($bookable->lineOption)->name_en ?: '')
+                : '';
+
             throw ValidationException::withMessages([
-                'service_id' => $itemType
-                    ? __('لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر (:type).', ['type' => $itemType])
-                    : __('هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.'),
+                'service_id' => match (true) {
+                    $kind !== '' => __('لا يوجد سعر لهذا النوع (:kind). أضِف له سعرًا من شاشة الأسعار.', ['kind' => $kind]),
+                    $itemType !== null && $itemType !== '' => __('لا يوجد سعر مفعل لهذا البزنس والخدمة ونوع العنصر (:type).', ['type' => $itemType]),
+                    default => __('هذه الخدمة غير مفعلة لهذا البزنس داخل هذا القسم الفرعي.'),
+                },
             ]);
         }
 

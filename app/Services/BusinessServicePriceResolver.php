@@ -70,6 +70,21 @@ class BusinessServicePriceResolver
             if ($named) {
                 return $named;
             }
+
+            /*
+             * ما سُمّى نوعُه لا يُسعَّر بسطرِ نوعٍ آخر.
+             *
+             * السقوطُ غيرُ المقيَّد كان يأخذ أىَّ سطرٍ للخدمة نفسها — بترتيب
+             * المعرّف تنازليًّا، أى الأحدث — فغرفةٌ فردية بلا سطرٍ خاصٍّ بها
+             * تُباع بسعر «شقة»، وتسعُ غرفٍ مزدوجة تُباع بسعر «فردية». حدث
+             * الاثنان فعلًا فى قاعدة البيانات الحيّة.
+             *
+             * فالسقوطُ الآن إلى السطر العامّ وحده — وهو ما تَعِد به شاشةُ
+             * الوحدة حرفيًّا: «بدون تحديد — يأخذ السعر العام للنوع». ونوعٌ لم
+             * يُسعَّر ولا سطرَ عامَّ عنده يبقى بلا سعر، فيُرفَض الحجزُ برسالةٍ
+             * تسمّيه بدل أن يُباع برقمٍ لم يكتبه أحد.
+             */
+            return $this->ladder($businessId, $serviceId, $childId, $itemType, null, genericOnly: true);
         }
 
         return $this->ladder($businessId, $serviceId, $childId, $itemType, null);
@@ -82,17 +97,24 @@ class BusinessServicePriceResolver
      * to the «غرفة مزدوجة» row just because the suite has no child-scoped row —
      * so when the line is given and nothing sells it, this returns null and the
      * caller re-runs unnarrowed rather than mixing the two.
+     *
+     * `$genericOnly` is that re-run. It restricts every rung to the row that
+     * names NO kind — the one the unit screen calls «السعر العام للنوع» —
+     * because an unrestricted re-run does exactly what the paragraph above
+     * forbids: it reaches another kind's row and sells a single room at the
+     * apartment rate.
      */
     private function ladder(
         int $businessId,
         int $serviceId,
         int $childId,
         string $itemType,
-        ?int $lineOptionId
+        ?int $lineOptionId,
+        bool $genericOnly = false
     ): ?BusinessServicePrice {
         $defaultItemType = BusinessServicePrice::DEFAULT_ITEM_TYPE;
 
-        $find = function (?int $child, ?string $type) use ($businessId, $serviceId, $lineOptionId): ?BusinessServicePrice {
+        $find = function (?int $child, ?string $type) use ($businessId, $serviceId, $lineOptionId, $genericOnly): ?BusinessServicePrice {
             $query = BusinessServicePrice::query()
                 ->where('business_id', $businessId)
                 ->where('service_id', $serviceId)
@@ -108,6 +130,8 @@ class BusinessServicePriceResolver
 
             if ($lineOptionId) {
                 $query->where('line_option_id', $lineOptionId);
+            } elseif ($genericOnly) {
+                $query->where('line_option_id', 0);
             }
 
             return $query->orderByDesc('id')->first();

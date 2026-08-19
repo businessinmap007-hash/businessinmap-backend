@@ -154,21 +154,38 @@ class BookableUnitLineOptionTest extends TestCase
     }
 
     /**
-     * Narrowing is all-or-nothing. A hotel that has priced «جناح» nowhere must
-     * not silently sell it at the double room's price — it falls back to the
-     * ordinary ladder, which is the documented behaviour, not to a sibling row
-     * that happens to share the item type and a different kind.
+     * Narrowing is all-or-nothing, and this test used to contradict its own
+     * docblock: it said a suite priced nowhere «must not silently sell at the
+     * double room's price», then asserted that it does.
+     *
+     * The docblock was right. The unrestricted fallback took the newest row for
+     * the service whatever kind it named, and it had already happened twice in
+     * the live database — a single room sold at the «شقة» rate of 2000, and nine
+     * double rooms sold at the «فردية» rate of 600. The fallback now reaches
+     * only the row that names NO kind.
      */
-    public function test_an_unpriced_kind_falls_back_rather_than_borrowing_a_sibling(): void
+    public function test_an_unpriced_kind_does_not_borrow_a_siblings_row(): void
     {
-        $double = $this->seedPrice('booking_stay', 800, $this->doubleRoomId);
+        $this->seedPrice('booking_stay', 800, $this->doubleRoomId);
 
         $suite301 = $this->unit('س301', $this->suiteId);
 
-        $got = $this->resolver->resolveForBookableItem($suite301);
+        $this->assertNull(
+            $this->resolver->resolveForBookableItem($suite301),
+            'the suite borrowed the double room\'s price'
+        );
+    }
 
-        $this->assertNotNull($got, 'the fallback must still find a price');
-        $this->assertSame($double->id, $got->id);
+    /** It falls to the generic row instead — what the unit screen promises. */
+    public function test_an_unpriced_kind_falls_to_the_row_that_names_no_kind(): void
+    {
+        $this->seedPrice('booking_stay', 800, $this->doubleRoomId);
+        $generic = $this->seedPrice('booking_stay', 500);
+
+        $got = $this->resolver->resolveForBookableItem($this->unit('س301', $this->suiteId));
+
+        $this->assertNotNull($got, 'the generic row must still be reachable');
+        $this->assertSame($generic->id, $got->id);
     }
 
     /** An inactive row is invisible to the narrowed pass too. */

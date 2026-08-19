@@ -118,7 +118,7 @@ class BusinessServicePriceController extends Controller
         }
 
         // line_option_id is a mirror of offering_options; only the sync writes it.
-        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all());
+        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all(), $row->currentOfferingAdjustments());
 
         return redirect()->route('admin.business_service_prices.edit', $row)->with('success', __('تم حفظ سعر الخدمة وإعدادات الديبوزت والخصم بنجاح.'));
     }
@@ -274,7 +274,7 @@ class BusinessServicePriceController extends Controller
 
         if ($duplicate) throw ValidationException::withMessages(['bookable_item_type' => __('يوجد سجل آخر لنفس البزنس والقسم الفرعي والخدمة ونوع العنصر ونوع الوحدة.')]);
         $row->update($data);
-        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all());
+        $row->syncOfferingOptions($line, $row->modifierOptions()->pluck('id')->all(), $row->currentOfferingAdjustments());
 
         return back()->with('success', __('تم تحديث السجل بنجاح.'));
     }

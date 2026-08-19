@@ -92,8 +92,53 @@ final class BookingController extends Controller
             ],
             // الوحدات لا تُعرض إلا حين يكون لها معنى فى هذا الشكل.
             'units' => $shape['unit'] === \App\Enums\BookingPattern::UNIT_NEVER ? [] : $this->unitsOf($target),
+            // وما يزيده مُوصِّفٌ على السعر: «شاشة كبيرة +٢٠». يصل مسعَّرًا حتى
+            // يعرض التطبيقُ الزيادةَ قبل الحجز لا بعده.
+            'modifiers' => $this->modifiersOf($target),
             ],
         ]);
+    }
+
+    /**
+     * المُوصِّفات المسعَّرة عند هذا النشاط، مجموعةً تحت سطرها.
+     *
+     * تُقرأ من مفردات صفوف السعر لا من مفردات التصنيف: التصنيف يقول ما **يجوز**
+     * وصفُه، وهذه تقول ما وضع صاحبُ المحل عليه سعرًا فعلًا. وما قيمتُه صفرٌ
+     * لا يُرسَل: مُوصِّفٌ بلا سعرٍ لا شأن لشاشة الدفع به.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function modifiersOf(User $business): array
+    {
+        return \App\Models\OfferingOption::query()
+            ->join('business_service_prices as p', function ($join) {
+                $join->on('p.id', '=', 'offering_options.offering_id')
+                    ->where('offering_options.offering_type', '=', (new \App\Models\BusinessServicePrice)->getMorphClass());
+            })
+            ->leftJoin('options as o', 'o.id', '=', 'offering_options.option_id')
+            ->leftJoin('options as l', 'l.id', '=', 'p.line_option_id')
+            ->where('p.business_id', $business->id)
+            ->where('p.is_active', 1)
+            ->where('offering_options.role', \App\Models\OfferingOption::ROLE_MODIFIER)
+            ->where('offering_options.adjust_value', '!=', 0)
+            ->orderBy('p.id')
+            ->orderBy('offering_options.sort_order')
+            ->get([
+                'p.id as price_id',
+                'l.name_ar as line_name',
+                'offering_options.option_id',
+                'o.name_ar as name',
+                'offering_options.adjust_type',
+                'offering_options.adjust_value',
+            ])
+            ->map(fn ($r) => [
+                'price_id' => (int) $r->price_id,
+                'line' => $r->line_name,
+                'option_id' => (int) $r->option_id,
+                'name' => $r->name,
+                'adjust_type' => $r->adjust_type,
+                'adjust_value' => (float) $r->adjust_value,
+            ])->all();
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -196,7 +241,8 @@ final class BookingController extends Controller
             // Only a price row can decide an amount. A listing says what the
             // booking is about — a flat's asking price is not what a viewing
             // costs — so it never reaches the pricing ladder.
-            offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null
+            offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
+            optionIds: $data['option_ids'] ?? []
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -707,6 +753,10 @@ final class BookingController extends Controller
             'party_size' => ['nullable', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'meta' => ['nullable', 'array'],
+            // المُوصِّفات التى اختارها العميل — «شاشة كبيرة»، «بلايستيشن ٥».
+            // ما لا يعرفه سطرُ السعر يسقط صامتًا عند الحساب.
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer'],
         ];
     }
 

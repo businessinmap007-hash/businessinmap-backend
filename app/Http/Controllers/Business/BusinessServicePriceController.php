@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessServicePrice;
+use App\Models\OfferingOption;
 use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,13 +84,15 @@ class BusinessServicePriceController extends Controller
             'vocabulary' => $this->vocabulary(),
             'lineId' => null,
             'modifierIds' => collect(),
+            'modifierAdjust' => [],
+            'modifierAdjustType' => [],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateData($request);
-        [$line, $modifiers] = $this->chosenVocabulary($request);
+        [$line, $modifiers, $adjustments] = $this->chosenVocabulary($request);
 
         if ($this->duplicateExists($data, $line)) {
             throw ValidationException::withMessages([
@@ -102,7 +105,7 @@ class BusinessServicePriceController extends Controller
             'child_id' => $this->childId(),
         ]);
 
-        $row->syncOfferingOptions($line, $modifiers);
+        $row->syncOfferingOptions($line, $modifiers, $adjustments);
 
         return redirect()
             ->route('business.prices.index', ['service_id' => $data['service_id']])
@@ -121,6 +124,13 @@ class BusinessServicePriceController extends Controller
             'vocabulary' => $this->vocabulary(),
             'lineId' => $row->lineOption()?->id,
             'modifierIds' => $row->modifierOptions()->pluck('id'),
+            'modifierAdjust' => $row->offeringOptions()
+                ->where('role', OfferingOption::ROLE_MODIFIER)
+                ->pluck('adjust_value', 'option_id')
+                ->filter(fn ($v) => (float) $v !== 0.0)->all(),
+            'modifierAdjustType' => $row->offeringOptions()
+                ->where('role', OfferingOption::ROLE_MODIFIER)
+                ->pluck('adjust_type', 'option_id')->all(),
         ]);
     }
 
@@ -129,7 +139,7 @@ class BusinessServicePriceController extends Controller
         $row = $this->scopedRow($id);
 
         $data = $this->validateData($request);
-        [$line, $modifiers] = $this->chosenVocabulary($request);
+        [$line, $modifiers, $adjustments] = $this->chosenVocabulary($request);
 
         if ($this->duplicateExists($data, $line, $row->id)) {
             throw ValidationException::withMessages([
@@ -138,7 +148,7 @@ class BusinessServicePriceController extends Controller
         }
 
         $row->update($data);
-        $row->syncOfferingOptions($line, $modifiers);
+        $row->syncOfferingOptions($line, $modifiers, $adjustments);
 
         return back()->with('success', 'تم تحديث السعر بنجاح.');
     }
@@ -157,7 +167,7 @@ class BusinessServicePriceController extends Controller
      * actually allowed to say — an option he never claimed about himself, or
      * one from a descriptive group, is dropped rather than trusted.
      *
-     * @return array{0:?int,1:array<int,int>}
+     * @return array{0:?int,1:array<int,int>,2:array<int,array{type:string,value:float}>}
      */
     private function chosenVocabulary(Request $request): array
     {
@@ -175,7 +185,30 @@ class BusinessServicePriceController extends Controller
             ->values()
             ->all();
 
-        return [$line, $modifiers];
+        /*
+         * وسعرُ كل مُوصِّف. يُقرأ للمُوصِّفات المختارة وحدها، فخانةٌ مكتوبةٌ
+         * على مربّعٍ غير مؤشَّر لا أثر لها — وإلا لظلّ سعرٌ معلَّقًا بكلمةٍ
+         * أزالها صاحبُ المحل.
+         */
+        $values = (array) $request->input('modifier_adjust', []);
+        $types = (array) $request->input('modifier_adjust_type', []);
+
+        $adjustments = [];
+
+        foreach ($modifiers as $id) {
+            $value = $values[$id] ?? null;
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $adjustments[$id] = [
+                'type' => (string) ($types[$id] ?? OfferingOption::ADJUST_AMOUNT),
+                'value' => round((float) $value, 2),
+            ];
+        }
+
+        return [$line, $modifiers, $adjustments];
     }
 
     /**

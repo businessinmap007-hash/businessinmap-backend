@@ -16,6 +16,13 @@
     $selectedModifiers = collect(old('modifier_option_ids', ($modifierIds ?? collect())->all() ?? []))
         ->map(fn ($id) => (int) $id);
 
+    /**
+     * وسعرُ كل مُوصِّف. صفرٌ يعني «يوصِّف ولا يُسعِّر» — وهي الحال التي كانت
+     * وحدها ممكنة قبل 2026-08-19.
+     */
+    $adjustValues = collect(old('modifier_adjust', $modifierAdjust ?? []));
+    $adjustTypes = collect(old('modifier_adjust_type', $modifierAdjustType ?? []));
+
     // the panel is bilingual, and these rows carry both names
     $say = function ($ar, $en) {
         $primary = app()->getLocale() === 'en' ? $en : $ar;
@@ -76,13 +83,25 @@
                                         <input type="checkbox" name="modifier_option_ids[]" value="{{ $option->id }}"
                                                @checked($selectedModifiers->contains((int) $option->id))>
                                         <span>{{ $say($option->name_ar, $option->name_en) }}</span>
+                                        <input type="number" step="0.01" class="bv-adjust"
+                                               name="modifier_adjust[{{ $option->id }}]"
+                                               value="{{ $adjustValues[$option->id] ?? '' }}"
+                                               placeholder="0"
+                                               title="{{ __('يُضاف إلى سعر الوحدة — اتركه فارغًا إن كان لا يغيّر السعر') }}">
+                                        <select class="bv-adjust-type" name="modifier_adjust_type[{{ $option->id }}]">
+                                            <option value="amount" @selected(($adjustTypes[$option->id] ?? 'amount') === 'amount')>{{ __('ج') }}</option>
+                                            <option value="percent" @selected(($adjustTypes[$option->id] ?? '') === 'percent')>%</option>
+                                        </select>
                                     </label>
                                 @endforeach
                             </div>
                         </div>
                     @endforeach
 
-                    <small class="a2-help">{{ __('لا يُباع وحده لكنه يغيّر السعر — «مودرن»، «إيجار»، «سوبر لوكس».') }}</small>
+                    <small class="a2-help">
+                        {{ __('لا يُباع وحده لكنه يغيّر السعر — «مودرن»، «إيجار»، «سوبر لوكس».') }}
+                        {{ __('اكتب بجواره كم يزيد على سعر الوحدة الواحدة: «شاشة كبيرة +٢٠». اتركه فارغًا إن كان يصف فقط.') }}
+                    </small>
                 </div>
             @endif
         </div>
@@ -96,7 +115,16 @@
         .bv-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
                    border: 1px solid rgba(128,128,128,.35); border-radius: 999px;
                    font-size: 13px; cursor: pointer; }
-        .bv-chip:has(input:checked) { border-color: currentColor; font-weight: 600; }
+        .bv-chip:has(input[type=checkbox]:checked) { border-color: currentColor; font-weight: 600; }
+        /* خانةُ السعر لا تظهر إلا على مُوصِّفٍ مختار: صندوقٌ فارغ بجوار كل كلمة
+           يحوّل قائمةً تُقرأ بلمحة إلى استمارة. */
+        .bv-chip .bv-adjust, .bv-chip .bv-adjust-type { display: none; }
+        .bv-chip:has(input[type=checkbox]:checked) .bv-adjust,
+        .bv-chip:has(input[type=checkbox]:checked) .bv-adjust-type { display: inline-block; }
+        .bv-adjust { width: 66px; padding: 1px 4px; font-size: 12px; border-radius: 6px;
+                     border: 1px solid rgba(128,128,128,.35); }
+        .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;
+                          border: 1px solid rgba(128,128,128,.35); }
     </style>
     @endpush
 @endif

@@ -9,6 +9,7 @@ use App\Models\CategoryChildServiceFee;
 use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\GuaranteeLevel;
+use App\Models\OfferingOption;
 use App\Models\OperationGuarantor;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\OperationGuarantorService;
@@ -50,7 +51,8 @@ class ServiceExecutionEngine
         ?int $bookableId = null,
         int $quantity = 1,
         mixed $pricingDate = null,
-        ?int $offeringId = null
+        ?int $offeringId = null,
+        array $optionIds = []
     ): array {
         $quantity = max($quantity, 1);
 
@@ -115,7 +117,8 @@ class ServiceExecutionEngine
             businessPrice: $businessPrice,
             bookable: $bookable,
             quantity: $quantity,
-            pricingDate: $pricingDate
+            pricingDate: $pricingDate,
+            optionIds: $optionIds
         );
 
         $depositPolicy = $this->resolveDepositPolicy(
@@ -729,7 +732,8 @@ class ServiceExecutionEngine
         BusinessServicePrice $businessPrice,
         ?BookableItem $bookable = null,
         int $quantity = 1,
-        mixed $pricingDate = null
+        mixed $pricingDate = null,
+        array $optionIds = []
     ): array {
         $quantity = max($quantity, 1);
 
@@ -744,6 +748,20 @@ class ServiceExecutionEngine
         if ($unitPrice <= 0 && $businessPrice->chargeMode() === BusinessServicePrice::CHARGE_STANDARD && isset($businessPrice->base_price)) {
             $unitPrice = round((float) ($businessPrice->base_price ?? 0), 2);
         }
+
+        /*
+         * زياداتُ المُوصِّفات تُضاف إلى سعر **الوحدة** قبل الكمّية.
+         *
+         * «شاشة كبيرة +٢٠» تعنى عشرين على كل ساعة، لا عشرين على الحجز كلِّه —
+         * وهذه هى القراءة التى ينطق بها صاحبُ المحل حين يكتبها. والنسبةُ
+         * تُحسب من السعر الأصلىّ لا من المتراكم، فلا يغيّر ترتيبُ الاختيار
+         * الناتجَ.
+         *
+         * وقبل الخصم أيضًا: الخصمُ خصمٌ على ما اشتراه العميل فعلًا، بزياداته.
+         */
+        $modifiers = $this->resolvePriceModifiers($businessPrice, $optionIds, $unitPrice);
+
+        $unitPrice = max(round($unitPrice + $modifiers['total'], 2), 0);
 
         $originalPrice = round($unitPrice * $quantity, 2);
 
@@ -760,6 +778,9 @@ class ServiceExecutionEngine
         return [
             'source' => 'business_service_price',
             'unit_price' => $unitPrice,
+            'base_unit_price' => $modifiers['base'],
+            'modifiers' => $modifiers['lines'],
+            'modifiers_total' => $modifiers['total'],
             'quantity' => $quantity,
             'original_price' => $originalPrice,
             'discount_enabled' => $discountEnabled,
@@ -768,6 +789,72 @@ class ServiceExecutionEngine
             'final_price' => $finalPrice,
             'currency' => (string) ($businessPrice->currency ?: 'EGP'),
         ];
+    }
+
+    /**
+     * الزيادات التى تخصّ هذا السطر وهذه الاختيارات.
+     *
+     * لا تُقبل زيادةٌ إلا إن كان صاحبُ السطر نفسه قد كتبها عليه: المفتاح
+     * الفريد (سطر، خيار) يمنع التكرار، والقراءةُ من `business_service_price_id`
+     * تمنع أن يُسعَّر مُوصِّفٌ لتاجرٍ آخر. فالعميلُ يرسل ما شاء من المعرّفات
+     * وما لا يعرفه السطرُ يسقط صامتًا — ليس خطأً منه أن يسأل.
+     *
+     * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
+     */
+    /**
+     * ما يزيده ما اختاره العميلُ على سعر هذا السطر.
+     *
+     * تُقرأ من `offering_options` — الجدول الذى يحمل مفرداتِ العرض أصلًا —
+     * فلا يُسعَّر إلا مُوصِّفٌ علّقه صاحبُ هذا السطر على هذا السطر بعينه.
+     * والعميلُ يرسل ما شاء من المعرّفات وما لا يعرفه السطرُ يسقط صامتًا: ليس
+     * خطأً منه أن يسأل.
+     *
+     * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
+     */
+    protected function resolvePriceModifiers(
+        BusinessServicePrice $businessPrice,
+        array $optionIds,
+        float $unitPrice
+    ): array {
+        $ids = collect($optionIds)->map(fn ($id) => (int) $id)->filter()->unique();
+
+        if ($ids->isEmpty()) {
+            return ['base' => $unitPrice, 'total' => 0.00, 'lines' => []];
+        }
+
+        $rows = OfferingOption::query()
+            ->where('offering_type', $businessPrice->getMorphClass())
+            ->where('offering_id', (int) $businessPrice->id)
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            ->whereIn('option_id', $ids->all())
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $names = DB::table('options')->whereIn('id', $rows->pluck('option_id'))->pluck('name_ar', 'id');
+
+        $lines = [];
+        $total = 0.00;
+
+        foreach ($rows as $row) {
+            $amount = $row->appliedTo($unitPrice);
+
+            if ($amount === 0.00) {
+                continue; // مُوصِّفٌ بلا سعر: يوصِّف الحجز ولا يغيّره.
+            }
+
+            $total += $amount;
+
+            $lines[] = [
+                'option_id' => (int) $row->option_id,
+                'name' => $names[(int) $row->option_id] ?? null,
+                'adjust_type' => (string) $row->adjust_type,
+                'adjust_value' => (float) $row->adjust_value,
+                'amount' => $amount,
+            ];
+        }
+
+        return ['base' => $unitPrice, 'total' => round($total, 2), 'lines' => $lines];
     }
 
     /*

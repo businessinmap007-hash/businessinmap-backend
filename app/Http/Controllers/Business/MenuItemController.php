@@ -247,7 +247,8 @@ class MenuItemController extends Controller
             ->values()
             ->all();
 
-        $item->syncOfferingOptions($line, $modifiers);
+        // شاشة المنيو لا تعرض خانات الزيادة بعد؛ فتُمرَّر كما هى بدل أن تُمحى.
+        $item->syncOfferingOptions($line, $modifiers, $item->currentOfferingAdjustments());
     }
 
     protected function validateData(Request $request): array

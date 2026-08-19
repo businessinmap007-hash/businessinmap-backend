@@ -46,6 +46,25 @@ trait HasOfferingOptions
     }
 
     /**
+     * زياداتُ السعر المكتوبة الآن، بالشكل الذى تقبله syncOfferingOptions.
+     *
+     * `syncOfferingOptions` تمسح ثم تكتب، فمن نادى عليها ولا شأن له بالأسعار
+     * يمرّر هذه — وإلا محا حفظُ الأدمن سعرًا كتبه صاحبُ المحل بيده، صامتًا.
+     *
+     * @return array<int,array{type:string,value:float}>
+     */
+    public function currentOfferingAdjustments(): array
+    {
+        return $this->offeringOptions()
+            ->where('role', OfferingOption::ROLE_MODIFIER)
+            ->get(['option_id', 'adjust_type', 'adjust_value'])
+            ->mapWithKeys(fn ($row) => [(int) $row->option_id => [
+                'type' => (string) $row->adjust_type,
+                'value' => (float) $row->adjust_value,
+            ]])->all();
+    }
+
+    /**
      * Replace this offering's vocabulary.
      *
      * A line is optional — plenty of offerings are just «كشف» with no specialty
@@ -53,9 +72,17 @@ trait HasOfferingOptions
      * no `line` group at all. What is NOT optional is that there be at most
      * one: two lines would mean two different things being sold at one price.
      *
+     * ── وزيادةُ السعر ──────────────────────────────────────────────────────
+     *
+     * `$adjustments` تعطى كل مُوصِّفٍ سعرَه: `[option_id => ['type' =>
+     * 'amount'|'percent', 'value' => float]]`. المُوصِّفُ الذى لا ذكرَ له فيها
+     * يبقى مُوصِّفًا بلا سعر — يوصِّف ما اشتُرى ولا يغيّر رقمه، وهى الحال التى
+     * كانت وحدها ممكنة قبل 2026-08-19.
+     *
      * @param  array<int,int>  $modifierIds
+     * @param  array<int,array{type?:string,value?:float}>  $adjustments
      */
-    public function syncOfferingOptions(?int $lineId, array $modifierIds = []): void
+    public function syncOfferingOptions(?int $lineId, array $modifierIds = [], array $adjustments = []): void
     {
         $modifierIds = collect($modifierIds)
             ->map(fn ($id) => (int) $id)
@@ -63,7 +90,7 @@ trait HasOfferingOptions
             ->unique()
             ->values();
 
-        DB::transaction(function () use ($lineId, $modifierIds) {
+        DB::transaction(function () use ($lineId, $modifierIds, $adjustments) {
             $this->offeringOptions()->delete();
 
             $rows = [];
@@ -77,9 +104,16 @@ trait HasOfferingOptions
             }
 
             foreach ($modifierIds as $i => $id) {
+                $adjust = $adjustments[$id] ?? [];
+                $type = (string) ($adjust['type'] ?? OfferingOption::ADJUST_AMOUNT);
+
                 $rows[] = [
                     'option_id' => $id,
                     'role' => OfferingOption::ROLE_MODIFIER,
+                    'adjust_type' => in_array($type, OfferingOption::adjustTypes(), true)
+                        ? $type
+                        : OfferingOption::ADJUST_AMOUNT,
+                    'adjust_value' => round((float) ($adjust['value'] ?? 0), 2),
                     'sort_order' => $i + 1,
                 ];
             }

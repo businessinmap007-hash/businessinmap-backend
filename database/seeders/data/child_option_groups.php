@@ -120,8 +120,29 @@ return [
         ],
     ],
 
-    /** Unlinked everywhere and left groupless — «بيع» describes every business. */
-    'retire_options' => [311],
+    /*
+    | Unlinked everywhere and left groupless.
+    |
+    | #311 «بيع» — describes every business.
+    |
+    | #5491 «غرفة خاصة» — a duplicate the drift minted. The real row #1929 had
+    | been moved into «فئة جهاز الألعاب» on 2026-08-19 04:13, so the vocabulary
+    | seeder looked for the name inside «ألعاب ومرافق الترفيه», did not find it,
+    | and created a second one. Both then held the same four links. #1929 is the
+    | one that is LIVED IN — a merchant ticked it and a bookable unit names it —
+    | so the copy goes and the original stays, now back in its declared group
+    | (see option_group_splits.php, same date).
+    |
+    | Retiring is only the FIRST half for a duplicate: `options` has no
+    | is_active, so a groupless row is unreachable rather than retired — it can
+    | never be shown, edited or restored, and its `name_en` is UNIQUE
+    | platform-wide, so the dead copy was costing the live #1929 its English
+    | name. `OrphanOptionsCleanupSeeder` is the declared second half; it refuses
+    | to delete anything a merchant or a link still holds, and it swept this one
+    | on 2026-08-19. Three guards assert the end state, which is how the missing
+    | half was found.
+    */
+    'retire_options' => [311, 5491],
 
     /*
     |--------------------------------------------------------------------------

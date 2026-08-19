@@ -387,14 +387,27 @@ class BookableItemController extends Controller
     public function edit(int $id): View
     {
         $row = $this->scopedItem($id);
-        $row->load(['images', 'activeBlockedSlots', 'activePriceRules']);
+        $row->load(['images', 'activeBlockedSlots', 'activePriceRules', 'offeringOptions']);
         $services = $this->servicesForChild();
+
+        /*
+         * وسعرُ نوعِ هذه الوحدة، على شاشتها.
+         *
+         * كان يُكتب فى الإضافة بالجملة وحدها — وهى شاشةُ إنشاء — فمن أراد رفعَ
+         * السعر بعد ذلك لم يجد أين. والسطرُ سطرُ النوع لا الوحدة: تعديلُه هنا
+         * يغيّر سعرَ كلِّ غرفةٍ فردية، وهو ما تقوله الشاشةُ صراحةً.
+         */
+        $price = $this->priceRowFor($row);
 
         return view('business.bookable-items.edit', [
             'row' => $row,
             'services' => $services,
             'allowedTypesByService' => $this->allowedTypesByService($services),
             'lineOptions' => $this->lineOptionsForUnits(),
+            'priceRow' => $price,
+            'unitOptions' => $this->unitOptions(),
+            'unitModifierIds' => $row->modifierOptionIds(),
+            'priceAdjustments' => $price ? $price->currentOfferingAdjustments() : [],
         ]);
     }
 
@@ -407,6 +420,82 @@ class BookableItemController extends Controller
         $row->update($data);
 
         return back()->with('success', 'تم تحديث الوحدة بنجاح.');
+    }
+
+    /** سطرُ سعرِ نوعِ هذه الوحدة، إن وُجد. */
+    private function priceRowFor(BookableItem $item): ?BusinessServicePrice
+    {
+        return BusinessServicePrice::query()
+            ->where('business_id', $this->businessId())
+            ->where('service_id', (int) $item->service_id)
+            ->where('bookable_item_type', (string) $item->item_type)
+            ->where('line_option_id', (int) ($item->line_option_id ?? 0))
+            ->first();
+    }
+
+    /**
+     * حفظُ سعرِ النوع وإضافاته من شاشة الوحدة.
+     *
+     * ── ولمَ لا تدمج هذه ──────────────────────────────────────────────────
+     *
+     * `writeBatchPricing` تدمج ما تجده مع ما أُرسل، لأن الإضافةَ بالجملة لا
+     * ترى ما سبقها: من أضاف ست غرفٍ أخرى بعد شهر لا يُسأل عن الإفطار، فمحوُه
+     * منه سرقةٌ صامتة. وهذه الشاشةُ ترى القائمةَ كاملةً ومؤشَّرةً، فما تركه
+     * صاحبُها تركه قصدًا — والدمجُ هنا يجعل نزعَ العلامة بلا أثر.
+     */
+    public function storePricing(Request $request, int $id): RedirectResponse
+    {
+        $item = $this->scopedItem($id);
+
+        $data = $request->validate([
+            'price' => ['required', 'numeric', 'min:0', 'max:9999999'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer'],
+            'option_adjust' => ['nullable', 'array'],
+            'option_adjust_type' => ['nullable', 'array'],
+            'choice_ids' => ['nullable', 'array'],
+            'choice_ids.*' => ['integer'],
+            'choice_adjust' => ['nullable', 'array'],
+            'choice_adjust_type' => ['nullable', 'array'],
+        ], [], [
+            'price' => 'السعر',
+        ]);
+
+        $lineOptionId = (int) ($item->line_option_id ?? 0) ?: null;
+
+        $modifiers = $this->sanitizeUnitOptions($data['option_ids'] ?? [], $lineOptionId);
+        $choices = array_values(array_diff(
+            $this->sanitizeUnitOptions($data['choice_ids'] ?? [], $lineOptionId),
+            $modifiers
+        ));
+
+        $row = $this->priceRowFor($item) ?: BusinessServicePrice::create([
+            'business_id' => $this->businessId(),
+            'child_id' => $this->childId(),
+            'service_id' => (int) $item->service_id,
+            'bookable_item_type' => (string) $item->item_type,
+            'line_option_id' => (int) ($lineOptionId ?? 0),
+            'currency' => BusinessServicePrice::DEFAULT_CURRENCY,
+            'is_active' => 1,
+        ]);
+
+        $row->update(['price' => (float) $data['price']]);
+
+        $row->syncOfferingOptions(
+            $lineOptionId,
+            array_merge($modifiers, $choices),
+            $this->readAdjustments($data, $modifiers, $choices)
+        );
+
+        /*
+         * وصفاتُ الغرفة تُثبَّت عليها، لا على السطر وحده.
+         *
+         * هذا هو الفرقُ الذى تحمله الشاشة: ما على السطر يُعرض على النزيل
+         * ليختار، وما على الغرفة أيضًا يُحسَب لها بلا أن يُسأل عنه.
+         */
+        $item->syncOfferingOptions($lineOptionId, $modifiers);
+
+        return back()->with('success', __('تم حفظ سعر هذا النوع.'));
     }
 
     /**

@@ -59,6 +59,9 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('bookable-items/bulk', [BookableItemController::class, 'bulk'])->name('bookable-items.bulk');
         Route::post('bookable-items/bulk', [BookableItemController::class, 'bulkStore'])->name('bookable-items.bulk.store');
 
+        // سعرُ نوعِ الوحدة وإضافاتُه، من شاشة الوحدة نفسها.
+        Route::post('bookable-items/{id}/pricing', [BookableItemController::class, 'storePricing'])->whereNumber('id')->name('bookable-items.pricing.store');
+
         // صورُ الوحدة. على شاشة التعديل وحدها — نموذجُ الإنشاء لا يرفع ملفات.
         Route::post('bookable-items/{id}/images', [BookableItemController::class, 'storeImages'])->whereNumber('id')->name('bookable-items.images.store');
         Route::delete('bookable-items/{id}/images/{image}', [BookableItemController::class, 'destroyImage'])->whereNumber(['id', 'image'])->name('bookable-items.images.destroy');

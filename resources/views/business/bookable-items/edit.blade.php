@@ -29,6 +29,34 @@
         BookableItemPriceRule::PRICE_PERCENT => __('نسبة ٪'),
     ];
 
+    /*
+     * ما تعرضه بطاقةُ السعر. الاختياراتُ تُقرأ من `old()` أوّلًا حتى لا يفقد
+     * صاحبُ الشاشة تأشيراته حين تُردّ الاستمارةُ بخطأ.
+     */
+    $kindName = optional($row->lineOption)->name_ar ?: optional($row->lineOption)->name_en;
+
+    $storedChoices = collect(array_keys($priceAdjustments ?? []))
+        ->map(fn ($id) => (int) $id)
+        ->diff($unitModifierIds ?? collect());
+
+    $pickedUnit = collect(old('option_ids', ($unitModifierIds ?? collect())->all()))->map(fn ($id) => (int) $id);
+    $pickedChoice = collect(old('choice_ids', $storedChoices->all()))->map(fn ($id) => (int) $id);
+
+    $oldAdjust = collect(old('option_adjust', []))->merge(old('choice_adjust', []));
+    $oldAdjustType = collect(old('option_adjust_type', []))->merge(old('choice_adjust_type', []));
+
+    $adjustValue = function (int $id) use ($oldAdjust, $priceAdjustments) {
+        if ($oldAdjust->has($id)) {
+            return $oldAdjust[$id];
+        }
+
+        $value = (float) ($priceAdjustments[$id]['value'] ?? 0);
+
+        return $value !== 0.0 ? rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.') : '';
+    };
+
+    $adjustType = fn (int $id) => (string) ($oldAdjustType[$id] ?? ($priceAdjustments[$id]['type'] ?? 'amount'));
+
     $weekdayNames = [
         0 => __('الأحد'), 1 => __('الإثنين'), 2 => __('الثلاثاء'), 3 => __('الأربعاء'),
         4 => __('الخميس'), 5 => __('الجمعة'), 6 => __('السبت'),
@@ -95,6 +123,109 @@
             </div>
         </div>
         <button class="a2-btn a2-btn-primary" type="submit">{{ __('رفع') }}</button>
+    </form>
+</div>
+
+
+{{-- ───────── سعر هذا النوع ─────────
+     كان يُكتب فى الإضافة بالجملة وحدها — وهى شاشةُ إنشاء — فمن رفع سعرَه بعد
+     شهر لم يجد أين. والسطرُ سطرُ النوع لا الوحدة، فالشاشةُ تقول ذلك صراحةً
+     بدل أن يكتشفه صاحبُها حين تتغيّر ستُّ غرفٍ معًا. --}}
+<div class="a2-card a2-card--section" style="margin-top:20px;">
+    <div class="a2-card-head">
+        <div>
+            <div class="a2-card-title">
+                {{ __('السعر') }}
+                @if($kindName)<span class="a2-muted">— {{ $kindName }}</span>@endif
+            </div>
+            <div class="a2-card-sub">
+                @if($kindName)
+                    {{ __('يسري على كل وحدة من هذا النوع، لا على هذه الوحدة وحدها.') }}
+                @else
+                    {{ __('هذه الوحدة بلا نوع، فالسعر هو السعر العام لنوع العنصر.') }}
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('business.bookable-items.pricing.store', $row->id) }}">
+        @csrf
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group">
+                <label class="a2-label" for="price">{{ __('سعر الفترة الواحدة') }} <span class="a2-danger">*</span></label>
+                <input class="a2-input" id="price" name="price" type="number" step="0.01" min="0"
+                       value="{{ old('price', $priceRow?->price !== null ? rtrim(rtrim(number_format((float) $priceRow->price, 2, '.', ''), '0'), '.') : '') }}"
+                       placeholder="600" required>
+                <small class="a2-help">{{ __('لليلة أو للساعة، حسب نمط حجزك.') }}</small>
+            </div>
+        </div>
+
+        @if($unitOptions->isNotEmpty())
+            {{-- البطاقتان نفسُهما اللتان فى الإضافة بالجملة، وبنفس الفرق:
+                 مَن يقرّر. --}}
+            <div class="a2-form-grid" style="margin-top:6px;">
+                <div class="a2-form-group a2-field-full">
+                    <label class="a2-label">{{ __('صفات هذه الوحدة') }}</label>
+                    <div class="a2-hint a2-mb-8">{{ __('«إطلالة بحرية» — مثبّتة على الغرفة، تُحسب في سعرها ولا يُسأل عنها العميل.') }}</div>
+
+                    @foreach($unitOptions as $groupName => $options)
+                        <div class="bv-group">
+                            <div class="bv-group-head">{{ $groupName }}</div>
+                            <div class="bv-chips">
+                                @foreach($options as $option)
+                                    <label class="bv-chip">
+                                        <input type="checkbox" name="option_ids[]" value="{{ $option->id }}"
+                                               @checked($pickedUnit->contains((int) $option->id))>
+                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
+                                        <input type="number" step="0.01" class="bv-adjust"
+                                               name="option_adjust[{{ $option->id }}]"
+                                               value="{{ $adjustValue($option->id) }}" placeholder="0">
+                                        <select class="bv-adjust-type" name="option_adjust_type[{{ $option->id }}]">
+                                            <option value="amount" @selected($adjustType($option->id) === 'amount')>{{ __('ج') }}</option>
+                                            <option value="percent" @selected($adjustType($option->id) === 'percent')>%</option>
+                                        </select>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="a2-form-group a2-field-full">
+                    <label class="a2-label">{{ __('ما يختاره النزيل عند الحجز') }}</label>
+                    <div class="a2-hint a2-mb-8">{{ __('«إفطار»، «إقامة كاملة» — تُعرض عليه بسعرها، وتُضاف إن اختارها.') }}</div>
+
+                    @foreach($unitOptions as $groupName => $options)
+                        <div class="bv-group">
+                            <div class="bv-group-head">{{ $groupName }}</div>
+                            <div class="bv-chips">
+                                @foreach($options as $option)
+                                    <label class="bv-chip">
+                                        <input type="checkbox" name="choice_ids[]" value="{{ $option->id }}"
+                                               @checked($pickedChoice->contains((int) $option->id))>
+                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
+                                        <input type="number" step="0.01" class="bv-adjust"
+                                               name="choice_adjust[{{ $option->id }}]"
+                                               value="{{ $adjustValue($option->id) }}" placeholder="0">
+                                        <select class="bv-adjust-type" name="choice_adjust_type[{{ $option->id }}]">
+                                            <option value="amount" @selected($adjustType($option->id) === 'amount')>{{ __('ج') }}</option>
+                                            <option value="percent" @selected($adjustType($option->id) === 'percent')>%</option>
+                                        </select>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+
+                    {{-- ما يُنزع تأشيرُه يُرفع: هذه الشاشةُ تقول حالَ السطر
+                         كاملًا، بخلاف الإضافة بالجملة التى لا ترى ما قبلها. --}}
+                    <small class="a2-help">{{ __('ما تُزيل علامته يُحذف من السطر عند الحفظ.') }}</small>
+                </div>
+            </div>
+        @endif
+
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ السعر') }}</button>
     </form>
 </div>
 
@@ -268,6 +399,27 @@
         <button class="a2-btn a2-btn-primary" type="submit">{{ __('إضافة قاعدة') }}</button>
     </form>
 </div>
+
+@push('styles')
+<style>
+    .bv-group { margin-bottom: 10px; }
+    .bv-group-head { font-size: 12px; opacity: .7; margin-bottom: 4px; }
+    .bv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .bv-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+               border: 1px solid rgba(128,128,128,.35); border-radius: 999px;
+               font-size: 13px; cursor: pointer; }
+    .bv-chip:has(input[type=checkbox]:checked) { border-color: currentColor; font-weight: 600; }
+    /* خانةُ السعر لا تظهر إلا على كلمةٍ مختارة. */
+    .bv-chip .bv-adjust, .bv-chip .bv-adjust-type { display: none; }
+    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust,
+    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust-type { display: inline-block; }
+    .bv-adjust { width: 66px; padding: 1px 4px; font-size: 12px; border-radius: 6px;
+                 border: 1px solid rgba(128,128,128,.35); }
+    .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;
+                      border: 1px solid rgba(128,128,128,.35); }
+    .a2-mb-8 { margin-bottom: 8px; }
+</style>
+@endpush
 
 @push('scripts')
 <script>

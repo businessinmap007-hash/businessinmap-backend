@@ -154,6 +154,48 @@ class BusinessPanelNavTest extends TestCase
         );
     }
 
+    /**
+     * الآلة واحدة والاسمُ ليس كذلك.
+     *
+     * معرضُ الأثاث وتاجرُ الجملة ومكتبُ العقارات يستعملون آلةَ المنيو نفسها
+     * ولا يسمّون بضاعتهم منيو — والاسمُ يُقرأ من نوع العناصر لأنه هو ما يقول
+     * بأىِّ لغةٍ يتكلّم هذا التاجر.
+     */
+    public function test_the_catalogue_is_called_a_menu_only_where_there_is_food(): void
+    {
+        $restaurant = $this->onChildWithMenuKind('menu_food');
+        $trader = $this->onChildWithMenuKind('menu_furniture') ?? $this->onChildWithMenuKind('menu_market');
+
+        if (! $restaurant || ! $trader) {
+            $this->markTestSkipped('لا حسابان على منيو طعامٍ ومنيو غيره.');
+        }
+
+        $this->assertSame('المنيو', BusinessPanelNav::catalogLabel($restaurant));
+        $this->assertSame('الكتالوج', BusinessPanelNav::catalogLabel($trader));
+
+        $this->assertNotSame(
+            __('الكتالوج', [], 'en'),
+            'الكتالوج',
+            'الاسم الجديد يصل الإنجليزىَّ عربيًّا'
+        );
+    }
+
+    /** والشاشة نفسها تحمل الاسم، لا الشريط وحده. */
+    public function test_the_catalogue_screen_carries_the_name_too(): void
+    {
+        $trader = $this->onChildWithMenuKind('menu_furniture') ?? $this->onChildWithMenuKind('menu_market');
+
+        if (! $trader || ! BusinessPanelNav::shows('menu', $trader)) {
+            $this->markTestSkipped('لا تاجرَ كتالوجٍ تُفتح له الشاشة.');
+        }
+
+        $this->actingAs($trader)
+            ->get(route('business.menu.index', [], false))
+            ->assertOk()
+            ->assertSee('الكتالوج')
+            ->assertDontSee('منيو نشاطي');
+    }
+
     private function onChildWithMenuKind(string $kind): ?User
     {
         $serviceId = (int) DB::table('platform_services')->where('key', 'menu')->value('id');

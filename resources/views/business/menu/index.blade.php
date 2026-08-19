@@ -1,11 +1,14 @@
 @extends('business.layouts.master')
 
-@section('title', __('المنيو'))
+@section('title', __(\App\Support\BusinessPanelNav::catalogLabel()))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">{{ __('منيو نشاطي') }}</h1>
+        {{-- الآلة واحدة والاسمُ ليس كذلك: معرضُ الأثاث وتاجرُ الجملة لا يسمّيان
+             بضاعتهما منيو. الاسمُ يُقرأ من نوع العناصر — انظر
+             BusinessPanelNav::catalogLabel. --}}
+        <h1 class="a2-page-title">{{ __(\App\Support\BusinessPanelNav::catalogLabel()) }}</h1>
         <div class="a2-page-subtitle">{{ __('الأصناف التي يمكن للعميل طلبها — تخصّك أنت فقط.') }}</div>
     </div>
     <div class="a2-page-actions">

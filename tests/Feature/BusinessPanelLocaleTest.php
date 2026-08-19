@@ -103,12 +103,19 @@ class BusinessPanelLocaleTest extends TestCase
     {
         $item = $this->seedMenuItem($this->business->id, null, 25.0, 'شاورما');
 
-        // Arabic (default) — a couple of anchors.
-        $this->actingAs($this->business)->get('/business/menu')->assertOk()->assertSee('منيو نشاطي');
+        /*
+         * العنوانُ صار يُقرأ من نوع عناصر النشاط (2026-08-19): «المنيو» لمن
+         * يقدّم طعامًا و«الكتالوج» لمعرض الأثاث وتاجر الجملة — الآلةُ واحدة
+         * والاسمُ ليس كذلك. والنشاطُ هنا أوّلُ نشاطٍ فى الجدول أيًّا كان، فيُسأل
+         * عن اسمه بدل افتراضه.
+         */
+        $label = \App\Support\BusinessPanelNav::catalogLabel($this->business);
+
+        $this->actingAs($this->business)->get('/business/menu')->assertOk()->assertSee(__($label));
 
         // English — the whole menu-management flow, incl. the variants/extras editor.
         $this->actingAs($this->business)->withSession(['panel_locale' => 'en']);
-        $this->get('/business/menu')->assertOk()->assertSee('My business menu')->assertSee('Available');
+        $this->get('/business/menu')->assertOk()->assertSee('Available');
         $this->get('/business/menu/create')->assertOk()->assertSee('Item details');
         $this->get("/business/menu/{$item->id}/edit")->assertOk()->assertSee('Sizes / options')->assertSee('Extras');
         $this->get('/business/menu-sections')->assertOk()->assertSee('Menu sections');

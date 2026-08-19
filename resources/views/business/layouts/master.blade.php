@@ -32,7 +32,7 @@
                 @endif
                 <a href="{{ route('business.prices.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('أسعاري') }}</a>
                 @if(\App\Support\BusinessPanelNav::shows('menu'))
-                <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('المنيو') }}</a>
+                <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __(\App\Support\BusinessPanelNav::catalogLabel()) }}</a>
                 @endif
                 @if(\App\Support\BusinessPanelNav::shows('tables'))
                 <a href="{{ route('business.tables.index') }}" class="a2-btn a2-btn-ghost a2-btn-sm">{{ __('الطاولات') }}</a>

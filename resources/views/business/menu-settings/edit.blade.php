@@ -9,7 +9,7 @@
         <div class="a2-page-subtitle">{{ __('هل أسعار أصنافك شاملة رسوم الخدمة والضريبة؟') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('المنيو') }}</a>
+        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __(\App\Support\BusinessPanelNav::catalogLabel()) }}</a>
     </div>
 </div>
 

@@ -9,7 +9,7 @@
         <div class="a2-page-subtitle">{{ __('نظّم منيو نشاطك (مقبلات، أطباق رئيسية، حلويات، مشروبات…).') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('المنيو') }}</a>
+        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __(\App\Support\BusinessPanelNav::catalogLabel()) }}</a>
         <a href="{{ route('business.menu-sections.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة قسم') }}</a>
     </div>
 </div>

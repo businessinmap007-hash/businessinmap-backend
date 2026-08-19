@@ -118,7 +118,7 @@ class BusinessPanelNav
      *
      * @return array<int, string>
      */
-    private static function menuKindsOf(User $business): array
+    public static function menuKindsOf(User $business): array
     {
         $serviceId = (int) DB::table('platform_services')
             ->where('key', 'menu')->where('is_active', 1)->value('id');
@@ -137,6 +137,28 @@ class BusinessPanelNav
         $config = json_decode((string) $config, true) ?: [];
 
         return array_map('strval', $config['allowed_item_types'] ?? []);
+    }
+
+    /**
+     * ماذا نسمّى كتالوج هذا النشاط.
+     *
+     * الآلة واحدة، والاسمُ ليس كذلك. «المنيو» تخصّ من يقدّم طعامًا؛ ومعرضُ
+     * الأثاث وتاجرُ الجملة ومكتبُ العقارات يستعملون الآلةَ نفسها ولا يسمّون
+     * بضاعتهم منيو. والاسمُ يُقرأ من نوع العناصر لا من التصنيف، لأن النوع هو
+     * ما يقول بأىِّ لغةٍ يتكلّم هذا التاجر.
+     *
+     * اسمان لا أكثر: التخصيصُ لكل نوعٍ يصنع ستّة أسماءٍ تتباعد مع أول تعديل،
+     * والفرقُ الذى يهمّ هو بين مَن يُطعم ومَن يعرض.
+     */
+    public static function catalogLabel(?User $business = null): string
+    {
+        $business ??= Auth::user();
+
+        if ($business && ! in_array(self::FOOD_KIND, self::menuKindsOf($business), true)) {
+            return 'الكتالوج';
+        }
+
+        return 'المنيو';
     }
 
     /** هل يُعرض هذا الرابط لهذا النشاط؟ */

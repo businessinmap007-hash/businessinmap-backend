@@ -199,6 +199,18 @@ class DatabaseSeeder extends Seeder
            OrphanChildLinksCleanupSeeder::class,
 
            /*
+            * شكل عملية الحجز — إقامة، طاولة، مدّة، استشارة، كورس، موعد.
+            *
+            * بعد كل بذرةٍ تكتب `allowed_item_types`، لأن هذه تصف شكل العملية
+            * لا ما يُباع فيها، وتشتقّ المفاتيح الستّة القديمة من النمط. لو
+            * سبقتها بذرةُ فروعٍ لأعادت `newConfigDefaults()` كتابة
+            * `requires_bookable_item => true` فوق ما قرّره النمط — وهو الخطأ
+            * نفسه الذى جعل خمسين إعدادًا يبيع موعدًا ويطالب بوحدةٍ محجوزة،
+            * بنى منها ٢٥٤ نشاطًا صفرًا.
+            */
+           BookingPatternSeeder::class,
+
+           /*
             * One group, one question. Moves `options.group_id` and nothing
             * else — no child link is touched, so this is safe anywhere after
             * the option seeders and it must run before the roles below: a row

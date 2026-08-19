@@ -66,6 +66,7 @@ class BookingAddOnController extends Controller
             'option_ids.*' => ['integer'],
             'adjust' => ['nullable', 'array'],
             'adjust_type' => ['nullable', 'array'],
+            'per_person' => ['nullable', 'array'],
         ]);
 
         $allowed = $this->vocabulary
@@ -110,12 +111,15 @@ class BookingAddOnController extends Controller
                         ? $type
                         : OfferingOption::ADJUST_AMOUNT,
                     'value' => round((float) (($data['adjust'] ?? [])[$id] ?? 0), 2),
+                    // «ليس الافطار فى الغرفة الفردى مثل الغرفة الثلاثية».
+                    'per_person' => (bool) (($data['per_person'] ?? [])[$id] ?? false),
                 ];
             }
 
             // زياداتُ الصفات تُنقل كما هى: ليست من شأن هذه الشاشة.
             foreach ($keep as $id) {
-                $adjustments[$id] = $existing[$id] ?? ['type' => OfferingOption::ADJUST_AMOUNT, 'value' => 0];
+                $adjustments[$id] = $existing[$id]
+                    ?? ['type' => OfferingOption::ADJUST_AMOUNT, 'value' => 0, 'per_person' => false];
             }
 
             $row->syncOfferingOptions(

@@ -58,7 +58,8 @@ class ServiceExecutionEngine
         mixed $pricingDate = null,
         ?int $offeringId = null,
         array $optionIds = [],
-        mixed $until = null
+        mixed $until = null,
+        int $partySize = 1
     ): array {
         $quantity = max($quantity, 1);
 
@@ -163,7 +164,8 @@ class ServiceExecutionEngine
             quantity: $quantity,
             pricingDate: $pricingDate,
             optionIds: $optionIds,
-            until: $until
+            until: $until,
+            partySize: $partySize
         );
 
         $depositPolicy = $this->resolveDepositPolicy(
@@ -213,7 +215,9 @@ class ServiceExecutionEngine
         ?int $bookableId = null,
         int $quantity = 1,
         mixed $startsAt = null,
-        mixed $endsAt = null
+        mixed $endsAt = null,
+        array $optionIds = [],
+        int $partySize = 1
     ): array {
         $calc = $this->prepare(
             businessId: $businessId,
@@ -223,7 +227,9 @@ class ServiceExecutionEngine
             // كانت `preview` تستقبل نهايةَ النافذة وتستعملها للتوفّر وحده،
             // فتعرض سعرَ ليلةٍ واحدة لإقامةِ أسبوع.
             pricingDate: $startsAt,
-            until: $endsAt
+            optionIds: $optionIds,
+            until: $endsAt,
+            partySize: $partySize
         );
 
         $availability = null;
@@ -782,7 +788,8 @@ class ServiceExecutionEngine
         int $quantity = 1,
         mixed $pricingDate = null,
         array $optionIds = [],
-        mixed $until = null
+        mixed $until = null,
+        int $partySize = 1
     ): array {
         $quantity = max($quantity, 1);
 
@@ -854,7 +861,7 @@ class ServiceExecutionEngine
                 $rule = $ruled['rule'];
             }
 
-            $periodModifiers = $this->applyModifiers($modifierRows, $periodBase);
+            $periodModifiers = $this->applyModifiers($modifierRows, $periodBase, $partySize);
             $periodPrice = max(round($periodBase + $periodModifiers['total'], 2), 0);
 
             if ($index === 0) {
@@ -1057,7 +1064,7 @@ class ServiceExecutionEngine
      * @param  \Illuminate\Support\Collection<int,OfferingOption>  $rows
      * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}
      */
-    protected function applyModifiers($rows, float $unitPrice): array
+    protected function applyModifiers($rows, float $unitPrice, int $people = 1): array
     {
         if ($rows->isEmpty()) {
             return ['base' => $unitPrice, 'total' => 0.00, 'lines' => []];
@@ -1069,7 +1076,7 @@ class ServiceExecutionEngine
         $total = 0.00;
 
         foreach ($rows as $row) {
-            $amount = $row->appliedTo($unitPrice);
+            $amount = $row->appliedTo($unitPrice, $people);
 
             if ($amount === 0.00) {
                 continue; // مُوصِّفٌ بلا سعر: يوصِّف الحجز ولا يغيّره.
@@ -1082,6 +1089,8 @@ class ServiceExecutionEngine
                 'name' => $names[(int) $row->option_id] ?? null,
                 'adjust_type' => (string) $row->adjust_type,
                 'adjust_value' => (float) $row->adjust_value,
+                'per_person' => (bool) $row->per_person,
+                'people' => $row->per_person ? max($people, 1) : 1,
                 'amount' => $amount,
             ];
         }

@@ -245,7 +245,9 @@ final class BookingController extends Controller
             optionIds: $data['option_ids'] ?? [],
             // النافذةُ تُسعَّر ليلةً ليلة. وهى أيضًا التى تحدّد عددَ الليالى،
             // فلا يُضرب `quantity` فيها مرّةً ثانية.
-            until: $data['ends_at'] ?? null
+            until: $data['ends_at'] ?? null,
+            // وعددُ النزلاء، لأن «إفطار لكل فرد» يُضرب فيه.
+            partySize: max((int) ($data['party_size'] ?? 1), 1)
         );
 
         $bookable = $calc['bookable'] ?? null;

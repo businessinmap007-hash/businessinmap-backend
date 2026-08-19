@@ -31,6 +31,7 @@ class OfferingOption extends Model
         'role',
         'adjust_type',
         'adjust_value',
+        'per_person',
         'sort_order',
     ];
 
@@ -38,6 +39,7 @@ class OfferingOption extends Model
         'offering_id' => 'integer',
         'option_id' => 'integer',
         'adjust_value' => 'float',
+        'per_person' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -52,14 +54,24 @@ class OfferingOption extends Model
      * النسبةُ تُحسب من السعر الأصلىِّ للوحدة لا من المتراكم، فلا يعتمد الناتج
      * على ترتيب اختيار العميل: «+١٠٪» و«+٢٠ جنيهًا» معًا تعطيان الرقمَ نفسه
      * أيًّا كان أيُّهما أوّلًا.
+     *
+     * ── ولكل فرد ───────────────────────────────────────────────────────────
+     *
+     * «ليس الافطار فى الغرفة الفردى مثل الغرفة الثلاثية»: ما عُلّم `per_person`
+     * يُضرب فى عدد النزلاء. والإطلالةُ ليست منه — البحرُ لا يُقسَّم على من فى
+     * الغرفة — فالعمودُ يفصل الطعامَ عن الصفة بدل أن يُخمَّن من اسم الخيار.
+     *
+     * والنسبةُ لكل فردٍ تُقرأ كما تُكتب: «١٠٪ لكل فرد» ثلاثون بالمئة لثلاثة.
      */
-    public function appliedTo(float $unitPrice): float
+    public function appliedTo(float $unitPrice, int $people = 1): float
     {
+        $people = $this->per_person ? max($people, 1) : 1;
+
         if ((string) $this->adjust_type === self::ADJUST_PERCENT) {
-            return round($unitPrice * ((float) $this->adjust_value / 100), 2);
+            return round($unitPrice * ((float) $this->adjust_value / 100) * $people, 2);
         }
 
-        return round((float) $this->adjust_value, 2);
+        return round((float) $this->adjust_value * $people, 2);
     }
 
     public function offering(): MorphTo

@@ -118,7 +118,9 @@ class BookingController extends Controller
             bookableId: ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null,
             quantity: (int) ($data['quantity'] ?? 1),
             pricingDate: $data['starts_at'] ?? $data['date'] ?? now(),
-            until: $data['ends_at'] ?? null
+            optionIds: $data['option_ids'] ?? [],
+            until: $data['ends_at'] ?? null,
+            partySize: max((int) ($data['party_size'] ?? 1), 1)
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -240,7 +242,9 @@ class BookingController extends Controller
             bookableId: $bookableId,
             quantity: $quantity,
             pricingDate: $data['starts_at'] ?? $data['date'] ?? $booking->starts_at ?? now(),
-            until: $data['ends_at'] ?? $booking->ends_at ?? null
+            optionIds: $data['option_ids'] ?? [],
+            until: $data['ends_at'] ?? $booking->ends_at ?? null,
+            partySize: max((int) ($data['party_size'] ?? $booking->party_size ?? 1), 1)
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -450,6 +454,9 @@ class BookingController extends Controller
         /** @var array<string,float|null> سعرُ كل نوع، محلولًا مرّةً */
         $priceCache = [];
 
+        /** @var array<string,array<int,array<string,mixed>>> إضافاتُ كل نوع */
+        $choiceCache = [];
+
         return response()->json([
             'ok' => true,
             'service_config' => [
@@ -480,7 +487,7 @@ class BookingController extends Controller
              * والحلُّ مرّةً لكل نوع لا لكل وحدة: ستُّ غرفٍ فردية سطرُ سعرٍ
              * واحد، فخمسون وحدةً تكلّف عددَ أنواعها لا عددَها.
              */
-            'items' => $rows->map(function (BookableItem $item) use (&$priceCache) {
+            'items' => $rows->map(function (BookableItem $item) use (&$priceCache, &$choiceCache) {
                 $key = ((string) $item->item_type) . ':' . (int) ($item->line_option_id ?? 0);
 
                 if (! array_key_exists($key, $priceCache)) {
@@ -488,6 +495,41 @@ class BookingController extends Controller
                         ->resolveForBookableItem($item);
 
                     $priceCache[$key] = $row ? round((float) $row->baseUnitPrice(), 2) : null;
+
+                    /*
+                     * وما يُعرض على النزيل مع هذا النوع.
+                     *
+                     * «وارد ان احجز فى فندق ولا اريد حتى الافطار»: الشاشةُ لم
+                     * تكن تعرض الإضافاتِ أصلًا، فلا اختيارَ ولا امتناع. تُرسل
+                     * هنا ليؤشّرها من يُنشئ الحجز — وما لم يُؤشَّر لا يُحاسَب.
+                     *
+                     * وما أعلنته الغرفةُ عن نفسها يُستبعد: ثمنُه محسوبٌ فى
+                     * سعرها المعروض، فعرضُه اختيارًا يُحصّله مرّتين.
+                     */
+                    $declared = $row
+                        ? \App\Models\OfferingOption::query()
+                            ->where('offering_type', (new BookableItem)->getMorphClass())
+                            ->whereIn('offering_id', BookableItem::query()
+                                ->where('business_id', (int) $item->business_id)->select('id'))
+                            ->where('role', \App\Models\OfferingOption::ROLE_MODIFIER)
+                            ->pluck('option_id')->map(fn ($id) => (int) $id)->all()
+                        : [];
+
+                    $choiceCache[$key] = $row
+                        ? $row->offeringOptions()
+                            ->where('role', \App\Models\OfferingOption::ROLE_MODIFIER)
+                            ->where('adjust_value', '!=', 0)
+                            ->whereNotIn('option_id', $declared ?: [0])
+                            ->with('option:id,name_ar,name_en')
+                            ->get()
+                            ->map(fn ($link) => [
+                                'option_id' => (int) $link->option_id,
+                                'name' => optional($link->option)->name_ar ?: optional($link->option)->name_en,
+                                'adjust_type' => (string) $link->adjust_type,
+                                'adjust_value' => (float) $link->adjust_value,
+                                'per_person' => (bool) $link->per_person,
+                            ])->values()->all()
+                        : [];
                 }
 
                 $kind = optional($item->lineOption)->name_ar ?: optional($item->lineOption)->name_en;
@@ -502,6 +544,7 @@ class BookingController extends Controller
                     'code' => (string) ($item->code ?? ''),
                     // null تعنى «لم يُسعَّر نوعُها»، وهى ليست صفرًا.
                     'price' => $priceCache[$key],
+                    'choices' => $choiceCache[$key] ?? [],
                     'capacity' => $item->capacity !== null ? (int) $item->capacity : null,
                     'quantity' => $item->quantity !== null ? (int) $item->quantity : null,
                     'deposit_enabled' => false,
@@ -517,6 +560,11 @@ class BookingController extends Controller
         $serviceId = (int) $request->get('service_id', 0);
         $bookableId = (int) $request->get('bookable_id', 0);
         $quantity = max((int) $request->get('quantity', 1), 1);
+        $partySize = max((int) $request->get('party_size', 1), 1);
+
+        // ما أشّره المستخدمُ من إضافات، ليرى ثمنَه قبل أن يحفظ لا بعده.
+        $optionIds = collect((array) $request->get('option_ids', []))
+            ->map(fn ($id) => (int) $id)->filter()->unique()->values()->all();
 
         $startsAt = $request->get('starts_at');
         $endsAt = $request->get('ends_at');
@@ -567,7 +615,9 @@ class BookingController extends Controller
                 bookableId: $bookableId > 0 ? $bookableId : null,
                 quantity: $quantity,
                 startsAt: $startsAt,
-                endsAt: $endsAt
+                endsAt: $endsAt,
+                optionIds: $optionIds,
+                partySize: $partySize
             );
         } catch (ValidationException $e) {
             throw $e;
@@ -1045,6 +1095,10 @@ class BookingController extends Controller
 
             'quantity' => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer', 'min:1'],
             'party_size' => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'integer', 'min:1'],
+            // «وارد ان احجز فى فندق ولا اريد حتى الافطار»: الاختياراتُ تُرسل
+            // كما هى، والفارغُ يعنى بلا إضافات — وهو خيارٌ لا نقص.
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer'],
 
             'status' => ['required', Rule::in(array_keys(Booking::statusOptions()))],
             'notes' => [$isUpdate ? 'sometimes' : 'nullable', 'nullable', 'string'],

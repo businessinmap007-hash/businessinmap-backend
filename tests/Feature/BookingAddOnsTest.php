@@ -103,8 +103,8 @@ class BookingAddOnsTest extends TestCase
             ->put(route('business.booking-add-ons.update', [], false), $payload);
     }
 
-    /** ما يدفعه النزيل على فترةٍ واحدة، باختياراته. */
-    private function nightly(BookableItem $room, array $chosen = []): float
+    /** ما يدفعه النزيل على فترةٍ واحدة، باختياراته وعددِ رفقته. */
+    private function nightly(BookableItem $room, array $chosen = [], int $people = 1): float
     {
         $engine = app(ServiceExecutionEngine::class);
         $price = app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($room);
@@ -115,7 +115,8 @@ class BookingAddOnsTest extends TestCase
             bookable: $room->fresh(),
             quantity: 1,
             pricingDate: now(),
-            optionIds: $engine->withUnitOwnOptions($room->fresh(), $chosen)
+            optionIds: $engine->withUnitOwnOptions($room->fresh(), $chosen),
+            partySize: $people
         )['final_price'];
     }
 
@@ -256,6 +257,111 @@ class BookingAddOnsTest extends TestCase
 
         $this->assertSame(75.0, $adjustments[self::BREAKFAST]['value']);
         $this->assertArrayNotHasKey(self::FULL_BOARD, $adjustments, 'الإقامةُ الكاملة بقيت بعد نزع علامتها');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | لكل فرد
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * «ليس الافطار فى الغرفة الفردى مثل الغرفة الثلاثية».
+     *
+     * الزيادةُ كانت على الوحدة دائمًا، فخمسون على الغرفة سواءٌ نزل فيها واحدٌ
+     * أو ثلاثة. والطعامُ يُؤكل بالأفواه لا بالغرف.
+     */
+    public function test_a_per_person_add_on_is_multiplied_by_the_guests(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST],
+            'adjust' => [self::BREAKFAST => 50],
+            'per_person' => [self::BREAKFAST => 1],
+        ])->assertRedirect();
+
+        $this->assertSame(650.0, $this->nightly($room, [self::BREAKFAST], 1), 'نزيلٌ واحد');
+        $this->assertSame(750.0, $this->nightly($room, [self::BREAKFAST], 3), 'ثلاثةُ نزلاء');
+    }
+
+    /** وما ليس «لكل فرد» لا يُضرب: البحرُ لا يُقسَّم على من فى الغرفة. */
+    public function test_an_add_on_that_is_not_per_person_ignores_the_guest_count(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST],
+            'adjust' => [self::BREAKFAST => 50],
+        ])->assertRedirect();
+
+        $this->assertSame(650.0, $this->nightly($room, [self::BREAKFAST], 3));
+    }
+
+    /** والنسبةُ لكل فردٍ تُقرأ كما تُكتب: «١٠٪ لكل فرد» ثلاثون لثلاثة. */
+    public function test_a_per_person_percent_scales_with_the_guests(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST],
+            'adjust' => [self::BREAKFAST => 10],
+            'adjust_type' => [self::BREAKFAST => 'percent'],
+            'per_person' => [self::BREAKFAST => 1],
+        ])->assertRedirect();
+
+        $this->assertSame(780.0, $this->nightly($room, [self::BREAKFAST], 3), '٦٠٠ + ٣×٦٠');
+    }
+
+    /** ويُحفظ العلمُ فيُقرأ حين تُفتح الشاشةُ ثانيةً. */
+    public function test_the_per_person_flag_survives_a_reload(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST],
+            'adjust' => [self::BREAKFAST => 50],
+            'per_person' => [self::BREAKFAST => 1],
+        ])->assertRedirect();
+
+        $this->assertTrue($this->adjustmentsOf(self::SINGLE)[self::BREAKFAST]['per_person']);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | وأكثرُ من إضافة
+    |--------------------------------------------------------------------------
+    */
+
+    /** «هناك بعض الحالات سيكون اكتر من اضافة» — تُجمَع لا تتنافس. */
+    public function test_several_add_ons_are_charged_together(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST, self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 150],
+        ])->assertRedirect();
+
+        $this->assertSame(800.0, $this->nightly($room, [self::BREAKFAST, self::FULL_BOARD]));
+    }
+
+    /** ولا شىءَ منها خيارٌ أيضًا: «وارد ان احجز فى فندق ولا اريد حتى الافطار». */
+    public function test_choosing_none_of_them_costs_nothing_extra(): void
+    {
+        $this->priceFor(self::SINGLE, 600);
+        $room = $this->roomOf(self::SINGLE, 'Z101');
+
+        $this->saveAddOns([
+            'option_ids' => [self::BREAKFAST, self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 150],
+        ])->assertRedirect();
+
+        $this->assertSame(600.0, $this->nightly($room, []));
     }
 
     /*

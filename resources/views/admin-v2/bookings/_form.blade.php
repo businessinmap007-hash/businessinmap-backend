@@ -258,6 +258,15 @@
                     <input type="number" min="1" id="party_size" name="party_size" class="a2-input" value="{{ $partySizeValue }}">
                 </div>
 
+                {{-- الإضافات — تُملأ حين تُختار الغرفة.
+                     خانةُ اختيارٍ لكلٍّ: قد يريد النزيل أكثر من واحدة، وقد لا
+                     يريد شيئًا. وما لا يُؤشَّر لا يُحاسَب. --}}
+                <div id="booking_choices_wrap" class="bk-span-2" hidden>
+                    <label class="a2-label">{{ __('الإضافات') }}</label>
+                    <div id="booking_choices" class="bk-choices"></div>
+                    <small class="a2-help">{{ __('اترك الكل فارغًا إن لم يردها النزيل.') }}</small>
+                </div>
+
                 <div>
                     <label class="a2-label">{{ __('الحالة') }}</label>
                     <select name="status" class="a2-select" required>
@@ -730,6 +739,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.dataset.title = item.title ?? '';
                 opt.dataset.code = item.code ?? '';
                 opt.dataset.capacity = item.capacity ?? '';
+                opt.dataset.choices = JSON.stringify(item.choices || []);
                 if (String(item.id) === previousValue) opt.selected = true;
                 bookableSelect.appendChild(opt);
             });
@@ -739,6 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 : `تم تحميل ${data.items.length} عنصر قابل للحجز.`;
 
             syncBookableHidden();
+            renderChoices();
         } catch (e) {
             console.error('bookableItemsLookup error:', e);
             resetBookable();
@@ -750,7 +761,66 @@ document.addEventListener('DOMContentLoaded', function () {
         return bookableSelect.options[bookableSelect.selectedIndex] || null;
     }
 
+    /**
+     * الإضافاتُ المتاحة مع الغرفة المختارة.
+     *
+     * تُرسم من جديد كلّما تغيّرت الغرفة، ويُحفظ ما كان مؤشَّرًا إن بقى متاحًا —
+     * فتغييرُ الغرفة لا يُسقط اختيارًا ما زال ممكنًا.
+     */
+    function renderChoices() {
+        const wrap = document.getElementById('booking_choices_wrap');
+        const box = document.getElementById('booking_choices');
+        if (!wrap || !box) return;
+
+        const opt = selectedBookableOption();
+        let choices = [];
+
+        try {
+            choices = JSON.parse((opt && opt.dataset.choices) || '[]');
+        } catch (e) {
+            choices = [];
+        }
+
+        const kept = new Set(
+            Array.from(box.querySelectorAll('input[name="option_ids[]"]:checked')).map(i => i.value)
+        );
+
+        box.innerHTML = '';
+        wrap.hidden = choices.length === 0;
+
+        choices.forEach(choice => {
+            const label = document.createElement('label');
+            label.className = 'bk-choice';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = 'option_ids[]';
+            input.value = choice.option_id;
+            if (kept.has(String(choice.option_id))) input.checked = true;
+            input.addEventListener('change', refreshPricing);
+
+            const price = choice.adjust_type === 'percent'
+                ? `${choice.adjust_value}%`
+                : money(choice.adjust_value);
+
+            const text = document.createElement('span');
+            text.textContent = `${choice.name || '#' + choice.option_id} — ${price}`
+                + (choice.per_person ? ` ${@json(__('لكل فرد'))}` : '');
+
+            label.appendChild(input);
+            label.appendChild(text);
+            box.appendChild(label);
+        });
+    }
+
+    function checkedChoiceIds() {
+        return Array.from(
+            document.querySelectorAll('#booking_choices input[name="option_ids[]"]:checked')
+        ).map(i => i.value);
+    }
+
     function updateBookableSummary() {
+        renderChoices();
         const opt = selectedBookableOption();
         if (!opt || !opt.value) {
             summary.bookableTitle.textContent = '—';
@@ -785,6 +855,11 @@ document.addEventListener('DOMContentLoaded', function () {
             url.searchParams.set('service_id', serviceId);
             url.searchParams.set('quantity', qty);
             if (bookableId) url.searchParams.set('bookable_id', bookableId);
+
+            const party = document.getElementById('party_size');
+            if (party && party.value) url.searchParams.set('party_size', party.value);
+
+            checkedChoiceIds().forEach(id => url.searchParams.append('option_ids[]', id));
 
             const startsAtHidden = document.getElementById('booking_dt24_start_hidden');
             const endsAtHidden = document.getElementById('booking_dt24_end_hidden');

@@ -391,6 +391,9 @@
                  border: 1px solid rgba(128,128,128,.35); }
     .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;
                       border: 1px solid rgba(128,128,128,.35); }
+    /* الخانةُ تُقرأ خانةَ اختيار: أكبرُ قليلًا وظاهرةٌ دائمًا، ويُختار منها
+       أكثرُ من واحدة — غرفةٌ قد تكون على البحر وبها بلكونة معًا. */
+    .bv-chip > input[type=checkbox] { width: 15px; height: 15px; }
     .a2-mb-8 { margin-bottom: 8px; }
 </style>
 @endpush

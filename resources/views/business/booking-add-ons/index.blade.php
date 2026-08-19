@@ -18,6 +18,11 @@
     };
 
     $type = fn (int $id) => (string) ($oldAdjustType[$id] ?? ($addOns[$id]['type'] ?? 'amount'));
+
+    $oldPerPerson = collect(old('per_person', []));
+    $perPerson = fn (int $id) => $oldPerPerson->has($id)
+        ? (bool) $oldPerPerson[$id]
+        : (bool) ($addOns[$id]['per_person'] ?? false);
 @endphp
 
 @section('content')
@@ -67,6 +72,7 @@
                     <div class="a2-card-title">{{ __('الإضافات وأسعارها') }}</div>
                     <div class="a2-card-sub">
                         {{ __('أشّر ما تقدّمه واكتب سعر كلٍّ منه. يُضاف إلى سعر الفترة إن اختاره النزيل.') }}
+                        {{ __('و«لكل فرد» تضرب السعر في عدد النزلاء — إفطار الغرفة الثلاثية ليس كإفطار الفردية.') }}
                     </div>
                 </div>
             </div>
@@ -90,6 +96,12 @@
                                             <option value="amount" @selected($type($option->id) === 'amount')>{{ __('ج') }}</option>
                                             <option value="percent" @selected($type($option->id) === 'percent')>%</option>
                                         </select>
+                                        {{-- «لكل فرد»: البحرُ لا يُقسَّم على النزلاء، والإفطارُ يُقسَّم. --}}
+                                        <span class="bv-per-person">
+                                            <input type="checkbox" name="per_person[{{ $option->id }}]" value="1"
+                                                   @checked($perPerson($option->id))>
+                                            {{ __('لكل فرد') }}
+                                        </span>
                                     </label>
                                 @endforeach
                             </div>
@@ -130,9 +142,13 @@
                font-size: 13px; cursor: pointer; }
     .bv-chip:has(input[type=checkbox]:checked) { border-color: currentColor; font-weight: 600; }
     .bv-chip.is-declared { opacity: .45; cursor: not-allowed; }
-    .bv-chip .bv-adjust, .bv-chip .bv-adjust-type { display: none; }
-    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust,
-    .bv-chip:has(input[type=checkbox]:checked) .bv-adjust-type { display: inline-block; }
+    .bv-chip .bv-adjust, .bv-chip .bv-adjust-type, .bv-chip .bv-per-person { display: none; }
+    .bv-chip:has(> input[type=checkbox]:checked) .bv-adjust,
+    .bv-chip:has(> input[type=checkbox]:checked) .bv-adjust-type,
+    .bv-chip:has(> input[type=checkbox]:checked) .bv-per-person { display: inline-flex; }
+    .bv-per-person { align-items: center; gap: 3px; font-size: 11px; opacity: .85; }
+    /* الخانةُ تُقرأ خانةَ اختيار: أكبرُ قليلًا وظاهرةٌ دائمًا. */
+    .bv-chip > input[type=checkbox] { width: 15px; height: 15px; }
     .bv-adjust { width: 66px; padding: 1px 4px; font-size: 12px; border-radius: 6px;
                  border: 1px solid rgba(128,128,128,.35); }
     .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;

@@ -86,10 +86,11 @@ trait HasOfferingOptions
     {
         return $this->offeringOptions()
             ->where('role', OfferingOption::ROLE_MODIFIER)
-            ->get(['option_id', 'adjust_type', 'adjust_value'])
+            ->get(['option_id', 'adjust_type', 'adjust_value', 'per_person'])
             ->mapWithKeys(fn ($row) => [(int) $row->option_id => [
                 'type' => (string) $row->adjust_type,
                 'value' => (float) $row->adjust_value,
+                'per_person' => (bool) $row->per_person,
             ]])->all();
     }
 
@@ -143,6 +144,8 @@ trait HasOfferingOptions
                         ? $type
                         : OfferingOption::ADJUST_AMOUNT,
                     'adjust_value' => round((float) ($adjust['value'] ?? 0), 2),
+                    // «لكل فرد»: تُضرب فى عدد النزلاء وقت الحساب.
+                    'per_person' => (bool) ($adjust['per_person'] ?? false),
                     'sort_order' => $i + 1,
                 ];
             }

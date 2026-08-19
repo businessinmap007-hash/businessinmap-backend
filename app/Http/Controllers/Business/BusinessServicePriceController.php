@@ -50,7 +50,9 @@ class BusinessServicePriceController extends Controller
         $services = $this->servicesForChild();
 
         $rows = BusinessServicePrice::query()
-            ->with(['service:id,key,name_ar,name_en'])
+            // مفرداتُ الصفّ تُحمَّل هنا: عمودُ السعر يعرض مدى ما تضيفه
+            // المُوصِّفات، وقراءتُها صفًّا صفًّا استعلامٌ لكل سطر.
+            ->with(['service:id,key,name_ar,name_en', 'offeringOptions'])
             ->where('business_id', $this->businessId())
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
             ->orderByDesc('is_featured')

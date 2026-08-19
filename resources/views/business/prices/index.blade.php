@@ -74,17 +74,51 @@
                             @endif
                         </td>
                         <td class="a2-fw-900">
-                            {{ number_format((float) $row->price, 2) }} {{ $row->currency ?: 'EGP' }}
                             @php
+                                /**
+                                 * ما يدفعه العميل، لا ما كُتب فى خانة السعر.
+                                 *
+                                 * الخانةُ لا تُقرأ إلا فى الوضع العادى: «مجانية»
+                                 * تُلغيها، و«رسوم حجز» تستبدلها بمبلغ الرسوم،
+                                 * و«حد أدنى» بالحد. فكان الصفُّ يقول «٢٠ · حد
+                                 * أدنى» والحدُّ صفرٌ — عشرون معروضةٌ وصفرٌ يُحصَّل.
+                                 */
                                 $modeLabels = ['free' => __('مجانية'), 'reservation_fee' => __('رسوم حجز'), 'minimum_charge' => __('حد أدنى')];
                                 $mode = (string) ($row->charge_mode ?? 'standard');
+                                $base = $row->resolveBaseCharge();
+                                $ignoresPrice = $mode !== 'standard' && (float) $row->price > 0;
+
+                                // ومدى ما تضيفه المُوصِّفات المسعَّرة على الوحدة.
+                                $adds = $row->offeringOptions
+                                    ->where('role', \App\Models\OfferingOption::ROLE_MODIFIER)
+                                    ->map(fn ($m) => $m->appliedTo($base))
+                                    ->filter(fn ($v) => $v !== 0.0);
                             @endphp
+
+                            {{ number_format($base, 2) }} {{ $row->currency ?: 'EGP' }}
+
+                            @if($adds->isNotEmpty())
+                                <div class="a2-muted a2-mt-8" style="font-weight:400">
+                                    {{ __('حتى') }} {{ number_format(max($base + $adds->sum(), 0), 2) }}
+                                    <span class="a2-pill a2-pill-sub">{{ __('حسب اختيار العميل') }}</span>
+                                </div>
+                            @endif
+
                             @if(isset($modeLabels[$mode]))
                                 <div class="a2-muted a2-mt-8">
                                     <span class="a2-pill a2-pill-sub">{{ $modeLabels[$mode] }}</span>
                                     @if((float) $row->charge_amount > 0)
                                         {{ number_format((float) $row->charge_amount, 2) }}
                                     @endif
+                                </div>
+                            @endif
+
+                            @if($ignoresPrice)
+                                <div class="a2-alert a2-alert-warning a2-mt-8" style="font-weight:400">
+                                    {{ __('كتبت :price فى خانة السعر، ونمط التحصيل لا يقرأها — المحصَّل :base.', [
+                                        'price' => number_format((float) $row->price, 2),
+                                        'base' => number_format($base, 2),
+                                    ]) }}
                                 </div>
                             @endif
                         </td>

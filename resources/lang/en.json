@@ -2683,5 +2683,8 @@
     "اختر: حضوريًا أم أونلاين؟": "Choose: in person or online?",
     "هذا الحقل مطلوب: :field": "This field is required: :field",
     "انتهت صلاحية الصفحة لطول فتحها. بياناتك محفوظة — أعد الإرسال.": "This page expired after being open too long. Your details are kept — submit again.",
-    "الكتالوج": "Catalogue"
+    "الكتالوج": "Catalogue",
+    "حتى": "up to",
+    "حسب اختيار العميل": "depending on the customer’s choices",
+    "كتبت :price فى خانة السعر، ونمط التحصيل لا يقرأها — المحصَّل :base.": "You typed :price in the price field; this charge mode ignores it — :base is what is charged."
 }

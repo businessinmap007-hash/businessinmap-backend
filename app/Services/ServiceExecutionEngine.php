@@ -774,6 +774,32 @@ class ServiceExecutionEngine
         }
 
         /*
+         * وقاعدةُ اليوم قبل ذلك كلِّه.
+         *
+         * «الجمعة والسبت +٢٠٠»، «موسم الصيف ١٢٠٠ ثابت». كانت `bookable_item_price_rules`
+         * مبنيّةً بالكامل — جدولٌ ونموذجٌ وخدمةٌ وشاشةُ تقويمٍ فى لوحة الإدارة —
+         * و`BookablePricingService` محقونةً فى هذا المحرّك ولا تُنادى أبدًا. فمن
+         * كتب قاعدةً رآها فى التقويم ولم تغيّر فاتورةً واحدة.
+         *
+         * وتُطبَّق على الأساس لا على المجموع: القاعدةُ تقول كم تساوى الليلةُ
+         * فى هذا اليوم، ثم تُضاف صفاتُ الغرفة إلى ما قالته. والعكسُ يجعل
+         * «١٢٠٠ ثابت» تمحو زيادةَ الإطلالة بدل أن تحملها.
+         */
+        $ruleApplied = null;
+
+        if ($bookable) {
+            $ruled = $this->bookablePricingService->applyRulesTo(
+                item: $bookable,
+                basePrice: $unitPrice,
+                date: $pricingDate,
+                quantity: $quantity
+            );
+
+            $unitPrice = (float) $ruled['price'];
+            $ruleApplied = $ruled['rule'];
+        }
+
+        /*
          * زياداتُ المُوصِّفات تُضاف إلى سعر **الوحدة** قبل الكمّية.
          *
          * «شاشة كبيرة +٢٠» تعنى عشرين على كل ساعة، لا عشرين على الحجز كلِّه —
@@ -803,6 +829,9 @@ class ServiceExecutionEngine
             'source' => 'business_service_price',
             'unit_price' => $unitPrice,
             'base_unit_price' => $modifiers['base'],
+            // القاعدةُ التى حكمت على هذا اليوم، إن وُجدت — تُعرض فى الفاتورة
+            // فلا يُسأل صاحبُ المحل «لماذا ٨٠٠ اليوم وأمس ٦٠٠؟».
+            'price_rule' => $ruleApplied,
             'modifiers' => $modifiers['lines'],
             'modifiers_total' => $modifiers['total'],
             'quantity' => $quantity,

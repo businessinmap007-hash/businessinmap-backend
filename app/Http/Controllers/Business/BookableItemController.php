@@ -387,7 +387,7 @@ class BookableItemController extends Controller
     public function edit(int $id): View
     {
         $row = $this->scopedItem($id);
-        $row->load('images');
+        $row->load(['images', 'activeBlockedSlots', 'activePriceRules']);
         $services = $this->servicesForChild();
 
         return view('business.bookable-items.edit', [

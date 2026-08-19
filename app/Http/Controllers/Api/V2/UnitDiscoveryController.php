@@ -152,7 +152,7 @@ final class UnitDiscoveryController extends Controller
             'images' => $unit->imagePayload(),
         ];
 
-        $payload += $this->pricingOf($unit, $price);
+        $payload += $this->pricingOf($unit, $price, $window[0] ?? null);
 
         if (! $window) {
             return $payload;
@@ -180,7 +180,7 @@ final class UnitDiscoveryController extends Controller
      *
      * @return array<string,mixed>
      */
-    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price): array
+    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?string $on = null): array
     {
         if (! $price) {
             return ['price' => null, 'modifiers' => []];
@@ -195,7 +195,9 @@ final class UnitDiscoveryController extends Controller
             businessPrice: $price,
             bookable: $unit,
             quantity: 1,
-            pricingDate: null,
+            // بتاريخ الوصول حين يُعطى: قاعدةُ «الجمعة أغلى» تُقرأ فى
+            // القائمة كما ستُقرأ فى الفاتورة، لا بعدها.
+            pricingDate: $on,
             optionIds: array_map('intval', $ownOptions)
         );
 

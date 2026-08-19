@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Business\Auth\LoginController;
+use App\Http\Controllers\Business\BookableItemCalendarController;
 use App\Http\Controllers\Business\BookableItemController;
 use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
@@ -61,6 +62,18 @@ Route::prefix('business')->name('business.')->group(function () {
         // صورُ الوحدة. على شاشة التعديل وحدها — نموذجُ الإنشاء لا يرفع ملفات.
         Route::post('bookable-items/{id}/images', [BookableItemController::class, 'storeImages'])->whereNumber('id')->name('bookable-items.images.store');
         Route::delete('bookable-items/{id}/images/{image}', [BookableItemController::class, 'destroyImage'])->whereNumber(['id', 'image'])->name('bookable-items.images.destroy');
+
+        /*
+         * إغلاقُ الوحدة وقواعدُ سعرها.
+         *
+         * الجدولان مبنيّان والمحرّكُ يقرؤهما، والبابُ الوحيدُ كان فى لوحة
+         * الإدارة — ومن يعرف أن الغرفة تحت الصيانة هو صاحبُ المحل لا موظّفُ
+         * المنصّة. فالبابُ هنا، على شاشة الوحدة نفسها.
+         */
+        Route::post('bookable-items/{id}/blocked-slots', [BookableItemCalendarController::class, 'storeBlockedSlot'])->whereNumber('id')->name('bookable-items.blocked-slots.store');
+        Route::delete('bookable-items/{id}/blocked-slots/{slot}', [BookableItemCalendarController::class, 'destroyBlockedSlot'])->whereNumber(['id', 'slot'])->name('bookable-items.blocked-slots.destroy');
+        Route::post('bookable-items/{id}/price-rules', [BookableItemCalendarController::class, 'storePriceRule'])->whereNumber('id')->name('bookable-items.price-rules.store');
+        Route::delete('bookable-items/{id}/price-rules/{rule}', [BookableItemCalendarController::class, 'destroyPriceRule'])->whereNumber(['id', 'rule'])->name('bookable-items.price-rules.destroy');
 
         Route::put('bookable-items/{id}', [BookableItemController::class, 'update'])->whereNumber('id')->name('bookable-items.update');
         Route::delete('bookable-items/{id}', [BookableItemController::class, 'destroy'])->whereNumber('id')->name('bookable-items.destroy');

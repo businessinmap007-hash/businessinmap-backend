@@ -167,6 +167,40 @@ class BookablePricingService
         ];
     }
 
+    /**
+     * قاعدةُ اليوم مطبَّقةً على أساسٍ يملكه النادى.
+     *
+     * `resolve()` تحلّ الأساسَ بنفسها من `BusinessServicePriceResolver`، وهو
+     * ما يحتاجه التقويم. أما محرّكُ التنفيذ فقد حلَّ سطرَ سعره بالفعل — وربما
+     * سطرًا بعينه اختاره العميلُ من الشاشة — فإعادةُ حلِّه هنا تصنع أساسين
+     * قد يفترقان، ويفوز فى الفاتورة أيُّهما قُرئ أخيرًا.
+     *
+     * فالمطابقةُ والتطبيقُ يُستعملان كما هما، والأساسُ يأتى من فوق.
+     *
+     * @return array{price:float,rule:array<string,mixed>|null}
+     */
+    public function applyRulesTo(
+        BookableItem $item,
+        float $basePrice,
+        CarbonInterface|string|null $date = null,
+        int $quantity = 1
+    ): array {
+        $rule = $this->findMatchingRules($item, $this->normalizeDate($date), max($quantity, 1))->first();
+
+        if (! $rule) {
+            return ['price' => round($basePrice, 2), 'rule' => null];
+        }
+
+        return [
+            'price' => round($this->applyRule(
+                basePrice: $basePrice,
+                priceType: (string) $rule->price_type,
+                priceValue: (float) $rule->price_value
+            ), 2),
+            'rule' => $this->mapRule($rule),
+        ];
+    }
+
     protected function resolveDay(
         BookableItem $item,
         ?CarbonInterface $date,

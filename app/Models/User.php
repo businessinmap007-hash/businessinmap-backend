@@ -16,6 +16,20 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRolesAndAbilities, Rateable, SoftDeletes;
 
+    /**
+     * إضافاتُ النشاط الثابتة — نظامُ الوجبات وأخواته.
+     *
+     * «فهى خدمة ثابته مع كل الغرف، لا تزيد بتغيير نوع الغرفة من فردى لزوجى،
+     * ولكن بعدد الافراد» — المالك، 2026-08-20.
+     *
+     * فسعرُها لا يخصّ نوعًا ولا سطرَ سعر: يخصّ النشاطَ نفسه. وهى مُوصِّفاتٌ فى
+     * `offering_options` كغيرها — الجدولُ متعدّدُ الأشكال أصلًا — فيقرؤها
+     * المحرّكُ بنفس الحساب، ولا جدولَ جديد ولا آليةَ ثانية.
+     *
+     * ولا سطرَ `line` هنا: النشاطُ لا «يُباع» بكلمة، وإنما يعرض إضافاته.
+     */
+    use \App\Models\Concerns\HasOfferingOptions;
+
     public const TYPE_CLIENT   = 'client';
     public const TYPE_BUSINESS = 'business';
     public const TYPE_ADMIN    = 'admin';

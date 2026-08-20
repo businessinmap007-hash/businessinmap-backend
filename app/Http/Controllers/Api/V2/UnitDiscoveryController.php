@@ -239,20 +239,41 @@ final class UnitDiscoveryController extends Controller
                 : $unit->modifierOptionIds()
         )->map(fn ($id) => (int) $id)->unique();
 
-        $rows = $price->offeringOptions()
+        /*
+         * من سطر السعر ومن النشاط معًا.
+         *
+         * نظامُ الوجبات يسكن النشاطَ نفسه — سعرٌ ثابت لا يتغيّر بنوع الغرفة —
+         * وما يخصّ نوعًا بعينه يبقى على سطره. والسطرُ يغلب عند التكرار.
+         */
+        $rows = OfferingOption::query()
             ->where('role', OfferingOption::ROLE_MODIFIER)
             // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
             ->where('adjust_value', '!=', 0)
             ->whereNotIn('option_id', $declared->all() ?: [0])
+            ->where(function ($query) use ($price) {
+                $query->where(function ($sub) use ($price) {
+                    $sub->where('offering_type', $price->getMorphClass())
+                        ->where('offering_id', (int) $price->id);
+                })->orWhere(function ($sub) use ($price) {
+                    $sub->where('offering_type', (new User)->getMorphClass())
+                        ->where('offering_id', (int) $price->business_id);
+                });
+            })
             ->with('option:id,name_ar,name_en')
-            ->get();
+            ->orderBy('sort_order')->orderBy('id')
+            ->get()
+            ->groupBy('option_id')
+            ->map(fn ($group) => $group->firstWhere('offering_type', $price->getMorphClass()) ?: $group->first())
+            ->values();
 
         return $rows->map(fn (OfferingOption $row) => [
             'option_id' => (int) $row->option_id,
             'name' => $this->say($row->option),
             'adjust_type' => (string) $row->adjust_type,
             'adjust_value' => (float) $row->adjust_value,
-            // ما ستدفعه فعلًا إن اخترتَه، محسوبًا على سعر هذا النوع.
+            // «لكل فرد» تُضرب فى عدد النزلاء وقت الحساب، فالمعروضُ هنا سعرُ
+            // الفرد الواحد ومعه العَلَم — والتطبيقُ يضربه فى عدد من يحجز.
+            'per_person' => (bool) $row->per_person,
             'amount' => $row->appliedTo(round((float) $price->baseUnitPrice(), 2)),
         ])->values()->all();
     }

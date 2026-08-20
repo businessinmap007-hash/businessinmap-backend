@@ -112,6 +112,9 @@ class BookingController extends Controller
     {
         $data = $this->validateBooking($request, false);
 
+        // ما يشترطه شكلُ هذا النشاط تحديدًا — نفسُ الحارس الذى يمرّ به الـAPI.
+        $this->serviceExecutionEngine->assertShapeSatisfied((int) $data['business_id'], $data);
+
         $calc = $this->serviceExecutionEngine->prepare(
             businessId: (int) $data['business_id'],
             serviceId: (int) $data['service_id'],
@@ -459,19 +462,22 @@ class BookingController extends Controller
 
         return response()->json([
             'ok' => true,
-            'service_config' => [
-                'exists' => (bool) $serviceConfig,
-                'id' => $serviceConfig ? (int) $serviceConfig->id : null,
-                'requires_bookable_item' => $requiresBookableItem,
-                'allowed_item_types' => $allowedItemTypes,
-                'booking_modes' => data_get($config, 'booking_modes', []),
-                'item_family' => data_get($config, 'item_family'),
-                'requires_start_end' => filter_var(data_get($config, 'requires_start_end', false), FILTER_VALIDATE_BOOLEAN),
-                'supports_quantity' => filter_var(data_get($config, 'supports_quantity', true), FILTER_VALIDATE_BOOLEAN),
-                'supports_guest_count' => filter_var(data_get($config, 'supports_guest_count', false), FILTER_VALIDATE_BOOLEAN),
-                'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
-                'required_fields' => data_get($config, 'required_fields', []),
-            ],
+            /*
+             * الشكلُ الذى اختاره النشاطُ نفسه، لا شكلُ تصنيفه وحده.
+             *
+             * «اعدادات الحجز غير مربوطه بالحجز الفعلى» — المالك، 2026-08-20.
+             * وكان محقًّا: هذه الشاشةُ تقرأ `category_service_configs` وحدها،
+             * فما يضبطه صاحبُ الفندق فى «إعدادات الحجز» — نمطُه، وما يطلبه من
+             * حقول — لا يبلغها. `BookingShapeResolver` هى الجهةُ الوحيدة التى
+             * تدمج الدرجتين، وهى نفسُها التى يحكم بها الـAPI.
+             */
+            'service_config' => $this->serviceShapePayload(
+                $serviceConfig,
+                $config,
+                $requiresBookableItem,
+                $allowedItemTypes,
+                $businessId
+            ),
             /*
              * السعرُ الحقيقىُّ لكل وحدة، وكلمةُ نوعها.
              *
@@ -516,12 +522,26 @@ class BookingController extends Controller
                         : [];
 
                     $choiceCache[$key] = $row
-                        ? $row->offeringOptions()
+                        ? \App\Models\OfferingOption::query()
                             ->where('role', \App\Models\OfferingOption::ROLE_MODIFIER)
                             ->where('adjust_value', '!=', 0)
                             ->whereNotIn('option_id', $declared ?: [0])
+                            // من السطر ومن النشاط: نظامُ الوجبات يسكن النشاط.
+                            ->where(function ($query) use ($row, $item) {
+                                $query->where(function ($sub) use ($row) {
+                                    $sub->where('offering_type', $row->getMorphClass())
+                                        ->where('offering_id', (int) $row->id);
+                                })->orWhere(function ($sub) use ($item) {
+                                    $sub->where('offering_type', (new \App\Models\User)->getMorphClass())
+                                        ->where('offering_id', (int) $item->business_id);
+                                });
+                            })
                             ->with('option:id,name_ar,name_en')
+                            ->orderBy('sort_order')->orderBy('id')
                             ->get()
+                            ->groupBy('option_id')
+                            ->map(fn ($g) => $g->firstWhere('offering_type', $row->getMorphClass()) ?: $g->first())
+                            ->values()
                             ->map(fn ($link) => [
                                 'option_id' => (int) $link->option_id,
                                 'name' => optional($link->option)->name_ar ?: optional($link->option)->name_en,
@@ -551,6 +571,56 @@ class BookingController extends Controller
                     'deposit_percent' => 0,
                 ];
             })->values(),
+        ]);
+    }
+
+    /**
+     * حمولةُ الشكل: التصنيفُ أوّلًا، ثم ما قرّره النشاطُ فوقه.
+     *
+     * @return array<string,mixed>
+     */
+    private function serviceShapePayload(
+        $serviceConfig,
+        array $config,
+        bool $requiresBookableItem,
+        array $allowedItemTypes,
+        int $businessId
+    ): array {
+        $payload = [
+            'exists' => (bool) $serviceConfig,
+            'id' => $serviceConfig ? (int) $serviceConfig->id : null,
+            'requires_bookable_item' => $requiresBookableItem,
+            'allowed_item_types' => $allowedItemTypes,
+            'booking_modes' => data_get($config, 'booking_modes', []),
+            'item_family' => data_get($config, 'item_family'),
+            'requires_start_end' => filter_var(data_get($config, 'requires_start_end', false), FILTER_VALIDATE_BOOLEAN),
+            'supports_quantity' => filter_var(data_get($config, 'supports_quantity', true), FILTER_VALIDATE_BOOLEAN),
+            'supports_guest_count' => filter_var(data_get($config, 'supports_guest_count', false), FILTER_VALIDATE_BOOLEAN),
+            'supports_extras' => filter_var(data_get($config, 'supports_extras', false), FILTER_VALIDATE_BOOLEAN),
+            'required_fields' => data_get($config, 'required_fields', []),
+        ];
+
+        $shape = $businessId > 0
+            ? app(\App\Services\BookingShapeResolver::class)->forBusiness($businessId)
+            : null;
+
+        if (! $shape) {
+            return $payload;
+        }
+
+        $asks = (array) ($shape['asks'] ?? []);
+        $requires = (array) ($shape['requires'] ?? []);
+
+        return array_merge($payload, [
+            'pattern' => $shape['pattern'] ?? null,
+            'pattern_label' => $shape['label'] ?? null,
+            'requires_bookable_item' => $shape['unit'] === \App\Enums\BookingPattern::UNIT_ALWAYS
+                ? true
+                : ($shape['unit'] === \App\Enums\BookingPattern::UNIT_NEVER ? false : $requiresBookableItem),
+            'requires_start_end' => (bool) array_intersect(['date_range', 'duration'], $requires),
+            'supports_quantity' => in_array('quantity', $asks, true) || $payload['supports_quantity'],
+            'supports_guest_count' => (bool) array_intersect(['guest_count', 'party_size'], $asks),
+            'required_fields' => $requires,
         ]);
     }
 

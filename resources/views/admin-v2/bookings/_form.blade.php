@@ -244,8 +244,9 @@
                     </div>
 
                     <div id="quantity_wrap">
-                        <label class="a2-label">{{ __('الكمية / المدة') }}</label>
+                        <label class="a2-label">{{ __('عدد الوحدات') }}</label>
                         <input type="number" min="1" id="quantity" name="quantity" class="a2-input" value="{{ $quantityValue }}">
+                        <small class="a2-help">{{ __('كم وحدة — غرفتان، طاولتان. المدة تُحسب من التاريخين.') }}</small>
                     </div>
 
                     <div id="duration_preview_wrap">
@@ -624,7 +625,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             durationValue.value = qty;
-            quantity.value = qty;
+            // ولا تُكتب فى «العدد».
+            // كانت هذه السطرُ تنسخ عددَ الليالى إلى خانة العدد، فيُرسَل الرقمُ
+            // مرّتين: مرّةً بوصفه مدّةً ومرّةً بوصفه وحدات. عشرُ ليالٍ فى غرفةٍ
+            // بـ١٣٠٠ خرجت ١٣٠٠٠٠ بدل ١٣٠٠٠ — عشرُ ليالٍ × عشرِ غرفٍ لم يطلبها أحد.
             durationPreview.value = durationLabel(totalMinutes, mode);
             return;
         }
@@ -842,7 +846,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const businessId = hiddenBusinessId.value;
         const serviceId = hiddenServiceId.value;
         const bookableId = bookableSelect.value || (hiddenBookableItemId ? hiddenBookableItemId.value : '');
-        const qty = Math.max(parseInt(durationValue.value || quantity.value || '1', 10), 1);
+        // العددُ عددُ الوحدات، والمدّةُ تأتى من النافذة على الخادم.
+        const qty = Math.max(parseInt(quantity.value || '1', 10), 1);
 
         if (!businessId || !serviceId) {
             resetPreview();

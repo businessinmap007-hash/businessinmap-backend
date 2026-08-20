@@ -120,13 +120,10 @@ class BookingAddOnsTest extends TestCase
         )['final_price'];
     }
 
-    private function adjustmentsOf(int $kind): array
+    /** الإضافاتُ كما كُتبت — على النشاط، لا على نوعٍ منه. */
+    private function addOns(): array
     {
-        return BusinessServicePrice::query()
-            ->where('business_id', $this->hotel->id)
-            ->where('line_option_id', $kind)
-            ->firstOrFail()
-            ->currentOfferingAdjustments();
+        return $this->hotel->fresh()->currentOfferingAdjustments();
     }
 
     /*
@@ -135,19 +132,15 @@ class BookingAddOnsTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    /** الشاشةُ موجودة، وتقول على أىِّ الأنواع ستُكتب. */
-    public function test_the_screen_lists_the_kinds_it_will_write_on(): void
+    /** الشاشةُ موجودة، وتفتح بلا شرط. */
+    public function test_the_screen_opens_and_offers_the_vocabulary(): void
     {
-        $this->priceFor(self::SINGLE, 600);
-        $this->priceFor(self::DOUBLE, 900);
-
         $html = $this->actingAs($this->hotel)
             ->get(route('business.booking-add-ons.index', [], false))
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('غرفة فردية', $html);
-        $this->assertStringContainsString('غرفة مزدوجة', $html);
         $this->assertStringContainsString('name="option_ids[]"', $html);
+        $this->assertStringContainsString('شامل الإفطار', $html);
     }
 
     /** والشجرةُ الجانبية تدلّ عليها بجوار «وحداتي». */
@@ -161,13 +154,20 @@ class BookingAddOnsTest extends TestCase
         $this->assertStringContainsString(route('business.booking-add-ons.index', [], false), $menu);
     }
 
-    /** ولا تُكتب إضافةٌ بلا سعرٍ تُكتب عليه — وتقول ذلك بدل أن تصمت. */
-    public function test_it_refuses_when_nothing_is_priced_yet(): void
+    /**
+     * وتُكتب قبل أن يُسعَّر شىء.
+     *
+     * كانت تُنسخ على سطور الأسعار، فلم تكن تُقبل قبل وجودها — والإضافةُ لا
+     * تنتظر غرفة. صارت على النشاط، فالترتيبُ حرٌّ.
+     */
+    public function test_it_can_be_written_before_any_room_is_priced(): void
     {
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
             'adjust' => [self::BREAKFAST => 50],
-        ])->assertSessionHasErrors('option_ids');
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(50.0, $this->addOns()[self::BREAKFAST]['value']);
     }
 
     /*
@@ -176,21 +176,27 @@ class BookingAddOnsTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
-    /** «إفطار +٥٠» تُكتب مرّةً فتصل كلَّ نوعٍ عنده. */
-    public function test_one_save_reaches_every_kind(): void
+    /**
+     * «خدمة ثابته مع كل الغرف، لا تزيد بتغيير نوع الغرفة من فردى لزوجى».
+     *
+     * سعرُ الإفطار خمسون فى الفردية وخمسون فى المزدوجة، وإن اختلف سعرُ
+     * الغرفتين. فالإضافةُ ليست نسبةً من الغرفة ولا صفةً لنوعها.
+     */
+    public function test_one_price_whatever_the_room_costs(): void
     {
         $this->priceFor(self::SINGLE, 600);
         $this->priceFor(self::DOUBLE, 900);
 
+        $single = $this->roomOf(self::SINGLE, 'S101');
+        $double = $this->roomOf(self::DOUBLE, 'D201');
+
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
             'adjust' => [self::BREAKFAST => 50],
-            'adjust_type' => [self::BREAKFAST => 'amount'],
         ])->assertRedirect();
 
-        foreach ([self::SINGLE, self::DOUBLE] as $kind) {
-            $this->assertSame(50.0, $this->adjustmentsOf($kind)[self::BREAKFAST]['value']);
-        }
+        $this->assertSame(650.0, $this->nightly($single, [self::BREAKFAST]));
+        $this->assertSame(950.0, $this->nightly($double, [self::BREAKFAST]));
     }
 
     /** «فردى ٦٠٠، وإفطار ٥٠، فالمجموع ٦٥٠» — وهو الطلب حرفيًّا. */
@@ -253,7 +259,7 @@ class BookingAddOnsTest extends TestCase
             'adjust' => [self::BREAKFAST => 75],
         ])->assertRedirect();
 
-        $adjustments = $this->adjustmentsOf(self::SINGLE);
+        $adjustments = $this->addOns();
 
         $this->assertSame(75.0, $adjustments[self::BREAKFAST]['value']);
         $this->assertArrayNotHasKey(self::FULL_BOARD, $adjustments, 'الإقامةُ الكاملة بقيت بعد نزع علامتها');
@@ -327,7 +333,7 @@ class BookingAddOnsTest extends TestCase
             'per_person' => [self::BREAKFAST => 1],
         ])->assertRedirect();
 
-        $this->assertTrue($this->adjustmentsOf(self::SINGLE)[self::BREAKFAST]['per_person']);
+        $this->assertTrue($this->addOns()[self::BREAKFAST]['per_person']);
     }
 
     /*
@@ -470,7 +476,10 @@ class BookingAddOnsTest extends TestCase
             'adjust' => [self::FULL_BOARD => 999],
         ])->assertRedirect();
 
-        $this->assertSame(100.0, $this->adjustmentsOf(self::SINGLE)[self::FULL_BOARD]['value']);
+        $this->assertArrayNotHasKey(self::FULL_BOARD, $this->addOns(), 'صفةُ وحدةٍ قُبلت إضافةً');
+
+        // وسعرُها على سطرها لم يُمسّ: تسعُمئةٌ وتسعةٌ وتسعون لم تصل إليه.
+        $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ تغيّر سعرُها من الباب الخطأ');
     }
 
     /*

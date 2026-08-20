@@ -1048,14 +1048,36 @@ class ServiceExecutionEngine
             return collect();
         }
 
-        return OfferingOption::query()
-            ->where('offering_type', $businessPrice->getMorphClass())
-            ->where('offering_id', (int) $businessPrice->id)
+        /*
+         * من مكانين: سطرِ السعر، والنشاطِ نفسه.
+         *
+         * ما على السطر يخصّ نوعًا بعينه — «إطلالة بحرية» على الغرف الفردية.
+         * وما على النشاط ثابتٌ لكل أنواعه: «الإفطار خدمةٌ ثابتة مع كل الغرف،
+         * لا تزيد بتغيير نوع الغرفة من فردى لزوجى» — المالك، 2026-08-20.
+         *
+         * والسطرُ يغلب عند التكرار، فمن أراد لنوعٍ سعرًا خاصًّا كتبه عليه.
+         */
+        $rows = OfferingOption::query()
             ->where('role', OfferingOption::ROLE_MODIFIER)
             ->whereIn('option_id', $ids->all())
+            ->where(function ($query) use ($businessPrice) {
+                $query->where(function ($sub) use ($businessPrice) {
+                    $sub->where('offering_type', $businessPrice->getMorphClass())
+                        ->where('offering_id', (int) $businessPrice->id);
+                })->orWhere(function ($sub) use ($businessPrice) {
+                    $sub->where('offering_type', (new User)->getMorphClass())
+                        ->where('offering_id', (int) $businessPrice->business_id);
+                });
+            })
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+
+        $rowMorph = $businessPrice->getMorphClass();
+
+        return $rows->groupBy('option_id')
+            ->map(fn ($group) => $group->firstWhere('offering_type', $rowMorph) ?: $group->first())
+            ->values();
     }
 
     /**

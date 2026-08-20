@@ -29,7 +29,7 @@
 <div class="a2-page-head">
     <div>
         <h1 class="a2-page-title">{{ __('إضافات الحجز') }}</h1>
-        <div class="a2-page-subtitle">{{ __('ما يختاره النزيل وقت الحجز — نظام الوجبات وما شابهه. سعر واحد يسري على كل أنواعك.') }}</div>
+            <div class="a2-page-subtitle">{{ __('ما يختاره النزيل وقت الحجز — نظام الوجبات وما شابهه. سعر ثابت لا يتغيّر بنوع الغرفة.') }}</div>
     </div>
     <div class="a2-page-actions">
         <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('وحداتي') }}</a>
@@ -50,19 +50,14 @@
 
 {{-- الفرقُ الذى تقوم عليه الشاشتان، مكتوبًا حيث يُقرأ. --}}
 <div class="a2-alert a2-alert-info">
-    <div><strong>{{ __('هنا') }}</strong> — {{ __('ما يقرّره النزيل وهو نفسه في كل غرفة: «إفطار»، «إقامة كاملة».') }}</div>
+    <div><strong>{{ __('هنا') }}</strong> — {{ __('ما يقرّره النزيل وسعره واحد مع كل الغرف: «إفطار»، «إقامة كاملة». لا يزيد بتغيير النوع من فردية إلى مزدوجة — ويزيد بعدد الأفراد إن أشّرت «لكل فرد».') }}</div>
     <div style="margin-top:6px;">
         <strong>{{ __('وفي شاشة الوحدة') }}</strong> —
         {{ __('ما يخصّ غرفة بعينها: D117 على المسبح وD118 على البحر، وهما من نفس النوع.') }}
     </div>
 </div>
 
-@if(empty($kinds))
-    <div class="a2-alert a2-alert-warning">
-        {{ __('لا أسعار بعد. سعّر نوعًا واحدًا على الأقل من «وحداتي»، ثم عد إلى هنا — الإضافة تُكتب على سطر السعر.') }}
-    </div>
-@else
-    <form method="POST" action="{{ route('business.booking-add-ons.update') }}">
+<form method="POST" action="{{ route('business.booking-add-ons.update') }}">
         @csrf
         @method('PUT')
 
@@ -116,20 +111,10 @@
             </div>
         </div>
 
-        <div class="a2-card a2-card--soft" style="margin-top:12px;">
-            <div class="a2-card-sub">
-                {{ __('ستُكتب على:') }}
-                @foreach($kinds as $kind)
-                    <span class="a2-pill a2-pill-gray">{{ $kind }}</span>
-                @endforeach
-            </div>
-        </div>
-
         <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
             <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
         </div>
     </form>
-@endif
 @endsection
 
 @push('styles')

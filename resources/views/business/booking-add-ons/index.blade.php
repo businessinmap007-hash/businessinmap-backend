@@ -6,6 +6,7 @@
     $picked = collect(old('option_ids', array_keys($addOns)))->map(fn ($id) => (int) $id);
     $oldAdjust = collect(old('adjust', []));
     $oldAdjustType = collect(old('adjust_type', []));
+    $oldPerPerson = collect(old('per_person', []));
 
     $value = function (int $id) use ($oldAdjust, $addOns) {
         if ($oldAdjust->has($id)) {
@@ -19,7 +20,6 @@
 
     $type = fn (int $id) => (string) ($oldAdjustType[$id] ?? ($addOns[$id]['type'] ?? 'amount'));
 
-    $oldPerPerson = collect(old('per_person', []));
     $perPerson = fn (int $id) => $oldPerPerson->has($id)
         ? (bool) $oldPerPerson[$id]
         : (bool) ($addOns[$id]['per_person'] ?? false);
@@ -29,9 +29,10 @@
 <div class="a2-page-head">
     <div>
         <h1 class="a2-page-title">{{ __('إضافات الحجز') }}</h1>
-            <div class="a2-page-subtitle">{{ __('ما يختاره النزيل وقت الحجز — نظام الوجبات وما شابهه. سعر ثابت لا يتغيّر بنوع الغرفة.') }}</div>
+        <div class="a2-page-subtitle">{{ __('ما يختاره النزيل وقت الحجز — نظام الوجبات وما شابهه. سعر ثابت لا يتغيّر بنوع الغرفة.') }}</div>
     </div>
     <div class="a2-page-actions">
+        <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost">{{ __('إعدادات الخدمات') }}</a>
         <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('وحداتي') }}</a>
     </div>
 </div>
@@ -58,85 +59,126 @@
 </div>
 
 <form method="POST" action="{{ route('business.booking-add-ons.update') }}">
-        @csrf
-        @method('PUT')
+    @csrf
+    @method('PUT')
 
-        <div class="a2-card a2-card--section">
+    @foreach($vocabulary as $groupName => $options)
+        <div class="a2-card a2-card--section" style="margin-bottom:14px;">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-card-title">{{ __('الإضافات وأسعارها') }}</div>
-                    <div class="a2-card-sub">
-                        {{ __('أشّر ما تقدّمه واكتب سعر كلٍّ منه. يُضاف إلى سعر الفترة إن اختاره النزيل.') }}
-                        {{ __('و«لكل فرد» تضرب السعر في عدد النزلاء — إفطار الغرفة الثلاثية ليس كإفطار الفردية.') }}
-                    </div>
+                    <div class="a2-card-title">{{ $groupName }}</div>
+                    <div class="a2-card-sub">{{ __('أشّر ما تقدّمه واكتب سعره. يُضاف إلى سعر الفترة إن اختاره النزيل.') }}</div>
                 </div>
             </div>
 
-            <div class="a2-form-grid">
-                <div class="a2-form-group a2-field-full">
-                    @foreach($vocabulary as $groupName => $options)
-                        <div class="bv-group">
-                            <div class="bv-group-head">{{ $groupName }}</div>
-                            <div class="bv-chips">
-                                @foreach($options as $option)
-                                    @php $isDeclared = $declared->contains((int) $option->id); @endphp
-                                    <label class="bv-chip {{ $isDeclared ? 'is-declared' : '' }}"
-                                           @if($isDeclared) title="{{ __('هذه صفة مثبّتة على وحدات عندك — تُدار من شاشة الوحدة.') }}" @endif>
-                                        <input type="checkbox" name="option_ids[]" value="{{ $option->id }}"
-                                               @checked($picked->contains((int) $option->id)) @disabled($isDeclared)>
-                                        <span>{{ $option->name_ar ?: $option->name_en }}</span>
-                                        <input type="number" step="0.01" class="bv-adjust"
-                                               name="adjust[{{ $option->id }}]" value="{{ $value($option->id) }}" placeholder="0">
-                                        <select class="bv-adjust-type" name="adjust_type[{{ $option->id }}]">
-                                            <option value="amount" @selected($type($option->id) === 'amount')>{{ __('ج') }}</option>
-                                            <option value="percent" @selected($type($option->id) === 'percent')>%</option>
-                                        </select>
-                                        {{-- «لكل فرد»: البحرُ لا يُقسَّم على النزلاء، والإفطارُ يُقسَّم. --}}
-                                        <span class="bv-per-person">
-                                            <input type="checkbox" name="per_person[{{ $option->id }}]" value="1"
-                                                   @checked($perPerson($option->id))>
-                                            {{ __('لكل فرد') }}
-                                        </span>
+            {{-- جدولٌ لا أقراص.
+                 كان كلُّ سطرٍ <label> واحدًا يلفّ خانتَى اختيار: خانةُ الاختيار
+                 وخانةُ «لكل فرد». و<label> يوجّه أىَّ نقرةٍ فيه إلى أوّل حقلٍ
+                 فيه، فالضغط على اليسرى يقلب اليمنى — فبدت الثانيةُ معطّلة.
+                 كلُّ خانةٍ الآن فى <label> خاصٍّ بها لا يلفّ غيرَها. --}}
+            <div class="a2-table-wrap">
+                <table class="a2-table ao-table">
+                    <thead>
+                        <tr>
+                            <th style="width:44px"></th>
+                            <th>{{ __('الإضافة') }}</th>
+                            <th style="width:130px">{{ __('السعر') }}</th>
+                            <th style="width:90px">{{ __('الوحدة') }}</th>
+                            <th style="width:120px">{{ __('لكل فرد') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($options as $option)
+                            @php
+                                $id = (int) $option->id;
+                                $isDeclared = $declared->contains($id);
+                                $isOn = $picked->contains($id);
+                            @endphp
+                            <tr class="ao-row {{ $isOn ? 'is-on' : '' }} {{ $isDeclared ? 'is-declared' : '' }}"
+                                @if($isDeclared) title="{{ __('صفة مثبّتة على وحدات عندك — تُدار من شاشة الوحدة.') }}" @endif>
+                                <td>
+                                    <input type="checkbox" class="ao-pick" id="ao_{{ $id }}"
+                                           name="option_ids[]" value="{{ $id }}"
+                                           @checked($isOn) @disabled($isDeclared)>
+                                </td>
+                                <td>
+                                    <label for="ao_{{ $id }}" class="ao-name">{{ $option->name_ar ?: $option->name_en }}</label>
+                                    @if($isDeclared)
+                                        <div class="a2-hint">{{ __('تُدار من شاشة الوحدة') }}</div>
+                                    @endif
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" class="a2-input ao-price"
+                                           name="adjust[{{ $id }}]" value="{{ $value($id) }}"
+                                           placeholder="0" @disabled($isDeclared)>
+                                </td>
+                                <td>
+                                    <select class="a2-select ao-unit" name="adjust_type[{{ $id }}]" @disabled($isDeclared)>
+                                        <option value="amount" @selected($type($id) === 'amount')>{{ __('ج') }}</option>
+                                        <option value="percent" @selected($type($id) === 'percent')>%</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    {{-- <label> يلفّ خانتَه وحدها. --}}
+                                    <label class="ao-per">
+                                        <input type="checkbox" name="per_person[{{ $id }}]" value="1"
+                                               @checked($perPerson($id)) @disabled($isDeclared)>
+                                        <span>{{ __('× عدد الأفراد') }}</span>
                                     </label>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-
-                    {{-- ما أعلنته وحدةٌ عن نفسها لا يصلح إضافةً يختارها النزيل:
-                         ثمنُه محسوبٌ فى سعرها المعروض، فعرضُه ثانيةً يُحصّله
-                         مرّتين. تُعطَّل هنا ولا تُخفى، حتى يُعرف أين تُدار. --}}
-                    <small class="a2-help">{{ __('ما تُزيل علامته يُحذف. والمعطَّل صفةُ وحدة — تُدار من شاشة تلك الوحدة.') }}</small>
-                </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
+    @endforeach
 
-        <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
-            <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
+    <div class="a2-card a2-card--soft">
+        <div class="a2-card-sub">
+            {{ __('ما تُزيل علامته يُحذف عند الحفظ. والمعطَّل صفةُ وحدة — تُدار من شاشة تلك الوحدة.') }}
         </div>
-    </form>
+    </div>
+
+    <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
+    </div>
+</form>
 @endsection
 
 @push('styles')
 <style>
-    .bv-group { margin-bottom: 10px; }
-    .bv-group-head { font-size: 12px; opacity: .7; margin-bottom: 4px; }
-    .bv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .bv-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-               border: 1px solid rgba(128,128,128,.35); border-radius: 999px;
-               font-size: 13px; cursor: pointer; }
-    .bv-chip:has(input[type=checkbox]:checked) { border-color: currentColor; font-weight: 600; }
-    .bv-chip.is-declared { opacity: .45; cursor: not-allowed; }
-    .bv-chip .bv-adjust, .bv-chip .bv-adjust-type, .bv-chip .bv-per-person { display: none; }
-    .bv-chip:has(> input[type=checkbox]:checked) .bv-adjust,
-    .bv-chip:has(> input[type=checkbox]:checked) .bv-adjust-type,
-    .bv-chip:has(> input[type=checkbox]:checked) .bv-per-person { display: inline-flex; }
-    .bv-per-person { align-items: center; gap: 3px; font-size: 11px; opacity: .85; }
-    /* الخانةُ تُقرأ خانةَ اختيار: أكبرُ قليلًا وظاهرةٌ دائمًا. */
-    .bv-chip > input[type=checkbox] { width: 15px; height: 15px; }
-    .bv-adjust { width: 66px; padding: 1px 4px; font-size: 12px; border-radius: 6px;
-                 border: 1px solid rgba(128,128,128,.35); }
-    .bv-adjust-type { padding: 1px 2px; font-size: 12px; border-radius: 6px;
-                      border: 1px solid rgba(128,128,128,.35); }
+    .ao-table td { vertical-align: middle; }
+
+    /* خانةُ الاختيار تُقرأ خانةَ اختيار. */
+    .ao-table input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+
+    .ao-name { cursor: pointer; font-weight: 600; }
+
+    /* السعرُ باهتٌ حتى تُؤشَّر إضافتُه: الصفُّ كلُّه يقول إن كان يعمل أو لا،
+       بدل أن يختفى الحقلُ فيقفز الجدول. */
+    .ao-row:not(.is-on) .ao-price,
+    .ao-row:not(.is-on) .ao-unit,
+    .ao-row:not(.is-on) .ao-per { opacity: .4; }
+
+    .ao-row.is-on { background: rgba(128, 128, 128, .06); }
+    .ao-row.is-declared { opacity: .5; }
+
+    .ao-per { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; }
+    .ao-price { max-width: 110px; }
+    .ao-unit { max-width: 80px; }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+// الصفُّ يضىء بمجرّد التأشير، فلا ينتظر التاجرُ الحفظَ ليعرف ما هو مُفعَّل.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.ao-pick').forEach(function (box) {
+        box.addEventListener('change', function () {
+            box.closest('.ao-row').classList.toggle('is-on', box.checked);
+        });
+    });
+});
+</script>
 @endpush

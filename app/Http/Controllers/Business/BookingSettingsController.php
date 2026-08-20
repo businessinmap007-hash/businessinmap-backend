@@ -45,7 +45,7 @@ class BookingSettingsController extends Controller
          * هنا مرّةً، فتقرؤه الشاشاتُ الثلاث.
          */
         $vocabulary = app(MerchantOfferingVocabulary::class)
-            ->for($this->businessId(), $this->childId(), $this->rootId());
+            ->everythingOffered($this->businessId(), $this->childId(), $this->rootId());
 
         return view('business.booking-settings.edit', [
             'row' => $row,
@@ -60,35 +60,25 @@ class BookingSettingsController extends Controller
     /**
      * مجموعاتُ هذا التاجر: المعرّفُ والاسمُ وما فيها.
      *
-     * تُجمع من القائمتين معًا — السطورِ والمُوصِّفات — لأن الحاجز مفتوح وكلُّ
-     * مجموعةٍ تظهر فيهما. والمقصودُ هنا المجموعةُ نفسها، لا أيَّهما ظهرت فيه.
+     * كلُّ ما أشّره عن نفسه، لا ما يجوز تسعيرُه منه: «مرافق الإقامة» وصفيّةٌ
+     * عند المنصّة فتسقط من قوائم التسعير — «قمت باضافة مجموعة اختيارات منها
+     * الجيم وال سبا ولم تظهر فى الاعدادات». ولا يستطيع أحدٌ أن يُعلن دورَ
+     * كلمةٍ لا يراها، وفندقٌ فيه جيمٌ قد يبيع دخولَه إضافةً.
      *
+     * @param  \Illuminate\Support\Collection  $vocabulary  [اسم المجموعة => خيارات]
      * @return array<int,array{id:int,name:string,options:string}>
      */
-    private function groupsOf(array $vocabulary): array
+    private function groupsOf($vocabulary): array
     {
-        $names = collect($vocabulary['lines'] ?? [])
-            ->keys()
-            ->merge(collect($vocabulary['modifiers'] ?? [])->keys())
-            ->unique()->values();
-
-        if ($names->isEmpty()) {
-            return [];
-        }
-
-        $ids = \App\Models\OptionGroup::query()
-            ->whereIn('name_ar', $names->all())
-            ->pluck('id', 'name_ar');
-
-        return $names->map(function (string $name) use ($vocabulary, $ids) {
-            $options = collect($vocabulary['lines'][$name] ?? [])
-                ->merge($vocabulary['modifiers'][$name] ?? [])
-                ->unique(fn ($o) => (int) $o->id);
+        return collect($vocabulary)->map(function ($options, string $name) {
+            $first = collect($options)->first();
 
             return [
-                'id' => (int) ($ids[$name] ?? 0),
+                'id' => (int) ($first->group_id ?? 0),
                 'name' => $name,
-                'options' => $options->map(fn ($o) => $o->name_ar ?: $o->name_en)->implode(' · '),
+                'options' => collect($options)
+                    ->map(fn ($o) => $o->name_ar ?: $o->name_en)
+                    ->implode(' · '),
             ];
         })->filter(fn (array $g) => $g['id'] > 0)->values()->all();
     }

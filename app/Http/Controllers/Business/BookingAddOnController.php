@@ -50,14 +50,33 @@ class BookingAddOnController extends Controller
     {
         return view('business.booking-add-ons.index', [
             // ما أعلنه التاجرُ «إضافة بسعر منفصل» — نظامُ الوجبات ونحوه.
-            'vocabulary' => app(\App\Services\BookingVocabularyRoles::class)->only(
-                $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
-                $this->businessId(),
-                \App\Services\BookingVocabularyRoles::ROLE_ADDON
-            ),
+            'vocabulary' => $this->addOnVocabulary(),
             'addOns' => $this->business()->currentOfferingAdjustments(),
             'declared' => $this->declaredByUnits(),
         ]);
+    }
+
+    /**
+     * ما يصلح إضافةً: ما أعلنه التاجرُ `addon`.
+     *
+     * ويشمل مجموعةً وصفيّةً عند المنصّة أعلنها هو إضافة — «مرافق الإقامة»
+     * فيها جيمٌ وسبا، ومن أعلنها إضافةً يقصد بيعَ دخولهما.
+     */
+    private function addOnVocabulary(): Collection
+    {
+        return app(\App\Services\BookingVocabularyRoles::class)->only(
+            $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+            $this->businessId(),
+            \App\Services\BookingVocabularyRoles::ROLE_ADDON,
+            $this->vocabulary->everythingOffered($this->businessId(), $this->childId(), $this->rootId())
+        );
+    }
+
+    /** ومعرّفاتُها، لقبول ما يُرسَل. */
+    private function addOnIds(): Collection
+    {
+        return $this->addOnVocabulary()->flatten(1)
+            ->map(fn ($o) => (int) $o->id)->unique()->values();
     }
 
     private function business(): User
@@ -75,8 +94,9 @@ class BookingAddOnController extends Controller
             'per_person' => ['nullable', 'array'],
         ]);
 
-        $allowed = $this->vocabulary
-            ->pickableIds($this->businessId(), $this->childId(), $this->rootId())['modifiers'];
+        // ما عرضته الشاشةُ هو ما يُقبل: قائمةُ التسعير وحدها كانت ترفض ما
+        // أعلنه التاجرُ إضافةً وهو وصفىٌّ عند المنصّة.
+        $allowed = $this->addOnIds();
 
         /*
          * وما أعلنته وحدةٌ عن نفسها لا يصلح إضافة.

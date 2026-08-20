@@ -209,6 +209,58 @@ class MerchantOfferingVocabulary
         return [collect(), false];
     }
 
+    /**
+     * كلُّ ما أشّره هذا التاجرُ عن نفسه، مجموعةً مجموعة — بلا تصفيةِ دور.
+     *
+     * «قمت باضافة مجموعة اختيارات منها الجيم وال سبا ولم تظهر فى الاعدادات»
+     * — المالك، 2026-08-20. و«مرافق الإقامة» مجموعةٌ `descriptive` عند
+     * المنصّة، فتسقط من `for()` قبل أن تصل شاشةَ الأدوار.
+     *
+     * وهذا صحيحٌ لقوائم التسعير وخطأٌ لشاشة الإعلان: التاجرُ يُعلن هناك ما
+     * تفعله كلماتُه، ولا يستطيع أن يُعلن عن كلمةٍ لا يراها. وفندقٌ فيه جيمٌ
+     * وسبا قد يبيع دخولَهما إضافةً — وهو ما تمنعه صفةُ «وصفية» الافتراضية.
+     *
+     * فالتصفيةُ تبقى فى `for()` حيث تُسعَّر، وهذه تُظهر كلَّ شىء حيث يُعلَن.
+     *
+     * ومن لم يؤشّر شيئًا بعد يرى قائمةَ تصنيفه كاملة — نفسُ القاعدة التى
+     * تحكم `for()`: تضييقٌ إلى لا شىء يُسكت التاجرَ بدل أن يعينه.
+     *
+     * @return \Illuminate\Support\Collection [اسم المجموعة => خيارات]
+     */
+    public function everythingOffered(int $businessId, int $childId, int $rootId = 0): Collection
+    {
+        $allowed = $this->scope->idsFor($childId, $rootId);
+
+        if ($allowed->isEmpty()) {
+            return collect();
+        }
+
+        $own = DB::table('option_user')
+            ->where('user_id', $businessId)
+            ->pluck('option_id')
+            ->map(fn ($id) => (int) $id)
+            ->intersect($allowed);
+
+        return $this->group($this->optionsInAnyRole($own->isNotEmpty() ? $own : $allowed));
+    }
+
+    /**
+     * نفسُ `optionsIn` بلا شرطِ الدور ولا استثناءِ مجموعات المعاملة.
+     *
+     * لأن الإعلانَ عن مجموعةٍ لا يُسعِّرها: يقول ما تفعله إن سُعِّرت.
+     */
+    private function optionsInAnyRole(Collection $ids): Collection
+    {
+        return DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereIn('o.id', $ids)
+            ->where('g.is_active', 1)
+            ->orderByRaw(OptionGroup::displayOrderSql('g'))
+            ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
+            ->orderBy('o.id')
+            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.price_role']);
+    }
+
     /** Option ids this merchant may attach to an offering, in any role. */
     public function allowedIds(int $businessId, int $childId, int $rootId = 0): Collection
     {

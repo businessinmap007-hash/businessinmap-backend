@@ -382,19 +382,23 @@ class BookableItemController extends Controller
      */
     private function unitOptions()
     {
+        $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class);
+
         return app(\App\Services\BookingVocabularyRoles::class)->only(
-            app(\App\Services\MerchantOfferingVocabulary::class)
-                ->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+            $vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
             $this->businessId(),
-            \App\Services\BookingVocabularyRoles::ROLE_UNIT
+            \App\Services\BookingVocabularyRoles::ROLE_UNIT,
+            $vocabulary->everythingOffered($this->businessId(), $this->childId(), $this->rootId())
         );
     }
 
     /** @return array<int,int> */
     private function sanitizeUnitOptions(array $ids, ?int $lineOptionId): array
     {
-        $allowed = app(\App\Services\MerchantOfferingVocabulary::class)
-            ->pickableIds($this->businessId(), $this->childId(), $this->rootId())['modifiers'];
+        // ما عرضته الشاشةُ هو ما يُقبل — بما فيه مجموعةٌ أعلنها التاجرُ
+        // «تزيد على سعر الوحدة» وهى وصفيّةٌ عند المنصّة.
+        $allowed = $this->unitOptions()->flatten(1)
+            ->map(fn ($o) => (int) $o->id)->unique()->values();
 
         return collect($ids)
             ->map(fn ($id) => (int) $id)

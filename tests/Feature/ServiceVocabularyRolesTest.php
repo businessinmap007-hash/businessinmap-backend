@@ -145,6 +145,74 @@ class ServiceVocabularyRolesTest extends TestCase
         }
     }
 
+    /**
+     * والمجموعةُ الوصفيّة تظهر أيضًا — «الجيم وال سبا».
+     *
+     * «قمت باضافة مجموعة اختيارات منها الجيم وال سبا ولم تظهر فى الاعدادات»
+     * — المالك، 2026-08-20. و«مرافق الإقامة» مجموعةٌ `descriptive` عند
+     * المنصّة، فتسقط من قوائم التسعير قبل أن تصل شاشةَ الأدوار. ولا يستطيع
+     * أحدٌ أن يُعلن دورَ كلمةٍ لا يراها.
+     */
+    public function test_a_descriptive_group_the_merchant_ticked_still_appears(): void
+    {
+        $gym = (int) DB::table('options')->where('name_ar', 'جيم')->value('id');
+
+        if ($gym <= 0) {
+            $this->markTestSkipped('«جيم» ليست فى المفردات.');
+        }
+
+        DB::table('option_user')->insert(['user_id' => $this->hotel->id, 'option_id' => $gym]);
+
+        $groupName = (string) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('o.id', $gym)->value('g.name_ar');
+
+        $html = $this->actingAs($this->hotel)
+            ->get(route('business.booking-settings.edit', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString($groupName, $html, 'المجموعةُ الوصفيّة لم تصل شاشةَ الأدوار');
+        $this->assertStringContainsString('جيم', $html);
+    }
+
+    /**
+     * ومن أعلنها إضافةً استطاع تسعيرَها.
+     *
+     * قولُ التاجر عن محلّه أولى من افتراض المنصّة: فندقٌ فيه جيمٌ قد يبيع
+     * دخولَه. وهو امتدادٌ لقاعدةٍ قائمة — الدورُ ترتيبٌ لا إذن.
+     */
+    public function test_declaring_a_descriptive_group_an_add_on_makes_it_priceable(): void
+    {
+        $gym = (int) DB::table('options')->where('name_ar', 'جيم')->value('id');
+
+        if ($gym <= 0) {
+            $this->markTestSkipped('«جيم» ليست فى المفردات.');
+        }
+
+        DB::table('option_user')->insert(['user_id' => $this->hotel->id, 'option_id' => $gym]);
+
+        $this->roles()->save((int) $this->hotel->id, [
+            $this->groupIdOf($gym) => BookingVocabularyRoles::ROLE_ADDON,
+        ]);
+
+        $html = $this->actingAs($this->hotel)
+            ->get(route('business.booking-add-ons.index', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('جيم', $html, 'المجموعةُ المُعلَنة لم تصل شاشةَ الإضافات');
+
+        // ويُقبل تسعيرُها، لا يُرفض بحجّة أنها وصفيّة.
+        $this->actingAs($this->hotel)->put(
+            route('business.booking-add-ons.update', [], false),
+            ['option_ids' => [$gym], 'adjust' => [$gym => 75], 'per_person' => [$gym => 1]]
+        )->assertRedirect();
+
+        $written = $this->hotel->fresh()->currentOfferingAdjustments();
+
+        $this->assertSame(75.0, $written[$gym]['value']);
+        $this->assertTrue($written[$gym]['per_person']);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | ما تقرؤه الشاشات

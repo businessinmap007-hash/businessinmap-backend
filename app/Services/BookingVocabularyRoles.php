@@ -93,9 +93,16 @@ class BookingVocabularyRoles
      * المفرداتُ تصل من `MerchantOfferingVocabulary` مجموعةً باسمها، فالتصفيةُ
      * تحتاج المعرّفَ لا الاسم — والأسماءُ تتكرّر بين الجذور.
      *
+     * ── والإعلانُ يضمّ كما يستبعد ────────────────────────────────────────────
+     *
+     * مجموعةٌ أعلنها التاجرُ بهذا الدور تدخل ولو لم تكن فى القائمة أصلًا:
+     * «مرافق الإقامة» وصفيّةٌ عند المنصّة فتسقط من قوائم التسعير، ومن أعلن
+     * أنها «إضافة بسعر منفصل» يقصد أن يبيع دخولَ الجيم — وقولُه عن محلّه أولى
+     * من الافتراض. وهو امتدادٌ لقاعدةٍ قائمة: الدورُ ترتيبٌ لا إذن.
+     *
      * @param  \Illuminate\Support\Collection  $grouped  [اسم المجموعة => خيارات]
      */
-    public function only(Collection $grouped, int $businessId, string $role): Collection
+    public function only(Collection $grouped, int $businessId, string $role, ?Collection $everything = null): Collection
     {
         $declared = $this->for($businessId);
 
@@ -105,7 +112,7 @@ class BookingVocabularyRoles
 
         $names = $this->groupNames(array_keys($declared));
 
-        return $grouped->filter(function ($options, $groupName) use ($declared, $names, $role) {
+        $kept = $grouped->filter(function ($options, $groupName) use ($declared, $names, $role) {
             $groupId = $names[$groupName] ?? null;
 
             // لم تُعلَن: تظهر فى الجميع، كما كانت قبل هذه الشاشة.
@@ -115,6 +122,22 @@ class BookingVocabularyRoles
 
             return $declared[$groupId] === $role;
         });
+
+        if ($everything === null) {
+            return $kept;
+        }
+
+        // وما أُعلن بهذا الدور ولم تحمله القائمة — «مرافق الإقامة» وأخواتها.
+        $wanted = collect($declared)->filter(fn ($r) => $r === $role)->keys()
+            ->map(fn ($id) => (int) $id);
+
+        $extra = $everything->filter(function ($options, $groupName) use ($names, $wanted, $kept) {
+            $groupId = $names[$groupName] ?? null;
+
+            return $groupId !== null && $wanted->contains($groupId) && ! $kept->has($groupName);
+        });
+
+        return $kept->merge($extra);
     }
 
     /**

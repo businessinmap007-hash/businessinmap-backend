@@ -63,7 +63,10 @@ class BusinessPanelSidebarTest extends TestCase
 
         $this->assertGreaterThanOrEqual(2, substr_count($html, 'a2-nav-group'), 'لا فروعَ أصلًا');
 
-        foreach (['الحجز', 'إعدادات الحجز', 'وحداتي', 'حجوزاتي'] as $label) {
+        // «إعدادات الحجز» صارت «إعدادات الخدمات» يوم 2026-08-20: الشاشةُ
+        // نفسُها تُعلن أدوارَ مجموعات الكلمات، وهى تخدم المنيو والتجزئة
+        // كما تخدم الحجز — فاسمُها لم يعد يصفها.
+        foreach (['الحجز', 'إعدادات الخدمات', 'وحداتي', 'حجوزاتي'] as $label) {
             $this->assertContains($label, $this->labels($html), "«{$label}» ليست فى الشجرة");
         }
     }

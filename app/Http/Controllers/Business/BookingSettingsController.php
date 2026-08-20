@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BusinessBookingSetting;
 use App\Models\CategoryServiceConfig;
 use App\Models\PlatformService;
+use App\Services\BookingVocabularyRoles;
+use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -35,12 +37,60 @@ class BookingSettingsController extends Controller
 
         $chosen = $row->pattern() ?? ($patterns[0] ?? null);
 
+        /*
+         * ومفرداتُ هذا التاجر، مجموعةً مجموعة، ليقول دورَ كلٍّ منها.
+         *
+         * الحاجزُ مفتوحٌ عمدًا فكلُّ مجموعةٍ تصلح للخانتين، ولا شىءَ كان يقول
+         * أيُّها أساسُ السعر وأيُّها يزيد عليه وأيُّها يُسعَّر وحده. يُعلَن
+         * هنا مرّةً، فتقرؤه الشاشاتُ الثلاث.
+         */
+        $vocabulary = app(MerchantOfferingVocabulary::class)
+            ->for($this->businessId(), $this->childId(), $this->rootId());
+
         return view('business.booking-settings.edit', [
             'row' => $row,
             'patterns' => $patterns,
             'chosen' => $chosen,
             'shape' => $chosen ? BusinessBookingSetting::resolve($chosen, $row->exists ? $row : null) : null,
+            'groups' => $this->groupsOf($vocabulary),
+            'groupRoles' => app(BookingVocabularyRoles::class)->for($this->businessId()),
         ]);
+    }
+
+    /**
+     * مجموعاتُ هذا التاجر: المعرّفُ والاسمُ وما فيها.
+     *
+     * تُجمع من القائمتين معًا — السطورِ والمُوصِّفات — لأن الحاجز مفتوح وكلُّ
+     * مجموعةٍ تظهر فيهما. والمقصودُ هنا المجموعةُ نفسها، لا أيَّهما ظهرت فيه.
+     *
+     * @return array<int,array{id:int,name:string,options:string}>
+     */
+    private function groupsOf(array $vocabulary): array
+    {
+        $names = collect($vocabulary['lines'] ?? [])
+            ->keys()
+            ->merge(collect($vocabulary['modifiers'] ?? [])->keys())
+            ->unique()->values();
+
+        if ($names->isEmpty()) {
+            return [];
+        }
+
+        $ids = \App\Models\OptionGroup::query()
+            ->whereIn('name_ar', $names->all())
+            ->pluck('id', 'name_ar');
+
+        return $names->map(function (string $name) use ($vocabulary, $ids) {
+            $options = collect($vocabulary['lines'][$name] ?? [])
+                ->merge($vocabulary['modifiers'][$name] ?? [])
+                ->unique(fn ($o) => (int) $o->id);
+
+            return [
+                'id' => (int) ($ids[$name] ?? 0),
+                'name' => $name,
+                'options' => $options->map(fn ($o) => $o->name_ar ?: $o->name_en)->implode(' · '),
+            ];
+        })->filter(fn (array $g) => $g['id'] > 0)->values()->all();
     }
 
     public function update(Request $request): RedirectResponse
@@ -59,6 +109,8 @@ class BookingSettingsController extends Controller
             'notes_label' => ['nullable', 'string', 'max:120'],
             'requires' => ['nullable', 'array'],
             'requires.*' => ['string', 'max:40'],
+            'group_roles' => ['nullable', 'array'],
+            'group_roles.*' => ['nullable', 'string', 'max:20'],
         ], [], [
             'pattern' => 'نمط الحجز',
             'slot_minutes' => 'طول الفترة',
@@ -66,6 +118,8 @@ class BookingSettingsController extends Controller
             'lead_time_minutes' => 'مهلة الحجز المسبق',
             'notes_label' => 'عنوان حقل الملاحظات',
         ]);
+
+        app(BookingVocabularyRoles::class)->save($this->businessId(), $data['group_roles'] ?? []);
 
         BusinessBookingSetting::updateOrCreate(
             ['business_id' => $this->businessId()],

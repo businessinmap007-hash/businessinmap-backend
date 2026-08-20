@@ -1,12 +1,12 @@
 @extends('business.layouts.master')
 
-@section('title', __('إعدادات الحجز'))
+@section('title', __('إعدادات الخدمات'))
 
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">{{ __('إعدادات الحجز') }}</h1>
-        <div class="a2-page-subtitle">{{ __('اترك أى حقل فارغاً ليعمل كما يعمل نمطك افتراضياً.') }}</div>
+        <h1 class="a2-page-title">{{ __('إعدادات الخدمات') }}</h1>
+        <div class="a2-page-subtitle">{{ __('دور كل مجموعة من كلماتك، ثم تفاصيل نمط الحجز. اترك أى حقل فارغاً ليعمل كما يعمل نمطك افتراضياً.') }}</div>
     </div>
     <div class="a2-page-actions">
         <a href="{{ route('business.bookable-items.index') }}" class="a2-btn a2-btn-ghost">{{ __('وحداتي') }}</a>
@@ -25,6 +25,60 @@
 <form method="POST" action="{{ route('business.booking-settings.update') }}">
     @csrf
     @method('PUT')
+
+    {{-- ───────── دور كل مجموعة ─────────
+         الحاجزُ بين «السطر» و«المُوصِّف» مفتوحٌ عمدًا، فكلُّ مجموعةٍ تصلح
+         للخانتين — ولا شىءَ كان يقول أيُّها أساسُ السعر وأيُّها يزيد عليه
+         وأيُّها يُسعَّر وحده. يُعلَن هنا مرّةً، فتقرؤه الشاشاتُ الثلاث. --}}
+    @if(! empty($groups))
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('دور كل مجموعة') }}</div>
+                <div class="a2-card-sub">
+                    {{ __('كلماتك التي اخترتها لنفسك. قل لكل مجموعة ماذا تفعل بالسعر، فتظهر في شاشتها وحدها.') }}
+                </div>
+            </div>
+        </div>
+
+        {{-- المثالُ كاملًا، لأن الأدوارَ الثلاثة تُفهم معًا لا واحدًا واحدًا. --}}
+        <div class="a2-alert a2-alert-info">
+            <div>{{ __('«الغرف» أساس السعر — غرفة مزدوجة ٩٠٠.') }}</div>
+            <div>{{ __('«إطلالة الوحدة» تزيد على سعر الوحدة — D117 المطلة على البحر ‎+٢٠٠ فتصير ١١٠٠.') }}</div>
+            <div>{{ __('«نظام الوجبات» إضافة بسعر منفصل — إفطار ٥٠ × عدد الأفراد، يختاره النزيل أو يتركه.') }}</div>
+        </div>
+
+        <table class="a2-table">
+            <thead>
+                <tr>
+                    <th>{{ __('المجموعة') }}</th>
+                    <th>{{ __('كلماتها') }}</th>
+                    <th style="width:220px">{{ __('دورها') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($groups as $group)
+                    @php $current = (string) old('group_roles.' . $group['id'], $groupRoles[$group['id']] ?? ''); @endphp
+                    <tr>
+                        <td><strong>{{ $group['name'] }}</strong></td>
+                        <td class="a2-muted">{{ $group['options'] }}</td>
+                        <td>
+                            <select class="a2-select" name="group_roles[{{ $group['id'] }}]">
+                                @foreach(\App\Services\BookingVocabularyRoles::labels() as $role => $label)
+                                    <option value="{{ $role }}" @selected($current === (string) $role)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        {{-- مجموعةٌ بلا دورٍ تظهر فى الجميع: الإعلانُ يضيّق ولا يُشترط، فلا
+             ينكسر تاجرٌ لم يفتح هذه الشاشة قطّ. --}}
+        <small class="a2-help">{{ __('«بلا تحديد» تُبقي المجموعة ظاهرة في كل الشاشات، كما كانت.') }}</small>
+    </div>
+    @endif
 
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">

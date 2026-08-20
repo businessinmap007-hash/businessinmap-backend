@@ -2719,5 +2719,12 @@
     "الحجز": "Booking",
     "التجزئة": "Retail",
     "التدريب": "Training",
-    "العروض والأسعار": "Offers & prices"
+    "العروض والأسعار": "Offers & prices",
+    "أساس السعر": "Base price",
+    "تزيد على سعر الوحدة": "Adds to the unit price",
+    "إضافة بسعر منفصل": "Add-on, priced on its own",
+    "بلا تحديد": "Unassigned",
+    "ما يُسعَّر أصلًا: «غرفة مزدوجة ٩٠٠». كل وحدة تنتمي لواحد منها.": "What is priced in the first place: «double room 900». Every unit belongs to one of them.",
+    "تُثبَّت على غرفة بعينها وتزيد على سعرها: D117 المطلة على البحر ‎+٢٠٠ فتصير ١١٠٠.": "Stamped on one room and added to its price: D117 facing the sea +200, so 1100.",
+    "سعر مستقل يختاره النزيل عند الحجز، ويُضرب في عدد الأفراد إن أشّرت ذلك.": "A standalone price the guest chooses at booking, multiplied by the party size if you tick that."
 }

@@ -49,7 +49,12 @@ class BookingAddOnController extends Controller
     public function index(): View
     {
         return view('business.booking-add-ons.index', [
-            'vocabulary' => $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+            // ما أعلنه التاجرُ «إضافة بسعر منفصل» — نظامُ الوجبات ونحوه.
+            'vocabulary' => app(\App\Services\BookingVocabularyRoles::class)->only(
+                $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+                $this->businessId(),
+                \App\Services\BookingVocabularyRoles::ROLE_ADDON
+            ),
             'addOns' => $this->business()->currentOfferingAdjustments(),
             'declared' => $this->declaredByUnits(),
         ]);

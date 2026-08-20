@@ -143,8 +143,13 @@ trait ResolvesOwnerCatalog
      */
     protected function lineOptionsForUnits(): Collection
     {
-        return app(\App\Services\MerchantOfferingVocabulary::class)
-            ->for($this->businessId(), $this->childId(), $this->rootId())['lines'];
+        // ما أعلنه التاجرُ أساسًا للسعر — وإن لم يُعلن، فكلُّ ما يصلح سطرًا.
+        return app(\App\Services\BookingVocabularyRoles::class)->only(
+            app(\App\Services\MerchantOfferingVocabulary::class)
+                ->for($this->businessId(), $this->childId(), $this->rootId())['lines'],
+            $this->businessId(),
+            \App\Services\BookingVocabularyRoles::ROLE_LINE
+        );
     }
 
     /**

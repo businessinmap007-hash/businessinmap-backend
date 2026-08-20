@@ -374,11 +374,20 @@ class BookableItemController extends Controller
         return $out;
     }
 
-    /** ما يصلح صفةً للوحدة: مُوصِّفاتُ هذا التاجر. */
+    /**
+     * ما يصلح صفةً للوحدة.
+     *
+     * ما أعلنه التاجرُ «يزيد على سعر الوحدة» — الإطلالةُ ونحوها. ونظامُ
+     * الوجبات ليس منه: يُعلَن `addon` فيسقط من هنا ويظهر فى شاشته.
+     */
     private function unitOptions()
     {
-        return app(\App\Services\MerchantOfferingVocabulary::class)
-            ->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'];
+        return app(\App\Services\BookingVocabularyRoles::class)->only(
+            app(\App\Services\MerchantOfferingVocabulary::class)
+                ->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+            $this->businessId(),
+            \App\Services\BookingVocabularyRoles::ROLE_UNIT
+        );
     }
 
     /** @return array<int,int> */

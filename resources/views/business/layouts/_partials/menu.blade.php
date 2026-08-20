@@ -51,7 +51,7 @@
         ['label' => 'الرئيسية', 'icon' => 'home', 'route' => 'business.dashboard', 'active' => ['business.dashboard']],
 
         ['label' => 'الحجز', 'icon' => 'booking', 'gate' => 'bookings', 'children' => [
-            ['label' => 'إعدادات الحجز', 'route' => 'business.booking-settings.edit', 'gate' => 'booking-settings', 'active' => ['business.booking-settings.']],
+            ['label' => 'إعدادات الخدمات', 'route' => 'business.booking-settings.edit', 'gate' => 'booking-settings', 'active' => ['business.booking-settings.']],
             ['label' => 'وحداتي', 'route' => 'business.bookable-items.index', 'gate' => 'bookable-items', 'active' => ['business.bookable-items.']],
             ['label' => 'الإضافات', 'route' => 'business.booking-add-ons.index', 'gate' => 'bookable-items', 'active' => ['business.booking-add-ons.']],
             ['label' => 'حجوزاتي', 'route' => 'business.bookings.index', 'gate' => 'bookings', 'active' => ['business.bookings.']],

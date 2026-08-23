@@ -252,16 +252,25 @@ class BookableUnitPresentationTest extends TestCase
      * — لأنها ليست صفةَ غرفةٍ بعينها. وما بقى هنا هو ما يخصّ الغرفةَ نفسها.
      */
 
-    /** وصفةُ الغرفة عكسُه: مثبَّتةٌ عليها، محسوبةٌ بلا أن يؤشّرها أحد. */
+    /**
+     * وصفةُ الغرفة مثبَّتةٌ عليها، محسوبةٌ بلا أن يؤشّرها أحد.
+     *
+     * وسعرُها يُكتب مرّةً فى «الإضافات والمميزات» لا داخل كل غرفة، فالدفعةُ
+     * تُؤشّر ولا تُسعّر.
+     */
     public function test_a_room_attribute_is_stamped_and_priced_without_being_asked_for(): void
     {
         $hotel = $this->hotel();
+
+        $this->actingAs($hotel)->put(route('business.booking-add-ons.update', [], false), [
+            'feature_ids' => [self::FULL_BOARD],
+            'adjust' => [self::FULL_BOARD => 100],
+        ])->assertRedirect();
 
         $this->postBatch($hotel, [
             'from' => 9001, 'to' => 9002,
             'price' => 600,
             'option_ids' => [self::FULL_BOARD],
-            'option_adjust' => [self::FULL_BOARD => 100],
         ])->assertRedirect();
 
         $room = BookableItem::where('business_id', $hotel->id)->firstOrFail();
@@ -275,11 +284,16 @@ class BookableUnitPresentationTest extends TestCase
     {
         $hotel = $this->hotel();
 
+        // سعرُ الميزة يُكتب مرّةً، والدفعةُ تُؤشّر أىَّ الغرف تحملها.
+        $this->actingAs($hotel)->put(route('business.booking-add-ons.update', [], false), [
+            'feature_ids' => [self::FULL_BOARD],
+            'adjust' => [self::FULL_BOARD => 100],
+        ])->assertRedirect();
+
         $this->postBatch($hotel, [
             'from' => 9001, 'to' => 9002,
             'price' => 600,
             'option_ids' => [self::FULL_BOARD],
-            'option_adjust' => [self::FULL_BOARD => 100],
         ])->assertRedirect();
 
         $kind = $this->getJson('/api/v2/discovery/units/' . $hotel->id)

@@ -103,6 +103,15 @@ class BookingAddOnsTest extends TestCase
             ->put(route('business.booking-add-ons.update', [], false), $payload);
     }
 
+    /** وسعرُ الميزة يُكتب من نفس الشاشة، فى قسمها. */
+    private function saveFeature(int $optionId, float $value)
+    {
+        return $this->saveAddOns([
+            'feature_ids' => [$optionId],
+            'adjust' => [$optionId => $value],
+        ]);
+    }
+
     /** ما يدفعه النزيل على فترةٍ واحدة، باختياراته وعددِ رفقته. */
     private function nightly(BookableItem $room, array $chosen = [], int $people = 1): float
     {
@@ -388,43 +397,44 @@ class BookingAddOnsTest extends TestCase
         $price = $this->priceFor(self::SINGLE, 600);
         $room = $this->roomOf(self::SINGLE, 'D118');
 
-        $price->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD], [
-            self::FULL_BOARD => ['type' => 'amount', 'value' => 100],
-        ]);
+        $this->saveFeature(self::FULL_BOARD, 100);
         $room->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD]);
 
         $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ قبل الحفظ');
 
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
-            'adjust' => [self::BREAKFAST => 50],
+            'feature_ids' => [self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 100],
         ])->assertRedirect();
 
         $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ مُحيت من شاشة الإضافات');
         $this->assertSame(750.0, $this->nightly($room, [self::BREAKFAST]));
     }
 
-    /** وحفظُ صفةِ غرفةٍ لا يمحو نظامَ الوجبات — نفسُ الحرص معكوسًا. */
-    public function test_saving_a_rooms_view_keeps_the_add_ons(): void
+    /**
+     * وحفظُ سعرِ غرفةٍ لا يمحو نظامَ الوجبات.
+     *
+     * شاشةُ الوحدة تكتب سعرَ النوع وتُؤشّر مميزاتِ الغرفة، ولا تعرض إفطارًا
+     * ولا تُسأل عنه — فلو مسّت مُوصِّفاتِ النشاط لمحته صامتةً.
+     */
+    public function test_saving_a_rooms_price_keeps_the_add_ons(): void
     {
         $this->priceFor(self::SINGLE, 600);
         $room = $this->roomOf(self::SINGLE, 'D117');
 
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
-            'adjust' => [self::BREAKFAST => 50],
+            'feature_ids' => [self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 100],
         ])->assertRedirect();
 
         $this->actingAs($this->hotel)->post(
             route('business.bookable-items.pricing.store', $room->id, false),
-            [
-                'price' => 600,
-                'option_ids' => [self::FULL_BOARD],
-                'option_adjust' => [self::FULL_BOARD => 100],
-            ]
+            ['price' => 600, 'option_ids' => [self::FULL_BOARD]]
         )->assertRedirect();
 
-        $this->assertSame(700.0, $this->nightly($room), 'الغرفةُ تحمل صفتَها');
+        $this->assertSame(700.0, $this->nightly($room), 'الغرفةُ تحمل ميزتَها');
         $this->assertSame(750.0, $this->nightly($room, [self::BREAKFAST]), 'الإفطارُ مُحى من شاشة الوحدة');
     }
 
@@ -441,10 +451,10 @@ class BookingAddOnsTest extends TestCase
         $pool = $this->roomOf(self::SINGLE, 'D117');
         $sea = $this->roomOf(self::SINGLE, 'D118');
 
-        $price->syncOfferingOptions(self::SINGLE, [self::BREAKFAST, self::FULL_BOARD], [
-            self::BREAKFAST => ['type' => 'amount', 'value' => 60],
-            self::FULL_BOARD => ['type' => 'amount', 'value' => 120],
-        ]);
+        $this->saveAddOns([
+            'feature_ids' => [self::BREAKFAST, self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 60, self::FULL_BOARD => 120],
+        ])->assertRedirect();
 
         $pool->syncOfferingOptions(self::SINGLE, [self::BREAKFAST]);
         $sea->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD]);
@@ -453,33 +463,33 @@ class BookingAddOnsTest extends TestCase
         $this->assertSame(720.0, $this->nightly($sea));
     }
 
-    /** وما أعلنته وحدةٌ عن نفسها لا يُعرض إضافةً — ثمنُه محسوبٌ مرّةً. */
-    public function test_what_a_room_declares_is_not_offered_as_an_add_on(): void
+    /**
+     * وما تحمله الغرفةُ لا يُعرض عليها اختيارًا — ثمنُه محسوبٌ مرّةً.
+     *
+     * الحدُّ صار فى شاشتين: الميزةُ تُسعَّر فى قسمها وتُؤشَّر على الغرفة، فلا
+     * تُعرض على النزيل لأنه لا يقرّرها. والحارسُ على الحدّ هو واجهةُ العميل.
+     */
+    public function test_what_a_room_carries_is_not_offered_to_the_guest(): void
     {
-        $price = $this->priceFor(self::SINGLE, 600);
+        $this->priceFor(self::SINGLE, 600);
         $room = $this->roomOf(self::SINGLE, 'D118');
 
-        $price->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD], [
-            self::FULL_BOARD => ['type' => 'amount', 'value' => 100],
-        ]);
-        $room->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD]);
-
-        $html = $this->actingAs($this->hotel)
-            ->get(route('business.booking-add-ons.index', [], false))
-            ->assertOk()->getContent();
-
-        $this->assertStringContainsString('is-declared', $html, 'الصفةُ معروضةٌ كإضافةٍ عادية');
-
-        // وحتى لو أُرسلت، لا تُقبل إضافةً: هى صفةُ وحدة.
         $this->saveAddOns([
-            'option_ids' => [self::FULL_BOARD],
-            'adjust' => [self::FULL_BOARD => 999],
+            'option_ids' => [self::BREAKFAST],
+            'feature_ids' => [self::FULL_BOARD],
+            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 100],
         ])->assertRedirect();
 
-        $this->assertArrayNotHasKey(self::FULL_BOARD, $this->addOns(), 'صفةُ وحدةٍ قُبلت إضافةً');
+        $room->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD]);
 
-        // وسعرُها على سطرها لم يُمسّ: تسعُمئةٌ وتسعةٌ وتسعون لم تصل إليه.
-        $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ تغيّر سعرُها من الباب الخطأ');
+        $kind = $this->getJson('/api/v2/discovery/units/' . $this->hotel->id)
+            ->assertOk()->json('data.kinds.0');
+
+        $offered = collect($kind['choices'])->pluck('option_id');
+
+        $this->assertContains(self::BREAKFAST, $offered->all(), 'الإفطارُ لم يُعرض');
+        $this->assertNotContains(self::FULL_BOARD, $offered->all(), 'الميزةُ عُرضت اختيارًا فتُحصَّل مرّتين');
+        $this->assertSame(700.0, (float) $kind['units'][0]['price'], 'سعرُ الغرفة يشمل ميزتها');
     }
 
     /*

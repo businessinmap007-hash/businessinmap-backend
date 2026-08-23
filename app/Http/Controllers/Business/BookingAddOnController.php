@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
-use App\Models\BookableItem;
 use App\Models\OfferingOption;
 use App\Models\User;
 use App\Services\MerchantOfferingVocabulary;
@@ -51,8 +50,10 @@ class BookingAddOnController extends Controller
         return view('business.booking-add-ons.index', [
             // ما أعلنه التاجرُ «إضافة بسعر منفصل» — نظامُ الوجبات ونحوه.
             'vocabulary' => $this->addOnVocabulary(),
+            // «لماذا اطلالة بحرية لم تظهر فى تسعير اضافاتى» — لأنها كانت
+            // تُسعَّر داخل كل غرفةٍ على حدة. سعرُها واحد، فمكانُه واحد.
+            'features' => $this->featureVocabulary(),
             'addOns' => $this->business()->currentOfferingAdjustments(),
-            'declared' => $this->declaredByUnits(),
         ]);
     }
 
@@ -72,10 +73,28 @@ class BookingAddOnController extends Controller
         );
     }
 
-    /** ومعرّفاتُها، لقبول ما يُرسَل. */
-    private function addOnIds(): Collection
+    /**
+     * وما يميّز وحدةً بعينها: ما أعلنه التاجرُ `unit`.
+     *
+     * يُسعَّر هنا مرّةً — «الإطلالة البحرية ‎+٢٠٠» — وتُؤشَّر فى شاشة الوحدة
+     * أىُّ الغرف تحملها. وكان السعرُ يُكتب داخل كل غرفة، فستُّ غرفٍ مطلّة
+     * ستُّ فرصٍ لكتابة رقمٍ مختلف.
+     */
+    private function featureVocabulary(): Collection
+    {
+        return app(\App\Services\BookingVocabularyRoles::class)->only(
+            $this->vocabulary->for($this->businessId(), $this->childId(), $this->rootId())['modifiers'],
+            $this->businessId(),
+            \App\Services\BookingVocabularyRoles::ROLE_UNIT,
+            $this->vocabulary->everythingOffered($this->businessId(), $this->childId(), $this->rootId())
+        );
+    }
+
+    /** ومعرّفاتُ ما تعرضه الشاشةُ بالدورين، لقبول ما يُرسَل. */
+    private function pickableIds(): Collection
     {
         return $this->addOnVocabulary()->flatten(1)
+            ->merge($this->featureVocabulary()->flatten(1))
             ->map(fn ($o) => (int) $o->id)->unique()->values();
     }
 
@@ -89,26 +108,29 @@ class BookingAddOnController extends Controller
         $data = $request->validate([
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
+            'feature_ids' => ['nullable', 'array'],
+            'feature_ids.*' => ['integer'],
             'adjust' => ['nullable', 'array'],
             'adjust_type' => ['nullable', 'array'],
             'per_person' => ['nullable', 'array'],
         ]);
 
-        // ما عرضته الشاشةُ هو ما يُقبل: قائمةُ التسعير وحدها كانت ترفض ما
-        // أعلنه التاجرُ إضافةً وهو وصفىٌّ عند المنصّة.
-        $allowed = $this->addOnIds();
+        $allowed = $this->pickableIds();
 
         /*
-         * وما أعلنته وحدةٌ عن نفسها لا يصلح إضافة.
+         * القائمتان تُكتبان معًا على النشاط.
          *
-         * «إطلالة بحرية» صفةُ غرفةٍ بعينها وثمنُها داخلَ سعرها المعروض، فقبولُها
-         * هنا يعرضها على النزيل ويُحصّلها مرّةً ثانية.
+         * كلاهما سعرٌ يُكتب مرّةً: «إفطار ٥٠ لكل فرد» يختاره النزيل، و«إطلالة
+         * بحرية ‎+٢٠٠» تحملها الغرفةُ التى أُشّرت بها. والفرقُ بينهما ليس فى
+         * مكان السعر بل فيمن يقرّر — والدورُ المُعلَن هو ما يقوله.
+         *
+         * وتُحفظ فى نداءٍ واحد لأن `syncOfferingOptions` تمسح ثم تكتب: نداءان
+         * يمحو ثانيهما ما كتبه أوّلُهما.
          */
-        $declared = $this->declaredByUnits();
-
         $chosen = collect($data['option_ids'] ?? [])
+            ->merge($data['feature_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0 && $allowed->contains($id) && ! $declared->contains($id))
+            ->filter(fn ($id) => $id > 0 && $allowed->contains($id))
             ->unique()->values();
 
         $adjustments = [];
@@ -126,31 +148,9 @@ class BookingAddOnController extends Controller
             ];
         }
 
-        /*
-         * تُكتب على النشاط، لا على سطور الأسعار.
-         *
-         * كانت تُنسخ على كل سطرِ سعرٍ عنده، فارتبطت بالغرف: لا تُكتب قبل أن
-         * يُسعَّر نوعٌ، وتُنسى مع نوعٍ يُضاف بعدها، وتبدو كأنها تتغيّر بتغيّر
-         * الغرفة. وهى لا تتغيّر — «خدمة ثابته مع كل الغرف».
-         */
         $this->business()->syncOfferingOptions(null, $chosen->all(), $adjustments);
 
-        return back()->with('success', __('تم حفظ الإضافات.'));
-    }
-
-    /**
-     * ما أعلنته وحداتُ التاجر عن نفسها — إطلالةً أو بلكونة.
-     *
-     * @return \Illuminate\Support\Collection<int,int>
-     */
-    private function declaredByUnits(): Collection
-    {
-        return OfferingOption::query()
-            ->where('offering_type', (new BookableItem)->getMorphClass())
-            ->whereIn('offering_id', BookableItem::query()
-                ->where('business_id', $this->businessId())->select('id'))
-            ->where('role', OfferingOption::ROLE_MODIFIER)
-            ->pluck('option_id')->map(fn ($id) => (int) $id)->unique();
+        return back()->with('success', __('تم حفظ الأسعار.'));
     }
 
 }

@@ -22,8 +22,6 @@
     $currentService = (int) old('service_id', 0);
     $currentType = (string) old('item_type', '');
     $selectedOptions = collect(old('option_ids', []))->map(fn ($id) => (int) $id);
-    $optionAdjust = collect(old('option_adjust', []));
-    $optionAdjustType = collect(old('option_adjust_type', []));
 @endphp
 
 <form method="POST" action="{{ route('business.bookable-items.bulk.store') }}">
@@ -177,14 +175,7 @@
                                         <input type="checkbox" name="option_ids[]" value="{{ $option->id }}"
                                                @checked($selectedOptions->contains((int) $option->id))>
                                         <span>{{ $option->name_ar ?: $option->name_en }}</span>
-                                        <input type="number" step="0.01" class="bv-adjust"
-                                               name="option_adjust[{{ $option->id }}]"
-                                               value="{{ $optionAdjust[$option->id] ?? '' }}" placeholder="0"
-                                               title="{{ __('يُضاف إلى سعر الوحدة تلقائيًا') }}">
-                                        <select class="bv-adjust-type" name="option_adjust_type[{{ $option->id }}]">
-                                            <option value="amount" @selected(($optionAdjustType[$option->id] ?? 'amount') === 'amount')>{{ __('ج') }}</option>
-                                            <option value="percent" @selected(($optionAdjustType[$option->id] ?? '') === 'percent')>%</option>
-                                        </select>
+                                        {{-- خانةُ اختيارٍ فقط: السعرُ يُكتب مرّةً فى «الإضافات». --}}
                                     </label>
                                 @endforeach
                             </div>

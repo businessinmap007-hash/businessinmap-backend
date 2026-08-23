@@ -37,20 +37,24 @@
 
     $pickedUnit = collect(old('option_ids', ($unitModifierIds ?? collect())->all()))->map(fn ($id) => (int) $id);
 
-    $oldAdjust = collect(old('option_adjust', []));
-    $oldAdjustType = collect(old('option_adjust_type', []));
-
-    $adjustValue = function (int $id) use ($oldAdjust, $priceAdjustments) {
-        if ($oldAdjust->has($id)) {
-            return $oldAdjust[$id];
-        }
-
+    /*
+     * ولا أسعارَ هنا.
+     *
+     * «ونكتفى بتشيك بوكس فى تعديل او انشاء الوحدة يحدد ما ضافة لهذه الوحدة»
+     * — سعرُ الميزة واحدٌ عند الفندق كلِّه، فيُكتب مرّةً فى «الإضافات
+     * والمميزات» وتُؤشَّر هنا الغرفُ التى تحملها.
+     */
+    $featurePrice = function (int $id) use ($priceAdjustments) {
         $value = (float) ($priceAdjustments[$id]['value'] ?? 0);
 
-        return $value !== 0.0 ? rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.') : '';
-    };
+        if ($value === 0.0) {
+            return null;
+        }
 
-    $adjustType = fn (int $id) => (string) ($oldAdjustType[$id] ?? ($priceAdjustments[$id]['type'] ?? 'amount'));
+        return ($priceAdjustments[$id]['type'] ?? 'amount') === 'percent'
+            ? rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.') . '%'
+            : '+' . rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
+    };
 
     $weekdayNames = [
         0 => __('الأحد'), 1 => __('الإثنين'), 2 => __('الثلاثاء'), 3 => __('الأربعاء'),
@@ -157,29 +161,28 @@
         </div>
 
         @if($unitOptions->isNotEmpty())
-            {{-- البطاقتان نفسُهما اللتان فى الإضافة بالجملة، وبنفس الفرق:
-                 مَن يقرّر. --}}
+            {{-- خاناتُ اختيارٍ لا أكثر: أىُّ مميزاتٍ تحملها هذه الغرفة.
+                 وسعرُ كلٍّ منها مكتوبٌ مرّةً فى «الإضافات والمميزات»، فيُعرض
+                 هنا ولا يُحرَّر — ستُّ غرفٍ مطلّة لا تحتمل ستةَ أرقام. --}}
             <div class="a2-form-grid" style="margin-top:6px;">
                 <div class="a2-form-group a2-field-full">
-                    <label class="a2-label">{{ __('صفات هذه الوحدة') }}</label>
-                    <div class="a2-hint a2-mb-8">{{ __('ما يخصّ هذه الغرفة وحدها — «إطلالة بحرية» لغرفة و«على المسبح» لأخرى من نفس النوع. تُحسب في سعرها ولا يُسأل عنها العميل.') }}</div>
+                    <label class="a2-label">{{ __('مميزات هذه الوحدة') }}</label>
+                    <div class="a2-hint a2-mb-8">
+                        {{ __('أشّر ما تحمله هذه الغرفة وحدها — «إطلالة بحرية» لغرفة و«على المسبح» لأخرى من نفس النوع. تُضاف إلى سعرها ولا يُسأل عنها العميل.') }}
+                    </div>
 
                     @foreach($unitOptions as $groupName => $options)
                         <div class="bv-group">
                             <div class="bv-group-head">{{ $groupName }}</div>
                             <div class="bv-chips">
                                 @foreach($options as $option)
+                                    @php $shown = $featurePrice((int) $option->id); @endphp
                                     <label class="bv-chip">
                                         <input type="checkbox" name="option_ids[]" value="{{ $option->id }}"
                                                @checked($pickedUnit->contains((int) $option->id))>
                                         <span>{{ $option->name_ar ?: $option->name_en }}</span>
-                                        <input type="number" step="0.01" class="bv-adjust"
-                                               name="option_adjust[{{ $option->id }}]"
-                                               value="{{ $adjustValue($option->id) }}" placeholder="0">
-                                        <select class="bv-adjust-type" name="option_adjust_type[{{ $option->id }}]">
-                                            <option value="amount" @selected($adjustType($option->id) === 'amount')>{{ __('ج') }}</option>
-                                            <option value="percent" @selected($adjustType($option->id) === 'percent')>%</option>
-                                        </select>
+                                        {{-- السعرُ يُقرأ ولا يُكتب: مكانُ كتابته واحد. --}}
+                                        <em class="bv-price">{{ $shown ?? __('بلا سعر') }}</em>
                                     </label>
                                 @endforeach
                             </div>
@@ -192,8 +195,8 @@
                      غرفةٍ بعينها تُوهم أنهما يخصّانها. مكانُهما «الإضافات». --}}
                 <div class="a2-form-group a2-field-full">
                     <div class="a2-hint">
-                        {{ __('نظام الوجبات وما يختاره النزيل عند الحجز يُضبط مرّة واحدة من') }}
-                        <a href="{{ route('business.booking-add-ons.index') }}">{{ __('إضافات الحجز') }}</a>.
+                        {{ __('أسعار المميزات، ونظام الوجبات وما يختاره النزيل — كلها تُضبط مرّة واحدة من') }}
+                        <a href="{{ route('business.booking-add-ons.index') }}">{{ __('الإضافات والمميزات') }}</a>.
                     </div>
                 </div>
             </div>
@@ -394,6 +397,8 @@
     /* الخانةُ تُقرأ خانةَ اختيار: أكبرُ قليلًا وظاهرةٌ دائمًا، ويُختار منها
        أكثرُ من واحدة — غرفةٌ قد تكون على البحر وبها بلكونة معًا. */
     .bv-chip > input[type=checkbox] { width: 15px; height: 15px; }
+    /* السعرُ يُعرض ولا يُحرَّر — يُذكّر بالرقم دون أن يدعو إلى تغييره هنا. */
+    .bv-price { font-size: 11px; opacity: .7; font-style: normal; }
     .a2-mb-8 { margin-bottom: 8px; }
 </style>
 @endpush

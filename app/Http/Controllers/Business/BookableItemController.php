@@ -173,9 +173,6 @@ class BookableItemController extends Controller
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
-            // زيادةُ كل صفةٍ من صفات الوحدات: «إطلالة بحرية +١٠٠».
-            'option_adjust' => ['nullable', 'array'],
-            'option_adjust_type' => ['nullable', 'array'],
         ], [], [
             'service_id' => 'الخدمة',
             'item_type' => 'نوع العنصر',
@@ -248,8 +245,7 @@ class BookableItemController extends Controller
             itemType: $itemType,
             lineOptionId: $lineOptionId,
             price: $data['price'] ?? null,
-            unitModifiers: $modifiers,
-            adjustments: $this->readAdjustments($data, $modifiers)
+            unitModifiers: $modifiers
         );
 
         $message = __('أُضيفت :created وحدة، وتُخطّيت :skipped موجودة.', [
@@ -278,7 +274,6 @@ class BookableItemController extends Controller
      * القراءةُ من `currentOfferingAdjustments()` قبل الكتابة تمنع ذلك.
      *
      * @param  array<int,int>  $unitModifiers  ما هو مثبَّتٌ على غرف هذه الدفعة
-     * @param  array<int,array{type:string,value:float}>  $adjustments
      * @return bool  هل كُتب شىء؟
      */
     private function writeBatchPricing(
@@ -286,12 +281,11 @@ class BookableItemController extends Controller
         string $itemType,
         ?int $lineOptionId,
         mixed $price,
-        array $unitModifiers,
-        array $adjustments
+        array $unitModifiers
     ): bool {
         $hasPrice = $price !== null && $price !== '';
 
-        if (! $hasPrice && $adjustments === []) {
+        if (! $hasPrice) {
             return false;
         }
 
@@ -322,56 +316,13 @@ class BookableItemController extends Controller
             $row->update(['price' => (float) $price]);
         }
 
-        $existingIds = $row->offeringOptions()
-            ->where('role', OfferingOption::ROLE_MODIFIER)
-            ->pluck('option_id')->map(fn ($id) => (int) $id)->all();
-
-        $merged = array_values(array_unique(array_merge($existingIds, $unitModifiers)));
-
-        $row->syncOfferingOptions(
-            $lineOptionId,
-            $merged,
-            $adjustments + $row->currentOfferingAdjustments()
-        );
-
+        /*
+         * ولا تُكتب مُوصِّفاتٌ على سطر السعر من هنا.
+         *
+         * أسعارُ الصفات والإضافات تُكتب مرّةً فى «الإضافات»، على النشاط نفسه.
+         * وما على السطر من قبلُ يبقى كما هو: المحرّكُ يقرأ الاثنين.
+         */
         return true;
-    }
-
-    /**
-     * الزياداتُ المُرسَلة، لكلٍّ من القائمتين، مصفّاةً على ما قُبل منهما.
-     *
-     * الصفرُ يُكتب كما هو: «إفطار» بصفرٍ مُوصِّفٌ يُعرض ولا يُغيّر الرقم،
-     * وهى حالٌ مقصودة لا نقصٌ فى الإدخال.
-     *
-     * @param  array<int,int>  $unitModifiers
-     * @return array<int,array{type:string,value:float}>
-     */
-    private function readAdjustments(array $data, array $unitModifiers): array
-    {
-        $out = [];
-
-        foreach ([
-            ['option_adjust', 'option_adjust_type', $unitModifiers],
-        ] as [$valueKey, $typeKey, $allowed]) {
-            foreach ((array) ($data[$valueKey] ?? []) as $optionId => $value) {
-                $optionId = (int) $optionId;
-
-                if (! in_array($optionId, $allowed, true) || $value === null || $value === '') {
-                    continue;
-                }
-
-                $type = (string) (($data[$typeKey] ?? [])[$optionId] ?? OfferingOption::ADJUST_AMOUNT);
-
-                $out[$optionId] = [
-                    'type' => in_array($type, OfferingOption::adjustTypes(), true)
-                        ? $type
-                        : OfferingOption::ADJUST_AMOUNT,
-                    'value' => round((float) $value, 2),
-                ];
-            }
-        }
-
-        return $out;
     }
 
     /**
@@ -444,21 +395,6 @@ class BookableItemController extends Controller
         return back()->with('success', 'تم تحديث الوحدة بنجاح.');
     }
 
-    /**
-     * ما أعلنته وحداتُ هذا التاجر عن نفسها — إطلالةً أو بلكونة.
-     *
-     * @return \Illuminate\Support\Collection<int,int>
-     */
-    private function declaredByUnits(): \Illuminate\Support\Collection
-    {
-        return OfferingOption::query()
-            ->where('offering_type', (new BookableItem)->getMorphClass())
-            ->whereIn('offering_id', BookableItem::query()
-                ->where('business_id', $this->businessId())->select('id'))
-            ->where('role', OfferingOption::ROLE_MODIFIER)
-            ->pluck('option_id')->map(fn ($id) => (int) $id)->unique();
-    }
-
     /** سطرُ سعرِ نوعِ هذه الوحدة، إن وُجد. */
     private function priceRowFor(BookableItem $item): ?BusinessServicePrice
     {
@@ -488,8 +424,6 @@ class BookableItemController extends Controller
             'price' => ['required', 'numeric', 'min:0', 'max:9999999'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
-            'option_adjust' => ['nullable', 'array'],
-            'option_adjust_type' => ['nullable', 'array'],
         ], [], [
             'price' => 'السعر',
         ]);
@@ -511,27 +445,15 @@ class BookableItemController extends Controller
         $row->update(['price' => (float) $data['price']]);
 
         /*
-         * وإضافاتُ الحجز تبقى كما هى.
+         * ولا تُكتب أسعارٌ من هنا غيرَ سعر النوع.
          *
-         * هذه الشاشةُ تدير صفاتِ هذه الغرفة، ولا تعرض «إفطارًا» ولا تُسأل عنه.
-         * و`syncOfferingOptions` تمسح ثم تكتب — فلو كتبت ما عندها وحده لمحت
-         * نظامَ الوجبات كلَّه من هذا النوع، صامتةً. وهو نفسُ الحرص المعكوس فى
-         * `BookingAddOnController`: كلٌّ يحفظ نطاقَه ويترك نطاقَ الآخر.
+         * «ونكتفى بتشيك بوكس فى تعديل او انشاء الوحدة يحدد ما ضافة لهذه
+         * الوحدة» — المالك، 2026-08-20. سعرُ الإطلالة واحدٌ عند الفندق كلِّه،
+         * فكتابتُه داخل كل غرفةٍ تجعل ستَّ غرفٍ مطلّة ستَّ فرصٍ لرقمٍ مختلف.
+         * يُكتب مرّةً فى «الإضافات»، وهنا تُؤشَّر أىُّ غرفةٍ تحمله.
          *
-         * والفصلُ بينهما ليس علمًا ثانيًا: الصفةُ ما أعلنته وحدةٌ عن نفسها،
-         * والإضافةُ ما لم تعلنه — وهو نفسُ الفصل الذى تقرأ به واجهةُ العميل.
+         * ومُوصِّفاتُ سطر السعر لا تُمسّ: هذه الشاشةُ لم تعد تعرضها أصلًا.
          */
-        $declared = $this->declaredByUnits();
-
-        $addOns = collect($row->currentOfferingAdjustments())
-            ->reject(fn ($adjust, $id) => $declared->contains((int) $id))
-            ->all();
-
-        $row->syncOfferingOptions(
-            $lineOptionId,
-            array_merge($modifiers, array_map('intval', array_keys($addOns))),
-            $this->readAdjustments($data, $modifiers) + $addOns
-        );
 
         /*
          * وصفاتُ الغرفة تُثبَّت عليها، لا على السطر وحده.

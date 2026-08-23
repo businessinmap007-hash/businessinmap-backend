@@ -1,9 +1,12 @@
 @extends('business.layouts.master')
 
-@section('title', __('إضافات الحجز'))
+@section('title', __('الإضافات والمميزات'))
 
 @php
-    $picked = collect(old('option_ids', array_keys($addOns)))->map(fn ($id) => (int) $id);
+    // القائمتان تُقرآن من مكانٍ واحد: كلُّ سعرٍ مكتوبٍ على النشاط مؤشَّر.
+    $picked = collect(old('option_ids', array_keys($addOns)))
+        ->merge(old('feature_ids', []))
+        ->map(fn ($id) => (int) $id);
     $oldAdjust = collect(old('adjust', []));
     $oldAdjustType = collect(old('adjust_type', []));
     $oldPerPerson = collect(old('per_person', []));
@@ -28,8 +31,8 @@
 @section('content')
 <div class="a2-page-head">
     <div>
-        <h1 class="a2-page-title">{{ __('إضافات الحجز') }}</h1>
-        <div class="a2-page-subtitle">{{ __('ما يختاره النزيل وقت الحجز — نظام الوجبات وما شابهه. سعر ثابت لا يتغيّر بنوع الغرفة.') }}</div>
+        <h1 class="a2-page-title">{{ __('الإضافات والمميزات') }}</h1>
+        <div class="a2-page-subtitle">{{ __('كل سعر يُكتب هنا مرّة واحدة: ما يختاره النزيل، وما يميّز وحدة بعينها.') }}</div>
     </div>
     <div class="a2-page-actions">
         <a href="{{ route('business.booking-settings.edit') }}" class="a2-btn a2-btn-ghost">{{ __('إعدادات الخدمات') }}</a>
@@ -53,8 +56,8 @@
 <div class="a2-alert a2-alert-info">
     <div><strong>{{ __('هنا') }}</strong> — {{ __('ما يقرّره النزيل وسعره واحد مع كل الغرف: «إفطار»، «إقامة كاملة». لا يزيد بتغيير النوع من فردية إلى مزدوجة — ويزيد بعدد الأفراد إن أشّرت «لكل فرد».') }}</div>
     <div style="margin-top:6px;">
-        <strong>{{ __('وفي شاشة الوحدة') }}</strong> —
-        {{ __('ما يخصّ غرفة بعينها: D117 على المسبح وD118 على البحر، وهما من نفس النوع.') }}
+        <strong>{{ __('والمميزات') }}</strong> —
+        {{ __('سعرها هنا أيضًا، ويُؤشَّر في شاشة الوحدة أيُّ غرفة تحملها: D117 على المسبح وD118 على البحر، وهما من نفس النوع.') }}
     </div>
 </div>
 
@@ -62,12 +65,33 @@
     @csrf
     @method('PUT')
 
-    @foreach($vocabulary as $groupName => $options)
+    @php
+        /*
+         * قائمتان بنفس الشكل ويفترقان فيمن يقرّر:
+         *   الإضافةُ يختارها النزيلُ وقت الحجز.
+         *   والميزةُ تحملها غرفةٌ بعينها، فتُحسب بلا أن يُسأل عنها.
+         *
+         * والسعرُ يُكتب هنا مرّةً فى الحالتين. وكان سعرُ الميزة يُكتب داخل كل
+         * غرفة، فستُّ غرفٍ مطلّة ستُّ فرصٍ لرقمٍ مختلف.
+         */
+        $sections = [
+            ['kind' => 'addon', 'field' => 'option_ids', 'groups' => $vocabulary,
+             'note' => __('يختارها النزيل عند الحجز، وتُضاف إلى سعر الفترة إن اختارها.')],
+            ['kind' => 'feature', 'field' => 'feature_ids', 'groups' => $features,
+             'note' => __('تزيد على سعر الوحدة التي تحملها. تؤشَّر الغرف من شاشة «وحداتي».')],
+        ];
+    @endphp
+
+    @foreach($sections as $section)
+    @foreach($section['groups'] as $groupName => $options)
         <div class="a2-card a2-card--section" style="margin-bottom:14px;">
             <div class="a2-card-head">
                 <div>
-                    <div class="a2-card-title">{{ $groupName }}</div>
-                    <div class="a2-card-sub">{{ __('أشّر ما تقدّمه واكتب سعره. يُضاف إلى سعر الفترة إن اختاره النزيل.') }}</div>
+                    <div class="a2-card-title">
+                        {{ $groupName }}
+                        <span class="ao-kind">{{ $section['kind'] === 'addon' ? __('يختارها النزيل') : __('ميزة وحدة') }}</span>
+                    </div>
+                    <div class="a2-card-sub">{{ $section['note'] }}</div>
                 </div>
             </div>
 
@@ -91,38 +115,33 @@
                         @foreach($options as $option)
                             @php
                                 $id = (int) $option->id;
-                                $isDeclared = $declared->contains($id);
                                 $isOn = $picked->contains($id);
                             @endphp
-                            <tr class="ao-row {{ $isOn ? 'is-on' : '' }} {{ $isDeclared ? 'is-declared' : '' }}"
-                                @if($isDeclared) title="{{ __('صفة مثبّتة على وحدات عندك — تُدار من شاشة الوحدة.') }}" @endif>
+                            <tr class="ao-row {{ $isOn ? 'is-on' : '' }}">
                                 <td>
                                     <input type="checkbox" class="ao-pick" id="ao_{{ $id }}"
-                                           name="option_ids[]" value="{{ $id }}"
-                                           @checked($isOn) @disabled($isDeclared)>
+                                           name="{{ $section['field'] }}[]" value="{{ $id }}" @checked($isOn)>
                                 </td>
                                 <td>
                                     <label for="ao_{{ $id }}" class="ao-name">{{ $option->name_ar ?: $option->name_en }}</label>
-                                    @if($isDeclared)
-                                        <div class="a2-hint">{{ __('تُدار من شاشة الوحدة') }}</div>
-                                    @endif
                                 </td>
                                 <td>
                                     <input type="number" step="0.01" class="a2-input ao-price"
-                                           name="adjust[{{ $id }}]" value="{{ $value($id) }}"
-                                           placeholder="0" @disabled($isDeclared)>
+                                           name="adjust[{{ $id }}]" value="{{ $value($id) }}" placeholder="0">
                                 </td>
                                 <td>
-                                    <select class="a2-select ao-unit" name="adjust_type[{{ $id }}]" @disabled($isDeclared)>
+                                    <select class="a2-select ao-unit" name="adjust_type[{{ $id }}]">
                                         <option value="amount" @selected($type($id) === 'amount')>{{ __('ج') }}</option>
                                         <option value="percent" @selected($type($id) === 'percent')>%</option>
                                     </select>
                                 </td>
                                 <td>
-                                    {{-- <label> يلفّ خانتَه وحدها. --}}
+                                    {{-- <label> يلفّ خانتَه وحدها: لفُّ خانتين
+                                         فى واحدٍ يجعل النقرَ على إحداهما يقلب
+                                         الأخرى، فتبدو الثانيةُ معطّلة. --}}
                                     <label class="ao-per">
                                         <input type="checkbox" name="per_person[{{ $id }}]" value="1"
-                                               @checked($perPerson($id)) @disabled($isDeclared)>
+                                               @checked($perPerson($id))>
                                         <span>{{ __('× عدد الأفراد') }}</span>
                                     </label>
                                 </td>
@@ -133,10 +152,11 @@
             </div>
         </div>
     @endforeach
+    @endforeach
 
     <div class="a2-card a2-card--soft">
         <div class="a2-card-sub">
-            {{ __('ما تُزيل علامته يُحذف عند الحفظ. والمعطَّل صفةُ وحدة — تُدار من شاشة تلك الوحدة.') }}
+            {{ __('ما تُزيل علامته يُحذف عند الحفظ.') }}
         </div>
     </div>
 
@@ -165,6 +185,10 @@
     .ao-row.is-declared { opacity: .5; }
 
     .ao-per { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; }
+
+    /* شارةٌ تقول أىُّ قسمٍ هذا، فالجدولان متطابقان فى الشكل. */
+    .ao-kind { font-size: 11px; font-weight: 400; opacity: .7; padding: 2px 8px;
+               border: 1px solid rgba(128,128,128,.35); border-radius: 999px; margin-inline-start: 6px; }
     .ao-price { max-width: 110px; }
     .ao-unit { max-width: 80px; }
 </style>

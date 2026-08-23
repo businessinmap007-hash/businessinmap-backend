@@ -61,6 +61,20 @@
             <input class="a2-input" id="base_price" name="base_price" value="{{ old('base_price', $row->base_price ?? 0) }}" inputmode="decimal" placeholder="0.00" required>
         </div>
 
+        {{-- «الطماطم ٤٥» هو أربعون وخمسة للكيلو، أو للصندوق، أو لحبةٍ واحدة —
+             والزبونُ يعرف عند الميزان. الفراغُ يعني «بالقطعة»، وهو ما عليه
+             أغلبُ المنيوهات؛ ومن يبيع بالوزن يقولها. --}}
+        <div class="a2-form-group">
+            <label class="a2-label" for="sale_unit">{{ __('وحدة البيع') }}</label>
+            <select class="a2-select" id="sale_unit" name="sale_unit">
+                <option value="">{{ __('— بالقطعة —') }}</option>
+                @foreach($saleUnits as $code => $label)
+                    <option value="{{ $code }}" @selected((string) old('sale_unit', $row->sale_unit ?? '') === (string) $code)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <small class="a2-help">{{ __('السعر لكل ماذا — كجم للخضار، لتر للعصير. اتركها فارغة إن كان السعر للقطعة.') }}</small>
+        </div>
+
         <div class="a2-form-group">
             <label class="a2-label" for="sort_order">{{ __('الترتيب') }}</label>
             <input class="a2-input" id="sort_order" name="sort_order" type="number" min="0" value="{{ old('sort_order', (int) ($row->sort_order ?? 0)) }}">

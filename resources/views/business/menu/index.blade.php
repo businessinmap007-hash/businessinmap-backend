@@ -76,7 +76,12 @@
                                 <span class="a2-muted">—</span>
                             @endif
                         </td>
-                        <td class="a2-fw-900">{{ number_format((float) $row->base_price, 2) }}</td>
+                        <td class="a2-fw-900">
+                            {{ number_format((float) $row->base_price, 2) }}
+                            @if($unit = $row->priceUnitLabel())
+                                <small style="font-weight:400;opacity:.7;">/ {{ $unit }}</small>
+                            @endif
+                        </td>
                         <td>{{ (int) $row->sort_order }}</td>
                         <td>
                             @if($row->is_active)

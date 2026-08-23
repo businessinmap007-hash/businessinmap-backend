@@ -10,6 +10,7 @@ use App\Models\MenuSection;
 use App\Models\PlatformService;
 use App\Services\Media\ImageUploadService;
 use App\Services\MerchantOfferingVocabulary;
+use App\Support\SaleUnits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -91,6 +92,7 @@ class MenuItemController extends Controller
             'row' => new MenuItem(['is_active' => 1, 'sort_order' => 0, 'base_price' => 0]),
             'sections' => $this->sections(),
             'itemTypes' => $this->itemTypes(),
+            'saleUnits' => SaleUnits::options(),
             'vocabulary' => $this->vocabulary(),
             'lineId' => null,
             'modifierIds' => collect(),
@@ -158,6 +160,7 @@ class MenuItemController extends Controller
             'row' => $row,
             'sections' => $this->sections(),
             'itemTypes' => $this->itemTypes(),
+            'saleUnits' => SaleUnits::options(),
             'vocabulary' => $this->vocabulary(),
             'lineId' => $row->lineOption()?->id,
             'modifierIds' => $row->modifierOptions()->pluck('id'),
@@ -264,11 +267,15 @@ class MenuItemController extends Controller
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
+            // What the price is the price OF. Empty means «by the item», which
+            // is what a sandwich is; a greengrocer says «كجم».
+            'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable'],
         ], [], [
             'name_ar' => 'الاسم العربي',
             'base_price' => 'السعر',
+            'sale_unit' => 'وحدة البيع',
             'menu_section_id' => 'القسم',
             'item_type' => 'النوع',
         ]);
@@ -286,6 +293,8 @@ class MenuItemController extends Controller
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),
+            // Empty string and «by the item» are the same answer; both null.
+            'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
             'sort_order' => max(0, (int) ($data['sort_order'] ?? 0)),
             'is_active' => (int) $request->boolean('is_active'),
         ];

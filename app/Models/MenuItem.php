@@ -6,6 +6,7 @@ use App\Models\Concerns\HasOfferingOptions;
 use App\Models\Concerns\HasOwnedImages;
 use App\Models\Concerns\RecordsPriceHistory;
 use App\Support\Concerns\HasLocalizedFields;
+use App\Support\SaleUnits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -50,6 +51,7 @@ class MenuItem extends Model
         'description_en',
         'image',
         'base_price',
+        'sale_unit',
         'is_active',
         'sort_order',
         'is_featured',
@@ -64,6 +66,18 @@ class MenuItem extends Model
         'sort_order' => 'integer',
         'is_featured' => 'boolean',
     ];
+
+    /**
+     * «٤٥ ج / كجم» — the price, and what it is the price OF.
+     *
+     * Null is not «unknown»: it is «by the item», which is what a sandwich is
+     * and what most menus are. Only a shop that weighs what it sells has to
+     * say anything.
+     */
+    public function priceUnitLabel(): ?string
+    {
+        return SaleUnits::label($this->sale_unit);
+    }
 
     public function business(): BelongsTo
     {

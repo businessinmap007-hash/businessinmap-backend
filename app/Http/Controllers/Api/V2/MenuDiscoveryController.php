@@ -162,6 +162,12 @@ final class MenuDiscoveryController extends Controller
             'image' => $item->image,
             'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image])->values(),
             'base_price' => $base,
+            // What the price is the price OF. Null is «by the item» — a
+            // sandwich — and only a shop that weighs what it sells says
+            // anything. The label is sent beside the code so the app prints
+            // «٤٥ ج / كجم» without carrying its own unit table.
+            'sale_unit' => $item->sale_unit ?: null,
+            'sale_unit_label' => $item->priceUnitLabel(),
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

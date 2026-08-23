@@ -194,6 +194,27 @@ class SupplierMergeBatchTest extends TestCase
             DB::table('category_children_master')->where('id', 247)->value('name_ar')
         );
 
+        // #15 is the same case, ruled the same day: «تبريد وتكييف» #240 is the
+        // workshop one root over.
+        $this->assertSame(
+            'فني تبريد وتكييف',
+            DB::table('category_children_master')->where('id', 15)->value('name_ar')
+        );
+
+        /*
+         * …and the OPTION keeps the old words. «صيانة تبريد وتكييف» is a row
+         * in «تخصصات ورش الأجهزة» — the JOB — and both the technician and the
+         * workshop offer it. Renaming a child is not renaming what it does,
+         * and a search-and-replace across the seeder data would have taken
+         * this with it.
+         */
+        $this->assertTrue(
+            DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('g.name_ar', 'تخصصات ورش الأجهزة')->where('o.name_ar', 'صيانة تبريد وتكييف')
+                ->exists(),
+            'the job lost its name when the man was renamed'
+        );
+
         // The rename keeps the id, which is why a merge keeps a child: the one
         // merchant, every option link and every service config travel with it.
         $this->assertSame(1, DB::table('users')->where('category_child_id', 22)->count());
@@ -209,7 +230,10 @@ class SupplierMergeBatchTest extends TestCase
      */
     public function test_no_by_name_map_still_calls_a_child_by_a_dead_name(): void
     {
-        $dead = ['مستلزمات مطاعم', 'مستلزمات كافيهات', 'مستلزمات قهاوى', 'اكياس بلاستيك', 'صيانة اجهزة منزلية'];
+        $dead = [
+            'مستلزمات مطاعم', 'مستلزمات كافيهات', 'مستلزمات قهاوى', 'اكياس بلاستيك',
+            'صيانة اجهزة منزلية', 'صيانة تبريد وتكييف',
+        ];
 
         $files = [
             'retail_child_branches.php', 'delivery_child_branches.php', 'booking_child_branches.php',

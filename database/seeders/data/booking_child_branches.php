@@ -24,7 +24,7 @@ return [
         'رخام وجرانيت' => ['services_tasks'],
         'سباك' => ['services_tasks'],
         'فني صيانة أجهزة منزلية' => ['services_tasks'],   // was «صيانة اجهزة منزلية»
-        'صيانة تبريد وتكييف' => ['services_tasks'],   // was «صيانة تكيف»
+        'فني تبريد وتكييف' => ['services_tasks'],   // was «صيانة تكيف» ثم «صيانة تبريد وتكييف»
         'عامل بناء' => ['services_tasks'],
         'فني الوميتال' => ['services_tasks'],
         'فني ستائر و تنجيد' => ['services_tasks'],

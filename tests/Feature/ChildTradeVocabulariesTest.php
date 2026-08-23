@@ -3026,9 +3026,12 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertSame(['بالمهمة', 'يومي'], $held, "«{$trade}» drifted off the two answers");
         }
 
-        // «صيانة تكيف» is «صيانة تبريد وتكييف» since the owner renamed it; the
-        // old word matches no child and the loop asserted against an empty list.
-        foreach (['كهربائي', 'سباك', 'صيانة تبريد وتكييف'] as $callOut) {
+        // «صيانة تكيف» → «صيانة تبريد وتكييف» → «فني تبريد وتكييف». The old
+        // word matches no child and the loop asserted against an empty list.
+        // The OPTION «صيانة تبريد وتكييف» in «تخصصات ورش الأجهزة» is a
+        // different row and keeps its name — the child is the man, the option
+        // is the job.
+        foreach (['كهربائي', 'سباك', 'فني تبريد وتكييف'] as $callOut) {
             $this->assertContains('بالزيارة', $this->optionsOfChildInGroup($callOut, 'نظام التعاقد'));
         }
     }

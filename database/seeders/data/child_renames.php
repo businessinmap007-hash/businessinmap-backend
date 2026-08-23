@@ -139,15 +139,37 @@ return [
     |
     | It also puts the child back in step with its own root: مهن وحرفيين is
     | كهربائي، سباك، نقاش، نجار موبيليا، فني ستائر، متخصص كوافير — every one of
-    | them a person. The two children that still name a job rather than a
-    | tradesman are this one and «صيانة تبريد وتكييف» #15, which has the same
-    | twin one root over («تبريد وتكييف» #240) and is left for the owner to
-    | rule on rather than swept along.
+    | them a person. #15 had the same twin one root over and was raised beside
+    | this one rather than swept along with it; he ruled on it the same day and
+    | it follows below.
     */
     [
         'id' => 22,
         'from_ar' => 'صيانة اجهزة منزلية',
         'to_ar' => 'فني صيانة أجهزة منزلية',
         'to_en' => 'Home Appliance Technician',
+    ],
+
+    /*
+    | ── the same case, ruled on the same day ──────────────────────────────
+    | «اعد تسميته» — owner, 2026-08-23, on #15 being raised beside #22.
+    |
+    | Identical shape: «صيانة تبريد وتكييف» named the WORK under مهن وحرفيين
+    | while «تبريد وتكييف» #240 does the same work under ورش ومراكز صيانة. The
+    | customer choosing between the man who comes to the flat and the shop he
+    | carries the unit to was reading the same words in two places.
+    |
+    | With this the root has no child left naming a job rather than a
+    | tradesman: كهربائي، سباك، نقاش، نجار موبيليا، فني ستائر، فني الوميتال،
+    | متخصص كوافير، فني صيانة أجهزة منزلية، فني تبريد وتكييف. «خدمات نظافة» is
+    | the one that stays, and stays on purpose — cleaning is sold as a company
+    | with a crew, not as a named craftsman, and it has no workshop twin to be
+    | confused with.
+    */
+    [
+        'id' => 15,
+        'from_ar' => 'صيانة تبريد وتكييف',
+        'to_ar' => 'فني تبريد وتكييف',
+        'to_en' => 'HVAC Technician',
     ],
 ];

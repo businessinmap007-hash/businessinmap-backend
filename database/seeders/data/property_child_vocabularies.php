@@ -67,6 +67,17 @@
 | @see \Database\Seeders\ChildTradeVocabulariesSeeder
 */
 
+/*
+| Named once: the rows added to «عقارات وممتلكات» after this file was first
+| written, which all three children take. Repeating them in three link entries
+| is how one of the three quietly ends up narrower than its siblings.
+*/
+$added = [
+    'مخازن', 'جمالون',
+    'دوبلكس', 'بنتهاوس', 'وحدة إدارية', 'وحدة تجارية',
+    'مول تجاري', 'كمبوند', 'شاليه', 'شقة مصيفية',
+];
+
 return [
 
     'root' => 'property-and-land',
@@ -89,6 +100,63 @@ return [
                 '2000 – 5000 م²' => '2000–5000 m²',
                 '5000 – 10000 م²' => '5000–10000 m²',
                 'أكثر من 10000 م²' => 'Over 10000 m²',
+            ],
+        ],
+
+        /*
+        | ── «حالة العقار» ─────────────────────────────────────────────────
+        | «الخيارات المتاحة تكون تم التشطيب وتحت الإنشاء» — owner, 2026-08-23.
+        |
+        | Not «مستوى التشطيب», which is already here and answers a different
+        | question: «على المحارة» describes a FINISHED building handed over
+        | bare. A unit «تحت الإنشاء» has no finish level yet — it has a
+        | delivery date — and the two were being read as one axis, which is
+        | how a buyer filtering for «تشطيب كامل» loses every off-plan unit
+        | that will be handed over fully finished in 2028.
+        |
+        | Two rows, because two is what he named and because a third («على
+        | الماكيت», «تحت التشطيب») is a shade of one of them that only a
+        | developer can tell apart from the other.
+        |
+        | `modifier`: the property is what is bought; this changes its price.
+        */
+        'حالة العقار' => [
+            'name_en' => 'Property Status', 'price_role' => 'modifier', 'children' => [517, 518, 522],
+            'options' => [
+                'جاهز للتسليم' => 'Ready to Move',
+                'تحت الإنشاء' => 'Under Construction',
+            ],
+        ],
+
+        /*
+        | ── «مدة التقسيط» ─────────────────────────────────────────────────
+        | «وخيارات الدفع كاش وتقسيط ٣ و٥ و٧ و١٠ سنوات وتقسيط بدون فوائد».
+        |
+        | «كاش» and «تقسيط» are already answered — group #50 «الدفع والسداد»,
+        | which every trade on the platform can answer and all three of these
+        | children carry. What has no home is HOW LONG, and it is the single
+        | loudest number on any Egyptian property hoarding.
+        |
+        | A group of its own rather than five more rows in «الدفع والسداد»:
+        | that group is shared by hundreds of children and «تقسيط ٧ سنوات» on
+        | a grocer is nonsense. Scoped to the three property children, it is
+        | the second half of a sentence whose first half is already there.
+        |
+        | «تقسيط بدون فوائد» is NOT minted here. It exists — option #204 — and
+        | policy since 2026-08-10 is that it is hand-set only, because
+        | interest-free instalments are a commercial claim only the merchant
+        | can make. The `links` section grants it to these three on the
+        | owner's instruction, which is what «hand-set» means when the hand is
+        | his.
+        */
+        'مدة التقسيط' => [
+            'name_en' => 'Instalment Term', 'price_role' => 'modifier', 'children' => [517, 518, 522],
+            'options' => [
+                'تقسيط سنة' => '1 Year',
+                'تقسيط 3 سنوات' => '3 Years',
+                'تقسيط 5 سنوات' => '5 Years',
+                'تقسيط 7 سنوات' => '7 Years',
+                'تقسيط 10 سنوات' => '10 Years',
             ],
         ],
 
@@ -116,6 +184,39 @@ return [
         'عقارات وممتلكات' => [
             'مخازن' => 'Warehouses',
             'جمالون' => 'Steel-Frame Shed',
+
+            /*
+            | ── 2026-08-23 ────────────────────────────────────────────────
+            | «اضافة العقارات والاراضي: وحدات سكنية وادارية وتجارية والمولات
+            |  التجارية والمدن الجديدة والمشروعات» — owner.
+            |
+            | The fifteen rows covered the OLD market: a flat, a villa, a
+            | shop, an office, a plot. They had no word for anything a
+            | developer sells in a new city, which is where most of the
+            | primary market now is.
+            |
+            | «وحدة إدارية» is not «مكتب» and the difference is the deal: a
+            | مكتب is a room you rent in a building that exists, an إدارية is
+            | a unit sold off-plan in a tower, quoted per metre and delivered
+            | on a date. Same for «وحدة تجارية» against «محل».
+            |
+            | «كمبوند» and «مول تجاري» are what «المشروعات» means when a
+            | developer says it — the thing he advertises before any single
+            | unit in it has a number.
+            |
+            | And the two the coastal market is made of, which the list did
+            | not carry at all: a chalet and a summer flat. For SALE, here —
+            | letting one by the night is «مالك وحدة مصيفية» under «سياحة
+            | وفنادق», which is a stay and not a listing.
+            */
+            'دوبلكس' => 'Duplex',
+            'بنتهاوس' => 'Penthouse',
+            'وحدة إدارية' => 'Administrative Unit',
+            'وحدة تجارية' => 'Commercial Unit',
+            'مول تجاري' => 'Shopping Mall',
+            'كمبوند' => 'Compound',
+            'شاليه' => 'Chalet',
+            'شقة مصيفية' => 'Summer Apartment',
         ],
     ],
 
@@ -183,11 +284,24 @@ return [
     | building one. Left exactly as he set it.
     */
     'links' => [
-        517 => ['عقارات وممتلكات' => ['مخازن', 'جمالون']],
-        522 => ['عقارات وممتلكات' => ['مخازن', 'جمالون']],
+        /*
+        | «تقسيط بدون فوائد» is NOT granted here, and the difference matters.
+        |
+        | Policy since 2026-08-10: the option is hand-set only, and
+        | PaymentTermsScopeTest enforces it by demanding that every child
+        | holding it be PINNED in the ledger or ticked by a merchant. A link
+        | written by a vocabulary file is neither, and the decisions seeder —
+        | which runs last — would take it straight back off.
+        |
+        | The owner asked for it on 2026-08-23, so it is a pin, in
+        | child_option_pins.php. That is the same sentence said in the place
+        | the platform reads it.
+        */
+        517 => ['عقارات وممتلكات' => $added],
+        522 => ['عقارات وممتلكات' => $added],
 
         518 => [
-            'عقارات وممتلكات' => ['مخازن', 'جمالون'],
+            'عقارات وممتلكات' => $added,
             'الغرف' => ['استوديو', 'غرفة', 'غرفتين', 'ثلاث غرف', 'أربع غرف', 'خمس غرف فأكثر'],
             'مستوى التشطيب' => 'all',
         ],

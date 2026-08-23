@@ -30,6 +30,8 @@ class ChildOptionDecisionsSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->recordDeclaredPins();
+
         $decisions = DB::table(ChildOptionDecisions::TABLE)
             ->get(['child_id', 'category_id', 'option_id', 'kind']);
 
@@ -166,5 +168,52 @@ class ChildOptionDecisionsSeeder extends Seeder
             ->where('category_id', ChildOptionDecisions::ALL_ROOTS)
             ->where('option_id', $optionId)
             ->delete();
+    }
+
+    /**
+     * The pins the repository has to know about, before anything is enforced.
+     *
+     * A pin is written by the admin card as he clicks, and until 2026-08-23 it
+     * lived only in the table — so a database rebuilt from the seeders came up
+     * with none of them, and every seeder went back to arguing with a decision
+     * that had already been made.
+     *
+     * data/child_option_pins.php holds the pins that are a RULING rather than
+     * a click: the ones another part of the platform refuses to accept without
+     * one. `pin()` is a toggle, so an entry here also lifts a withdrawal of the
+     * same row — which is why each entry names its reason.
+     */
+    private function recordDeclaredPins(): void
+    {
+        $path = __DIR__ . '/data/child_option_pins.php';
+
+        if (! is_file($path)) {
+            return;
+        }
+
+        $decisions = app(ChildOptionDecisions::class);
+        $written = 0;
+
+        foreach (require $path as $entry) {
+            $optionIds = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('g.name_ar', $entry['group'])
+                ->whereIn('o.name_ar', $entry['options'])
+                ->pluck('o.id')->map(fn ($id) => (int) $id)->all();
+
+            if ($optionIds === []) {
+                $this->command?->warn("  ! «{$entry['group']}» لا يحمل ما طُلب تثبيته.");
+
+                continue;
+            }
+
+            foreach ($entry['children'] as $childId) {
+                $written += $decisions->pin((int) $childId, (int) $entry['root_id'], $optionIds, 'declared');
+            }
+        }
+
+        if ($written > 0) {
+            $this->command?->line("  - تثبيتات معلنة سُجّلت : {$written}");
+        }
     }
 }

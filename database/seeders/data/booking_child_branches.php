@@ -205,6 +205,9 @@ return [
         'نُزل / هوستل' => ['hotel'],
         'بيت ضيافة' => ['hotel'],
         'فندق عائم / بوت نيلي' => ['hotel'],
+        // The seventh child, 2026-08-23: one chalet, let by the man who owns
+        // it. Same branch — a stay is a stay whoever hands over the key.
+        'مالك وحدة مصيفية' => ['hotel'],
     ],
 
 ];

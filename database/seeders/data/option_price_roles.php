@@ -518,6 +518,22 @@ return [
         // ladders, and the merchant answers the one his trade quotes in.
         'المساحة بالفدان',        // فدان – 3 أفدنة
         'مستوى التشطيب',          // سوبر لوكس ≠ على المحارة
+        /*
+         * Added 2026-08-23 with the primary market — «الخيارات المتاحة تكون
+         * تم التشطيب وتحت الإنشاء … وخيارات الدفع كاش وتقسيط ٣ و٥ و٧ و١٠
+         * سنوات».
+         *
+         * Both qualify the same line the three above do. «تحت الإنشاء» is not
+         * a thing anybody buys and neither is «تقسيط ٧ سنوات» — they are what
+         * a flat costs LESS, and MORE, when it is one of them.
+         *
+         * «حالة العقار» is a separate axis from «مستوى التشطيب» on purpose: a
+         * unit under construction has no finish level yet, it has a delivery
+         * date, and reading them as one loses every off-plan unit to a buyer
+         * filtering on «تشطيب كامل».
+         */
+        'حالة العقار',            // جاهز للتسليم ≠ تحت الإنشاء
+        'مدة التقسيط',            // ١٠ سنوات ≠ سنة
 
         /*
          * The «ماركات السيارات» pattern, reused. Each says what a trade DEALS

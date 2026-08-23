@@ -24,12 +24,12 @@ return [
         'رخام وجرانيت' => ['services_tasks'],
         'سباك' => ['services_tasks'],
         'صيانة اجهزة منزلية' => ['services_tasks'],
-        'صيانة تكيف' => ['services_tasks'],
+        'صيانة تبريد وتكييف' => ['services_tasks'],   // was «صيانة تكيف»
         'عامل بناء' => ['services_tasks'],
         'فني الوميتال' => ['services_tasks'],
         'فني ستائر و تنجيد' => ['services_tasks'],
         'كهربائي' => ['services_tasks'],
-        'كوافير' => ['beauty_care'],
+        'متخصص كوافير' => ['beauty_care'],            // was «كوافير»
         'مبلط' => ['services_tasks'],
         'مبيض محارة' => ['services_tasks'],
         'منجد' => ['services_tasks'],

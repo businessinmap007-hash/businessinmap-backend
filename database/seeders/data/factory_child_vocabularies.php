@@ -80,7 +80,12 @@ return [
                 'تصنيع حسب الطلب' => 'Made to Order',
                 'تصنيع بعلامة العميل' => 'Private Label',
                 'تجميع وتوريد' => 'Assembly & Supply',
-                'تصنيع لدى الغير' => 'Contract Manufacturing',
+                // «لصالح» and not «لدى»: a factory that takes this row is the
+                // one DOING the work for someone else's brand, not the one
+                // sending it out. Renamed by hand on the live row; the file
+                // said «لدى الغير» and so minted a second, opposite option on
+                // every run — fifty-four links a seed.
+                'تصنيع لصالح الغير' => 'Contract Manufacturing',
             ],
         ],
 

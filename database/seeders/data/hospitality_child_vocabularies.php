@@ -121,8 +121,15 @@ return [
                 'نقل من المطار', 'سرير إضافي', 'غسيل وكي', 'تسجيل دخول مبكر أو مغادرة متأخرة',
                 'جولة سياحية يومية',
             ],
-            // The dorm. This is the child the axis was always for.
-            'ملاءمة المكان' => ['سيدات', 'رجال', 'ميكس'],
+            /*
+             * The dorm. This is the child the axis was always for.
+             *
+             * «ميكس» was withdrawn by hand on 2026-08-20 and is not re-declared:
+             * a hostel advertises a ladies' dorm or a men's dorm, and the room
+             * that is neither is the DEFAULT — it is what a dorm is when nobody
+             * says otherwise. Ticking all three says the same thing twice.
+             */
+            'ملاءمة المكان' => ['سيدات', 'رجال'],
         ],
 
         540 => [

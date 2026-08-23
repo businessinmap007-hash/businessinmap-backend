@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,45 +70,56 @@ class CategoryChildController extends Controller
             ->values()
             ->all();
 
-        $fallbackCategoryId = (int) ($parentIds[0] ?? 0);
+        /*
+        |----------------------------------------------------------------------
+        | A service is offered PER ROOT, and this used to forget it
+        |----------------------------------------------------------------------
+        | The write below was keyed on (child_id, platform_service_id) with no
+        | root, and set `category_id` to whichever parent happened to be first
+        | in the submitted list. For a child standing under one root that is
+        | harmless. For a child standing under two it is not: saving this form
+        | REWROTE the existing link's root instead of adding the second one.
+        |
+        | «كرڤان» #47 stands under شركات and مصانع. On 2026-08-20 at 18:11:33 all
+        | four of its links were rewritten in one save and three came out
+        | pointing at مصانع, where their configs were not — so under شركات it
+        | had a delivery configuration nothing could reach, and under مصانع it
+        | advertised delivery, menu and booking with nothing bounding them,
+        | which every reader takes as «every item type on the platform».
+        |
+        | And the configs were never named here at all, so switching a service
+        | off left `category_service_configs` active behind it.
+        |
+        | Both are one fix: write the pair, once per root the child stands
+        | under, through the writer that exists to be the only place that does.
+        */
+        $writer = app(ChildServiceWriter::class);
 
-        if (empty($serviceIds)) {
-            CategoryPlatformService::query()
-                ->where('child_id', $categoryChild->id)
-                ->update([
-                    'is_active' => 0,
-                    'updated_at' => now(),
-                ]);
+        $roots = $parentIds !== [] ? $parentIds : DB::table('category_parent_child')
+            ->where('child_id', $categoryChild->id)->pluck('parent_id')->map(fn ($id) => (int) $id)->all();
 
-            return;
+        foreach ($roots as $rootId) {
+            $order = 1;
+
+            foreach ($serviceIds as $serviceId) {
+                // A root that has never carried this service starts from what
+                // the child already says under its other root. An empty config
+                // would read as «everything».
+                $writer->enable(
+                    rootId: (int) $rootId,
+                    childId: (int) $categoryChild->id,
+                    serviceId: (int) $serviceId,
+                    configPatch: $writer->storedConfig((int) $rootId, (int) $categoryChild->id, (int) $serviceId)
+                        ?: $writer->configElsewhere((int) $categoryChild->id, (int) $serviceId, (int) $rootId),
+                    sortOrder: $order,
+                    source: 'category_child_form'
+                );
+
+                $order++;
+            }
+
+            $writer->disableOthers((int) $rootId, (int) $categoryChild->id, $serviceIds);
         }
-
-        $order = 1;
-
-        foreach ($serviceIds as $serviceId) {
-            CategoryPlatformService::query()->updateOrCreate(
-                [
-                    'child_id' => $categoryChild->id,
-                    'platform_service_id' => $serviceId,
-                ],
-                [
-                    'category_id' => $fallbackCategoryId > 0 ? $fallbackCategoryId : null,
-                    'is_active' => true,
-                    'sort_order' => $order,
-                    'meta' => null,
-                ]
-            );
-
-            $order++;
-        }
-
-        CategoryPlatformService::query()
-            ->where('child_id', $categoryChild->id)
-            ->whereNotIn('platform_service_id', $serviceIds)
-            ->update([
-                'is_active' => 0,
-                'updated_at' => now(),
-            ]);
     }
 
     public function index(Request $request): View

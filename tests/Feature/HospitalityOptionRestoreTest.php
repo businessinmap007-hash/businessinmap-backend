@@ -38,42 +38,68 @@ class HospitalityOptionRestoreTest extends TestCase
             ->all();
     }
 
+    /** The four kinds of stay that were never emptied. */
+    private const INTACT = ['فندق', 'شقق فندقية', 'منتجع', 'نُزل / هوستل'];
+
     /**
      * Whatever every intact sibling carries, the restored two carry too.
      *
      * «carries the base», not «carries only the base». A child gaining an extra
      * payment word from some other seeder is not a regression, and asserting an
      * exact group size would turn every unrelated grant into a red test here.
+     *
+     * ── And the base is MEASURED, not written down ────────────────────────────
+     *
+     * It used to be five numbers in a literal, and every one of them was a
+     * snapshot of a taxonomy that has not stopped moving: «نقل من المطار» left
+     * «مرافق الإقامة» for «خدمات الفندق» in August so a hotel could price it,
+     * «ملاءمة المكان» grew from two answers to five, and on 2026-08-20 the owner
+     * took that whole group off four of the six kinds of stay and «إطلالة
+     * الوحدة» off the Nile boat. Each of those is a correct change and each one
+     * turned this test red for measuring the wrong thing.
+     *
+     * The sentence in the title is already the rule, and it names its own
+     * yardstick: the base IS what the intact siblings carry. Read from them, it
+     * moves when the trade moves and still fails the day one of the restored two
+     * falls behind its siblings — which is the only thing that was ever being
+     * asked.
      */
     public function test_both_carry_the_base_every_sibling_has(): void
     {
+        $siblings = array_map(fn ($n) => $this->groupsOf($this->childId($n)), self::INTACT);
+
+        // The base of a group is the least any intact sibling holds of it. A
+        // group no sibling holds has no base to fall behind.
+        $base = [];
+
+        foreach (array_merge(...array_map('array_keys', $siblings)) as $group) {
+            $base[$group] = min(array_map(fn ($held) => $held[$group] ?? 0, $siblings));
+        }
+
+        $base = array_filter($base);
+
+        $this->assertNotEmpty($base, 'the four intact siblings share no group at all');
+
         foreach (['بيت ضيافة', 'فندق عائم / بوت نيلي'] as $name) {
             $groups = $this->groupsOf($this->childId($name));
 
-            /*
-             * At least the base — which is what the note above says and what
-             * these four assertions did not do. «ملاءمة المكان» has since grown
-             * from two answers to five, so a child carrying the whole group was
-             * reported as carrying too much of it; that is the «asserting an
-             * exact group size» the note warns against, in the group it warns
-             * about.
-             */
-            /*
-             * Nine, not ten, since 2026-08-16: «نقل من المطار» moved to «خدمات
-             * الفندق» so a hotel can price it. The row did not leave the child —
-             * it left the heading — which is why the total across the pair is
-             * still ten and both are asserted rather than the count lowered.
-             */
-            foreach ([
-                'مرافق الإقامة' => 9,
-                'خدمات الفندق' => 1,
-                'ملاءمة المكان' => 2,
-                'إطلالة الوحدة' => 2,
-                'نظام الوجبات' => 3,
-            ] as $group => $base) {
+            $gaveUp = $this->withdrawnPerGroup($this->childId($name));
+
+            foreach ($base as $group => $least) {
+                /*
+                 * A row he took off by hand is not a row that went missing. The
+                 * boat gave «إطلالة الوحدة» back on 2026-08-20 — a cruiser's
+                 * window is not a fixed attribute of a cabin — and its four
+                 * siblings kept the group, so the floor alone reads that ruling
+                 * as damage.
+                 *
+                 * Counting the ledger beside the links keeps the floor honest
+                 * both ways: a row that disappears with no decision behind it
+                 * still fails, which is the accident this whole file exists for.
+                 */
                 $this->assertGreaterThanOrEqual(
-                    $base,
-                    $groups[$group] ?? 0,
+                    $least,
+                    ($groups[$group] ?? 0) + ($gaveUp[$group] ?? 0),
                     "«{$name}» lost part of «{$group}» — it must carry at least the base every sibling has"
                 );
             }
@@ -107,6 +133,25 @@ class HospitalityOptionRestoreTest extends TestCase
         foreach (['بيت ضيافة', 'فندق عائم / بوت نيلي'] as $name) {
             $this->assertNotContains('سرير في غرفة مشتركة', $this->optionNamesOf($this->childId($name)), "«{$name}»");
         }
+    }
+
+    /**
+     * How many rows of each group this child took off by hand.
+     *
+     * @return array<string,int> group name => withdrawals
+     */
+    private function withdrawnPerGroup(int $childId): array
+    {
+        return DB::table('category_child_option_decisions as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('d.child_id', $childId)
+            ->where('d.kind', 'withdrawn')
+            ->select('g.name_ar', DB::raw('COUNT(DISTINCT o.id) as total'))
+            ->groupBy('g.name_ar')
+            ->pluck('total', 'g.name_ar')
+            ->map(fn ($n) => (int) $n)
+            ->all();
     }
 
     /** @return array<int,string> */
@@ -144,31 +189,38 @@ class HospitalityOptionRestoreTest extends TestCase
         }
     }
 
-    /** The four intact siblings were not touched. */
+    /**
+     * The four intact siblings were not touched — by THIS seeder.
+     *
+     * The claim was once four totals: فندق 51، شقق فندقية 38، منتجع 55، نُزل 40.
+     * Every one of them has been correct and then wrong, and the comment above
+     * them grew a dated paragraph each time — the payment pair replacing «تقسيط
+     * بدون فوائد», the star rating lent to four kinds of stay, «خدمات الفندق»
+     * going from one row to eight. None of those was this seeder's doing, which
+     * is what the test says it is checking, and none of them could be told apart
+     * from a real regression by a number.
+     *
+     * On 2026-08-20 the owner took the stars back off «نُزل» and «ملاءمة
+     * المكان» off «فندق» — his rulings, and the fourth and fifth time these
+     * literals went red for someone else's correct work.
+     *
+     * So it measures the sentence instead: run the restore, and the four are
+     * where they were. That fails on exactly one thing — this seeder reaching a
+     * child it has no business touching — and on nothing else.
+     */
     public function test_the_intact_siblings_are_unchanged(): void
     {
-        // Each gained one on 2026-08-10: the payment group's single wholesale
-        // option «تقسيط بدون فوائد» was replaced by the pair كاش + تقسيط. The
-        // restore seeder still did not touch them — the totals moved underneath
-        // it, which is what a hard-coded total costs and why it is worth it.
-        //
-        // And again on 2026-08-12: «تصنيف الإقامة» was lent to the four kinds of
-        // stay that never had it (ChildVocabularyBorrowSeeder), +7 each — so
-        // شقق فندقية 28→35 and نُزل 26→33, while فندق and منتجع already held it
-        // and did not move. The restore seeder is still not the one that wrote
-        // them, which is the whole point of the assertion.
-        //
-        // 2026-08-17: «خدمات الفندق» went from one row to eight
-        // (hospitality_child_vocabularies.php), scoped per child — فندق and
-        // منتجع take all seven new ones, شقق فندقية three, نُزل four plus the
-        // three dorm-gender rows this same change moved onto it. Still not the
-        // restore seeder's doing.
-        foreach (['فندق' => 51, 'شقق فندقية' => 38, 'منتجع' => 55, 'نُزل / هوستل' => 40] as $name => $expected) {
-            $this->assertSame(
-                $expected,
-                DB::table('category_child_option')->where('child_id', $this->childId($name))->count(),
-                "«{$name}» changed — the restore was supposed to leave it alone"
-            );
+        $count = fn (string $name) => DB::table('category_child_option')
+            ->where('child_id', $this->childId($name))->count();
+
+        $before = array_map($count, array_combine(self::INTACT, self::INTACT));
+
+        $this->assertNotContains(0, $before, 'an intact sibling is missing or empty');
+
+        $this->artisan('db:seed', ['--class' => 'HospitalityOptionRestoreSeeder', '--no-interaction' => true])->run();
+
+        foreach ($before as $name => $was) {
+            $this->assertSame($was, $count($name), "«{$name}» changed — the restore was supposed to leave it alone");
         }
     }
 

@@ -186,7 +186,7 @@ return [
     [
         'child_name_ar' => 'تجهيز عرائس',
         'root_slug' => 'professions',
-        'reassign_to' => 'كوافير',
+        'reassign_to' => 'متخصص كوافير',
         'tick_option' => 'تجهيز عرائس',
         'why' => 'هي خدمة مسعّرة على «كوافير» بالفعل — صفٌّ يقف بجوار كلمته',
     ],

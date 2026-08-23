@@ -97,6 +97,18 @@ class MenuBandSplitTest extends TestCase
                 'أقسام البقالة الجافة',
                 'أقسام المشروبات',
                 'أقسام المنزل والعناية',
+                /*
+                 * And the sixth drawer, added 2026-08-21. The owner moved the
+                 * three market children onto «أصناف المنتجات الغذائية» — twenty
+                 * ranges, pinned by hand — and withdrew from the aisle lists
+                 * the rows those ranges already say, keeping the counters.
+                 *
+                 * Not counting it here reported the move as a loss: سوبر ماركت
+                 * came out at 16. The headings did not go anywhere, they went
+                 * into a drawer this list had not heard of, which is the same
+                 * thing that happened when the aisle drawer became five.
+                 */
+                'أصناف المنتجات الغذائية',
             ])
             ->count();
 

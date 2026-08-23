@@ -251,9 +251,45 @@ return [
     | Written as declared empties in child_option_scopes.php rather than here,
     | because that file is the one place that says «this child answers none of
     | this group» and ChildOptionScopeSeeder already enforces it.
+    |
+    | ── 2026-08-21: the owner answered it the other way for the three markets ─
+    |
+    | Over an hour he pinned all twenty ranges onto سوبر ماركت، مني ماركت and
+    | هايبر ماركت and withdrew from the aisles exactly the rows the ranges
+    | already say. The aisle rows he KEPT name counters — خضار وفاكهة، فسيخ،
+    | رنجة، مجمدات، ألبان وبيض — things weighed and cut behind glass, which is a
+    | priced heading. The ones he took off were ranges pretending to be
+    | headings.
+    |
+    | Same principle as this block, applied from the other side and to a finer
+    | line. The three come out; مجمدات and حبوب وغلال carry counters only and
+    | stay.
     */
     'redundant_for' => [
         'group' => 'أصناف المنتجات الغذائية',
-        'children' => ['سوبر ماركت', 'مني ماركت', 'هايبر ماركت', 'مجمدات', 'حبوب وغلال'],
+        'children' => ['مجمدات', 'حبوب وغلال'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Finishing the move he made by hand
+    |--------------------------------------------------------------------------
+    | Twenty pins and twenty-eight withdrawals across three children, and one
+    | row was missed: «معلبات» sits on «هايبر ماركت» in «أقسام البقالة الجافة»
+    | AND in «أصناف المنتجات الغذائية». He took exactly that pair apart on
+    | «سوبر ماركت» ten minutes earlier — same word, same two groups — so the
+    | rule is his and only the click is missing.
+    |
+    | Named row by row rather than derived. A rule of the shape «withdraw any
+    | aisle word the ranges repeat» would also fire on «سناكس وتسالي» against
+    | «مكسرات وتسالي», which are not the same word and which he kept side by
+    | side on two children. He is finer than a matcher; this file follows him
+    | and does not generalise him.
+    |
+    | Recorded as a withdrawal, not just deleted — the ledger is what stops the
+    | broad seeders handing it straight back.
+    */
+    'finish_range_move' => [
+        ['child' => 'هايبر ماركت', 'group' => 'أقسام البقالة الجافة', 'option' => 'معلبات'],
     ],
 ];

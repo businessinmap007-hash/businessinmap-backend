@@ -328,16 +328,30 @@ return [
     | a real question for a wholesaler with no priced heading behind it. That is
     | what a modifier is for.
     |
-    | The five below carry BOTH and were being asked twice, once priced and once
-    | not. They keep the priced one. An empty list is the declared way to say
-    | «this child answers none of this group», and ChildOptionScopeTest checks
-    | that it actually holds.
+    | The five below carried BOTH and were being asked twice, once priced and
+    | once not. An empty list is the declared way to say «this child answers
+    | none of this group», and ChildOptionScopeTest checks that it actually
+    | holds.
+    |
+    | ── 2026-08-21: the owner resolved the duplication the other way ──────────
+    |
+    | This file chose the AISLES for the three market children and struck the
+    | ranges. By hand, over an hour, he did the reverse: he pinned all twenty
+    | ranges onto سوبر ماركت، مني ماركت and هايبر ماركت, and withdrew from the
+    | two aisle lists exactly the rows the ranges already say — «مواد غذائية»،
+    | «مكرونات وأرز وحبوب»، «زيوت وسمن»، «بهارات»، «لحوم ودواجن»، «أجبان».
+    |
+    | And the aisle rows he KEPT are the tell: خضار وفاكهة، فسيخ، رنجة، مجمدات،
+    | ألبان وبيض. Those are counters — weighed, cut, sold by the kilo behind
+    | glass — and a counter is a priced heading. «معلبات» is not a counter; it
+    | is a range, and it belongs in the list that describes ranges. He kept the
+    | line where the shop does work and the modifier where it just stocks.
+    |
+    | So the three come out of this block. It is his answer to this file's own
+    | question, arrived at from the other side, and it is the better one.
     */
     'أصناف المنتجات الغذائية' => [
-        272 => [], // سوبر ماركت — 16 accounts
-        185 => [], // مني ماركت — 12
-        149 => [], // هايبر ماركت — 6
-        113 => [], // مجمدات — 1
+        113 => [], // مجمدات — 1 account; carries the fresh counters only
         128 => [], // حبوب وغلال — 0
     ],
 

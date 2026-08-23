@@ -122,13 +122,13 @@ return [
     | The precedent that proves the pattern
     |--------------------------------------------------------------------------
     | #240 «تبريد وتكييف» ALREADY holds both halves — «تخصصات ورش الأجهزة» and
-    | «أعمال التبريد والتكييف». #15 «صيانة تكيف» holds only the first, and is
+    | «أعمال التبريد والتكييف». #15 «صيانة تبريد وتكييف» holds only the first, and is
     | the same trade one door down.
     */
     [
         'group' => 'أعمال التبريد والتكييف',
         'from' => 240,                       // تبريد وتكييف
-        'to' => [15],                        // صيانة تكيف
+        'to' => [15],                        // صيانة تبريد وتكييف
         'why' => 'the donor carries both halves already; this one was given half',
     ],
 
@@ -154,20 +154,29 @@ return [
     | Star rating, for the four kinds of stay that never got it
     |--------------------------------------------------------------------------
     | Descriptive, so it prices nothing — it is how a guest filters. «فندق» and
-    | «منتجع» hold it; a serviced apartment, a hostel, a guest house and a Nile
-    | boat are rated in Egypt too, and the list already carries «غير مصنّف» for
-    | the ones that are not.
+    | «منتجع» hold it; a serviced apartment and a Nile boat are rated in Egypt
+    | too, and the list already carries «غير مصنّف» for the ones that are not.
+    |
+    | ── The two that gave it back, 2026-08-20 ─────────────────────────────────
+    |
+    | The owner took the whole group off «نُزل / هوستل» (16:56) and «بيت ضيافة»
+    | (16:58), and he is right: neither is star-rated by anyone in Egypt. A
+    | hostel is judged on the dorm and a guest house on the host, and «غير
+    | مصنّف» on every listing of a trade is a column that asks nothing.
+    |
+    | They come OUT of the lend list rather than being left to the ledger. The
+    | ledger would hold the line — the seeder consults it — but a file that
+    | keeps proposing what has been refused reads as an argument nobody is
+    | having any more.
     */
     [
         'group' => 'تصنيف الإقامة',
         'from' => 536,                       // فندق
         'to' => [
             537,  // شقق فندقية
-            539,  // نُزل / هوستل
-            540,  // بيت ضيافة
             541,  // فندق عائم / بوت نيلي
         ],
-        'why' => 'six kinds of stay, two of them rated',
+        'why' => 'four kinds of stay carry stars; the hostel and the guest house do not',
     ],
 
 ];

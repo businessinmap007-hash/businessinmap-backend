@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Catalog\ChildOptionDecisions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -14,10 +15,22 @@ use Illuminate\Support\Facades\DB;
  * base is derived from its intact siblings rather than invented.
  *
  * ADDITIVE, and that is the whole safety of it: it never withdraws an option, so
- * running it over a child an admin has since curated cannot undo his work — the
- * worst it can do is hand back something he removed on purpose, which the card
- * removes again in one click. The only thing it deletes is a root-scoped row
- * that duplicates a shared one, which is not an option, it is bookkeeping.
+ * running it over a child an admin has since curated cannot undo his work. The
+ * only thing it deletes is a root-scoped row that duplicates a shared one, which
+ * is not an option, it is bookkeeping.
+ *
+ * ── And it asks the ledger first, since 2026-08-23 ──────────────────────────
+ *
+ * This used to add «the worst it can do is hand back something he removed on
+ * purpose, which the card removes again in one click». That stopped being an
+ * acceptable worst case the day the removals started being recorded. On
+ * 2026-08-20 the owner went down the six kinds of stay and took «ملاءمة
+ * المكان» off four of them and «إطلالة الوحدة» off the Nile boat — the room's
+ * facilities answer both, and a cruiser has no fixed view. This seeder would
+ * have handed all five back on the next run, and the run after that.
+ *
+ * `ChildOptionDecisions::filter()` is one call and it makes the restore mean
+ * what its name says: put back what was lost, not what was given up.
  */
 class HospitalityOptionRestoreSeeder extends Seeder
 {
@@ -87,7 +100,12 @@ class HospitalityOptionRestoreSeeder extends Seeder
             ->where('category_id', 0)
             ->pluck('option_id')->map(fn ($id) => (int) $id)->all();
 
-        $rows = $optionIds
+        // What he withdrew by hand is not «lost» — it is decided. Asked at
+        // root 0, the ledger blocks a withdrawal recorded under ANY root,
+        // which is right: these rows are written shared.
+        $allowed = app(ChildOptionDecisions::class)->filter($childId, 0, $optionIds);
+
+        $rows = collect($allowed)
             ->reject(fn ($id) => in_array($id, $have, true))
             ->map(fn ($id) => [
                 'child_id' => $childId,

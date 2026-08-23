@@ -117,6 +117,35 @@ final class ChildServiceWriter
     }
 
     /**
+     * What this child says about this service under any OTHER root.
+     *
+     * A child standing in two storefronts sells the same thing in both, so when
+     * a screen switches a service on for a root that has never had it, the
+     * honest starting point is what the child already says next door — not an
+     * empty config, which is read everywhere as «every item type there is».
+     *
+     * Returns [] when the child has nothing to copy, and the caller must then
+     * state the types itself.
+     *
+     * @return array<string,mixed>
+     */
+    public function configElsewhere(int $childId, int $serviceId, int $exceptRootId): array
+    {
+        $stored = CategoryServiceConfig::query()
+            ->where('child_id', $childId)
+            ->where('platform_service_id', $serviceId)
+            ->where('category_id', '!=', $exceptRootId)
+            ->orderByDesc('is_active')
+            ->value('config');
+
+        if (is_array($stored)) {
+            return $stored;
+        }
+
+        return json_decode((string) $stored, true) ?: [];
+    }
+
+    /**
      * The item-type keys this service actually has, active. Cached per service
      * for the life of the request — a bulk save walks the same service across
      * hundreds of children.

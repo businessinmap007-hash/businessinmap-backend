@@ -153,13 +153,18 @@ class ChildRootMovesTest extends TestCase
 
     /**
      * The bridal service kept its three merchants across BOTH steps: the move to
-     * مهن وحرفيين and the fold onto «كوافير» that finished it. They sit on the
-     * salon now, each with «تجهيز عرائس» ticked, which is what the child row was
+     * مهن وحرفيين and the fold onto the salon that finished it. They sit on it
+     * now, each with «تجهيز عرائس» ticked, which is what the child row was
      * saying about them all along.
+     *
+     * The salon is «متخصص كوافير» #136 since the owner renamed it; it was
+     * «كوافير» when this was written, and a lookup by the old name returns
+     * nothing, counts nothing, and reports three merchants arriving mute. Held
+     * by id — the row is the thing that survived the fold, not the word.
      */
     public function test_the_bridal_service_kept_its_accounts(): void
     {
-        $salon = $this->childId('كوافير');
+        $salon = 136;   // «متخصص كوافير», ex-«كوافير»
         $professions = (int) DB::table('categories')->where('slug', 'professions')->value('id');
 
         $ticked = DB::table('option_user as ou')

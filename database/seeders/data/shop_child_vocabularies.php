@@ -395,7 +395,7 @@ return [
                 'أجهزة بلايستيشن' => 'PlayStation Consoles',
                 'أجهزة إكس بوكس' => 'Xbox Consoles',
                 'أجهزة محمولة' => 'Handheld Consoles',
-                'دراعات وأذرع' => 'Controllers',
+                'دراعات' => 'Controllers',   // «وأذرع» dropped on the live row
                 'أقراص وألعاب' => 'Games & Discs',
                 'إكسسوار جيمنج' => 'Gaming Accessories',
                 'كروت اشتراك' => 'Subscription Cards',

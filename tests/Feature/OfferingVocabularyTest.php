@@ -444,8 +444,20 @@ class OfferingVocabularyTest extends TestCase
             );
         }
 
-        // Still a perfectly good qualifier, though: a plank can be sold used.
-        $this->assertContains('حالة المنتج', $result['modifiers']->keys()->all());
+        /*
+         * «حالة المنتج» used to be asserted here as the counter-example — out
+         * of the product list, still a qualifier, because a plank can be sold
+         * used. On 2026-08-20 the owner withdrew جديد and مستعمل from «أخشاب»
+         * under both its roots, and he is right: timber is a raw material and
+         * is graded, not conditioned. «موسكي مستعمل» is not a thing a yard
+         * quotes.
+         *
+         * The claim the test is making is about the PROMOTION — that it widens
+         * nothing — and the three groups above are what carry it. What is left
+         * to say about the qualifier side is that the promotion did not empty
+         * it, which is the assertion that survives his ruling.
+         */
+        $this->assertNotEmpty($result['modifiers']->keys()->all(), 'the promotion left the yard nothing to qualify with');
     }
 
     /** A child that HAS a line group is untouched — the promotion is a fallback. */

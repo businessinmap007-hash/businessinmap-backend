@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
+use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -401,29 +402,31 @@ class CategoryChildServiceFeeBulkController extends Controller
         );
     }
 
+    /**
+     * Switching a service off here used to switch off HALF of it.
+     *
+     * The link went to 0 and the fees with it; `category_service_configs` was
+     * never named, so the config stayed active with nothing pointing at it. The
+     * damage is invisible on this screen and shows up two tables away: a config
+     * that no link can reach, and — the day the service is switched back on
+     * anywhere — a pair that disagree about whether it is offered.
+     *
+     * On 2026-08-21 that landed on «صيانة تبريد وتكييف» #15 and «متخصص كوافير»
+     * #136 while the owner was going down the مهن وحرفيين children, and
+     * `ServiceWiringIntegrityTest > a switched off service is still wired
+     * consistently` is the test that caught it.
+     *
+     * `ChildServiceWriter` exists to be the one place that writes this pair and
+     * its `disable()` deactivates both, never deletes: the config holds the
+     * admin's item types and a child re-enabled next week should find them.
+     */
     private function disableChildServiceAndFees(
         int $parentId,
         int $childId,
         int $serviceId,
         $existingPlatformServiceId = null
     ): void {
-        if ($existingPlatformServiceId) {
-            DB::table('category_platform_services')
-                ->where('id', (int) $existingPlatformServiceId)
-                ->update([
-                    'is_active' => 0,
-                    'updated_at' => now(),
-                ]);
-        } else {
-            DB::table('category_platform_services')
-                ->where('category_id', $parentId)
-                ->where('child_id', $childId)
-                ->where('platform_service_id', $serviceId)
-                ->update([
-                    'is_active' => 0,
-                    'updated_at' => now(),
-                ]);
-        }
+        app(ChildServiceWriter::class)->disable($parentId, $childId, $serviceId);
 
         CategoryChildServiceFee::query()
             ->forCategory($parentId)

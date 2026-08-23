@@ -264,7 +264,25 @@ return [
         // word. An override that restates the default is noise, so it is gone
         // rather than re-keyed.
         'companies:154' => ['fulfilment', 'service_mode', 'payment_terms'], // نقل دولي
-        'companies:150' => ['trade_scope', 'fulfilment', 'payment_terms'],  // استيراد وتصدير
+        /*
+        | ── the broker who moves nothing ──
+        |
+        | This said `fulfilment` too, and on 2026-08-20 the owner emptied that
+        | group off #150 by hand — شحن، توصيل طلبات، توصيل مجانى، تسليم أرض
+        | المصنع — along with the food list, جملة and تجزئة, new/used and
+        | returns. What he left standing is «خدمات التخليص الجمركي» plus
+        | كاش/تقسيط plus إستيراد/تصدير.
+        |
+        | That is not a narrowing, it is a different trade: a customs broker
+        | files papers. The cargo is the client's and never becomes his, so he
+        | has no delivery terms to state — «هل توصل مجانا؟» has no answer he
+        | could give.
+        |
+        | While the word stayed here the map OFFERED him a group he had
+        | emptied, and OptionGroupCohesionTest reads that pairing exactly as it
+        | should: a child asked a question it cannot answer.
+        */
+        'companies:150' => ['trade_scope', 'payment_terms'],  // استيراد وتصدير
     ],
 
     /*

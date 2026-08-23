@@ -2517,24 +2517,37 @@ class ChildTradeVocabulariesTest extends TestCase
      * handed over rows added to the group four days after it was written. The
      * hostel — the only child in the root whose product IS a bed in a shared
      * room — had none of them.
+     *
+     * ── 2026-08-20: the owner drew the line one row tighter ───────────────────
+     *
+     * He took «ملاءمة المكان» off فندق، شقق فندقية، منتجع and فندق عائم
+     * altogether, and «ميكس» off the hostel, leaving the dorm axis as the two
+     * words that are a CHOICE: سيدات، رجال. A mixed dorm is what a dorm is when
+     * nobody says otherwise — the third tick states the default and so states
+     * nothing — and «عائلي / ممنوع التدخين» is answered by «مرافق الإقامة»
+     * («غرف غير المدخنين») one group over, on the unit, where a hotel can price
+     * it.
+     *
+     * Which leaves the axis exactly where this test's own title puts it: on the
+     * two trades that let a bed in a shared room, and on nothing else.
      */
     public function test_the_hostel_can_say_whose_dorm_it_is(): void
     {
-        $gendered = ['سيدات', 'رجال', 'ميكس'];
+        $dorm = ['رجال', 'سيدات'];
 
         foreach (['نُزل / هوستل', 'بيت ضيافة'] as $child) {
             $held = $this->optionsOfChildInGroup($child, 'ملاءمة المكان');
+            sort($held);
 
-            foreach ($gendered as $row) {
+            foreach ($dorm as $row) {
                 $this->assertContains($row, $held, "«{$child}» cannot say «{$row}»");
             }
         }
 
-        // A cruiser sells cabins to a mixed manifest; it is back on the base
-        // its four intact siblings hold.
+        // …and the four that sell a private room answer the group not at all.
         foreach (['فندق عائم / بوت نيلي', 'فندق', 'شقق فندقية', 'منتجع'] as $child) {
             $this->assertSame(
-                ['عائلي', 'ممنوع التدخين'],
+                [],
                 $this->optionsOfChildInGroup($child, 'ملاءمة المكان'),
                 "«{$child}» answers a question its trade does not ask"
             );
@@ -2545,7 +2558,6 @@ class ChildTradeVocabulariesTest extends TestCase
         $restore = require database_path('seeders/data/hospitality_option_restore.php');
 
         $this->assertNotContains('ملاءمة المكان', $restore['base_groups']);
-        $this->assertContains('عائلي', $restore['base_options']);
     }
 
     /**
@@ -2586,9 +2598,21 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertContains($band, $bands['children']['كافيه'] ?? []);
         }
 
-        // The food court's seating area — the one of the four with a room big
-        // enough for wifi to matter, and the only one that lacked it.
-        $this->assertContains('واي فاي', $this->optionsOfChildInGroup('مجمع مطاعم', 'مرافق ومعدات'));
+        /*
+         * The food court's seating area was given «واي فاي» here — the one of
+         * the four with a room big enough for it to matter. On 2026-08-21 the
+         * owner took it back off all three that had it (مجمع مطاعم at 02:16:01,
+         * مطعم وكافيه at 02:16:09, كافيه at 02:16:47), which empties «مرافق
+         * ومعدات» across the root.
+         *
+         * Three withdrawals inside forty-six seconds is a decision about the
+         * GROUP, not about a row: kit you hire out is a hall's answer, and free
+         * wifi in a coffee shop is a fact about the room. The assertion becomes
+         * the ruling — none of the four is asked.
+         */
+        foreach (['مجمع مطاعم', 'كافيه', 'مطعم وكافيه'] as $child) {
+            $this->assertSame([], $this->optionsOfChildInGroup($child, 'مرافق ومعدات'), "«{$child}»");
+        }
 
         /*
          * And the one this review got wrong on the way in. «عربية قهوة
@@ -2847,9 +2871,11 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('نهاية الأسبوع', $slot);
         $this->assertNotContains('بالساعة', $slot);
 
+        // «ربع سنوي» was pinned by hand on 2026-08-21: an Egyptian nursery
+        // quotes a term, and the school term is three months.
         $basis = $this->optionsOfChildInGroup('حضانات', 'نظام التعاقد');
         sort($basis);
-        $this->assertSame(['سنوي', 'شهري', 'يومي'], $basis);
+        $this->assertSame(['ربع سنوي', 'سنوي', 'شهري', 'يومي'], $basis);
 
         // The closed matrix keeps the foundation set — five subjects, not 38.
         $this->assertCount(5, $this->optionsOfChildInGroup('حضانات', 'المواد الدراسية'));
@@ -3000,7 +3026,9 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertSame(['بالمهمة', 'يومي'], $held, "«{$trade}» drifted off the two answers");
         }
 
-        foreach (['كهربائي', 'سباك', 'صيانة تكيف'] as $callOut) {
+        // «صيانة تكيف» is «صيانة تبريد وتكييف» since the owner renamed it; the
+        // old word matches no child and the loop asserted against an empty list.
+        foreach (['كهربائي', 'سباك', 'صيانة تبريد وتكييف'] as $callOut) {
             $this->assertContains('بالزيارة', $this->optionsOfChildInGroup($callOut, 'نظام التعاقد'));
         }
     }
@@ -3321,7 +3349,38 @@ class ChildTradeVocabulariesTest extends TestCase
             $under = fn (int $root) => $modes->only($scope->idsFor($childId, $root))->values()->sort()->values()->all();
 
             $this->assertNotSame([], $under(19), "«{$name}» lost its service mode under مكاتب");
-            $this->assertSame($under(19), $under(22), "«{$name}» describes itself differently under شركات");
+            $this->assertNotSame([], $under(22), "«{$name}» lost its service mode under شركات");
+
+            /*
+             * Identical under both was the assertion, and it was one word too
+             * strong. The bug was that شركات got NOTHING — a declaration that
+             * could never be delivered — and «nothing» is what the two
+             * assertions above catch.
+             *
+             * A DIFFERENCE is the other thing per-root scoping is for. On
+             * 2026-08-20 the owner withdrew «أونلاين» from «طباعة» under شركات
+             * and left it under مكاتب, which is the trade talking: a print
+             * office takes a file over WhatsApp, a printing company runs a
+             * press and is visited. Demanding sameness would make this test
+             * forbid the feature it is standing on.
+             *
+             * So the rule is that every difference has a reason on the record.
+             * Drift has none, and still fails here.
+             */
+            $differing = array_merge(
+                array_diff($under(19), $under(22)),
+                array_diff($under(22), $under(19))
+            );
+
+            foreach ($differing as $mode) {
+                $this->assertTrue(
+                    DB::table('category_child_option_decisions as d')
+                        ->join('options as o', 'o.id', '=', 'd.option_id')
+                        ->where('d.child_id', $childId)->where('o.name_ar', $mode)
+                        ->whereIn('d.category_id', [0, 19, 22])->exists(),
+                    "«{$name}» differs on «{$mode}» between مكاتب and شركات with nothing on the record saying so"
+                );
+            }
         }
 
         /*

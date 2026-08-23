@@ -108,15 +108,29 @@ class ChildOptionScopeTest extends TestCase
         $this->assertNotEmpty($wash, 'a car wash must still declare the sizes it takes');
     }
 
-    /** A café has no whiteboard; a training room does. */
+    /**
+     * A café has no whiteboard; a training room does.
+     *
+     * «واي فاي» used to be asserted here as the positive control — proof the
+     * café was narrowed and not stripped. On 2026-08-21 the owner withdrew it
+     * from all three of مجمع مطاعم، مطعم وكافيه and كافيه, which empties the
+     * group on the restaurant root: a café's wifi is not equipment it hires out,
+     * it is a fact about the room, and the root asks that elsewhere.
+     *
+     * So the control moves to the child that keeps the group. A declared empty
+     * is legitimate — `test_a_scope_narrows_and_only_a_declared_empty_strips`
+     * is the one that polices it — and what this test is here for is the
+     * whiteboard: whatever the café ends up carrying, meeting-room kit is not
+     * in it.
+     */
     public function test_a_cafe_is_not_offered_meeting_room_kit(): void
     {
-        $cafe = $this->offered($this->childId('كافيه'), 'مرافق ومعدات');
+        $this->assertNotContains('وايت بورد', $this->offered($this->childId('كافيه'), 'مرافق ومعدات'));
 
-        $this->assertContains('واي فاي', $cafe);
-        $this->assertNotContains('وايت بورد', $cafe);
+        $hall = $this->offered($this->childId('قاعات تدريب'), 'مرافق ومعدات');
 
-        $this->assertContains('وايت بورد', $this->offered($this->childId('قاعات تدريب'), 'مرافق ومعدات'));
+        $this->assertContains('وايت بورد', $hall);
+        $this->assertContains('واي فاي', $hall);
     }
 
     /**

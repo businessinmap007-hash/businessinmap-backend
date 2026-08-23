@@ -54,12 +54,65 @@ class GroceryAisleSplitSeeder extends Seeder
 
             $created = $this->createNewOptions($data['new_options'] ?? []);
 
+            $this->finishRangeMove($data['finish_range_move'] ?? []);
+
             $this->reportLeftovers($sourceId);
             $this->retireEmptySource($sourceId, $data['source_group']);
 
             $this->command?->line("  - خيارات نُقلت : {$moved}");
             $this->command?->line("  - خيارات أُنشئت : {$created}");
         });
+    }
+
+    /**
+     * Take off the aisle rows the owner's own move left behind.
+     *
+     * He moves a market child onto «أصناف المنتجات الغذائية» and withdraws the
+     * aisle rows the ranges repeat, one child at a time through the card. Where
+     * a row was missed, this finishes it — as a WITHDRAWAL, so the broad
+     * seeders that grant whole groups do not hand it back on the next run.
+     *
+     * Skipped if a merchant has ticked the word himself: `option_user` outranks
+     * any map, here as everywhere in this file.
+     *
+     * @param  array<int,array{child:string,group:string,option:string}>  $rows
+     */
+    private function finishRangeMove(array $rows): void
+    {
+        $decisions = app(ChildOptionDecisions::class);
+
+        foreach ($rows as $row) {
+            $childId = (int) DB::table('category_children_master')->where('name_ar', $row['child'])->value('id');
+
+            $optionId = (int) DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('g.name_ar', $row['group'])->where('o.name_ar', $row['option'])
+                ->value('o.id');
+
+            if ($childId <= 0 || $optionId <= 0) {
+                continue;
+            }
+
+            $chosen = DB::table('option_user as ou')
+                ->join('users as u', 'u.id', '=', 'ou.user_id')
+                ->where('u.category_child_id', $childId)->where('ou.option_id', $optionId)
+                ->exists();
+
+            if ($chosen) {
+                $this->command?->line("  · «{$row['child']}» اختاره تاجر — «{$row['option']}» بقي.");
+
+                continue;
+            }
+
+            $decisions->record($childId, ChildOptionDecisions::ALL_ROOTS, [$optionId], 'baseline');
+
+            $gone = DB::table('category_child_option')
+                ->where('child_id', $childId)->where('option_id', $optionId)->delete();
+
+            if ($gone > 0) {
+                $this->command?->line("  - «{$row['child']}» ← «{$row['option']}» من «{$row['group']}» سُحب");
+            }
+        }
     }
 
     /**

@@ -335,11 +335,21 @@ class GroceryAisleSplitTest extends TestCase
         // The kitchen: menu, no aisle.
         $this->assertSame([], $bandsOf('عصائر', 'أقسام المشروبات'), '«عصائر» is still stocking a shelf');
 
-        $this->assertSame(
-            ['مشروبات ساخنة', 'مشروبات باردة'],
-            $bandsOf('عصائر', 'بنود المنيو'),
-            '«عصائر» lost the bands it prepares'
-        );
+        /*
+         * It used to be the two generic menu bands, «مشروبات ساخنة» and
+         * «مشروبات باردة». The child has since been given a line group of its
+         * own — «أصناف العصائر والمشروبات», عصير مانجو، سوبيا، عصير قصب — and
+         * the owner withdrew both bands under all three of its roots (شركات on
+         * 2026-08-16, مصانع on 08-20, المحلات on 08-21).
+         *
+         * Which is the same ruling this test records, one level finer: a juice
+         * bar prepares, and what it prepares has names. «مشروبات باردة» as a
+         * priced heading means every glass in the shop is one price.
+         */
+        $this->assertSame([], $bandsOf('عصائر', 'بنود المنيو'), '«عصائر» is priced by the temperature of the glass');
+
+        $this->assertContains('عصير مانجو', $bandsOf('عصائر', 'أصناف العصائر والمشروبات'),
+            '«عصائر» lost the list it prepares');
     }
 
     /**
@@ -445,15 +455,42 @@ class GroceryAisleSplitTest extends TestCase
         }
     }
 
-    /** …and a general market still sees all five, because it really does stock them. */
+    /**
+     * …and a general market still sees the counters, because it really does run
+     * them — minus whatever it has said it does not.
+     *
+     * All five were required of all three. «أقسام البقالة الجافة» is no longer
+     * one of هايبر ماركت's: on 2026-08-21 the owner withdrew مواد غذائية،
+     * بهارات، مكرونات وأرز وحبوب، زيوت وسمن and سناكس وتسالي from it and moved
+     * the shop onto the twenty ranges, and «معلبات» was the single row that got
+     * left behind (GroceryAisleSplitSeeder finishes it).
+     *
+     * Dry goods are STOCKED. The four counters he kept — fresh, meat, drinks,
+     * home — are things a shop does work at, and that is the line the split was
+     * looking for and did not quite find. So the assertion asks for the
+     * counters he has not spoken against, and still fails if one goes missing
+     * on its own.
+     */
     public function test_a_supermarket_still_sees_every_counter(): void
     {
         foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $name) {
+            $childId = $this->childId($name);
+
+            $given_up = DB::table('category_child_option_decisions as d')
+                ->join('options as o', 'o.id', '=', 'd.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('d.child_id', $childId)->where('d.kind', 'withdrawn')
+                ->whereIn('g.name_ar', self::COUNTERS)
+                ->distinct()->pluck('g.name_ar')->all();
+
+            $due = array_values(array_diff(self::COUNTERS, $given_up));
             $offered = array_intersect($this->groupsOffered($name), self::COUNTERS);
 
+            $this->assertNotEmpty($due, "«{$name}» was left with no counter at all");
+
             $this->assertSame(
-                self::COUNTERS,
-                array_values(array_intersect(self::COUNTERS, $offered)),
+                $due,
+                array_values(array_intersect($due, $offered)),
                 "«{$name}» lost a counter in the split"
             );
         }
@@ -511,21 +548,47 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_the_stock_range_modifier_is_only_for_traders_without_a_market_list(): void
     {
-        foreach (['مواد غذائية', 'استيراد وتصدير'] as $name) {
-            $this->assertContains(
-                'أصناف المنتجات الغذائية',
-                $this->groupsOffered($name),
-                "«{$name}» lost the only list it had"
-            );
-        }
+        $this->assertContains(
+            'أصناف المنتجات الغذائية',
+            $this->groupsOffered('مواد غذائية'),
+            '«مواد غذائية» lost the only list it had'
+        );
 
-        foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت', 'مجمدات'] as $name) {
-            $this->assertNotContains(
-                'أصناف المنتجات الغذائية',
-                $this->groupsOffered($name),
-                "«{$name}» is still asked the same question twice"
-            );
-        }
+        /*
+         * «استيراد وتصدير» was the second name here and is no longer a trader
+         * in ranges at all. On 2026-08-20 the owner emptied the food list off
+         * it, and the fulfilment axes, and جملة/تجزئة, and new/used, and
+         * returns — leaving «خدمات التخليص الجمركي» standing.
+         *
+         * A customs broker files papers on somebody else's cargo. He never owns
+         * a range, so «which ranges do you deal in» is the one question this
+         * group exists to ask and the one he cannot answer. The claim the test
+         * makes about him is the claim that still holds: he is not left mute.
+         */
+        $this->assertNotEmpty(
+            $this->groupsOffered('استيراد وتصدير'),
+            '«استيراد وتصدير» lost the only list it had'
+        );
+
+        /*
+         * سوبر ماركت، مني ماركت and هايبر ماركت stood here too, on the reading
+         * that a child with a priced aisle list has no use for the ranges. On
+         * 2026-08-21 the owner decided the opposite for all three: he pinned
+         * the twenty ranges onto them and withdrew from the aisles the rows the
+         * ranges repeat, keeping only the counters — خضار وفاكهة، فسيخ، رنجة،
+         * مجمدات، ألبان وبيض.
+         *
+         * That is a better line than this one drew. A counter is work the shop
+         * does and belongs in a priced heading; a range is stock it carries and
+         * belongs in a modifier. The redundancy this test was written to stop
+         * is a child holding the same WORD twice, and the test below is the one
+         * that measures it — on all eight children, and on the word.
+         */
+        $this->assertNotContains(
+            'أصناف المنتجات الغذائية',
+            $this->groupsOffered('مجمدات'),
+            '«مجمدات» is still asked the same question twice'
+        );
     }
 
     /**

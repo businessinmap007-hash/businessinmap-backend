@@ -23,7 +23,7 @@ return [
         'دش وأقمار صناعية' => ['services_tasks'],
         'رخام وجرانيت' => ['services_tasks'],
         'سباك' => ['services_tasks'],
-        'صيانة اجهزة منزلية' => ['services_tasks'],
+        'فني صيانة أجهزة منزلية' => ['services_tasks'],   // was «صيانة اجهزة منزلية»
         'صيانة تبريد وتكييف' => ['services_tasks'],   // was «صيانة تكيف»
         'عامل بناء' => ['services_tasks'],
         'فني الوميتال' => ['services_tasks'],
@@ -186,7 +186,6 @@ return [
         'تسويق' => ['business_consulting'],
         'تنسيق حفلات' => ['halls_events', 'business_consulting'],
         'دعاية وإعلان' => ['business_consulting'],
-        'رحلات' => ['tourism_travel', 'business_consulting'],
         'سياحة' => ['tourism_travel', 'business_consulting'],
         'شركات تأمين' => ['business_consulting'],
         'صرافة وتحويل أموال' => ['business_consulting'],

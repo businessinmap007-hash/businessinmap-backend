@@ -126,7 +126,7 @@ return [
         'صينى وخزف' => ['delivery_freight'],
         'لعب أطفال' => ['delivery_freight'],
         'مراتب' => ['delivery_freight'],
-        'مستلزمات مطاعم' => ['delivery_freight'],
+        'مستلزمات مطاعم وكافيهات' => ['delivery_freight'],
         // «معرض سيارات» left this root for «سيارات» on 2026-08-17 and is named
         // in the `cars` block above; «سيارات» #53 was folded into it and is
         // retired. Left here, this map would re-wire delivery under a root
@@ -187,7 +187,7 @@ return [
         'أنتيكات وتحف' => ['delivery'],
         'إسفنج' => ['delivery'],
         'اسمنت' => ['delivery', 'delivery_freight'],
-        'اكياس بلاستيك' => ['delivery'],
+        'مواد تعبئة وتغليف' => ['delivery'],   // «اكياس بلاستيك» folded in 2026-08-23
         'بلاستيك' => ['delivery'],
         'بن' => ['delivery'],
         'جنوط وكاوتش سيارات' => ['delivery'],
@@ -225,7 +225,7 @@ return [
         // الرياضة.
         'اكسسوار' => ['delivery'],
         'مكملات غذائية' => ['delivery'],
-        'مستلزمات كافيهات' => ['delivery'],
+        'مستلزمات مطاعم وكافيهات' => ['delivery'],   // «مستلزمات كافيهات»/«مستلزمات قهاوى» folded in 2026-08-23
         'مستلزمات نجارة' => ['delivery'],
         // 2026-08-10: the doors-and-windows trade took this root; a door leaves
         // the shop on a lorry, not in a courier bag.
@@ -283,7 +283,6 @@ return [
         'ألمونتال' => ['delivery_freight'],
         'أنتيكات وتحف' => ['delivery_freight'],
         'إسفنج' => ['delivery_freight'],
-        'اسمنت' => ['delivery_freight'],
         'اكسسوار' => ['delivery_freight'],
         'تبريد وتكييف' => ['delivery_freight'],
         'جلود وشنط وأحذية' => ['delivery_freight'],
@@ -298,7 +297,6 @@ return [
         'سيفتى ومقاومة حرائق' => ['delivery_freight'],
         'صينى وخزف' => ['delivery_freight'],
         'طباعة' => ['delivery_freight'],
-        'طوب' => ['delivery_freight'],
         'عصائر' => ['delivery_freight', 'delivery_coldchain'],
         'خضار وفاكهة' => ['delivery_freight', 'delivery_coldchain'],
         'قطع غيار' => ['delivery_freight'],
@@ -312,8 +310,7 @@ return [
         'لوازم ستائر' => ['delivery_freight'],
         'مراتب' => ['delivery_freight'],
         'مستلزمات طبية' => ['delivery_freight'],
-        'مستلزمات قهاوى' => ['delivery_freight'],
-        'مستلزمات مطاعم' => ['delivery_freight'],
+        'مستلزمات مطاعم وكافيهات' => ['delivery_freight'],
         'مستلزمات نجارة' => ['delivery_freight'],
         'مصاعد وسلم كهرياء' => ['delivery_freight'],
         'معدات ثقيلة' => ['delivery_freight'],
@@ -351,7 +348,6 @@ return [
         'إسفنج' => ['delivery_freight'],
         'اسمنت' => ['delivery_freight'],
         'اكسسوار' => ['delivery_freight'],
-        'اكياس بلاستيك' => ['delivery_freight'],
         'باب وشباك' => ['delivery_freight'],
         // «بي في سي» folded into «باب وشباك» above on 2026-08-12 — same trade,
         // same freight branch. A child under no root cannot carry a service.
@@ -372,7 +368,7 @@ return [
         'لعب أطفال' => ['delivery_freight'],
         'مراتب' => ['delivery_freight'],
         'مستلزمات طبية' => ['delivery_freight'],
-        'مستلزمات مطاعم' => ['delivery_freight'],
+        'مستلزمات مطاعم وكافيهات' => ['delivery_freight'],
         'مستلزمات نجارة' => ['delivery_freight'],
         // «مفاتيح» left «مصانع» on 2026-08-16: the factory half became
         // «كابلات وقواطع كهرباء», a child of its own. The line follows the

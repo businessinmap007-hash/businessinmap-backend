@@ -104,4 +104,50 @@ return [
         'to_ar' => 'ورشة باب وشباك',
         'to_en' => 'Door & Window Workshop',
     ],
+
+    /*
+    | ── merge: مستلزمات مطاعم + مستلزمات كافيهات ──────────────────────────
+    | «ادمج مستلزمات المطاعم والكافيهات تحت كل الاقسام الرئيسية» — owner,
+    | 2026-08-23.
+    |
+    | #247 keeps it. The two lists do not share a single row — ماكينات قهوة،
+    | مطاحن بن، شيشة against أفران، شوايات، عجانات — which is exactly why they
+    | looked like two trades and exactly why they are one: a supplier who sells
+    | an espresso machine sells a display fridge, and no buyer shops for the
+    | two in different places. The union is the catalogue, and the union under
+    | one name is what the merchant was going to have to advertise anyway.
+    |
+    | #247 takes «مستلزمات المقاهي» in the same change, or it arrives at its
+    | wider name unable to say the half it just swallowed.
+    */
+    [
+        'id' => 247,
+        'from_ar' => 'مستلزمات مطاعم',
+        'to_ar' => 'مستلزمات مطاعم وكافيهات',
+        'to_en' => 'Restaurant & Café Supplies',
+    ],
+
+    /*
+    | ── the craftsman, not the premises ───────────────────────────────────
+    | «الاسم يكون فني صيانة أجهزة منزلية ليكون واضح انه الفرد ويمكن تمييزه عن
+    | ورش صيانة الأجهزة المنزلية» — owner, 2026-08-23.
+    |
+    | Not cosmetic. #22 stands under مهن وحرفيين and #546 «ورشة صيانة أجهزة»
+    | under ورش ومراكز صيانة, and «صيانة اجهزة منزلية» names the WORK, which
+    | both of them do. A customer choosing between «I call someone out» and «I
+    | carry it in» was reading the same words in two places.
+    |
+    | It also puts the child back in step with its own root: مهن وحرفيين is
+    | كهربائي، سباك، نقاش، نجار موبيليا، فني ستائر، متخصص كوافير — every one of
+    | them a person. The two children that still name a job rather than a
+    | tradesman are this one and «صيانة تبريد وتكييف» #15, which has the same
+    | twin one root over («تبريد وتكييف» #240) and is left for the owner to
+    | rule on rather than swept along.
+    */
+    [
+        'id' => 22,
+        'from_ar' => 'صيانة اجهزة منزلية',
+        'to_ar' => 'فني صيانة أجهزة منزلية',
+        'to_en' => 'Home Appliance Technician',
+    ],
 ];

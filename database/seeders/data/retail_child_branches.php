@@ -95,7 +95,7 @@ return [
         // agree.
         'حلويات' => ['grocery_retail'],
         'صينى وخزف' => ['home_furnishings'],
-        'مستلزمات مطاعم' => ['hobbies_general'],
+        'مستلزمات مطاعم وكافيهات' => ['hobbies_general'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
         'إسفنج' => ['home_furnishings'],
         'لعب أطفال' => ['hobbies_general'],
@@ -137,7 +137,7 @@ return [
         'ألمونتال' => ['home_furnishings'],
         'أنتيكات وتحف' => ['home_furnishings'],
         'كتب' => ['hobbies_general'],
-        'مستلزمات كافيهات' => ['hobbies_general'],
+        'مستلزمات مطاعم وكافيهات' => ['hobbies_general'],   // «مستلزمات كافيهات»/«مستلزمات قهاوى» folded in 2026-08-23
         'زيت سيارات' => ['vehicles_parts'],
         'قطع غيار سيارات' => ['vehicles_parts'],
         'مستلزمات نجارة' => ['building_hardware'],
@@ -184,7 +184,7 @@ return [
         'موبيلات و اكسسوار' => ['electronics_tech'],
         'حدايد وبويات' => ['building_hardware'],
         'عطور' => ['beauty_health_retail'],
-        'اكياس بلاستيك' => ['building_hardware'],
+        'مواد تعبئة وتغليف' => ['building_hardware'],   // «اكياس بلاستيك» folded in 2026-08-23
         'بلاستيك' => ['building_hardware'],
         'أجهزة بلايستيشن' => ['electronics_tech'],
         'صينى وخزف' => ['home_furnishings'],
@@ -247,7 +247,6 @@ return [
         'إسفنج' => ['home_furnishings'],
         'لوازم ستائر' => ['home_furnishings'],
         'نجف' => ['home_furnishings'],
-        'اسمنت' => ['building_hardware'],
         'حديد تسليح' => ['building_hardware'],
         'حدايد وبويات' => ['building_hardware'],
         'رخام' => ['building_hardware'],
@@ -263,7 +262,6 @@ return [
         // only way to register a doors company. This map is keyed per ROOT, so
         // its entry under مصانع does not reach here.
         'باب وشباك' => ['building_hardware'],
-        'طوب' => ['building_hardware'],
         'سيراميك وأدوات صحية' => ['building_hardware'],
         'مواد تعبئة وتغليف' => ['building_hardware'],
         'قطع غيار' => ['vehicles_parts'],
@@ -274,8 +272,7 @@ return [
         'منظفات' => ['hobbies_general'],
         'أدوات مكتبية' => ['hobbies_general'],
         'لعب أطفال' => ['hobbies_general'],
-        'مستلزمات مطاعم' => ['hobbies_general'],
-        'مستلزمات قهاوى' => ['hobbies_general'],
+        'مستلزمات مطاعم وكافيهات' => ['hobbies_general'],
         'مواد غذائية ومنظفات' => ['grocery_retail'],
         'عصائر' => ['grocery_retail'],
         // «تجهيز عرائس» / «أبواب مصفحة» folded on 2026-08-10 — each was
@@ -323,7 +320,6 @@ return [
         'كبس خراطيم' => ['building_hardware'],
         'مستلزمات نجارة' => ['building_hardware'],
         'سيفتى ومقاومة حرائق' => ['building_hardware'],
-        'اكياس بلاستيك' => ['building_hardware'],
         'أخشاب' => ['building_hardware'],
         // «بي في سي» folded into «باب وشباك» on 2026-08-12 — it carried this
         // exact branch, which is half of why the two were the same child.
@@ -339,7 +335,7 @@ return [
         'قطع غيار سيارات' => ['vehicles_parts'],
         'منظفات' => ['hobbies_general'],
         'لعب أطفال' => ['hobbies_general'],
-        'مستلزمات مطاعم' => ['hobbies_general'],
+        'مستلزمات مطاعم وكافيهات' => ['hobbies_general'],
         'مواد غذائية' => ['grocery_retail'],
         'عصائر' => ['grocery_retail'],
         // Both had a live grocery_retail config from elsewhere and no entry

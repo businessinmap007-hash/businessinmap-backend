@@ -314,6 +314,11 @@ return [
                 'جرانيت' => 'Granite', 'كوارتز' => 'Quartz',
                 'حجر هاشمي' => 'Hashemi Stone', 'حجر فرعوني' => 'Pharaonic Stone',
                 'أسطح مطابخ' => 'Kitchen Worktops', 'درج وأرضيات' => 'Stairs & Flooring',
+                // Owner, 2026-08-23. Engineered marble is quoted, stocked and
+                // installed as its own material — the yard that sells it does
+                // not sell it as «رخام مستورد» at a lower price. Reaches #173
+                // and #174, which is every root the two stand under.
+                'رخام صناعي' => 'Engineered Marble',
             ],
         ],
 
@@ -357,8 +362,18 @@ return [
             ],
         ],
 
+        /*
+         * Was #221 «اكياس بلاستيك», folded into «مواد تعبئة وتغليف» #204 on
+         * 2026-08-23 under both its roots. The list travels with the merchant:
+         * #204 own list «تعبئة وتغليف ومستلزمات» sells أكياس قهوة and أكواب and
+         * أطباق and never once says «كيس تسوق», so the keeper without these
+         * seven rows would be a narrower shop than the one it swallowed.
+         *
+         * Shared (`category_id = 0`), so it reaches #204 under شركات، مصانع and
+         * the المحلات it takes in the same change.
+         */
         'الأكياس والمنتجات البلاستيكية' => [
-            'name_en' => 'Plastic Bags & Products', 'price_role' => 'line', 'children' => [221],
+            'name_en' => 'Plastic Bags & Products', 'price_role' => 'line', 'children' => [204],
             'options' => [
                 'أكياس تسوق' => 'Shopping Bags', 'أكياس قمامة' => 'Refuse Sacks',
                 'أكياس فاكيوم' => 'Vacuum Bags', 'أكياس شرنك' => 'Shrink Bags',

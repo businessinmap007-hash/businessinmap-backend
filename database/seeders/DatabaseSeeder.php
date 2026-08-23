@@ -120,6 +120,18 @@ class DatabaseSeeder extends Seeder
            // becomes an option. After the remodel, before the detachments.
            AccessoryMergeSeeder::class,
 
+           // A keeper that has swallowed a sibling has to answer to the wider
+           // name. Runs before the detachments, which name their destination by
+           // the NEW name — and it was reachable only by hand until 2026-08-23,
+           // so «مستلزمات مطاعم» would have folded into a child that did not
+           // exist yet.
+           ChildRenameSeeder::class,
+
+           // …and a keeper standing in fewer storefronts than the sibling it is
+           // about to swallow has to take the missing ones first: a fold cannot
+           // cross a root, because the merchant keeps his `category_id`.
+           ChildRootAttachSeeder::class,
+
            // «احذف س من أبناء ص» — a child taken off a root it does not belong
            // under. After the remodel, because two of its entries only make
            // sense once the workshop domains exist to receive the merchants.

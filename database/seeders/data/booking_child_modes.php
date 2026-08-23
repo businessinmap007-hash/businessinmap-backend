@@ -69,7 +69,6 @@ return [
         // Tour operators sell packages, not reserved instances.
         'companies' => [
             'سياحة' => 'direct_typed',
-            'رحلات' => 'direct_typed',
         ],
         // Coworking reserves specific rooms/desks.
         'offices' => [

@@ -60,7 +60,9 @@ return [
     // The fittings trade, which is what «carpentry_supplies» actually is. It
     // does NOT get «timber_boards»: selling the hinge is not selling the door.
     'مستلزمات نجارة' => ['carpentry_supplies'],
-    'اكياس بلاستيك' => ['plastic_packaging'],
+    // «اكياس بلاستيك» folded into «مواد تعبئة وتغليف» 2026-08-23; the
+    // keeper already claims plastic_packaging further down this file.
+
     'بلاستيك' => ['plastic_packaging'],
 
     // ── إلكترونيات وأجهزة ──
@@ -76,7 +78,6 @@ return [
     'أدوات مكتبية' => ['stationery', 'books'],
     'أدوات صيد' => ['fishing_hunting'],
     'لعب أطفال' => ['kids_toys'],
-    'مستلزمات كافيهات' => ['horeca_supplies'],
     'مشتقات التدخين' => ['tobacco_products'],
     'نباتات طبيعية وزينة' => ['plants_garden'],
 
@@ -161,8 +162,7 @@ return [
     'جلود وشنط وأحذية' => ['leather_bags_shoes'],
     'تبريد وتكييف' => ['home_appliances', 'appliance_spare_parts'],
     'مواد دوائية' => ['medical_retail'],
-    'مستلزمات مطاعم' => ['horeca_supplies'],
-    'مستلزمات قهاوى' => ['horeca_supplies'],
+    'مستلزمات مطاعم وكافيهات' => ['horeca_supplies'],   // #37 and #66 folded in
     /*
      * «أخشاب» sells TIMBER. It was narrowed to «مستلزمات نجارة» when that was
      * the only shelf the catalog had for anything wooden, and a timber merchant

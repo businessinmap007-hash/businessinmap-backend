@@ -19,7 +19,9 @@
 |
 |   مستلزمات كافيهات #37 ← «مستلزمات المقاهي», written hours earlier for
 |                          «مستلزمات قهاوى» #66 under شركات. The wholesaler and
-|                          the shop stock the same machines.
+|                          the shop stock the same machines. ⚠ Both folded into
+|                          «مستلزمات مطاعم وكافيهات» #247 on 2026-08-23 —
+|                          stocking the same machines twice was the point.
 |   ستائر و ديكور #76    ← «لوازم الستائر», written for «لوازم ستائر» #9.
 |                          ⚠ SHARING A LIST IS NOT BEING ONE TRADE. The two
 |                          came up as a merge candidate on 2026-08-12 — same
@@ -607,8 +609,16 @@ return [
     ],
 
     'links' => [
-        // The wholesaler and the shop stock the same machines.
-        37 => ['مستلزمات المقاهي' => 'all'],
+        /*
+         * «مستلزمات كافيهات» #37 stood here. It folded into «مستلزمات مطاعم
+         * وكافيهات» #247 on 2026-08-23 together with «مستلزمات قهاوى» #66, the
+         * شركات-side copy it had borrowed the list from — three children, one
+         * list, no row shared with the restaurant supplier beside them.
+         *
+         * The group now belongs to #247 in company_child_vocabularies.php,
+         * which is the file that owns it. Re-granting it here would give it
+         * back to a rootless child every run.
+         */
 
         // #76's borrow of «لوازم الستائر» ended 2026-08-16 — it has «أنواع
         // الستائر والديكور» now, and the fittings belong to #9. Removed here

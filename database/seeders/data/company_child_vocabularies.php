@@ -34,7 +34,9 @@
 |   ألمونتال #17   ← the ALUMINIUM rows of «أنواع الأبواب والشبابيك». It fits no
 |                    wooden door and no manual shutter.
 |   رحلات #285     ← the trip rows of «خدمات السياحة والسفر» below. A trip
-|                    operator issues no visa and books no hotel.
+|                    operator issues no visa and books no hotel. ⚠ Folded into
+|                    «سياحة» #279 on 2026-08-23 — see the note where its entry
+|                    stood.
 |
 | ── The borrow that became a merge (2026-08-16) ───────────────────────────
 |
@@ -240,8 +242,14 @@ return [
             ],
         ],
 
+        /*
+         * #66 «مستلزمات قهاوى» and #37 «مستلزمات كافيهات» both folded into
+         * «مستلزمات مطاعم وكافيهات» #247 on 2026-08-23. The list is what makes
+         * the fold honest — a keeper that swallows the café supplier and cannot
+         * say «ماكينات قهوة» has demoted it, not merged it.
+         */
         'مستلزمات المقاهي' => [
-            'name_en' => 'Café Supplies', 'price_role' => 'line', 'children' => [66],
+            'name_en' => 'Café Supplies', 'price_role' => 'line', 'children' => [247],
             'options' => [
                 'ماكينات قهوة' => 'Coffee Machines',
                 'مطاحن بن' => 'Coffee Grinders',
@@ -311,6 +319,52 @@ return [
                 'مخازن ومستودعات جاهزة' => 'Prefab Stores',
                 'بيوت وشاليهات جاهزة' => 'Prefab Homes & Chalets',
                 'تأجير كرفانات' => 'Caravan Rental',
+                // Added by hand on the live rows before it was recorded here.
+                // A folding caravan is towed and parked by the buyer, which is
+                // a different product from a unit delivered on a lowloader.
+                'كرڤان قابل للطي' => 'Folding Caravan',
+            ],
+        ],
+
+        /*
+         * «معدات ثقيلة» #139 sold three words — «معدات ثقيلة», «جامبو»,
+         * «مقطورة» — out of «مركبات النقل والركاب», which is the group that
+         * answers what a HAULIER drives. So a company with a telescopic crane
+         * and a company with a bulldozer were the same listing, and the one
+         * axis a customer searches on had no rows at all.
+         *
+         * A line, not a modifier: the machine IS what is bought or hired, and
+         * «ونش تليسكوبي» is a price where «معدات ثقيلة» is a category. The five
+         * the owner named on 2026-08-23 come first; the rest are the machines
+         * that stand beside them on every yard in Egypt and cannot be left out
+         * without the list reading as an accident. Any of them comes off in one
+         * click and the ledger keeps it off.
+         *
+         * «مركبات النقل والركاب» stays on the child. A yard that hires out a
+         * crane also moves it, and «مقطورة» is how it gets there.
+         */
+        'أنواع المعدات الثقيلة' => [
+            'name_en' => 'Heavy Equipment Types', 'price_role' => 'line', 'children' => [139],
+            'options' => [
+                // ── the five he named ──
+                'ونش تليسكوبي' => 'Telescopic Crane',
+                'لودر شيول' => 'Wheel Loader',
+                'جرار' => 'Tractor',
+                'ونش نقل عفش' => 'Furniture Hoist',
+                'ونش دهانات خارجية' => 'Facade Painting Cradle',
+
+                // ── the rest of the yard ──
+                'حفار' => 'Excavator',
+                'بلدوزر' => 'Bulldozer',
+                'ونش برجي' => 'Tower Crane',
+                'ونش زحّاف' => 'Crawler Crane',
+                'فورك ليفت' => 'Forklift',
+                'مانلفت وسلة رفع' => 'Manlift & Boom Lift',
+                'خلاطة خرسانة' => 'Concrete Mixer',
+                'مضخة خرسانة' => 'Concrete Pump',
+                'قلاب ونقل تربة' => 'Dump Truck',
+                'رصف ودكّ' => 'Paver & Compactor',
+                'مولد كهرباء وكومبروسر' => 'Generator & Compressor',
             ],
         ],
 
@@ -482,18 +536,20 @@ return [
          * seven rows on every run and would have undone the narrowing.
          */
 
-        // A trip operator issues no visa and books no hotel.
-        285 => [
-            'خدمات السياحة والسفر' => [
-                'رحلات داخلية',
-                'رحلات خارجية',
-                'رحلات سفاري وبرية',
-                'رحلات بحرية',
-                'برامج سياحية',
-                'نقل ومواصلات سياحية',
-            ],
-            'نوع العملاء' => 'all',
-        ],
+        /*
+         * «رحلات» #285 stood here with six of the eleven rows — no visa, no
+         * flight, no hotel — and folded into «سياحة» #279 on 2026-08-23.
+         *
+         * That is what the narrowing was always describing. A child that
+         * carries a strict subset of its sibling's list under the same root is
+         * a filter on that sibling, and the platform already has a word for a
+         * filter: the option. Its one merchant keeps every row he ticked,
+         * because a tick names an option and not a child.
+         *
+         * Left as a note rather than deleted quietly: the entry re-granted the
+         * six rows on every run, so a reader finding the child rootless and the
+         * grant still here would reasonably put it back.
+         */
 
         /*
          * «تحويل أموال» #283 stood here with the transfer rows and without the

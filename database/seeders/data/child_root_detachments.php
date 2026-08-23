@@ -451,4 +451,121 @@ return [
         'root_slug' => 'companies',
         'why' => 'مطبخ حلواني — حُكم عليه بذلك في ١٠ أغسطس حين أخذ بنود المخبوزات',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2026-08-23 — three folds and two retirements
+    |--------------------------------------------------------------------------
+    |
+    | ── «مستلزمات كافيهات» #37 → «مستلزمات مطاعم وكافيهات» #247 ───────────────
+    |
+    | Zero accounts, so nothing has to move; what makes the fold honest is that
+    | the keeper took «مستلزمات المقاهي» in the same change and can say every
+    | word #37 said. #247 gains المحلات first (child_root_attachments.php), or
+    | the fold would leave the root with neither child.
+    */
+    [
+        'child_name_ar' => 'مستلزمات كافيهات',
+        'root_slug' => 'shops-online',
+        'reassign_to' => 'مستلزمات مطاعم وكافيهات',
+        'why' => 'مورّد واحد يبيع ماكينة إسبريسو وثلاجة عرض — قائمتان لتجارة واحدة',
+    ],
+
+    /*
+    | ── and the third one, which the instruction did not name ────────────────
+    |
+    | «مستلزمات قهاوى» #66 stands under شركات carrying the SAME seven rows of
+    | «مستلزمات المقاهي» as #37 — the شركات-side copy of the trade folded away
+    | under المحلات. «تحت كل الاقسام الرئيسية» is unanswerable without it: fold
+    | two of the three and شركات comes out holding «مستلزمات مطاعم وكافيهات»
+    | AND «مستلزمات قهاوى», which is the duplication the merge was asked for.
+    |
+    | Zero accounts, and the keeper carries the identical list.
+    */
+    [
+        'child_name_ar' => 'مستلزمات قهاوى',
+        'root_slug' => 'companies',
+        'reassign_to' => 'مستلزمات مطاعم وكافيهات',
+        'why' => 'نفس السبعة صفوف تحت شركات — النسخة الثالثة من التجارة نفسها',
+    ],
+
+    /*
+    | ── «اكياس بلاستيك» #221 → «مواد تعبئة وتغليف» #204, both its roots ───────
+    |
+    | «ادمج أكياس بلاستيك تحت مواد التعبئة والتغليف فى كل الاقسام» — owner.
+    |
+    | A bag IS packaging, and #204's own list already carries أكياس قهوة and
+    | أكواب and أطباق — it was selling the bag and calling it something else.
+    | The seven bag rows go with the child: «الأكياس والمنتجات البلاستيكية»
+    | moves onto #204 in factory_child_vocabularies.php, so the merchant who
+    | arrives can still say «أكياس شرنك» the day after.
+    |
+    | Two entries because a detachment is per root, and #221 stands under both.
+    | مصانع last: it is where #204 already stands, so the merchant has somewhere
+    | to be for the whole of the first entry.
+    |
+    | No `tick_option`, for the same reason as «رحلات» below and one more: on a
+    | seed from empty, ChildTradeVocabulariesSeeder runs AFTER this file, so the
+    | bag rows are not on the keeper yet and a tick would refuse the whole
+    | entry. What carries the merchant's meaning across is his own `option_user`
+    | rows, which name options and not children and are untouched by the move.
+    */
+    [
+        'child_name_ar' => 'اكياس بلاستيك',
+        'root_slug' => 'shops-online',
+        'reassign_to' => 'مواد تعبئة وتغليف',
+        'why' => 'الكيس مادة تعبئة — والقائمتان تبيعان لنفس المشتري',
+    ],
+    [
+        'child_name_ar' => 'اكياس بلاستيك',
+        'root_slug' => 'factories',
+        'reassign_to' => 'مواد تعبئة وتغليف',
+        'why' => 'الكيس مادة تعبئة — والقائمتان تبيعان لنفس المشتري',
+    ],
+
+    /*
+    | ── «رحلات» #285 → «سياحة» #279 ──────────────────────────────────────────
+    |
+    | «ادمج الرحلات تحت السياحة» — owner. The textbook case: both stand under
+    | شركات alone, both answer «خدمات السياحة والسفر», and #279 already holds
+    | every one of #285's six rows AND five more — حجز طيران، حجز فنادق، حج
+    | وعمرة، تأشيرات، تأمين سفر.
+    |
+    | No `tick_option`. The two children share the group, so whatever the one
+    | merchant ticked on «رحلات» is still ticked and still means the same thing;
+    | naming a row here would be putting a word in his mouth he never chose.
+    | company_child_vocabularies.php has said since it was written that #285 is
+    | «the trip rows of خدمات السياحة والسفر» — a difference of five rows, which
+    | is an option, not a child.
+    */
+    [
+        'child_name_ar' => 'رحلات',
+        'root_slug' => 'companies',
+        'reassign_to' => 'سياحة',
+        'why' => 'ست صفوف من إحدى عشرة — فرقٌ بحجم خيار لا بحجم ابن',
+    ],
+
+    /*
+    | ── «شركات طوب» و«شركات أسمنت» ───────────────────────────────────────────
+    |
+    | «احذف شركات الطوب وشركات الأسمنت» — owner, 2026-08-23. Read as the two
+    | CHILDREN under شركات and not as the master rows, because nothing in this
+    | taxonomy is deleted and because both words are alive elsewhere: «طوب» #34
+    | keeps مصانع, «اسمنت» #55 keeps مصانع and المحلات. What goes is the claim
+    | that a brick COMPANY is a different business from a brick factory — in
+    | Egypt it is the factory, or it is a builders' merchant, and both of those
+    | already have a child.
+    |
+    | Zero accounts on either, under this root or any other.
+    */
+    [
+        'child_name_ar' => 'طوب',
+        'root_slug' => 'companies',
+        'why' => 'الطوب يُصنّع أو يُباع في محل مواد بناء — «شركة طوب» ليست تجارة ثالثة',
+    ],
+    [
+        'child_name_ar' => 'اسمنت',
+        'root_slug' => 'companies',
+        'why' => 'الأسمنت يُصنّع أو يُباع في محل مواد بناء — والابنان قائمان تحتهما',
+    ],
 ];

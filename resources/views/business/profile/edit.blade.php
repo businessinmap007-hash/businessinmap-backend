@@ -155,6 +155,30 @@
             </div>
         </div>
 
+        {{-- ───────── الأسبوع كله دفعةً واحدة ─────────
+             أغلبُ المحلات تفتح وتغلق فى نفس الساعة كل يوم، فكتابةُ نفس الرقم
+             أربعةَ عشرَ مرة هى الحالةُ الشائعة لا الاستثناء.
+
+             يملأ الخانات ولا يحفظ: تراه قبل أن تحفظ، وتعدّل الجمعة وحدها بعده.
+             ولا يمسّ «مغلق» — من حدّد يومَ إجازته لا يفقده لأنه ضبط الباقي. --}}
+        <div class="bh-bulk">
+            <span class="bh-bulk-label">{{ __('كل الأيام') }}</span>
+
+            <label class="bh-field">
+                <span>{{ __('من') }}</span>
+                <input class="a2-input" type="time" id="bh_all_open" style="width:120px">
+            </label>
+
+            <label class="bh-field">
+                <span>{{ __('إلى') }}</span>
+                <input class="a2-input" type="time" id="bh_all_close" style="width:120px">
+            </label>
+
+            <button type="button" class="a2-btn" id="bh_apply">{{ __('طبّق على الأسبوع') }}</button>
+
+            <span class="a2-hint">{{ __('يملأ الجدول فقط — عدّل أي يوم بعدها، ثم احفظ.') }}</span>
+        </div>
+
         <table class="a2-table">
             <thead>
                 <tr>
@@ -166,16 +190,17 @@
             </thead>
             <tbody>
                 @foreach($week as $i => $day)
-                    <tr>
+                    <tr class="bh-row {{ $day['is_closed'] ? 'is-closed' : '' }}">
                         <td>
-                            {{ __($day['name']) }}
+                            <label for="bh_closed_{{ $i }}">{{ __($day['name']) }}</label>
                             <input type="hidden" name="days[{{ $i }}][day]" value="{{ $day['day'] }}">
                         </td>
                         <td>
-                            <input type="checkbox" name="days[{{ $i }}][is_closed]" value="1" @checked($day['is_closed'])>
+                            <input type="checkbox" class="bh-closed" id="bh_closed_{{ $i }}"
+                                   name="days[{{ $i }}][is_closed]" value="1" @checked($day['is_closed'])>
                         </td>
-                        <td><input class="a2-input" type="time" name="days[{{ $i }}][open]" value="{{ $day['open'] }}" style="width:120px"></td>
-                        <td><input class="a2-input" type="time" name="days[{{ $i }}][close]" value="{{ $day['close'] }}" style="width:120px"></td>
+                        <td><input class="a2-input bh-open" type="time" name="days[{{ $i }}][open]" value="{{ $day['open'] }}" style="width:120px"></td>
+                        <td><input class="a2-input bh-close" type="time" name="days[{{ $i }}][close]" value="{{ $day['close'] }}" style="width:120px"></td>
                     </tr>
                 @endforeach
             </tbody>
@@ -186,4 +211,62 @@
         </div>
     </div>
 </form>
+
+@push('styles')
+<style>
+    .bh-bulk {
+        display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+        padding: 12px 14px; margin-bottom: 12px; border-radius: 10px;
+        background: rgba(128, 128, 128, .07);
+        border: 1px solid rgba(128, 128, 128, .18);
+    }
+    .bh-bulk-label { font-weight: 600; font-size: 13px; align-self: center; }
+    .bh-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+    /* اليومُ المغلق يبهت ولا يختفي: الساعاتُ تبقى مكتوبة لمن يفتحه ثانيةً. */
+    .bh-row.is-closed .bh-open,
+    .bh-row.is-closed .bh-close { opacity: .45; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+    (function () {
+        var apply = document.getElementById('bh_apply');
+
+        if (!apply) {
+            return;
+        }
+
+        /*
+         * يملأ ولا يحفظ. الاستمارةُ نفسُها هى ما يحفظ، فما يراه التاجر قبل
+         * الضغط هو ما يُكتب — ولا حاجةَ إلى مسارٍ ثانٍ يفعل نصفَ ما يفعله هذا.
+         */
+        apply.addEventListener('click', function () {
+            var open = document.getElementById('bh_all_open').value;
+            var close = document.getElementById('bh_all_close').value;
+
+            if (!open && !close) {
+                return;
+            }
+
+            document.querySelectorAll('.bh-row').forEach(function (row) {
+                if (open) {
+                    row.querySelector('.bh-open').value = open;
+                }
+
+                if (close) {
+                    row.querySelector('.bh-close').value = close;
+                }
+            });
+        });
+
+        // …ويبهت اليومُ لحظةَ تحديده مغلقًا، لا بعد الحفظ.
+        document.querySelectorAll('.bh-closed').forEach(function (box) {
+            box.addEventListener('change', function () {
+                box.closest('.bh-row').classList.toggle('is-closed', box.checked);
+            });
+        });
+    })();
+</script>
+@endpush
 @endsection

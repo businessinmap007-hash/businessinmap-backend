@@ -237,6 +237,56 @@ class BusinessProfileScreenTest extends TestCase
         }
     }
 
+    /**
+     * الأسبوعُ كلُّه دفعةً واحدة، ثم يومٌ بيومه.
+     *
+     * «يستطيع صاحب النشاط ضبط مواعيد الفتح والإغلاق لكل الأيام دفعة واحدة مع
+     * إمكانية تعديل أي يوم على حدة» — المالك، ٢٣ أغسطس ٢٠٢٦.
+     *
+     * أغلبُ المحلات تفتح فى نفس الساعة كل يوم، فكتابةُ الرقم أربعةَ عشرَ مرة
+     * هى الحالةُ الشائعة. الملءُ يقع فى المتصفح ولا يحفظ: التاجرُ يرى الجدول
+     * قبل أن يضغط، فلا مسارَ ثانٍ يفعل نصفَ ما تفعله الاستمارة، ولا خطرَ أن
+     * تُكتَب سبعةُ أيامٍ لم يرها أحد.
+     */
+    public function test_the_week_can_be_set_at_once_and_then_a_day_at_a_time(): void
+    {
+        $biz = $this->anyTrades(1)[0];
+
+        $html = $this->actingAs($biz)->get(route('business.profile.edit', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('id="bh_all_open"', $html);
+        $this->assertStringContainsString('id="bh_all_close"', $html);
+        $this->assertStringContainsString('id="bh_apply"', $html);
+
+        // …ولكلِّ يومٍ خانتُه بعدها. لولا ذلك لكان الزرُّ بديلًا عن الجدول لا
+        // تمهيدًا له.
+        foreach (range(0, 6) as $day) {
+            $this->assertStringContainsString('name="days[' . $day . '][open]"', $html);
+            $this->assertStringContainsString('name="days[' . $day . '][close]"', $html);
+        }
+
+        // والزرُّ خارج أى نداءِ حفظ: `type="button"` وإلا أرسل الاستمارة.
+        $this->assertStringContainsString('type="button" class="a2-btn" id="bh_apply"', $html);
+    }
+
+    /**
+     * وما يُدفع إلى `styles` يصل الصفحة.
+     *
+     * خمسُ شاشاتٍ فى لوحة النشاط تكتب `@push('styles')` ولم يكن فى القالب
+     * `@stack` يستقبله: لا خطأ يظهر، ولا صفحةٌ تنكسر — تنسيقٌ كُتب ولم يصل.
+     * شاشةُ «الإضافات والمميزات» كانت إحداها.
+     */
+    public function test_a_pushed_stylesheet_reaches_the_page(): void
+    {
+        $biz = $this->anyTrades(1)[0];
+
+        $html = $this->actingAs($biz)->get(route('business.profile.edit', [], false))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('.bh-bulk', $html, 'the styles stack is not rendered by the business layout');
+    }
+
     /** ويُحفظ عبر الخدمة نفسها التى يقرأ منها بحثُ «مفتوح الآن». */
     public function test_it_saves_the_working_week(): void
     {

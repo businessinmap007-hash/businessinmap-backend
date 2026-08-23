@@ -8,6 +8,14 @@
     <title>@yield('title', __('لوحة النشاط التجاري'))</title>
     <link rel="stylesheet" href="{{ asset('admin-v2/css/admin.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+
+    {{-- خمسُ شاشاتٍ تدفع CSS إلى هنا ولم يكن هنا شىء يستقبله.
+
+         `@push('styles')` بلا `@stack` يُلقى بصمت: لا خطأ، ولا صفحةٌ مكسورة —
+         فقط تنسيقٌ كُتب ولم يصل. شاشةُ «الإضافات والمميزات» وشاشتا الوحدات
+         وصفحةُ العروض كلُّها كانت تُعرض بلا الذى كُتب لها، ولوحةُ الإدارة
+         تستقبله منذ البداية. --}}
+    @stack('styles')
 </head>
 <body class="admin-v2 @yield('body_class')">
 

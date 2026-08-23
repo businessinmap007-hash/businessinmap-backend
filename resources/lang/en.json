@@ -2726,5 +2726,12 @@
     "بلا تحديد": "Unassigned",
     "ما يُسعَّر أصلًا: «غرفة مزدوجة ٩٠٠». كل وحدة تنتمي لواحد منها.": "What is priced in the first place: «double room 900». Every unit belongs to one of them.",
     "تُثبَّت على غرفة بعينها وتزيد على سعرها: D117 المطلة على البحر ‎+٢٠٠ فتصير ١١٠٠.": "Stamped on one room and added to its price: D117 facing the sea +200, so 1100.",
-    "سعر مستقل يختاره النزيل عند الحجز، ويُضرب في عدد الأفراد إن أشّرت ذلك.": "A standalone price the guest chooses at booking, multiplied by the party size if you tick that."
+    "سعر مستقل يختاره النزيل عند الحجز، ويُضرب في عدد الأفراد إن أشّرت ذلك.": "A standalone price the guest chooses at booking, multiplied by the party size if you tick that.",
+    "سعر العرض لا بد أن يقل عن السعر الحالي (:price).": "The offer price must be lower than the current price (:price).",
+    "سعر هذا الصنف ارتفع مؤخرًا. يمكن تسجيل خصم عليه ابتداءً من :date.": "This item's price went up recently. A discount on it can be registered from :date.",
+    "لكل عرض شرط انتهاء: تاريخ، أو حتى نفاد الكمية، أو عدد وحدات محدَّد.": "Every offer needs an end: a date, or until stock runs out, or a set number of units.",
+    "هذا النوع لا يُسعَّر من هنا.": "This type is not priced from here.",
+    "اختر الصنف من المنيو — العرض يكون على صنفٍ بعينه.": "Choose the item from your menu — an offer is on one specific item.",
+    "هذا الصنف غير موجود.": "This item does not exist.",
+    "هذا الصنف ليس لهذا النشاط.": "This item does not belong to this business."
 }

@@ -41,11 +41,47 @@ class TrainingServiceSeeder extends Seeder
     ];
 
     /**
-     * Who sells it. A gym and an academy train; a «نادي صحي» is a health club
-     * and does too. Nothing else on the platform coaches a person, and adding a
-     * child that does not is how a service ends up wired to 300 shops.
+     * Who sells it.
+     *
+     * «الرياضة واللياقة والقطاع الصحي … الطبيب يستطيع عمل نظام غذائي لمريض،
+     *  والمدرب يعمل برنامج تدريب وتغذية لعميل» — owner, 2026-08-23.
+     *
+     * ── The sports half ────────────────────────────────────────────────────
+     *
+     * A gym, a club and an academy train. «مدرب» #547 is the coach himself and
+     * was the obvious omission — he IS the service. «حمام سباحة» and «ملاعب
+     * كرة» coach too: a pool sells swimming lessons and a pitch sells an
+     * academy's sessions, which is a plan with a schedule.
+     *
+     * «مستكشف لاعبين» #550 keeps it — a scout writes a development programme
+     * for the player he is tracking — and «ناشئ موهوب» #551 does NOT: the
+     * youngster is the CLIENT of a plan, never its author, and the client's
+     * side of this module has no route that writes one.
+     *
+     * «نادي صحي» was retired in August and is left named here so the seeder
+     * says «غير موجود» rather than silently covering one child fewer.
+     *
+     * ── The health half, added 2026-08-23 ──────────────────────────────────
+     *
+     * A nutrition plan is a prescription in everything but name, and the three
+     * children that write one are the three where a doctor sits: a clinic, a
+     * medical centre, a hospital. A dietitian's «نظام غذائي» is one of the four
+     * kinds this service already sells, priced on its own — which is exactly
+     * what the kind list was built for.
+     *
+     * NOT the other four. A pharmacy dispenses, a lab measures, a scan centre
+     * images, a cupping centre treats — none of them writes a plan and follows
+     * a client through it, and wiring a service to a trade that cannot deliver
+     * it is how a merchant ends up with a screen he has no use for.
      */
-    private const CHILDREN = ['جيم', 'نادي رياضي', 'أكاديمية رياضية', 'نادي صحي'];
+    private const CHILDREN = [
+        // الرياضة واللياقة
+        'جيم', 'نادي رياضي', 'أكاديمية رياضية', 'نادي صحي',
+        'مدرب', 'حمام سباحة', 'ملاعب كرة', 'مستكشف لاعبين',
+
+        // القطاع الصحي — من يكتب النظام الغذائي
+        'عيادة', 'مركز طبي', 'مستشفى',
+    ];
 
     public function run(): void
     {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasOfferingOptions;
 use App\Models\Concerns\HasOwnedImages;
+use App\Models\Concerns\RecordsPriceHistory;
 use App\Support\Concerns\HasLocalizedFields;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,19 @@ class MenuItem extends Model
      * the flat. One photo would not have been enough anyway.
      */
     use HasOwnedImages;
+    use RecordsPriceHistory;
+
+    /**
+     * Every move of this number is remembered — {@see RecordsPriceHistory}.
+     *
+     * A discount offer is checked against what the row used to cost, and that
+     * check is worth nothing unless it is complete: several screens write this
+     * price, so the recording lives on the model rather than in whichever of
+     * them somebody remembered.
+     */
+    protected string $priceHistoryColumn = 'base_price';
+
+    protected string $priceHistoryBusinessColumn = 'business_id';
 
     protected $table = 'menu_items';
 

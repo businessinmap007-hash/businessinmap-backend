@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsPriceHistory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,6 +12,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class BusinessCatalogListing extends Model
 {
+    use RecordsPriceHistory;
+
+    /**
+     * Every move of this number is remembered — {@see RecordsPriceHistory}.
+     *
+     * A discount offer is checked against what the row used to cost, and that
+     * check is worth nothing unless it is complete: several screens write this
+     * price, so the recording lives on the model rather than in whichever of
+     * them somebody remembered.
+     */
+    protected string $priceHistoryColumn = 'price';
+
+    protected string $priceHistoryBusinessColumn = 'business_id';
+
     protected $table = 'business_catalog_listings';
 
     protected $fillable = [

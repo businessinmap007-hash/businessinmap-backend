@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\BusinessPartnership;
 use App\Models\CommercialOffer;
+use App\Models\MenuItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -26,7 +28,54 @@ class BusinessOfferSecurityTest extends TestCase
             $this->markTestSkipped('Needs a business user.');
         }
 
+        $this->openTheOffersDoor((int) $b->id);
+
         return $b;
+    }
+
+    /**
+     * `business_offers` is off platform-wide and the merchant must be
+     * subscribed to it — both true of the live database, and neither of them
+     * what this file is about.
+     *
+     * Three of these five tests skipped on it, which reads as «passing» in a
+     * green run and means the ranking-score guard — the thing that stops a
+     * business boosting itself above its competitors in discovery — had not
+     * actually been exercised in months. Opened inside the transaction.
+     */
+    private function openTheOffersDoor(int $businessId): void
+    {
+        $serviceId = (int) DB::table('platform_services')->where('key', 'business_offers')->value('id');
+
+        if ($serviceId <= 0) {
+            $this->markTestSkipped('The business_offers service does not exist.');
+        }
+
+        DB::table('platform_services')->where('id', $serviceId)->update(['is_active' => 1]);
+
+        DB::table('user_platform_service')->updateOrInsert(
+            ['user_id' => $businessId, 'platform_service_id' => $serviceId],
+            ['is_active' => 1, 'updated_at' => now(), 'created_at' => now()]
+        );
+    }
+
+    /**
+     * A priced row to hang an offer on.
+     *
+     * `offerable_id => 0` used to be legal — the offer named nothing, and the
+     * «previous price» was whatever the request said. It is refused now
+     * (OfferEligibility), so these tests state an owner and a price the way a
+     * real caller has to.
+     */
+    private function pricedRow(int $businessId, float $price = 100): MenuItem
+    {
+        return MenuItem::create([
+            'business_id' => $businessId,
+            'item_type' => 'menu_food',
+            'name_ar' => 'صنف اختبار الأمان',
+            'base_price' => $price,
+            'is_active' => 1,
+        ]);
     }
 
     public function test_client_cannot_set_ranking_score_on_create(): void
@@ -35,10 +84,10 @@ class BusinessOfferSecurityTest extends TestCase
         Sanctum::actingAs($business);
 
         $res = $this->postJson('/api/v2/business/offers', [
-            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
-            'base_price' => 100,
+            'offerable_type' => CommercialOffer::OFFERABLE_MENU_ITEM,
+            'offerable_id' => $this->pricedRow((int) $business->id)->id,
             'final_price' => 90,
+            'ends_at' => now()->addWeek()->toDateTimeString(),
             'ranking_score' => 999999,
             'title_ar' => 'اختبار أمان',
         ]);
@@ -59,9 +108,11 @@ class BusinessOfferSecurityTest extends TestCase
     {
         $business = $this->business();
 
+        $row = $this->pricedRow((int) $business->id);
+
         $offer = CommercialOffer::create([
-            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
+            'offerable_type' => CommercialOffer::OFFERABLE_MENU_ITEM,
+            'offerable_id' => $row->id,
             'owner_business_id' => $business->id,
             'seller_business_id' => $business->id,
             'source_type' => CommercialOffer::SOURCE_PROMOTION,
@@ -69,15 +120,15 @@ class BusinessOfferSecurityTest extends TestCase
             'final_price' => 90,
             'currency' => 'EGP',
             'status' => CommercialOffer::STATUS_ACTIVE,
+            'ends_at' => now()->addWeek(),
             'ranking_score' => 0,
         ]);
 
         Sanctum::actingAs($business);
 
         $res = $this->putJson("/api/v2/business/offers/{$offer->id}", [
-            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
-            'base_price' => 100,
+            'offerable_type' => CommercialOffer::OFFERABLE_MENU_ITEM,
+            'offerable_id' => $row->id,
             'final_price' => 90,
             'ranking_score' => 999999,
         ]);
@@ -101,11 +152,11 @@ class BusinessOfferSecurityTest extends TestCase
         Sanctum::actingAs(User::find($sellerId));
 
         $this->postJson('/api/v2/business/offers', [
-            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
+            'offerable_type' => CommercialOffer::OFFERABLE_MENU_ITEM,
+            'offerable_id' => $this->pricedRow($ownerId)->id,
             'owner_business_id' => $ownerId,
-            'base_price' => 100,
             'final_price' => 90,
+            'ends_at' => now()->addWeek()->toDateTimeString(),
         ])->assertStatus(422)->assertJsonValidationErrors(['owner_business_id']);
     }
 
@@ -124,14 +175,20 @@ class BusinessOfferSecurityTest extends TestCase
             'status' => BusinessPartnership::STATUS_ACTIVE,
         ]);
 
+        $this->openTheOffersDoor($sellerId);
+
         Sanctum::actingAs(User::find($sellerId));
 
         $res = $this->postJson('/api/v2/business/offers', [
-            'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
+            'offerable_type' => CommercialOffer::OFFERABLE_MENU_ITEM,
+            // The OWNER's row. A reseller discounts what the owner sells, and
+            // the resolver checks the row against the owner for exactly that
+            // reason — the partnership is what lets him sell it, not what lets
+            // him invent it.
+            'offerable_id' => $this->pricedRow($ownerId)->id,
             'owner_business_id' => $ownerId,
-            'base_price' => 100,
             'final_price' => 90,
+            'ends_at' => now()->addWeek()->toDateTimeString(),
         ]);
 
         // The partnership clears the ownership guard. Creation may still be

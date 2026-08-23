@@ -10,6 +10,18 @@ use Illuminate\Support\Facades\Schema;
 class CommercialOffer extends Model
 {
     public const OFFERABLE_BOOKABLE_ITEM = 'bookable_item';
+
+    /**
+     * A row in a business's own menu — a dish, a garment, a flat.
+     *
+     * The enum had `product`, `service` and `package` and no word for the
+     * commonest offer there is: «٢٥٪ على كل الساندوتشات». `product` reads a
+     * shared-catalog listing and `service` a priced service row; neither is a
+     * `menu_items` row, so an offer on a sandwich had nowhere honest to point
+     * and pointed at nothing.
+     */
+    public const OFFERABLE_MENU_ITEM = 'menu_item';
+
     public const OFFERABLE_PRODUCT = 'product';
     public const OFFERABLE_SERVICE = 'service';
     public const OFFERABLE_PACKAGE = 'package';
@@ -28,6 +40,14 @@ class CommercialOffer extends Model
     public const AVAILABILITY_INSTANT = 'instant';
     public const AVAILABILITY_REQUEST = 'request';
     public const AVAILABILITY_LIMITED = 'limited_quantity';
+
+    /**
+     * «حتى نفاد الكمية» — the third of the three ends an offer may have.
+     *
+     * Different from `limited_quantity`, which reserves a number FOR the offer:
+     * this one runs until the shelf is empty, whatever is on it.
+     */
+    public const AVAILABILITY_WHILE_STOCK = 'while_stock_lasts';
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_PAUSED = 'paused';
@@ -86,6 +106,17 @@ class CommercialOffer extends Model
         'boost_score' => 'decimal:4',
         'meta' => 'array',
     ];
+
+    /** The three answers to «إلى متى؟». */
+    public static function availabilityModes(): array
+    {
+        return [
+            self::AVAILABILITY_INSTANT,
+            self::AVAILABILITY_REQUEST,
+            self::AVAILABILITY_LIMITED,
+            self::AVAILABILITY_WHILE_STOCK,
+        ];
+    }
 
     public static function audienceTypes(): array
     {

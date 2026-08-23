@@ -8,12 +8,20 @@ use App\Models\CommercialOffer;
 use App\Support\BusinessContext;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
 use App\Services\Commercial\OfferFollowMatchingService;
+use App\Services\Offers\OfferableResolver;
+use App\Services\Offers\OfferEligibility;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 final class BusinessOfferController extends Controller
 {
+    public function __construct(
+        private readonly OfferableResolver $offerables,
+        private readonly OfferEligibility $eligibility,
+    ) {
+    }
+
     public function index(Request $request, BusinessOffersSubscriptionService $subscriptionService)
     {
         $user = BusinessContext::business($request);
@@ -207,6 +215,7 @@ final class BusinessOfferController extends Controller
         $data = $request->validate([
             'offerable_type' => ['required', Rule::in([
                 CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
+                CommercialOffer::OFFERABLE_MENU_ITEM,
                 CommercialOffer::OFFERABLE_PRODUCT,
                 CommercialOffer::OFFERABLE_SERVICE,
                 CommercialOffer::OFFERABLE_PACKAGE,
@@ -223,16 +232,19 @@ final class BusinessOfferController extends Controller
             'source_id' => ['nullable', 'integer', 'min:1'],
             'title_ar' => ['nullable', 'string', 'max:255'],
             'title_en' => ['nullable', 'string', 'max:255'],
-            'base_price' => ['required', 'numeric', 'min:0'],
+            /*
+             * `base_price` is «السعر السابق» and is NOT taken from the request
+             * for any offer with a priced row behind it — OfferEligibility
+             * reads it off the row and overwrites whatever came in. It stays
+             * accepted, and optional, because `package` and `bookable_item`
+             * have no single row to read and still state their own base.
+             */
+            'base_price' => ['nullable', 'numeric', 'min:0'],
             'final_price' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'max:10'],
             'discount_type' => ['nullable', Rule::in(['fixed', 'percent'])],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
-            'availability_mode' => ['nullable', Rule::in([
-                CommercialOffer::AVAILABILITY_INSTANT,
-                CommercialOffer::AVAILABILITY_REQUEST,
-                CommercialOffer::AVAILABILITY_LIMITED,
-            ])],
+            'availability_mode' => ['nullable', Rule::in(CommercialOffer::availabilityModes())],
             'available_quantity' => ['nullable', 'integer', 'min:0'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
@@ -265,6 +277,46 @@ final class BusinessOfferController extends Controller
                 'owner_business_id' => __('لا تملك إذنًا لإعادة بيع منتجات هذا البزنس. يلزم اتفاق شراكة نشط مع المالك.'),
             ]);
         }
+        /*
+         * ── «شهر كامل دون رفع السعر» ────────────────────────────────────────
+         *
+         * The offer names a row the owner owns, the previous price is READ off
+         * that row rather than typed, the new price has to be lower, the row
+         * must not have gone up in the last thirty days, and the offer has to
+         * say when it ends.
+         *
+         * Only for the types that HAVE a single priced row. A package is
+         * several rows and a bookable unit is priced per kind and per night —
+         * «٣٠٪ على غرفة مزدوجة» is a rule about nightly pricing, and the
+         * booking side has `bookable_price_rules` for exactly that. Forcing
+         * one number on either would produce a discount the checkout
+         * disagrees with.
+         */
+        if ($this->offerables->handles((string) $data['offerable_type'])) {
+            /*
+             * Vetted against the EFFECTIVE offer, not the request. A PATCH that
+             * changes only the title still has an end date — the one already
+             * stored — and refusing it for not repeating itself would make the
+             * rule read as a bug.
+             */
+            $effective = $data + [
+                'ends_at' => $existing->ends_at ?? null,
+                'availability_mode' => $existing->availability_mode ?? null,
+                'available_quantity' => $existing->available_quantity ?? null,
+            ];
+
+            $vetted = $this->eligibility->vet($effective, $data['owner_business_id']);
+
+            $data['checked_against'] = $vetted['checked_against'];
+            unset($vetted['checked_against']);
+
+            $data = array_merge($data, $vetted);
+        }
+
+        // A package and a bookable unit state their own base — there is no one
+        // row to read it off. Absent, the offer is simply not a discount.
+        $data['base_price'] = $data['base_price'] ?? ($existing->base_price ?? $data['final_price']);
+
         $data['source_type'] = (string) ($data['source_type'] ?? CommercialOffer::SOURCE_PROMOTION);
         $data['audience_type'] = (string) ($data['audience_type'] ?? ($existing->audience_type ?? CommercialOffer::AUDIENCE_BOTH));
         $data['source_id'] = $data['source_id'] ?? null;
@@ -277,6 +329,14 @@ final class BusinessOfferController extends Controller
         $data['meta'] = array_merge((array) ($existing->meta ?? []), (array) ($data['meta'] ?? []), [
             'source' => 'api_v2_business_offers',
         ]);
+
+        // What the discount was measured against, kept beside the offer. The
+        // number alone says what it claims; this says what it was checked
+        // against and when.
+        if (isset($data['checked_against'])) {
+            $data['meta']['checked_against'] = $data['checked_against'];
+            unset($data['checked_against']);
+        }
 
         return $data;
     }

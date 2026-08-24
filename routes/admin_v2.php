@@ -51,6 +51,7 @@ use App\Http\Controllers\AdminV2\{
     TripScheduleAdminController,
     MedicineDictionaryController,
     MenuItemController,
+    MenuReviewController,
     MenuItemExtraController,
     MenuItemVariantController,
     NotificationCenterAdminController,
@@ -415,6 +416,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{bookableItem}', [BookableItemController::class, 'update'])->whereNumber('bookableItem')->name('update');
             Route::delete('{bookableItem}', [BookableItemController::class, 'destroy'])->whereNumber('bookableItem')->name('destroy');
         });
+
+        // منيو نشاطٍ واحد كاملًا: القسم ثم البند ثم أصنافه، والبندُ الفارغ
+        // معه. قراءةٌ فقط، فلا شىء يُكتب من هذه الشاشة.
+        Route::get('menu-review', [MenuReviewController::class, 'index'])
+            ->middleware('can:' . AdminAbility::OPERATIONS)
+            ->name('menu-review.index');
 
         Route::prefix('menu-items')->name('menu-items.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('/', [MenuItemController::class, 'index'])->name('index');

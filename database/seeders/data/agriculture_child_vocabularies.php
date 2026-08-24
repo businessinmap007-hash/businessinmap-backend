@@ -311,10 +311,25 @@ return [
         | beans are what actually leave the country — then the rest of the
         | domestic basket.
         */
-        'أصناف الخضار والفاكهة' => [
-            'name_en' => 'Produce Varieties', 'price_role' => 'line', 'children' => [114],
+        /*
+        | ── split in two, 2026-08-24 ────────────────────────────────────────
+        |
+        | «فواكة تحتها كل الفواكة» — المالك. The list was already two lists: the
+        | «// فواكه» and «// خضار» comments below were doing the separating,
+        | which is a separation a comment cannot make. It matters now because
+        | the option GROUP is the SECTION of an arranged menu
+        | (App\Services\Menu\MenuOutline), so one group meant one section of
+        | forty-five bands and no «فاكهة» to put the fruit under.
+        |
+        | `ProduceAisleSplitSeeder` moved the rows; this file follows, or the
+        | next run of the vocabulary seeder writes forty-five of them back into
+        | the emptied parent. Both keep #114 and both stay `line` — the crop IS
+        | the priced thing, and a tonne of strawberries and a tonne of onions
+        | are not one rate.
+        */
+        'الفواكه' => [
+            'name_en' => 'Fruit', 'price_role' => 'line', 'children' => [114],
             'options' => [
-                // فواكه
                 'مانجو' => 'Mango',
                 'فراولة' => 'Strawberry',
                 'عنب' => 'Grapes',
@@ -333,7 +348,12 @@ return [
                 'شمام وكانتلوب' => 'Melon & Cantaloupe',
                 'كمثرى' => 'Pear',
                 'جريب فروت' => 'Grapefruit',
-                // خضار
+            ],
+        ],
+
+        'الخضروات' => [
+            'name_en' => 'Vegetables', 'price_role' => 'line', 'children' => [114],
+            'options' => [
                 'طماطم' => 'Tomato',
                 'بطاطس' => 'Potato',
                 'بصل' => 'Onion',

@@ -116,6 +116,11 @@ class DatabaseSeeder extends Seeder
            // has to exist and be full first.
            GroceryAisleSplitSeeder::class,
 
+           // …and «أصناف الخضار والفاكهة» is two stalls, not one list. Order
+           // does not bind it to the two above — it takes a different group
+           // apart — but it is kept beside them because it is the same move.
+           ProduceAisleSplitSeeder::class,
+
            // Four accessory children become one, and what KIND of accessory
            // becomes an option. After the remodel, before the detachments.
            AccessoryMergeSeeder::class,

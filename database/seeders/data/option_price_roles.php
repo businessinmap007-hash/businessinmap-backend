@@ -293,6 +293,14 @@ return [
          * strawberries is what is sold, and «وحدة البيع» is what modifies it.
          */
         'أصناف الخضار والفاكهة',   // طن فراولة ≠ طن بصل
+        // …taken apart 2026-08-24 (ProduceAisleSplitSeeder) into the two stalls
+        // a greengrocer already keeps. Both stay `line` for the same reason the
+        // parent was: the crop IS what is sold. The parent is left standing but
+        // EMPTY and stays named here — an unlisted group is reset on the next
+        // run, and a name that has options again one day must not come back as
+        // a filter.
+        'الفواكه',                 // كيلو مانجو ≠ كيلو موز
+        'الخضروات',                // كيلو طماطم ≠ كيلو بصل
         // Same trade, same reading, 2026-08-16: the bird and the grain ARE what
         // is bought. «حالة الدواجن» and «وحدة البيع» are the modifiers on top —
         // «بط حي» and «بط مذبوح ومنظف» being two prices of one row is what

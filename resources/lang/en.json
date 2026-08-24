@@ -2737,5 +2737,9 @@
     "اختر من يرى هذا المنتج — شركة، أو تصنيفًا، أو قسمًا رئيسيًا.": "Choose who may see this product — a business, a trade, or a whole section.",
     "المنتج المصدر غير موجود.": "The source product does not exist.",
     "لا يُعاد بيع منتجك من نفسك.": "You cannot resell your own product to yourself.",
-    "المنتج المصدر لمنتج آخر — إعادة البيع تكون لنفس المنتج.": "The source belongs to a different product — a resale is of the same product."
+    "المنتج المصدر لمنتج آخر — إعادة البيع تكون لنفس المنتج.": "The source belongs to a different product — a resale is of the same product.",
+    "حسب نوع الصنف": "By item type",
+    "غير مصنّف": "Unfiled",
+    "خارج المفردات": "Outside the vocabulary",
+    "بلا بند": "No band"
 }

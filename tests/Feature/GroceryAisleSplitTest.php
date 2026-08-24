@@ -202,7 +202,10 @@ class GroceryAisleSplitTest extends TestCase
         return [
             'دواجن' => ['دواجن', 'أنواع الدواجن والطيور', 'بط'],
             'حبوب وغلال' => ['حبوب وغلال', 'أنواع الحبوب والغلال', 'قمح'],
-            'خضار وفاكهة' => ['خضار وفاكهة', 'أصناف الخضار والفاكهة', 'مانجو'],
+            // Split in two on 2026-08-24 (ProduceAisleSplitSeeder): the fruit
+            // stall and the vegetable stall. «مانجو» now answers under the
+            // former, and the trade still names its own goods either way.
+            'خضار وفاكهة' => ['خضار وفاكهة', 'الفواكه', 'مانجو'],
             'أعلاف' => ['أعلاف', 'أنواع الأعلاف', 'أعلاف دواجن'],
         ];
     }

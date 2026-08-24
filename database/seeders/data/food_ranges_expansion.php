@@ -883,6 +883,24 @@ return [
     | 2026-08-10 are switched off, and the empty parent with them. That split
     | was right for what it had: twenty-seven words, five carrier sets, one
     | grab-bag. It was still a list of PLACES, and a place is not a price.
+    |
+    | ── The two that were already dead, «أوقف المجموعتين الميتتين» ───────────
+    |
+    | Found by auditing what the six retirements left behind: «مستلزمات
+    | المزارع» (مستلزمات زراعية · ماشية وطيور · معدات ومستلزمات) and «صفوف
+    | معروضة» (مركبة معروضة · وحدة معروضة · قطعة أثاث) — six rows between them
+    | and **zero links**. They reach no child at all and have not for weeks.
+    |
+    | They are the same kind of word as the aisles: «وحدة معروضة» is not a thing
+    | anyone buys, it is a PLACE a thing is put. Every child that ever answered
+    | them has since been given its own trade list — الآلات والمعدات الزراعية،
+    | أنواع الثروة الحيوانية والسمكية، ماركات الموتوسيكلات، الكرفانات، أنظمة
+    | المصاعد — which is why the links drained away on their own.
+    |
+    | Ten children still NAME them in data/menu_line_bands.php and every one of
+    | those ten already carries a real line list, so `hasOtherLineGroup()` has
+    | been skipping them. The names come out of that map anyway: a map that
+    | declares a retired row is one refactor away from granting it.
     */
     'retire' => [
         'أصناف المنتجات الغذائية',
@@ -891,5 +909,7 @@ return [
         'أقسام المنزل والعناية',
         'أقسام الطازج واللحوم',
         'بنود المخبوزات والحلويات',
+        'مستلزمات المزارع',
+        'صفوف معروضة',
     ],
 ];

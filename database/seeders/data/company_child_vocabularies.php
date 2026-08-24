@@ -480,7 +480,12 @@ return [
         116 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // آثاث
         158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
         168 => ['موضة وعناية شخصية'],                       // جلود وشنط وأحذية
-        170 => ['مستلزمات المزارع'],                        // مواشي
+        // «مواشي» #170 mirrored «مستلزمات المزارع» into this root until
+        // 2026-08-24, when that group was retired: three words — مستلزمات
+        // زراعية، ماشية وطيور، معدات ومستلزمات — that had drained to zero
+        // links because every child answering them was given a real trade
+        // list. #170 says «أبقار» and «أغنام» through «أنواع الثروة
+        // الحيوانية والسمكية», which it holds shared.
         // «حلويات» #210 was mirrored here and is gone: it was detached from
         // «شركات» on 2026-08-16 («حذف من الشركات الابن مفاتيح - حلويات»), and
         // a mirror writes rows AGAINST THIS ROOT. Left in the list it wrote

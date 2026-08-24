@@ -41,43 +41,43 @@ return [
         // itself is unchanged — see `kept` in menu_band_split.php for the move
         // and why there is still only one «فطائر» on the platform.
         'فطائر'                 => 'Pies',
-        'مستلزمات زراعية'  => 'Agricultural Supplies',
-        'ماشية وطيور'        => 'Livestock & Poultry',
-        'معدات ومستلزمات'  => 'Equipment & Supplies',
-        'وحدة معروضة'      => 'Property Listing',
-        'مركبة معروضة'    => 'Vehicle Listing',
-        'قطعة أثاث'          => 'Furniture Piece',
     ],
 
     'children' => [
-        // The fourteen goods children that had no selling service at all until
-        // 2026-08-09 — see UnsellableChildrenSeeder. Menu, not retail: the
-        // central catalogue holds no seed, feed or fertiliser, so these trades
-        // write their own list.
-        'معدات زراعية' => ['مستلزمات زراعية', 'معدات ومستلزمات'],
+        /*
+        |----------------------------------------------------------------------
+        | ⚠ 2026-08-24 — the farm, listing and aisle children all left
+        |----------------------------------------------------------------------
+        | Fourteen goods children were given bands here on 2026-08-09 because
+        | they had no selling service at all («مستلزمات زراعية», «ماشية وطيور»,
+        | «وحدة معروضة» — three words for three whole trades). Every one of them
+        | has since been given a real list: الآلات والمعدات الزراعية، مستلزمات
+        | المحاصيل، أنواع الثروة الحيوانية والسمكية، ماركات الموتوسيكلات،
+        | الكرفانات، أنظمة المصاعد.
+        |
+        | So «مستلزمات المزارع» and «صفوف معروضة» had drained to zero links on
+        | their own and were retired with the five aisle drawers. Their names
+        | come out of this map in the same breath — a map that declares a
+        | retired row is one refactor away from granting it.
+        |
+        | What is left is what the docblock above always said this file is: the
+        | restaurant headings.
+        */
         // «تقاوي وأسمدة ومبيدات» after the 2026-08-12 merge, and its line is
         // «مستلزمات المحاصيل» now — a real list, not the grab-bag row.
-        'تقاوي وأسمدة ومبيدات' => ['مستلزمات زراعية'],
-        'أعلاف' => ['مستلزمات زراعية', 'ماشية وطيور'],
         // «حبوب وغلال» #128 stood here with «مكرونات وأرز وحبوب» and «مواد
         // غذائية» — two aisle words for a trade that sells the grain itself.
         // The owner withdrew both by hand long before «أقسام البقالة الجافة»
         // was retired on 2026-08-24; it answers «أنواع الحبوب والغلال», which
         // is eighteen crops and the list it should always have had.
-        'مواشي وأرانب' => ['ماشية وطيور'],
         // «مأكولات بحرية» withdrawn 2026-08-10: a fish farm sells fish, it does
         // not cook a seafood dish. It reaches «أسماك ومأكولات بحرية طازجة» in
         // «أقسام الطازج واللحوم» now — granted by GroceryAisleSplitSeeder, not
         // from here, because this map only owns the restaurant bands. Leaving
         // the name here would have had this seeder hand the menu row straight
         // back on its next run, which is how every one of these moves fails.
-        'مزارع سمكية' => ['ماشية وطيور'],
         // Three children became one on 2026-08-12; the difference between them
         // was which animal, which is a row and not a child.
-        'معدات وتجهيزات المزارع' => ['معدات ومستلزمات', 'ماشية وطيور'],
-        'كرڤان' => ['معدات ومستلزمات'],
-        'معدات سوبرماركت' => ['معدات ومستلزمات'],
-        'مصاعد وسلم كهرياء' => ['معدات ومستلزمات'],
         // Its counter is the one word, and «أنواع اللحوم» is what hangs on it.
         'أكل بيتى' => [
             'مقبلات', 'سلطات', 'شوربة', 'مشويات',
@@ -211,9 +211,6 @@ return [
             'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
             'مأكولات بحرية', 'إفطار', 'حلويات', 'مشروبات ساخنة',
             'مشروبات باردة', 'وجبات أطفال',
-        ],
-        'معرض موتوسيكلات' => [
-            'مركبة معروضة',
         ],
         /*
         | «منظفات» #83 held the whole of «أقسام المنزل والعناية» here — فحم،

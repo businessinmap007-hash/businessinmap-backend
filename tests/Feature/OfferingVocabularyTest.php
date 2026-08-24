@@ -460,6 +460,54 @@ class OfferingVocabularyTest extends TestCase
         $this->assertNotEmpty($result['modifiers']->keys()->all(), 'the promotion left the yard nothing to qualify with');
     }
 
+    /**
+     * «أقمشة» #95, found in the 2026-08-24 audit and reported as an outage it
+     * is not.
+     *
+     * The stored role says it has nothing to price: «أنواع الأقمشة» is a
+     * `modifier` and the owner withdrew its only `line` row («أقمشة» inside
+     * «موضة وعناية شخصية») twice on 2026-08-16 — correctly, because «أقمشة» is
+     * a word that describes the shop, not a thing anybody buys.
+     *
+     * What the merchant is actually OFFERED is the fifteen fabrics, promoted at
+     * read time. Which is the right answer and the right place for it: قطن and
+     * حرير are two prices per metre for a fabric shop, and the same two words
+     * are a QUALIFIER on a shirt for «ملابس جاهزة» next door, which carries the
+     * identical group. One stored role cannot say both; the per-child promotion
+     * can, and does.
+     *
+     * Pinned here because an audit that reads `option_groups.price_role` will
+     * keep reporting this trade as mute, and the fix it suggests — flipping the
+     * group to `line` — would hand three clothing children a priced list of
+     * cloth they do not sell by the metre.
+     */
+    public function test_a_fabric_shop_prices_its_fabrics_by_promotion(): void
+    {
+        $child = (int) DB::table('category_children_master')->where('name_ar', 'أقمشة')->value('id');
+
+        if (! $child) {
+            $this->markTestSkipped('«أقمشة» is not in this database.');
+        }
+
+        $business = DB::table('users')->where('type', 'business')->orderBy('id')->value('id');
+
+        $result = app(MerchantOfferingVocabulary::class)->for((int) $business, $child);
+
+        $this->assertSame('modifier', $result['promoted'], '«أقمشة» has gone mute');
+
+        $lines = collect($result['lines'])->flatten(1);
+
+        $this->assertSame(
+            ['أنواع الأقمشة'],
+            $lines->pluck('group_name')->unique()->values()->all(),
+            'the promotion is all-or-nothing and it reached past the fabrics'
+        );
+
+        foreach (['قطن', 'حرير', 'كتان'] as $cloth) {
+            $this->assertContains($cloth, $lines->pluck('name_ar')->all());
+        }
+    }
+
     /** A child that HAS a line group is untouched — the promotion is a fallback. */
     public function test_a_trade_with_a_line_group_is_not_promoted(): void
     {

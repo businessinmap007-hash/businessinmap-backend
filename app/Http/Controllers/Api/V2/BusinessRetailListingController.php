@@ -6,6 +6,7 @@ use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\BusinessRetailListingResource;
 use App\Models\BusinessCatalogListing;
+use App\Services\Retail\ListingAudienceWriter;
 use App\Models\CatalogProduct;
 use App\Models\PlatformService;
 use Illuminate\Http\Request;
@@ -127,7 +128,19 @@ final class BusinessRetailListingController extends Controller
             ]);
         }
 
-        $row = BusinessCatalogListing::create($data + ['business_id' => $this->businessId()]);
+        $audiences = app(ListingAudienceWriter::class);
+
+        $row = DB::transaction(function () use ($data, $request, $audiences) {
+            $listing = BusinessCatalogListing::create(
+                $data
+                + $audiences->columns($request, $this->businessId(), (int) $data['catalog_product_id'])
+                + ['business_id' => $this->businessId()]
+            );
+
+            $audiences->sync($listing, $request);
+
+            return $listing;
+        });
 
         return (new BusinessRetailListingResource($row->load('product:id,name_ar,name_en,main_image,default_barcode')))
             ->additional(['success' => true])->response()->setStatusCode(201);
@@ -137,7 +150,16 @@ final class BusinessRetailListingController extends Controller
     public function update(Request $request, int $listing)
     {
         $row = $this->scoped($listing);
-        $row->update($this->validatedData($request, false));
+        $audiences = app(ListingAudienceWriter::class);
+
+        DB::transaction(function () use ($row, $request, $audiences) {
+            $row->update(
+                $this->validatedData($request, false)
+                + $audiences->columns($request, $this->businessId(), (int) $row->catalog_product_id)
+            );
+
+            $audiences->sync($row->refresh(), $request);
+        });
 
         return (new BusinessRetailListingResource($row->fresh()->load('product:id,name_ar,name_en,main_image,default_barcode')))
             ->additional(['success' => true]);
@@ -213,6 +235,10 @@ final class BusinessRetailListingController extends Controller
                         ->whereIn('product_category_child_id', $scope)),
             ];
         }
+
+        app(ListingAudienceWriter::class)->normalise($request);
+
+        $rules += app(ListingAudienceWriter::class)->rules();
 
         $data = $request->validate($rules);
 

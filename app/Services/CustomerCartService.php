@@ -14,6 +14,7 @@ use App\Models\OrderItem;
 use App\Models\OrderParticipant;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Services\Retail\RetailListingVisibility;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -61,7 +62,7 @@ class CustomerCartService
     public function addItem(int $userId, string $kind, int $offeringId, int $qty, array $options = []): Order
     {
         $qty = max(1, $qty);
-        $resolved = $this->resolveOffering($kind, $offeringId, $options);
+        $resolved = $this->resolveOffering($kind, $offeringId, $options, $userId);
         $businessId = $resolved[0];
 
         return DB::transaction(function () use ($userId, $businessId, $offeringId, $resolved, $qty) {
@@ -347,7 +348,7 @@ class CustomerCartService
     {
         $this->participantOrFail($userId, $orderId);
         $qty = max(1, $qty);
-        $resolved = $this->resolveOffering($kind, $offeringId, $options);
+        $resolved = $this->resolveOffering($kind, $offeringId, $options, $userId);
 
         DB::transaction(function () use ($orderId, $offeringId, $resolved, $qty, $userId) {
             $cart = Order::query()
@@ -741,7 +742,7 @@ class CustomerCartService
      * Resolve [business_id, offering_type, unit_price, menu_id, size_id, addons]
      * from a kind + id (+ menu customisation options).
      */
-    private function resolveOffering(string $kind, int $offeringId, array $options): array
+    private function resolveOffering(string $kind, int $offeringId, array $options, ?int $buyerId = null): array
     {
         $type = self::KINDS[$kind] ?? null;
 
@@ -752,6 +753,23 @@ class CustomerCartService
         if ($type === BusinessCatalogListing::class) {
             $listing = BusinessCatalogListing::query()->where('is_active', 1)->find($offeringId);
             if (! $listing) {
+                throw ValidationException::withMessages(['offering_id' => __('المنتج غير متاح.')]);
+            }
+
+            /*
+             * A restricted listing is a wholesale price addressed to named
+             * buyers. Hiding it in discovery and then taking it in the cart
+             * would hide nothing: the id is a small integer, and the cart
+             * hands back the price.
+             *
+             * The same message as «not found», deliberately. «You may not see
+             * this» confirms that a listing exists at that id AND that it is
+             * restricted — two facts a stranger should not be able to harvest
+             * by counting upwards.
+             */
+            $buyer = $buyerId ? User::query()->find($buyerId) : null;
+
+            if (! app(RetailListingVisibility::class)->canSee($listing, $buyer)) {
                 throw ValidationException::withMessages(['offering_id' => __('المنتج غير متاح.')]);
             }
 

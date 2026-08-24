@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessCatalogListing;
+use App\Services\Retail\ListingAudienceWriter;
 use App\Models\CatalogProduct;
 use App\Models\PlatformService;
 use Illuminate\Http\JsonResponse;
@@ -92,7 +93,7 @@ class CatalogListingController extends Controller
                 ->with('error', 'خدمة التجزئة غير متاحة لنشاطك.');
         }
 
-        return view('business.catalog-listings.create');
+        return view('business.catalog-listings.create', $this->audiencePickers(null));
     }
 
     /**
@@ -160,7 +161,17 @@ class CatalogListingController extends Controller
             ]);
         }
 
-        BusinessCatalogListing::create($data + ['business_id' => $this->businessId()]);
+        $audiences = app(ListingAudienceWriter::class);
+
+        DB::transaction(function () use ($data, $request, $audiences) {
+            $listing = BusinessCatalogListing::create(
+                $data
+                + $audiences->columns($request, $this->businessId(), (int) $data['catalog_product_id'])
+                + ['business_id' => $this->businessId()]
+            );
+
+            $audiences->sync($listing, $request);
+        });
 
         return redirect()->route('business.products.index')->with('success', 'تمت إضافة المنتج بنجاح.');
     }
@@ -170,12 +181,59 @@ class CatalogListingController extends Controller
         $row = $this->scoped($id);
         $product = CatalogProduct::query()->find($row->catalog_product_id);
 
-        return view('business.catalog-listings.edit', ['row' => $row, 'product' => $product]);
+        return view(
+            'business.catalog-listings.edit',
+            ['row' => $row, 'product' => $product] + $this->audiencePickers($row)
+        );
+    }
+
+    /**
+     * The lists «من يرى هذا المنتج» is chosen from, and what is chosen today.
+     *
+     * Roots and children are small and closed — 21 and ~300 — so they embed.
+     * Businesses are 1,748 and do not, which is why the panel takes ids; see
+     * ListingAudienceWriter::normalise().
+     *
+     * @return array<string,mixed>
+     */
+    private function audiencePickers(?BusinessCatalogListing $row): array
+    {
+        $held = $row
+            ? $row->audiences()->get(['audience_type', 'audience_id'])
+            : collect();
+
+        $pick = fn (string $type) => $held->where('audience_type', $type)
+            ->pluck('audience_id')->map(fn ($id) => (int) $id)->values()->all();
+
+        return [
+            'roots' => DB::table('categories')->where('parent_id', 0)->where('is_active', 1)
+                ->orderBy('name_ar')->pluck('name_ar', 'id')->all(),
+
+            'children' => DB::table('category_children_master as m')
+                ->whereExists(fn ($q) => $q->from('category_parent_child as p')->whereColumn('p.child_id', 'm.id'))
+                ->orderBy('m.name_ar')->pluck('m.name_ar', 'm.id')->all(),
+
+            'audience' => [
+                'business_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_BUSINESS),
+                'child_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY_CHILD),
+                'category_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY),
+            ],
+        ];
     }
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $this->scoped($id)->update($this->validateData($request, false));
+        $row = $this->scoped($id);
+        $audiences = app(ListingAudienceWriter::class);
+
+        DB::transaction(function () use ($row, $request, $audiences) {
+            $row->update(
+                $this->validateData($request, false)
+                + $audiences->columns($request, $this->businessId(), (int) $row->catalog_product_id)
+            );
+
+            $audiences->sync($row->refresh(), $request);
+        });
 
         return back()->with('success', 'تم تحديث المنتج بنجاح.');
     }
@@ -210,8 +268,13 @@ class CatalogListingController extends Controller
             ];
         }
 
+        app(ListingAudienceWriter::class)->normalise($request);
+
+        $rules += app(ListingAudienceWriter::class)->rules();
+
         $data = $request->validate($rules, [], [
             'catalog_product_id' => 'المنتج',
+            'visibility' => 'من يرى المنتج',
             'price' => 'السعر',
             'stock' => 'المخزون',
         ]);

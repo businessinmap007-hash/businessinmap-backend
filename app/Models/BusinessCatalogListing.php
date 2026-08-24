@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\RecordsPriceHistory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A business's retail listing of a shared-catalog product: (business + master
@@ -36,6 +37,8 @@ class BusinessCatalogListing extends Model
         'currency',
         'stock',
         'is_active',
+        'visibility',
+        'source_listing_id',
     ];
 
     protected $casts = [
@@ -43,12 +46,36 @@ class BusinessCatalogListing extends Model
         'catalog_product_id' => 'integer',
         'price' => 'decimal:2',
         'stock' => 'integer',
+        'source_listing_id' => 'integer',
         'is_active' => 'boolean',
     ];
 
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    /** Who may see this listing, when it is `restricted`. */
+    public function audiences(): HasMany
+    {
+        return $this->hasMany(CatalogListingAudience::class, 'business_catalog_listing_id');
+    }
+
+    /**
+     * The listing this one was bought from, when a company is reselling.
+     *
+     * Null is the normal case — a shop listing its own stock bought nothing
+     * from anybody here.
+     */
+    public function sourceListing(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_listing_id');
+    }
+
+    /** True when this row is addressed to named buyers rather than the shelf. */
+    public function isRestricted(): bool
+    {
+        return (string) $this->visibility === \App\Services\Retail\RetailListingVisibility::RESTRICTED;
     }
 
     public function product(): BelongsTo

@@ -59,6 +59,9 @@
         </div>
     </div>
 
+    @php $row = null; @endphp
+    @include('business.catalog-listings._visibility')
+
     <div class="a2-actions" style="margin-top:14px;">
         <button class="a2-btn a2-btn-primary" id="bclSubmit" disabled>{{ __('إضافة المنتج') }}</button>
         <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost">{{ __('إلغاء') }}</a>

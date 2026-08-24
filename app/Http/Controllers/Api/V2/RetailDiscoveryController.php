@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\Retail\RetailListingVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,9 +18,47 @@ use Illuminate\Support\Facades\DB;
  *
  * Only products with at least one active listing surface (empty filters are
  * meaningless). Masters are always scoped to whereNull(deleted_at).
+ *
+ * ── And only listings this viewer may SEE ───────────────────────────────────
+ *
+ * A manufacturer's wholesale list is addressed to named buyers
+ * ({@see RetailListingVisibility}), and the restriction is applied to every
+ * query in this file — the three facet rollups, the product index and the
+ * per-product offer list.
+ *
+ * Applied to the QUERY and not to the results, which is the whole reason it is
+ * five identical lines rather than one filter at the end: these queries GROUP.
+ * Filtering rows afterwards would leave «١٢ منتجًا» printed over a page of
+ * four, and a wrong count is worse than a missing row.
  */
 final class RetailDiscoveryController extends Controller
 {
+    public function __construct(private readonly RetailListingVisibility $visibility)
+    {
+    }
+
+    /**
+     * Who is asking.
+     *
+     * Retail discovery is a PUBLIC surface — a guest browses it — so there is
+     * no auth middleware to lean on and `$request->user()` is null more often
+     * than not. Null means the shelf and nothing else.
+     */
+    private function viewer(Request $request): ?User
+    {
+        /*
+         * `$request->user()` alone is not enough here and the reason is easy to
+         * miss: this route carries no `auth:sanctum`, so the default guard is
+         * `web` and a perfectly valid bearer token reads as a guest. The named
+         * company would have been shown nothing — the restriction working
+         * against the one business it was written for.
+         *
+         * Same fallback CommentController and PostController use.
+         */
+        $user = $request->user() ?: auth('sanctum')->user();
+
+        return $user instanceof User ? $user : null;
+    }
     /** Product categories and brands that actually have active listings. */
     public function filters(Request $request)
     {
@@ -27,12 +67,17 @@ final class RetailDiscoveryController extends Controller
         $hours = app(\App\Services\BusinessHoursService::class);
         $openScope = fn ($q) => $openNow ? $hours->applyOpenNow($q, 'l.business_id') : $q;
 
+        // …and never count a listing this viewer cannot open.
+        $viewer = $this->viewer($request);
+        $mine = fn ($q) => $this->visibility->apply($q, $viewer, 'l');
+
         // Branch-level (product_categories == retail branches) rollup.
         $branches = DB::table('business_catalog_listings as l')
             ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
             ->join('product_categories as pc', 'pc.id', '=', 'p.product_category_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($mine)
             ->tap($openScope)
             ->groupBy('pc.id', 'pc.name_ar', 'pc.name_en')
             ->selectRaw('pc.id, pc.name_ar, pc.name_en, COUNT(DISTINCT p.id) AS products')
@@ -49,6 +94,7 @@ final class RetailDiscoveryController extends Controller
             ->join('product_category_children as c', 'c.id', '=', 'p.product_category_child_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($mine)
             ->tap($openScope)
             ->groupBy('c.id', 'c.name_ar', 'c.name_en')
             ->selectRaw('c.id, c.name_ar, c.name_en, COUNT(DISTINCT p.id) AS products')
@@ -65,6 +111,7 @@ final class RetailDiscoveryController extends Controller
             ->join('catalog_brands as b', 'b.id', '=', 'p.brand_id')
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->tap($mine)
             ->tap($openScope)
             ->groupBy('b.id', 'b.name_ar', 'b.name_en')
             ->selectRaw('b.id, b.name_ar, b.name_en, COUNT(DISTINCT p.id) AS products')
@@ -110,6 +157,7 @@ final class RetailDiscoveryController extends Controller
         // product surfaces only if an open shop actually sells it.
         $offers = DB::table('business_catalog_listings')
             ->where('is_active', 1)
+            ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'business_catalog_listings'))
             ->when(
                 $request->boolean('open_now'),
                 fn ($qq) => app(\App\Services\BusinessHoursService::class)
@@ -178,7 +226,7 @@ final class RetailDiscoveryController extends Controller
     }
 
     /** One master product with every business that sells it, cheapest first. */
-    public function show(int $product)
+    public function show(Request $request, int $product)
     {
         $p = DB::table('catalog_products as p')
             ->leftJoin('catalog_brands as b', 'b.id', '=', 'p.brand_id')
@@ -201,6 +249,7 @@ final class RetailDiscoveryController extends Controller
             ->join('users as u', 'u.id', '=', 'l.business_id')
             ->where('l.catalog_product_id', $product)
             ->where('l.is_active', 1)
+            ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
             ->orderBy('l.price')
             ->orderBy('u.name')
             ->get([

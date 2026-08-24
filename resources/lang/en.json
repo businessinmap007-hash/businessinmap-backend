@@ -2733,5 +2733,9 @@
     "هذا النوع لا يُسعَّر من هنا.": "This type is not priced from here.",
     "اختر الصنف من المنيو — العرض يكون على صنفٍ بعينه.": "Choose the item from your menu — an offer is on one specific item.",
     "هذا الصنف غير موجود.": "This item does not exist.",
-    "هذا الصنف ليس لهذا النشاط.": "This item does not belong to this business."
+    "هذا الصنف ليس لهذا النشاط.": "This item does not belong to this business.",
+    "اختر من يرى هذا المنتج — شركة، أو تصنيفًا، أو قسمًا رئيسيًا.": "Choose who may see this product — a business, a trade, or a whole section.",
+    "المنتج المصدر غير موجود.": "The source product does not exist.",
+    "لا يُعاد بيع منتجك من نفسك.": "You cannot resell your own product to yourself.",
+    "المنتج المصدر لمنتج آخر — إعادة البيع تكون لنفس المنتج.": "The source belongs to a different product — a resale is of the same product."
 }

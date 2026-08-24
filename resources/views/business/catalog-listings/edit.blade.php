@@ -50,6 +50,8 @@
         </div>
     </div>
 
+    @include('business.catalog-listings._visibility')
+
     <div class="a2-actions" style="margin-top:14px;">
         <button class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
         <a href="{{ route('business.products.index') }}" class="a2-btn a2-btn-ghost">{{ __('إلغاء') }}</a>

@@ -260,8 +260,20 @@ class MenuLineOptionsTest extends TestCase
             ->join('options as o', 'o.id', '=', 'co.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('co.child_id', $childId)
+            /*
+             * The family grew again on 2026-08-24: «أقسام البقالة الجافة» and
+             * «أقسام المشروبات» were retired and every word in them became a
+             * list — «زيوت وسمن» → «أنواع الزيوت والسمن», «مشروبات» → «أنواع
+             * المشروبات المعبأة». Counting only the old drawers would report
+             * the replacement as the very loss this test exists to catch.
+             */
             ->whereIn('g.name_ar', ['بنود المنيو', 'أقسام الطازج واللحوم', 'أقسام البقالة الجافة',
-                'أقسام المشروبات', 'أقسام المنزل والعناية', 'بنود المخبوزات والحلويات'])
+                'أقسام المشروبات', 'أقسام المنزل والعناية', 'بنود المخبوزات والحلويات',
+                'أنواع المكرونة', 'أنواع الزيوت والسمن', 'أنواع السكر والمحليات',
+                'أنواع البهارات والتوابل', 'أنواع المعلبات', 'أنواع المخللات والخل',
+                'أنواع الصلصات والشوربات', 'أنواع العسل والمربى', 'أنواع الشاي والقهوة',
+                'أنواع المكسرات والتسالي', 'أنواع الحلويات المعبأة',
+                'أنواع أغذية الأطفال', 'أنواع المشروبات المعبأة'])
             ->count();
 
         $before = $bands();

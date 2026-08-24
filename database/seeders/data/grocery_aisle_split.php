@@ -191,11 +191,24 @@ return [
         | sell without giving it a word for what it does is how a child ends up
         | mute, which is the defect this taxonomy keeps producing.
         */
-        'بن وشاي' => [
-            'name_en' => 'Coffee & Tea',
-            'group' => 'أقسام البقالة الجافة',
-            'grant_to' => ['بن'],
-        ],
+        /*
+        | ⚠ 2026-08-24 — «نظّف البقالة الجافة والمشروبات».
+        |
+        | «أقسام البقالة الجافة» is retired: every one of its seven words is a
+        | list now. «بن وشاي» included — it became «أنواع الشاي والقهوة», nine
+        | rows a merchant can actually price, which is what this entry wanted
+        | and could not have in August.
+        |
+        | The entry is removed rather than kept: creating a row inside a
+        | switched-off group and granting it to a child is exactly the state
+        | `ChildOptionDecisionTest > a dissolved row leaves no decision behind`
+        | refuses. The existing #1284 stays in the database as the record; a
+        | fresh build simply never mints it. «بن» takes the two replacement
+        | lists in data/food_ranges_expansion.php, granted BEFORE the retirement
+        | so he is never mute — the same grant-then-revoke order this file
+        | states for the fishmongers below.
+        */
+
 
         'أسماك ومأكولات بحرية طازجة' => [
             'name_en' => 'Fresh Fish & Seafood',
@@ -295,7 +308,16 @@ return [
     | Recorded as a withdrawal, not just deleted — the ledger is what stops the
     | broad seeders handing it straight back.
     */
-    'finish_range_move' => [
-        ['child' => 'هايبر ماركت', 'group' => 'أقسام البقالة الجافة', 'option' => 'معلبات'],
-    ],
+    /*
+    | ⚠ Emptied 2026-08-24. The one row it named — «معلبات» on هايبر ماركت in
+    | «أقسام البقالة الجافة» — is inside a group that is now switched off, and a
+    | withdrawal ledger row pointing at a retired option is the state
+    | `ChildOptionDecisionTest > a dissolved row leaves no decision behind`
+    | refuses: the retirement takes the link away outright, so there is nothing
+    | left for a withdrawal to hold back.
+    |
+    | The reading it recorded survived it. «معلبات» is a range and it now has
+    | «أنواع المعلبات», fourteen rows, which هايبر ماركت carries.
+    */
+    'finish_range_move' => [],
 ];

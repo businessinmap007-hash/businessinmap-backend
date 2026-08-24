@@ -33,9 +33,24 @@ class GroceryAisleSplitTest extends TestCase
     private const COUNTERS = [
         'أقسام الطازج واللحوم',
         'بنود المخبوزات والحلويات',
+        'أقسام المنزل والعناية',
+    ];
+
+    /**
+     * ⚠ «نظّف البقالة الجافة والمشروبات» — المالك، 2026-08-24.
+     *
+     * Two of the five are retired. Every word in both had become a list of its
+     * own — «زيوت وسمن» → «أنواع الزيوت والسمن», «مشروبات» → «أنواع المشروبات
+     * المعبأة» — and a shelf nobody can price is what this whole day was about.
+     *
+     * The split itself is untouched by it: it still moved twenty-seven rows out
+     * of one grab-bag into the five counters its own link data drew. Two of
+     * those counters were later replaced by finer lists, which is what a
+     * taxonomy doing its job looks like.
+     */
+    private const RETIRED = [
         'أقسام البقالة الجافة',
         'أقسام المشروبات',
-        'أقسام المنزل والعناية',
     ];
 
     /** @return array<int,string> */
@@ -101,11 +116,33 @@ class GroceryAisleSplitTest extends TestCase
             'الطازج' => ['أقسام الطازج واللحوم', 7, 'لحوم ودواجن'],
             // Four since «فطائر» was reclaimed as a menu band on 2026-08-16.
             'المخبوزات' => ['بنود المخبوزات والحلويات', 4, 'وافل'],
-            // Seven since «بن وشاي» was added on the owner's «بن يبيع حبوب فقط».
-            'البقالة' => ['أقسام البقالة الجافة', 7, 'بن وشاي'],
-            'المشروبات' => ['أقسام المشروبات', 2, 'عصائر'],
+            // «البقالة» and «المشروبات» left this provider on 2026-08-24 — see
+            // self::RETIRED and the test that guards them below. A retired group
+            // fails `is_active = 1` by design, so asserting it here would be
+            // asserting against the owner.
             'المنزل' => ['أقسام المنزل والعناية', 6, 'منظفات'],
         ];
+    }
+
+    /**
+     * The two the owner cleaned out, and the promise that holds for both: they
+     * are stopped, not deleted, they reach nobody, and every word they held is
+     * sayable somewhere a merchant can put a price on it.
+     */
+    public function test_the_two_replaced_counters_are_stopped_and_reach_nobody(): void
+    {
+        foreach (self::RETIRED as $name) {
+            $group = DB::table('option_groups')->where('name_ar', $name)->first();
+
+            $this->assertNotNull($group, 'Nothing in this taxonomy is deleted.');
+            $this->assertSame(0, (int) $group->is_active, "«{$name}» is still live");
+
+            $ids = DB::table('options')->where('group_id', $group->id)->pluck('id');
+
+            $this->assertNotEmpty($ids, 'the rows stay inside it as the record');
+            $this->assertSame(0, DB::table('category_child_option')->whereIn('option_id', $ids)->count());
+            $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $ids)->count());
+        }
     }
 
     /**
@@ -129,7 +166,9 @@ class GroceryAisleSplitTest extends TestCase
             'مخبز' => ['مخابز', 'بنود المخبوزات والحلويات'],
             'محل منظفات' => ['منظفات', 'أقسام المنزل والعناية'],
             'مجمدات' => ['مجمدات', 'أقسام الطازج واللحوم'],
-            'محل بن' => ['بن', 'أقسام البقالة الجافة'],
+            // «محل بن» left this provider on 2026-08-24: he answers none of
+            // the three counters above any more. His own list is asserted in
+            // test_the_coffee_shop_stocks_and_the_juice_bar_cooks below.
         ];
     }
 
@@ -335,9 +374,20 @@ class GroceryAisleSplitTest extends TestCase
         $this->assertSame([], $bandsOf('بن', 'بنود المنيو'), '«بن» is still offered a kitchen heading');
         $this->assertSame([], $bandsOf('بن', 'أقسام المشروبات'), '«بن» still stocks bottled drinks');
 
-        // …and it can name the one thing it sells, which the aisle list had no
-        // word for until this ruling forced the question.
-        $this->assertContains('بن وشاي', $bandsOf('بن', 'أقسام البقالة الجافة'));
+        /*
+         * …and it can name what it sells. In August that was ONE aisle row,
+         * «بن وشاي», minted because no list existed. On 2026-08-24 the aisle
+         * was retired and he got the list itself — nine rows he can price, and
+         * the nuts beside them, because a محمصة roasts the لب on the same fire.
+         *
+         * Granted BEFORE the retirement, which is this file's own rule stated
+         * for the fishmongers: grant first, then revoke, so a shop is never
+         * without a way to say what it sells — not even for the width of one
+         * transaction.
+         */
+        $this->assertContains('بن محوج', $bandsOf('بن', 'أنواع الشاي والقهوة'));
+        $this->assertContains('لب سوري', $bandsOf('بن', 'أنواع المكسرات والتسالي'));
+        $this->assertSame([], $bandsOf('بن', 'أقسام البقالة الجافة'), 'a retired row still reaches «بن»');
 
         // The kitchen: menu, no aisle.
         $this->assertSame([], $bandsOf('عصائر', 'أقسام المشروبات'), '«عصائر» is still stocking a shelf');
@@ -384,10 +434,20 @@ class GroceryAisleSplitTest extends TestCase
 
             $this->assertSame([], $bands, "«{$name}» is still offered a kitchen heading");
 
+            /*
+             * «أقسام المشروبات» stood here — two rows, «عصائر» and «مشروبات» —
+             * and the claim was that the drinks moved to the aisle rather than
+             * disappearing. On 2026-08-24 they moved once more, to «أنواع
+             * المشروبات المعبأة»: مياه معدنية، مشروبات غازية، عصائر معبأة،
+             * مشروبات طاقة. Nine rows a market can put a price on, where the
+             * aisle had two it could not.
+             *
+             * The claim is the same claim. Only the drawer changed.
+             */
             $this->assertContains(
-                'أقسام المشروبات',
+                'أنواع المشروبات المعبأة',
                 $this->groupsOffered($name),
-                "«{$name}» lost drinks altogether instead of moving them to the aisle"
+                "«{$name}» lost drinks altogether instead of moving them to the list"
             );
         }
     }

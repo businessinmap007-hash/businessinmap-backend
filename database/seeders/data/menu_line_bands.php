@@ -49,25 +49,17 @@ return [
         'قطعة أثاث'          => 'Furniture Piece',
         'فحم'                     => 'Coal',
         'خضار وفاكهة'      => 'Fresh Produce',
-        'مواد غذائية'      => 'Foodstuffs',
         'سلطة فواكة'        => 'Fruit Salad',
         'آيس كريم'            => 'Ice Cream',
-        'عصائر'                 => 'Juices',
         'ألبان وبيض'        => 'Dairy & Eggs',
         'فسيخ'                   => 'Salted fish',
         'رنجة'                   => 'Smoked fish',
-        'بهارات'               => 'Spices',
         'أجبان'                 => 'Cheese',
         'وافل'                   => 'Waffle',
         'مخبوزات'             => 'Bakery',
         'لحوم ودواجن'      => 'Meat & Poultry',
         'مجمدات'               => 'Frozen Food',
-        'مكرونات وأرز وحبوب' => 'Pasta, Rice & Grains',
-        'معلبات'               => 'Canned Food',
-        'زيوت وسمن'          => 'Oils & Ghee',
-        'سناكس وتسالي'    => 'Snacks',
         'حلويات وشوكولاتة' => 'Sweets & Chocolate',
-        'مشروبات'             => 'Beverages',
         'منظفات'               => 'Cleaning Supplies',
         'عناية شخصية'      => 'Personal Care',
         'منتجات أطفال'    => 'Baby Products',
@@ -85,7 +77,11 @@ return [
         // «مستلزمات المحاصيل» now — a real list, not the grab-bag row.
         'تقاوي وأسمدة ومبيدات' => ['مستلزمات زراعية'],
         'أعلاف' => ['مستلزمات زراعية', 'ماشية وطيور'],
-        'حبوب وغلال' => ['مكرونات وأرز وحبوب', 'مواد غذائية'],
+        // «حبوب وغلال» #128 stood here with «مكرونات وأرز وحبوب» and «مواد
+        // غذائية» — two aisle words for a trade that sells the grain itself.
+        // The owner withdrew both by hand long before «أقسام البقالة الجافة»
+        // was retired on 2026-08-24; it answers «أنواع الحبوب والغلال», which
+        // is eighteen crops and the list it should always have had.
         'مواشي وأرانب' => ['ماشية وطيور'],
         // «مأكولات بحرية» withdrawn 2026-08-10: a fish farm sells fish, it does
         // not cook a seafood dish. It reaches «أسماك ومأكولات بحرية طازجة» in
@@ -121,15 +117,16 @@ return [
         | because the ruling is about the drinks and «فقط» answers it — a shop
         | that sells beans does not also stock juice.
         |
-        | What it sells now has a word of its own, «بن وشاي», granted from
-        | grocery_aisle_split.php. Deliberately NOT listed here: this map must
-        | not manage it, or the day someone edits this line the trade loses the
-        | only row that names it.
+        | What it sells had a word of its own from 2026-08-10 — «بن وشاي», one
+        | aisle row, because no list existed. On 2026-08-24 it got the list:
+        | «أنواع الشاي والقهوة», nine rows he can price, and «أنواع المكسرات
+        | والتسالي» beside it, because a محمصة roasts the لب on the same fire.
+        |
+        | So this entry is gone with the six aisle words it held. The map has
+        | nothing left to say about a coffee merchant, and saying nothing is the
+        | correct thing for it to say: `hasOtherLineGroup()` now sees his own
+        | vocabulary and leaves him alone.
         */
-        'بن' => [
-            'مواد غذائية', 'بهارات', 'مكرونات وأرز وحبوب',
-            'معلبات', 'زيوت وسمن', 'سناكس وتسالي',
-        ],
         'حلويات' => [
             'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',
             'مخبوزات', 'حلويات وشوكولاتة',
@@ -156,12 +153,11 @@ return [
         | ماركت» which were corrected explicitly. All three now read the same.
         */
         'سوبر ماركت' => [
-            'فحم', 'خضار وفاكهة', 'مواد غذائية', 'سلطة فواكة',
-            'آيس كريم', 'عصائر', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'بهارات', 'أجبان',
+            'فحم', 'خضار وفاكهة', 'سلطة فواكة',
+            'آيس كريم', 'ألبان وبيض',
+            'فسيخ', 'رنجة', 'أجبان',
             'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'مكرونات وأرز وحبوب', 'معلبات', 'زيوت وسمن', 'سناكس وتسالي',
-            'حلويات وشوكولاتة', 'مشروبات', 'منظفات', 'عناية شخصية',
+            'حلويات وشوكولاتة', 'منظفات', 'عناية شخصية',
             'منتجات أطفال', 'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
         /*
@@ -285,22 +281,20 @@ return [
         | a shop stocks, a kitchen prepares.
         */
         'مني ماركت' => [
-            'فحم', 'خضار وفاكهة', 'مواد غذائية', 'سلطة فواكة',
-            'آيس كريم', 'عصائر', 'ألبان وبيض', 
-            'فسيخ', 'رنجة', 'بهارات', 'أجبان',
+            'فحم', 'خضار وفاكهة', 'سلطة فواكة',
+            'آيس كريم', 'ألبان وبيض', 
+            'فسيخ', 'رنجة', 'أجبان',
             'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'مكرونات وأرز وحبوب', 'معلبات', 'زيوت وسمن', 'سناكس وتسالي',
-            'حلويات وشوكولاتة', 'مشروبات', 'منظفات', 'عناية شخصية',
+            'حلويات وشوكولاتة', 'منظفات', 'عناية شخصية',
             'منتجات أطفال', 'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
         // Same ruling, same trade. See «مني ماركت» above.
         'هايبر ماركت' => [
-            'فحم', 'خضار وفاكهة', 'مواد غذائية', 'سلطة فواكة',
-            'آيس كريم', 'عصائر', 'ألبان وبيض', 
-            'فسيخ', 'رنجة', 'بهارات', 'أجبان',
+            'فحم', 'خضار وفاكهة', 'سلطة فواكة',
+            'آيس كريم', 'ألبان وبيض', 
+            'فسيخ', 'رنجة', 'أجبان',
             'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'مكرونات وأرز وحبوب', 'معلبات', 'زيوت وسمن', 'سناكس وتسالي',
-            'حلويات وشوكولاتة', 'مشروبات', 'منظفات', 'عناية شخصية',
+            'حلويات وشوكولاتة', 'منظفات', 'عناية شخصية',
             'منتجات أطفال', 'مستلزمات حيوانات أليفة', 'أدوات منزلية',
         ],
     ],

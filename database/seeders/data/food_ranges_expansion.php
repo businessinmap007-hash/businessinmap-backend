@@ -517,11 +517,65 @@ return [
             'children' => [114],             // خضار وفاكهة
             'groups' => ['الفواكه', 'الخضروات'],
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | «نظّف البقالة الجافة والمشروبات» — المالك، 2026-08-24
+        |----------------------------------------------------------------------
+        | Granted BEFORE the two groups below are retired, and that order is the
+        | whole of it: «بن» #63 had exactly ONE priced list on the platform —
+        | «أقسام البقالة الجافة», two rows — so switching it off first would
+        | leave a coffee merchant with nothing he can put a price on.
+        |
+        | It is the same hole this taxonomy keeps digging, and the grocery split
+        | wrote the rule while filling it: «ruling on what a shop does not sell
+        | without giving it a word for what it does is how a child ends up
+        | mute». «بن وشاي» was that word in 2026-08-10 — a single aisle row,
+        | because there was no list. Now there is one, and it names the shelf:
+        | شاي فتلة، بن محوج، بن سادة، كاكاو.
+        |
+        | And the nuts with it: «سناكس وتسالي» was his other row, and a محمصة
+        | roasts the لب and the سوداني on the same fire it roasts the beans.
+        */
+        'coffee_merchant' => [
+            'children' => [63],              // بن
+            'groups' => ['أنواع الشاي والقهوة', 'أنواع المكسرات والتسالي'],
+        ],
     ],
 
     /*
-    | Switched off, not deleted, and its twenty rows stay inside it: they are
-    | the record of what the shelves were called before each one became a list.
+    |--------------------------------------------------------------------------
+    | Switched off, not deleted
+    |--------------------------------------------------------------------------
+    | Each keeps its rows inside it: they are the record of what the shelves
+    | were called before each one became a list.
+    |
+    | ── The two the owner named next, «نظّف البقالة الجافة والمشروبات» ────────
+    |
+    | «أقسام البقالة الجافة» (7) and «أقسام المشروبات» (2) came out of the same
+    | 27-row aisle list in August, and every word in both is now a list:
+    |
+    |     بن وشاي              →  أنواع الشاي والقهوة
+    |     بهارات               →  أنواع البهارات والتوابل
+    |     زيوت وسمن            →  أنواع الزيوت والسمن
+    |     معلبات               →  أنواع المعلبات
+    |     سناكس وتسالي         →  أنواع المكسرات والتسالي
+    |     مكرونات وأرز وحبوب   →  أنواع المكرونة + أنواع الحبوب والغلال
+    |     مواد غذائية          →  the thirteen, which is what the word meant
+    |     عصائر · مشروبات      →  أنواع المشروبات المعبأة
+    |
+    | Nine rows, and on the day this ran: zero merchant ticks, zero prices, zero
+    | offerings. Five of the nine already reached no child at all — the owner
+    | had withdrawn them by hand months before, which is the same ruling arrived
+    | at from the other side.
+    |
+    | ⚠ «أقسام المنزل والعناية» is NOT here. منظفات، عناية شخصية، فحم are not
+    | food, nothing above replaces them, and retiring a list because it sits
+    | beside one that was replaced is how a shop loses a shelf it still keeps.
     */
-    'retire' => ['أصناف المنتجات الغذائية'],
+    'retire' => [
+        'أصناف المنتجات الغذائية',
+        'أقسام البقالة الجافة',
+        'أقسام المشروبات',
+    ],
 ];

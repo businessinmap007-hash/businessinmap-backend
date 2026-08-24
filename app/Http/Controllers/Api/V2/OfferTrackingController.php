@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
 use App\Models\OfferTrackingEvent;
+use App\Services\Commercial\OfferAudience;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,19 @@ final class OfferTrackingController extends Controller
     public function track(Request $request, int $offer)
     {
         $row = CommercialOffer::query()->active()->findOrFail($offer);
+
+        /*
+         * Tracking is a write against an offer id, on a public route. Without
+         * this, «impression» on an id you were never shown answers the one
+         * question the direction exists to refuse — whether the id is a live
+         * offer — and it answers it by writing a row rather than reading one.
+         * 404, the same as an id that does not exist.
+         */
+        $audience = app(OfferAudience::class);
+
+        if (! $audience->canSee($row, $audience->viewer($request))) {
+            abort(404);
+        }
 
         $data = $request->validate([
             'event_type' => ['required', Rule::in(OfferTrackingEvent::eventTypes())],

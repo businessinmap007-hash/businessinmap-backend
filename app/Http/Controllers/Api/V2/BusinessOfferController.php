@@ -8,9 +8,11 @@ use App\Models\CommercialOffer;
 use App\Support\BusinessContext;
 use App\Services\Commercial\BusinessOffersSubscriptionService;
 use App\Services\Commercial\OfferFollowMatchingService;
+use App\Services\Commercial\OfferTargetWriter;
 use App\Services\Offers\OfferableResolver;
 use App\Services\Offers\OfferEligibility;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -19,6 +21,7 @@ final class BusinessOfferController extends Controller
     public function __construct(
         private readonly OfferableResolver $offerables,
         private readonly OfferEligibility $eligibility,
+        private readonly OfferTargetWriter $targets,
     ) {
     }
 
@@ -63,9 +66,20 @@ final class BusinessOfferController extends Controller
         }
 
         $data = $this->validatedData($request, (int) $user->id);
+        $this->targets->vet($request);
         $subscriptionService->ensureCanSaveOffer((int) $user->id, $data);
 
-        $offer = CommercialOffer::create($data);
+        $offer = DB::transaction(function () use ($data, $request) {
+            $offer = CommercialOffer::create($data);
+            $this->targets->sync($offer, $request);
+
+            return $offer;
+        });
+
+        // Matched AFTER the targets are written, never inside the transaction
+        // with them: the notifier asks who may see this offer, and an offer
+        // whose audience rows are not committed yet reads as addressed to
+        // everybody.
         $matched = $matchingService->matchOffer($offer);
 
         return response()->json([
@@ -73,6 +87,7 @@ final class BusinessOfferController extends Controller
             'message' => 'Offer created successfully.',
             'data' => [
                 'offer' => $offer->fresh(['ownerBusiness:id,name,logo', 'sellerBusiness:id,name,logo']),
+                'targets' => $this->targets->current($offer),
                 'usage' => $subscriptionService->usage((int) $user->id),
                 'matched_followers' => $matched,
             ],
@@ -104,9 +119,14 @@ final class BusinessOfferController extends Controller
         }
 
         $data = $this->validatedData($request, (int) $user->id, $row);
+        $this->targets->vet($request);
         $subscriptionService->ensureCanSaveOffer((int) $user->id, $data, (int) $row->id);
 
-        $row->update($data);
+        DB::transaction(function () use ($row, $data, $request) {
+            $row->update($data);
+            $this->targets->sync($row, $request);
+        });
+
         $matched = $matchingService->matchOffer($row->fresh());
 
         return response()->json([
@@ -114,6 +134,7 @@ final class BusinessOfferController extends Controller
             'message' => 'Offer updated successfully.',
             'data' => [
                 'offer' => $row->fresh(['ownerBusiness:id,name,logo', 'sellerBusiness:id,name,logo']),
+                'targets' => $this->targets->current($row),
                 'usage' => $subscriptionService->usage((int) $user->id),
                 'matched_followers' => $matched,
             ],

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
+use App\Services\Commercial\OfferAudience;
 use App\Services\Commercial\OfferComparisonService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,6 +16,7 @@ final class OfferComparisonController extends Controller
         $data = $request->validate([
             'offerable_type' => ['required', Rule::in([
                 CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
+                CommercialOffer::OFFERABLE_MENU_ITEM,
                 CommercialOffer::OFFERABLE_PRODUCT,
                 CommercialOffer::OFFERABLE_SERVICE,
                 CommercialOffer::OFFERABLE_PACKAGE,
@@ -47,7 +49,8 @@ final class OfferComparisonController extends Controller
             offerableId: (int) $data['offerable_id'],
             quantity: (int) ($data['quantity'] ?? 1),
             sort: (string) ($data['sort'] ?? OfferComparisonService::SORT_LOWEST_PRICE),
-            filters: $filters
+            filters: $filters,
+            viewer: app(OfferAudience::class)->viewer($request)
         );
 
         return response()->json([

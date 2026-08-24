@@ -3,6 +3,7 @@
 namespace App\Services\Commercial;
 
 use App\Models\CommercialOffer;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -13,12 +14,20 @@ final class OfferComparisonService
     public const SORT_BEST_VALUE = 'best_value';
     public const SORT_RANKING = 'ranking';
 
+    /**
+     * @param  User|null  $viewer  who is comparing. Null is a guest, and a
+     *                             guest compares public offers only — an
+     *                             offer directed at named companies must not
+     *                             set the «أرخص سعر» a stranger is quoted.
+     */
     public function compare(
         string $offerableType,
         int $offerableId,
         int $quantity = 1,
         string $sort = self::SORT_LOWEST_PRICE,
-        array $filters = []
+        array $filters = [],
+        ?User $viewer = null,
+        ?string $requestedAudience = null
     ): Collection {
         $quantity = max($quantity, 1);
 
@@ -26,6 +35,8 @@ final class OfferComparisonService
             ->with(['sellerBusiness:id,name,type,logo,category_id,category_child_id', 'ownerBusiness:id,name,type,logo,category_id,category_child_id'])
             ->active()
             ->forOfferable($offerableType, $offerableId);
+
+        app(OfferAudience::class)->apply($query, $viewer, $requestedAudience);
 
         $this->applyFilters($query, $filters);
 
@@ -41,14 +52,16 @@ final class OfferComparisonService
         string $offerableType,
         int $offerableId,
         int $quantity = 1,
-        array $filters = []
+        array $filters = [],
+        ?User $viewer = null
     ): ?array {
         return $this->compare(
             offerableType: $offerableType,
             offerableId: $offerableId,
             quantity: $quantity,
             sort: self::SORT_LOWEST_PRICE,
-            filters: $filters
+            filters: $filters,
+            viewer: $viewer
         )->first();
     }
 

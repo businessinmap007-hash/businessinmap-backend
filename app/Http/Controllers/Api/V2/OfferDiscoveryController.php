@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
+use App\Services\Commercial\OfferAudience;
 use App\Services\Commercial\OfferComparisonService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -11,6 +12,10 @@ use Illuminate\Validation\Rule;
 
 final class OfferDiscoveryController extends Controller
 {
+    public function __construct(private readonly OfferAudience $audience)
+    {
+    }
+
     public function index(Request $request)
     {
         $data = $request->validate([
@@ -117,14 +122,13 @@ final class OfferDiscoveryController extends Controller
             offerableId: (int) $data['offerable_id'],
             quantity: (int) ($data['quantity'] ?? 1),
             sort: (string) ($data['sort'] ?? OfferComparisonService::SORT_LOWEST_PRICE),
-            filters: $filters
+            filters: $filters,
+            viewer: $this->audience->viewer($request),
+            requestedAudience: $data['audience_type'] ?? null
         );
 
-        $visibleAudiences = $this->visibleAudiences($request, $data['audience_type'] ?? null);
-
-        $offers = $offers->filter(function (array $offer) use ($visibleAudiences) {
-            return in_array((string) ($offer['source_type'] ?? ''), $this->publicSourceTypes(), true)
-                && in_array((string) ($offer['audience_type'] ?? CommercialOffer::AUDIENCE_BOTH), $visibleAudiences, true);
+        $offers = $offers->filter(function (array $offer) {
+            return in_array((string) ($offer['source_type'] ?? ''), $this->publicSourceTypes(), true);
         })->values();
 
         return response()->json([
@@ -139,26 +143,21 @@ final class OfferDiscoveryController extends Controller
         ]);
     }
 
+    /**
+     * Audience AND direction, in one clause on the query.
+     *
+     * The audience says WHICH KIND of viewer an offer is for; the targets say
+     * WHICH viewers. Both belong on the builder rather than on the results:
+     * this endpoint paginates, and a row dropped after the fact is a page of
+     * nineteen sold as twenty.
+     */
     private function applyAudience(Builder $query, Request $request, array $data): void
     {
-        $visible = $this->visibleAudiences($request, $data['audience_type'] ?? null);
-        $query->whereIn('audience_type', $visible);
-    }
-
-    private function visibleAudiences(Request $request, ?string $requestedAudience = null): array
-    {
-        if ($requestedAudience && $requestedAudience !== CommercialOffer::AUDIENCE_PRIVATE) {
-            return [$requestedAudience];
-        }
-
-        $user = method_exists($request, 'user') ? $request->user() : null;
-        $type = $user ? (string) $user->type : 'client';
-
-        if ($type === 'business') {
-            return [CommercialOffer::AUDIENCE_B2B, CommercialOffer::AUDIENCE_BOTH];
-        }
-
-        return [CommercialOffer::AUDIENCE_B2C, CommercialOffer::AUDIENCE_BOTH];
+        $this->audience->apply(
+            $query,
+            $this->audience->viewer($request),
+            $data['audience_type'] ?? null
+        );
     }
 
     private function applyFilters(Builder $query, array $data): void
@@ -219,6 +218,7 @@ final class OfferDiscoveryController extends Controller
     {
         return [
             CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
+            CommercialOffer::OFFERABLE_MENU_ITEM,
             CommercialOffer::OFFERABLE_PRODUCT,
             CommercialOffer::OFFERABLE_SERVICE,
             CommercialOffer::OFFERABLE_PACKAGE,

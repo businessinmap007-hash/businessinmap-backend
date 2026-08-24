@@ -107,27 +107,21 @@ final class OfferFollowMatchingService
         });
     }
 
+    /**
+     * The same test discovery uses, applied one follower at a time.
+     *
+     * A push that says «٣٠٪ خصم» to somebody the offer was never addressed to
+     * has already told him the offer exists — so this cannot be a looser rule
+     * than the wall. It is the same object, deliberately: a direction enforced
+     * in search and forgotten in notifications is not enforced.
+     */
     private function audienceMatches(CommercialOffer $offer, ?User $user): bool
     {
         if (! $user) {
             return false;
         }
 
-        $audience = (string) ($offer->audience_type ?: CommercialOffer::AUDIENCE_BOTH);
-
-        if ($audience === CommercialOffer::AUDIENCE_BOTH) {
-            return true;
-        }
-
-        if ($audience === CommercialOffer::AUDIENCE_B2B) {
-            return (string) $user->type === 'business';
-        }
-
-        if ($audience === CommercialOffer::AUDIENCE_B2C) {
-            return (string) $user->type === 'client';
-        }
-
-        return false;
+        return app(OfferAudience::class)->canSee($offer, $user);
     }
 
     private function score(CommercialOffer $offer, OfferFollow $follow): float

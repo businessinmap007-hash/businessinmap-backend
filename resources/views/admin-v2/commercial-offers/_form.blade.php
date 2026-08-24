@@ -190,6 +190,25 @@
             </select>
             <div class="a2-help">{{ __('كل قسم مكتوب بجواره اسم الأب. يمكن اختيار أقسام من تصنيفات مختلفة.') }}</div>
         </div>
+
+        <div class="a2-field">
+            <label class="a2-label">{{ __('أنشطة بعينها') }}</label>
+            {{-- بحثٌ بالاسم من نقطة البحث نفسها التي يستخدمها اختيار البائع،
+                 فلا تُحمَّل ١٧٤٨ خيارًا فى الصفحة. المحفوظُ يعود باسمه. --}}
+            <select class="a2-select" name="target_businesses[]" multiple
+                    data-remote-url="{{ $bizLookupUrl }}"
+                    data-placeholder="{{ __('ابحث بالاسم أو الرقم #…') }}">
+                @foreach($selectedTargetBusinesses as $biz)
+                    <option value="{{ $biz->id }}" selected>#{{ $biz->id }} — {{ $biz->name }}</option>
+                @endforeach
+            </select>
+            <div class="a2-help">{{ __('العرض يصل هؤلاء بأسمائهم، مهما كان تصنيفهم.') }}</div>
+        </div>
+
+        {{-- علامةُ «هذه الاستمارة تتكلم عن التوجيه».
+             القائمةُ المتعددة الفارغة لا تُرسل شيئًا، فبدون هذا السطر يستطيع
+             المسؤول أن يضيف ولا يستطيع أن يحذف آخر ما أضافه. --}}
+        <input type="hidden" name="targets_declared" value="1">
     </div>
 
     @push('scripts')

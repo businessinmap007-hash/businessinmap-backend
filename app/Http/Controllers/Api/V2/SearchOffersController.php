@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
 use App\Models\User;
+use App\Services\Commercial\OfferAudience;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 final class SearchOffersController extends Controller
 {
+    public function __construct(private readonly OfferAudience $audience)
+    {
+    }
+
     public function index(Request $request)
     {
         $data = $request->validate([
@@ -35,8 +40,13 @@ final class SearchOffersController extends Controller
         $offersQuery = CommercialOffer::query()
             ->with(['sellerBusiness:id,name,type,logo,category_id,category_child_id', 'ownerBusiness:id,name,type,logo,category_id,category_child_id'])
             ->active()
-            ->whereIn('source_type', $this->sourceTypes())
-            ->whereIn('audience_type', $this->visibleAudiences($request, $data['audience_type'] ?? null));
+            ->whereIn('source_type', $this->sourceTypes());
+
+        $this->audience->apply(
+            $offersQuery,
+            $this->audience->viewer($request),
+            $data['audience_type'] ?? null
+        );
 
         $this->applyOfferFilters($offersQuery, $data);
 
@@ -86,22 +96,6 @@ final class SearchOffersController extends Controller
         $request->merge(['business_id' => $businessId]);
 
         return $this->index($request);
-    }
-
-    private function visibleAudiences(Request $request, ?string $requestedAudience = null): array
-    {
-        if ($requestedAudience && $requestedAudience !== CommercialOffer::AUDIENCE_PRIVATE) {
-            return [$requestedAudience];
-        }
-
-        $user = method_exists($request, 'user') ? $request->user() : null;
-        $type = $user ? (string) $user->type : 'client';
-
-        if ($type === 'business') {
-            return [CommercialOffer::AUDIENCE_B2B, CommercialOffer::AUDIENCE_BOTH];
-        }
-
-        return [CommercialOffer::AUDIENCE_B2C, CommercialOffer::AUDIENCE_BOTH];
     }
 
     private function businessesQuery(array $data): Builder
@@ -199,6 +193,7 @@ final class SearchOffersController extends Controller
     {
         return [
             CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
+            CommercialOffer::OFFERABLE_MENU_ITEM,
             CommercialOffer::OFFERABLE_PRODUCT,
             CommercialOffer::OFFERABLE_SERVICE,
             CommercialOffer::OFFERABLE_PACKAGE,

@@ -461,27 +461,24 @@ class OfferingVocabularyTest extends TestCase
     }
 
     /**
-     * «أقمشة» #95, found in the 2026-08-24 audit and reported as an outage it
-     * is not.
+     * «أقمشة» #95 — the audit finding, and what it took two goes to get right.
      *
-     * The stored role says it has nothing to price: «أنواع الأقمشة» is a
-     * `modifier` and the owner withdrew its only `line` row («أقمشة» inside
-     * «موضة وعناية شخصية») twice on 2026-08-16 — correctly, because «أقمشة» is
-     * a word that describes the shop, not a thing anybody buys.
+     * The stored role said the trade had nothing to price: «أنواع الأقمشة» was
+     * a `modifier`, and the owner had withdrawn its only `line` row («أقمشة»
+     * inside «موضة وعناية شخصية») twice on 2026-08-16 — correctly, because
+     * «أقمشة» describes the shop rather than naming a thing anybody buys.
      *
-     * What the merchant is actually OFFERED is the fifteen fabrics, promoted at
-     * read time. Which is the right answer and the right place for it: قطن and
-     * حرير are two prices per metre for a fabric shop, and the same two words
-     * are a QUALIFIER on a shirt for «ملابس جاهزة» next door, which carries the
-     * identical group. One stored role cannot say both; the per-child promotion
-     * can, and does.
+     * It was NOT mute: the reader was promoting the fifteen fabrics for him,
+     * which is what the promotion exists for. Reporting it as an outage was a
+     * mistake — an audit that reads `option_groups.price_role` is not reading
+     * what the merchant is shown.
      *
-     * Pinned here because an audit that reads `option_groups.price_role` will
-     * keep reporting this trade as mute, and the fix it suggests — flipping the
-     * group to `line` — would hand three clothing children a priced list of
-     * cloth they do not sell by the metre.
+     * Then the owner raised it anyway («ارفعه»), and that is the better answer:
+     * a metre of قطن is what this shop SELLS. So the fifteen reach him because
+     * the column says so, and the promotion no longer has to fire — which is
+     * one fewer inference between the data and the screen.
      */
-    public function test_a_fabric_shop_prices_its_fabrics_by_promotion(): void
+    public function test_a_fabric_shop_prices_its_fabrics_from_a_stored_line(): void
     {
         $child = (int) DB::table('category_children_master')->where('name_ar', 'أقمشة')->value('id');
 
@@ -489,18 +486,23 @@ class OfferingVocabularyTest extends TestCase
             $this->markTestSkipped('«أقمشة» is not in this database.');
         }
 
+        $this->assertSame(
+            'line',
+            (string) DB::table('option_groups')->where('name_ar', 'أنواع الأقمشة')->value('price_role')
+        );
+
         $business = DB::table('users')->where('type', 'business')->orderBy('id')->value('id');
 
         $result = app(MerchantOfferingVocabulary::class)->for((int) $business, $child);
 
-        $this->assertSame('modifier', $result['promoted'], '«أقمشة» has gone mute');
+        $this->assertNull($result['promoted'], 'the promotion is firing over a real line');
 
         $lines = collect($result['lines'])->flatten(1);
 
         $this->assertSame(
             ['أنواع الأقمشة'],
             $lines->pluck('group_name')->unique()->values()->all(),
-            'the promotion is all-or-nothing and it reached past the fabrics'
+            '«أقمشة» prices something that is not cloth'
         );
 
         foreach (['قطن', 'حرير', 'كتان'] as $cloth) {

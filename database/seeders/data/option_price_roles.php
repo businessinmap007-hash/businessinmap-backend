@@ -375,6 +375,29 @@ return [
 
         /*
         |----------------------------------------------------------------------
+        | «ارفعه» — المالك، 2026-08-24, about «أنواع الأقمشة»
+        |----------------------------------------------------------------------
+        | It was a `modifier` from 2026-08-12 on a reading that held for the
+        | shop next door and not for the shop that owns it: a metre of قطن is
+        | what «أقمشة» #95 SELLS, priced by the metre, while for «ملابس جاهزة»
+        | the same word qualifies a shirt.
+        |
+        | ⚠ One stored role cannot say both, and this group is carried by four
+        | children — أقمشة، ملابس، ملابس جاهزة، مفروشات. Raising it gives the
+        | three clothing trades a priced section of cloth as well; that is the
+        | cost of the ruling and it is the owner's to make. A merchant's own
+        | ticks narrow it, and «مراجعة المنيو» shows him the empty band rather
+        | than pretending it is filled.
+        |
+        | It also stops MerchantOfferingVocabulary's promotion firing for #95 —
+        | the fifteen fabrics were already reaching him that way, and now they
+        | reach him because the column says so. Same fifteen rows, one fewer
+        | inference between the data and the screen.
+        */
+        'أنواع الأقمشة',           // متر قطن ≠ متر حرير
+
+        /*
+        |----------------------------------------------------------------------
         | The goods reversal, 2026-08-16
         |----------------------------------------------------------------------
         | «معظم مجموعات الخيارات الوصفية هى المفروض ان تكون سطر مسعر كما فعلت فى
@@ -621,11 +644,11 @@ return [
         // `line` list above. It was the one survivor of the modifier pattern
         // and it was the clearest case against it: a modifier with no line
         // under it prices nothing at all.
-        // «مفروشات - اقمشة هم فقراء جدا فى خياراتهم» — owner, 2026-08-12. The
-        // fabric list stays a modifier: a bolt of cotton is a catalog product
-        // and the fibre qualifies its price. «أصناف المفروشات» went the other
-        // way on his instruction — see the `line` block above.
-        'أنواع الأقمشة',
+        // «أنواع الأقمشة» left this block on 2026-08-24 — see the `line` list
+        // above. It stood here from 2026-08-12 on the reading that a bolt of
+        // cotton is a catalog product and the fibre qualifies its price; the
+        // owner overruled it with «ارفعه» after the audit that found «أقمشة»
+        // #95 with no stored line at all.
     ],
 
     /*

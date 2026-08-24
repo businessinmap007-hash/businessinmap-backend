@@ -928,14 +928,23 @@ class ChildTradeVocabulariesTest extends TestCase
          * «عدل أصناف المفروشات سطر مسعر» — owner, overruling the goods rule
          * that would have made it a modifier. A مفروشات merchant quotes «طقم
          * مفارش سرير» as a price with a size and a piece count, so the range IS
-         * the priced row. The fabric list stays a modifier: a bolt of cotton is
-         * a catalog product and the fibre qualifies its price.
+         * the priced row.
+         *
+         * ⚠ «أنواع الأقمشة» was the modifier that stayed behind, on the reading
+         * that a bolt of cotton is a catalog product and the fibre qualifies
+         * its price. The owner overruled that too on 2026-08-24 — «ارفعه» —
+         * after an audit found «أقمشة» #95 with no stored line at all: a metre
+         * of قطن is what THAT shop sells, by the metre.
+         *
+         * Both are `line` now, and the two rulings are the same ruling: the
+         * trade that owns a list decides what the list is, not the trade next
+         * door that borrows it.
          */
         $role = fn (string $group) => (string) DB::table('option_groups')
             ->where('name_ar', $group)->value('price_role');
 
         $this->assertSame('line', $role('أصناف المفروشات'));
-        $this->assertSame('modifier', $role('أنواع الأقمشة'));
+        $this->assertSame('line', $role('أنواع الأقمشة'));
     }
 
     /**

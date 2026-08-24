@@ -288,6 +288,56 @@ class MenuOutlineTest extends TestCase
             ->assertSee($this->business->name, false);
     }
 
+    // ── the merchant's own door onto the same reading ───────────────────────
+
+    public function test_the_merchant_reviews_his_own_list(): void
+    {
+        $this->item('بيتزا مارجريتا', (int) $this->bandNamed('بيتزا')->id);
+
+        $this->actingAs($this->business)
+            ->get('/business/menu/review')
+            ->assertOk()
+            ->assertSee('بيتزا مارجريتا')
+            ->assertSee('شوربة');   // the band he may fill and has not
+    }
+
+    public function test_a_merchant_reviews_his_own_list_and_nobody_else_s(): void
+    {
+        // There is no id in that URL, which is the point: the panel answers
+        // for the acting business and there is nothing to widen.
+        $mine = $this->item('بيتزا مارجريتا', (int) $this->bandNamed('بيتزا')->id);
+
+        $stranger = User::query()
+            ->where('type', 'business')
+            ->where('id', '!=', $this->business->id)
+            ->orderBy('id')
+            ->first() ?: $this->markTestSkipped('Needs a second business.');
+
+        $this->actingAs($stranger)
+            ->get('/business/menu/review')
+            ->assertOk()
+            ->assertDontSee($mine->name_ar);
+    }
+
+    public function test_both_panels_read_one_arrangement(): void
+    {
+        // Same partial, same service. A second copy of «المراجعة» would tell
+        // the merchant something the platform does not say about his own menu.
+        $admin = User::query()->where('type', 'admin')->orderBy('id')->first()
+            ?: $this->markTestSkipped('Needs an admin user.');
+
+        $this->item('بيتزا مارجريتا', (int) $this->bandNamed('بيتزا')->id);
+
+        foreach ([
+            [$admin, '/admin/menu-review?business_id=' . $this->business->id],
+            [$this->business, '/business/menu/review'],
+        ] as [$actor, $url]) {
+            $this->actingAs($actor)->get($url)->assertOk()
+                ->assertSee('بيتزا مارجريتا')
+                ->assertSee('بنود المنيو');
+        }
+    }
+
     public function test_the_arrangement_stores_nothing(): void
     {
         // The reading is derived. If it ever writes, two answers to «ما الذي

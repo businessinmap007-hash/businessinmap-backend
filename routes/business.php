@@ -10,6 +10,7 @@ use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
+use App\Http\Controllers\Business\MenuReviewController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
@@ -142,6 +143,11 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('menu-sections/{id}/edit', [MenuSectionController::class, 'edit'])->whereNumber('id')->name('menu-sections.edit');
         Route::put('menu-sections/{id}', [MenuSectionController::class, 'update'])->whereNumber('id')->name('menu-sections.update');
         Route::delete('menu-sections/{id}', [MenuSectionController::class, 'destroy'])->whereNumber('id')->name('menu-sections.destroy');
+
+        // قائمتُه كاملةً: القسم ثم البند ثم أصنافه، والبندُ الفارغ معها.
+        // قبل «menu» لأن الأخيرة تلتقط {id}؛ ولا معرّف في هذا المسار أصلًا،
+        // فلا شيء يُوسَّع به إلى منيو غيره.
+        Route::get('menu/review', [MenuReviewController::class, 'index'])->name('menu.review');
 
         Route::get('menu', [MenuItemController::class, 'index'])->name('menu.index');
         Route::get('menu/create', [MenuItemController::class, 'create'])->name('menu.create');

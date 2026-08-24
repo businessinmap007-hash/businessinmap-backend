@@ -75,6 +75,17 @@
             <small class="a2-help">{{ __('السعر لكل ماذا — كجم للخضار، لتر للعصير. اتركها فارغة إن كان السعر للقطعة.') }}</small>
         </div>
 
+        {{-- الكميةُ المتاحة: أربعون كيلو برتقال. الفراغُ يعني «لا أتابعها»،
+             وهو حالُ كلِّ صفٍّ قائم ومطبخٍ لا يعدّ السندوتشات. والصفرُ دعوى
+             أخرى: «معروضٌ ونفد» — فيبقى السعرُ والصنفُ ويقول «نفدت الكمية». --}}
+        <div class="a2-form-group">
+            <label class="a2-label" for="available_quantity">{{ __('الكمية المتاحة') }}</label>
+            <input class="a2-input" id="available_quantity" name="available_quantity" type="number" min="0"
+                   value="{{ old('available_quantity', $row->available_quantity ?? '') }}"
+                   placeholder="{{ __('اتركها فارغة إن كنت لا تتابعها') }}">
+            <small class="a2-help">{{ __('بوحدة البيع — أربعون كجم. صفر يعني «نفدت» مع بقاء الصنف والسعر.') }}</small>
+        </div>
+
         <div class="a2-form-group">
             <label class="a2-label" for="sort_order">{{ __('الترتيب') }}</label>
             <input class="a2-input" id="sort_order" name="sort_order" type="number" min="0" value="{{ old('sort_order', (int) ($row->sort_order ?? 0)) }}">

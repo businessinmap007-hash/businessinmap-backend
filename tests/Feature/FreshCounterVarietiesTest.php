@@ -174,11 +174,49 @@ class FreshCounterVarietiesTest extends TestCase
 
     public static function carriers(): array
     {
+        /*
+         * Widened 2026-08-24, twice in one day and both times by a decision:
+         * the three markets were given the variety lists themselves («وتكون
+         * الخيارات أقسام رئيسية … وتحتها كل الحبوب»), and «جزارة» was created
+         * as the trade that sells meat.
+         */
         return [
-            'لحوم' => [self::MEAT, ['مجمدات']],
-            'أسماك' => [self::FISH, ['أسماك', 'مجمدات', 'مزارع سمكية']],
-            'ألبان' => [self::DAIRY, ['مجمدات', 'هايبر ماركت', 'مني ماركت']],
+            'لحوم' => [self::MEAT, ['مجمدات', 'جزارة', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
+            'أسماك' => [self::FISH, ['أسماك', 'مجمدات', 'مزارع سمكية', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
+            'ألبان' => [self::DAIRY, ['مجمدات', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
         ];
+    }
+
+    public function test_the_bakery_counter_has_its_bread(): void
+    {
+        $bread = $this->optionsOf('أنواع المخبوزات');
+
+        foreach (['عيش بلدي', 'عيش فينو', 'فطير مشلتت', 'كحك'] as $word) {
+            $this->assertContains($word, $bread->all());
+        }
+
+        $this->assertContains('مخابز', $this->childrenOf('أنواع المخبوزات')->all());
+    }
+
+    public function test_a_market_carries_the_counter_and_what_is_on_it(): void
+    {
+        // «وتكون الخيارات أقسام رئيسية مثل حبوب وغلال وتحتها كل الحبوب»
+        $market = DB::table('category_children_master')->where('name_ar', 'سوبر ماركت')->value('id');
+
+        $groups = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $market)
+            ->distinct()
+            ->pluck('g.name_ar');
+
+        foreach ([
+            'أقسام الطازج واللحوم',   // the counters it always had
+            'الفواكه', 'الخضروات', self::MEAT, self::FISH, self::DAIRY,
+            'أنواع المخبوزات', 'أنواع الحبوب والغلال', 'أنواع الدواجن والطيور',
+        ] as $group) {
+            $this->assertContains($group, $groups->all(), "«سوبر ماركت» cannot say «{$group}»");
+        }
     }
 
     public function test_all_three_are_priceable_and_stay_priceable(): void

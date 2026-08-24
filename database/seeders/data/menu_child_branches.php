@@ -21,6 +21,8 @@ return [
     // ── المحلات أو أونلاين ──
     'shops-online' => [
         'أسماك' => ['fresh_market'],
+        // 2026-08-24 — the meat counter, beside the fish one.
+        'جزارة' => ['fresh_market'],
         // «بن يبيع حبوب فقط» (2026-08-10). The ruling was carried through to
         // the option bands — بن lost its four menu bands and kept «أقسام
         // البقالة الجافة» — but not to here, and this file is the other half:

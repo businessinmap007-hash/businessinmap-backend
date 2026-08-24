@@ -168,6 +168,16 @@ final class MenuDiscoveryController extends Controller
             // «٤٥ ج / كجم» without carrying its own unit table.
             'sale_unit' => $item->sale_unit ?: null,
             'sale_unit_label' => $item->priceUnitLabel(),
+            /*
+             * null = «لا أتابع الكمية», which is every kitchen and every row
+             * written before 2026-08-24. 0 = «معروض، ونفد». The app must tell
+             * them apart: the first says nothing, the second greys the row and
+             * keeps the price on it — which is the whole reason this is not
+             * done by switching the item off.
+             */
+            'available_quantity' => $item->available_quantity === null
+                ? null
+                : (int) $item->available_quantity,
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

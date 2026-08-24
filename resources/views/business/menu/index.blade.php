@@ -81,6 +81,13 @@
                             @if($unit = $row->priceUnitLabel())
                                 <small style="font-weight:400;opacity:.7;">/ {{ $unit }}</small>
                             @endif
+                            @if($row->available_quantity !== null)
+                                <div class="a2-muted" style="font-weight:400;">
+                                    {{ (int) $row->available_quantity === 0
+                                        ? __('نفدت الكمية')
+                                        : __('المتاح') . ': ' . (int) $row->available_quantity }}
+                                </div>
+                            @endif
                         </td>
                         <td>{{ (int) $row->sort_order }}</td>
                         <td>

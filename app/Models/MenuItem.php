@@ -52,6 +52,7 @@ class MenuItem extends Model
         'image',
         'base_price',
         'sale_unit',
+        'available_quantity',
         'is_active',
         'sort_order',
         'is_featured',

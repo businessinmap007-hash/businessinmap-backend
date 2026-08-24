@@ -685,6 +685,33 @@ return [
         | Eggs are NOT here: «بيض مائدة» and «بيض تفريخ» are already in «أنواع
         | الدواجن والطيور», where the bird that lays them is.
         */
+        /*
+        | «نعم اكتب المخبوزات» — المالك، 2026-08-24.
+        |
+        | «مخبوزات» is a counter in «بنود المخبوزات والحلويات» and a bakery
+        | could not say «عيش بلدي» — the same gap as the meat and the fish, one
+        | fridge over. «حلويات» beside it is already covered by «أصناف الحلويات
+        | والجاتوه» (18), so this list is the BREAD half only and does not
+        | repeat it.
+        */
+        'أنواع المخبوزات' => [
+            'name_en' => 'Bakery Varieties', 'price_role' => 'line', 'children' => [27],
+            'options' => [
+                'عيش بلدي' => 'Baladi Bread',
+                'عيش فينو' => 'Fino Bread',
+                'عيش سن' => 'Wholemeal Bread',
+                'عيش شامي' => 'Shami Bread',
+                'توست' => 'Toast Bread',
+                'بقسماط' => 'Rusk',
+                'سميط' => 'Semit',
+                'فطير مشلتت' => 'Feteer',
+                'كحك' => 'Kahk',
+                'بيتي فور' => 'Petit Four',
+                'كرواسون' => 'Croissant',
+                'باتيه' => 'Pastry Rolls',
+            ],
+        ],
+
         'أنواع الألبان والأجبان' => [
             'name_en' => 'Dairy & Cheese Varieties', 'price_role' => 'line', 'children' => [113, 149, 185],
             'options' => [
@@ -775,5 +802,54 @@ return [
         57 => ['الأنتيكات والتحف' => 'all'],
 
         222 => ['الأكياس والمنتجات البلاستيكية' => 'all'],
+
+        /*
+        |----------------------------------------------------------------------
+        | 2026-08-24 — a market carries the counter AND what is on it
+        |----------------------------------------------------------------------
+        | «وتكون الخيارات أقسام رئيسية مثل حبوب وغلال وتحتها كل الحبوب،
+        |  والفواكه وتحتها الفواكه» — المالك.
+        |
+        | The three markets carried «أقسام الطازج واللحوم» and «أصناف المنتجات
+        | الغذائية» — nine counters and twenty ranges, and not one word a price
+        | hangs on. A supermarket really does sell mangoes and كندوز and رومي,
+        | so it gets the variety lists themselves; the counters stay beside them
+        | because a counter is still a true thing for a market to say.
+        |
+        | It is a long picker on purpose: `MerchantOfferingVocabulary` narrows
+        | it to what THIS merchant ticked about himself, and «مراجعة المنيو»
+        | then shows him each section with what he has and has not filled.
+        |
+        | «مواد غذائية» #109 and «مواد غذائية ومنظفات» #110 are DRY grocers —
+        | grains and bakery, no fresh counter. That is the whole distinction
+        | between them and a mini-market.
+        */
+        149 => [   // هايبر ماركت
+            'الفواكه' => 'all', 'الخضروات' => 'all',
+            'أنواع اللحوم' => 'all', 'أنواع الدواجن والطيور' => 'all',
+            'أنواع الأسماك والمأكولات البحرية' => 'all',
+            'أنواع الألبان والأجبان' => 'all',
+            'أنواع المخبوزات' => 'all', 'أنواع الحبوب والغلال' => 'all',
+        ],
+        185 => [   // مني ماركت
+            'الفواكه' => 'all', 'الخضروات' => 'all',
+            'أنواع اللحوم' => 'all', 'أنواع الدواجن والطيور' => 'all',
+            'أنواع الأسماك والمأكولات البحرية' => 'all',
+            'أنواع الألبان والأجبان' => 'all',
+            'أنواع المخبوزات' => 'all', 'أنواع الحبوب والغلال' => 'all',
+        ],
+        272 => [   // سوبر ماركت
+            'الفواكه' => 'all', 'الخضروات' => 'all',
+            'أنواع اللحوم' => 'all', 'أنواع الدواجن والطيور' => 'all',
+            'أنواع الأسماك والمأكولات البحرية' => 'all',
+            'أنواع الألبان والأجبان' => 'all',
+            'أنواع المخبوزات' => 'all', 'أنواع الحبوب والغلال' => 'all',
+        ],
+
+        109 => ['أنواع الحبوب والغلال' => 'all', 'أنواع المخبوزات' => 'all'],
+        110 => ['أنواع الحبوب والغلال' => 'all', 'أنواع المخبوزات' => 'all'],
+
+        // The bakery counter itself, so «مخبوزات» has its bread under it.
+        27 => ['أنواع المخبوزات' => 'all'],
     ],
 ];

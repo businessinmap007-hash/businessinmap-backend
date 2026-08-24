@@ -121,6 +121,11 @@ class DatabaseSeeder extends Seeder
            // apart — but it is kept beside them because it is the same move.
            ProduceAisleSplitSeeder::class,
 
+           // A trade for the meat counter — «لحوم ودواجن» reached one child and
+           // none of them was a butcher. After the vocabularies, whose two
+           // lists it borrows whole.
+           ButcherChildSeeder::class,
+
            // Four accessory children become one, and what KIND of accessory
            // becomes an option. After the remodel, before the detachments.
            AccessoryMergeSeeder::class,
@@ -303,6 +308,14 @@ class DatabaseSeeder extends Seeder
            // chain granted, a recorded withdrawal takes away again. Anything
            // added after this line can undo a hand removal unnoticed.
            ChildOptionDecisionsSeeder::class,
+
+           /*
+            * Dead last, and it has to be: it numbers what EXISTS. A child or a
+            * group created by any line above would otherwise keep the number it
+            * was minted with — `max(reorder) + 1` — and sit at the end of every
+            * list under a name that starts with «أ».
+            */
+           DisplayOrderSeeder::class,
 
 
 

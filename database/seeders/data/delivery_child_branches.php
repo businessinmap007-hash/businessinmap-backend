@@ -181,6 +181,7 @@ return [
         'أدوات كهربائية' => ['delivery'],
         'أدوات مكتبية' => ['delivery'],
         'أسماك' => ['delivery', 'delivery_coldchain'],
+        'جزارة' => ['delivery', 'delivery_coldchain'],
         'أصواف' => ['delivery'],
         'أقمشة' => ['delivery'],
         'ألمونتال' => ['delivery'],

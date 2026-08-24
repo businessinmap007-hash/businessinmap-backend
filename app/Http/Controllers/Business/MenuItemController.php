@@ -270,12 +270,16 @@ class MenuItemController extends Controller
             // What the price is the price OF. Empty means «by the item», which
             // is what a sandwich is; a greengrocer says «كجم».
             'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
+            // NULL means «لا أتابع الكمية» — a kitchen does not count
+            // sandwiches. Zero is the other claim: «معروض، ونفد».
+            'available_quantity' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable'],
         ], [], [
             'name_ar' => 'الاسم العربي',
             'base_price' => 'السعر',
             'sale_unit' => 'وحدة البيع',
+            'available_quantity' => 'الكمية المتاحة',
             'menu_section_id' => 'القسم',
             'item_type' => 'النوع',
         ]);
@@ -295,6 +299,10 @@ class MenuItemController extends Controller
             'base_price' => round((float) $data['base_price'], 2),
             // Empty string and «by the item» are the same answer; both null.
             'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
+            'available_quantity' => ($data['available_quantity'] ?? null) === null
+                || $data['available_quantity'] === ''
+                ? null
+                : max(0, (int) $data['available_quantity']),
             'sort_order' => max(0, (int) ($data['sort_order'] ?? 0)),
             'is_active' => (int) $request->boolean('is_active'),
         ];

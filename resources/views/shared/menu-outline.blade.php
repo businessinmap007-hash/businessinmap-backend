@@ -104,6 +104,14 @@
                                         @endif
                                     </span>
 
+                                    @if($item->available_quantity !== null)
+                                        <span class="a2-pill {{ (int) $item->available_quantity === 0 ? 'a2-pill-danger' : 'a2-pill-gray' }}">
+                                            {{ (int) $item->available_quantity === 0
+                                                ? __('نفدت الكمية')
+                                                : __('متاح') . ' ' . (int) $item->available_quantity }}
+                                        </span>
+                                    @endif
+
                                     @if(! $item->is_active)
                                         <span class="a2-pill a2-pill-gray">{{ __('غير متاح') }}</span>
                                     @endif

@@ -30,9 +30,22 @@ class GroceryAisleSplitTest extends TestCase
      * والحلويات مطابخ» (owner, 2026-08-10) and those two are what that group was
      * built around.
      */
-    private const COUNTERS = [
+    /**
+     * All five, and every one of them is now switched off.
+     *
+     * Kept as a list because half this file's tests are of the shape «this
+     * child is NOT asked an aisle» — the complaint the owner made about
+     * «حبوب وغلال» and «دواجن» in August. Those claims did not weaken when the
+     * groups were retired; they became absolute, and they still have to be
+     * checked, because a seeder that re-grants a retired row is the one failure
+     * mode a switch-off has.
+     */
+    private const AISLES = [
         'أقسام الطازج واللحوم',
         'بنود المخبوزات والحلويات',
+        'أقسام البقالة الجافة',
+        'أقسام المشروبات',
+        'أقسام المنزل والعناية',
     ];
 
     /**
@@ -47,22 +60,8 @@ class GroceryAisleSplitTest extends TestCase
      * those counters were later replaced by finer lists, which is what a
      * taxonomy doing its job looks like.
      */
-    private const RETIRED = [
-        'أقسام البقالة الجافة',
-        'أقسام المشروبات',
-        // …and the non-food third, «نظّف أقسام المنزل والعناية», hours later:
-        // منظفات، عناية شخصية، منتجات أطفال، مستلزمات حيوانات أليفة، فحم →
-        // five lists of their own, and «أدوات منزلية» → «مستلزمات المنزل»,
-        // borrowed from «صيني ومستلزمات بيت» rather than written twice.
-        'أقسام المنزل والعناية',
-    ];
+    private const RETIRED = self::AISLES;
 
-    /**
-     * What is left of the five, and it is the half that was never a shelf: a
-     * fresh counter is weighed and a bakery counter is baked. Both are work
-     * somebody does on the premises, which is why neither was replaced by a
-     * list of packets.
-     */
 
     /** @return array<int,string> */
     private function optionsOf(string $groupNameAr): array
@@ -96,43 +95,18 @@ class GroceryAisleSplitTest extends TestCase
     }
 
     /**
-     * An aisle heading is what a grocer PRICES under. مني ماركت and هايبر
-     * ماركت carry `menu` and no `retail` at all, so the heading is the priced
-     * row for them exactly as «مشويات» is for a restaurant.
+     * ⚠ The size-and-role check that stood here is gone with its subject.
      *
-     * @dataProvider aisleGroups
+     * It asserted that each of the five drawers is a live `line` group of a
+     * given size. All five were switched off between 2026-08-24 16:00 and the
+     * end of that day — «نظّف البقالة الجافة والمشروبات», then «نظّف أقسام
+     * المنزل والعناية», then «نظّف أقسام الطازج واللحوم وبنود المخبوزات» — so
+     * every one of them fails `is_active = 1` by design.
+     *
+     * What the split PROMISED is asserted below and is untouched by it: nothing
+     * was created or lost, no child is asked one word twice, each specialist
+     * sees only its own trade, and the parent is left standing and empty.
      */
-    public function test_each_counter_is_a_priced_heading(string $groupNameAr, int $size, string $sample): void
-    {
-        $group = DB::table('option_groups')->where('name_ar', $groupNameAr)->first();
-
-        $this->assertNotNull($group, "«{$groupNameAr}» was never created");
-        $this->assertSame('line', (string) $group->price_role);
-        $this->assertSame(1, (int) $group->is_active);
-
-        $options = $this->optionsOf($groupNameAr);
-
-        $this->assertCount($size, $options);
-        $this->assertContains($sample, $options);
-    }
-
-    /** @return array<string,array{0:string,1:int,2:string}> */
-    public static function aisleGroups(): array
-    {
-        return [
-            // Seven since 2026-08-24: the owner moved «فسيخ» and «رنجة» out by
-            // hand into «أنواع الأسماك والمأكولات البحرية». They were the two
-            // rows here that were never counters — a fishmonger WEIGHS فسيخ,
-            // and everything else in this list is a place you walk to.
-            'الطازج' => ['أقسام الطازج واللحوم', 7, 'لحوم ودواجن'],
-            // Four since «فطائر» was reclaimed as a menu band on 2026-08-16.
-            'المخبوزات' => ['بنود المخبوزات والحلويات', 4, 'وافل'],
-            // «البقالة» and «المشروبات» left this provider on 2026-08-24 — see
-            // self::RETIRED and the test that guards them below. A retired group
-            // fails `is_active = 1` by design, so asserting it here would be
-            // asserting against the owner.
-        ];
-    }
 
     /**
      * The two the owner cleaned out, and the promise that holds for both: they
@@ -183,31 +157,38 @@ class GroceryAisleSplitTest extends TestCase
     }
 
     /**
-     * The point of the whole slice: a shop is offered its own counter and
-     * nothing else. Before the split each of these saw all 27.
+     * The point of the whole slice, one step further on.
+     *
+     * The split gave each specialist its own COUNTER and took the other four
+     * away — before it, every one of these saw all 27 words. The counters have
+     * since been replaced by the varieties behind them, so the claim is now
+     * made against the list each trade actually prices: a fishmonger is asked
+     * about fish, and about nothing else on that shelf.
      *
      * @dataProvider specialists
      */
-    public function test_a_specialist_sees_only_its_own_counter(string $childNameAr, string $expected): void
+    public function test_a_specialist_is_asked_its_own_trade_and_no_aisle(string $childNameAr, string $expected): void
     {
-        $offered = array_intersect($this->groupsOffered($childNameAr), self::COUNTERS);
+        $offered = $this->groupsOffered($childNameAr);
 
-        $this->assertSame([$expected], array_values($offered));
+        $this->assertContains($expected, $offered, "«{$childNameAr}» cannot say «{$expected}»");
+
+        $this->assertSame(
+            [],
+            array_values(array_intersect($offered, self::AISLES)),
+            "«{$childNameAr}» is still being offered a retired aisle"
+        );
     }
 
     /** @return array<string,array{0:string,1:string}> */
     public static function specialists(): array
     {
         return [
-            'سمّاك' => ['أسماك', 'أقسام الطازج واللحوم'],
-            'مخبز' => ['مخابز', 'بنود المخبوزات والحلويات'],
-            // «محل منظفات» left this provider on 2026-08-24 for the same reason
-            // «محل بن» did: it answers none of the counters above any more. Its
-            // own six lists are asserted in the retirement test below.
-            'مجمدات' => ['مجمدات', 'أقسام الطازج واللحوم'],
-            // «محل بن» left this provider on 2026-08-24: he answers none of
-            // the three counters above any more. His own list is asserted in
-            // test_the_coffee_shop_stocks_and_the_juice_bar_cooks below.
+            'سمّاك' => ['أسماك', 'أنواع الأسماك والمأكولات البحرية'],
+            'مخبز' => ['مخابز', 'أنواع المخبوزات'],
+            'محل منظفات' => ['منظفات', 'أنواع المنظفات'],
+            'مجمدات' => ['مجمدات', 'أنواع المجمدات'],
+            'محل بن' => ['بن', 'أنواع الشاي والقهوة'],
         ];
     }
 
@@ -255,7 +236,7 @@ class GroceryAisleSplitTest extends TestCase
             ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
             ->where('c.name_ar', $childNameAr)
             ->whereIn('cco.category_id', [0, $root])
-            ->whereIn('g.name_ar', self::COUNTERS)
+            ->whereIn('g.name_ar', self::AISLES)
             ->distinct()
             ->pluck('g.name_ar');
 
@@ -328,7 +309,7 @@ class GroceryAisleSplitTest extends TestCase
                 ->join('option_groups as g', 'g.id', '=', 'o.group_id')
                 ->where('cco.child_id', $childId)
                 ->whereIn('cco.category_id', [0, $root->id])
-                ->whereIn('g.name_ar', self::COUNTERS)
+                ->whereIn('g.name_ar', self::AISLES)
                 ->distinct()->pluck('o.name_ar')
                 ->reject(fn ($w) => in_array($w, ['فسيخ', 'رنجة', 'أسماك ومأكولات بحرية طازجة'], true));
 
@@ -493,111 +474,103 @@ class GroceryAisleSplitTest extends TestCase
 
     /**
      * «المخابز والحلويات مطابخ» · «البقالة تحتفظ بالمعبأ فقط» — owner,
-     * 2026-08-10, closing the last of the shop-versus-kitchen questions.
+     * 2026-08-10, and the line he drew outlived the drawer it was drawn in.
      *
-     * The bakery counter is the one group both kinds of trade share, and the
-     * line runs THROUGH it rather than around it: what is only ever made fresh
-     * stays with the kitchens, and what is also sold wrapped is on both.
-     *
-     * That is why this group is «بنود» and its four siblings are «أقسام» — it
-     * is a counter somebody works at, and the grocers keep only the part of it
-     * that comes in a packet.
-     *
-     * Four rows, not five: «فطائر» became a menu band on 2026-08-16 and is
-     * asserted where it lives now, one test down. The ruling it was made under
-     * is untouched — a grocer still does not claim it.
+     * «بنود المخبوزات والحلويات» was retired on 2026-08-24. Two of its four
+     * rows are things a kitchen MAKES — «وافل» and «آيس كريم» — so they were
+     * MOVED into «أصناف الحلويات والجاتوه» rather than replaced, and a regroup
+     * carries `category_child_option` with it. The other two were shelf names:
+     * «مخبوزات» → «أنواع المخبوزات» (12 loaves), «حلويات وشوكولاتة» → the
+     * patisserie list for the kitchens and «أنواع الحلويات المعبأة» for the
+     * grocers, which is the packaged/fresh line said properly for the first
+     * time.
      */
     public function test_only_a_kitchen_bakes_and_a_grocer_stocks_the_wrapped_version(): void
     {
-        $carriersOf = fn (string $word) => DB::table('category_child_option as cco')
+        $carriersOf = fn (string $group, string $word) => DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
-            ->where('g.name_ar', 'بنود المخبوزات والحلويات')->where('o.name_ar', $word)
+            ->where('g.name_ar', $group)->where('o.name_ar', $word)
             ->distinct()->pluck('c.name_ar')->sort()->values()->all();
 
-        // Made fresh: the two kitchens and nobody else.
-        foreach (['وافل'] as $prepared) {
-            $this->assertSame(
-                ['حلويات', 'مخابز'],
-                $carriersOf($prepared),
-                "«{$prepared}» is made on the premises and a grocer is claiming it"
-            );
-        }
+        // Made fresh: «وافل» kept both kitchens through the move and reached no
+        // grocer on the way. A regroup that changed a carrier set is a regroup
+        // that lost links.
+        $this->assertSame(
+            ['حلويات', 'مخابز'],
+            $carriersOf('أصناف الحلويات والجاتوه', 'وافل'),
+            '«وافل» is made on the premises and a grocer is claiming it'
+        );
 
         /*
-         * Sold wrapped: the kitchens AND the three markets — unless the owner
-         * has said otherwise about one of them. «مخابز» gave up «آيس كريم» on
-         * 2026-08-16 03:05, and a bakery that does not keep a freezer is a
-         * reading of the trade, not a regression. The withdrawal record is
-         * consulted rather than the list being edited, so the next such call
-         * needs no change here at all.
-         *
-         * What stays absolute is the direction the split drew: a grocer stocks
-         * the wrapped version. If a MARKET loses one of these, the aisle has
-         * been taken apart again.
+         * «آيس كريم» is the withdrawal that proves the rule. «مخابز» gave it up
+         * on 2026-08-16 03:05 — a bakery that keeps no freezer — and the ledger
+         * held that line through the move AND through the grant of the whole
+         * patisserie list to that same child hours later. One link refused out
+         * of twenty, and it was the right one.
          */
-        $withdrawn = fn (string $child, string $word) => DB::table('category_child_option_decisions as d')
-            ->join('options as o', 'o.id', '=', 'd.option_id')
-            ->join('category_children_master as c', 'c.id', '=', 'd.child_id')
-            ->where('c.name_ar', $child)->where('o.name_ar', $word)
-            ->where('d.kind', \App\Services\Catalog\ChildOptionDecisions::WITHDRAWN)
-            ->exists();
+        $icecream = $carriersOf('أصناف الحلويات والجاتوه', 'آيس كريم');
 
-        foreach (['مخبوزات', 'آيس كريم', 'حلويات وشوكولاتة'] as $packaged) {
-            $carriers = $carriersOf($packaged);
+        $this->assertNotContains('مخابز', $icecream, 'a withdrawal was undone by a regroup');
+        $this->assertContains('حلويات', $icecream);
 
-            foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $market) {
-                $this->assertContains($market, $carriers, "«{$market}» lost «{$packaged}»");
-            }
+        foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $market) {
+            $this->assertContains($market, $icecream, "«{$market}» lost «آيس كريم»");
+        }
 
-            foreach (['مخابز', 'حلويات'] as $kitchen) {
-                if ($withdrawn($kitchen, $packaged)) {
-                    continue;
-                }
+        // Sold wrapped: the grocers keep the packet, and now by its own name.
+        foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $market) {
+            $this->assertContains(
+                $market,
+                $carriersOf('أنواع المخبوزات', 'توست'),
+                "«{$market}» lost the wrapped loaf"
+            );
 
-                $this->assertContains($kitchen, $carriers, "«{$kitchen}» lost «{$packaged}»");
-            }
+            $this->assertContains(
+                $market,
+                $carriersOf('أنواع الحلويات المعبأة', 'شوكولاتة ألواح'),
+                "«{$market}» lost the wrapped bar"
+            );
         }
     }
 
     /**
-     * …and a general market still sees the counters, because it really does run
-     * them — minus whatever it has said it does not.
+     * …and a general market still sees everything it runs — minus whatever it
+     * has said it does not.
      *
-     * All five were required of all three. «أقسام البقالة الجافة» is no longer
-     * one of هايبر ماركت's: on 2026-08-21 the owner withdrew مواد غذائية،
-     * بهارات، مكرونات وأرز وحبوب، زيوت وسمن and سناكس وتسالي from it and moved
-     * the shop onto the twenty ranges, and «معلبات» was the single row that got
-     * left behind (GroceryAisleSplitSeeder finishes it).
+     * All five aisle drawers were required of all three markets when this test
+     * was written. All five are retired now, so the claim moves onto the lists
+     * that replaced them: the shape being guarded was never «these five group
+     * names», it was «a market was not quietly emptied while the words were
+     * being rearranged under it».
      *
-     * Dry goods are STOCKED. The four counters he kept — fresh, meat, drinks,
-     * home — are things a shop does work at, and that is the line the split was
-     * looking for and did not quite find. So the assertion asks for the
-     * counters he has not spoken against, and still fails if one goes missing
-     * on its own.
+     * The withdrawal ledger is still consulted rather than the list edited —
+     * «سوبر ماركت» and «مني ماركت» gave up «مجمدات» by hand on 2026-08-24, so
+     * neither is handed a freezer list here, and that is a reading of the two
+     * shops rather than a regression.
      */
-    public function test_a_supermarket_still_sees_every_counter(): void
+    public function test_a_market_still_sees_everything_it_runs(): void
     {
+        $due = [
+            'الفواكه', 'الخضروات', 'أنواع اللحوم', 'أنواع الدواجن والطيور',
+            'أنواع الأسماك والمأكولات البحرية', 'أنواع الألبان والأجبان',
+            'أنواع المخبوزات', 'أنواع الحبوب والغلال', 'أنواع المعلبات',
+            'أنواع الزيوت والسمن', 'أنواع البهارات والتوابل',
+            'أنواع المشروبات المعبأة', 'أنواع الحلويات المعبأة',
+        ];
+
         foreach (['سوبر ماركت', 'مني ماركت', 'هايبر ماركت'] as $name) {
-            $childId = $this->childId($name);
+            $offered = $this->groupsOffered($name);
 
-            $given_up = DB::table('category_child_option_decisions as d')
-                ->join('options as o', 'o.id', '=', 'd.option_id')
-                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
-                ->where('d.child_id', $childId)->where('d.kind', 'withdrawn')
-                ->whereIn('g.name_ar', self::COUNTERS)
-                ->distinct()->pluck('g.name_ar')->all();
-
-            $due = array_values(array_diff(self::COUNTERS, $given_up));
-            $offered = array_intersect($this->groupsOffered($name), self::COUNTERS);
-
-            $this->assertNotEmpty($due, "«{$name}» was left with no counter at all");
+            foreach ($due as $group) {
+                $this->assertContains($group, $offered, "«{$name}» lost «{$group}»");
+            }
 
             $this->assertSame(
-                $due,
-                array_values(array_intersect($due, $offered)),
-                "«{$name}» lost a counter in the split"
+                [],
+                array_values(array_intersect($offered, self::AISLES)),
+                "«{$name}» is still being offered a retired aisle"
             );
         }
     }
@@ -609,18 +582,19 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_the_fishmongers_left_the_restaurant_menu(): void
     {
-        $this->assertContains('أسماك ومأكولات بحرية طازجة', $this->optionsOf('أقسام الطازج واللحوم'));
-
-        // The SHOP. «مزارع سمكية» was on this line until 2026-08-16 02:06, when
-        // the owner withdrew the aisle word from it — and he is right: a fish
-        // farm is not a fish counter. It says what it sells through «أنواع
-        // الثروة الحيوانية والسمكية» — بلطي، بوري، قراميط، زريعة — which names
-        // the species where the aisle only said «fish». Asserted below, because
-        // the claim this test owns is «a fishmonger can say it sells fish», not
-        // «by way of this particular word».
-        $this->assertContains(
-            'أسماك ومأكولات بحرية طازجة',
-            $this->optionNamesOf('أسماك'),
+        /*
+         * The aisle word this test was written about — «أسماك ومأكولات بحرية
+         * طازجة» — is inside a retired group since 2026-08-24 and reaches
+         * nobody. It was a coarser answer than the one the fishmonger has now:
+         * «أنواع الأسماك والمأكولات البحرية» names twenty-one species where the
+         * aisle only said «fish».
+         *
+         * The claim this test owns is «a fishmonger can say it sells fish», not
+         * «by way of this particular word», so it is asked of the list he
+         * actually prices.
+         */
+        $this->assertNotEmpty(
+            array_intersect(['جمبري', 'دنيس', 'أسماك بلطي'], $this->optionNamesOf('أسماك')),
             '«أسماك» cannot say it sells fish'
         );
 
@@ -733,7 +707,7 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_no_child_is_asked_the_same_word_twice(): void
     {
-        $groups = array_merge(self::COUNTERS, [
+        $groups = array_merge(self::AISLES, [
             'بنود المنيو', 'أصناف المنتجات الغذائية', 'أقسام السوبر ماركت',
         ]);
 

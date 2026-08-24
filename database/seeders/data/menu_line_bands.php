@@ -47,18 +47,6 @@ return [
         'وحدة معروضة'      => 'Property Listing',
         'مركبة معروضة'    => 'Vehicle Listing',
         'قطعة أثاث'          => 'Furniture Piece',
-        'خضار وفاكهة'      => 'Fresh Produce',
-        'سلطة فواكة'        => 'Fruit Salad',
-        'آيس كريم'            => 'Ice Cream',
-        'ألبان وبيض'        => 'Dairy & Eggs',
-        'فسيخ'                   => 'Salted fish',
-        'رنجة'                   => 'Smoked fish',
-        'أجبان'                 => 'Cheese',
-        'وافل'                   => 'Waffle',
-        'مخبوزات'             => 'Bakery',
-        'لحوم ودواجن'      => 'Meat & Poultry',
-        'مجمدات'               => 'Frozen Food',
-        'حلويات وشوكولاتة' => 'Sweets & Chocolate',
     ],
 
     'children' => [
@@ -90,14 +78,7 @@ return [
         'كرڤان' => ['معدات ومستلزمات'],
         'معدات سوبرماركت' => ['معدات ومستلزمات'],
         'مصاعد وسلم كهرياء' => ['معدات ومستلزمات'],
-
-        'أسماك' => [
-            'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
-            'مجمدات',
-        ],
         // Its counter is the one word, and «أنواع اللحوم» is what hangs on it.
-        'جزارة' => ['لحوم ودواجن'],
         'أكل بيتى' => [
             'مقبلات', 'سلطات', 'شوربة', 'مشويات',
             'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
@@ -122,36 +103,28 @@ return [
         | vocabulary and leaves him alone.
         */
         'حلويات' => [
-            'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',
-            'مخبوزات', 'حلويات وشوكولاتة',
-        ],
-        'دواجن' => [
-            'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
-            'مجمدات',
-        ],
+            'ساندوتشات', 'فطائر', ],
         /*
-        | «البقالة تحتفظ بالمعبأ فقط» — owner, 2026-08-10, closing the last of
-        | the shop-versus-kitchen questions.
+        |----------------------------------------------------------------------
+        | ⚠ 2026-08-24 — the aisle words all left this map
+        |----------------------------------------------------------------------
+        | «نظّف أقسام الطازج واللحوم وبنود المخبوزات» was the last of four such
+        | rulings, and between them all five aisle drawers are retired. Every
+        | band this map declared that named a SHELF — خضار وفاكهة، ألبان وبيض،
+        | مخبوزات، مجمدات، منظفات، مشروبات and the rest — went with them, and
+        | so did the eight children whose whole entry was made of those words:
+        | أسماك، جزارة، دواجن، خضار وفاكهة، مجمدات and the three markets.
         |
-        | «فطائر» and «وافل» are the two of the bakery counter's five that are
-        | only ever made fresh, so they leave all three markets and stay with
-        | «مخابز» and «حلويات», which were ruled kitchens. «مخبوزات»، «آيس كريم»
-        | and «حلويات وشوكولاتة» stay: a grocer stocks the wrapped loaf, the tub
-        | and the bar, and that is the packaged version he keeps.
+        | None of them lost anything. Each answers a VARIETY list now — a
+        | fishmonger says «جمبري», a butcher says «كندوز», a supermarket says
+        | «مانجو عويس» — and this map was never the owner of those.
         |
-        | The three deli bands also go from this entry. They were already off
-        | «سوبر ماركت» in the database — he unticked them by hand and the
-        | withdrawal record has been holding the line ever since — but the map
-        | still declared them, so it disagreed with «مني ماركت» and «هايبر
-        | ماركت» which were corrected explicitly. All three now read the same.
+        | It is back to what its own docblock says it is: the RESTAURANT
+        | headings, plus the farm and listing rows that have nowhere else yet.
+        | A band removed from `bands` is a band this seeder stops managing,
+        | which is the point: it can no longer grant or drop a row that now
+        | belongs to somebody else's list.
         */
-        'سوبر ماركت' => [
-            'خضار وفاكهة', 'سلطة فواكة',
-            'آيس كريم', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'أجبان',
-            'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'حلويات وشوكولاتة', ],
         /*
         | A cart, not a kitchen with fourteen sections, and the owner has said so
         | twice from opposite directions.
@@ -184,11 +157,6 @@ return [
         'عصائر' => [
             'مشروبات ساخنة', 'مشروبات باردة',
         ],
-        'خضار وفاكهة' => [
-            'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
-            'مجمدات',
-        ],
         /*
         | Four bands until 2026-08-17, and «عربية قهوة ومأكولات» — a CART — had
         | eleven. The café was outsold by the pavement outside it.
@@ -209,11 +177,6 @@ return [
         'كافيه' => [
             'مقبلات', 'ساندوتشات', 'إفطار', 'حلويات',
             'مشروبات ساخنة', 'مشروبات باردة', 'فطائر', 'كريب',
-        ],
-        'مجمدات' => [
-            'خضار وفاكهة', 'سلطة فواكة', 'ألبان وبيض',
-            'فسيخ', 'رنجة', 'أجبان', 'لحوم ودواجن',
-            'مجمدات',
         ],
         /*
         | A food court is not one kitchen — it is a row of them, so it takes
@@ -236,9 +199,7 @@ return [
             'مشروبات باردة', 'وجبات أطفال', 'كريب', 'فطائر',
         ],
         'مخابز' => [
-            'ساندوتشات', 'آيس كريم', 'فطائر', 'وافل',
-            'مخبوزات', 'حلويات وشوكولاتة',
-        ],
+            'ساندوتشات', 'فطائر', ],
         'مطعم' => [
             'مقبلات', 'سلطات', 'شوربة', 'مشويات',
             'أطباق رئيسية', 'ساندوتشات', 'بيتزا', 'مكرونة / باستا',
@@ -278,18 +239,6 @@ return [
         | cup, which is the same distinction «بن» and «عصائر» were ruled on:
         | a shop stocks, a kitchen prepares.
         */
-        'مني ماركت' => [
-            'خضار وفاكهة', 'سلطة فواكة',
-            'آيس كريم', 'ألبان وبيض', 
-            'فسيخ', 'رنجة', 'أجبان',
-            'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'حلويات وشوكولاتة', ],
         // Same ruling, same trade. See «مني ماركت» above.
-        'هايبر ماركت' => [
-            'خضار وفاكهة', 'سلطة فواكة',
-            'آيس كريم', 'ألبان وبيض', 
-            'فسيخ', 'رنجة', 'أجبان',
-            'مخبوزات', 'لحوم ودواجن', 'مجمدات',
-            'حلويات وشوكولاتة', ],
     ],
 ];

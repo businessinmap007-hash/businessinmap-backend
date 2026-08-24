@@ -629,7 +629,9 @@ return [
         // row already covers every root the child stands under, so there is
         // nothing left for a mirror to copy.
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة
-        101 => ['أقسام الطازج واللحوم'],                    // أسماك
+        // «أسماك» #101 mirrored «أقسام الطازج واللحوم» here until 2026-08-24,
+        // when that group was retired. It says «جمبري» and «دنيس» now,
+        // through a list it holds SHARED — which every root already sees.
         115 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // مفروشات
         158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
         210 => ['بنود المنيو', 'بنود المخبوزات والحلويات'], // حلويات
@@ -657,11 +659,14 @@ return [
     | Shape: child id => [group name => the option names it KEEPS]. Only rows
     | written against مصانع are touched; a shared row is every root's.
     */
-    'prune_links' => [
-        101 => [
-            'أقسام الطازج واللحوم' => ['فسيخ', 'رنجة', 'أسماك ومأكولات بحرية طازجة'],
-        ],
-    ],
+    /*
+    | ⚠ Emptied 2026-08-24. It narrowed «أسماك» #101 to three rows of «أقسام
+    | الطازج واللحوم» under مصانع, and that group is switched off — the
+    | retirement takes every link away outright, so there is nothing left to
+    | narrow. Two of the three rows (فسيخ، رنجة) had already moved into «أنواع
+    | الأسماك والمأكولات البحرية», which is where the reading lives now.
+    */
+    'prune_links' => [],
 
     'links' => [
         /*

@@ -456,6 +456,61 @@ return [
         ],
 
         /*
+        |----------------------------------------------------------------------
+        | «نظّف أقسام الطازج واللحوم وبنود المخبوزات» — المالك، 2026-08-24
+        |----------------------------------------------------------------------
+        | The last two drawers, and I had argued for keeping them: both are work
+        | somebody DOES on the premises — a counter is weighed, a bakery is
+        | baked — rather than a shelf a packet sits on. The owner disagreed, and
+        | reading their eleven rows against what now exists, he is right:
+        |
+        |     أجبان · ألبان وبيض        →  أنواع الألبان والأجبان
+        |     أسماك ومأكولات بحرية طازجة →  أنواع الأسماك والمأكولات البحرية
+        |     لحوم ودواجن               →  أنواع اللحوم + أنواع الدواجن والطيور
+        |     خضار وفاكهة               →  الفواكه + الخضروات
+        |     مخبوزات                   →  أنواع المخبوزات
+        |     حلويات وشوكولاتة          →  أصناف الحلويات والجاتوه (kitchens)
+        |                                  + أنواع الحلويات المعبأة (grocers)
+        |     وافل · آيس كريم           →  MOVED into أصناف الحلويات والجاتوه
+        |     سلطة فواكة                →  «سلطة فواكه» already stands in
+        |                                  «أصناف العصائر والمشروبات», and this
+        |                                  spelling reached no child at all.
+        |
+        | Ten of the eleven were already sayable somewhere a merchant can put a
+        | price on. «مجمدات» was the one that was not — hence the list below.
+        |
+        | ⚠ «وافل» and «آيس كريم» are MOVED, not retired: they are two things a
+        | kitchen makes and sells, and `regroup` in shop_child_vocabularies.php
+        | carries their existing links with them. «مخابز» keeps its waffle.
+        */
+
+        /*
+        | The frozen shop's own words. It had four counters and a fridge —
+        | «مجمدات» naming itself — and the varieties behind them (اللحوم،
+        | الأسماك، الألبان) are all FRESH. Nothing on the platform could say
+        | «بانيه» or «بطاطس مجمدة», which is most of what the trade sells.
+        */
+        'أنواع المجمدات' => [
+            'name_en' => 'Frozen Food Varieties',
+            'options' => [
+                'خضار مجمد' => 'Frozen Vegetables',
+                'بطاطس مجمدة' => 'Frozen Potatoes',
+                'بازلاء مجمدة' => 'Frozen Peas',
+                'فواكه مجمدة' => 'Frozen Fruit',
+                'مأكولات بحرية مجمدة' => 'Frozen Seafood',
+                'بانيه' => 'Breaded Chicken Fillet',
+                'ستربس' => 'Chicken Strips',
+                'ناجتس' => 'Chicken Nuggets',
+                'برجر مجمد' => 'Frozen Burgers',
+                'كفتة مجمدة' => 'Frozen Kofta',
+                'سجق مجمد' => 'Frozen Sausage',
+                'سمبوسك مجمد' => 'Frozen Sambousek',
+                'عجائن ورقائق مجمدة' => 'Frozen Pastry & Sheets',
+                'بيتزا مجمدة' => 'Frozen Pizza',
+            ],
+        ],
+
+        /*
         | «أصناف العصائر والمشروبات» is the JUICE BAR — «عصير قصب», «سموذي»,
         | made and sold in a cup. This is the fridge: a bottle with a barcode.
         */
@@ -739,6 +794,41 @@ return [
                 'أنواع المنظفات', 'أصناف العناية الشخصية', 'أنواع الفحم والوقود المنزلي',
             ],
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | The last two drawers — granted before they are switched off
+        |----------------------------------------------------------------------
+        | «مجمدات» #113 held five of the seven fresh counters and could name a
+        | fresh cut, a fresh fish and a fresh cheese — every variety list it
+        | carries is the UNFROZEN version. «أنواع المجمدات» is its actual trade,
+        | and «أنواع الدواجن والطيور» comes with it: it carried «لحوم ودواجن»
+        | and had the meat half only.
+        */
+        'frozen_shop' => [
+            'children' => [113],             // مجمدات
+            'groups' => ['أنواع المجمدات', 'أنواع الدواجن والطيور'],
+        ],
+
+        /*
+        | «هايبر ماركت» #149 is the one market that still carried «مجمدات» — the
+        | owner withdrew it from سوبر and مني by hand on 2026-08-24 16:53. Read,
+        | not decided: he is not handed a freezer he took off two shops earlier.
+        */
+        'hypermarket_freezer' => [
+            'children' => [149],
+            'groups' => ['أنواع المجمدات'],
+        ],
+
+        /*
+        | «مخابز» #27 carried «حلويات وشوكولاتة» — it sells the بسبوسة and the
+        | بيتي فور beside the bread — and «أصناف الحلويات والجاتوه» is that word
+        | with eighteen things a price hangs on. «حلويات» #210 has it already.
+        */
+        'bakery_sweets' => [
+            'children' => [27],
+            'groups' => ['أصناف الحلويات والجاتوه'],
+        ],
     ],
 
     /*
@@ -782,15 +872,24 @@ return [
     |
     | Zero ticks, zero prices, zero offerings on all six.
     |
-    | ⚠ Three of the five drawers are now off and «بنود المخبوزات والحلويات» is
-    | the one still standing that this file has NOT replaced — مخبوزات، وافل،
-    | آيس كريم، حلويات وشوكولاتة are a counter somebody WORKS at, and a kitchen
-    | heading is not a shelf. It stays.
+    | ── And the last two, «نظّف أقسام الطازج واللحوم وبنود المخبوزات» ────────
+    |
+    | I argued for keeping these: a counter is weighed and a bakery is baked,
+    | so both are work somebody does rather than a shelf. The owner overruled
+    | it, and the eleven rows agree with him — ten were already sayable in a
+    | list that can be priced, and the eleventh («مجمدات») is written above.
+    |
+    | ⚠ With these two, ALL FIVE drawers that «أقسام السوبر ماركت» split into on
+    | 2026-08-10 are switched off, and the empty parent with them. That split
+    | was right for what it had: twenty-seven words, five carrier sets, one
+    | grab-bag. It was still a list of PLACES, and a place is not a price.
     */
     'retire' => [
         'أصناف المنتجات الغذائية',
         'أقسام البقالة الجافة',
         'أقسام المشروبات',
         'أقسام المنزل والعناية',
+        'أقسام الطازج واللحوم',
+        'بنود المخبوزات والحلويات',
     ],
 ];

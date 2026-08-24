@@ -70,9 +70,20 @@ class FreshCounterVarietiesTest extends TestCase
             $this->assertContains($word, $words->all(), "«{$group}» cannot say «{$word}»");
         }
 
-        // The counter itself stays where it is: it says which fridge, and that
-        // is still a true thing for a supermarket to say.
+        /*
+         * The counter word itself stays INSIDE the group that held it — «أقسام
+         * الطازج واللحوم» was switched off on 2026-08-24 and keeps its seven
+         * rows as the record of what the shelves were called. It reaches no
+         * child any more, which is the point: it says which fridge, and a
+         * fridge is not a price.
+         */
         $this->assertContains($counter, $this->optionsOf(self::COUNTERS)->all());
+
+        $this->assertSame(
+            0,
+            (int) DB::table('option_groups')->where('name_ar', self::COUNTERS)->value('is_active'),
+            'the counter list is live again — a shelf came back as a price'
+        );
     }
 
     public static function counters(): array
@@ -220,22 +231,17 @@ class FreshCounterVarietiesTest extends TestCase
         /*
          * «أقسام الطازج واللحوم» stood in that list when it was written, on the
          * reading that a counter is still a true thing for a market to say. The
-         * owner disagreed the same evening: at 16:53 he withdrew «خضار وفاكهة»
-         * and «مجمدات» from سوبر ماركت by hand.
+         * owner disagreed twice in one evening, and the second time settled it:
+         * at 16:53 he withdrew «خضار وفاكهة» and «مجمدات» from سوبر ماركت by
+         * hand, and hours later — «نظّف أقسام الطازج واللحوم وبنود المخبوزات» —
+         * the whole group went.
          *
-         * He is answering the question this whole file asks. Once the varieties
-         * are behind the counter, the counter is a word he prices nothing under
-         * — and he keeps it only where the shop does the work («لحوم ودواجن» on
-         * a frozen-food shop, which is a fridge somebody stands at).
-         *
-         * Recorded rather than restored: hand curation outranks the map.
+         * ⚠ His two withdrawal records went WITH it. A retired row may carry no
+         * decision (`ChildOptionDecisionTest`), so the retirement deletes the
+         * ledger rows along with the links: there is nothing left for a
+         * withdrawal to hold back. The ruling survives as the retirement
+         * itself, which is the stronger form of the same answer.
          */
-        $withdrawn = DB::table('category_child_option_decisions as d')
-            ->join('options as o', 'o.id', '=', 'd.option_id')
-            ->where('d.child_id', $market)
-            ->where('d.kind', 'withdrawn')
-            ->pluck('o.name_ar');
-
         $held = DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')
             ->join('option_groups as g', 'g.id', '=', 'o.group_id')
@@ -243,10 +249,7 @@ class FreshCounterVarietiesTest extends TestCase
             ->where('g.name_ar', 'أقسام الطازج واللحوم')
             ->pluck('o.name_ar');
 
-        foreach (['خضار وفاكهة', 'مجمدات'] as $shelf) {
-            $this->assertNotContains($shelf, $held->all(), "«{$shelf}» is a shelf; it was withdrawn on 2026-08-24");
-            $this->assertContains($shelf, $withdrawn->all(), 'and the ledger is what keeps it withdrawn');
-        }
+        $this->assertSame([], $held->all(), 'a retired counter still reaches a market');
     }
 
     public function test_all_three_are_priceable_and_stay_priceable(): void

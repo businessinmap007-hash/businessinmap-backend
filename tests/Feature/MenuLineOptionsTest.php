@@ -195,9 +195,29 @@ class MenuLineOptionsTest extends TestCase
 
         $bands = $this->bandsOf($id);
 
-        $this->assertNotEmpty($bands);
+        /*
+         * ⚠ It is EMPTY now, and that is the outcome, not a regression.
+         *
+         * On 2026-08-24 the last of the five aisle drawers was retired and this
+         * map gave up every band that named a shelf. A supermarket answers
+         * «الفواكه» and «أنواع اللحوم» and twenty more — lists of things with
+         * prices — and this seeder owns none of them.
+         *
+         * The claim it still owns is the one the file was written for: a market
+         * is never handed a kitchen's heading. That holds whether it carries
+         * fourteen bands or none.
+         */
         $this->assertNotContains('مشويات', $bands);
         $this->assertNotContains('وجبات أطفال', $bands);
+
+        $lines = DB::table('category_child_option as co')
+            ->join('options as o', 'o.id', '=', 'co.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('co.child_id', $id)->where('g.is_active', 1)
+            ->where('g.price_role', OptionGroup::ROLE_LINE)
+            ->distinct()->pluck('g.name_ar')->all();
+
+        $this->assertContains('الفواكه', $lines, 'a supermarket with nothing to price');
 
         /*
          * «خضار وفاكهة» stood here until 2026-08-24 16:53, when the owner

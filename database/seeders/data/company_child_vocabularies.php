@@ -471,8 +471,11 @@ return [
         // nothing left for a mirror to copy.
         // «أجهزة كهربائية» #88 is not mirrored: its list must be SHARED across
         // its four roots — see BulkPickerSlipRevertSeeder::SHARED_AGAIN.
+        // ⚠ «أقسام الطازج واللحوم» was retired 2026-08-24 — its seven words
+        // were shelf names and each has a variety list behind it now. A
+        // mirror of a switched-off group copies nothing and warns every run.
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة
-        114 => ['أقسام الطازج واللحوم', 'مواصفات المنتج الغذائي'], // فواكة
+        114 => ['مواصفات المنتج الغذائي'],                  // فواكة
         115 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // مفروشات
         116 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],       // آثاث
         158 => ['بنود المنيو', 'مواصفات المنتج الغذائي'],  // عصائر
@@ -483,7 +486,7 @@ return [
         // a mirror writes rows AGAINST THIS ROOT. Left in the list it wrote
         // five option rows naming a root the child had just left — reachable
         // by nothing, and the exact debris a detachment exists to clear.
-        292 => ['أقسام الطازج واللحوم', 'مواصفات المنتج الغذائي'], // خضروات
+        292 => ['مواصفات المنتج الغذائي'],                  // خضروات
     ],
 
     /*

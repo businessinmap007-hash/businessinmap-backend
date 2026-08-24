@@ -120,7 +120,13 @@ return [
             'name_en' => 'Bakery & Confectionery Headings',
             'reorder' => 61,
             'options' => [
-                'مخبوزات', 'وافل', 'حلويات وشوكولاتة', 'آيس كريم',
+                'مخبوزات', 'حلويات وشوكولاتة',
+                // ⚠ «وافل» and «آيس كريم» stood here until 2026-08-24, when this
+                // group was retired and the two of them were MOVED into «أصناف
+                // الحلويات والجاتوه» — a waffle is a thing a kitchen makes, not
+                // a counter it works at. Removed in the same breath: a file that
+                // keeps declaring a row it gave away is what wrote three
+                // «Tilapia (Agri)» in one afternoon.
             ],
         ],
 

@@ -761,6 +761,27 @@ return [
         ],
 
         /*
+        | «نظّف أقسام الطازج واللحوم وبنود المخبوزات» — المالك، 2026-08-24.
+        |
+        | Nine of the eleven words in those two drawers are shelf names with a
+        | list behind them already; they are retired with the drawers. These two
+        | are not: a waffle and a tub of ice cream are things a kitchen MAKES
+        | and sells, which is the same thing every other row in «أصناف الحلويات
+        | والجاتوه» is.
+        |
+        | Moved and not re-declared, so «مخابز» and «حلويات» keep them: a
+        | regroup carries `category_child_option` untouched — only the heading
+        | above the row changes.
+        */
+        'أصناف الحلويات والجاتوه ← المخبوزات' => [
+            'target' => 'أصناف الحلويات والجاتوه',
+            'name_en' => 'Sweets & Gateaux',   // its existing name — a regroup must not rename
+            'price_role' => 'line',
+            'from' => 'بنود المخبوزات والحلويات',
+            'options' => ['وافل', 'آيس كريم'],
+        ],
+
+        /*
         | The owner's own move, 2026-08-24, recorded so a rebuild reproduces it.
         | Scoped to the source group like every regroup, so it is a no-op the
         | moment the two rows are where he put them.

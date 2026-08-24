@@ -1045,12 +1045,22 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertContains('أنظمة حلابة', $equipment);
         $this->assertContains('حضانات وفقاسات', $equipment);
 
-        // The stock list: three answers that do not overlap at all.
+        // The stock list: answers that do not overlap at all.
         $stock = 'أنواع الثروة الحيوانية والسمكية';
         $this->assertContains('أبقار', $named(170, $stock));
         $this->assertContains('أرانب تسمين', $named(170, $stock));
-        $this->assertContains('أسماك بلطي', $named(102, $stock));
         $this->assertSame([], array_intersect($named(170, $stock), $named(102, $stock)));
+
+        /*
+         * The fish farm still names its fish — under «أنواع الأسماك والمأكولات
+         * البحرية» since 2026-08-24, because a farm's tilapia and a
+         * fishmonger's tilapia are one fish and `options.name_en` is unique.
+         * The rule this line stands for is unchanged: #102 can say what it
+         * raises, and #170 cannot say it back.
+         */
+        $fish = 'أنواع الأسماك والمأكولات البحرية';
+        $this->assertContains('أسماك بلطي', $named(102, $fish));
+        $this->assertSame([], $named(170, $fish));
 
         // And none of the survivors is asked the grab-bag question any more.
         foreach ([12, 102, 170, 171] as $childId) {

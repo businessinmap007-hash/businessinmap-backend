@@ -111,9 +111,19 @@ return [
                 'خيول' => 'Horses',
                 'أرانب تربية' => 'Breeding Rabbits',
                 'أرانب تسمين' => 'Fattening Rabbits',
-                'أسماك بلطي' => 'Tilapia',
-                'أسماك بوري' => 'Mullet',
-                'قراميط' => 'Catfish',
+                /*
+                | The three edible fish moved out 2026-08-24 to «أنواع الأسماك
+                | والمأكولات البحرية» (shop_child_vocabularies.php): a farm's
+                | tilapia and a fishmonger's tilapia are one fish, and
+                | `options.name_en` is unique platform-wide, so the second one
+                | would have been «Tilapia (Agri)» — which is not a fish.
+                |
+                | «مزارع سمكية» #102 keeps them: it is named in the new group's
+                | children, and its links were never touched. Leaving them
+                | declared HERE as well is what re-created them three times in
+                | one afternoon — this file would find them missing from its
+                | own group and write them back on every run.
+                */
                 'أسماك زينة' => 'Ornamental Fish',
                 'زريعة وإصبعيات' => 'Fry & Fingerlings',
             ],

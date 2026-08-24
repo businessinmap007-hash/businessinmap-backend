@@ -306,6 +306,14 @@ return [
         // «بط حي» and «بط مذبوح ومنظف» being two prices of one row is what
         // proves these are lines and not the other way round.
         'أنواع الدواجن والطيور',   // بط ≠ سمان
+        // …and the three counters beside them, 2026-08-24. «لحوم ودواجن» and
+        // «أسماك ومأكولات بحرية» and «ألبان وبيض» are SECTIONS in «أقسام
+        // الطازج واللحوم»; these are what hangs a price on them. Same reading
+        // as the poultry and grain lists above: the cut IS what is sold, and
+        // كيلو كندوز ≠ كيلو كبدة.
+        'أنواع اللحوم',            // كيلو كندوز ≠ كيلو ضاني
+        'أنواع الأسماك والمأكولات البحرية',  // كيلو جمبري ≠ كيلو بلطي
+        'أنواع الألبان والأجبان',  // كيلو رومي ≠ كيلو قريش
         'أنواع الحبوب والغلال',    // أردب قمح ≠ أردب عدس
         'أنواع الأعلاف',           // طن أعلاف دواجن ≠ طن تبن
 

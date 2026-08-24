@@ -579,6 +579,145 @@ return [
                 'شموع ومباخر' => 'Candles & Burners',
             ],
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | 2026-08-24 — the counter is not a price
+        |----------------------------------------------------------------------
+        | «هناك الكثير من الخيارات يحتاج اصناف مثل ما فعلت فى فواكة وخضروات»
+        | — المالك.
+        |
+        | «أقسام الطازج واللحوم» #339 holds nine words and every one of them is
+        | a COUNTER: «لحوم ودواجن», «أسماك ومأكولات بحرية طازجة», «ألبان وبيض»,
+        | «أجبان». None of them is a thing with a price. A fishmonger could say
+        | he sells fish and could not say «بلطي»; the butcher's counter had no
+        | word for كندوز at all.
+        |
+        | The poultry and the grain halves were already done — «أنواع الدواجن
+        | والطيور» (11) and «أنواع الحبوب والغلال» (18) — which is what makes
+        | the three gaps below visible: same trade, same reading, three lists
+        | that were never written.
+        |
+        | ── Who gets them is READ, not decided ────────────────────────────────
+        |
+        | Each list goes to the children that already carry the matching
+        | counter in #339, and to no others. «لحوم ودواجن» is carried by
+        | «مجمدات» #113 alone; the three markets carry «مجمدات» and «خضار
+        | وفاكهة» but not the meat counter, so they are not given meat cuts by
+        | this file. One tick on the card gives it to them the day the owner
+        | wants it — and a guess here would be forty rows he has to take off.
+        |
+        | ⚠ There is no butcher child on the platform. «لحوم» is a counter word
+        | inside a supermarket's list and nothing else, so «أنواع اللحوم»
+        | reaches exactly one child until a جزارة exists.
+        */
+        'أنواع اللحوم' => [
+            'name_en' => 'Meat Varieties', 'price_role' => 'line', 'children' => [113],
+            'options' => [
+                'كندوز' => 'Beef',
+                'بتلو' => 'Veal',
+                'ضاني' => 'Lamb',
+                'جملي' => 'Camel Meat',
+                'لحم مستورد' => 'Imported Meat',
+                'مفروم' => 'Minced Meat',
+                'كبدة' => 'Liver',
+                'كلاوي' => 'Kidneys',
+                'مخ' => 'Brain',
+                'لسان' => 'Tongue',
+                'كوارع' => 'Trotters',
+                'ممبار' => 'Tripe',
+                'سجق' => 'Sausage',
+                'بسطرمة' => 'Basturma',
+                'شرائح برجر' => 'Burger Patties',
+            ],
+        ],
+
+        /*
+        | The fishmonger's counter. Three of these already existed one root
+        | over — «أسماك بلطي», «أسماك بوري» and «قراميط» in «أنواع الثروة
+        | الحيوانية والسمكية», where they are what a FARM raises. They are the
+        | same three fish, so they are MOVED here by `regroup` below and not
+        | written twice: `options.name_en` is unique platform-wide and a second
+        | «Tilapia» would have been «Tilapia (Shop)», which is not a fish.
+        |
+        | «مزارع سمكية» #102 is named here so its three fish stay DECLARED as
+        | well as linked — a row this file owns and the agriculture file still
+        | claimed was written back three times in one afternoon, each time with
+        | a fresh «(Agri)» suffix. It is given the whole list because the
+        | alternative is two files owning one group again; a farm that does not
+        | land squid takes squid off with one tick.
+        |
+        | ⚠ The rule that cost the three duplicates: when a row moves between
+        | groups, the data file that DECLARED it has to stop declaring it, or
+        | the seeder recreates it under a suffixed English name on the next run.
+        | Same lesson as the produce split, learned twice.
+        */
+        'أنواع الأسماك والمأكولات البحرية' => [
+            'name_en' => 'Fish & Seafood Varieties', 'price_role' => 'line', 'children' => [101, 113, 102],
+            'options' => [
+                'أسماك بلطي' => 'Tilapia',
+                'أسماك بوري' => 'Mullet',
+                'قراميط' => 'Catfish',
+                'دنيس' => 'Sea Bream',
+                'قاروص' => 'Sea Bass',
+                'وقار' => 'Grouper',
+                'مرجان' => 'Pandora',
+                'سبيط' => 'Cuttlefish',
+                'كاليماري' => 'Calamari',
+                'أخطبوط' => 'Octopus',
+                'جمبري' => 'Shrimp',
+                'كابوريا' => 'Crab',
+                'استاكوزا' => 'Lobster',
+                'جندوفلي' => 'Clams',
+                'بلح البحر' => 'Mussels',
+                'سردين' => 'Sardine',
+                'ماكريل' => 'Mackerel',
+                'تونة' => 'Tuna',
+                'سلمون' => 'Salmon',
+            ],
+        ],
+
+        /*
+        | «ألبان وبيض» and «أجبان» are two counters and one trade — a dairy
+        | shop sells the milk and the cheese off the same fridge — so one list
+        | serves both, and the children are the carriers of either word.
+        |
+        | Eggs are NOT here: «بيض مائدة» and «بيض تفريخ» are already in «أنواع
+        | الدواجن والطيور», where the bird that lays them is.
+        */
+        'أنواع الألبان والأجبان' => [
+            'name_en' => 'Dairy & Cheese Varieties', 'price_role' => 'line', 'children' => [113, 149, 185],
+            'options' => [
+                'جبنة بيضاء' => 'White Cheese',
+                'جبنة رومي' => 'Roumi Cheese',
+                'جبنة قريش' => 'Cottage Cheese',
+                'جبنة شيدر' => 'Cheddar',
+                'موتزاريلا' => 'Mozzarella',
+                'قشقوان' => 'Kashkaval',
+                'جبنة كريمي' => 'Cream Cheese',
+                'مش' => 'Mish',
+                'لبن' => 'Milk',
+                'لبن رايب' => 'Buttermilk',
+                'زبادي' => 'Yoghurt',
+                'قشطة' => 'Cream',
+                'زبدة' => 'Butter',
+                'سمنة' => 'Ghee',
+            ],
+        ],
+    ],
+
+    /*
+    | Moved, not cloned: the three fish a farm raises are the three fish a
+    | fishmonger sells. Runs BEFORE the groups above, so the group exists and
+    | the list below finds them in it instead of creating a second «Tilapia».
+    */
+    'regroup' => [
+        'أنواع الأسماك والمأكولات البحرية' => [
+            'name_en' => 'Fish & Seafood Varieties',
+            'price_role' => 'line',
+            'from' => 'أنواع الثروة الحيوانية والسمكية',
+            'options' => ['أسماك بلطي', 'أسماك بوري', 'قراميط'],
+        ],
     ],
 
     /*

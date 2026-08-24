@@ -211,11 +211,41 @@ class FreshCounterVarietiesTest extends TestCase
             ->pluck('g.name_ar');
 
         foreach ([
-            'أقسام الطازج واللحوم',   // the counters it always had
             'الفواكه', 'الخضروات', self::MEAT, self::FISH, self::DAIRY,
             'أنواع المخبوزات', 'أنواع الحبوب والغلال', 'أنواع الدواجن والطيور',
         ] as $group) {
             $this->assertContains($group, $groups->all(), "«سوبر ماركت» cannot say «{$group}»");
+        }
+
+        /*
+         * «أقسام الطازج واللحوم» stood in that list when it was written, on the
+         * reading that a counter is still a true thing for a market to say. The
+         * owner disagreed the same evening: at 16:53 he withdrew «خضار وفاكهة»
+         * and «مجمدات» from سوبر ماركت by hand.
+         *
+         * He is answering the question this whole file asks. Once the varieties
+         * are behind the counter, the counter is a word he prices nothing under
+         * — and he keeps it only where the shop does the work («لحوم ودواجن» on
+         * a frozen-food shop, which is a fridge somebody stands at).
+         *
+         * Recorded rather than restored: hand curation outranks the map.
+         */
+        $withdrawn = DB::table('category_child_option_decisions as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->where('d.child_id', $market)
+            ->where('d.kind', 'withdrawn')
+            ->pluck('o.name_ar');
+
+        $held = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $market)
+            ->where('g.name_ar', 'أقسام الطازج واللحوم')
+            ->pluck('o.name_ar');
+
+        foreach (['خضار وفاكهة', 'مجمدات'] as $shelf) {
+            $this->assertNotContains($shelf, $held->all(), "«{$shelf}» is a shelf; it was withdrawn on 2026-08-24");
+            $this->assertContains($shelf, $withdrawn->all(), 'and the ledger is what keeps it withdrawn');
         }
     }
 

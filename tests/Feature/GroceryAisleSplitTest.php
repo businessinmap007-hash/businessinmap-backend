@@ -94,7 +94,11 @@ class GroceryAisleSplitTest extends TestCase
     public static function aisleGroups(): array
     {
         return [
-            'الطازج' => ['أقسام الطازج واللحوم', 9, 'لحوم ودواجن'],
+            // Seven since 2026-08-24: the owner moved «فسيخ» and «رنجة» out by
+            // hand into «أنواع الأسماك والمأكولات البحرية». They were the two
+            // rows here that were never counters — a fishmonger WEIGHS فسيخ,
+            // and everything else in this list is a place you walk to.
+            'الطازج' => ['أقسام الطازج واللحوم', 7, 'لحوم ودواجن'],
             // Four since «فطائر» was reclaimed as a menu band on 2026-08-16.
             'المخبوزات' => ['بنود المخبوزات والحلويات', 4, 'وافل'],
             // Seven since «بن وشاي» was added on the owner's «بن يبيع حبوب فقط».
@@ -551,11 +555,31 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_the_stock_range_modifier_is_only_for_traders_without_a_market_list(): void
     {
-        $this->assertContains(
+        /*
+         * ⚠ 2026-08-24: «أصناف المنتجات الغذائية» is retired. «إذا كان هناك بند
+         * مثل زيوت وسمن اعمل مجموعة لها وأضف فروعها … وبعد اكتمال كل فروعها
+         * نلغيها» — the owner, and he is right: the twenty rows named SHELVES,
+         * and a shelf cannot be priced. Thirteen of them became lists of their
+         * own and «مواد غذائية» took every one.
+         *
+         * The claim this test makes is unchanged and is the one that matters:
+         * a wholesaler with no market list is not left mute.
+         */
+        $offered = $this->groupsOffered('مواد غذائية');
+
+        $this->assertNotContains(
             'أصناف المنتجات الغذائية',
-            $this->groupsOffered('مواد غذائية'),
-            '«مواد غذائية» lost the only list it had'
+            $offered,
+            'a retired group still reaches a child'
         );
+
+        foreach (['أنواع الزيوت والسمن', 'أنواع البهارات والتوابل', 'أنواع المعلبات'] as $replacement) {
+            $this->assertContains(
+                $replacement,
+                $offered,
+                '«مواد غذائية» lost the only list it had'
+            );
+        }
 
         /*
          * «استيراد وتصدير» was the second name here and is no longer a trader

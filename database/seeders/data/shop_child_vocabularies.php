@@ -674,6 +674,20 @@ return [
                 'ماكريل' => 'Mackerel',
                 'تونة' => 'Tuna',
                 'سلمون' => 'Salmon',
+                /*
+                 * Moved in BY HAND on 2026-08-24 16:52, out of «أقسام الطازج
+                 * واللحوم» where they were shelf words. The owner is right and
+                 * the file has to say so: فسيخ and رنجة are two things a
+                 * fishmonger weighs and prices, not two aisles.
+                 *
+                 * Declared here — and `regroup` below reproduces the move on a
+                 * rebuild — because the alternative is the file that used to
+                 * own them writing them back. `MenuLineOptionsSeeder` looks its
+                 * bands up by `name_en` platform-wide, so it finds these two
+                 * where they now live and does not mint a «Smoked fish (2)».
+                 */
+                'فسيخ' => 'Salted fish',
+                'رنجة' => 'Smoked fish',
             ],
         ],
 
@@ -744,6 +758,19 @@ return [
             'price_role' => 'line',
             'from' => 'أنواع الثروة الحيوانية والسمكية',
             'options' => ['أسماك بلطي', 'أسماك بوري', 'قراميط'],
+        ],
+
+        /*
+        | The owner's own move, 2026-08-24, recorded so a rebuild reproduces it.
+        | Scoped to the source group like every regroup, so it is a no-op the
+        | moment the two rows are where he put them.
+        */
+        'أنواع الأسماك والمأكولات البحرية ← الطازج' => [
+            'target' => 'أنواع الأسماك والمأكولات البحرية',
+            'name_en' => 'Fish & Seafood Varieties',
+            'price_role' => 'line',
+            'from' => 'أقسام الطازج واللحوم',
+            'options' => ['فسيخ', 'رنجة'],
         ],
     ],
 

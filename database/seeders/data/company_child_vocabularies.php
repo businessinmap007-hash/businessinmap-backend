@@ -492,8 +492,15 @@ return [
          * food range and lost it in the same save. It carries `retail`, so the
          * catalog holds its priced rows and this stays a modifier — the
          * «ماركات السيارات» shape, saying what the wholesaler DEALS IN.
+         *
+         * ⚠ 2026-08-24: «أصناف المنتجات الغذائية» was RETIRED — its twenty rows
+         * were shelf names and not one was ever priced. Removed here in the
+         * same breath, because a retired row that a seeder keeps granting is
+         * worse than one nobody retired: it reaches children nothing shows,
+         * which `ChildOptionDecisionTest > a dissolved row leaves no decision
+         * behind` refuses by name. #110 takes the thirteen replacement lists
+         * from data/food_ranges_expansion.php instead — and those it can price.
          */
-        110 => ['أصناف المنتجات الغذائية' => 'all'],
 
         // A software COMPANY and «برمجة» under تكنولوجيا are one trade.
         261 => [

@@ -198,7 +198,18 @@ class MenuLineOptionsTest extends TestCase
         $this->assertNotEmpty($bands);
         $this->assertNotContains('مشويات', $bands);
         $this->assertNotContains('وجبات أطفال', $bands);
-        $this->assertContains('خضار وفاكهة', $bands);
+
+        /*
+         * «خضار وفاكهة» stood here until 2026-08-24 16:53, when the owner
+         * withdrew it — along with «مجمدات» — from سوبر ماركت by hand, an hour
+         * before asking for the shelf words to be replaced by the varieties
+         * behind them. It is the same ruling written twice: a supermarket does
+         * not price «خضار وفاكهة», it prices «مانجو عويس».
+         *
+         * So the claim becomes the one the seeder is actually responsible for:
+         * a market is offered a market's headings and not a kitchen's.
+         */
+        $this->assertNotContains('مشروبات ساخنة', $bands);
     }
 
     /**

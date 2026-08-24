@@ -108,7 +108,24 @@ class MenuBandSplitTest extends TestCase
                  * into a drawer this list had not heard of, which is the same
                  * thing that happened when the aisle drawer became five.
                  */
+                /*
+                 * …and on 2026-08-24 that drawer was retired and became
+                 * thirteen. «وبعد اكتمال كل فروع أصناف المنتجات الغذائية
+                 * نلغيها ونضيف المجموعات إلى السوبر ماركت والهايبر والميني
+                 * ماركت» — the ranges are gone and what a supermarket prices
+                 * under is now the varieties themselves.
+                 *
+                 * Named here for the third time for the same reason: the
+                 * headings did not go anywhere, they went into drawers this
+                 * list had not heard of.
+                 */
                 'أصناف المنتجات الغذائية',
+                'أنواع المكرونة', 'أنواع الزيوت والسمن', 'أنواع السكر والمحليات',
+                'أنواع البهارات والتوابل', 'أنواع المعلبات', 'أنواع المخللات والخل',
+                'أنواع الصلصات والشوربات', 'أنواع العسل والمربى', 'أنواع الشاي والقهوة',
+                'أنواع المكسرات والتسالي', 'أنواع الحلويات المعبأة',
+                'أنواع أغذية الأطفال', 'أنواع المشروبات المعبأة',
+                'الفواكه', 'الخضروات',
             ])
             ->count();
 

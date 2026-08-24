@@ -156,7 +156,11 @@ class TradeVocabularyTest extends TestCase
             // — so the modifier was scoped off it. What survives is the case
             // the group was built for: a wholesaler with no market list, whose
             // only answer to «what do you deal in» is this list.
-            'غذائية' => ['أصناف المنتجات الغذائية', 'مواد غذائية', 'زيوت وسمن'],
+            // ⚠ …and on 2026-08-24 that group was retired: «زيوت وسمن» was the
+            // name of a SHELF and no shelf was ever priced. The wholesaler's
+            // answer to «what do you deal in» is now the range itself, which he
+            // can also put a price and a quantity on.
+            'غذائية' => ['أنواع الزيوت والسمن', 'مواد غذائية', 'زيت ذرة'],
             'كهربائية' => ['أنواع الأجهزة الكهربائية', 'أجهزة كهربائية', 'ثلاجات'],
             'رياضية' => ['أنواع الأجهزة الرياضية', 'أجهزة رياضية', 'مشايات كهربائية'],
         ];

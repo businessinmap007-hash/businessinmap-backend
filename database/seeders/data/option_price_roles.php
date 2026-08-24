@@ -182,6 +182,9 @@ return [
          * prose is now history, not instruction; the two duplicate-vocabulary
          * findings it records are untouched by this.
          */
+        // ⚠ Switched off 2026-08-24 (FoodRangesExpansionSeeder): every one of
+        // its twenty rows was a SHELF and none was ever priced. Stays named
+        // here — see the thirteen replacements above.
         'أصناف المنتجات الغذائية', // زيوت وسمن، أغذية أطفال
         'أعمال البنية التحتية',
         'أنواع التأمين',
@@ -317,6 +320,36 @@ return [
         'أنواع المخبوزات',         // رغيف بلدي ≠ فطير مشلتت
         'أنواع الحبوب والغلال',    // أردب قمح ≠ أردب عدس
         'أنواع الأعلاف',           // طن أعلاف دواجن ≠ طن تبن
+
+        /*
+        |----------------------------------------------------------------------
+        | The thirteen that came out of «أصناف المنتجات الغذائية», 2026-08-24
+        |----------------------------------------------------------------------
+        | «إذا كان هناك بند مثل زيوت وسمن اعمل مجموعة لها وأضف فروعها» — المالك.
+        |
+        | Same reading as the counters above, and the parent is the proof: it
+        | held twenty SHELF names — «زيوت وسمن», «معلبات», «بهارات وتوابل» — and
+        | not one of them was ever priced, because a shelf is not a thing. Its
+        | replacements are: «زيت ذرة» is bought, by the litre, and can run out.
+        |
+        | The parent is switched off by FoodRangesExpansionSeeder and stays
+        | named in this file for the same reason the two empty split sources do:
+        | an unlisted group is reset on the next run, and a name that carries
+        | options again one day must not come back as a filter.
+        */
+        'أنواع المكرونة',          // كيلو اسباجيتي ≠ كيلو لسان عصفور
+        'أنواع الزيوت والسمن',     // لتر زيت زيتون ≠ لتر زيت خليط
+        'أنواع السكر والمحليات',   // كيلو سكر ≠ عبوة محليات
+        'أنواع البهارات والتوابل', // كيلو كمون ≠ جرام زعفران
+        'أنواع المعلبات',          // علبة تونة ≠ علبة فول
+        'أنواع المخللات والخل',    // كيلو زيتون ≠ زجاجة خل
+        'أنواع الصلصات والشوربات', // كاتشب ≠ مكعبات مرقة
+        'أنواع العسل والمربى',     // كيلو عسل نحل ≠ برطمان مربى
+        'أنواع الشاي والقهوة',     // كيلو بن محوج ≠ علبة فتلة
+        'أنواع المكسرات والتسالي', // كيلو فستق ≠ كيس لب
+        'أنواع الحلويات المعبأة',  // لوح شوكولاتة ≠ باكو بسكويت
+        'أنواع أغذية الأطفال',     // علبة لبن أطفال ≠ بيوريه
+        'أنواع المشروبات المعبأة', // زجاجة مياه ≠ مشروب طاقة
 
         /*
         |----------------------------------------------------------------------

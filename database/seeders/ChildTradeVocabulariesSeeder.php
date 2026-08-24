@@ -290,6 +290,12 @@ class ChildTradeVocabulariesSeeder extends Seeder
     private function regroup(array $regroups): void
     {
         foreach ($regroups as $nameAr => $spec) {
+            // A group can be fed from two different sources — the fish list
+            // took three rows off a farm and two off a supermarket shelf — and
+            // an array cannot hold one key twice. `target` names the real
+            // group; the key is then only a label for the move.
+            $nameAr = (string) ($spec['target'] ?? $nameAr);
+
             $sourceId = (int) DB::table('option_groups')->where('name_ar', $spec['from'])->value('id');
 
             if ($sourceId <= 0) {

@@ -119,7 +119,13 @@ class OrphanChildLinksTest extends TestCase
         $family = array_merge(
             ['بنود المنيو'],
             array_column((require database_path('seeders/data/menu_band_split.php'))['groups'], 'name_ar'),
-            array_keys((require database_path('seeders/data/grocery_aisle_split.php'))['groups'])
+            array_keys((require database_path('seeders/data/grocery_aisle_split.php'))['groups']),
+            // …and a tenth drawer, 2026-08-24: the owner moved «فسيخ» and
+            // «رنجة» out of the fresh-counter list by hand and into the fish
+            // varieties, where a thing that is WEIGHED belongs. The bands did
+            // not go anywhere, they went somewhere this list had not heard of —
+            // which is the third time that sentence has had to be written here.
+            ['أنواع الأسماك والمأكولات البحرية']
         );
 
         $missing = array_values(array_diff($names, DB::table('options as o')

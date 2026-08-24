@@ -189,6 +189,19 @@ class DatabaseSeeder extends Seeder
            ChildTradeVocabulariesSeeder::class,
 
            /*
+            * «أصناف المنتجات الغذائية» was twenty SHELVES and no priced word —
+            * the same finding as «لحوم ودواجن», twenty times over. Thirteen of
+            * them become lists, seven point at lists that already existed, and
+            * the parent is switched off.
+            *
+            * After the vocabulary seeder and after the produce split: it
+            * EXTENDS «أنواع الحبوب والغلال», «الفواكه» and «الخضروات», and a
+            * group it extends before that group exists is a warning and a
+            * silent gap.
+            */
+           FoodRangesExpansionSeeder::class,
+
+           /*
             * The private half of the car market, 2026-08-17. It creates a
             * CHILD, so it must run before anything that reads the root's
             * children — and after the vocabulary seeder, because it copies its

@@ -385,7 +385,12 @@ return [
                 'قرنبيط' => 'Cauliflower',
                 'بروكلي' => 'Broccoli',
                 'بنجر' => 'Beetroot',
-                'لفت وفجل' => 'Turnip & Radish',
+                // Was «لفت وفجل» until 2026-08-24: two roots at two prices in
+                // one row, which can be picked but never priced. FoodRanges-
+                // ExpansionSeeder renamed this half and wrote «فجل» beside it —
+                // and this line has to follow the rename, or the next run makes
+                // «لفت وفجل» a third time. Same lesson as the tilapia.
+                'لفت' => 'Turnip',
                 'بطاطا' => 'Sweet Potato',
                 'قرع عسلي' => 'Pumpkin',
                 'خرشوف' => 'Artichoke',

@@ -79,7 +79,13 @@ return [
             'reorder' => 60,
             'options' => [
                 'خضار وفاكهة', 'ألبان وبيض', 'أجبان', 'لحوم ودواجن',
-                'مجمدات', 'أسماك ومأكولات بحرية طازجة', 'فسيخ', 'رنجة', 'سلطة فواكة',
+                'مجمدات', 'أسماك ومأكولات بحرية طازجة', 'سلطة فواكة',
+                // ⚠ «فسيخ» and «رنجة» stood here until 2026-08-24, when the
+                // owner moved them by hand into «أنواع الأسماك والمأكولات
+                // البحرية» — they are two things weighed at a counter, not two
+                // counters. Removed from this list in the same breath: a file
+                // that keeps declaring a row it gave away is what wrote three
+                // «Tilapia (Agri)» in one afternoon.
             ],
         ],
 

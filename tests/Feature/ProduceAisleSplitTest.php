@@ -40,10 +40,17 @@ class ProduceAisleSplitTest extends TestCase
         return collect($data['groups'])->map(fn ($g) => count($g['options']))->all();
     }
 
-    public function test_the_two_stalls_hold_exactly_what_the_file_declares(): void
+    /**
+     * The split's promise is that everything it moved arrived — not that the
+     * stall never grew afterwards. It did grow, on 2026-08-24: «كل نوع منفرد
+     * يُسعّر ويكون له كمية» put forty-five varieties into الفواكه and eighteen
+     * missing vegetables into الخضروات, and an equality here would report the
+     * owner filling his own list as a regression.
+     */
+    public function test_the_two_stalls_hold_everything_the_file_moved_into_them(): void
     {
         foreach ($this->declaredCounts() as $name => $count) {
-            $this->assertSame($count, $this->optionsOf($name)->count(), "«{$name}»");
+            $this->assertGreaterThanOrEqual($count, $this->optionsOf($name)->count(), "«{$name}»");
         }
     }
 
@@ -73,7 +80,12 @@ class ProduceAisleSplitTest extends TestCase
         $declared = collect($data['groups'])->pluck('options')->flatten();
         $live = $this->optionsOf('الفواكه')->merge($this->optionsOf('الخضروات'));
 
-        $this->assertEqualsCanonicalizing($declared->all(), $live->all());
+        // Every crop that went in is still in one of the two stalls. Rows added
+        // since are the owner's, not the split's — see the test above.
+        $this->assertEmpty(
+            $declared->diff($live)->all(),
+            'a crop that moved is in neither stall'
+        );
 
         $this->assertSame(
             0,

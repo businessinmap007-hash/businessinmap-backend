@@ -42,6 +42,12 @@ return [
         'أقسام السوبر ماركت',
         'أقسام الطازج واللحوم',   // لحوم ودواجن، أجبان، فسيخ
         'بنود المخبوزات والحلويات', // مخبوزات، فطائر — baked on the premises
+        // ⚠ All three retired 2026-08-24 («نظّف البقالة الجافة والمشروبات»,
+        // then «نظّف أقسام المنزل والعناية»). Every word in them is a list of
+        // its own now — see the replacements further down. They stay named
+        // here for the reason the two empty split sources do: an unlisted
+        // group is reset on the next run, and a name that carries options
+        // again one day must not come back as a filter.
         'أقسام البقالة الجافة',   // مكرونات وأرز وحبوب، معلبات
         'أقسام المشروبات',        // عصائر، مشروبات
         'أقسام المنزل والعناية',  // منظفات، أدوات منزلية — the non-food half
@@ -350,6 +356,18 @@ return [
         'أنواع الحلويات المعبأة',  // لوح شوكولاتة ≠ باكو بسكويت
         'أنواع أغذية الأطفال',     // علبة لبن أطفال ≠ بيوريه
         'أنواع المشروبات المعبأة', // زجاجة مياه ≠ مشروب طاقة
+
+        /*
+        | …and the non-food half, «نظّف أقسام المنزل والعناية», the same day.
+        | «أقسام المنزل والعناية» named six aisles and none of them was ever
+        | priced either. «مستلزمات المنزل» is not listed again — it is an older
+        | list, already `line` above, borrowed here rather than cloned.
+        */
+        'أنواع المنظفات',          // كيلو مسحوق ≠ زجاجة كلور
+        'أصناف العناية الشخصية',   // شامبو ≠ معجون أسنان
+        'مستلزمات الأطفال',        // باكو حفاضات ≠ ببرونة
+        'مستلزمات الحيوانات الأليفة', // كيس طعام قطط ≠ حوض سمك
+        'أنواع الفحم والوقود المنزلي', // شيكارة فحم ≠ علبة كبريت
 
         /*
         |----------------------------------------------------------------------

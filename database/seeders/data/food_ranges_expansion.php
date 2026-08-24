@@ -317,6 +317,145 @@ return [
         ],
 
         /*
+        |----------------------------------------------------------------------
+        | «نظّف أقسام المنزل والعناية» — المالك، 2026-08-24
+        |----------------------------------------------------------------------
+        | The last of the five aisle drawers, and the one that is not food at
+        | all: منظفات، عناية شخصية، منتجات أطفال، مستلزمات حيوانات أليفة، فحم،
+        | أدوات منزلية. Six words, the same disease — «منظفات» is an aisle you
+        | walk to, «مسحوق غسيل ٣ كيلو» is what leaves the shop.
+        |
+        | ⚠ «أدوات منزلية» is NOT here. «مستلزمات المنزل» #404 already exists —
+        | أواني طهي، أدوات مائدة، تخزين وحفظ — written for «صيني ومستلزمات
+        | بيت». It is BORROWED and extended below, not cloned: a second
+        | housewares list would be this taxonomy's oldest disease, said with
+        | pots.
+        */
+
+        'أنواع المنظفات' => [
+            'name_en' => 'Detergent Varieties',
+            'options' => [
+                'مسحوق غسيل' => 'Washing Powder',
+                'صابون غسيل' => 'Laundry Bar Soap',
+                'منعم أقمشة' => 'Fabric Softener',
+                'سائل غسيل أطباق' => 'Dishwashing Liquid',
+                'مسحوق غسالة أطباق' => 'Dishwasher Powder',
+                'صابون سائل' => 'Liquid Hand Soap',
+                'كلور' => 'Bleach',
+                'مطهر أرضيات' => 'Floor Disinfectant',
+                'منظف زجاج' => 'Glass Cleaner',
+                'مزيل دهون' => 'Degreaser',
+                'ملمع أثاث' => 'Furniture Polish',
+                'معطر جو' => 'Air Freshener',
+                'مبيد حشري منزلي' => 'Household Insecticide',
+                'أكياس قمامة' => 'Bin Bags',
+                'إسفنج وليف' => 'Sponges & Scourers',
+                'قفازات تنظيف' => 'Cleaning Gloves',
+            ],
+        ],
+
+        /*
+        | «أصناف مستحضرات التجميل» #401 is the cosmetics SHOP — makeup, a trade
+        | of its own. This is the supermarket shelf: what a household replaces
+        | every month, by the bottle.
+        */
+        'أصناف العناية الشخصية' => [
+            'name_en' => 'Personal Care Ranges',
+            'options' => [
+                'شامبو' => 'Shampoo',
+                'بلسم شعر' => 'Hair Conditioner',
+                'زيت شعر' => 'Hair Oil',
+                'صبغة شعر' => 'Hair Dye',
+                'صابون استحمام' => 'Bath Soap',
+                'جل استحمام' => 'Shower Gel',
+                'معجون أسنان' => 'Toothpaste',
+                'فرشاة أسنان' => 'Toothbrush',
+                'غسول فم' => 'Mouthwash',
+                'مزيل عرق' => 'Deodorant',
+                'كريم مرطب' => 'Moisturiser',
+                'واقي شمس' => 'Sunscreen',
+                'شفرات حلاقة' => 'Razors',
+                'كريم حلاقة' => 'Shaving Cream',
+                'مزيل شعر' => 'Hair Removal Cream',
+                'فوط صحية' => 'Sanitary Pads',
+                'مناديل ورقية' => 'Tissues',
+                'قطن وأعواد أذن' => 'Cotton Wool & Swabs',
+            ],
+        ],
+
+        /*
+        | The other half of a baby's shelf. «أنواع أغذية الأطفال» above is what
+        | the child eats; this is everything else, and the two are two prices on
+        | two different aisles — a pharmacy sells the nappies and not the cereal.
+        */
+        'مستلزمات الأطفال' => [
+            'name_en' => 'Baby Care Supplies',
+            'options' => [
+                'حفاضات' => 'Nappies',
+                'مناديل مبللة' => 'Baby Wipes',
+                'شامبو أطفال' => 'Baby Shampoo',
+                'صابون أطفال' => 'Baby Soap',
+                'بودرة أطفال' => 'Baby Powder',
+                'كريم تسلخات' => 'Nappy Rash Cream',
+                'ببرونة' => 'Feeding Bottle',
+                'مصاصة' => 'Pacifier',
+                'جهاز تعقيم ببرونات' => 'Bottle Steriliser',
+            ],
+        ],
+
+        /*
+        | «أنواع الأعلاف» #581 is the FARM — طن أعلاف دواجن. A pet is not
+        | livestock and a tin of cat food is not a tonne of feed.
+        */
+        'مستلزمات الحيوانات الأليفة' => [
+            'name_en' => 'Pet Supplies',
+            'options' => [
+                'طعام قطط' => 'Cat Food',
+                'طعام كلاب' => 'Dog Food',
+                'طعام طيور' => 'Bird Food',
+                'طعام أسماك زينة' => 'Ornamental Fish Food',
+                'رمل قطط' => 'Cat Litter',
+                'أقفاص وبيوت' => 'Cages & Kennels',
+                'أحواض أسماك' => 'Aquariums',
+                'أطواق ومقاود' => 'Collars & Leads',
+                'ألعاب حيوانات' => 'Pet Toys',
+                'شامبو حيوانات' => 'Pet Shampoo',
+                'مستلزمات نظافة الحيوانات' => 'Pet Grooming Supplies',
+            ],
+        ],
+
+        /*
+        | «فحم» was one aisle row and it is a whole counter in an Egyptian
+        | grocery: the shisha coal, the barbecue coal and the firewood are three
+        | prices, and the matches and the candles sit on the same shelf because
+        | they are the same errand.
+        */
+        'أنواع الفحم والوقود المنزلي' => [
+            'name_en' => 'Charcoal & Household Fuel',
+            'options' => [
+                'فحم خشب' => 'Wood Charcoal',
+                'فحم مضغوط' => 'Briquette Charcoal',
+                'فحم شيشة' => 'Shisha Charcoal',
+                'حطب' => 'Firewood',
+                'سبيرتو' => 'Methylated Spirit',
+                /*
+                 * ⚠ «ولاعات» is NOT written here. The word already exists once
+                 * on the platform, in «مشتقات التدخين» — the tobacconist's
+                 * list — and `options.name_en` is unique platform-wide, so a
+                 * second one would be minted as «Lighters (2)».
+                 *
+                 * Left out rather than duplicated: one word, one row is the
+                 * rule that three «Tilapia» were written to teach. A grocer who
+                 * wants the lighter takes the existing row by hand; borrowing
+                 * the whole tobacco list to reach it would hand him سجائر.
+                 */
+                'كبريت' => 'Matches',
+                'شمع' => 'Candles',
+                'وقود مواقد' => 'Stove Fuel',
+            ],
+        ],
+
+        /*
         | «أصناف العصائر والمشروبات» is the JUICE BAR — «عصير قصب», «سموذي»,
         | made and sold in a cup. This is the fridge: a bottle with a barcode.
         */
@@ -470,6 +609,27 @@ return [
             'ورق عنب' => 'Vine Leaves',
             'طماطم شيري' => 'Cherry Tomatoes',
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | مستلزمات المنزل #404 — borrowed for «أدوات منزلية», not cloned
+        |----------------------------------------------------------------------
+        | Seven rows written for «صيني ومستلزمات بيت»: أواني طهي، أدوات مائدة،
+        | أطقم تقديم، تخزين وحفظ، مفارش سفرة، أدوات مطبخ، أدوات تنظيف منزلية.
+        | Every one of them is a heading a grocer prices under too.
+        |
+        | The five below are what a china shop does not stock and a grocery
+        | does — the errand end of the same shelf. Adding a row to a group is
+        | not granting it: the china shop keeps exactly the seven links it has,
+        | because rows and links are two different tables.
+        */
+        'مستلزمات المنزل' => [
+            'مكانس وممسحات' => 'Brooms & Mops',
+            'سلال مهملات' => 'Waste Bins',
+            'شماعات ملابس' => 'Clothes Hangers',
+            'حبال غسيل ومشابك' => 'Washing Lines & Pegs',
+            'فويل وورق زبدة' => 'Foil & Baking Paper',
+        ],
     ],
 
     /*
@@ -541,6 +701,44 @@ return [
             'children' => [63],              // بن
             'groups' => ['أنواع الشاي والقهوة', 'أنواع المكسرات والتسالي'],
         ],
+
+        /*
+        |----------------------------------------------------------------------
+        | The non-food half — «نظّف أقسام المنزل والعناية»
+        |----------------------------------------------------------------------
+        | ⚠ «منظفات» #83 is the «بن» of this pass: a real trade under THREE
+        | roots whose only priced list on the platform was «أقسام المنزل
+        | والعناية». It takes all six replacements, and it takes them BEFORE the
+        | switch-off — grant first, then revoke.
+        |
+        | Its links are written SHARED (`category_id = 0`), which also retires
+        | the two `mirror_links` entries that used to copy the old group into
+        | شركات and مصانع root by root: a shared row already covers every root
+        | the child stands under.
+        */
+        'household_and_care' => [
+            'children' => [83, 149, 185, 272],   // منظفات · هايبر · مني · سوبر
+            'groups' => [
+                'أنواع المنظفات', 'أصناف العناية الشخصية', 'مستلزمات الأطفال',
+                'مستلزمات الحيوانات الأليفة', 'أنواع الفحم والوقود المنزلي',
+                'مستلزمات المنزل',
+            ],
+        ],
+
+        /*
+        | «مواد غذائية ومنظفات» #110 carried THREE of the six — منظفات، عناية
+        | شخصية، فحم — and not the nappies, the pet food or the pots.
+        |
+        | Who gets what is READ and not decided, the same rule the fresh-counter
+        | file states: its own link data is the answer, and widening it here
+        | would be forty rows the owner has to take off by hand.
+        */
+        'grocer_with_detergents' => [
+            'children' => [110],
+            'groups' => [
+                'أنواع المنظفات', 'أصناف العناية الشخصية', 'أنواع الفحم والوقود المنزلي',
+            ],
+        ],
     ],
 
     /*
@@ -569,13 +767,30 @@ return [
     | had withdrawn them by hand months before, which is the same ruling arrived
     | at from the other side.
     |
-    | ⚠ «أقسام المنزل والعناية» is NOT here. منظفات، عناية شخصية، فحم are not
-    | food, nothing above replaces them, and retiring a list because it sits
-    | beside one that was replaced is how a shop loses a shelf it still keeps.
+    | ── And the third, «نظّف أقسام المنزل والعناية» ──────────────────────────
+    |
+    | It was held back on the first pass, and correctly: منظفات and فحم are not
+    | food and nothing written then replaced them. Now they are written, so the
+    | last of the five aisle drawers goes with the other two:
+    |
+    |     منظفات                     →  أنواع المنظفات
+    |     عناية شخصية                →  أصناف العناية الشخصية
+    |     منتجات أطفال               →  مستلزمات الأطفال
+    |     مستلزمات حيوانات أليفة     →  مستلزمات الحيوانات الأليفة
+    |     فحم                        →  أنواع الفحم والوقود المنزلي
+    |     أدوات منزلية               →  مستلزمات المنزل  (borrowed, extended)
+    |
+    | Zero ticks, zero prices, zero offerings on all six.
+    |
+    | ⚠ Three of the five drawers are now off and «بنود المخبوزات والحلويات» is
+    | the one still standing that this file has NOT replaced — مخبوزات، وافل،
+    | آيس كريم، حلويات وشوكولاتة are a counter somebody WORKS at, and a kitchen
+    | heading is not a shelf. It stays.
     */
     'retire' => [
         'أصناف المنتجات الغذائية',
         'أقسام البقالة الجافة',
         'أقسام المشروبات',
+        'أقسام المنزل والعناية',
     ],
 ];

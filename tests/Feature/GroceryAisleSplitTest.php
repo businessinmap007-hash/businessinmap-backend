@@ -33,7 +33,6 @@ class GroceryAisleSplitTest extends TestCase
     private const COUNTERS = [
         'أقسام الطازج واللحوم',
         'بنود المخبوزات والحلويات',
-        'أقسام المنزل والعناية',
     ];
 
     /**
@@ -51,7 +50,19 @@ class GroceryAisleSplitTest extends TestCase
     private const RETIRED = [
         'أقسام البقالة الجافة',
         'أقسام المشروبات',
+        // …and the non-food third, «نظّف أقسام المنزل والعناية», hours later:
+        // منظفات، عناية شخصية، منتجات أطفال، مستلزمات حيوانات أليفة، فحم →
+        // five lists of their own, and «أدوات منزلية» → «مستلزمات المنزل»,
+        // borrowed from «صيني ومستلزمات بيت» rather than written twice.
+        'أقسام المنزل والعناية',
     ];
+
+    /**
+     * What is left of the five, and it is the half that was never a shelf: a
+     * fresh counter is weighed and a bakery counter is baked. Both are work
+     * somebody does on the premises, which is why neither was replaced by a
+     * list of packets.
+     */
 
     /** @return array<int,string> */
     private function optionsOf(string $groupNameAr): array
@@ -120,7 +131,6 @@ class GroceryAisleSplitTest extends TestCase
             // self::RETIRED and the test that guards them below. A retired group
             // fails `is_active = 1` by design, so asserting it here would be
             // asserting against the owner.
-            'المنزل' => ['أقسام المنزل والعناية', 6, 'منظفات'],
         ];
     }
 
@@ -143,6 +153,33 @@ class GroceryAisleSplitTest extends TestCase
             $this->assertSame(0, DB::table('category_child_option')->whereIn('option_id', $ids)->count());
             $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $ids)->count());
         }
+
+        /*
+         * And the two trades that would have been left mute by it. Each had
+         * exactly ONE priced list on the whole platform — «بن» had «أقسام
+         * البقالة الجافة» (2 rows), «منظفات» had «أقسام المنزل والعناية» (6) —
+         * so both were granted their replacements in the same transaction,
+         * before the switch-off.
+         */
+        $linesOf = fn (string $child) => DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', $this->childId($child))
+            ->where('g.is_active', 1)->where('g.price_role', 'line')
+            ->distinct()->pluck('g.name_ar')->all();
+
+        foreach ([
+            'بن' => ['أنواع الشاي والقهوة', 'أنواع المكسرات والتسالي'],
+            'منظفات' => [
+                'أنواع المنظفات', 'أصناف العناية الشخصية', 'مستلزمات الأطفال',
+                'مستلزمات الحيوانات الأليفة', 'أنواع الفحم والوقود المنزلي',
+                'مستلزمات المنزل',
+            ],
+        ] as $child => $expected) {
+            foreach ($expected as $group) {
+                $this->assertContains($group, $linesOf($child), "«{$child}» cannot say «{$group}»");
+            }
+        }
     }
 
     /**
@@ -164,7 +201,9 @@ class GroceryAisleSplitTest extends TestCase
         return [
             'سمّاك' => ['أسماك', 'أقسام الطازج واللحوم'],
             'مخبز' => ['مخابز', 'بنود المخبوزات والحلويات'],
-            'محل منظفات' => ['منظفات', 'أقسام المنزل والعناية'],
+            // «محل منظفات» left this provider on 2026-08-24 for the same reason
+            // «محل بن» did: it answers none of the counters above any more. Its
+            // own six lists are asserted in the retirement test below.
             'مجمدات' => ['مجمدات', 'أقسام الطازج واللحوم'],
             // «محل بن» left this provider on 2026-08-24: he answers none of
             // the three counters above any more. His own list is asserted in

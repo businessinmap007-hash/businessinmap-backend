@@ -146,55 +146,130 @@ class FoodRangesExpansionTest extends TestCase
         $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $optionIds)->count());
     }
 
-    public function test_no_seeder_still_declares_the_retired_group(): void
+    /**
+     * A retired group that a seeder keeps granting is worse than one nobody
+     * retired: it reaches children nothing shows, on every run.
+     *
+     * Three shapes were found doing it, which is why this greps for all three:
+     * `=> 'all'` in a vocabulary file (#110 got the whole twenty back every
+     * run), and the bare `['<group>']` of a `mirror_links` entry (#83 had two,
+     * one under شركات and one under مصانع).
+     */
+    public function test_no_seeder_still_declares_a_retired_group(): void
     {
-        // «مواد غذائية ومنظفات» #110 was granted the whole twenty by
-        // company_child_vocabularies.php and got them back on every run. A file
-        // that keeps declaring a row it gave away is this taxonomy's oldest bug.
-        $files = glob(base_path('database/seeders/data/*.php'));
+        $retired = $this->data()['retire'];
 
-        foreach ($files as $file) {
+        $this->assertNotEmpty($retired);
+
+        foreach (glob(base_path('database/seeders/data/*.php')) as $file) {
             if (str_contains($file, 'option_price_roles') || str_contains($file, 'food_ranges_expansion')) {
-                continue;   // both name it on purpose — see their own comments
+                continue;   // both name them on purpose — see their own comments
             }
 
             $body = (string) file_get_contents($file);
 
-            $this->assertStringNotContainsString(
-                "'" . self::RETIRED . "' => 'all'",
-                $body,
-                basename($file) . ' still grants a retired group'
-            );
+            foreach ($retired as $name) {
+                foreach (["'{$name}' => 'all'", "['{$name}']"] as $grant) {
+                    $this->assertStringNotContainsString(
+                        $grant,
+                        $body,
+                        basename($file) . " still grants «{$name}»"
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * All four, not just the first: each is stopped, keeps its rows, and reaches
+     * nobody.
+     */
+    public function test_every_retired_group_is_stopped_and_reaches_nobody(): void
+    {
+        foreach ($this->data()['retire'] as $name) {
+            $group = DB::table('option_groups')->where('name_ar', $name)->first();
+
+            $this->assertNotNull($group, "«{$name}» was deleted — nothing here is deleted");
+            $this->assertSame(0, (int) $group->is_active, "«{$name}» is still live");
+
+            $ids = DB::table('options')->where('group_id', $group->id)->pluck('id');
+
+            $this->assertNotEmpty($ids, "«{$name}» lost the rows that are its record");
+            $this->assertSame(0, DB::table('category_child_option')->whereIn('option_id', $ids)->count(), $name);
+            $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $ids)->count(), $name);
         }
     }
 
     // ── who carries the thirteen ────────────────────────────────────────────
 
     /**
-     * @dataProvider carriers
+     * Read from the map, not restated here.
+     *
+     * Who gets what is a DECISION recorded in `links` — «مواد غذائية ومنظفات»
+     * carried three of the six household aisles and not the nappies or the pet
+     * food, so it gets three. A list of expectations written out again in a
+     * test is a second opinion about the same question, and the two drift.
      */
-    public function test_the_lists_reached_the_shops_that_asked_for_them(string $child): void
+    public function test_every_list_reached_the_children_the_map_names(): void
     {
-        $groups = $this->groupsOf($child);
+        $sets = $this->data()['links'];
 
-        foreach (array_keys($this->data()['groups']) as $group) {
-            $this->assertContains($group, $groups->all(), "«{$child}» cannot say «{$group}»");
+        $this->assertNotEmpty($sets);
+
+        foreach ($sets as $label => $set) {
+            foreach ($set['children'] as $childId) {
+                $name = DB::table('category_children_master')->where('id', $childId)->value('name_ar');
+
+                if (! $name) {
+                    $this->fail("«{$label}» names child #{$childId}, which does not exist.");
+                }
+
+                $groups = $this->groupsOf($name)->all();
+
+                foreach ($set['groups'] as $group) {
+                    $this->assertContains($group, $groups, "«{$name}» ({$label}) cannot say «{$group}»");
+                }
+            }
         }
     }
 
-    /** @return array<string,array{0:string}> */
-    public static function carriers(): array
+    /**
+     * The other half of the same rule: a child is not handed a list its own
+     * link data never asked for.
+     */
+    public function test_a_grocer_is_not_handed_a_shelf_he_never_carried(): void
     {
-        return [
-            // «ونضيف المجموعات إلى السوبر ماركت والهايبر والميني ماركت»
-            'سوبر ماركت' => ['سوبر ماركت'],
-            'هايبر ماركت' => ['هايبر ماركت'],
-            'مني ماركت' => ['مني ماركت'],
-            // …and the two dry grocers, who carried the retired group too and
-            // would otherwise have been left holding nothing.
-            'مواد غذائية' => ['مواد غذائية'],
-            'مواد غذائية ومنظفات' => ['مواد غذائية ومنظفات'],
-        ];
+        $groups = $this->groupsOf('مواد غذائية ومنظفات')->all();
+
+        // It carried منظفات، عناية شخصية and فحم out of the six household
+        // aisles — never the nappies, the pet food or the pots.
+        foreach (['أنواع المنظفات', 'أصناف العناية الشخصية', 'أنواع الفحم والوقود المنزلي'] as $held) {
+            $this->assertContains($held, $groups);
+        }
+
+        foreach (['مستلزمات الأطفال', 'مستلزمات الحيوانات الأليفة', 'مستلزمات المنزل'] as $never) {
+            $this->assertNotContains($never, $groups, "«مواد غذائية ومنظفات» was handed «{$never}»");
+        }
+    }
+
+    public function test_a_household_word_is_not_written_twice(): void
+    {
+        // «ولاعات» exists once, in «مشتقات التدخين» — the tobacconist's list.
+        // A second one would have been minted as «Lighters (2)», which is the
+        // duplicate three «Tilapia» were written to teach.
+        $rows = DB::table('options')->where('name_ar', 'ولاعات')->count();
+
+        $this->assertSame(1, $rows, '«ولاعات» is on the platform more than once');
+
+        // …and the housewares list is BORROWED, not cloned: one list, extended.
+        $this->assertSame(
+            1,
+            DB::table('option_groups')->where('name_ar', 'مستلزمات المنزل')->count()
+        );
+
+        foreach (['أواني طهي', 'مكانس وممسحات'] as $word) {
+            $this->assertContains($word, $this->optionsOf('مستلزمات المنزل')->all());
+        }
     }
 
     public function test_a_dry_grocer_is_not_handed_a_fridge(): void

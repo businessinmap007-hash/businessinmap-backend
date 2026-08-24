@@ -463,7 +463,12 @@ return [
         50 => ['أنواع الأبواب والشبابيك'],                  // باب وشباك
         56 => ['أثاث وتشطيب منزلي', 'طراز الأثاث'],        // نجف
         60 => ['موضة وعناية شخصية'],                        // ملابس جاهزة
-        83 => ['أقسام المنزل والعناية'],                    // منظفات
+        // «منظفات» #83 mirrored «أقسام المنزل والعناية» into this root until
+        // 2026-08-24, when that group was retired — its six aisle words each
+        // became a list. The six replacements are granted to #83 SHARED
+        // (`category_id = 0`) in data/food_ranges_expansion.php, and a shared
+        // row already covers every root the child stands under, so there is
+        // nothing left for a mirror to copy.
         // «أجهزة كهربائية» #88 is not mirrored: its list must be SHARED across
         // its four roots — see BulkPickerSlipRevertSeeder::SHARED_AGAIN.
         95 => ['موضة وعناية شخصية', 'الجمهور المستهدف'],   // أقمشة

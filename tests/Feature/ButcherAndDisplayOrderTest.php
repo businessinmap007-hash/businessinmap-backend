@@ -165,6 +165,92 @@ class ButcherAndDisplayOrderTest extends TestCase
         $this->assertSame($before, DB::table('category_children_master')->orderBy('id')->pluck('reorder', 'id')->all());
     }
 
+    // ── and every list that shows them reads it ─────────────────────────────
+
+    /**
+     * «اجعل الابناء بترتيب ابجدي ايضا مثل الخيارات» — المالك، 2026-08-25.
+     *
+     * The column was already alphabetical; three lists were not reading it.
+     * Comparison is against the DATABASE's own sort — `strcmp` in PHP puts «أ»
+     * and «ا» somewhere the collation never would.
+     */
+    public function test_a_root_lists_its_children_in_the_alphabet(): void
+    {
+        $root = \App\Models\Category::query()->withoutGlobalScopes()
+            ->where('parent_id', 0)
+            ->withCount('children')
+            ->orderByDesc('children_count')
+            ->first();
+
+        $ids = $root->children()->pluck('category_children_master.id')->all();
+
+        $this->assertGreaterThan(5, count($ids), 'A root with enough children to sort.');
+
+        $this->assertSame(
+            DB::table('category_children_master')->whereIn('id', $ids)
+                ->orderBy('name_ar')->orderBy('id')->pluck('id')->map(fn ($i) => (int) $i)->all(),
+            array_map('intval', $ids),
+        );
+    }
+
+    public function test_a_platform_service_lists_its_children_in_the_alphabet(): void
+    {
+        // `sort_order` is a hand order and still wins. It is 0 almost
+        // everywhere, and where it ties the name decides — so the assertion is
+        // made inside one block of equal `sort_order`, which is what a screen
+        // actually shows.
+        $service = \App\Models\PlatformService::query()
+            ->whereHas('activeChildren')->orderBy('id')->firstOrFail();
+
+        $rows = $service->activeChildren()->get(['category_children_master.id', 'name_ar']);
+
+        $blocks = $rows->groupBy(fn ($r) => (int) $r->pivot->sort_order);
+        $biggest = $blocks->sortByDesc(fn ($b) => $b->count())->first();
+
+        if ($biggest === null || $biggest->count() < 3) {
+            $this->markTestSkipped('No block of tied rows to sort in this database.');
+        }
+
+        // The same child is linked once per root, so the list repeats ids. What
+        // is asserted is that it never goes BACKWARDS in the alphabet.
+        $ids = $biggest->pluck('id')->map(fn ($i) => (int) $i)->all();
+
+        $rank = array_flip(
+            DB::table('category_children_master')->whereIn('id', $ids)
+                ->orderBy('name_ar')->orderBy('id')->pluck('id')->map(fn ($i) => (int) $i)->all()
+        );
+
+        $seen = -1;
+
+        foreach ($ids as $id) {
+            $this->assertGreaterThanOrEqual($seen, $rank[$id], 'The list steps back in the alphabet.');
+            $seen = $rank[$id];
+        }
+    }
+
+    public function test_no_screen_lists_children_by_id_alone(): void
+    {
+        // A list ordered by `id` alone is insertion order wearing a number.
+        $offenders = [];
+
+        foreach (
+            array_merge(
+                glob(app_path('Http/Controllers/**/*.php')) ?: [],
+                glob(app_path('Http/Controllers/**/**/*.php')) ?: [],
+            ) as $file
+        ) {
+            // Whitespace is squeezed out so a chain broken across lines reads
+            // the same as one written inline.
+            $body = preg_replace('/\s+/u', '', (string) file_get_contents($file));
+
+            if (str_contains($body, "CategoryChild::query()->orderBy('id')")) {
+                $offenders[] = basename($file);
+            }
+        }
+
+        $this->assertSame([], $offenders, 'These list children in insertion order: '.implode(', ', $offenders));
+    }
+
     // ── price, unit, quantity ───────────────────────────────────────────────
 
     public function test_a_row_carries_its_price_its_unit_and_its_quantity(): void

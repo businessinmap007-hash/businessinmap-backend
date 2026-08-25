@@ -118,7 +118,14 @@ class ServiceFeeRuleController extends Controller
             'rule' => $rule,
             'conditions' => is_array($rule->conditions) ? $rule->conditions : [],
             'services' => $this->servicesList(),
-            'children' => CategoryChild::query()->orderBy('id')->get(),
+            // Alphabetical, like every other child list — `reorder` carries the
+            // alphabet (DisplayOrderSeeder), and the name is the fallback for a
+            // row written after the last numbering run.
+            'children' => CategoryChild::query()
+                ->orderByRaw('COALESCE(reorder, 999999) ASC')
+                ->orderBy('name_ar')
+                ->orderBy('id')
+                ->get(),
             'governorates' => Governorate::query()->orderBy('name_ar')->get(['id', 'name_ar']),
             'payers' => $this->payers(),
             'effects' => $this->effects(),

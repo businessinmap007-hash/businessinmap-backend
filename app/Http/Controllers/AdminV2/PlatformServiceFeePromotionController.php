@@ -228,7 +228,11 @@ class PlatformServiceFeePromotionController extends Controller
 
     private function childrenList()
     {
+        // Alphabetical, like every other child list: `reorder` carries the
+        // alphabet, the name catches a row written after the last numbering run.
         return CategoryChild::query()
+            ->orderByRaw('COALESCE(reorder, 999999) ASC')
+            ->orderBy('name_ar')
             ->orderBy('id')
             ->get();
     }

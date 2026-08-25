@@ -150,6 +150,12 @@ class PlatformService extends Model
             ->withPivot(['category_id', 'child_id', 'is_active', 'sort_order', 'meta'])
             ->withTimestamps()
             ->orderBy('category_platform_services.sort_order')
+            // The pivot's `sort_order` is a hand order and stays first, but it
+            // is 0 on almost every row — so without a name here the list falls
+            // back to `id`, which is the order the rows happened to be written
+            // in. The child list is alphabetical everywhere else; it is
+            // alphabetical here too the moment the hand order says nothing.
+            ->orderBy('category_children_master.name_ar')
             ->orderBy('category_children_master.id');
     }
 
@@ -163,6 +169,12 @@ class PlatformService extends Model
 
         return $relation
             ->orderBy('category_platform_services.sort_order')
+            // The pivot's `sort_order` is a hand order and stays first, but it
+            // is 0 on almost every row — so without a name here the list falls
+            // back to `id`, which is the order the rows happened to be written
+            // in. The child list is alphabetical everywhere else; it is
+            // alphabetical here too the moment the hand order says nothing.
+            ->orderBy('category_children_master.name_ar')
             ->orderBy('category_children_master.id');
     }
 

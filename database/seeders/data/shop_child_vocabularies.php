@@ -743,6 +743,21 @@ return [
                 'قشطة' => 'Cream',
                 'زبدة' => 'Butter',
                 'سمنة' => 'Ghee',
+                /*
+                | «راجع باقي مجموعات الخيارات وأضف إليها ما ينقصها» — المالك،
+                | 2026-08-25. Six names a cheese counter is asked for before it
+                | is asked for anything else. They are declared HERE and not in
+                | data/option_group_gaps.php because this file is the group's
+                | authority — `FreshCounterVarietiesTest > each list holds
+                | exactly what its file declares` reads it, and a row added
+                | anywhere else makes that test call this file a liar.
+                */
+                'لبنة' => 'Labneh',
+                'جبنة حلوم' => 'Halloumi',
+                'جبنة إسطنبولي' => 'Istanbouli Cheese',
+                'جبنة فلمنك' => 'Edam Cheese',
+                'كريمة خفق' => 'Whipping Cream',
+                'حليب مجفف' => 'Powdered Milk',
             ],
         ],
     ],

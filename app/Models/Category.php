@@ -113,7 +113,15 @@ class Category extends Model
             'category_parent_child',
             'parent_id',
             'child_id'
-        )->withTimestamps();
+        )
+            ->withTimestamps()
+            // `reorder` is the alphabet (DisplayOrderSeeder). Ordering here and
+            // not only in `activeChildren()` means a caller that just reads
+            // `$root->children` — a picker, a blade loop — gets the same order
+            // the rest of the panel shows, instead of insertion order.
+            ->orderBy('category_children_master.reorder')
+            ->orderBy('category_children_master.name_ar')
+            ->orderBy('category_children_master.id');
     }
 
     public function activeChildren(): BelongsToMany
@@ -125,6 +133,7 @@ class Category extends Model
             'child_id'
         )
             ->orderBy('category_children_master.reorder')
+            ->orderBy('category_children_master.name_ar')
             ->orderBy('category_children_master.id');
     }
 

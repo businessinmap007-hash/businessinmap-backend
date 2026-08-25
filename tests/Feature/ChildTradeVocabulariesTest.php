@@ -2247,7 +2247,10 @@ class ChildTradeVocabulariesTest extends TestCase
             $lines = $vocabulary->for(0, 95, $rootId)['lines'];
 
             $this->assertSame(['أنواع الأقمشة'], array_keys($lines->all()), "«أقمشة» prices something else under root {$rootId}");
-            $this->assertCount(15, $lines->first(), "«أقمشة» is offered a short list under root {$rootId}");
+            // Fifteen until 2026-08-25; ten more cloths a draper is asked for
+            // by name were added then. The count is here to catch a list that
+            // SHRINKS under one root, which is the failure this guards.
+            $this->assertCount(25, $lines->first(), "«أقمشة» is offered a short list under root {$rootId}");
         }
     }
 

@@ -202,6 +202,14 @@ class DatabaseSeeder extends Seeder
            FoodRangesExpansionSeeder::class,
 
            /*
+            * The rest of the option groups, 2026-08-25. It only ADDS ROWS to
+            * groups that already exist, so it runs after every seeder that
+            * creates one — and it links nothing, so nothing downstream depends
+            * on it having run.
+            */
+           OptionGroupGapsSeeder::class,
+
+           /*
             * The private half of the car market, 2026-08-17. It creates a
             * CHILD, so it must run before anything that reads the root's
             * children — and after the vocabulary seeder, because it copies its

@@ -23,7 +23,18 @@ class VehicleTypeOptionsTest extends TestCase
      */
     use DatabaseTransactions;
 
-    private const APPROVED = ['سيدان', 'SUV', 'بيك أب'];
+    /**
+     * Three until 2026-08-25, when «راجع باقي مجموعات الخيارات وأضف إليها ما
+     * ينقصها» widened it: a hatchback is the commonest car on an Egyptian
+     * street and a showroom had no way to say it. The nine were added by
+     * `OptionGroupGapsSeeder`, which is add-only — `VehicleTypeOptionsSeeder`
+     * still writes and links its original three and deletes nothing.
+     */
+    private const APPROVED = [
+        'سيدان', 'SUV', 'بيك أب',
+        'هاتشباك', 'كوبيه', 'ستيشن', 'كروس أوفر', 'مكشوفة',
+        'ميني ڤان', 'دفع رباعي', 'ميكروباص', 'نص نقل',
+    ];
 
     private function groupId(): int
     {

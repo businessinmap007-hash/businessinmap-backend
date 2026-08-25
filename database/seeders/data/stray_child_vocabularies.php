@@ -8,11 +8,12 @@
 | siblings left behind — so they are collected here rather than given a root
 | file of their own.
 |
-| **«نادي صحي» #516** stands under «الرياضة» beside جيم، نادي رياضي، حمام سباحة
-| and أكاديمية رياضية, and all four carry «الأنشطة الرياضية». It arrived after
-| that grant — it spent a day rootless during the sports remodel — and nobody
-| went back for it. It borrows the rows a health club actually runs, which is
-| the indoor half: no football pitch, no horse riding.
+| **«نادي صحي» #516** stood under «الرياضة» beside جيم، نادي رياضي، حمام سباحة
+| and أكاديمية رياضية, and borrowed the indoor half of what those four carry —
+| no football pitch, no horse riding. The owner retired it outright on
+| 2026-08-14: «حذف نادي صحي ونكتفى بنادي رياضي وأكاديمية»
+| (`child_root_moves.php`). It stands under no root any more — dropped from
+| both groups' `children` below, and from its own narrowed `links` entry.
 |
 | **«سائق» #85** under «سيارات» is a hired driver, and what he is booked with is
 | the VEHICLE. «مركبات النقل والركاب» is exactly that list and eleven children
@@ -72,9 +73,10 @@ return [
     | Only `options.group_id`, the same promise MenuBandSplitSeeder and
     | GroceryAisleSplitSeeder make. Not one `category_child_option` row is
     | touched: every club keeps every row it had, under two headings instead of
-    | one. The five carriers are unchanged and so is every withdrawal the owner
-    | has made against them — «ملاعب كرة» is not in this file's children and
-    | does not become one.
+    | one. The carriers are unchanged (four now, not the five this note was
+    | first written for — «نادي صحي» #516 was retired 2026-08-14 and dropped
+    | 2026-08-25) and so is every withdrawal the owner has made against them —
+    | «ملاعب كرة» is not in this file's children and does not become one.
     */
     'regroup' => [
         'خدمات النادي الرياضي' => [
@@ -192,7 +194,7 @@ return [
         'مرافق النادي الرياضي' => [
             'name_en' => 'Club Facilities',
             'price_role' => 'descriptive',
-            'children' => [130, 519, 521, 516, 520],
+            'children' => [130, 519, 521, 520],  // «نادي صحي» #516 retired 2026-08-14
             'options' => [
                 'حمام سباحة' => 'Swimming Pool',
                 'ساونا' => 'Sauna',
@@ -216,14 +218,14 @@ return [
         | and it is the one that looks like a facility until you ask who is in
         | the room: «كيدز ايريا» is the room, and it stayed above.
         |
-        | Same five carriers as the facilities list. The links already exist —
+        | Same carriers as the facilities list above. The links already exist —
         | `regroup` moved the options, not the rows — and this entry is what
         | keeps them if the group is ever rebuilt from nothing.
         */
         'خدمات النادي الرياضي' => [
             'name_en' => 'Club Services',
             'price_role' => 'line',
-            'children' => [130, 519, 521, 516, 520],
+            'children' => [130, 519, 521, 520],  // «نادي صحي» #516 retired 2026-08-14
             'options' => [
                 'مدرب شخصي' => 'Personal Trainer',
                 'استشارة تغذية' => 'Nutrition Advice',
@@ -369,18 +371,9 @@ return [
          */
         547 => ['خدمات النادي الرياضي' => ['استشارة تغذية']],
 
-
-        /*
-         * The indoor half. A health club runs the gym floor, the pool and the
-         * classes; it does not field a football team.
-         */
-        516 => [
-            'الأنشطة الرياضية' => [
-                'كمال أجسام / حديد', 'كارديو', 'كروس فيت', 'سبينينج',
-                'يوجا', 'بيلاتس', 'زومبا', 'آيروبكس',
-                'سباحة', 'ملاكمة', 'كيك بوكسينج', 'تنس طاولة',
-            ],
-        ],
+        // «نادي صحي» #516's narrowing of «الأنشطة الرياضية» stood here until
+        // the child was retired 2026-08-14 (see the file's top doc). It
+        // stands under no root any more — nothing left to narrow.
 
         /*
          * A driver is booked WITH a vehicle — and the owner answered which

@@ -76,10 +76,16 @@ class VehicleTypeOptionsTest extends TestCase
         $this->assertEqualsCanonicalizing(self::APPROVED, $options);
     }
 
-    /** Every child that sells the vehicle itself can name which one. */
+    /**
+     * Every child that sells the vehicle itself can name which one.
+     *
+     * «سيارات» is not in this list: it folded into «معرض سيارات» on
+     * 2026-08-17/18 (`f3a03d1c`) and stands under no root any more — the
+     * keeper carries everything it did.
+     */
     public function test_the_vehicle_sellers_carry_them(): void
     {
-        foreach (['سيارات', 'معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'] as $name) {
+        foreach (['معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'] as $name) {
             $id = $this->childId($name);
 
             $this->assertGreaterThan(0, $id, "«{$name}» is missing");

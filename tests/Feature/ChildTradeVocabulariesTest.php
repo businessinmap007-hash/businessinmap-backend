@@ -174,7 +174,11 @@ class ChildTradeVocabulariesTest extends TestCase
             ->where('g.name_ar', 'نظام التعاقد')
             ->distinct()->pluck('co.child_id')->map(fn ($id) => (int) $id)->all();
 
-        foreach (['محاسبة', 'محاماه', 'أمن', 'إدارة صفحات'] as $name) {
+        // «إدارة صفحات» is not named here: it folded into «دعاية وإعلان» on
+        // 2026-08-25, and the keeper — renamed «دعاية وإعلان وإدارة صفحات» —
+        // is checked in its place, widened to the folded child's own
+        // «ربع سنوي» و«سنوي» in the same commit.
+        foreach (['محاسبة', 'محاماه', 'أمن', 'دعاية وإعلان وإدارة صفحات'] as $name) {
             $this->assertContains($this->childId($name), $carriers, "«{$name}» is engaged two ways");
         }
 
@@ -1598,24 +1602,11 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('بالساعة', $modifiers);
     }
 
-    /** «إدارة صفحات» borrows the advertising list rather than cloning it. */
-    public function test_page_management_borrows_the_digital_half(): void
-    {
-        $lines = $this->lines($this->childId('إدارة صفحات'));
-
-        $this->assertContains('تسويق رقمي وسوشيال ميديا', $lines);
-        $this->assertContains('إعلانات ممولة', $lines);
-
-        // The physical half stays with «دعاية وإعلان» — that IS the difference.
-        $this->assertNotContains('لافتات وإعلانات طرق', $lines);
-        $this->assertNotContains('مطبوعات دعائية', $lines);
-
-        // The advertising child keeps its own list, and it grew independently
-        // of the page manager's borrowed four: 2026-08-25 added six rows an
-        // agency bills for on their own («أستاندات ورول أب», «فينيل وستيكرز
-        // سيارات»…). Thirteen, not seven.
-        $this->assertCount(13, $this->lines($this->childId('دعاية وإعلان')));
-    }
+    // «إدارة صفحات» borrowed the advertising list rather than cloning it, until
+    // it folded into «دعاية وإعلان» outright on 2026-08-25 — «ادمج إدارة
+    // صفحات فى دعاية وإعلان ولكن فى اسم يعبر عن الاثنين». The merge outcome
+    // (rename, detachment, the widened «نظام التعاقد») is pinned by
+    // PageManagementMergeTest instead.
 
     /** One trade, one vocabulary, whichever root the customer came through. */
     public function test_a_trade_under_two_roots_answers_the_same(): void
@@ -3503,7 +3494,9 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $scope = app(\App\Services\CategoryChildOptionScope::class);
 
-        foreach ([53 => 'سيارات', 188 => 'معرض سيارات', 189 => 'معرض موتوسيكلات'] as $childId => $name) {
+        // «سيارات» #53 is not checked here: it folded into «معرض سيارات» on
+        // 2026-08-17/18 (`f3a03d1c`) and stands under no root any more.
+        foreach ([188 => 'معرض سيارات', 189 => 'معرض موتوسيكلات'] as $childId => $name) {
             $held = collect($scope->idsFor($childId, 21))->map(fn ($id) => (int) $id)->all();
 
             $this->assertContains((int) $row->id, $held, "«{$name}» cannot say كسر زيرو");
@@ -3695,11 +3688,11 @@ class ChildTradeVocabulariesTest extends TestCase
             $this->assertEqualsCanonicalizing($freight, $units($childId), "«{$name}» cannot say what it charges per");
         }
 
-        // Consignments, never parcels — the same evidence that kept COD off it.
-        $this->assertEqualsCanonicalizing(
-            array_values(array_diff($freight, ['بالطرد'])),
-            $units(166)
-        );
+        // «شحن بري وبحري وجوى» #166 stood here — consignments, never parcels,
+        // the same evidence that kept COD off it — until it folded into
+        // «شركة» #68 on 2026-08-18 (`child_root_moves.php`). #68 above
+        // already carries «بالطرد» on its own account, as the domestic
+        // carrier it always was.
 
         // A van and a rep: per parcel, per kilo, per مشوار.
         $this->assertEqualsCanonicalizing(['بالطرد', 'بالكيلو', 'بالرحلة'], $units(243));

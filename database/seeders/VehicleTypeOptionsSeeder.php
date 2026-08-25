@@ -58,8 +58,17 @@ class VehicleTypeOptionsSeeder extends Seeder
         ['بيك أب', 'Pickup'],
     ];
 
-    /** Children that sell the vehicle itself — two list it, two drive it. */
-    private const CHILDREN = ['سيارات', 'معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'];
+    /**
+     * Children that sell the vehicle itself — one lists it, two drive it.
+     *
+     * «سيارات» #53 stood here until 2026-08-17/18 (`f3a03d1c`), when the owner
+     * folded it into «معرض سيارات» #188 — «خليه معرض سيارات ونفذ الطى والنقل»
+     * — and moved the keeper onto root «سيارات» #13. The keeper already
+     * carries the whole vocabulary this seeder writes; naming the folded
+     * child here would only relink a child with no root to stand under, for
+     * `OrphanChildLinksCleanupSeeder` to strip straight back off.
+     */
+    private const CHILDREN = ['معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'];
 
     public function run(): void
     {

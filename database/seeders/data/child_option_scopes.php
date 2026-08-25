@@ -138,7 +138,9 @@ return [
         64 => [568],   // كافيه
         245 => [568],  // مطعم
         246 => [568],  // مطعم وكافيه
-        155 => [568],  // انترنت كافيه — a whiteboard is meeting-room kit, not café kit
+        // «انترنت كافيه» #155 stood here until the owner folded it into
+        // «مركز ترفيهي» — «غير منتشر حاليا» (`child_root_detachments.php`).
+        // It stands under no root any more.
         // halls, conference centres and training rooms keep both
     ],
 

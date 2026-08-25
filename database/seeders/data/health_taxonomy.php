@@ -95,6 +95,15 @@ return [
         'ممارسة عامة' => 'General Practice',
         'نساء و ولادة' => 'Obstetrics & Gynecology',
         'نطق وتخاطب' => 'Speech Therapy',
+        // «راجع باقى مجموعات الخدمات الطبية والصحية» — المالك، 2026-08-25.
+        // Four specialties an Egyptian hospital or clinic answers to by name
+        // and the original 41 (all inherited from the pre-remodel children)
+        // never carried, because none of them was ever a registered business
+        // TYPE on its own.
+        'طب نفسي' => 'Psychiatry',
+        'طب الطوارئ' => 'Emergency Medicine',
+        'الأمراض المعدية' => 'Infectious Diseases',
+        'علاج الإدمان' => 'Addiction Medicine',
     ],
 
     // ── A second, narrower option pool: the imaging modalities a radiology
@@ -120,6 +129,11 @@ return [
         'أشعة تداخلية' => 'Interventional Radiology',
         'أشعة أسنان بانورامية' => 'Panoramic Dental X-Ray',
         'طب نووي' => 'Nuclear Medicine',
+        // PET-CT reached ordinary oncology imaging in Egypt (57357, NCI…)
+        // without ever getting a row of its own — it was answered by «طب
+        // نووي», which is the department, not the scan a patient is booked
+        // for by name.
+        'بيت سكان (PET-CT)' => 'PET-CT Scan',
     ],
 
     // ── Third narrow pool: the lab tests a معمل تحاليل performs — same axis
@@ -159,6 +173,11 @@ return [
         'تحليل مخدرات' => 'Drug Screening',
         'ما قبل الزواج' => 'Premarital Panel',
         'باقة فحص شامل' => 'Full Checkup Panel',
+        // Two tests a patient asks a lab for by name, not by mechanism —
+        // «تحليل PCR» already covers the METHOD; a patient does not ask for
+        // «PCR», he asks for «كوفيد».
+        'مسحة كوفيد (PCR / سريع)' => 'COVID-19 Test (PCR / Rapid)',
+        'تحليل الحساسية' => 'Allergy Test',
     ],
 
     // ── Where the 8 businesses currently registered under a specialty child

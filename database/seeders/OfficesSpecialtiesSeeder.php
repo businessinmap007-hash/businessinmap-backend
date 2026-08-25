@@ -21,6 +21,13 @@ class OfficesSpecialtiesSeeder extends Seeder
 {
     /** child name_ar => [group name_ar, group name_en, [ar => en options]] */
     private const POOLS = [
+        // «راجع مجموعات الخدمات المكتبية الباقية زى المحاماة والاستشارات»
+        // — المالك، 2026-08-25. Four practice areas an Egyptian firm
+        // advertises that the original twelve case-types did not name: a
+        // startup's incorporation is not «تجاري وشركات» litigation, a title
+        // registration at الشهر العقاري is not «عقاري» litigation, mediation
+        // is a named alternative to «تحكيم» and not the same word, and a
+        // building permit dispute is its own practice.
         'محاماه' => ['تخصصات المحاماة', 'Law Specialties', [
             'جنائي' => 'Criminal',
             'مدني' => 'Civil',
@@ -34,6 +41,14 @@ class OfficesSpecialtiesSeeder extends Seeder
             'استئناف ونقض' => 'Appeals & Cassation',
             'تحكيم' => 'Arbitration',
             'صياغة عقود' => 'Contract Drafting',
+            'قانون الاستثمار والشركات الناشئة' => 'Investment & Startup Law',
+            'التوثيق والشهر العقاري' => 'Notarisation & Real Estate Registration',
+            'الوساطة وتسوية المنازعات' => 'Mediation & ADR',
+            'قانون البناء والتراخيص' => 'Construction & Licensing Law',
+            // «Fine tec» — المالك، 2026-08-25، تأكَّد أنها Fintech. تنظيم
+            // البنك المركزى المصرى للمدفوعات الإلكترونية والبنوك الرقمية صنع
+            // هذا التخصص فعليًّا فى مصر خلال السنوات الأخيرة.
+            'التكنولوجيا المالية (فينتك)' => 'Fintech Law',
         ]],
         'هندسية' => ['تخصصات الهندسة', 'Engineering Specialties', [
             'معماري' => 'Architectural',
@@ -48,6 +63,15 @@ class OfficesSpecialtiesSeeder extends Seeder
             'إشراف على التنفيذ' => 'Construction Supervision',
             'استشارات إنشائية' => 'Structural Consulting',
         ]],
+        // «الاستشارات» — 2026-08-25. General business/management consulting
+        // was consolidated OUT of its own trade on 2026-08-02
+        // (`ConsultingConsolidationSeeder`): there is no «استشارات» child or
+        // root on the platform any more, and the priced/booked form is the
+        // shared business_consulting item types, not a specialty row. What an
+        // accounting office in Egypt actually sells under that name is
+        // financial and management advisory work, so the row is added here —
+        // to the office that does the work — rather than reviving the retired
+        // trade.
         'محاسبة' => ['تخصصات المحاسبة', 'Accounting Specialties', [
             'ضرائب' => 'Taxation',
             'مراجعة وتدقيق' => 'Audit',
@@ -56,6 +80,7 @@ class OfficesSpecialtiesSeeder extends Seeder
             'تأمينات اجتماعية' => 'Social Insurance',
             'خبرة قضائية' => 'Forensic Accounting',
             'إدارة رواتب' => 'Payroll',
+            'استشارات مالية وإدارية' => 'Financial & Management Consulting',
         ]],
         'دعاية وإعلان' => ['تخصصات الدعاية والإعلان', 'Advertising Specialties', [
             'تسويق رقمي وسوشيال ميديا' => 'Digital & Social Media',

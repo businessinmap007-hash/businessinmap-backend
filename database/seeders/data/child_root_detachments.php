@@ -568,4 +568,20 @@ return [
         'root_slug' => 'companies',
         'why' => 'الأسمنت يُصنّع أو يُباع في محل مواد بناء — والابنان قائمان تحتهما',
     ],
+
+    /*
+    | ── «إدارة صفحات» folds into «دعاية وإعلان», 2026-08-25 ─────────────────
+    | «ادمج إدارة صفحات فى دعاية وإعلان» — المالك. 0 accounts stood on it, so
+    | there is nothing to reassign; the master row and the folded name survive
+    | as the undo record, exactly as every merge in this file leaves them.
+    |
+    | `child_renames.php` renames the KEEPER (#11) to «دعاية وإعلان وإدارة
+    | صفحات» and MUST run before this entry, per the file's own ordering rule.
+    */
+    [
+        'child_name_ar' => 'إدارة صفحات',
+        'root_slug' => 'offices',
+        'reassign_to' => null, // 0 accounts stood here
+        'why' => 'اندمجت فى «دعاية وإعلان وإدارة صفحات» — كانت تستعير قائمته أصلًا ولا تاجر عليها',
+    ],
 ];

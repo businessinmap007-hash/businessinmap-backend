@@ -172,4 +172,27 @@ return [
         'to_ar' => 'فني تبريد وتكييف',
         'to_en' => 'HVAC Technician',
     ],
+
+    /*
+    | ── merge: «إدارة صفحات» folds into «دعاية وإعلان», 2026-08-25 ──────────
+    | «ادمج إدارة صفحات فى دعاية وإعلان ولكن فى اسم يعبر عن الاثنين» — المالك.
+    |
+    | «إدارة صفحات» #205 had 0 registered merchants and had never carried its
+    | own vocabulary: it borrowed four of «تخصصات الدعاية والإعلان»'s rows
+    | (the digital ones — تسويق رقمى وسوشيال ميديا، إعلانات ممولة، تصميم
+    | جرافيك، تصوير وإنتاج) and priced on «نظام التعاقد» like every retainer
+    | trade. The keeper already carried the whole superset; the only thing it
+    | did not yet carry was the subscription-billing axis, granted to it below
+    | in the same commit (`data/office_child_vocabularies.php`).
+    |
+    | The detachment is `data/child_root_detachments.php`; the withdrawn move
+    | that would otherwise re-attach #205 to «مكاتب» on every run is in
+    | `data/child_root_moves.php`.
+    */
+    [
+        'id' => 11,
+        'from_ar' => 'دعاية وإعلان',
+        'to_ar' => 'دعاية وإعلان وإدارة صفحات',
+        'to_en' => 'Advertising & Page Management',
+    ],
 ];

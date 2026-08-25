@@ -78,6 +78,7 @@ class ChildRootDetachTest extends TestCase
             'ثانوي عام' => ['ثانوي عام', 'training-courses'],
             'ثانوي أزهري' => ['ثانوي أزهري', 'training-courses'],
             'دبلومات فنية' => ['دبلومات فنية', 'training-courses'],
+            'إدارة صفحات' => ['إدارة صفحات', 'offices'],
         ];
     }
 

@@ -152,7 +152,7 @@ return [
          */
         'منطقة عمل مشتركة' => ['coworking'],
         'تنسيق حفلات' => ['halls_events', 'business_consulting'],
-        'دعاية وإعلان' => ['business_consulting'],
+        'دعاية وإعلان وإدارة صفحات' => ['business_consulting'],
         'محاسبة' => ['business_consulting'],
         'محاماه' => ['business_consulting'],
     ],
@@ -185,7 +185,7 @@ return [
         'برمجيات' => ['business_consulting'],
         'تسويق' => ['business_consulting'],
         'تنسيق حفلات' => ['halls_events', 'business_consulting'],
-        'دعاية وإعلان' => ['business_consulting'],
+        'دعاية وإعلان وإدارة صفحات' => ['business_consulting'],
         'سياحة' => ['tourism_travel', 'business_consulting'],
         'شركات تأمين' => ['business_consulting'],
         'صرافة وتحويل أموال' => ['business_consulting'],

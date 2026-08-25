@@ -143,7 +143,10 @@ class ChildRootMovesTest extends TestCase
             // «نادي صحي» moved health → sports here, and the owner retired it
             // on 2026-08-14 — «نكتفى ب نادى رياضى واكاديمية». Its end state is
             // pinned by ChildRootDetachTest, like «عفشجى» above.
-            'إدارة صفحات' => ['إدارة صفحات', 'technology', 'offices'],
+            // «إدارة صفحات» moved technology → offices here on 2026-08-09, and
+            // on 2026-08-25 folded into «دعاية وإعلان» (renamed «دعاية وإعلان
+            // وإدارة صفحات»). Its end state is pinned by ChildRootDetachTest,
+            // like «عفشجى» above.
             // «تجهيز عرائس» moved here on 2026-08-09 and was folded onto
             // «كوافير» on 2026-08-10 — it was already one of that child's
             // priced services. ChildRootDetachTest pins where it went.

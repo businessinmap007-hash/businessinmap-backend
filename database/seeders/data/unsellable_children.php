@@ -57,6 +57,8 @@ return [
         'إتصالات',            // 6 businesses
         'أمن وسلامة',         // 4 businesses
         'استيراد وتصدير',     // 5 businesses — it arranges, it does not stock
-        'إدارة صفحات',
+        // «إدارة صفحات» folded into «دعاية وإعلان» on 2026-08-25 and stands
+        // under no root any more — nothing left for this seeder to write a
+        // selling service to.
     ],
 ];

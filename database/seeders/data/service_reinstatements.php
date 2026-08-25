@@ -141,7 +141,7 @@ return [
         'child_name_ar' => 'طباعة',
         'root_slug' => 'companies',
         'service_key' => 'booking',
-        'copy_from_child_ar' => 'دعاية وإعلان',
+        'copy_from_child_ar' => 'دعاية وإعلان وإدارة صفحات', // renamed 2026-08-25
         'why' => 'شركة طباعة تُحجز بموعد كجارتها «دعاية وإعلان»، ولم تكن تملك أي سطح',
     ],
 

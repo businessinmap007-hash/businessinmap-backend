@@ -113,15 +113,18 @@ return [
     | sports». Two files arguing, and whichever seeder ran last would win.
     */
 
-    [
-        // Root 15 «تكنولوجيا» is what is built and run — برمجة، إتصالات. Running
-        // someone's pages is an ADVERTISING service, and root 19 already carries
-        // «دعاية وإعلان» and «محاسبة»: the offices you hire to do a thing for you.
-        'child_name_ar' => 'إدارة صفحات',
-        'from_root_slug' => 'technology',
-        'to_root_slug' => 'offices',
-        'why' => 'إدارة صفحات عملٌ دعائي يُشترى من مكتب، لا منتج تقني — بجوار «دعاية وإعلان»',
-    ],
+    /*
+    | «إدارة صفحات» moved technology → offices here on 2026-08-09, «بجوار
+    | «دعاية وإعلان»» — and on 2026-08-25 it went the rest of the way: folded
+    | INTO «دعاية وإعلان», renamed «دعاية وإعلان وإدارة صفحات»
+    | (`child_renames.php`). It had 0 accounts and had always borrowed that
+    | child's list rather than owning one.
+    |
+    | The entry is WITHDRAWN rather than left pointing at a root the child no
+    | longer stands under — a move seeder that names a folded child re-attaches
+    | it on its next run, exactly the failure «تجهيز عرائس» below already
+    | demonstrates. Its end state is pinned by ChildRootDetachTest instead.
+    */
 
     /*
     | «تجهيز عرائس» was moved shops-online → مهن وحرفيين here on 2026-08-09 on the

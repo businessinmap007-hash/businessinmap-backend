@@ -34,12 +34,15 @@
 | أمن (2026-08-10) and خدمات منزلية (2026-08-11 13:36, thirteen minutes before
 | he asked for this). Adding them back is the thing he keeps undoing.
 |
-| **«إدارة صفحات» gets no list of its own.** It is the social half of
-| «دعاية وإعلان» and that child already owns «تخصصات الدعاية والإعلان» #37. A
-| second near-identical list is the duplication the food-vocabulary split spent
-| a day undoing, so it borrows four of those seven rows instead — the digital
-| ones. The physical ones (لافتات، مطبوعات) stay behind, which is the whole
-| difference between the two children.
+| **«إدارة صفحات» folded into «دعاية وإعلان», 2026-08-25.** «ادمج إدارة صفحات
+| فى دعاية وإعلان ولكن فى اسم يعبر عن الاثنين» — المالك. It never carried a
+| list of its own — only four borrowed rows of «تخصصات الدعاية والإعلان» and
+| the subscription axis below — and 0 merchants stood on it, so nothing was
+| lost by keeping the keeper instead: it was renamed «دعاية وإعلان وإدارة
+| صفحات» (`child_renames.php`) and detached from its root
+| (`child_root_detachments.php`). What survives is «نظام التعاقد» below,
+| moved from the folded child's entry onto #11 — a retainer is still how half
+| of what this trade now sells is billed.
 |
 | Children standing under two roots — تنسيق حفلات، طباعة، أمن also hang from
 | «شركات» — get ONE shared vocabulary (`category_id = 0`). One trade, one
@@ -195,13 +198,15 @@ return [
          * security firm that does government sites. `descriptive`, because it
          * narrows a search and does not by itself change a price.
          *
-         * Given to all thirteen. A مأذون will tick «أفراد» and nothing else,
-         * and that is the axis working, not the axis misapplied.
+         * Given to all thirteen — twelve now: «إدارة صفحات» #205 folded into
+         * #11 on 2026-08-25 and stands under no root any more. A مأذون will
+         * tick «أفراد» and nothing else, and that is the axis working, not
+         * the axis misapplied.
          */
         'نوع العملاء' => [
             'name_en' => 'Client Types',
             'price_role' => 'descriptive',
-            'children' => [10, 11, 62, 70, 77, 78, 123, 144, 167, 178, 205, 231, 253],
+            'children' => [10, 11, 62, 70, 77, 78, 123, 144, 167, 178, 231, 253],
             'options' => [
                 'أفراد' => 'Individuals',
                 'شركات ومؤسسات' => 'Companies',
@@ -294,20 +299,13 @@ return [
             'نظام التعاقد' => ['بالزيارة', 'يومي', 'أسبوعي', 'شهري', 'بالإقامة'],
         ],
 
-        // The digital four of «تخصصات الدعاية والإعلان». A page manager does
-        // not print a banner. Its engagement basis is in the same entry on
-        // purpose: a duplicate array key here is silent — PHP keeps the last
-        // one and the earlier list simply never happens.
-        205 => [
-            'تخصصات الدعاية والإعلان' => [
-                'تسويق رقمي وسوشيال ميديا',
-                'إعلانات ممولة',
-                'تصميم جرافيك',
-                'تصوير وإنتاج',
-            ],
-            // إدارة صفحة اشتراك بطبعها
-            'نظام التعاقد' => ['شهري', 'ربع سنوي', 'سنوي'],
-        ],
+        // «إدارة صفحات» #205 stood here until 2026-08-25, when it folded into
+        // «دعاية وإعلان» #11 — the four rows it borrowed are a subset of what
+        // #11 already owns outright in «تخصصات الدعاية والإعلان» (17 rows
+        // now), so nothing here replaces them. What it carried and #11 did
+        // not is «نظام التعاقد»'s longer subscription tail — moved onto #11's
+        // own entry below rather than left orphaned in a block naming a child
+        // that stands under no root any more.
 
         /*
          * ── the engagement basis, per trade ──────────────────────────────
@@ -318,7 +316,11 @@ return [
          * which is noise on the pricing screen, not an axis.
          */
         10 => ['نظام التعاقد' => ['بالمهمة', 'شهري', 'سنوي']],           // محاسب مقيد شهريًا
-        11 => ['نظام التعاقد' => ['بالمهمة', 'شهري']],                    // حملة ≠ إدارة مستمرة
+        // «ربع سنوي» و«سنوي» widened this on 2026-08-25 with the «إدارة
+        // صفحات» merge — a retainer social-media contract is quarterly or
+        // yearly as often as monthly, and #11 had only ever answered «حملة
+        // واحدة أم إدارة شهرية».
+        11 => ['نظام التعاقد' => ['بالمهمة', 'شهري', 'ربع سنوي', 'سنوي']], // حملة ≠ إدارة مستمرة
         77 => ['نظام التعاقد' => ['بالمهمة', 'شهري']],                    // شحنة ≠ عقد مستورد
         78 => ['نظام التعاقد' => ['بالمهمة', 'بالساعة']],                 // مشروع ≠ ساعة استشارة
         123 => ['نظام التعاقد' => ['بالمهمة', 'بالساعة', 'شهري']],        // «إشراف على التنفيذ» شهري

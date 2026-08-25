@@ -12,8 +12,11 @@ use Illuminate\Support\Facades\DB;
  *
  *     php artisan db:seed --class=OptionGroupGapsSeeder
  *
- * The list, and the reasoning behind every name in it, is in
- * data/option_group_gaps.php.
+ * The lists, and the reasoning behind every name in them, are in
+ * data/option_group_gaps.php (things) and data/option_group_gaps_services.php
+ * (work). Two files, one pass: goods and services were reviewed a day apart
+ * and each file argues its own half, but they extend the same table the same
+ * way and there is no reason to run them separately.
  *
  * ── A row that reaches nobody is not an addition ────────────────────────────
  *
@@ -52,9 +55,25 @@ use Illuminate\Support\Facades\DB;
  */
 class OptionGroupGapsSeeder extends Seeder
 {
+    /** @var array<int,string> */
+    private const FILES = [
+        'option_group_gaps.php',
+        'option_group_gaps_services.php',
+    ];
+
     public function run(): void
     {
-        $map = require __DIR__ . '/data/option_group_gaps.php';
+        $map = ['extend' => []];
+
+        foreach (self::FILES as $file) {
+            $part = require __DIR__ . '/data/' . $file;
+
+            // Merged per GROUP, so both files may extend the same list without
+            // one silently replacing the other's rows.
+            foreach (($part['extend'] ?? []) as $group => $rows) {
+                $map['extend'][$group] = array_merge($map['extend'][$group] ?? [], $rows);
+            }
+        }
 
         DB::transaction(function () use ($map) {
             $created = 0;

@@ -19,10 +19,23 @@ class OptionGroupGapsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @return array<string,array<string,string>> */
+    /**
+     * Both halves of the pass — the goods file and the services file. They are
+     * merged per group, exactly as the seeder merges them.
+     *
+     * @return array<string,array<string,string>>
+     */
     private function map(): array
     {
-        return (require base_path('database/seeders/data/option_group_gaps.php'))['extend'];
+        $map = [];
+
+        foreach (['option_group_gaps.php', 'option_group_gaps_services.php'] as $file) {
+            foreach ((require base_path('database/seeders/data/' . $file))['extend'] as $group => $rows) {
+                $map[$group] = array_merge($map[$group] ?? [], $rows);
+            }
+        }
+
+        return $map;
     }
 
     private function groupId(string $nameAr): int
@@ -164,6 +177,50 @@ class OptionGroupGapsTest extends TestCase
         }
 
         $this->assertSame([], $stranded, 'لا تصل أحدًا : ' . implode(' · ', $stranded));
+    }
+
+    /**
+     * ⚠ The mechanical half of the failure caught during review: this pass
+     * extended «أنواع المناسبات» before finding it has a CLOSED per-child
+     * scope — hardcoded option ids in data/child_option_scopes.php for «قاعة
+     * مناسبات» #527 and «مركز مؤتمرات واجتماعات» #528 — and the addition was
+     * reverted. A row added to a scoped group without a matching scope entry
+     * is stripped straight back off by `ChildOptionScopeSeeder`.
+     */
+    public function test_no_extended_group_is_governed_by_a_hardcoded_scope(): void
+    {
+        $scoped = array_keys(require base_path('database/seeders/data/child_option_scopes.php'));
+
+        $offenders = array_intersect(array_keys($this->map()), $scoped);
+
+        $this->assertSame([], $offenders, 'مجموعات مقيَّدة بخريطة نطاق ثابتة : ' . implode(' · ', $offenders));
+    }
+
+    /**
+     * ⚠ The other half, which no structural check can catch: four groups —
+     * «خدمات الفندق», «خدمات النادي الرياضي», «خدمات غسيل السيارات», «وسيلة
+     * الشحن» — were extended and reverted because each has a SMALL, HAND-
+     * ARGUED list with a stated ruling in its own file's prose («ثلاثة صفوف
+     * ولا رابع», «مركز خدمة متكامل»…). «أنواع التأمين» was moved into its
+     * origin file (company_child_vocabularies.php) on the same review, not
+     * because it was closed but because a group WITH an origin file is
+     * extended there, keeping one file able to say the whole list.
+     *
+     * This list is deliberately named by hand — grep the group across
+     * `database/seeders/` before adding a new entry to either gaps file, per
+     * [[closed-vocabulary-maps]], and add its name here if it turns out to
+     * have an owner.
+     */
+    public function test_no_extended_group_is_on_the_known_closed_list(): void
+    {
+        $closed = [
+            'خدمات الفندق', 'خدمات النادي الرياضي', 'خدمات غسيل السيارات',
+            'وسيلة الشحن', 'أنواع المناسبات', 'أنواع التأمين',
+        ];
+
+        $offenders = array_intersect(array_keys($this->map()), $closed);
+
+        $this->assertSame([], $offenders, 'مجموعات معروف أن لها صاحبًا : ' . implode(' · ', $offenders));
     }
 
     // ── what the merchant sees ──────────────────────────────────────────────

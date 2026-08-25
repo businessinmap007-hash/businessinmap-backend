@@ -1610,8 +1610,11 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertNotContains('لافتات وإعلانات طرق', $lines);
         $this->assertNotContains('مطبوعات دعائية', $lines);
 
-        // And the advertising child keeps all seven.
-        $this->assertCount(7, $this->lines($this->childId('دعاية وإعلان')));
+        // The advertising child keeps its own list, and it grew independently
+        // of the page manager's borrowed four: 2026-08-25 added six rows an
+        // agency bills for on their own («أستاندات ورول أب», «فينيل وستيكرز
+        // سيارات»…). Thirteen, not seven.
+        $this->assertCount(13, $this->lines($this->childId('دعاية وإعلان')));
     }
 
     /** One trade, one vocabulary, whichever root the customer came through. */

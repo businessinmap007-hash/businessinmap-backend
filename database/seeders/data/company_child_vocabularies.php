@@ -144,6 +144,15 @@ return [
                 'تأمين سفر' => 'Travel Insurance',
                 'تأمين مسؤولية' => 'Liability Insurance',
                 'تأمينات الشركات' => 'Corporate Insurance',
+                /*
+                | «راجع مجموعات الخدمات وأضف ما ينقصها» — المالك، 2026-08-25.
+                | Three lines a broker actually sells and this list had none
+                | of: an engineer's professional-indemnity policy, a pension
+                | product, and livestock cover.
+                */
+                'تأمين هندسي' => 'Engineering Insurance',
+                'تأمين معاشات وادخار' => 'Savings & Pension Plans',
+                'تأمين زراعي وماشية' => 'Agricultural Insurance',
             ],
         ],
 

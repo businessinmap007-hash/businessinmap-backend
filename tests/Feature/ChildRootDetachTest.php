@@ -93,10 +93,11 @@ class ChildRootDetachTest extends TestCase
 
     /**
      * The owner's own cleanup, 2026-08-26: every child that had stood under
-     * no root at all is gone for real now, not just detached. What survives
-     * is the ONE this session flagged mid-review — a live, enabled deposit
-     * policy for a real account (#212) hanging off it — which the owner
-     * chose to keep rather than strand.
+     * no root at all is gone for real now, not just detached. The one row
+     * that briefly survived (id #1 — a live, enabled deposit policy for a
+     * real account #212 hanging off it) was itself removed later the same
+     * day once the owner had the wallet/deposit test data wiped alongside
+     * it, closing out the exception this session had flagged.
      */
     public function test_the_owners_2026_08_26_cleanup_left_nothing_dangling(): void
     {
@@ -117,14 +118,7 @@ class ChildRootDetachTest extends TestCase
             ->whereNotExists(fn ($q) => $q->from('category_parent_child')->whereColumn('child_id', 'c.id'))
             ->get(['c.id']);
 
-        $this->assertCount(1, $stillRootless, 'more than the one protected row is still rootless');
-
-        $survivor = (int) $stillRootless->first()->id;
-
-        $this->assertTrue(
-            DB::table('business_deposit_policies')->where('category_child_id', $survivor)->where('is_enabled', 1)->exists(),
-            'the one row left rootless is not the deposit-policy-protected one'
-        );
+        $this->assertCount(0, $stillRootless, 'a rootless child survived — nothing should be left dangling now');
     }
 
     /**

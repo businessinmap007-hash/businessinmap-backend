@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
+use App\Models\BusinessMenuSetting;
 use App\Models\MenuItem;
 use App\Models\OfferingOption;
 use App\Models\Option;
@@ -138,11 +139,20 @@ class MenuMarketCatalogController extends Controller
         $existing = $this->existingByOption();
         $businessId = $this->businessId();
 
+        // A blank price normally clears the row (below). But when the owner
+        // set a default margin and typed a supply price with no sale price,
+        // that is not "clear this row" — it is "price it for me": 2026-08-25,
+        // «هامش ربح افتراضى فوق السعر الإرشادى».
+        $marginPercent = BusinessMenuSetting::query()
+            ->where('business_id', $businessId)
+            ->value('default_margin_percent');
+        $marginPercent = $marginPercent !== null ? (float) $marginPercent : null;
+
         $rows = (array) $request->input('rows', []);
         $saved = 0;
         $cleared = 0;
 
-        DB::transaction(function () use ($rows, $picks, $existing, $businessId, &$saved, &$cleared) {
+        DB::transaction(function () use ($rows, $picks, $existing, $businessId, $marginPercent, &$saved, &$cleared) {
             foreach ($rows as $optionId => $data) {
                 $optionId = (int) $optionId;
 
@@ -159,6 +169,10 @@ class MenuMarketCatalogController extends Controller
                 $qty = ($data['quantity'] ?? '') !== '' ? max(0, (int) $data['quantity']) : null;
                 $unit = trim((string) ($data['sale_unit'] ?? '')) ?: null;
                 $brand = trim((string) ($data['brand_name'] ?? '')) ?: null;
+
+                if ($price === null && $supply !== null && $marginPercent !== null) {
+                    $price = round($supply * (1 + $marginPercent / 100), 2);
+                }
 
                 // «السعر» هو ما يجعل الصف صنفًا حيًّا — تمامًا كما فى شاشة
                 // الإضافة اليدوية، حيث هو الحقل الوحيد الإلزامى.

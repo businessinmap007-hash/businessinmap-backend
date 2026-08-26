@@ -558,6 +558,7 @@
     "اشتراك العروض لا يسمح بأي عروض فعالة حاليًا.": "The offers subscription does not currently allow any active offers.",
     "التقييم يجب أن يكون بين 1 و5 نجوم.": "The rating must be between 1 and 5 stars.",
     "الحالة الحالية للنزاع لا تسمح بتنفيذ القرار.": "The dispute's current status does not allow the decision to be applied.",
+    "الحد الأدنى لطلب المنيو من هذا المتجر :min جنيه (طلبك الحالي :amount جنيه).": "This store's minimum menu order is EGP :min (your order is EGP :amount).",
     "الحجم المختار غير متاح.": "The selected size is unavailable.",
     "الحساب موقوف نهائيًا ولا يمكن حذفه.": "The account is permanently suspended and cannot be deleted.",
     "الخدمة غير موجودة أو غير مفعلة.": "The service does not exist or is not active.",

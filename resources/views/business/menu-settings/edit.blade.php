@@ -66,6 +66,46 @@
         </div>
     </div>
 
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('حدٌّ أدنى للطلب') }}</div>
+                <div class="a2-card-sub">{{ __('اترك الحقل فارغاً لعدم اشتراط حدٍّ أدنى. لا يُحسب فيه سوى أصناف المنيو نفسها.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="min_order_amount">{{ __('الحد الأدنى لقيمة الطلب (جنيه)') }}</label>
+                <input type="number" step="0.01" min="0" id="min_order_amount" name="min_order_amount"
+                    class="a2-input @error('min_order_amount') a2-input-error @enderror"
+                    value="{{ old('min_order_amount', $row->min_order_amount) }}"
+                    placeholder="{{ __('بلا حدٍّ أدنى') }}">
+                @error('min_order_amount')<div class="a2-field-error">{{ $message }}</div>@enderror
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('هامش الربح الافتراضي') }}</div>
+                <div class="a2-card-sub">{{ __('عند تعبئة الرفوف: إذا أدخلت سعر التوريد وتركت سعر البيع فارغاً، يُحسَب سعر البيع تلقائياً بإضافة هذا الهامش فوق سعر التوريد.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="default_margin_percent">{{ __('هامش الربح الافتراضي فوق سعر التوريد (%)') }}</label>
+                <input type="number" step="0.01" min="0" max="1000" id="default_margin_percent" name="default_margin_percent"
+                    class="a2-input @error('default_margin_percent') a2-input-error @enderror"
+                    value="{{ old('default_margin_percent', $row->default_margin_percent) }}"
+                    placeholder="{{ __('بلا هامش افتراضي') }}">
+                @error('default_margin_percent')<div class="a2-field-error">{{ $message }}</div>@enderror
+            </div>
+        </div>
+    </div>
+
     <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
         <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
     </div>

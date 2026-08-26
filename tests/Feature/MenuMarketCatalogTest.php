@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessMenuSetting;
 use App\Models\MenuItem;
 use App\Models\User;
 use App\Services\MerchantOfferingVocabulary;
@@ -173,6 +174,50 @@ class MenuMarketCatalogTest extends TestCase
 
         $this->assertSame(1, MenuItem::query()->where('id', $item->id)->count(), 'the row was deleted, not deactivated');
         $this->assertFalse((bool) $item->fresh()->is_active);
+    }
+
+    /** «هامش ربح افتراضى فوق السعر الإرشادى» — المالك، 2026-08-25. */
+    public function test_a_blank_price_with_supply_price_and_a_default_margin_is_computed_automatically(): void
+    {
+        $business = $this->marketBusiness(272);
+        $option = $this->firstLineOption($business);
+
+        BusinessMenuSetting::updateOrCreate(
+            ['business_id' => $business->id],
+            ['default_margin_percent' => 20]
+        );
+
+        $this->actingAs($business)
+            ->put(route('business.menu.catalog.update'), [
+                'rows' => [$option->id => ['supply_price' => 30, 'base_price' => '']],
+            ])
+            ->assertRedirect();
+
+        $item = MenuItem::query()->where('business_id', $business->id)->latest('id')->first();
+
+        $this->assertNotNull($item, 'a supply price with a default margin should have priced the row, not cleared it');
+        $this->assertSame(30.0, (float) $item->supply_price);
+        $this->assertSame(36.0, (float) $item->base_price, '30 + 20% margin = 36');
+        $this->assertTrue((bool) $item->is_active);
+    }
+
+    /** No default margin configured → the old "blank price clears the row" behaviour is unchanged. */
+    public function test_a_blank_price_with_supply_price_but_no_default_margin_still_clears_the_row(): void
+    {
+        $business = $this->marketBusiness(272);
+        $option = $this->firstLineOption($business);
+
+        BusinessMenuSetting::query()->where('business_id', $business->id)->delete();
+
+        $before = MenuItem::query()->where('business_id', $business->id)->count();
+
+        $this->actingAs($business)
+            ->put(route('business.menu.catalog.update'), [
+                'rows' => [$option->id => ['supply_price' => 30, 'base_price' => '']],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame($before, MenuItem::query()->where('business_id', $business->id)->count());
     }
 
     public function test_a_row_outside_this_merchants_own_vocabulary_is_refused(): void

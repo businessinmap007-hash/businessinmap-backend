@@ -35,9 +35,20 @@ class MenuSettingsController extends Controller
         $data = $request->validate([
             // Empty → NULL → fall back to the global tax rate.
             'tax_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-        ], [], ['tax_rate_percent' => 'نسبة الضريبة']);
+            // Empty → NULL → no minimum enforced (unchanged behaviour).
+            'min_order_amount' => ['nullable', 'numeric', 'min:0'],
+            // Empty → NULL → no default; the shelf-fill screen still requires
+            // a manual price when neither is set.
+            'default_margin_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+        ], [], [
+            'tax_rate_percent' => 'نسبة الضريبة',
+            'min_order_amount' => 'حد أدنى للطلب',
+            'default_margin_percent' => 'هامش الربح الافتراضي',
+        ]);
 
         $rate = $request->filled('tax_rate_percent') ? round((float) $data['tax_rate_percent'], 2) : null;
+        $minOrder = $request->filled('min_order_amount') ? round((float) $data['min_order_amount'], 2) : null;
+        $margin = $request->filled('default_margin_percent') ? round((float) $data['default_margin_percent'], 2) : null;
 
         BusinessMenuSetting::updateOrCreate(
             ['business_id' => $this->businessId()],
@@ -45,6 +56,8 @@ class MenuSettingsController extends Controller
                 'prices_include_service' => (int) $request->boolean('prices_include_service'),
                 'prices_include_tax' => (int) $request->boolean('prices_include_tax'),
                 'tax_rate_percent' => $rate,
+                'min_order_amount' => $minOrder,
+                'default_margin_percent' => $margin,
             ]
         );
 

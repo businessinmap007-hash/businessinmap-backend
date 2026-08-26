@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Address;
 use App\Models\BusinessCatalogListing;
+use App\Models\BusinessMenuSetting;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
@@ -616,6 +617,9 @@ class CustomerCartService
         $this->orders->recalc($cart);
 
         $bill = $this->billing->orderBill($cart);
+
+        $this->assertMeetsMenuMinimum((int) $cart->business_id, (float) $bill['menu_subtotal']);
+
         $delivery = round((float) $cart->delivery_fee, 2);
         $discount = round((float) $cart->discount, 2);
 
@@ -628,6 +632,31 @@ class CustomerCartService
         // that funnels through here — personal delivery/pickup, a shared cart, and
         // a dine-in table scan — so a scanned table order reaches the restaurant.
         $this->notifyBusinessOfNewOrder($cart);
+    }
+
+    /**
+     * The business's own «حدٌّ أدنى للطلب» — checked against the MENU lines
+     * only, never the retail ones in the same cart. A cart with no menu lines
+     * at all (menu_subtotal 0) has nothing to enforce.
+     */
+    private function assertMeetsMenuMinimum(int $businessId, float $menuSubtotal): void
+    {
+        if ($menuSubtotal <= 0) {
+            return;
+        }
+
+        $minimum = BusinessMenuSetting::query()->where('business_id', $businessId)->value('min_order_amount');
+
+        if ($minimum === null || (float) $minimum <= 0 || $menuSubtotal >= (float) $minimum) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'cart' => __('الحد الأدنى لطلب المنيو من هذا المتجر :min جنيه (طلبك الحالي :amount جنيه).', [
+                'min' => rtrim(rtrim(number_format((float) $minimum, 2), '0'), '.'),
+                'amount' => rtrim(rtrim(number_format($menuSubtotal, 2), '0'), '.'),
+            ]),
+        ]);
     }
 
     /**

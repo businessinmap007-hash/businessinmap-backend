@@ -14,6 +14,17 @@ class MenuSettingsOwnerTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_the_edit_screen_renders_the_new_fields(): void
+    {
+        $owner = User::query()->where('type', 'business')->firstOrFail();
+
+        $this->actingAs($owner)
+            ->get(route('business.menu-settings.edit', [], false))
+            ->assertOk()
+            ->assertSee('min_order_amount', false)
+            ->assertSee('default_margin_percent', false);
+    }
+
     public function test_owner_saves_inclusive_flags(): void
     {
         $owner = User::query()->where('type', 'business')->firstOrFail();
@@ -44,6 +55,42 @@ class MenuSettingsOwnerTest extends TestCase
             'business_id' => $owner->id,
             'prices_include_service' => 0,
             'prices_include_tax' => 0,
+        ]);
+    }
+
+    /** «حدٌّ أدنى للطلب، وهامش ربح افتراضى فوق السعر الإرشادى» — المالك، 2026-08-25. */
+    public function test_owner_saves_min_order_and_default_margin(): void
+    {
+        $owner = User::query()->where('type', 'business')->firstOrFail();
+        $this->actingAs($owner);
+
+        $this->put(route('business.menu-settings.update', [], false), [
+            'min_order_amount' => 50,
+            'default_margin_percent' => 20,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $owner->id,
+            'min_order_amount' => 50,
+            'default_margin_percent' => 20,
+        ]);
+    }
+
+    public function test_leaving_them_blank_clears_them_back_to_no_limit(): void
+    {
+        $owner = User::query()->where('type', 'business')->firstOrFail();
+        $this->actingAs($owner);
+
+        $this->put(route('business.menu-settings.update', [], false), [
+            'min_order_amount' => 50,
+            'default_margin_percent' => 20,
+        ]);
+        $this->put(route('business.menu-settings.update', [], false), [])->assertRedirect();
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $owner->id,
+            'min_order_amount' => null,
+            'default_margin_percent' => null,
         ]);
     }
 }

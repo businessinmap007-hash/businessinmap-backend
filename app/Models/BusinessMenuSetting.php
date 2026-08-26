@@ -16,6 +16,8 @@ class BusinessMenuSetting extends Model
         'prices_include_service',
         'prices_include_tax',
         'tax_rate_percent',
+        'min_order_amount',
+        'default_margin_percent',
     ];
 
     protected $casts = [
@@ -23,6 +25,8 @@ class BusinessMenuSetting extends Model
         'prices_include_service' => 'boolean',
         'prices_include_tax' => 'boolean',
         'tax_rate_percent' => 'float',
+        'min_order_amount' => 'float',
+        'default_margin_percent' => 'float',
     ];
 
     public function business(): BelongsTo

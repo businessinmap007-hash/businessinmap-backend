@@ -75,6 +75,16 @@ class BusinessPanelNav
     private const NEEDS_MARKET_CATALOG = 'menu-catalog';
 
     /**
+     * «قاموس الأدوية» — الصيدلية #215 وحدها، لأن المنتَج هنا صفٌّ من قاموسٍ
+     * مشترك (25,065 دواء) لا مجموعة خيارات يحملها الابن — المالك، 2026-08-26.
+     *
+     * @see \App\Http\Controllers\Business\MenuPharmacyCatalogController
+     */
+    private const NEEDS_PHARMACY_CATALOG = 'menu-pharmacy';
+
+    private const PHARMACY_CHILD_ID = 215;
+
+    /**
      * مفاتيح الخدمات النشطة على تصنيف النشاط.
      *
      * @return array<int, string>
@@ -181,6 +191,14 @@ class BusinessPanelNav
 
         if ($link === self::NEEDS_MARKET_CATALOG) {
             return MarketCatalogChildren::includes($business ?? Auth::user());
+        }
+
+        if ($link === self::NEEDS_PHARMACY_CATALOG) {
+            $business ??= Auth::user();
+
+            return $business
+                && (int) $business->category_child_id === self::PHARMACY_CHILD_ID
+                && in_array('menu', self::servicesOf($business), true);
         }
 
         if (in_array($link, self::NEEDS_FOOD_MENU, true)) {

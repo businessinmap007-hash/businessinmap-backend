@@ -11,6 +11,7 @@ use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuMarketCatalogController;
+use App\Http\Controllers\Business\MenuPharmacyCatalogController;
 use App\Http\Controllers\Business\MenuReviewController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
@@ -154,6 +155,11 @@ Route::prefix('business')->name('business.')->group(function () {
         // مفردات الأصناف الجاهزة بدل الكتابة اليدوية.
         Route::get('menu/catalog', [MenuMarketCatalogController::class, 'index'])->name('menu.catalog.index');
         Route::put('menu/catalog', [MenuMarketCatalogController::class, 'update'])->name('menu.catalog.update');
+
+        // «قاموس الأدوية» — الصيدلية فقط، بحثًا لا جدولًا (25,065 صفًّا).
+        Route::get('menu/pharmacy', [MenuPharmacyCatalogController::class, 'index'])->name('menu.pharmacy.index');
+        Route::get('menu/pharmacy/search', [MenuPharmacyCatalogController::class, 'search'])->name('menu.pharmacy.search');
+        Route::post('menu/pharmacy', [MenuPharmacyCatalogController::class, 'store'])->name('menu.pharmacy.store');
 
         Route::get('menu', [MenuItemController::class, 'index'])->name('menu.index');
         Route::get('menu/create', [MenuItemController::class, 'create'])->name('menu.create');

@@ -61,6 +61,7 @@
             ['label' => 'الأصناف', 'route' => 'business.menu.index', 'gate' => 'menu', 'active' => ['business.menu.index']],
             ['label' => 'مراجعة القائمة', 'route' => 'business.menu.review', 'gate' => 'menu', 'active' => ['business.menu.review']],
             ['label' => 'تعبئة الرفوف', 'route' => 'business.menu.catalog.index', 'gate' => 'menu-catalog', 'active' => ['business.menu.catalog.']],
+            ['label' => 'قاموس الأدوية', 'route' => 'business.menu.pharmacy.index', 'gate' => 'menu-pharmacy', 'active' => ['business.menu.pharmacy.']],
             ['label' => 'الأقسام', 'route' => 'business.menu-sections.index', 'gate' => 'menu', 'active' => ['business.menu-sections.']],
             // «الإعدادات» لا «إعدادات المنيو»: الفرعُ فوقها يحمل الاسم الصحيح
             // للتاجر — «الكتالوج» عند معرض الأثاث — فتكرارُه هنا يناقضه.

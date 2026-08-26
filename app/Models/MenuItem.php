@@ -44,6 +44,7 @@ class MenuItem extends Model
     protected $fillable = [
         'business_id',
         'menu_section_id',
+        'medicine_id',
         'item_type',
         'category_id',
         'name_ar',
@@ -64,6 +65,7 @@ class MenuItem extends Model
     protected $casts = [
         'business_id' => 'integer',
         'menu_section_id' => 'integer',
+        'medicine_id' => 'integer',
         'category_id' => 'integer',
         'base_price' => 'decimal:2',
         // What the merchant paid, never the customer's business — see the
@@ -95,6 +97,12 @@ class MenuItem extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(MenuSection::class, 'menu_section_id');
+    }
+
+    /** The dictionary row this row prices, for a pharmacy's «قاموس الأدوية». */
+    public function medicine(): BelongsTo
+    {
+        return $this->belongsTo(Medicine::class);
     }
 
     public function variants(): HasMany
@@ -180,6 +188,24 @@ class MenuItem extends Model
                 'key' => 'section:' . $section->id,
                 'label' => (string) $section->loc('name'),
                 'source' => 'section',
+                'option_ids' => [],
+            ];
+        }
+
+        /*
+         * «قاموس الأدوية» — one shared, 25,065-row dictionary, not a `line`
+         * vocabulary a child carries. There is no per-drug group to browse by
+         * the way a market's shelf has one per product category; the
+         * dictionary itself is the one list, so every priced drug falls
+         * under a single heading regardless of which one it is.
+         *
+         * @see \App\Models\Medicine
+         */
+        if ($this->medicine_id) {
+            return [
+                'key' => 'medicine_catalog',
+                'label' => __('قاموس الأدوية'),
+                'source' => 'medicine_catalog',
                 'option_ids' => [],
             ];
         }

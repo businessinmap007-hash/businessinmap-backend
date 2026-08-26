@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Medicine;
+use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -150,6 +151,15 @@ class MedicineDictionaryController extends Controller
 
         if ((int) $row->uses_count > 0) {
             return back()->with('error', __('هذا الدواء مكتوب في روشتات بالفعل — لا يُحذف.'));
+        }
+
+        // A pharmacy priced this row on its own menu — see
+        // MenuPharmacyCatalogController. The FK is nullOnDelete on purpose so
+        // this never had to be a hard block, but a silent null would leave a
+        // priced row nobody remembers the name of; refuse instead, same shape
+        // as the prescription guard above.
+        if (MenuItem::query()->where('medicine_id', $row->id)->exists()) {
+            return back()->with('error', __('هذا الدواء مُضاف بالفعل في منيو صيدلية — لا يُحذف.'));
         }
 
         $row->delete();

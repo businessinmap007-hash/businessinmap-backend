@@ -173,13 +173,19 @@ class TradeAxesTest extends TestCase
         }
     }
 
-    /** Both empty twins are detached, and neither master row was deleted. */
-    public function test_the_empty_twins_are_detached_but_not_deleted(): void
+    /**
+     * Both empty twins were detached, and neither master row was deleted —
+     * until 2026-08-26, when the owner reviewed the platform's whole
+     * rootless list and hard-deleted both himself. One deliberate exception
+     * to «لا شىء يُحذف», not a bug for a seeder to reverse.
+     */
+    public function test_the_empty_twins_are_gone_for_good(): void
     {
         foreach ([43 => 'قطع غيار سيارات', 7 => 'أجهزة رياضية'] as $twinId => $name) {
-            $this->assertNotNull(
-                DB::table('category_children_master')->where('id', $twinId)->first(),
-                "the master row of «{$name}» #{$twinId} was deleted"
+            $this->assertSame(
+                0,
+                DB::table('category_children_master')->where('id', $twinId)->count(),
+                "«{$name}» #{$twinId} is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
             );
 
             $this->assertSame(0, DB::table('category_parent_child')->where('child_id', $twinId)->count());

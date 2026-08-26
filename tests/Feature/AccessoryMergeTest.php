@@ -79,22 +79,20 @@ class AccessoryMergeTest extends TestCase
     }
 
     /**
+     * The master rows here survived as undo records until 2026-08-26, when
+     * the owner reviewed the platform's whole rootless list and hard-deleted
+     * both himself — a deliberate, one-time exception to «لا شىء يُحذف»,
+     * not a bug. What the fold actually promised — the merchant can still
+     * say the same thing on the keeper — has to hold with the rows gone.
+     *
      * @dataProvider foldedChildren
      */
     public function test_the_folded_child_is_gone_and_its_merchant_can_still_speak(string $nameAr, string $optionAr): void
     {
-        $masterId = (int) DB::table('category_children_master')->where('name_ar', $nameAr)->value('id');
-
-        $this->assertGreaterThan(0, $masterId, "«{$nameAr}» lost its master row");
         $this->assertSame(
             0,
-            DB::table('category_parent_child')->where('child_id', $masterId)->count(),
-            "«{$nameAr}» still stands under a root"
-        );
-        $this->assertSame(
-            0,
-            DB::table('users')->where('category_child_id', $masterId)->count(),
-            "a merchant was left on «{$nameAr}»"
+            DB::table('category_children_master')->where('name_ar', $nameAr)->count(),
+            "«{$nameAr}» is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
         );
 
         $ticked = DB::table('option_user as ou')

@@ -274,7 +274,8 @@ return [
     | no business at all.
     */
     'ماركات السيارات' => [
-        43 => [],  // قطع غيار سيارات (the empty duplicate) — #44 is the live one
+        // «قطع غيار سيارات» #43 (the empty duplicate) — hard-deleted by the
+        // owner 2026-08-26. #44 is the live one.
     ],
 
     /*
@@ -486,9 +487,10 @@ return [
         107 => [],  // أعلاف — has «أنواع الأعلاف» since 2026-08-16
         170 => [],  // مواشي
         171 => [],  // معدات مزارع مواشي
-        230 => [],  // معدات مزارع دواجن
-        235 => [],  // معدات مزارع أرانب
-        236 => [],  // أرانب
+        // «معدات مزارع دواجن» #230، «معدات مزارع أرانب» #235، «أرانب» #236 —
+        // all three hard-deleted by the owner 2026-08-26 (rootless list
+        // review); folded into «معدات وتجهيزات المزارع»/«مواشي وأرانب» well
+        // before that.
     ],
 
     /*

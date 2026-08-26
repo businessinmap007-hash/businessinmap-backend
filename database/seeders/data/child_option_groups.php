@@ -326,7 +326,8 @@ return [
     ],
 
     'domain_adds' => [
-        53 => ['مركبات ونقل'],
+        // «سيارات» #53 — hard-deleted by the owner 2026-08-26 (rootless list
+        // review); folded into «معرض سيارات» #188 well before that anyway.
         // children created after LinkCategoryChildrenToOptionsSeeder last ran,
         // so its keyword pass never reached them
         116 => ['أثاث وتشطيب منزلي'],

@@ -384,7 +384,8 @@ return [
             518 => ['menu_properties'],  // مطور عقاري
             522 => ['menu_properties'],  // مالك عقار
             // #238 تسويق عقاري folded into #517 مكتب عقاري on 2026-08-12.
-            53 => ['menu_vehicles'],     // سيارات
+            // #53 سيارات folded into #188 معرض سيارات on 2026-08-17/18 and
+            // was hard-deleted by the owner 2026-08-26 (rootless list review).
             188 => ['menu_vehicles'],    // معرض سيارات
             189 => ['menu_vehicles'],    // معرض موتوسيكلات
             116 => ['menu_furniture'],   // آثاث

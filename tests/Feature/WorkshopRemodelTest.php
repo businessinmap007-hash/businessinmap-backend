@@ -70,8 +70,11 @@ class WorkshopRemodelTest extends TestCase
     }
 
     /**
-     * The bench stops being a row you hang from. The master row SURVIVES — that
-     * is the undo record — but nothing under ورش points at it any more.
+     * The bench stopped being a row you hang from. The master row survived as
+     * the undo record until 2026-08-26, when the owner reviewed the
+     * platform's whole rootless list and hard-deleted every one that stood
+     * under no root — this batch of nine benches included. One deliberate
+     * exception to «لا شىء يُحذف», not a bug for a seeder to reverse.
      *
      * @dataProvider foldedBenches
      */
@@ -79,9 +82,10 @@ class WorkshopRemodelTest extends TestCase
     {
         $this->assertSame(0, $this->childUnderRoot($nameAr), "«{$nameAr}» is still a child of ورش");
 
-        $this->assertTrue(
-            DB::table('category_children_master')->where('name_ar', $nameAr)->exists(),
-            "«{$nameAr}» lost its master row — a remodel here never deletes one"
+        $this->assertSame(
+            0,
+            DB::table('category_children_master')->where('name_ar', $nameAr)->count(),
+            "«{$nameAr}» is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
         );
     }
 

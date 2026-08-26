@@ -65,21 +65,66 @@ class ChildRootDetachTest extends TestCase
         );
     }
 
-    /** @return array<string,array{0:string,1:string}> */
+    /**
+     * «آثاث» and «باب وشباك» keep OTHER roots (showroom/company/factory), so
+     * their master row is expected to survive regardless of what happens
+     * here — that is what makes them the right shape for this test.
+     *
+     * The other six children this file used to name here — عفشجى، رياض
+     * أطفال، ابتدائي، إعدادي، ثانوي عام، ثانوي أزهرى، دبلومات فنية، إدارة
+     * صفحات — stood under NO other root, and their master rows were the
+     * undo record this test asserted survives. On 2026-08-26 the owner
+     * reviewed the platform's full rootless list («جمع الابناء الذين ليس
+     * لديهم جذر لاقرر مصيرهم») and hard-deleted every one of them himself,
+     * directly against the database — one deliberate exception to «لا شىء
+     * يُحذف», not a bug this test should keep failing against.
+     * `test_the_owners_2026_08_26_cleanup_left_nothing_dangling` covers what
+     * they became instead of «still exists».
+     *
+     * @return array<string,array{0:string,1:string}>
+     */
     public static function detachments(): array
     {
         return [
             'آثاث' => ['آثاث', 'workshops'],
             'باب وشباك' => ['باب وشباك', 'workshops'],
-            'عفشجى' => ['عفشجى', 'shipping-delivery'],
-            'رياض أطفال' => ['رياض أطفال', 'training-courses'],
-            'ابتدائي' => ['ابتدائي', 'training-courses'],
-            'إعدادي' => ['إعدادي', 'training-courses'],
-            'ثانوي عام' => ['ثانوي عام', 'training-courses'],
-            'ثانوي أزهري' => ['ثانوي أزهري', 'training-courses'],
-            'دبلومات فنية' => ['دبلومات فنية', 'training-courses'],
-            'إدارة صفحات' => ['إدارة صفحات', 'offices'],
         ];
+    }
+
+    /**
+     * The owner's own cleanup, 2026-08-26: every child that had stood under
+     * no root at all is gone for real now, not just detached. What survives
+     * is the ONE this session flagged mid-review — a live, enabled deposit
+     * policy for a real account (#212) hanging off it — which the owner
+     * chose to keep rather than strand.
+     */
+    public function test_the_owners_2026_08_26_cleanup_left_nothing_dangling(): void
+    {
+        $goneNames = [
+            'عفشجى', 'رياض أطفال', 'ابتدائي', 'إعدادي',
+            'ثانوي عام', 'ثانوي أزهري', 'دبلومات فنية', 'إدارة صفحات',
+        ];
+
+        foreach ($goneNames as $name) {
+            $this->assertSame(
+                0,
+                DB::table('category_children_master')->where('name_ar', $name)->count(),
+                "«{$name}» is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
+            );
+        }
+
+        $stillRootless = DB::table('category_children_master as c')
+            ->whereNotExists(fn ($q) => $q->from('category_parent_child')->whereColumn('child_id', 'c.id'))
+            ->get(['c.id']);
+
+        $this->assertCount(1, $stillRootless, 'more than the one protected row is still rootless');
+
+        $survivor = (int) $stillRootless->first()->id;
+
+        $this->assertTrue(
+            DB::table('business_deposit_policies')->where('category_child_id', $survivor)->where('is_enabled', 1)->exists(),
+            'the one row left rootless is not the deposit-policy-protected one'
+        );
     }
 
     /**

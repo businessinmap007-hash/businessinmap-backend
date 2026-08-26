@@ -196,7 +196,9 @@ return [
 
         33 => ['ألعاب ومرافق الترفيه' => ['مسار بولينج', 'طاولة بلياردو', 'ألعاب أركيد', 'حفلات وأعياد ميلاد']],
 
-        219 => ['ألعاب ومرافق الترفيه' => ['طاولة بينج بونج', 'طاولة بلياردو', 'طاولة بيبي فوت']],
+        // «بينج بونج» #219 — hard-deleted by the owner 2026-08-26 (rootless
+        // list review); folded into a bench of «ألعاب ومرافق الترفيه» well
+        // before that.
 
         225 => [
             'ألعاب ومرافق الترفيه' => ['جهاز ألعاب', 'غرفة خاصة', 'سيميولاتور سباقات', 'ألعاب واقع افتراضي'],
@@ -262,9 +264,10 @@ return [
         /*
          * «انترنت كافيه» #155 was missed by the eleven because it is filed
          * beside them and was not in the owner's list. Same shape exactly: a
-         * floor of machines hired by the hour.
+         * floor of machines hired by the hour — until it folded into «مركز
+         * ترفيهي» and was hard-deleted by the owner 2026-08-26 (rootless
+         * list review).
          */
-        155 => ['ألعاب ومرافق الترفيه' => ['جهاز ألعاب', 'ألعاب أركيد', 'سيميولاتور سباقات', 'غرفة خاصة']],
 
         526 => [
             'خدمات السياحة والسفر' => ['رحلات داخلية', 'رحلات بحرية', 'رحلات سفاري وبرية', 'برامج سياحية'],

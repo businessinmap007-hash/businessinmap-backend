@@ -130,7 +130,7 @@ return [
     253   => ['appointment'],                           // أمن [شركات، مكاتب]
     21    => ['appointment'],                           // أنتيكات وتحف [شركات، معارض]
     299   => ['appointment'],                           // أويمجى [مهن وحرفيين]
-    205   => ['appointment'],                           // إدارة صفحات [مكاتب]
+    // «إدارة صفحات» #205 — hard-deleted by the owner 2026-08-26 (rootless list review).
     266   => ['appointment'],                           // إسفنج [شركات، معارض]
     300   => ['appointment'],                           // استرجي [مهن وحرفيين]
     150   => ['appointment'],                           // استيراد وتصدير [شركات]
@@ -154,7 +154,7 @@ return [
     58    => ['appointment'],                           // خدمات نظافة [مهن وحرفيين]
     114   => ['appointment'],                           // خضار وفاكهة [شركات]
     251   => ['appointment'],                           // دش وأقمار صناعية [مهن وحرفيين]
-    285   => ['appointment'],                           // رحلات [شركات]
+    // «رحلات» #285 — hard-deleted by the owner 2026-08-26 (rootless list review).
     173   => ['appointment'],                           // رخام [شركات، معارض]
     174   => ['appointment'],                           // رخام وجرانيت [مهن وحرفيين]
     126   => ['appointment'],                           // زجاج [شركات، معارض]

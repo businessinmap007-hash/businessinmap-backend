@@ -56,8 +56,14 @@ class SupplierMergeBatchTest extends TestCase
             ->distinct()->pluck('o.name_ar')->all();
     }
 
-    /** A folded child stands nowhere, holds nobody, and keeps its master row. */
-    public function test_the_folded_children_are_retired_and_not_deleted(): void
+    /**
+     * A folded child stood nowhere and held nobody, keeping its master row as
+     * the undo record — until 2026-08-26, when the owner reviewed the
+     * platform's whole rootless list and hard-deleted every one of them
+     * himself, this batch included. One deliberate exception to «لا شىء
+     * يُحذف», not a bug for a seeder to reverse.
+     */
+    public function test_the_folded_children_are_gone_for_good(): void
     {
         foreach (array_keys(self::FOLDED) as $childId) {
             $this->assertSame([], $this->rootsOf($childId), "#{$childId} still stands under a root");
@@ -68,11 +74,10 @@ class SupplierMergeBatchTest extends TestCase
                 "#{$childId} was folded away with a merchant still on it"
             );
 
-            // Nothing in this taxonomy is deleted: the master row and the
-            // rootless state together ARE the undo record.
-            $this->assertTrue(
-                DB::table('category_children_master')->where('id', $childId)->exists(),
-                "#{$childId} was deleted rather than retired"
+            $this->assertSame(
+                0,
+                DB::table('category_children_master')->where('id', $childId)->count(),
+                "#{$childId} is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
             );
         }
     }

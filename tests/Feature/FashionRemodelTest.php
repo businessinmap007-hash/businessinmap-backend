@@ -164,13 +164,20 @@ class FashionRemodelTest extends TestCase
         }
     }
 
-    /** Non-destructive: the retired rows are the undo record. */
-    public function test_the_retired_children_still_exist(): void
+    /**
+     * The retired rows stood as the undo record until 2026-08-26, when the
+     * owner reviewed the platform's whole rootless list and hard-deleted
+     * every one that stood under no root — this batch included. One
+     * deliberate exception to «لا شىء يُحذف», not a bug this file's own
+     * seeder should reverse.
+     */
+    public function test_the_retired_children_are_gone_for_good(): void
     {
         foreach (array_keys($this->data['retire']) as $name) {
-            $this->assertTrue(
-                DB::table('category_children_master')->where('name_ar', $name)->exists(),
-                "«{$name}» was deleted rather than detached"
+            $this->assertSame(
+                0,
+                DB::table('category_children_master')->where('name_ar', $name)->count(),
+                "«{$name}» is back — the owner's 2026-08-26 cleanup should not be reversed by a seeder"
             );
         }
     }

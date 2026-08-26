@@ -299,7 +299,12 @@ class ChildRootMovesTest extends TestCase
     {
         $rows = DB::table('category_children_master')->where('name_ar', 'حداد')->pluck('id');
 
-        $this->assertGreaterThanOrEqual(2, $rows->count(), '«حداد» was merged into one row');
+        // The workshop-side row (#31) stood under no root after 2026-08-10 and
+        // was one of the rows the owner hard-deleted for real on 2026-08-26
+        // reviewing the platform's rootless list. One row is now correct;
+        // what this test actually pins is below — that the tradesman under
+        // مهن وحرفيين was never swallowed by the workshop.
+        $this->assertGreaterThanOrEqual(1, $rows->count(), '«حداد» the tradesman is gone entirely');
 
         // The workshop side (#31) became a bench inside «ورشة حدادة وخراطة» on
         // 2026-08-10, so the pair no longer stands under two roots — but the

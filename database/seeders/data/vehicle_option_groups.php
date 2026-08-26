@@ -90,7 +90,9 @@ return [
             // whoever re-attaches one.
             543, // ورشة سيارات
             42,  // زيت سيارات
-            43,  // قطع غيار سيارات (مصانع)
+            // «قطع غيار سيارات (مصانع)» #43 stood rootless and was hard-deleted
+            // by the owner on 2026-08-26 reviewing the platform's rootless
+            // list. The shop-side twin survives.
             44,  // قطع غيار سيارات (محلات)
             // «سيارات» #53 folded into #188 on 2026-08-17 and is retired.
             169, // خدمة ليموزين — a Mercedes limo is not a Hyundai one

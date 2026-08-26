@@ -500,7 +500,8 @@ return [
         // a mirror writes rows AGAINST THIS ROOT. Left in the list it wrote
         // five option rows naming a root the child had just left — reachable
         // by nothing, and the exact debris a detachment exists to clear.
-        292 => ['مواصفات المنتج الغذائي'],                  // خضروات
+        // «خضروات» #292 — hard-deleted by the owner 2026-08-26 (rootless list
+        // review); folded into «خضار وفاكهة» well before that.
     ],
 
     /*

@@ -1109,9 +1109,12 @@ class ChildTradeVocabulariesTest extends TestCase
         $this->assertSame('تقاوي وأسمدة ومبيدات', $standing[14] ?? null);
         $this->assertSame('مواشي وأرانب', $standing[170] ?? null);
 
-        // The folded rows survive and reach nobody — nothing here is deleted.
+        // The folded rows survived, reaching nobody, until 2026-08-26 — the
+        // owner reviewed the platform's whole rootless list that day and
+        // hard-deleted every one of them himself, this batch included. Not a
+        // seeder rule; a one-time, deliberate exception to «لا شىء يُحذف».
         foreach ([230, 235, 292, 99, 236] as $folded) {
-            $this->assertTrue(DB::table('category_children_master')->where('id', $folded)->exists());
+            $this->assertSame(0, DB::table('category_children_master')->where('id', $folded)->count());
             $this->assertSame(0, DB::table('category_parent_child')->where('child_id', $folded)->count());
         }
 
@@ -3546,10 +3549,11 @@ class ChildTradeVocabulariesTest extends TestCase
 
         $this->assertSame([13], $roots, '«معرض سيارات» is not under «سيارات» alone');
 
-        // The fold is a RETIREMENT, never a delete: the row stays as the undo
-        // record, standing under no root, exactly as the eighty children left
-        // by earlier remodels do.
-        $this->assertNotNull(DB::table('category_children_master')->where('id', 53)->first());
+        // The fold was a RETIREMENT, not a delete: the row stood as the undo
+        // record, under no root, until 2026-08-26 — the owner reviewed the
+        // platform's whole rootless list that day and hard-deleted it
+        // himself, along with every other row standing under nothing.
+        $this->assertSame(0, DB::table('category_children_master')->where('id', 53)->count());
         $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 53)->count());
         $this->assertSame(0, DB::table('users')->where('category_child_id', 53)->count());
 

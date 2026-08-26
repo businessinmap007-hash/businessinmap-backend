@@ -72,11 +72,11 @@ class CoworkingWorkspaceTest extends TestCase
      * the reader's promotion rule was quietly selling «أصلي وكيل» as a priced
      * row to cover the hole.
      *
-     * One left, and it is genuinely without a priced list: #23 «شركات الأمن».
+     * The last one, #23, stood rootless after its own fold and was
+     * hard-deleted by the owner 2026-08-26 (rootless list review) — settled
+     * by disappearing rather than by gaining a line. None left.
      */
-    private const NAMELESS_UNITS = [
-        23,
-    ];
+    private const NAMELESS_UNITS = [];
 
     private function childId(string $name): int
     {

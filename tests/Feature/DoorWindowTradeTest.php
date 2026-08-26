@@ -195,9 +195,12 @@ class DoorWindowTradeTest extends TestCase
     /**
      * «ادمج pvc وباب وشباك فهما نفس الخيارات ونفس الهدف» — owner, 2026-08-12.
      *
-     * Both product children have now folded into the trade: «أبواب مصفحة» #23
-     * on 2026-08-10, «بي في سي» #289 on 2026-08-12. UPVC is a MATERIAL, and it
-     * stands as one of the sixteen types below.
+     * Both product children folded into the trade: «أبواب مصفحة» #23 on
+     * 2026-08-10, «بي في سي» #289 on 2026-08-12. UPVC is a MATERIAL, and it
+     * stands as one of the sixteen types below. Both rows survived as undo
+     * records until 2026-08-26, when the owner reviewed the platform's whole
+     * rootless list and hard-deleted them himself — one deliberate exception
+     * to «لا شىء يُحذف», not a bug.
      *
      * The fold is only honest if the three merchants kept what the child was
      * saying about them, so this checks the tick as well as the move. Arriving
@@ -205,12 +208,11 @@ class DoorWindowTradeTest extends TestCase
      */
     public function test_the_upvc_child_folded_into_the_trade(): void
     {
-        $upvc = (int) DB::table('category_children_master')->where('id', 289)->value('id');
-
-        $this->assertSame(289, $upvc, 'nothing here deletes a master row');
-        $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 289)->count());
-        $this->assertSame(0, DB::table('category_child_option')->where('child_id', 289)->count());
-        $this->assertSame(0, DB::table('users')->where('category_child_id', 289)->count());
+        $this->assertSame(
+            0,
+            DB::table('category_children_master')->whereIn('id', [23, 289])->count(),
+            'a folded child is back — the owner\'s 2026-08-26 cleanup should not be reversed by a seeder'
+        );
 
         $option = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('g.name_ar', self::GROUP)->where('o.name_ar', 'بي في سي (UPVC)')->value('o.id');

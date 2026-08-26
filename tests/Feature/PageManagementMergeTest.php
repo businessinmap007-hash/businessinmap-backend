@@ -36,29 +36,26 @@ class PageManagementMergeTest extends TestCase
         $this->assertSame('Advertising & Page Management', $row->name_en);
     }
 
-    public function test_the_folded_child_survives_as_the_undo_record_but_stands_under_no_root(): void
+    /**
+     * The master row survived as the undo record until 2026-08-26, when the
+     * owner reviewed the whole rootless list («جمع الابناء الذين ليس لديهم
+     * جذر لاقرر مصيرهم») and hard-deleted it himself, directly against the
+     * database — an explicit, one-time exception to «لا شىء فى هذا التصنيف
+     * يُحذف», not a bug in any seeder or screen here. What the merge itself
+     * promised — the keeper carries everything, no account is stranded —
+     * still has to hold with the row gone.
+     */
+    public function test_the_folded_child_is_gone_and_the_keeper_still_carries_everything(): void
     {
-        $row = DB::table('category_children_master')->where('id', self::FOLDED_ID)->first(['id', 'name_ar']);
-
-        $this->assertNotNull($row, 'the master row was deleted — nothing in this taxonomy is deleted');
-        $this->assertSame('إدارة صفحات', $row->name_ar, 'the folded child keeps its own name; only the keeper was renamed');
-
-        $this->assertSame(
-            0,
-            DB::table('category_parent_child')->where('child_id', self::FOLDED_ID)->count(),
-            '«إدارة صفحات» still stands under a root'
-        );
-
-        $this->assertSame(
-            0,
-            DB::table('category_child_option')->where('child_id', self::FOLDED_ID)->count(),
-            '«إدارة صفحات» still carries option links with nowhere to show them'
+        $this->assertNull(
+            DB::table('category_children_master')->where('id', self::FOLDED_ID)->first(),
+            'the owner deleted this row 2026-08-26 — it should not have come back'
         );
 
         $this->assertSame(
             0,
             DB::table('users')->where('category_child_id', self::FOLDED_ID)->count(),
-            'a merchant is pointed at a child with no root'
+            'a merchant is pointed at a child that no longer exists'
         );
     }
 

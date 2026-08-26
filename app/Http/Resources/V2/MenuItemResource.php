@@ -20,9 +20,13 @@ class MenuItemResource extends JsonResource
             'description_ar' => $this->description_ar,
             'description_en' => $this->description_en,
             'base_price' => (float) $this->base_price,
+            // The merchant's own cost — this resource is owner-authed only,
+            // never the customer-facing discovery payload.
+            'supply_price' => $this->supply_price !== null ? (float) $this->supply_price : null,
             // Null is «by the item»; a shop that weighs what it sells says كجم.
             'sale_unit' => $this->sale_unit ?: null,
             'sale_unit_label' => $this->resource->priceUnitLabel(),
+            'brand_name' => $this->brand_name,
             // null = not tracked, 0 = sold out. The app must tell them
             // apart: one hides nothing, the other greys the row.
             'available_quantity' => $this->available_quantity,

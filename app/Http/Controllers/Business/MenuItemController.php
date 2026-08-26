@@ -267,6 +267,8 @@ class MenuItemController extends Controller
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
+            'supply_price' => ['nullable', 'numeric', 'min:0'],
+            'brand_name' => ['nullable', 'string', 'max:191'],
             // What the price is the price OF. Empty means «by the item», which
             // is what a sandwich is; a greengrocer says «كجم».
             'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
@@ -297,6 +299,10 @@ class MenuItemController extends Controller
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),
+            'supply_price' => isset($data['supply_price']) && $data['supply_price'] !== ''
+                ? round((float) $data['supply_price'], 2)
+                : null,
+            'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: null,
             // Empty string and «by the item» are the same answer; both null.
             'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
             'available_quantity' => ($data['available_quantity'] ?? null) === null

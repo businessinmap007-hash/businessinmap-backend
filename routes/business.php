@@ -10,6 +10,7 @@ use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
+use App\Http\Controllers\Business\MenuMarketCatalogController;
 use App\Http\Controllers\Business\MenuReviewController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemVariantController;
@@ -148,6 +149,11 @@ Route::prefix('business')->name('business.')->group(function () {
         // قبل «menu» لأن الأخيرة تلتقط {id}؛ ولا معرّف في هذا المسار أصلًا،
         // فلا شيء يُوسَّع به إلى منيو غيره.
         Route::get('menu/review', [MenuReviewController::class, 'index'])->name('menu.review');
+
+        // شاشة تعبئة الرفوف — السوبر ماركت والهايبر والمني ماركت فقط، من
+        // مفردات الأصناف الجاهزة بدل الكتابة اليدوية.
+        Route::get('menu/catalog', [MenuMarketCatalogController::class, 'index'])->name('menu.catalog.index');
+        Route::put('menu/catalog', [MenuMarketCatalogController::class, 'update'])->name('menu.catalog.update');
 
         Route::get('menu', [MenuItemController::class, 'index'])->name('menu.index');
         Route::get('menu/create', [MenuItemController::class, 'create'])->name('menu.create');

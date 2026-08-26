@@ -61,6 +61,17 @@
             <input class="a2-input" id="base_price" name="base_price" value="{{ old('base_price', $row->base_price ?? 0) }}" inputmode="decimal" placeholder="0.00" required>
         </div>
 
+        {{-- ما دفعتَه أنت، لا ما يدفعه العميل — يبقى فى لوحتك وحدها. --}}
+        <div class="a2-form-group">
+            <label class="a2-label" for="supply_price">{{ __('سعر التوريد') }}</label>
+            <input class="a2-input" id="supply_price" name="supply_price" value="{{ old('supply_price', $row->supply_price ?? '') }}" inputmode="decimal" placeholder="{{ __('اختياري — لا يظهر للعميل') }}">
+        </div>
+
+        <div class="a2-form-group">
+            <label class="a2-label" for="brand_name">{{ __('اسم الشركة المنتجة / الماركة') }}</label>
+            <input class="a2-input" id="brand_name" name="brand_name" value="{{ old('brand_name', $row->brand_name ?? '') }}" placeholder="{{ __('اختياري') }}">
+        </div>
+
         {{-- «الطماطم ٤٥» هو أربعون وخمسة للكيلو، أو للصندوق، أو لحبةٍ واحدة —
              والزبونُ يعرف عند الميزان. الفراغُ يعني «بالقطعة»، وهو ما عليه
              أغلبُ المنيوهات؛ ومن يبيع بالوزن يقولها. --}}

@@ -256,7 +256,9 @@ final class BusinessMenuItemController extends Controller
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
+            'supply_price' => ['nullable', 'numeric', 'min:0'],
             'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
+            'brand_name' => ['nullable', 'string', 'max:191'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -268,8 +270,12 @@ final class BusinessMenuItemController extends Controller
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),
+            'supply_price' => isset($data['supply_price']) && $data['supply_price'] !== ''
+                ? round((float) $data['supply_price'], 2)
+                : null,
             // Empty string and «by the item» are the same answer; both store null.
             'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
+            'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: null,
             'sort_order' => max(0, (int) ($data['sort_order'] ?? 0)),
             'is_active' => $request->boolean('is_active', true),
         ];

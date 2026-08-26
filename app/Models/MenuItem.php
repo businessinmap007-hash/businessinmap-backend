@@ -6,6 +6,7 @@ use App\Models\Concerns\HasOfferingOptions;
 use App\Models\Concerns\HasOwnedImages;
 use App\Models\Concerns\RecordsPriceHistory;
 use App\Support\Concerns\HasLocalizedFields;
+use App\Support\MarketCatalogChildren;
 use App\Support\SaleUnits;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -51,7 +52,9 @@ class MenuItem extends Model
         'description_en',
         'image',
         'base_price',
+        'supply_price',
         'sale_unit',
+        'brand_name',
         'available_quantity',
         'is_active',
         'sort_order',
@@ -63,6 +66,10 @@ class MenuItem extends Model
         'menu_section_id' => 'integer',
         'category_id' => 'integer',
         'base_price' => 'decimal:2',
+        // What the merchant paid, never the customer's business — see the
+        // 2026-08-26 migration. Kept off every customer-facing payload by
+        // omission, the same way `MenuItemResource` already whitelists.
+        'supply_price' => 'decimal:2',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
         'is_featured' => 'boolean',
@@ -174,6 +181,26 @@ class MenuItem extends Model
         $line = $this->lineOption();
 
         if ($line) {
+            /*
+             * «تعبئة الرفوف» — the market's shelf is browsed by PRODUCT
+             * CATEGORY («أنواع الزيوت والسمن»), not by one option's own name.
+             * The general combo heading below answers a different question
+             * («غرفة نوم — مودرن» as one heading per combination); a market
+             * has no modifier layered onto its options at all, so reusing it
+             * would put every item under its own one-item heading — the
+             * option's own name — instead of the shelf it sits on.
+             *
+             * @see \App\Support\MarketCatalogChildren
+             */
+            if (MarketCatalogChildren::includes((int) ($this->business?->category_child_id ?? 0))) {
+                return [
+                    'key' => 'group:' . (int) $line->group_id,
+                    'label' => (string) ($line->group?->name_ar ?: $line->group?->name_en),
+                    'source' => 'catalog_group',
+                    'option_ids' => [(int) $line->id],
+                ];
+            }
+
             $modifiers = $this->modifierOptions();
 
             // Sorted, so two items that carry the same options in a different

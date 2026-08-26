@@ -33,7 +33,10 @@ final class MenuDiscoveryController extends Controller
             ->with([
                 'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
-                'offeringOptions.option',
+                'offeringOptions.option.group',
+                // `heading()` reads the business's own child to tell a market
+                // shelf from every other trade's combo heading.
+                'business:id,category_child_id',
                 'section',
                 'images',
             ])
@@ -168,6 +171,10 @@ final class MenuDiscoveryController extends Controller
             // «٤٥ ج / كجم» without carrying its own unit table.
             'sale_unit' => $item->sale_unit ?: null,
             'sale_unit_label' => $item->priceUnitLabel(),
+            // The maker, when the merchant said one — «هل يوجد اسم الشركة
+            // المنتجة او الماركة». Never `supply_price`: that is what the
+            // merchant paid, and this endpoint is the public one.
+            'brand_name' => $item->brand_name ?: null,
             /*
              * null = «لا أتابع الكمية», which is every kitchen and every row
              * written before 2026-08-24. 0 = «معروض، ونفد». The app must tell

@@ -38,11 +38,12 @@
     $menu = [
         ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard', 'icon' => 'dashboard', 'active_routes' => ['admin.dashboard']],
         ['label' => 'المستخدمون', 'route' => 'admin.users.index', 'icon' => 'users', 'active' => 'admin.users.'],
-        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.index', 'admin.categories.create', 'admin.categories.edit', 'admin.category-children.', 'admin.category-child-options.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
+        ['label' => 'التصنيفات والكتالوج', 'route' => 'admin.categories.index', 'icon' => 'folder', 'active' => ['admin.categories.index', 'admin.categories.create', 'admin.categories.edit', 'admin.category-children.', 'admin.category-child-options.', 'admin.rootless-children.', 'admin.options.', 'admin.option-groups.', 'admin.catalog-products.', 'admin.product-categories.', 'admin.product-category-children.', 'admin.catalog-brands.', 'admin.catalog-manufacturers.', 'admin.catalog-units.', 'admin.catalog-attributes.'], 'children' => [
             ['label' => 'التصنيفات', 'type' => 'section', 'children' => [
                 ['label' => 'التصنيفات الرئيسية', 'route' => 'admin.categories.index', 'active_routes' => ['admin.categories.index', 'admin.categories.create', 'admin.categories.edit']],
                 ['label' => 'التصنيفات الفرعية', 'route' => 'admin.category-children.index', 'active' => 'admin.category-children.'],
                 ['label' => 'خيارات الأبناء (جماعي)', 'route' => 'admin.category-child-options.bulk.edit', 'active' => 'admin.category-child-options.'],
+                ['label' => 'الأبناء بلا جذر', 'route' => 'admin.rootless-children.index', 'active' => 'admin.rootless-children.'],
             ]],
             ['label' => 'مفردات الخيارات', 'type' => 'section', 'children' => [
                 ['label' => 'الخيارات', 'route' => 'admin.options.index', 'active' => 'admin.options.'],

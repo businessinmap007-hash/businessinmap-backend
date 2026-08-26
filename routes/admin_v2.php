@@ -82,6 +82,7 @@ use App\Http\Controllers\AdminV2\{
     PushSettingsController,
     ProductCategoryChildController,
     ProductCategoryController,
+    RootlessChildrenController,
     UserServiceFeeConsentController,
     Users\UserController,
     WalletNoteTemplateController,
@@ -185,6 +186,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('{categoryChild}', [CategoryChildController::class, 'update'])->whereNumber('categoryChild')->name('update');
             Route::delete('{categoryChild}', [CategoryChildController::class, 'destroy'])->whereNumber('categoryChild')->name('destroy');
             Route::delete('{categoryChild}/parents/{parent}', [CategoryChildController::class, 'detachParent'])->whereNumber('categoryChild')->whereNumber('parent')->name('detach-parent');
+        });
+
+        Route::prefix('rootless-children')->name('rootless-children.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [RootlessChildrenController::class, 'index'])->name('index');
+            Route::delete('{categoryChild}', [RootlessChildrenController::class, 'destroy'])->whereNumber('categoryChild')->name('destroy');
         });
 
         /*

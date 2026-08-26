@@ -190,11 +190,19 @@ class FreshCounterVarietiesTest extends TestCase
          * the three markets were given the variety lists themselves («وتكون
          * الخيارات أقسام رئيسية … وتحتها كل الحبوب»), and «جزارة» was created
          * as the trade that sells meat.
+         *
+         * Widened again 2026-08-26: «مصانع → مواد غذائية» is a WHOLESALE
+         * supplier (its buyers are other businesses through the retail
+         * catalog, not walk-in shoppers), so a meat-packing or dairy
+         * factory genuinely does sell these categories wholesale — unlike a
+         * dry-goods retail shop, which stays excluded. See
+         * FoodRangesExpansionTest::test_a_wholesale_food_factory_carries_fresh_produce_but_not_livestock_or_frozen_desserts
+         * for what stayed excluded from that same child (poultry, ice cream).
          */
         return [
-            'لحوم' => [self::MEAT, ['مجمدات', 'جزارة', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
-            'أسماك' => [self::FISH, ['أسماك', 'مجمدات', 'مزارع سمكية', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
-            'ألبان' => [self::DAIRY, ['مجمدات', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
+            'لحوم' => [self::MEAT, ['مجمدات', 'جزارة', 'مواد غذائية', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
+            'أسماك' => [self::FISH, ['أسماك', 'مجمدات', 'مزارع سمكية', 'مواد غذائية', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
+            'ألبان' => [self::DAIRY, ['مجمدات', 'مواد غذائية', 'هايبر ماركت', 'مني ماركت', 'سوبر ماركت']],
         ];
     }
 

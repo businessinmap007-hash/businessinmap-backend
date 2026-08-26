@@ -272,15 +272,33 @@ class FoodRangesExpansionTest extends TestCase
         }
     }
 
-    public function test_a_dry_grocer_is_not_handed_a_fridge(): void
+    /**
+     * Reversed 2026-08-26. «مصانع → مواد غذائية» turned out to mean a
+     * WHOLESALE food factory, not a corner dry-grocer — its buyers are other
+     * businesses browsing the retail catalog, and a real meat-packing,
+     * dairy, or produce-packing factory genuinely supplies these categories
+     * wholesale. So the fresh/raw lists DO belong here now, same as the
+     * three markets (see FreshCounterVarietiesTest::carriers).
+     *
+     * What still does NOT belong, on the exact same "no fridge" logic,
+     * reviewed item-by-item rather than assumed: «أنواع الدواجن والطيور»'s
+     * eleven options are live birds and eggs meant for hatching (بيض تفريخ،
+     * كتاكيت) — livestock trade, not a food factory's output — and «أصناف
+     * الحلويات والجاتوه» is a single option, «آيس كريم», which needs a
+     * retail freezer a wholesale factory doesn't have (distinct from «أنواع
+     * الحلويات المعبأة», the shelf-stable packaged sweets this child already
+     * correctly carries).
+     */
+    public function test_a_wholesale_food_factory_carries_fresh_produce_but_not_livestock_or_frozen_desserts(): void
     {
-        // Every one of the thirteen is shelf-stable, which is what a «مواد
-        // غذائية» shop is. The fresh lists stay with the markets — that is the
-        // whole difference between a mini-market and a dry grocer.
         $groups = $this->groupsOf('مواد غذائية');
 
         foreach (['أنواع اللحوم', 'أنواع الأسماك والمأكولات البحرية', 'الفواكه', 'الخضروات'] as $fresh) {
-            $this->assertNotContains($fresh, $groups->all(), "«مواد غذائية» was handed «{$fresh}»");
+            $this->assertContains($fresh, $groups->all(), "«مواد غذائية» should carry «{$fresh}» wholesale");
+        }
+
+        foreach (['أنواع الدواجن والطيور', 'أصناف الحلويات والجاتوه'] as $excluded) {
+            $this->assertNotContains($excluded, $groups->all(), "«مواد غذائية» was wrongly handed «{$excluded}»");
         }
     }
 

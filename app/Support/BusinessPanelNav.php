@@ -64,9 +64,11 @@ class BusinessPanelNav
     private const FOOD_KIND = 'menu_food';
 
     /**
-     * تعبئةُ الرفوف من المفردات — هايبر ماركت · مني ماركت · سوبر ماركت فقط،
-     * كما طلب المالك 2026-08-25. ثلاثةٌ بالاسم لا بالخدمة، لأن أىَّ تاجرٍ آخر
-     * لديه سطرٌ فى تصنيفه لا يعنى أن رفَّه بنفس الشكل — سؤالٌ آخر لم يُسأل بعد.
+     * تعبئةُ الرفوف من المفردات — كلُّ تاجرٍ يبيع سلعةً جاهزةً (`menu_market`)،
+     * لا كلُّ من يبيع شيئًا. طُلبت أوّلًا لثلاثةٍ بالاسم يوم 2026-08-25، ثم
+     * وُسِّعت 2026-08-26 لكلِّ من يحمل نفس النوع — لا لكلِّ الأبناء، لأن مطعمًا
+     * أو معرضَ أثاثٍ يبيع شيئًا مخصَّصًا يُسمَّى ويُصوَّر تحت كل بند لا صفًّا
+     * جاهز السعر.
      *
      * @see \App\Support\MarketCatalogChildren
      */
@@ -178,11 +180,7 @@ class BusinessPanelNav
         }
 
         if ($link === self::NEEDS_MARKET_CATALOG) {
-            $business ??= Auth::user();
-
-            return $business
-                && in_array('menu', self::servicesOf($business), true)
-                && MarketCatalogChildren::includes((int) $business->category_child_id);
+            return MarketCatalogChildren::includes($business ?? Auth::user());
         }
 
         if (in_array($link, self::NEEDS_FOOD_MENU, true)) {

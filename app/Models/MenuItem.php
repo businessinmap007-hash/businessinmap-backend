@@ -163,9 +163,15 @@ class MenuItem extends Model
      * child may list, and retail's entire catalog scoping rides on it. Only
      * the heading moved.
      *
+     * @param  bool|null  $isGoodsCatalog  Whether this item's OWN business is a
+     *        `menu_market` trade — {@see \App\Support\MarketCatalogChildren}.
+     *        Pass it when a caller already knows the answer for every item in
+     *        a batch (one business, one lookup); left null it is worked out
+     *        here from `$this->business`, a fine cost for the rare one-item
+     *        call but a query-per-item N+1 for a whole menu's worth.
      * @return array{key:string,label:string,source:string,option_ids:array<int,int>}|null
      */
-    public function heading(): ?array
+    public function heading(?bool $isGoodsCatalog = null): ?array
     {
         $section = $this->section;
 
@@ -192,7 +198,9 @@ class MenuItem extends Model
              *
              * @see \App\Support\MarketCatalogChildren
              */
-            if (MarketCatalogChildren::includes((int) ($this->business?->category_child_id ?? 0))) {
+            $isGoodsCatalog ??= MarketCatalogChildren::includes($this->business);
+
+            if ($isGoodsCatalog) {
                 return [
                     'key' => 'group:' . (int) $line->group_id,
                     'label' => (string) ($line->group?->name_ar ?: $line->group?->name_en),

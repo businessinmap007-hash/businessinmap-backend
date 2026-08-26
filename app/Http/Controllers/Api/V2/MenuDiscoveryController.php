@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\User;
+use App\Support\MarketCatalogChildren;
 
 /**
  * Customer-facing browse of a single business's menu — the menu counterpart of
@@ -21,11 +22,16 @@ final class MenuDiscoveryController extends Controller
     /** GET /api/v2/discovery/menu/{business} */
     public function show(int $business)
     {
-        $biz = User::query()->where('type', 'business')->find($business, ['id', 'name', 'logo']);
+        $biz = User::query()->where('type', 'business')
+            ->find($business, ['id', 'name', 'logo', 'category_child_id', 'category_id']);
 
         if (! $biz) {
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
         }
+
+        // Worked out once per business rather than once per item — the same
+        // config `heading()` would otherwise re-read on every row.
+        $isGoodsCatalog = MarketCatalogChildren::includes($biz);
 
         $items = MenuItem::query()
             ->where('business_id', $business)
@@ -34,9 +40,6 @@ final class MenuDiscoveryController extends Controller
                 'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
                 'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
                 'offeringOptions.option.group',
-                // `heading()` reads the business's own child to tell a market
-                // shelf from every other trade's combo heading.
-                'business:id,category_child_id',
                 'section',
                 'images',
             ])
@@ -80,7 +83,7 @@ final class MenuDiscoveryController extends Controller
             return $sid === 0 || ! in_array($sid, $activeSectionIds, true);
         });
 
-        foreach ($this->headingsOf($ungrouped) as $heading) {
+        foreach ($this->headingsOf($ungrouped, $isGoodsCatalog) as $heading) {
             $out[] = $heading;
         }
 
@@ -107,13 +110,13 @@ final class MenuDiscoveryController extends Controller
      * @param  \Illuminate\Support\Collection<int,MenuItem>  $items
      * @return array<int,array<string,mixed>>
      */
-    private function headingsOf($items): array
+    private function headingsOf($items, bool $isGoodsCatalog): array
     {
         $groups = [];
         $loose = [];
 
         foreach ($items as $item) {
-            $heading = $item->heading();
+            $heading = $item->heading($isGoodsCatalog);
 
             if (! $heading) {
                 $loose[] = $item;

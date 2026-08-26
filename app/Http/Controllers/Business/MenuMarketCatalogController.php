@@ -33,11 +33,12 @@ use Illuminate\View\View;
  * carrying its option as an offering LINE the same way a hand-typed item
  * does — {@see \App\Models\Concerns\HasOfferingOptions}.
  *
- * Scoped to three children on purpose, not every trade with a `line` group:
- * this is the shelf shape the owner asked for, and widening it to a
- * furniture showroom or a clinic is a different, unasked question.
+ * Scoped to `menu_market` children — a ready-made-goods trade, by the
+ * platform's own reckoning — not every trade with a `line` group: a
+ * furniture showroom's «غرفة نوم» is a category several distinct hand-typed
+ * pieces sit under, not one shelf-stable row a single option already names.
  *
- * @see \App\Support\MarketCatalogChildren the one list this, the nav gate,
+ * @see \App\Support\MarketCatalogChildren the one rule this, the nav gate,
  *      and the customer-facing heading all read
  */
 class MenuMarketCatalogController extends Controller
@@ -58,9 +59,9 @@ class MenuMarketCatalogController extends Controller
     private function assertMarket(): void
     {
         abort_unless(
-            MarketCatalogChildren::includes($this->childId()),
+            MarketCatalogChildren::includes($this->actingBusiness()),
             403,
-            'هذه الشاشة مخصّصة لتجار السوبر ماركت والهايبر ماركت والمني ماركت.'
+            'هذه الشاشة مخصّصة لتجار السلع الجاهزة.'
         );
     }
 

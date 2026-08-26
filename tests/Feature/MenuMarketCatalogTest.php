@@ -11,12 +11,14 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * «تعبئة الرفوف» — السوبر ماركت والهايبر ماركت والمني ماركت يملأون منيوهم من
- * مفردات المنصّة الجاهزة بدل الكتابة اليدوية.
+ * «تعبئة الرفوف» — تجار السلع الجاهزة (`menu_market`) يملأون منيوهم من مفردات
+ * المنصّة الجاهزة بدل الكتابة اليدوية.
  *
  * «ناخد اسم مجموعة الخيارات ويكون هو القسم وتحته اقسام المجموعة نفسها …
  *  الكمية … سعر التوريد اختيارى وسعر البيع والوحدة … اسم الشركة المنتجة او
- *  الماركة اختيارى» — المالك، 2026-08-25.
+ *  الماركة اختيارى» — المالك، 2026-08-25. Started scoped to three ids; widened
+ * 2026-08-26 to «تجار السلع الجاهزة فقط» — every `menu_market` child, not
+ * every child — {@see \App\Support\MarketCatalogChildren}.
  *
  * A filled row is an ordinary MenuItem carrying its option as an offering
  * LINE, so the customer-facing arrangement (`MenuItem::heading()`,
@@ -48,20 +50,47 @@ class MenuMarketCatalogTest extends TestCase
         return $lines->first()->first();
     }
 
-    public function test_the_screen_is_open_to_the_three_markets_and_closed_elsewhere(): void
+    public function test_the_screen_is_open_to_the_original_three_markets(): void
     {
-        foreach (MarketCatalogChildren::IDS as $childId) {
+        foreach ([149, 185, 272] as $childId) {
             $this->actingAs($this->marketBusiness($childId))
                 ->get(route('business.menu.catalog.index'))
                 ->assertOk();
         }
+    }
 
-        $stranger = User::query()->where('type', 'business')
-            ->whereNotIn('category_child_id', MarketCatalogChildren::IDS)
-            ->where('category_child_id', '>', 0)
-            ->orderBy('id')->first() ?: $this->markTestSkipped('Needs a non-market business.');
+    /**
+     * The 2026-08-26 widening: any `menu_market` child, not just the three it
+     * started with — a fishmonger (#101) is exactly the shape «تجار السلع
+     * الجاهزة» was meant to include and never carried the original three ids.
+     */
+    public function test_the_screen_widened_to_every_ready_goods_child(): void
+    {
+        $this->assertNotContains(101, [149, 185, 272], 'pick a child outside the original three');
 
-        $this->actingAs($stranger)
+        $this->actingAs($this->marketBusiness(101))
+            ->get(route('business.menu.catalog.index'))
+            ->assertOk();
+    }
+
+    /**
+     * A made-to-order trade — a restaurant plates a dish, it does not shelve
+     * one — stays closed even though it carries `line` options of its own.
+     */
+    public function test_a_made_to_order_trade_is_refused(): void
+    {
+        $restaurant = User::query()
+            ->where('type', 'business')->where('category_child_id', '>', 0)
+            ->whereIn('id', function ($q) {
+                $q->select('u.id')->from('users as u')
+                    ->join('category_children_master as c', 'c.id', '=', 'u.category_child_id')
+                    ->where('c.name_ar', 'مطعم');
+            })
+            ->orderBy('id')->first() ?: $this->markTestSkipped('Needs a restaurant business.');
+
+        $this->assertFalse(MarketCatalogChildren::includes($restaurant), 'a restaurant was read as a goods catalog');
+
+        $this->actingAs($restaurant)
             ->get(route('business.menu.catalog.index'))
             ->assertForbidden();
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\CategoryChildServiceFee;
+use App\Models\FeeGroup;
 use App\Models\PlatformService;
 use App\Services\Catalog\ChildServiceWriter;
 use Illuminate\Http\RedirectResponse;
@@ -153,16 +154,13 @@ class CategoryChildServiceFeeBulkController extends Controller
             childIds: $validChildIds
         );
 
+        // One fee row per child now, not per (child, service).
         $existingFees = CategoryChildServiceFee::query()
-            ->with(['platformService:id,key,name_ar,name_en,is_active'])
             ->where('category_id', $parentId)
             ->whereIn('child_id', $validChildIds)
-            ->whereIn('platform_service_id', $services->pluck('id')->map(fn ($id) => (int) $id)->all())
             ->ordered()
             ->get()
-            ->groupBy(function (CategoryChildServiceFee $row) {
-                return (int) $row->child_id . ':' . (int) $row->platform_service_id;
-            });
+            ->keyBy(fn (CategoryChildServiceFee $row) => (int) $row->child_id);
 
         return view('admin-v2.category-child-service-fees.bulk-edit', [
             'parent' => $parent,
@@ -172,6 +170,7 @@ class CategoryChildServiceFeeBulkController extends Controller
             'services' => $services,
             'existingFees' => $existingFees,
             'activeChildServiceMap' => $activeChildServiceMap,
+            'feeGroups' => FeeGroup::query()->where('is_active', 1)->orderBy('name_ar')->get(['id', 'name_ar']),
         ]);
     }
 
@@ -207,32 +206,22 @@ class CategoryChildServiceFeeBulkController extends Controller
             'child_ids.*' => ['integer', 'min:1'],
 
             'rows' => ['nullable', 'array'],
-
-            'rows.*.*.row_enabled' => ['nullable'],
-
-            'rows.*.*.business_fee_enabled' => ['nullable'],
-            'rows.*.*.business_fee_amount' => ['nullable', 'numeric', 'min:0'],
-
-            'rows.*.*.client_fee_enabled' => ['nullable'],
-            'rows.*.*.client_fee_amount' => ['nullable', 'numeric', 'min:0'],
-
-            'rows.*.*.currency' => ['nullable', 'string', 'size:3'],
-            'rows.*.*.is_active' => ['nullable'],
-            'rows.*.*.sort_order' => ['nullable', 'integer', 'min:0'],
-            'rows.*.*.notes' => ['nullable', 'string', 'max:500'],
+            'rows.*.services.*.row_enabled' => ['nullable'],
+            'rows.*.fee.fee_group_id' => ['nullable', 'integer', 'exists:fee_groups,id'],
+            'rows.*.fee.business_fee_amount' => ['nullable', 'numeric', 'min:0'],
+            'rows.*.fee.client_fee_amount' => ['nullable', 'numeric', 'min:0'],
+            'rows.*.fee.currency' => ['nullable', 'string', 'size:3'],
+            'rows.*.fee.sort_order' => ['nullable', 'integer', 'min:0'],
+            'rows.*.fee.notes' => ['nullable', 'string', 'max:500'],
         ], [], [
             'parent_id' => __('القسم الرئيسي'),
             'child_ids' => __('الأقسام الفرعية'),
-            'rows.*.*.business_fee_amount' => __('قيمة رسوم البزنس'),
-            'rows.*.*.client_fee_amount' => __('قيمة رسوم المستخدم'),
-            'rows.*.*.currency' => __('العملة'),
-            'rows.*.*.sort_order' => __('الترتيب'),
-            'rows.*.*.notes' => __('الملاحظات'),
+            'rows.*.fee.business_fee_amount' => __('قيمة رسوم البزنس'),
+            'rows.*.fee.client_fee_amount' => __('قيمة رسوم المستخدم'),
+            'rows.*.fee.currency' => __('العملة'),
+            'rows.*.fee.sort_order' => __('الترتيب'),
+            'rows.*.fee.notes' => __('الملاحظات'),
         ]);
-
-        $rowsInput = is_array($request->input('rows'))
-            ? $request->input('rows')
-            : [];
 
         $serviceIds = PlatformService::query()
             ->where('is_active', 1)
@@ -242,22 +231,19 @@ class CategoryChildServiceFeeBulkController extends Controller
             ->values()
             ->all();
 
-        DB::transaction(function () use ($children, $rowsInput, $serviceIds, $parentId) {
+        DB::transaction(function () use ($children, $request, $serviceIds, $parentId) {
             foreach ($children as $child) {
                 $childId = (int) $child->id;
 
-                $childRows = is_array($rowsInput[$childId] ?? null)
-                    ? $rowsInput[$childId]
-                    : [];
+                // `validate()` only returns keys with declared rules — read
+                // the service toggles and the fee row raw.
+                $servicesInput = (array) $request->input("rows.{$childId}.services", []);
+                $feePayload = (array) $request->input("rows.{$childId}.fee", []);
 
                 $nextSort = $this->nextChildServiceSort($parentId, $childId);
 
                 foreach ($serviceIds as $serviceId) {
-                    $payload = is_array($childRows[$serviceId] ?? null)
-                        ? $childRows[$serviceId]
-                        : [];
-
-                    $rowEnabled = (bool) ($payload['row_enabled'] ?? false);
+                    $rowEnabled = (bool) ($servicesInput[$serviceId]['row_enabled'] ?? false);
 
                     $existingPlatformService = DB::table('category_platform_services')
                         ->where('category_id', $parentId)
@@ -266,12 +252,12 @@ class CategoryChildServiceFeeBulkController extends Controller
                         ->first();
 
                     if (! $rowEnabled) {
-                        $this->disableChildServiceAndFees(
-                            parentId: $parentId,
-                            childId: $childId,
-                            serviceId: (int) $serviceId,
-                            existingPlatformServiceId: $existingPlatformService->id ?? null
-                        );
+                        // ChildServiceWriter is the one place that writes the
+                        // link+config pair together — a link switched off
+                        // here with the config left untouched is exactly the
+                        // «صيانة تبريد وتكييف» #15 incident from 2026-08-21
+                        // (ServiceWiringIntegrityTest guards it).
+                        app(ChildServiceWriter::class)->disable($parentId, $childId, (int) $serviceId);
 
                         continue;
                     }
@@ -301,14 +287,11 @@ class CategoryChildServiceFeeBulkController extends Controller
 
                         $nextSort++;
                     }
-
-                    $this->upsertFeeRow(
-                        parentId: $parentId,
-                        childId: $childId,
-                        serviceId: (int) $serviceId,
-                        payload: $payload
-                    );
                 }
+
+                // One fee for the whole child, decided once its service links
+                // above are settled — not per service.
+                $this->upsertOrClearFeeRow($parentId, $childId, $feePayload);
             }
         });
 
@@ -350,8 +333,34 @@ class CategoryChildServiceFeeBulkController extends Controller
         return $currentMaxSort > 0 ? $currentMaxSort + 1 : 1;
     }
 
-    private function upsertFeeRow(int $parentId, int $childId, int $serviceId, array $payload): void
+    /**
+     * One fee for the whole child — write it only if the child still offers
+     * at least one active service after the loop above; otherwise deactivate
+     * whatever fee it had rather than leave a row nothing can ever charge.
+     */
+    private function upsertOrClearFeeRow(int $parentId, int $childId, array $payload): void
     {
+        $offersAnyService = DB::table('category_platform_services')
+            ->where('category_id', $parentId)
+            ->where('child_id', $childId)
+            ->where('is_active', 1)
+            ->exists();
+
+        if (! $offersAnyService) {
+            CategoryChildServiceFee::query()
+                ->where('category_id', $parentId)->where('child_id', $childId)
+                ->update([
+                    'is_active' => 0,
+                    'business_fee_enabled' => 0,
+                    'business_fee_amount' => 0,
+                    'client_fee_enabled' => 0,
+                    'client_fee_amount' => 0,
+                    'updated_at' => now(),
+                ]);
+
+            return;
+        }
+
         $businessFeeEnabled = (bool) ($payload['business_fee_enabled'] ?? false);
         $clientFeeEnabled = (bool) ($payload['client_fee_enabled'] ?? false);
 
@@ -377,17 +386,18 @@ class CategoryChildServiceFeeBulkController extends Controller
             $payload['currency'] ?? CategoryChildServiceFee::DEFAULT_CURRENCY
         );
 
+        $feeGroupId = ! empty($payload['fee_group_id']) ? (int) $payload['fee_group_id'] : null;
+
         CategoryChildServiceFee::query()->updateOrCreate(
             [
-                // category_id is part of the UNIQUE key
-                // (category_id, child_id, platform_service_id) and is NOT NULL.
-                // Without it inserts crashed and multi-root children clobbered
-                // each other's fee rows.
+                // category_id is part of the UNIQUE key (category_id, child_id)
+                // and is NOT NULL. Without it inserts crashed and multi-root
+                // children clobbered each other's fee rows.
                 'category_id' => $parentId,
                 'child_id' => $childId,
-                'platform_service_id' => $serviceId,
             ],
             [
+                'fee_group_id' => $feeGroupId,
                 'business_fee_enabled' => $businessFeeEnabled ? 1 : 0,
                 'business_fee_amount' => $businessFeeAmount,
 
@@ -400,46 +410,6 @@ class CategoryChildServiceFeeBulkController extends Controller
                 'notes' => trim((string) ($payload['notes'] ?? '')) ?: null,
             ]
         );
-    }
-
-    /**
-     * Switching a service off here used to switch off HALF of it.
-     *
-     * The link went to 0 and the fees with it; `category_service_configs` was
-     * never named, so the config stayed active with nothing pointing at it. The
-     * damage is invisible on this screen and shows up two tables away: a config
-     * that no link can reach, and — the day the service is switched back on
-     * anywhere — a pair that disagree about whether it is offered.
-     *
-     * On 2026-08-21 that landed on «صيانة تبريد وتكييف» #15 and «متخصص كوافير»
-     * #136 while the owner was going down the مهن وحرفيين children, and
-     * `ServiceWiringIntegrityTest > a switched off service is still wired
-     * consistently` is the test that caught it.
-     *
-     * `ChildServiceWriter` exists to be the one place that writes this pair and
-     * its `disable()` deactivates both, never deletes: the config holds the
-     * admin's item types and a child re-enabled next week should find them.
-     */
-    private function disableChildServiceAndFees(
-        int $parentId,
-        int $childId,
-        int $serviceId,
-        $existingPlatformServiceId = null
-    ): void {
-        app(ChildServiceWriter::class)->disable($parentId, $childId, $serviceId);
-
-        CategoryChildServiceFee::query()
-            ->forCategory($parentId)
-            ->forChild($childId)
-            ->forService($serviceId)
-            ->update([
-                'is_active' => 0,
-                'business_fee_enabled' => 0,
-                'business_fee_amount' => 0,
-                'client_fee_enabled' => 0,
-                'client_fee_amount' => 0,
-                'updated_at' => now(),
-            ]);
     }
 
     private function normalizeCurrency($value): string

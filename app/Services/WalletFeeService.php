@@ -25,7 +25,6 @@ class WalletFeeService
     public const DEFAULT_FEE_CODE = CategoryChildServiceFee::DEFAULT_FEE_CODE;
 
     public function __construct(
-        protected ServiceFeeRuleEngine $rules,
         protected PlatformTreasuryService $treasury
     ) {}
 
@@ -65,29 +64,14 @@ class WalletFeeService
         $feeRow = null;
 
         if ($categoryId > 0 && $childId > 0) {
-            $feeRow = CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
+            $feeRow = CategoryChildServiceFee::activeForRootChild($categoryId, $childId);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Legacy-safe fallback
-        |--------------------------------------------------------------------------
-        | لا نستخدم أي رسوم من platform_services.
-        | هذا fallback محدود فقط داخل category_child_service_fees لحالات قديمة
-        | لا تحتوي category_id بشرط وجود صف واحد فقط لنفس child/service.
-        |--------------------------------------------------------------------------
-        */
+        // No root known (rare) — fall back to whatever this child carries,
+        // regardless of which root. One fee per child now, not per service,
+        // so there is no ambiguity to guard against the way there used to be.
         if (! $feeRow && $childId > 0) {
-            $legacyRows = CategoryChildServiceFee::query()
-                ->active(1)
-                ->forPair($childId, $serviceId)
-                ->ordered()
-                ->limit(2)
-                ->get();
-
-            if ($legacyRows->count() === 1) {
-                $feeRow = $legacyRows->first();
-            }
+            $feeRow = CategoryChildServiceFee::activeForChild($childId);
         }
 
         if (! $feeRow) {
@@ -183,11 +167,6 @@ class WalletFeeService
         $line['platform_service_id'] = $serviceId;
         $line['source'] = $line['source'] ?? 'category_child_service_fee';
 
-        // BIM-3.5: the static base fee is only the starting point — dynamic
-        // rules price this particular operation (value, place, hour, the
-        // payer's record, subscription) before any marketing promotion.
-        $line = $this->applyDynamicRulesToLine($line, $booking, $payer, $baseAmount, $categoryId, $childId, $feeCode);
-
         $promotion = $this->resolveActivePromotion(
             payer: $payer,
             serviceId: $serviceId,
@@ -205,48 +184,6 @@ class WalletFeeService
         }
 
         $line['amount'] = $amount;
-
-        return $line;
-    }
-
-    /**
-     * BIM-3.5 — run the dynamic rules over a resolved base line.
-     *
-     * A line only changes when a rule actually matched, so a platform with no
-     * rules behaves exactly as it did before this layer existed. When rules do
-     * fire, the line carries the trace (which rules, and the running amount
-     * through each) so any fee can be explained.
-     */
-    protected function applyDynamicRulesToLine(
-        array $line,
-        Booking $booking,
-        string $payer,
-        float $baseAmount,
-        int $categoryId,
-        int $childId,
-        string $feeCode
-    ): array {
-        $context = $this->rules->contextForBooking(
-            booking: $booking,
-            payer: $payer,
-            baseAmount: $baseAmount,
-            feeCode: $feeCode,
-            categoryId: $categoryId > 0 ? $categoryId : null,
-            childId: $childId > 0 ? $childId : null
-        );
-
-        $resolution = $this->rules->resolve((float) ($line['amount'] ?? 0), $context);
-
-        if (empty($resolution['applied'])) {
-            return $line;
-        }
-
-        $line['amount_before_rules'] = $resolution['base_amount'];
-        $line['amount'] = $resolution['amount'];
-        $line['source_before_rules'] = $line['source'] ?? 'category_child_service_fee';
-        $line['source'] = 'service_fee_rule';
-        $line['fee_rules'] = $resolution['applied'];
-        $line['fee_context'] = $context->toArray();
 
         return $line;
     }

@@ -7,7 +7,6 @@ use App\Models\BusinessMenuSetting;
 use App\Models\CategoryChildServiceFee;
 use App\Models\MenuItem;
 use App\Models\Order;
-use App\Models\PlatformService;
 use App\Models\User;
 
 /**
@@ -37,26 +36,27 @@ class MenuBillingService
      */
     public function feeRowForBusiness(int $businessId): ?CategoryChildServiceFee
     {
-        $business = User::query()->whereKey($businessId)->first(['id', 'category_child_id']);
+        $business = User::query()->whereKey($businessId)->first(['id', 'category_id', 'category_child_id']);
 
         if (! $business || ! $business->hasFeeAutoChargeEnabled()) {
             return null;
         }
 
         $childId = (int) ($business->category_child_id ?? 0);
-        $serviceId = (int) (PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id') ?? 0);
 
-        if ($childId <= 0 || $serviceId <= 0) {
+        if ($childId <= 0) {
             return null;
         }
 
+        // One fee per child now, not one per (child, menu) — the same row
+        // this business would be charged on a booking or a delivery too.
         return CategoryChildServiceFee::query()
             ->active()
-            ->where('child_id', $childId)
-            ->where('platform_service_id', $serviceId)
+            ->forRootChild((int) ($business->category_id ?? 0), $childId)
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->first();
+            ->first()
+            ?: CategoryChildServiceFee::activeForChild($childId);
     }
 
     /** [prices_include_service, prices_include_tax] for a business (defaults false). */
@@ -106,9 +106,9 @@ class MenuBillingService
         $tr = ($taxRatePercent ?? $this->taxRatePercent()) / 100;
 
         $chargeable = $feeRow && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT);
-        $isPercent = $chargeable && ($feeRow->client_fee_type ?: 'fixed') === CategoryChildServiceFee::CALC_TYPE_PERCENT;
-        $sp = $isPercent ? ((float) $feeRow->client_fee_amount) / 100 : 0.0;
-        $fixed = ($chargeable && ! $isPercent) ? (float) $feeRow->client_fee_amount : 0.0;
+        $isPercent = $chargeable && $feeRow->calcTypeFor(CategoryChildServiceFee::PAYER_CLIENT) === CategoryChildServiceFee::CALC_TYPE_PERCENT;
+        $sp = $isPercent ? $feeRow->rateValueFor(CategoryChildServiceFee::PAYER_CLIENT) / 100 : 0.0;
+        $fixed = ($chargeable && ! $isPercent) ? $feeRow->rateValueFor(CategoryChildServiceFee::PAYER_CLIENT) : 0.0;
 
         // Solve net (food value) from the displayed subtotal.
         if ($isPercent) {

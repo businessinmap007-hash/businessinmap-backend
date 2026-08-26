@@ -89,7 +89,7 @@
         | عنوانها. وما يعبر الخدماتِ كلَّها — النزاعات، المحادثات — بقى فى
         | «العمليات»، لأنه ليس خدمةً بل ما يقع بين طرفَى أىِّ عملية.
         */
-        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.service-fee-rules.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.', 'admin.projects.'], 'children' => [
+        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.', 'admin.projects.'], 'children' => [
             ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -131,7 +131,7 @@
             ]],
             ['label' => 'التسعير والرسوم', 'type' => 'section', 'children' => [
                 ['label' => 'أسعار خدمات الأعمال', 'route' => 'admin.business_service_prices.index', 'active' => 'admin.business_service_prices.'],
-                ['label' => 'قواعد الرسوم الديناميكية', 'route' => 'admin.service-fee-rules.index', 'active' => 'admin.service-fee-rules.'],
+                ['label' => 'مجموعات الرسوم', 'route' => 'admin.fee-groups.index', 'active' => 'admin.fee-groups.'],
                 ['label' => 'عروض الرسوم', 'route' => 'admin.platform-service-fee-promotions.index', 'active' => 'admin.platform-service-fee-promotions.'],
             ]],
         ]],

@@ -35,13 +35,12 @@ class SharedCartBillingTest extends TestCase
         }
         [$this->host, $this->member] = [$customers[0], $customers[1]];
 
-        $menuId = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
-
-        // A real category child (FK on users.category_child_id) that has no menu
-        // fee yet, so our 10% row is the one resolved.
+        // A real category child (FK on users.category_child_id) that has no
+        // fee yet — a fee is per (root, child) now, not per (child, menu) —
+        // so our 10% row is the one resolved.
         $childId = (int) DB::table('category_children_master')
-            ->whereNotIn('id', function ($q) use ($menuId) {
-                $q->from('category_child_service_fees')->where('platform_service_id', $menuId)->select('child_id');
+            ->whereNotIn('id', function ($q) {
+                $q->from('category_child_service_fees')->select('child_id');
             })
             ->orderBy('id')->value('id');
 
@@ -49,13 +48,12 @@ class SharedCartBillingTest extends TestCase
             $this->markTestSkipped('No free category child for the fee fixture.');
         }
 
-        // Point the business at that child and give it a 10% menu client fee
+        // Point the business at that child and give it a 10% client fee
         // (rolled back with the transaction).
         $this->biz->forceFill(['category_child_id' => $childId])->save();
         DB::table('category_child_service_fees')->insert([
             'category_id' => (int) DB::table('categories')->min('id'),
             'child_id' => $childId,
-            'platform_service_id' => $menuId,
             'client_fee_enabled' => 1,
             'client_fee_type' => 'percent',
             'client_fee_amount' => 10,

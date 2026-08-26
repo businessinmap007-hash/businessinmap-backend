@@ -16,6 +16,7 @@
     $services = collect($services ?? []);
     $existingFees = collect($existingFees ?? []);
     $activeChildServiceMap = collect($activeChildServiceMap ?? []);
+    $feeGroups = collect($feeGroups ?? []);
 @endphp
 
 <div class="a2-page">
@@ -80,22 +81,6 @@
     @endif
 
     <div class="a2-card a2-card--soft a2-mb-16">
-        <div class="a2-section-title">{{ __('الأقسام الفرعية المحددة') }}</div>
-        <div class="a2-section-subtitle">
-            {{ __('سيتم تطبيق الربط والرسوم على الأقسام الفرعية التالية فقط.') }}
-        </div>
-
-        <div class="a2-page-actions a2-mt-12">
-            @foreach($children as $child)
-                <span class="a2-pill a2-pill-gray">
-                    {{ $child->name_ar ?: ($child->name_en ?: ('#' . $child->id)) }}
-                    #{{ $child->id }}
-                </span>
-            @endforeach
-        </div>
-    </div>
-
-    <div class="a2-card a2-card--soft a2-mb-16">
         <div class="a2-section-title">{{ __('طريقة العمل') }}</div>
 
         <div class="a2-kv-grid a2-kv-grid-3 a2-mt-12">
@@ -110,17 +95,14 @@
             <div class="a2-kv-box">
                 <span>{{ __('إلغاء الربط') }}</span>
                 <strong>
-                    {{ __('يعني تعطيل الخدمة لهذا القسم الفرعي وتعطيل رسومها وتصفير رسوم البزنس والمستخدم.') }}
+                    {{ __('يعني تعطيل الخدمة لهذا القسم الفرعي.') }}
                 </strong>
             </div>
 
             <div class="a2-kv-box">
-                <span>{{ __('رسوم الخدمة') }}</span>
+                <span>{{ __('رسم الابن') }}</span>
                 <strong>
-                    {{ __('يتم حفظها داخل') }}
-                    <span dir="ltr">category_child_service_fees</span>
-                    {{ __('وتستخدم عند') }}
-                    <span dir="ltr">in_progress</span>.
+                    {{ __('رسمٌ واحدٌ لكل خدماته — لا رسمٌ منفصل لكل خدمة. يُعطَّل تلقائيًا إن لم يعُد يعرض أى خدمة.') }}
                 </strong>
             </div>
         </div>
@@ -139,298 +121,102 @@
             <div class="a2-empty-cell">
                 {{ __('لا توجد خدمات مفعلة في النظام حاليًا.') }}
             </div>
-
-            <div class="a2-page-actions a2-mt-16">
-                <a
-                    href="{{ route('admin.categories.index', ['root_id' => $parentIdInt]) }}"
-                    class="a2-btn a2-btn-ghost"
-                >
-                    {{ __('رجوع') }}
-                </a>
-            </div>
         @else
-            <div class="a2-table-wrap">
-                <table class="a2-table">
-                    <thead>
-                    <tr>
-                        <th style="min-width:270px;">{{ __('القسم الفرعي / الخدمة') }}</th>
-                        <th style="min-width:130px;">{{ __('ربط الخدمة') }}</th>
-                        <th style="min-width:120px;">{{ __('تفعيل الرسوم') }}</th>
+            @foreach($children as $child)
+                @php
+                    $childId = (int) $child->id;
+                    $childName = $child->name_ar ?: ($child->name_en ?: ('#' . $childId));
+                    $childActiveServices = collect($activeChildServiceMap->get($childId, []))
+                        ->map(fn($id) => (int) $id)->all();
 
-                        <th style="min-width:120px;">{{ __('رسوم البزنس') }}</th>
-                        <th style="min-width:140px;">{{ __('قيمة البزنس') }}</th>
+                    $fee = $existingFees->get($childId);
+                    $feeBase = 'rows.' . $childId . '.fee.';
 
-                        <th style="min-width:120px;">{{ __('رسوم المستخدم') }}</th>
-                        <th style="min-width:140px;">{{ __('قيمة المستخدم') }}</th>
+                    $isActive = old($feeBase . 'is_active', $fee->is_active ?? 0);
+                    $feeGroupId = old($feeBase . 'fee_group_id', $fee->fee_group_id ?? '');
+                    $businessFeeEnabled = old($feeBase . 'business_fee_enabled', $fee->business_fee_enabled ?? 0);
+                    $businessFeeType = old($feeBase . 'business_fee_type', $fee->business_fee_type ?? 'fixed');
+                    $businessFeeAmount = old($feeBase . 'business_fee_amount', isset($fee->business_fee_amount) ? (string) $fee->business_fee_amount : '0.00');
+                    $clientFeeEnabled = old($feeBase . 'client_fee_enabled', $fee->client_fee_enabled ?? 0);
+                    $clientFeeType = old($feeBase . 'client_fee_type', $fee->client_fee_type ?? 'fixed');
+                    $clientFeeAmount = old($feeBase . 'client_fee_amount', isset($fee->client_fee_amount) ? (string) $fee->client_fee_amount : '0.00');
+                    $currency = old($feeBase . 'currency', $fee->currency ?? 'EGP');
+                @endphp
 
-                        <th style="min-width:90px;">{{ __('العملة') }}</th>
-                        <th style="min-width:90px;">{{ __('الترتيب') }}</th>
-                        <th style="min-width:280px;">{{ __('ملاحظات') }}</th>
-                    </tr>
-                    </thead>
+                <div class="a2-card a2-card--soft a2-mb-16 js-child-card">
+                    <div class="a2-card-head">
+                        <div class="a2-card-title">{{ $childName }} <span class="a2-muted">#{{ $childId }}</span></div>
+                        @if($fee)<span class="a2-muted">{{ __('صف الرسم') }}: {{ $fee->id }}</span>@endif
+                    </div>
 
-                    <tbody>
-                    @foreach($children as $child)
-                        @php
-                            $childId = (int) $child->id;
-                            $childName = $child->name_ar ?: ($child->name_en ?: ('#' . $childId));
-                            $childActiveServices = $activeChildServiceMap->get($childId, []);
-                            $childActiveServices = is_array($childActiveServices)
-                                ? $childActiveServices
-                                : collect($childActiveServices)->map(fn($id) => (int) $id)->all();
-                        @endphp
-
+                    <div class="a2-section-title a2-mt-12">{{ __('الخدمات') }}</div>
+                    <div class="a2-page-actions" style="flex-wrap:wrap;">
                         @foreach($services as $service)
                             @php
                                 $serviceId = (int) $service->id;
-                                $key = $childId . ':' . $serviceId;
-
-                                $feeCollection = $existingFees->get($key, collect());
-                                $fee = $feeCollection instanceof \Illuminate\Support\Collection
-                                    ? $feeCollection->first()
-                                    : null;
-
-                                $serviceName = $service->name_ar
-                                    ?: ($service->name_en ?: ($service->key ?: ('#' . $serviceId)));
-
-                                $oldBase = 'rows.' . $childId . '.' . $serviceId . '.';
-
-                                $childHasServiceAlready = in_array($serviceId, $childActiveServices, true);
-
-                                $rowEnabled = old(
-                                    $oldBase . 'row_enabled',
-                                    $childHasServiceAlready ? 1 : 0
-                                );
-
-                                $rowIsEnabled = ((int) $rowEnabled === 1);
-
-                                $isActive = old(
-                                    $oldBase . 'is_active',
-                                    isset($fee->is_active) ? (int) $fee->is_active : ($rowIsEnabled ? 1 : 0)
-                                );
-
-                                $businessFeeEnabled = old(
-                                    $oldBase . 'business_fee_enabled',
-                                    isset($fee->business_fee_enabled) ? (int) $fee->business_fee_enabled : 0
-                                );
-
-                                $clientFeeEnabled = old(
-                                    $oldBase . 'client_fee_enabled',
-                                    isset($fee->client_fee_enabled) ? (int) $fee->client_fee_enabled : 0
-                                );
-
-                                $businessFeeAmount = old(
-                                    $oldBase . 'business_fee_amount',
-                                    isset($fee->business_fee_amount) ? (string) $fee->business_fee_amount : '0.00'
-                                );
-
-                                $clientFeeAmount = old(
-                                    $oldBase . 'client_fee_amount',
-                                    isset($fee->client_fee_amount) ? (string) $fee->client_fee_amount : '0.00'
-                                );
-
-                                $currency = old(
-                                    $oldBase . 'currency',
-                                    isset($fee->currency) ? (string) $fee->currency : 'EGP'
-                                );
-
-                                $sortOrder = old(
-                                    $oldBase . 'sort_order',
-                                    isset($fee->sort_order) ? (int) $fee->sort_order : 0
-                                );
-
-                                $notes = old(
-                                    $oldBase . 'notes',
-                                    isset($fee->notes) ? (string) $fee->notes : ''
-                                );
-
-                                $hasAnyFee = ((int) $businessFeeEnabled === 1 && (float) $businessFeeAmount > 0)
-                                    || ((int) $clientFeeEnabled === 1 && (float) $clientFeeAmount > 0);
-
-                                $feesOn = $hasAnyFee && ((int) $isActive === 1);
+                                $serviceName = $service->name_ar ?: ($service->name_en ?: ($service->key ?: ('#' . $serviceId)));
+                                $rowEnabled = old("rows.{$childId}.services.{$serviceId}.row_enabled", in_array($serviceId, $childActiveServices, true) ? 1 : 0);
                             @endphp
-
-                            <tr class="js-service-row {{ $rowIsEnabled ? '' : 'is-disabled-row' }}" data-service-id="{{ $serviceId }}">
-                                <td class="a2-text-right">
-                                    <div class="a2-fw-900">
-                                        {{ $childName }}
-                                        <span class="a2-muted">#{{ $childId }}</span>
-                                    </div>
-
-                                    <div class="a2-muted a2-mt-8">
-                                        {{ $serviceName }}
-                                        <span class="a2-muted">#{{ $serviceId }}</span>
-                                    </div>
-
-                                    <div class="a2-muted a2-mt-8" dir="ltr">
-                                        {{ $service->key ?: '—' }}
-                                    </div>
-
-                                    @if($fee)
-                                        <div class="a2-muted a2-mt-8">
-                                            Fee Row: {{ $fee->id }}
-                                        </div>
-                                    @endif
-
-                                    <div class="a2-mt-8 a2-inline-actions">
-                                        @if($rowIsEnabled)
-                                            <span class="a2-pill a2-pill-success">Service ON</span>
-                                        @else
-                                            <span class="a2-pill a2-pill-gray">Service OFF</span>
-                                        @endif
-
-                                        @if($feesOn)
-                                            <span class="a2-pill a2-pill-success">Fees ON</span>
-                                        @else
-                                            <span class="a2-pill a2-pill-gray">Fees OFF</span>
-                                        @endif
-
-                                        @if(isset($service->supports_deposit))
-                                            @if($service->supports_deposit)
-                                                <span class="a2-pill a2-pill-success">Deposit Supported</span>
-                                            @else
-                                                <span class="a2-pill a2-pill-gray">Deposit Not Supported</span>
-                                            @endif
-                                        @endif
-                                    </div>
-                                </td>
-
-                                <td>
-                                    <label class="a2-check" style="justify-content:center;">
-                                        <input
-                                            type="checkbox"
-                                            class="js-row-enabled"
-                                            name="rows[{{ $childId }}][{{ $serviceId }}][row_enabled]"
-                                            value="1"
-                                            @checked($rowIsEnabled)
-                                        >
-                                        <span>{{ __('مطلوبة') }}</span>
-                                    </label>
-                                </td>
-
-                                <td>
-                                    <label class="a2-check" style="justify-content:center;">
-                                        <input
-                                            type="checkbox"
-                                            class="js-row-field"
-                                            name="rows[{{ $childId }}][{{ $serviceId }}][is_active]"
-                                            value="1"
-                                            @checked((int) $isActive === 1)
-                                            @disabled(! $rowIsEnabled)
-                                        >
-                                        <span>{{ __('مفعل') }}</span>
-                                    </label>
-                                </td>
-
-                                <td>
-                                    <label class="a2-check" style="justify-content:center;">
-                                        <input
-                                            type="checkbox"
-                                            class="js-row-field"
-                                            name="rows[{{ $childId }}][{{ $serviceId }}][business_fee_enabled]"
-                                            value="1"
-                                            @checked((int) $businessFeeEnabled === 1)
-                                            @disabled(! $rowIsEnabled)
-                                        >
-                                        <span>{{ __('تشغيل') }}</span>
-                                    </label>
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="a2-input js-row-field"
-                                        name="rows[{{ $childId }}][{{ $serviceId }}][business_fee_amount]"
-                                        value="{{ $businessFeeAmount }}"
-                                        placeholder="0.00"
-                                        dir="ltr"
-                                        @disabled(! $rowIsEnabled)
-                                    >
-                                </td>
-
-                                <td>
-                                    <label class="a2-check" style="justify-content:center;">
-                                        <input
-                                            type="checkbox"
-                                            class="js-row-field"
-                                            name="rows[{{ $childId }}][{{ $serviceId }}][client_fee_enabled]"
-                                            value="1"
-                                            @checked((int) $clientFeeEnabled === 1)
-                                            @disabled(! $rowIsEnabled)
-                                        >
-                                        <span>{{ __('تشغيل') }}</span>
-                                    </label>
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="a2-input js-row-field"
-                                        name="rows[{{ $childId }}][{{ $serviceId }}][client_fee_amount]"
-                                        value="{{ $clientFeeAmount }}"
-                                        placeholder="0.00"
-                                        dir="ltr"
-                                        @disabled(! $rowIsEnabled)
-                                    >
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="text"
-                                        class="a2-input js-row-field"
-                                        name="rows[{{ $childId }}][{{ $serviceId }}][currency]"
-                                        value="{{ $currency }}"
-                                        maxlength="3"
-                                        placeholder="EGP"
-                                        dir="ltr"
-                                        style="text-transform:uppercase;"
-                                        @disabled(! $rowIsEnabled)
-                                    >
-                                </td>
-
-                                <td>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        class="a2-input js-row-field"
-                                        name="rows[{{ $childId }}][{{ $serviceId }}][sort_order]"
-                                        value="{{ $sortOrder }}"
-                                        placeholder="0"
-                                        dir="ltr"
-                                        @disabled(! $rowIsEnabled)
-                                    >
-                                </td>
-
-                                <td>
-                                    <textarea
-                                        class="a2-textarea js-row-field"
-                                        name="rows[{{ $childId }}][{{ $serviceId }}][notes]"
-                                        rows="2"
-                                        placeholder="{{ __('ملاحظات اختيارية') }}"
-                                        style="min-height:80px;"
-                                        @disabled(! $rowIsEnabled)
-                                    >{{ $notes }}</textarea>
-                                </td>
-                            </tr>
+                            <label class="a2-check js-row-enabled-label">
+                                <input type="checkbox" class="js-row-enabled"
+                                       name="rows[{{ $childId }}][services][{{ $serviceId }}][row_enabled]"
+                                       value="1" @checked((int) $rowEnabled === 1)>
+                                <span>{{ $serviceName }}</span>
+                            </label>
                         @endforeach
-                    @endforeach
-                    </tbody>
-                </table>
-            </div>
+                    </div>
 
-            <div class="a2-card a2-card--soft a2-card--tight a2-mt-16">
-                <div class="a2-section-title">{{ __('ملاحظات تشغيلية') }}</div>
-                <div class="a2-section-subtitle">
-                    {{ __('عند إلغاء ربط خدمة، سيتم تعطيل صف الخدمة داخل') }}
-                    <span dir="ltr">category_platform_services</span>
-                    {{ __('وتعطيل الرسوم المرتبطة بها داخل') }}
-                    <span dir="ltr">category_child_service_fees</span>{{ __('. ولو كانت قيمة رسوم البزنس أو المستخدم صفرًا سيتم تعطيل رسوم هذا الطرف تلقائيًا.') }}
+                    <div class="a2-section-title a2-mt-12">{{ __('الرسم') }}</div>
+                    <div class="a2-form-grid">
+                        <label class="a2-check">
+                            <input type="checkbox" name="rows[{{ $childId }}][fee][is_active]" value="1" @checked((int) $isActive === 1)>
+                            <span>{{ __('مفعّل') }}</span>
+                        </label>
+
+                        <div class="a2-form-group">
+                            <label class="a2-label">{{ __('مجموعة الرسوم') }}</label>
+                            <select class="a2-select" name="rows[{{ $childId }}][fee][fee_group_id]">
+                                <option value="">{{ __('— رسم فردى —') }}</option>
+                                @foreach($feeGroups as $group)
+                                    <option value="{{ $group->id }}" @selected((string) $feeGroupId === (string) $group->id)>{{ $group->name_ar }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="a2-form-group">
+                            <label class="a2-check">
+                                <input type="checkbox" name="rows[{{ $childId }}][fee][business_fee_enabled]" value="1" @checked((int) $businessFeeEnabled === 1)>
+                                <span>{{ __('على التاجر') }}</span>
+                            </label>
+                            <select class="a2-select" name="rows[{{ $childId }}][fee][business_fee_type]">
+                                <option value="fixed" @selected($businessFeeType === 'fixed')>{{ __('مبلغ ثابت') }}</option>
+                                <option value="percent" @selected($businessFeeType === 'percent')>{{ __('نسبة %') }}</option>
+                            </select>
+                            <input class="a2-input" type="number" step="0.01" min="0" dir="ltr"
+                                   name="rows[{{ $childId }}][fee][business_fee_amount]" value="{{ $businessFeeAmount }}">
+                        </div>
+
+                        <div class="a2-form-group">
+                            <label class="a2-check">
+                                <input type="checkbox" name="rows[{{ $childId }}][fee][client_fee_enabled]" value="1" @checked((int) $clientFeeEnabled === 1)>
+                                <span>{{ __('على العميل') }}</span>
+                            </label>
+                            <select class="a2-select" name="rows[{{ $childId }}][fee][client_fee_type]">
+                                <option value="fixed" @selected($clientFeeType === 'fixed')>{{ __('مبلغ ثابت') }}</option>
+                                <option value="percent" @selected($clientFeeType === 'percent')>{{ __('نسبة %') }}</option>
+                            </select>
+                            <input class="a2-input" type="number" step="0.01" min="0" dir="ltr"
+                                   name="rows[{{ $childId }}][fee][client_fee_amount]" value="{{ $clientFeeAmount }}">
+                        </div>
+
+                        <div class="a2-form-group">
+                            <label class="a2-label">{{ __('العملة') }}</label>
+                            <input class="a2-input" name="rows[{{ $childId }}][fee][currency]" maxlength="3"
+                                   value="{{ $currency }}" dir="ltr" style="max-width:90px;text-transform:uppercase;">
+                        </div>
+                    </div>
                 </div>
-            </div>
+            @endforeach
 
             <div class="a2-page-actions a2-mt-16">
                 <button type="submit" class="a2-btn a2-btn-primary">
@@ -461,52 +247,16 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const rows = Array.from(document.querySelectorAll('.js-service-row'));
-
-    function refreshRows() {
-        rows.forEach(function (row) {
-            const rowEnabledInput = row.querySelector('.js-row-enabled');
-            const enabled = !!(rowEnabledInput && rowEnabledInput.checked);
-
-            row.classList.toggle('is-disabled-row', !enabled);
-            row.style.opacity = enabled ? '1' : '.45';
-            row.style.background = enabled ? '' : '#fafafa';
-
-            row.querySelectorAll('.js-row-field').forEach(function (field) {
-                const isCheckbox = field.type === 'checkbox';
-
-                field.disabled = !enabled;
-
-                if (!enabled && isCheckbox) {
-                    field.checked = false;
-                }
-            });
-        });
-    }
-
-    document.querySelectorAll('.js-row-enabled').forEach(function (el) {
-        el.addEventListener('change', refreshRows);
-    });
-
     document.querySelector('.js-bulk-check-all')?.addEventListener('click', function () {
-        document.querySelectorAll('.js-row-enabled').forEach(function (el) {
-            el.checked = true;
-        });
-        refreshRows();
+        document.querySelectorAll('.js-row-enabled').forEach(function (el) { el.checked = true; });
     });
 
     document.querySelector('.js-bulk-uncheck-all')?.addEventListener('click', function () {
         if (!confirm('هل تريد إلغاء ربط كل الخدمات المعروضة؟')) {
             return;
         }
-
-        document.querySelectorAll('.js-row-enabled').forEach(function (el) {
-            el.checked = false;
-        });
-        refreshRows();
+        document.querySelectorAll('.js-row-enabled').forEach(function (el) { el.checked = false; });
     });
-
-    refreshRows();
 });
 </script>
 @endpush

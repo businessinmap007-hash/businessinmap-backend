@@ -110,6 +110,18 @@ class ServiceExecutionEngineDepositFlowTest extends TestCase
             );
         }
 
+        // A fee is per (root, child) now, not per service, so this business's
+        // real child may carry a live fee row that used to be scoped to some
+        // other service and therefore never applied to this booking. Remove it:
+        // this suite tests deposit mechanics in isolation, and posting a
+        // deposit legitimately force-enables fee consent (ServiceFeeConsentEnforcer,
+        // "a deposit can't be a way to dodge service fees"), so leaving a real
+        // fee row in place would charge a fee these assertions don't expect.
+        DB::table('category_child_service_fees')
+            ->where('category_id', (int) $business->category_id)
+            ->where('child_id', $childId)
+            ->delete();
+
         // Ready + confirmed booking priced at 1000. Pin the pricing meta so the
         // deposit base is deterministic (depositPolicy reads pricing.final_price
         // before the booking's price column).

@@ -22,7 +22,6 @@ use App\Http\Controllers\AdminV2\{
     CategoryChildController,
     CategoryChildOptionController,
     CategoryChildServiceFeeBulkController,
-    CategoryChildServiceFeeController,
     CategoryController,
     CategoryServiceBulkController,
     ChildWorkbenchController,
@@ -34,6 +33,7 @@ use App\Http\Controllers\AdminV2\{
     DisputeController,
     DisputeFeeController,
     DisputeRuleController,
+    FeeGroupController,
     FineController,
     FraudFlagController,
     GuaranteeAdminController,
@@ -63,7 +63,6 @@ use App\Http\Controllers\AdminV2\{
     PaymentController,
     PlatformServiceController,
     PlatformServiceFeePromotionController,
-    ServiceFeeRuleController,
     PlatformServiceItemGroupController,
     PlatformServiceItemTypeController,
     ServiceBranchBoardController,
@@ -254,7 +253,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
                     'child_id' => $categoryChild,
                 ]), false));
             })->whereNumber('categoryChild')->name('edit');
-            Route::put('{categoryChild}', [CategoryChildServiceFeeController::class, 'update'])->whereNumber('categoryChild')->name('update');
         });
 
         Route::prefix('user-service-fee-consents')->name('user-service-fee-consents.')->middleware('can:' . AdminAbility::FEES)->group(function () {
@@ -303,10 +301,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::resource('platform-service-fee-promotions', PlatformServiceFeePromotionController::class)->except(['show'])->names('platform-service-fee-promotions');
             Route::post('platform-service-fee-promotions/{platformServiceFeePromotion}/toggle', [PlatformServiceFeePromotionController::class, 'toggle'])->whereNumber('platformServiceFeePromotion')->name('platform-service-fee-promotions.toggle');
 
-            // BIM-3.5 — dynamic fee rules (the policy layer between the static base
-            // fee and the promotions above).
-            Route::resource('service-fee-rules', ServiceFeeRuleController::class)->except(['show'])->names('service-fee-rules');
-            Route::post('service-fee-rules/{serviceFeeRule}/toggle', [ServiceFeeRuleController::class, 'toggle'])->whereNumber('serviceFeeRule')->name('service-fee-rules.toggle');
+            // «مجموعة أبناء» — one shared fee several children can point at.
+            Route::resource('fee-groups', FeeGroupController::class)->except(['show'])->names('fee-groups');
         });
 
         Route::prefix('service-branches')->name('service-branches.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {

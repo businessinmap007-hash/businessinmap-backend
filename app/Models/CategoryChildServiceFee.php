@@ -44,7 +44,7 @@ class CategoryChildServiceFee extends Model
     protected $fillable = [
         'category_id',
         'child_id',
-        'platform_service_id',
+        'fee_group_id',
 
         'business_fee_enabled',
         'business_fee_type',
@@ -63,7 +63,7 @@ class CategoryChildServiceFee extends Model
     protected $casts = [
         'category_id' => 'integer',
         'child_id' => 'integer',
-        'platform_service_id' => 'integer',
+        'fee_group_id' => 'integer',
 
         'business_fee_enabled' => 'boolean',
         'business_fee_type' => 'string',
@@ -100,14 +100,13 @@ class CategoryChildServiceFee extends Model
         return $this->child();
     }
 
-    public function platformService(): BelongsTo
+    /**
+     * The shared rate this row uses instead of its own — «مجموعة أبناء».
+     * One edit on the group moves every member at once.
+     */
+    public function feeGroup(): BelongsTo
     {
-        return $this->belongsTo(PlatformService::class, 'platform_service_id');
-    }
-
-    public function service(): BelongsTo
-    {
-        return $this->platformService();
+        return $this->belongsTo(FeeGroup::class, 'fee_group_id');
     }
 
     /*
@@ -132,22 +131,6 @@ class CategoryChildServiceFee extends Model
         }
 
         return $query->where('child_id', (int) $childId);
-    }
-
-    public function scopeForService(Builder $query, ?int $serviceId): Builder
-    {
-        if (! $serviceId) {
-            return $query;
-        }
-
-        return $query->where('platform_service_id', (int) $serviceId);
-    }
-
-    public function scopeForPair(Builder $query, ?int $childId, ?int $serviceId): Builder
-    {
-        return $query
-            ->forChild($childId)
-            ->forService($serviceId);
     }
 
     public function scopeForPayer(Builder $query, ?string $payer): Builder
@@ -216,28 +199,30 @@ class CategoryChildServiceFee extends Model
     |--------------------------------------------------------------------------
     */
 
-    public static function activeForPair(int $childId, int $serviceId): ?self
+    /** The one fee for this (root, child) — no more per-service axis. */
+    public static function activeForRootChild(int $categoryId, int $childId): ?self
     {
-        if ($childId <= 0 || $serviceId <= 0) {
+        if ($categoryId <= 0 || $childId <= 0) {
             return null;
         }
 
         return static::query()
             ->active(1)
-            ->forPair($childId, $serviceId)
+            ->forRootChild($categoryId, $childId)
             ->ordered()
             ->first();
     }
-    public static function activeForRootChild(int $categoryId, int $childId, int $serviceId): ?self
+
+    /** Root unknown — whichever active row this child carries, any root. */
+    public static function activeForChild(int $childId): ?self
     {
-        if ($categoryId <= 0 || $childId <= 0 || $serviceId <= 0) {
+        if ($childId <= 0) {
             return null;
         }
 
         return static::query()
             ->active(1)
-            ->forCategory($categoryId)
-            ->forPair($childId, $serviceId)
+            ->forChild($childId)
             ->ordered()
             ->first();
     }
@@ -297,16 +282,34 @@ class CategoryChildServiceFee extends Model
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * The row whose numbers actually apply — this one's own, or its fee
+     * group's when it is assigned to one. Every fee-computing method below
+     * reads through this, so a group assignment needs deciding in ONE place.
+     */
+    protected function effectiveFeeSource(): self|FeeGroup
+    {
+        if ($this->fee_group_id && $this->feeGroup) {
+            return $this->feeGroup;
+        }
+
+        return $this;
+    }
+
     public function hasBusinessFee(): bool
     {
-        return (bool) $this->business_fee_enabled
-            && round((float) $this->business_fee_amount, 2) > 0;
+        $src = $this->effectiveFeeSource();
+
+        return (bool) $src->business_fee_enabled
+            && round((float) $src->business_fee_amount, 2) > 0;
     }
 
     public function hasClientFee(): bool
     {
-        return (bool) $this->client_fee_enabled
-            && round((float) $this->client_fee_amount, 2) > 0;
+        $src = $this->effectiveFeeSource();
+
+        return (bool) $src->client_fee_enabled
+            && round((float) $src->client_fee_amount, 2) > 0;
     }
 
     public function hasAnyFee(): bool
@@ -316,16 +319,21 @@ class CategoryChildServiceFee extends Model
 
     public function isChargeable(): bool
     {
+        if ($this->fee_group_id && $this->feeGroup && ! $this->feeGroup->is_active) {
+            return false;
+        }
+
         return (bool) $this->is_active && $this->hasAnyFee();
     }
 
     public function isChargeableFor(string $payer): bool
     {
         $payer = self::normalizePayer($payer);
+        $active = $this->is_active && ! ($this->fee_group_id && $this->feeGroup && ! $this->feeGroup->is_active);
 
         return match ($payer) {
-            self::PAYER_BUSINESS => (bool) $this->is_active && $this->hasBusinessFee(),
-            self::PAYER_CLIENT => (bool) $this->is_active && $this->hasClientFee(),
+            self::PAYER_BUSINESS => (bool) $active && $this->hasBusinessFee(),
+            self::PAYER_CLIENT => (bool) $active && $this->hasClientFee(),
             default => false,
         };
     }
@@ -334,6 +342,7 @@ class CategoryChildServiceFee extends Model
     {
         $payer = self::normalizePayer($payer);
         $baseAmount = round(max((float) $baseAmount, 0), 2);
+        $src = $this->effectiveFeeSource();
 
         if ($payer === self::PAYER_BUSINESS) {
             if (! $this->hasBusinessFee()) {
@@ -341,8 +350,8 @@ class CategoryChildServiceFee extends Model
             }
 
             return $this->calculateAmountByType(
-                type: $this->business_fee_type ?: self::CALC_TYPE_FIXED,
-                value: (float) $this->business_fee_amount,
+                type: $src->business_fee_type ?: self::CALC_TYPE_FIXED,
+                value: (float) $src->business_fee_amount,
                 baseAmount: $baseAmount
             );
         }
@@ -353,8 +362,8 @@ class CategoryChildServiceFee extends Model
             }
 
             return $this->calculateAmountByType(
-                type: $this->client_fee_type ?: self::CALC_TYPE_FIXED,
-                value: (float) $this->client_fee_amount,
+                type: $src->client_fee_type ?: self::CALC_TYPE_FIXED,
+                value: (float) $src->client_fee_amount,
                 baseAmount: $baseAmount
             );
         }
@@ -390,18 +399,42 @@ class CategoryChildServiceFee extends Model
     public function calcTypeFor(string $payer): string
     {
         $payer = self::normalizePayer($payer);
+        $src = $this->effectiveFeeSource();
 
         if ($payer === self::PAYER_BUSINESS) {
-            return self::normalizeCalcType($this->business_fee_type)
+            return self::normalizeCalcType($src->business_fee_type)
                 ?: self::CALC_TYPE_FIXED;
         }
 
         if ($payer === self::PAYER_CLIENT) {
-            return self::normalizeCalcType($this->client_fee_type)
+            return self::normalizeCalcType($src->client_fee_type)
                 ?: self::CALC_TYPE_FIXED;
         }
 
         return self::CALC_TYPE_FIXED;
+    }
+
+    /**
+     * The raw configured rate (the percent number, or the fixed amount) —
+     * from the fee group when assigned to one, same as every other read
+     * here. Callers that need to solve for a base amount before they can
+     * call `amountFor()` (percent math where net isn't known yet) need this
+     * instead of `amountFor()`'s already-computed result.
+     */
+    public function rateValueFor(string $payer): float
+    {
+        $payer = self::normalizePayer($payer);
+        $src = $this->effectiveFeeSource();
+
+        if ($payer === self::PAYER_BUSINESS) {
+            return round((float) $src->business_fee_amount, 2);
+        }
+
+        if ($payer === self::PAYER_CLIENT) {
+            return round((float) $src->client_fee_amount, 2);
+        }
+
+        return 0.00;
     }
 
     public function feeTypeFor(string $payer): ?string
@@ -417,7 +450,7 @@ class CategoryChildServiceFee extends Model
 
     public function currencyCode(): string
     {
-        $currency = strtoupper(trim((string) $this->currency));
+        $currency = strtoupper(trim((string) $this->effectiveFeeSource()->currency));
 
         return $currency !== '' ? $currency : self::DEFAULT_CURRENCY;
     }
@@ -428,7 +461,12 @@ class CategoryChildServiceFee extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function toFeeSnapshot(string $payer, float $baseAmount = 0): ?array
+    /**
+     * @param  int|null  $serviceId  Which service the operation actually used
+     *         — recorded for reporting only, since one fee now covers every
+     *         service this child offers; it no longer selects the row.
+     */
+    public function toFeeSnapshot(string $payer, float $baseAmount = 0, ?int $serviceId = null): ?array
     {
         $payer = self::normalizePayer($payer);
 
@@ -436,25 +474,28 @@ class CategoryChildServiceFee extends Model
             return null;
         }
 
+        $src = $this->effectiveFeeSource();
+
         return [
             'id' => (int) $this->id,
             'fee_row_id' => (int) $this->id,
-            'source' => 'category_child_override',
+            'source' => $this->fee_group_id ? 'fee_group' : 'category_child_override',
+            'fee_group_id' => $this->fee_group_id ? (int) $this->fee_group_id : null,
 
             'payer' => $payer,
             'fee_type' => $this->feeTypeFor($payer),
             'calc_type' => $this->calcTypeFor($payer),
             'rate_value' => $payer === self::PAYER_BUSINESS
-                ? round((float) $this->business_fee_amount, 2)
-                : round((float) $this->client_fee_amount, 2),
+                ? round((float) $src->business_fee_amount, 2)
+                : round((float) $src->client_fee_amount, 2),
 
             'amount' => $this->amountFor($payer, $baseAmount),
             'currency' => $this->currencyCode(),
 
             'child_id' => (int) $this->child_id,
             'category_id' => (int) $this->category_id,
-            'service_id' => (int) $this->platform_service_id,
-            'platform_service_id' => (int) $this->platform_service_id,
+            'service_id' => (int) ($serviceId ?? 0),
+            'platform_service_id' => (int) ($serviceId ?? 0),
 
             'is_active' => (bool) $this->is_active,
             'sort_order' => (int) ($this->sort_order ?? 0),
@@ -462,6 +503,10 @@ class CategoryChildServiceFee extends Model
         ];
     }
 
+    /**
+     * @param  int|null  $serviceId  Which service the operation actually used
+     *         — recorded for reporting only, same reason as `toFeeSnapshot()`.
+     */
     public function toWalletFeeLine(
         string $payer,
         int $userId,
@@ -469,7 +514,8 @@ class CategoryChildServiceFee extends Model
         int $bookingId,
         int $businessId,
         int $clientId,
-        ?string $feeCode = null
+        ?string $feeCode = null,
+        ?int $serviceId = null
     ): ?array {
         $payer = self::normalizePayer($payer);
 
@@ -478,6 +524,7 @@ class CategoryChildServiceFee extends Model
         }
 
         $feeCode = trim((string) ($feeCode ?: self::DEFAULT_FEE_CODE));
+        $src = $this->effectiveFeeSource();
 
         return [
             'payer' => $payer,
@@ -486,14 +533,15 @@ class CategoryChildServiceFee extends Model
             'category_child_service_fee_id' => (int) $this->id,
             'service_fee_id' => (int) $this->id,
             'fee_row_id' => (int) $this->id,
-            'source' => 'category_child_override',
+            'source' => $this->fee_group_id ? 'fee_group' : 'category_child_override',
+            'fee_group_id' => $this->fee_group_id ? (int) $this->fee_group_id : null,
 
             'fee_code' => $feeCode,
             'fee_type' => $this->feeTypeFor($payer),
             'calc_type' => $this->calcTypeFor($payer),
             'rate_value' => $payer === self::PAYER_BUSINESS
-                ? round((float) $this->business_fee_amount, 2)
-                : round((float) $this->client_fee_amount, 2),
+                ? round((float) $src->business_fee_amount, 2)
+                : round((float) $src->client_fee_amount, 2),
 
             'amount' => $this->amountFor($payer, $baseAmount),
             'currency' => $this->currencyCode(),
@@ -517,13 +565,11 @@ class CategoryChildServiceFee extends Model
             'category_id' => (int) $this->category_id,
             'child_id' => (int) $this->child_id,
 
-            'service_id' => (int) $this->platform_service_id,
-            'platform_service_id' => (int) $this->platform_service_id,
+            'service_id' => (int) ($serviceId ?? 0),
+            'platform_service_id' => (int) ($serviceId ?? 0),
 
             'business_id' => (int) $businessId,
             'client_id' => (int) $clientId,
-
-            'rules' => null,
         ];
     }
 
@@ -544,12 +590,6 @@ class CategoryChildServiceFee extends Model
             ?: $this->child?->name_en
             ?: ('Child #' . $this->child_id);
 
-        $service = $this->platformService?->display_name
-            ?: $this->platformService?->name_ar
-            ?: $this->platformService?->name_en
-            ?: $this->platformService?->key
-            ?: ('Service #' . $this->platform_service_id);
-
-        return "{$root} / {$child} / {$service}";
+        return "{$root} / {$child}";
     }
 }

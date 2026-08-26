@@ -4,6 +4,7 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use App\Models\CategoryChildServiceFee;
+use App\Models\FeeGroup;
 use App\Services\Catalog\ChildServiceWriter;
 use App\Services\CategoryChildOptionScope;
 use Illuminate\Http\RedirectResponse;
@@ -74,6 +75,7 @@ class ChildWorkbenchController extends Controller
             'optionPanel' => $childId ? $this->optionPanel($rootId, $childId) : null,
             'servicePanel' => $childId ? $this->servicePanel($rootId, $childId) : null,
             'feePanel' => $childId ? $this->feePanel($rootId, $childId) : null,
+            'feeGroups' => FeeGroup::query()->where('is_active', 1)->orderBy('name_ar')->get(['id', 'name_ar']),
             'sharedRoots' => $childId ? $this->sharedRoots($rootId, $childId) : collect(),
         ]);
     }
@@ -280,79 +282,77 @@ class ChildWorkbenchController extends Controller
      * rest of each service's catalogue folded away.
      */
     /**
-     * Save the fees for this (root, child), one row per service.
+     * Save the ONE fee for this (root, child) — no more per-service axis.
      *
-     * A fee is only written for a service this child is actually offered —
-     * charging for something it cannot sell is a row nothing will ever read,
-     * and it is exactly the kind of orphan that made these tables hard to
-     * trust. The service panel above decides that; this follows it.
+     * A fee is only written when the child is offered at least one active
+     * service — charging for nothing it can sell is a row nothing will ever
+     * read, and it is exactly the kind of orphan that made these tables hard
+     * to trust.
      */
     public function saveFees(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'root_id' => ['required', 'integer', 'min:1'],
             'child_id' => ['required', 'integer', 'exists:category_children_master,id'],
-            'fees' => ['nullable', 'array'],
+            'fee' => ['nullable', 'array'],
+            'fee.fee_group_id' => ['nullable', 'integer', 'exists:fee_groups,id'],
         ]);
 
         $rootId = (int) $data['root_id'];
         $childId = (int) $data['child_id'];
 
-        $offered = DB::table('category_platform_services')
+        // `validate()` only returns keys it declared rules for — reading the
+        // rest of the row from it silently drops every field but
+        // fee_group_id. Read the row raw; fee_group_id's existence was
+        // already checked above.
+        $input = (array) $request->input('fee', []);
+
+        $offersAnyService = DB::table('category_platform_services')
             ->where('category_id', $rootId)
             ->where('child_id', $childId)
             ->where('is_active', 1)
-            ->pluck('platform_service_id')
-            ->map(fn ($id) => (int) $id);
+            ->exists();
 
-        $written = 0;
-        $skipped = [];
-
-        DB::transaction(function () use ($request, $rootId, $childId, $offered, &$written, &$skipped) {
-            foreach (DB::table('platform_services')->where('is_active', 1)->pluck('name_ar', 'id') as $serviceId => $serviceName) {
-                $serviceId = (int) $serviceId;
-                $input = (array) $request->input("fees.{$serviceId}", []);
-
-                if (! $offered->contains($serviceId)) {
-                    if (! empty($input['is_active'])) {
-                        $skipped[] = $serviceName;
-                    }
-
-                    continue;
-                }
-
-                CategoryChildServiceFee::query()->updateOrCreate(
-                    [
-                        'category_id' => $rootId,
-                        'child_id' => $childId,
-                        'platform_service_id' => $serviceId,
-                    ],
-                    [
-                        'is_active' => ! empty($input['is_active']) ? 1 : 0,
-                        'business_fee_enabled' => ! empty($input['business_fee_enabled']) ? 1 : 0,
-                        'business_fee_type' => $this->feeType($input['business_fee_type'] ?? null),
-                        'business_fee_amount' => max(0, (float) ($input['business_fee_amount'] ?? 0)),
-                        'client_fee_enabled' => ! empty($input['client_fee_enabled']) ? 1 : 0,
-                        'client_fee_type' => $this->feeType($input['client_fee_type'] ?? null),
-                        'client_fee_amount' => max(0, (float) ($input['client_fee_amount'] ?? 0)),
-                        'currency' => strtoupper(trim((string) ($input['currency'] ?? ''))) ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
-                        'updated_at' => now(),
-                    ]
-                );
-
-                $written++;
+        if (! $offersAnyService) {
+            if (! empty($input['is_active'])) {
+                return redirect()
+                    ->to(route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $childId], false))
+                    ->with('status', __('لا خدمات مفعّلة لهذا الابن — لا يوجد ما يُحصَّل رسمه بعد.'));
             }
-        });
 
-        $message = __('تم حفظ الرسوم لـ :count خدمة.', ['count' => $written]);
+            CategoryChildServiceFee::query()
+                ->where('category_id', $rootId)->where('child_id', $childId)
+                ->delete();
 
-        if ($skipped !== []) {
-            $message .= ' ' . __('تُجوهلت (غير مفعّلة لهذا القسم): :names', ['names' => implode('، ', $skipped)]);
+            return redirect()
+                ->to(route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $childId], false))
+                ->with('status', __('لا خدمات مفعّلة لهذا الابن.'));
         }
+
+        $feeGroupId = ! empty($input['fee_group_id']) ? (int) $input['fee_group_id'] : null;
+
+        CategoryChildServiceFee::query()->updateOrCreate(
+            [
+                'category_id' => $rootId,
+                'child_id' => $childId,
+            ],
+            [
+                'fee_group_id' => $feeGroupId,
+                'is_active' => ! empty($input['is_active']) ? 1 : 0,
+                'business_fee_enabled' => ! empty($input['business_fee_enabled']) ? 1 : 0,
+                'business_fee_type' => $this->feeType($input['business_fee_type'] ?? null),
+                'business_fee_amount' => max(0, (float) ($input['business_fee_amount'] ?? 0)),
+                'client_fee_enabled' => ! empty($input['client_fee_enabled']) ? 1 : 0,
+                'client_fee_type' => $this->feeType($input['client_fee_type'] ?? null),
+                'client_fee_amount' => max(0, (float) ($input['client_fee_amount'] ?? 0)),
+                'currency' => strtoupper(trim((string) ($input['currency'] ?? ''))) ?: CategoryChildServiceFee::DEFAULT_CURRENCY,
+                'updated_at' => now(),
+            ]
+        );
 
         return redirect()
             ->to(route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $childId], false))
-            ->with('status', $message);
+            ->with('status', __('تم حفظ الرسم.'));
     }
 
     private function feeType($value): string
@@ -364,44 +364,36 @@ class ChildWorkbenchController extends Controller
             : CategoryChildServiceFee::CALC_TYPE_FIXED;
     }
 
-    /**
-     * What the platform charges on this (root, child, service).
+    /**
+     * What the platform charges on this (root, child) — one rate for every
+     * service it offers, not one per service.
      *
-     * The third thing that is decided per child and used to live on its own
-     * screen — /admin/category-child-service-fees — so «what may this child
-     * sell» and «what does it cost to sell it» were two pages that never
-     * mentioned each other. Same key, same screen now. The bulk fee screens
-     * stay: they answer a different question, «all of these at once».
+     * «بدل ما يكون هناك رسوم بوكينج -منيو -دليفري … رسم موحّد» — المالك،
+     * 2026-08-26. Used to live on its own screen —
+     * /admin/category-child-service-fees — so «what may this child sell» and
+     * «what does it cost to sell it» were two pages that never mentioned each
+     * other. Same key, same screen now. The bulk fee screen stays: it answers
+     * a different question, «all of these at once».
      */
     private function feePanel(int $rootId, int $childId)
     {
-        $fees = CategoryChildServiceFee::query()
+        $fee = CategoryChildServiceFee::query()
             ->where('category_id', $rootId)
             ->where('child_id', $childId)
-            ->get()
-            ->keyBy('platform_service_id');
+            ->first();
 
-        return DB::table('platform_services')
-            ->where('is_active', 1)
-            ->orderBy('id')
-            ->get(['id', 'key', 'name_ar'])
-            ->map(function ($service) use ($fees) {
-                $fee = $fees->get($service->id);
-
-                return (object) [
-                    'id' => (int) $service->id,
-                    'name' => $service->name_ar,
-                    'exists' => (bool) $fee,
-                    'is_active' => (bool) ($fee->is_active ?? false),
-                    'business_enabled' => (bool) ($fee->business_fee_enabled ?? false),
-                    'business_type' => (string) ($fee->business_fee_type ?? CategoryChildServiceFee::CALC_TYPE_FIXED),
-                    'business_amount' => (float) ($fee->business_fee_amount ?? 0),
-                    'client_enabled' => (bool) ($fee->client_fee_enabled ?? false),
-                    'client_type' => (string) ($fee->client_fee_type ?? CategoryChildServiceFee::CALC_TYPE_FIXED),
-                    'client_amount' => (float) ($fee->client_fee_amount ?? 0),
-                    'currency' => (string) ($fee->currency ?? CategoryChildServiceFee::DEFAULT_CURRENCY),
-                ];
-            });
+        return (object) [
+            'exists' => (bool) $fee,
+            'is_active' => (bool) ($fee->is_active ?? false),
+            'fee_group_id' => $fee?->fee_group_id ? (int) $fee->fee_group_id : null,
+            'business_enabled' => (bool) ($fee->business_fee_enabled ?? false),
+            'business_type' => (string) ($fee->business_fee_type ?? CategoryChildServiceFee::CALC_TYPE_FIXED),
+            'business_amount' => (float) ($fee->business_fee_amount ?? 0),
+            'client_enabled' => (bool) ($fee->client_fee_enabled ?? false),
+            'client_type' => (string) ($fee->client_fee_type ?? CategoryChildServiceFee::CALC_TYPE_FIXED),
+            'client_amount' => (float) ($fee->client_fee_amount ?? 0),
+            'currency' => (string) ($fee->currency ?? CategoryChildServiceFee::DEFAULT_CURRENCY),
+        ];
     }
 
     private function servicePanel(int $rootId, int $childId)

@@ -348,10 +348,6 @@
                                         <div class="a2-section-subtitle">
                                             {{ __('Override خاص بهذه الخدمة فقط. القيم هنا تطبق على الفروع المحددة.') }}
                                         </div>
-
-                                        <div class="a2-alert a2-alert-warning js-fee-mixed-warning" hidden>
-                                            {{ __('الفروع المختارة تحتوي قيم رسوم مختلفة لهذه الخدمة. سيتم عرض أول قيمة موجودة، وأي حفظ جديد سيطبق القيمة الجديدة على كل الفروع المختارة.') }}
-                                        </div>
                                     </div>
                                 </div>
 
@@ -476,118 +472,7 @@
                                     </div>
                                 @endif
 
-                                <div class="a2-form-grid a2-mt-16">
-                                    <div class="a2-form-group">
-                                        <label class="a2-label">{{ __('العملة') }}</label>
-                                        <input
-                                            class="a2-input"
-                                            name="service_fees[{{ $serviceId }}][currency]"
-                                            value="{{ old("service_fees.$serviceId.currency", 'EGP') }}"
-                                            maxlength="3"
-                                            dir="ltr"
-                                        >
-                                    </div>
-
-                                    <div class="a2-form-group">
-                                        <label class="a2-label">{{ __('ملاحظات') }}</label>
-                                        <input
-                                            class="a2-input"
-                                            name="service_fees[{{ $serviceId }}][fee_notes]"
-                                            value="{{ old("service_fees.$serviceId.fee_notes") }}"
-                                            placeholder="{{ __('اختياري') }}"
-                                        >
-                                    </div>
-                                </div>
-
-                                <div class="a2-card-grid-2 a2-mt-16">
-                                    <div class="a2-card-muted">
-                                        <h4 class="a2-section-title">{{ __('رسوم البزنس') }}</h4>
-
-                                        <label class="a2-check">
-                                            <input
-                                                type="checkbox"
-                                                name="service_fees[{{ $serviceId }}][business_fee_enabled]"
-                                                value="1"
-                                                @checked(old("service_fees.$serviceId.business_fee_enabled"))
-                                            >
-                                            <span>{{ __('تفعيل رسوم البزنس') }}</span>
-                                        </label>
-
-                                        <div class="a2-form-grid a2-mt-12">
-                                            <div class="a2-form-group">
-                                                <label class="a2-label">{{ __('نوع الرسوم') }}</label>
-                                                <select
-                                                    class="a2-select"
-                                                    name="service_fees[{{ $serviceId }}][business_fee_type]"
-                                                >
-                                                    <option value="fixed" @selected(old("service_fees.$serviceId.business_fee_type", 'fixed') === 'fixed')>
-                                                        {{ __('مبلغ ثابت') }}
-                                                    </option>
-                                                    <option value="percent" @selected(old("service_fees.$serviceId.business_fee_type") === 'percent')>
-                                                        {{ __('نسبة %') }}
-                                                    </option>
-                                                </select>
-                                            </div>
-
-                                            <div class="a2-form-group">
-                                                <label class="a2-label">{{ __('القيمة') }}</label>
-                                                <input
-                                                    class="a2-input"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    name="service_fees[{{ $serviceId }}][business_fee_amount]"
-                                                    value="{{ old("service_fees.$serviceId.business_fee_amount") }}"
-                                                    placeholder="{{ __('مثال: 10') }}"
-                                                >
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="a2-card-muted">
-                                        <h4 class="a2-section-title">{{ __('رسوم العميل') }}</h4>
-
-                                        <label class="a2-check">
-                                            <input
-                                                type="checkbox"
-                                                name="service_fees[{{ $serviceId }}][client_fee_enabled]"
-                                                value="1"
-                                                @checked(old("service_fees.$serviceId.client_fee_enabled"))
-                                            >
-                                            <span>{{ __('تفعيل رسوم العميل') }}</span>
-                                        </label>
-
-                                        <div class="a2-form-grid a2-mt-12">
-                                            <div class="a2-form-group">
-                                                <label class="a2-label">{{ __('نوع الرسوم') }}</label>
-                                                <select
-                                                    class="a2-select"
-                                                    name="service_fees[{{ $serviceId }}][client_fee_type]"
-                                                >
-                                                    <option value="fixed" @selected(old("service_fees.$serviceId.client_fee_type", 'fixed') === 'fixed')>
-                                                        {{ __('مبلغ ثابت') }}
-                                                    </option>
-                                                    <option value="percent" @selected(old("service_fees.$serviceId.client_fee_type") === 'percent')>
-                                                        {{ __('نسبة %') }}
-                                                    </option>
-                                                </select>
-                                            </div>
-
-                                            <div class="a2-form-group">
-                                                <label class="a2-label">{{ __('القيمة') }}</label>
-                                                <input
-                                                    class="a2-input"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    name="service_fees[{{ $serviceId }}][client_fee_amount]"
-                                                    value="{{ old("service_fees.$serviceId.client_fee_amount") }}"
-                                                    placeholder="{{ __('مثال: 2') }}"
-                                                >
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <p class="a2-muted" style="font-size:12px;">{{ __("الرسوم لم تعد تُضبَط هنا — رسمٌ واحدٌ لكل ابن الآن، لا لكل خدمة. عدّله من «طاولة عمل الابن» أو «رسوم الأبناء (جماعي)».") }}</p>
                             </div>
                         </div>
                     @endforeach

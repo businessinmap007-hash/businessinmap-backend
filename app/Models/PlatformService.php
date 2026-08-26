@@ -216,16 +216,10 @@ class PlatformService extends Model
             ->withTimestamps();
     }
 
-    public function categoryChildServiceFees(): HasMany
-    {
-        return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id');
-    }
-
-    public function activeCategoryChildServiceFees(): HasMany
-    {
-        return $this->hasMany(CategoryChildServiceFee::class, 'platform_service_id')
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->orderBy('id');
-    }
+    /*
+     * `categoryChildServiceFees()`/`activeCategoryChildServiceFees()` removed
+     * 2026-08-26: a fee no longer belongs to one service — see
+     * CategoryChildServiceFee's own docblock. `serviceUsageCounts()` reads
+     * `categoryPlatformServices` for "how much rides on this service" instead.
+     */
 }

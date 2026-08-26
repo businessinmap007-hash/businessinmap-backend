@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\CategoryChildServiceFee;
+use App\Models\FeeGroup;
+use App\Models\PlatformService;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Services\WalletFeeService;
@@ -142,5 +144,95 @@ class WalletFeeServiceTest extends TestCase
         }
 
         $this->assertEqualsWithDelta(5, $this->balance(), 0.001, 'balance must be intact after a refused charge');
+    }
+
+    /**
+     * «رسمٌ واحدٌ لكل ابن … لا رسمٌ منفصل لكل خدمة» — المالك، 2026-08-26. A
+     * business offering two different services on the same child is charged
+     * the SAME fee for either one — proof the fee no longer stacks per
+     * service.
+     */
+    public function test_the_same_fee_applies_whichever_service_the_booking_used(): void
+    {
+        $this->booking->loadMissing('business:id,category_id,category_child_id');
+        $business = $this->booking->business;
+
+        if (! $business || (int) $business->category_child_id <= 0) {
+            $this->markTestSkipped('Needs a booking whose business has a category child.');
+        }
+
+        $categoryId = (int) $business->category_id;
+        $childId = (int) $business->category_child_id;
+
+        $otherServiceId = (int) PlatformService::query()
+            ->where('is_active', 1)
+            ->where('id', '!=', (int) $this->booking->service_id)
+            ->value('id');
+
+        if ($otherServiceId <= 0) {
+            $this->markTestSkipped('Needs a second active platform service.');
+        }
+
+        CategoryChildServiceFee::query()->updateOrCreate(
+            ['category_id' => $categoryId, 'child_id' => $childId],
+            [
+                'is_active' => 1,
+                'client_fee_enabled' => 1,
+                'client_fee_type' => CategoryChildServiceFee::CALC_TYPE_FIXED,
+                'client_fee_amount' => 7,
+                'business_fee_enabled' => 0,
+            ]
+        );
+
+        $this->setConsent(true);
+
+        $secondBooking = $this->booking->replicate();
+        $secondBooking->service_id = $otherServiceId;
+        $secondBooking->save();
+
+        $firstFees = $this->fees->resolveBookingFees($this->booking->fresh());
+        $secondFees = $this->fees->resolveBookingFees($secondBooking->fresh());
+
+        $firstClient = $firstFees->firstWhere('payer', CategoryChildServiceFee::PAYER_CLIENT);
+        $secondClient = $secondFees->firstWhere('payer', CategoryChildServiceFee::PAYER_CLIENT);
+
+        $this->assertNotNull($firstClient, 'the first service resolved no fee at all');
+        $this->assertNotNull($secondClient, 'the second service resolved no fee at all');
+        $this->assertSame(7.0, (float) $firstClient['amount']);
+        $this->assertSame(7.0, (float) $secondClient['amount'], 'the second service was charged a different amount than the first');
+
+        $secondBooking->forceDelete();
+    }
+
+    /** A child assigned to a fee group is charged the GROUP's amount. */
+    public function test_a_fee_group_assignment_is_what_gets_charged_on_a_booking(): void
+    {
+        $this->booking->loadMissing('business:id,category_id,category_child_id');
+        $business = $this->booking->business;
+
+        if (! $business || (int) $business->category_child_id <= 0) {
+            $this->markTestSkipped('Needs a booking whose business has a category child.');
+        }
+
+        $group = FeeGroup::create(['name_ar' => 'مجموعة اختبار الرسوم', 'client_fee_amount' => 3]);
+
+        CategoryChildServiceFee::query()->updateOrCreate(
+            ['category_id' => (int) $business->category_id, 'child_id' => (int) $business->category_child_id],
+            [
+                'fee_group_id' => $group->id,
+                'is_active' => 1,
+                'client_fee_enabled' => 1,
+                'client_fee_type' => CategoryChildServiceFee::CALC_TYPE_FIXED,
+                'client_fee_amount' => 999,
+            ]
+        );
+
+        $this->setConsent(true);
+
+        $lines = $this->fees->resolveBookingFees($this->booking->fresh());
+        $client = $lines->firstWhere('payer', CategoryChildServiceFee::PAYER_CLIENT);
+
+        $this->assertNotNull($client);
+        $this->assertSame(3.0, (float) $client['amount'], 'the group amount did not win over the row\'s own');
     }
 }

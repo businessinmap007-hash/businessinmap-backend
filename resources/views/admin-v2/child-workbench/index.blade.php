@@ -256,71 +256,76 @@
                 </div>
             </form>
 
-            {{-- ── column 3: fees ─────────────────────────────────────────
-                 The third thing decided on this same (root, child) key, and
-                 the last one that still lived on a page of its own. --}}
+            {{-- ── column 3: fee ──────────────────────────────────────────
+                 One rate for every service this child offers, not one per
+                 service — «رسم موحّد على استخدام خدمات المنصّة». --}}
             <form method="POST" action="{{ route('admin.child-workbench.fees', [], false) }}" class="a2-card a2-card--section">
                 @csrf
                 <input type="hidden" name="root_id" value="{{ $rootId }}">
                 <input type="hidden" name="child_id" value="{{ $childId }}">
 
                 <div class="a2-card-head">
-                    <h2 class="a2-card-title">{{ __('الرسوم') }}</h2>
-                    <span class="a2-muted">{{ __('ما تأخذه المنصّة على كل خدمة') }}</span>
+                    <h2 class="a2-card-title">{{ __('الرسم') }}</h2>
+                    <span class="a2-muted">{{ __('ما تأخذه المنصّة — واحدٌ لكل خدماته') }}</span>
                 </div>
 
+                @php $hasAnyService = collect($servicePanel)->contains('enabled', true); @endphp
+
                 <div class="a2-card-body">
-                    @foreach($feePanel as $fee)
-                        @php $offered = collect($servicePanel)->firstWhere('id', $fee->id)?->enabled; @endphp
+                    @unless($hasAnyService)
+                        <p class="a2-muted" style="font-size:12px;">{{ __('لا خدمات مفعّلة لهذا الابن بعد — فعّل خدمةً من العمود السابق أولًا.') }}</p>
+                    @endunless
 
-                        <div class="cw-service {{ $offered ? '' : 'cw-fee-off' }}">
-                            <div class="cw-service-head">
-                                <label class="cw-toggle">
-                                    <input type="checkbox" name="fees[{{ $fee->id }}][is_active]" value="1"
-                                           @checked($fee->is_active) @disabled(! $offered)>
-                                    <strong>{{ $fee->name }}</strong>
-                                </label>
+                    <div class="cw-fee-row">
+                        <label class="cw-toggle">
+                            <input type="checkbox" name="fee[is_active]" value="1"
+                                   @checked($feePanel->is_active) @disabled(! $hasAnyService)>
+                            <strong>{{ __('مفعّل') }}</strong>
+                        </label>
+                    </div>
 
-                                @unless($offered)
-                                    <span class="a2-muted" style="font-size:12px;">{{ __('غير مفعّلة لهذا القسم — فعّلها من «الخدمات» أولًا') }}</span>
-                                @endunless
-                            </div>
+                    <div class="cw-fee-row">
+                        <label class="a2-label" style="font-size:12px;">{{ __('مجموعة الرسوم') }}</label>
+                        <select class="a2-select" name="fee[fee_group_id]">
+                            <option value="">{{ __('— رسم فردى —') }}</option>
+                            @foreach($feeGroups as $group)
+                                <option value="{{ $group->id }}" @selected($feePanel->fee_group_id === (int) $group->id)>{{ $group->name_ar }}</option>
+                            @endforeach
+                        </select>
+                        <span class="a2-muted" style="font-size:12px;">{{ __('اختر مجموعة ليأخذ هذا الابن رسمها بدل رسمه الخاص — عدّلها من «مجموعات الرسوم».') }}</span>
+                    </div>
 
-                            @if($offered)
-                                @foreach([
-                                    'business' => __('على التاجر'),
-                                    'client' => __('على العميل'),
-                                ] as $payer => $payerLabel)
-                                    <div class="cw-fee-row">
-                                        <label class="cw-toggle">
-                                            <input type="checkbox" name="fees[{{ $fee->id }}][{{ $payer }}_fee_enabled]" value="1"
-                                                   @checked($fee->{$payer . '_enabled'})>
-                                            <span>{{ $payerLabel }}</span>
-                                        </label>
+                    @foreach([
+                        'business' => __('على التاجر'),
+                        'client' => __('على العميل'),
+                    ] as $payer => $payerLabel)
+                        <div class="cw-fee-row">
+                            <label class="cw-toggle">
+                                <input type="checkbox" name="fee[{{ $payer }}_fee_enabled]" value="1"
+                                       @checked($feePanel->{$payer . '_enabled'})>
+                                <span>{{ $payerLabel }}</span>
+                            </label>
 
-                                        <select class="a2-select" name="fees[{{ $fee->id }}][{{ $payer }}_fee_type]">
-                                            <option value="fixed" @selected($fee->{$payer . '_type'} === 'fixed')>{{ __('مبلغ ثابت') }}</option>
-                                            <option value="percent" @selected($fee->{$payer . '_type'} === 'percent')>{{ __('نسبة %') }}</option>
-                                        </select>
+                            <select class="a2-select" name="fee[{{ $payer }}_fee_type]">
+                                <option value="fixed" @selected($feePanel->{$payer . '_type'} === 'fixed')>{{ __('مبلغ ثابت') }}</option>
+                                <option value="percent" @selected($feePanel->{$payer . '_type'} === 'percent')>{{ __('نسبة %') }}</option>
+                            </select>
 
-                                        <input class="a2-input" type="number" step="0.01" min="0"
-                                               name="fees[{{ $fee->id }}][{{ $payer }}_fee_amount]"
-                                               value="{{ $fee->{$payer . '_amount'} }}">
-                                    </div>
-                                @endforeach
-
-                                <div class="cw-fee-row">
-                                    <span class="a2-muted" style="font-size:12px;">{{ __('العملة') }}</span>
-                                    <input class="a2-input" name="fees[{{ $fee->id }}][currency]" maxlength="3"
-                                           value="{{ $fee->currency }}" style="max-width:90px;">
-                                </div>
-                            @endif
+                            <input class="a2-input" type="number" step="0.01" min="0"
+                                   name="fee[{{ $payer }}_fee_amount]"
+                                   value="{{ $feePanel->{$payer . '_amount'} }}">
                         </div>
                     @endforeach
+
+                    <div class="cw-fee-row">
+                        <span class="a2-muted" style="font-size:12px;">{{ __('العملة') }}</span>
+                        <input class="a2-input" name="fee[currency]" maxlength="3"
+                               value="{{ $feePanel->currency }}" style="max-width:90px;">
+                    </div>
                 </div>
 
                 <div class="a2-card-foot">
-                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ الرسوم') }}</button>
+                    <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ الرسم') }}</button>
                 </div>
             </form>
         </div>

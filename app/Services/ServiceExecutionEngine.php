@@ -1533,7 +1533,7 @@ class ServiceExecutionEngine
         int $childId = 0,
         float $baseAmount = 0
     ): array {
-        $row = $this->resolveChildServiceFeeRow($categoryId, $childId, $serviceId);
+        $row = $this->resolveChildServiceFeeRow($categoryId, $childId);
 
         return [
             'row' => $row,
@@ -1548,35 +1548,27 @@ class ServiceExecutionEngine
             'category_child_service_fee_id' => $row ? (int) $row->id : null,
 
             'business' => $row
-                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS, $baseAmount)
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS, $baseAmount, $serviceId)
                 : null,
 
             'client' => $row
-                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT, $baseAmount)
+                ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_CLIENT, $baseAmount, $serviceId)
                 : null,
         ];
     }
 
-    protected function resolveChildServiceFeeRow(int $categoryId, int $childId, int $serviceId): ?CategoryChildServiceFee
+    /** One fee per (root, child) now — the service the operation used no longer selects the row. */
+    protected function resolveChildServiceFeeRow(int $categoryId, int $childId): ?CategoryChildServiceFee
     {
-        if ($categoryId > 0 && $childId > 0 && $serviceId > 0) {
-            return CategoryChildServiceFee::activeForRootChild($categoryId, $childId, $serviceId);
-        }
+        if ($categoryId > 0 && $childId > 0) {
+            $row = CategoryChildServiceFee::activeForRootChild($categoryId, $childId);
 
-        if ($childId > 0 && $serviceId > 0) {
-            $rows = CategoryChildServiceFee::query()
-                ->active(1)
-                ->forPair($childId, $serviceId)
-                ->ordered()
-                ->limit(2)
-                ->get();
-
-            if ($rows->count() === 1) {
-                return $rows->first();
+            if ($row) {
+                return $row;
             }
         }
 
-        return null;
+        return $childId > 0 ? CategoryChildServiceFee::activeForChild($childId) : null;
     }
 
     /*

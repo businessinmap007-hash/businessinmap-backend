@@ -232,30 +232,22 @@ class CategoryChild extends Model
             ->orderBy('id');
     }
 
-    public function serviceFeeFor(?int $serviceId): ?CategoryChildServiceFee
+    /** The one fee this child carries — no more per-service axis. */
+    public function serviceFee(): ?CategoryChildServiceFee
     {
-        if (! $serviceId) {
-            return null;
-        }
-
         if ($this->relationLoaded('activeServiceFees')) {
-            return $this->activeServiceFees
-                ->firstWhere('platform_service_id', (int) $serviceId);
+            return $this->activeServiceFees->first();
         }
 
-        return $this->activeServiceFees()
-            ->where('platform_service_id', (int) $serviceId)
-            ->first();
+        return $this->activeServiceFees()->first();
     }
 
-    public function feeSnapshotFor(?int $serviceId): array
+    public function feeSnapshot(): array
     {
-        $row = $this->serviceFeeFor($serviceId);
+        $row = $this->serviceFee();
 
         return [
             'child_id' => (int) $this->id,
-            'service_id' => (int) ($serviceId ?? 0),
-            'platform_service_id' => (int) ($serviceId ?? 0),
             'business' => $row
                 ? $row->toFeeSnapshot(CategoryChildServiceFee::PAYER_BUSINESS)
                 : null,

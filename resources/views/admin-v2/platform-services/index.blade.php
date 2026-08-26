@@ -93,7 +93,6 @@
                         <th style="min-width:100px;">Active</th>
                         <th style="min-width:130px;">Supports Deposit</th>
                         <th style="min-width:160px;">Category Links</th>
-                        <th style="min-width:150px;">Service Fees</th>
                         <th style="min-width:170px;">Actions</th>
                     </tr>
                 </thead>
@@ -106,10 +105,7 @@
                         $categoryLinksCount = (int) ($r->category_platform_services_count ?? 0);
                         $activeCategoryLinksCount = (int) ($r->active_category_platform_services_count ?? 0);
 
-                        $serviceFeesCount = (int) ($r->category_child_service_fees_count ?? 0);
-                        $activeServiceFeesCount = (int) ($r->active_category_child_service_fees_count ?? 0);
-
-                        $isUsed = ($categoryLinksCount + $serviceFeesCount) > 0;
+                        $isUsed = $categoryLinksCount > 0;
                     @endphp
 
                     <tr>
@@ -152,20 +148,6 @@
                             <div class="a2-mt-8">
                                 <span class="a2-pill {{ $activeCategoryLinksCount > 0 ? 'a2-pill-success' : 'a2-pill-gray' }}">
                                     Active: {{ $activeCategoryLinksCount }}
-                                </span>
-                            </div>
-                        </td>
-
-                        <td>
-                            <div>
-                                <span class="a2-pill a2-pill-gray">
-                                    Total: {{ $serviceFeesCount }}
-                                </span>
-                            </div>
-
-                            <div class="a2-mt-8">
-                                <span class="a2-pill {{ $activeServiceFeesCount > 0 ? 'a2-pill-success' : 'a2-pill-gray' }}">
-                                    Active: {{ $activeServiceFeesCount }}
                                 </span>
                             </div>
                         </td>

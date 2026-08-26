@@ -5,7 +5,6 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BusinessServicePrice;
-use App\Models\CategoryChildServiceFee;
 use App\Models\CategoryPlatformService;
 use App\Models\PlatformService;
 use Illuminate\Http\Request;
@@ -35,8 +34,6 @@ class PlatformServiceController extends Controller
             ->withCount([
                 'categoryPlatformServices',
                 'activeCategoryPlatformServices',
-                'categoryChildServiceFees',
-                'activeCategoryChildServiceFees',
             ])
             ->orderByDesc('id')
             ->paginate(50)
@@ -220,20 +217,18 @@ class PlatformServiceController extends Controller
             ->where('service_id', $serviceId)
             ->count();
 
-        $serviceFees = CategoryChildServiceFee::query()
-            ->where('platform_service_id', $serviceId)
-            ->count();
-
         $bookings = Booking::query()
             ->where('service_id', $serviceId)
             ->count();
 
-        $total = $categoryLinks + $businessPrices + $serviceFees + $bookings;
+        // No more per-service fee count: a fee row now covers a child's whole
+        // set of services, so it says nothing specific about THIS one — see
+        // $categoryLinks for "how many children still offer this service".
+        $total = $categoryLinks + $businessPrices + $bookings;
 
         return [
             'category_links' => $categoryLinks,
             'business_prices' => $businessPrices,
-            'service_fees' => $serviceFees,
             'bookings' => $bookings,
             'total' => $total,
         ];

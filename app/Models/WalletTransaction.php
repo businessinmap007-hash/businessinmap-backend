@@ -96,11 +96,6 @@ class WalletTransaction extends Model
             ->where('wallet_transactions.reference_type', self::REFERENCE_TYPE_BOOKING);
     }
 
-    public function categoryChildServiceFee(): BelongsTo
-    {
-        return $this->belongsTo(CategoryChildServiceFee::class, 'category_child_service_fee_id');
-    }
-
     /*
     |--------------------------------------------------------------------------
     | Scopes

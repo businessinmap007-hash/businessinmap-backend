@@ -66,7 +66,7 @@ class AdminAbilityEnforcementTest extends TestCase
         $admin = $this->makeAdmin();
 
         $this->actingAs($admin)->get('/admin/wallet-transactions')->assertForbidden();
-        $this->actingAs($admin)->get('/admin/service-fee-rules')->assertForbidden();
+        $this->actingAs($admin)->get('/admin/fee-groups')->assertForbidden();
         $this->actingAs($admin)->get('/admin/users')->assertForbidden();
     }
 
@@ -76,9 +76,9 @@ class AdminAbilityEnforcementTest extends TestCase
 
         $this->actingAs($support)->get('/admin/disputes')->assertOk();
 
-        // Not the treasury, not the fee rules, not the accounts.
+        // Not the treasury, not the fee groups, not the accounts.
         $this->actingAs($support)->get('/admin/wallet-transactions')->assertForbidden();
-        $this->actingAs($support)->get('/admin/service-fee-rules')->assertForbidden();
+        $this->actingAs($support)->get('/admin/fee-groups')->assertForbidden();
         $this->actingAs($support)->get('/admin/users')->assertForbidden();
     }
 

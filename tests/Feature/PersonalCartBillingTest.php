@@ -32,10 +32,11 @@ class PersonalCartBillingTest extends TestCase
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
         $this->customer = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->firstOrFail();
 
-        $menuId = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
+        // A fee is per (root, child) now, not per (child, menu) — a free
+        // child is simply one with no fee row at all yet.
         $childId = (int) DB::table('category_children_master')
-            ->whereNotIn('id', function ($q) use ($menuId) {
-                $q->from('category_child_service_fees')->where('platform_service_id', $menuId)->select('child_id');
+            ->whereNotIn('id', function ($q) {
+                $q->from('category_child_service_fees')->select('child_id');
             })
             ->orderBy('id')->value('id');
         if (! $childId) {
@@ -46,7 +47,6 @@ class PersonalCartBillingTest extends TestCase
         DB::table('category_child_service_fees')->insert([
             'category_id' => (int) DB::table('categories')->min('id'),
             'child_id' => $childId,
-            'platform_service_id' => $menuId,
             'client_fee_enabled' => 1,
             'client_fee_type' => 'percent',
             'client_fee_amount' => 10,

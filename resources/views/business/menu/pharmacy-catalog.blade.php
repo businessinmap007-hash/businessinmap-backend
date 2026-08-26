@@ -56,6 +56,7 @@
                     <th>{{ __('الدواء') }}</th>
                     <th>{{ __('الشركة المنتجة') }}</th>
                     <th>{{ __('السعر') }}</th>
+                    <th>{{ __('الوحدة') }}</th>
                     <th>{{ __('الكمية') }}</th>
                     <th>{{ __('الحالة') }}</th>
                     <th class="a2-text-right">{{ __('إجراءات') }}</th>
@@ -67,6 +68,7 @@
                         <td class="a2-fw-900">{{ $item->name_en ?: $item->name_ar }}</td>
                         <td>{{ $item->brand_name ?: '—' }}</td>
                         <td>{{ number_format((float) $item->base_price, 2) }}</td>
+                        <td>{{ $item->priceUnitLabel() ?: '—' }}</td>
                         <td>{{ $item->available_quantity !== null ? (int) $item->available_quantity : '—' }}</td>
                         <td>
                             @if($item->is_active)
@@ -81,7 +83,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="a2-empty">{{ __('لم تُضِف أى دواء بعد — ابحث عنه أعلاه.') }}</td>
+                        <td colspan="7" class="a2-empty">{{ __('لم تُضِف أى دواء بعد — ابحث عنه أعلاه.') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -101,6 +103,12 @@
                 <input type="hidden" name="medicine_id" class="result-medicine-id">
                 <input class="a2-input" style="width:100px;" type="number" step="0.01" min="0" name="base_price" placeholder="{{ __('السعر') }}" required>
                 <input class="a2-input" style="width:90px;" type="number" min="0" name="quantity" placeholder="{{ __('الكمية') }}">
+                <select class="a2-select" style="width:100px;" name="sale_unit">
+                    <option value="">{{ __('— الوحدة —') }}</option>
+                    @foreach($saleUnits as $code => $label)
+                        <option value="{{ $code }}">{{ $label }}</option>
+                    @endforeach
+                </select>
                 <button type="submit" class="a2-btn a2-btn-sm a2-btn-primary">{{ __('إضافة') }}</button>
             </form>
         </div>

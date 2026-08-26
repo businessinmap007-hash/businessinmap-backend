@@ -117,7 +117,13 @@
     </div>
 </div>
 
-@include('business._partials.offering-vocabulary')
+{{-- «الادوية بيتم البحث عنها بالاسم فقط … هى صفات للصيدلية نفسها وليست
+     للدواء كصنف» — المالك، 2026-08-26. A medicine-linked row has no line or
+     modifier to pick; what the pharmacy stocks in general is set once on the
+     pharmacy's own profile, not per drug. --}}
+@unless($row->medicine_id ?? null)
+    @include('business._partials.offering-vocabulary')
+@endunless
 
 <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
     <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>

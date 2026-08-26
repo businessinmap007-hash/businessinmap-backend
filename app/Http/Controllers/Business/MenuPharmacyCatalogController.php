@@ -61,7 +61,9 @@ class MenuPharmacyCatalogController extends Controller
 
         return view('business.menu.pharmacy-catalog', [
             'items' => $items,
-            'saleUnits' => SaleUnits::options(),
+            // «عبوة او شريط او قطعة لا يوجد لتر وجرام وكيلو» — a drug is never
+            // weighed out.
+            'saleUnits' => SaleUnits::pharmacyOptions(),
         ]);
     }
 
@@ -104,7 +106,7 @@ class MenuPharmacyCatalogController extends Controller
             'base_price' => ['required', 'numeric', 'min:0'],
             'supply_price' => ['nullable', 'numeric', 'min:0'],
             'quantity' => ['nullable', 'integer', 'min:0'],
-            'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
+            'sale_unit' => ['nullable', Rule::in(SaleUnits::pharmacyCodes())],
             'brand_name' => ['nullable', 'string', 'max:191'],
         ]);
 
@@ -134,7 +136,7 @@ class MenuPharmacyCatalogController extends Controller
             'supply_price' => isset($data['supply_price']) && $data['supply_price'] !== ''
                 ? round((float) $data['supply_price'], 2)
                 : null,
-            'sale_unit' => in_array($data['sale_unit'] ?? null, SaleUnits::codes(), true) ? $data['sale_unit'] : null,
+            'sale_unit' => in_array($data['sale_unit'] ?? null, SaleUnits::pharmacyCodes(), true) ? $data['sale_unit'] : null,
             'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: $medicine->manufacturer,
             'available_quantity' => ($data['quantity'] ?? '') !== '' ? max(0, (int) $data['quantity']) : null,
             'is_active' => true,

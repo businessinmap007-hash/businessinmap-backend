@@ -125,6 +125,59 @@ class MenuPharmacyCatalogTest extends TestCase
             ->assertJsonFragment(['name' => (string) $medicine->name]);
     }
 
+    /**
+     * «وحدة البيع عبوة او شريط او قطعة لا يوجد لتر وجرام وكيلو» — المالك،
+     * 2026-08-26. A drug is never weighed out.
+     */
+    public function test_sale_unit_is_restricted_to_pack_strip_or_piece(): void
+    {
+        $business = $this->pharmacy();
+        $medicine = Medicine::query()->whereNotNull('price_egp')->firstOrFail();
+
+        $this->actingAs($business)->post(route('business.menu.pharmacy.store'), [
+            'medicine_id' => $medicine->id, 'base_price' => 20, 'sale_unit' => 'strip',
+        ])->assertRedirect();
+
+        $this->assertSame(
+            'strip',
+            MenuItem::query()->where('business_id', $business->id)->where('medicine_id', $medicine->id)->value('sale_unit')
+        );
+
+        $this->actingAs($business)->post(route('business.menu.pharmacy.store'), [
+            'medicine_id' => $medicine->id, 'base_price' => 20, 'sale_unit' => 'kg',
+        ])->assertSessionHasErrors('sale_unit');
+    }
+
+    /**
+     * «الادوية بيتم البحث عنها بالاسم فقط … هى صفات للصيدلية نفسها وليست
+     *  للدواء كصنف» — المالك، 2026-08-26. The generic edit screen must not
+     *  offer a line/modifier picker for a row that prices a dictionary drug,
+     *  and its own unit dropdown narrows the same way the add screen's does.
+     */
+    public function test_the_edit_screen_hides_the_vocabulary_picker_and_narrows_the_unit(): void
+    {
+        $business = $this->pharmacy();
+        $medicine = Medicine::query()->whereNotNull('price_egp')->firstOrFail();
+
+        $this->actingAs($business)->post(route('business.menu.pharmacy.store'), [
+            'medicine_id' => $medicine->id, 'base_price' => 20,
+        ]);
+
+        $item = MenuItem::query()->where('business_id', $business->id)->where('medicine_id', $medicine->id)->firstOrFail();
+
+        $response = $this->actingAs($business)->get(route('business.menu.edit', $item->id))->assertOk();
+
+        // Static help text elsewhere on the page still says «كجم للخضار» as a
+        // generic example, so the unit list itself is checked by VALUE, not
+        // by searching the page for the word.
+        $response->assertDontSee('أقسام الصيدلية')
+            ->assertDontSee('خدمات الصيدلية')
+            ->assertSee('value="strip"', false)
+            ->assertDontSee('value="kg"', false)
+            ->assertDontSee('value="l"', false)
+            ->assertDontSee('value="g"', false);
+    }
+
     public function test_a_stranger_cannot_add_to_someone_elses_pharmacy(): void
     {
         $stranger = User::query()->where('type', 'business')

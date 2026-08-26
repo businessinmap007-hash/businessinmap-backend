@@ -70,4 +70,31 @@ final class SaleUnits
     {
         return array_keys(self::options());
     }
+
+    /**
+     * «وحدة البيع عبوة او شريط او قطعة لا يوجد لتر وجرام وكيلو» — المالك،
+     * 2026-08-26. A pharmacy never weighs a drug out; it sells the box, the
+     * strip, or the loose tablet. Whichever of the three codes exist in
+     * `catalog_units` — `strip` is a 2026-08-26 addition and a fresh install
+     * that has not yet run {@see \Database\Seeders\PharmacyUnitSeeder} should
+     * still get the other two rather than an empty dropdown.
+     *
+     * @return array<string,string> code => Arabic label
+     */
+    public static function pharmacyOptions(): array
+    {
+        $codes = ['pack', 'strip', 'pcs'];
+
+        return array_filter(
+            self::options(),
+            fn ($label, $code) => in_array($code, $codes, true),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    /** @return array<int,string> */
+    public static function pharmacyCodes(): array
+    {
+        return array_keys(self::pharmacyOptions());
+    }
 }

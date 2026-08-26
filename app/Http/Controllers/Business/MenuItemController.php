@@ -160,7 +160,9 @@ class MenuItemController extends Controller
             'row' => $row,
             'sections' => $this->sections(),
             'itemTypes' => $this->itemTypes(),
-            'saleUnits' => SaleUnits::options(),
+            // «عبوة او شريط او قطعة لا يوجد لتر وجرام وكيلو» — a drug bought
+            // through «قاموس الأدوية» is never weighed out.
+            'saleUnits' => $row->medicine_id ? SaleUnits::pharmacyOptions() : SaleUnits::options(),
             'vocabulary' => $this->vocabulary(),
             'lineId' => $row->lineOption()?->id,
             'modifierIds' => $row->modifierOptions()->pluck('id'),
@@ -170,8 +172,18 @@ class MenuItemController extends Controller
     public function update(Request $request, int $id): RedirectResponse
     {
         $item = $this->scopedItem($id);
-        $item->update($this->validateData($request));
-        $this->applyVocabulary($request, $item);
+        $item->update($this->validateData($request, $item));
+
+        /*
+         * A medicine's «line/modifier» is meaningless — «أقسام الصيدلية» and
+         * «خدمات الصيدلية» describe what the PHARMACY stocks in general, not
+         * what one drug is — المالك، 2026-08-26. The form does not show the
+         * picker for these rows, so applying it would only ever clear
+         * whatever it never had.
+         */
+        if (! $item->medicine_id) {
+            $this->applyVocabulary($request, $item);
+        }
 
         return back()->with('success', 'تم تحديث الصنف بنجاح.');
     }
@@ -254,8 +266,10 @@ class MenuItemController extends Controller
         $item->syncOfferingOptions($line, $modifiers, $item->currentOfferingAdjustments());
     }
 
-    protected function validateData(Request $request): array
+    protected function validateData(Request $request, ?MenuItem $existing = null): array
     {
+        $unitCodes = $existing?->medicine_id ? SaleUnits::pharmacyCodes() : SaleUnits::codes();
+
         $data = $request->validate([
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
@@ -271,7 +285,7 @@ class MenuItemController extends Controller
             'brand_name' => ['nullable', 'string', 'max:191'],
             // What the price is the price OF. Empty means «by the item», which
             // is what a sandwich is; a greengrocer says «كجم».
-            'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
+            'sale_unit' => ['nullable', Rule::in($unitCodes)],
             // NULL means «لا أتابع الكمية» — a kitchen does not count
             // sandwiches. Zero is the other claim: «معروض، ونفد».
             'available_quantity' => ['nullable', 'integer', 'min:0', 'max:100000000'],

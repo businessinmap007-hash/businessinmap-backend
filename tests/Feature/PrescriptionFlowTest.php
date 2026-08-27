@@ -232,6 +232,104 @@ class PrescriptionFlowTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('items.0.duration_unit');
     }
 
+    /** «مشاركة الروشتة مع طبيب اخر» — «الاثنين معا» يقرران: المريض أو الطبيب الأصلي. */
+    public function test_the_patient_can_share_with_a_second_doctor_who_can_then_read_it(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $secondDoctor = $this->user(User::TYPE_BUSINESS, 'SecondOpinion');
+        $stranger = $this->user(User::TYPE_BUSINESS, 'Stranger');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($stranger);
+        $this->getJson("/api/v2/prescriptions/{$id}")->assertNotFound();
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/prescriptions/{$id}/share", ['doctor_id' => $secondDoctor->id])
+            ->assertOk()
+            ->assertJsonPath('data.prescription.shared_with.0.id', $secondDoctor->id);
+
+        Sanctum::actingAs($secondDoctor);
+        $this->getJson("/api/v2/prescriptions/{$id}")->assertOk()->assertJsonPath('data.prescription.id', $id);
+    }
+
+    public function test_the_original_doctor_can_also_share_it(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $secondDoctor = $this->user(User::TYPE_BUSINESS, 'SecondOpinion');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($doctor);
+        $this->postJson("/api/v2/prescriptions/{$id}/share", ['doctor_id' => $secondDoctor->id])->assertOk();
+
+        Sanctum::actingAs($secondDoctor);
+        $this->getJson("/api/v2/prescriptions/{$id}")->assertOk();
+    }
+
+    public function test_a_shared_in_doctor_cannot_revise_it(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $secondDoctor = $this->user(User::TYPE_BUSINESS, 'SecondOpinion');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/prescriptions/{$id}/share", ['doctor_id' => $secondDoctor->id])->assertOk();
+
+        Sanctum::actingAs($secondDoctor);
+        $this->postJson("/api/v2/prescriptions/{$id}/revise", [
+            'items' => [['medicine_id' => $this->medicine('Something')->id]],
+        ])->assertNotFound();
+    }
+
+    /** «تعدل من الطبيب الاصلى وتحفظ نسخة جديدة وتختم القديمة ملغاة ولا تحذف». */
+    public function test_only_the_original_doctor_can_revise_and_it_versions_not_overwrites(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $newMedicine = $this->medicine('Stronger Dose');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($doctor);
+        $res = $this->postJson("/api/v2/prescriptions/{$id}/revise", [
+            'diagnosis' => 'Updated diagnosis',
+            'items' => [['medicine_id' => $newMedicine->id, 'dosage' => '750mg']],
+        ])->assertCreated();
+
+        $newId = $res->json('data.prescription.id');
+        $this->assertNotSame($id, $newId, 'a revision must be a new row, not the same one rewritten');
+        $this->assertSame($id, $res->json('data.prescription.revises_prescription_id'));
+        $this->assertSame('Updated diagnosis', $res->json('data.prescription.diagnosis'));
+
+        // The old one is cancelled, not deleted, and reads as superseded.
+        $this->assertDatabaseHas('prescriptions', ['id' => $id, 'status' => Prescription::STATUS_CANCELLED]);
+        $old = $this->getJson("/api/v2/prescriptions/{$id}")->assertOk();
+        $this->assertTrue($old->json('data.prescription.superseded'));
+
+        // The patient still reads BOTH — nothing vanished.
+        $this->getJson("/api/v2/prescriptions/{$id}")->assertOk();
+        $this->getJson("/api/v2/prescriptions/{$newId}")->assertOk();
+    }
+
+    public function test_a_different_doctor_cannot_revise_someone_elses_prescription(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $otherDoctor = $this->user(User::TYPE_BUSINESS, 'Other');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($otherDoctor);
+        $this->postJson("/api/v2/prescriptions/{$id}/revise", [
+            'items' => [['medicine_id' => $this->medicine('X')->id]],
+        ])->assertNotFound();
+    }
+
     public function test_a_client_cannot_issue_a_prescription(): void
     {
         $notADoctor = $this->user(User::TYPE_CLIENT, 'Client');

@@ -3655,6 +3655,59 @@ paths:
         '200': { description: Cancelled }
         '404': { description: 'Not found, or you are not a party' }
         '422': { $ref: '#/components/responses/Validation' }
+  /prescriptions/{prescription}/share:
+    post:
+      tags: [Prescriptions]
+      summary: Grant a second doctor read-only access (the patient or the original doctor only)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doctor_id]
+              properties:
+                doctor_id: { type: integer, description: 'Must be a different business account than the original doctor.' }
+      responses:
+        '200': { description: Shared }
+        '404': { description: 'Not found, or you are neither the patient nor the original doctor' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /prescriptions/{prescription}/revise:
+    post:
+      tags: [Prescriptions]
+      summary: Amend a prescription (original doctor only) — creates a new prescription linked via revises_prescription_id and cancels this one; never overwrites it
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                diagnosis: { type: string }
+                patient_condition: { type: string }
+                notes: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [medicine_id]
+                    properties:
+                      medicine_id: { type: integer }
+                      dosage: { type: string }
+                      quantity: { type: string }
+                      instructions: { type: string }
+                      frequency_per_day: { type: integer }
+                      food_timing: { type: string, enum: [before, with, after] }
+                      time_slots: { type: array, items: { type: string } }
+                      duration_value: { type: integer }
+                      duration_unit: { type: string, enum: [days, weeks, months] }
+      responses:
+        '201': { description: 'Revised — the new prescription' }
+        '404': { description: 'Not found, or you are not the original doctor' }
+        '422': { $ref: '#/components/responses/Validation' }
   /medicines:
     get:
       tags: [Prescriptions]

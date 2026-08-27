@@ -378,6 +378,8 @@ Route::prefix('v2')->group(function () {
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/share', [PrescriptionController::class, 'share'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
 
         // Shared medicine dictionary: doctors search + add (name + strength).

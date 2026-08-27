@@ -188,6 +188,73 @@ class PrescriptionController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/v2/prescriptions/{prescription}/share — grant a second doctor
+     * read-only access. Either the patient or the ORIGINAL doctor may do
+     * this («الاثنين معا») — not a pharmacy, and not an already-shared-in
+     * doctor (they read, they don't re-share).
+     */
+    public function share(Request $request, int $prescription)
+    {
+        $row = Prescription::query()->findOrFail($prescription);
+        $uid = (int) $request->user()->id;
+
+        abort_if($uid !== (int) $row->doctor_id && $uid !== (int) $row->patient_id, 404);
+
+        $data = $request->validate([
+            'doctor_id' => ['required', 'integer', 'exists:users,id', 'different:' . $row->doctor_id],
+        ], [], ['doctor_id' => 'الطبيب']);
+
+        $doctor = User::query()->findOrFail((int) $data['doctor_id']);
+        abort_unless($doctor->isBusiness(), 422, __('يجب اختيار حساب طبيب/عيادة صحيح.'));
+
+        $this->service->share($row, $doctor, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تمت مشاركة الوصفة مع الطبيب.'),
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name']))],
+        ]);
+    }
+
+    /**
+     * POST /api/v2/prescriptions/{prescription}/revise — the ORIGINAL doctor
+     * amends it. Never in place: creates a new prescription (linked via
+     * revises_prescription_id) and cancels this one.
+     */
+    public function revise(Request $request, int $prescription)
+    {
+        $row = Prescription::query()->findOrFail($prescription);
+        $doctor = $this->businessOrFail($request);
+
+        abort_if((int) $row->doctor_id !== (int) $doctor->id, 404);
+
+        $data = $request->validate([
+            'diagnosis' => ['nullable', 'string', 'max:255'],
+            'patient_condition' => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.medicine_id' => ['required', 'integer', 'exists:medicines,id'],
+            'items.*.dosage' => ['nullable', 'string', 'max:120'],
+            'items.*.quantity' => ['nullable', 'string', 'max:120'],
+            'items.*.instructions' => ['nullable', 'string', 'max:255'],
+            'items.*.frequency_per_day' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'items.*.food_timing' => ['nullable', Rule::in(PrescriptionItem::FOOD_TIMINGS)],
+            'items.*.time_slots' => ['nullable', 'array'],
+            'items.*.time_slots.*' => [Rule::in(PrescriptionItem::SLOTS)],
+            'items.*.duration_value' => ['nullable', 'integer', 'min:1', 'max:60', 'required_with:items.*.duration_unit'],
+            'items.*.duration_unit' => ['nullable', Rule::in(array_keys(PrescriptionItem::DURATION_UNIT_DAYS)), 'required_with:items.*.duration_value'],
+        ]);
+
+        $revision = $this->service->revise($row, $data, $data['items']);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تعديل الوصفة — أصبحت النسخة الجديدة سارية.'),
+            'data' => ['prescription' => $this->serialize($revision)],
+        ], 201);
+    }
+
     private function businessOrFail(Request $request): User
     {
         $user = $request->user();
@@ -205,7 +272,7 @@ class PrescriptionController extends Controller
     private function partyOrFail(Request $request, int $id): Prescription
     {
         $row = Prescription::query()
-            ->with(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name'])
+            ->with(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name'])
             ->findOrFail($id);
 
         abort_unless($row->isParty((int) $request->user()->id), 404);
@@ -219,6 +286,8 @@ class PrescriptionController extends Controller
             'id' => (int) $p->id,
             'status' => (string) $p->status,
             'appointment_id' => $p->appointment_id ? (int) $p->appointment_id : null,
+            'revises_prescription_id' => $p->revises_prescription_id ? (int) $p->revises_prescription_id : null,
+            'superseded' => (bool) ($p->status === Prescription::STATUS_CANCELLED && $p->revisedBy()->exists()),
             'fulfillment_type' => $p->fulfillment_type,
             'diagnosis' => $p->diagnosis,
             'patient_condition' => $p->patient_condition,
@@ -227,6 +296,9 @@ class PrescriptionController extends Controller
             'doctor' => $this->party($p->doctor, $p->doctor_id),
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
+            'shared_with' => $p->relationLoaded('shares')
+                ? $p->shares->map(fn ($s) => $this->party($s->doctor, $s->doctor_id))->values()->all()
+                : [],
             'items' => $p->relationLoaded('items')
                 ? $p->items->map(fn ($i) => [
                     'id' => (int) $i->id,

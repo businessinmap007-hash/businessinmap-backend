@@ -5,6 +5,7 @@ namespace App\Services\Prescriptions;
 use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
+use App\Models\PrescriptionShare;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
@@ -41,45 +42,125 @@ class PrescriptionService
                 'issued_at' => now(),
             ]);
 
-            foreach ($items as $item) {
-                // The dictionary row is the one source of truth for the name
-                // printed on the prescription — never the client's own text,
-                // and never `name_ar` (a phonetic alias, not a registered
-                // brand — see MedicineController::serialize).
-                $medicine = Medicine::query()->findOrFail((int) $item['medicine_id']);
-
-                // "٢ أسبوع" ⇒ duration_value=2, duration_unit=weeks,
-                // duration_days=14 — the scheduler only ever reads the days
-                // total, so it needs no change; these two are display/input
-                // only.
-                $durationUnit = $item['duration_unit'] ?? null;
-                $durationValue = isset($item['duration_value']) ? (int) $item['duration_value'] : null;
-                $durationDays = ($durationUnit && $durationValue)
-                    ? $durationValue * PrescriptionItem::DURATION_UNIT_DAYS[$durationUnit]
-                    : null;
-
-                $prescription->items()->create([
-                    'medicine_id' => $medicine->id,
-                    'name' => $medicine->name,
-                    'dosage' => $item['dosage'] ?? null,
-                    'quantity' => $item['quantity'] ?? null,
-                    'instructions' => $item['instructions'] ?? null,
-                    'frequency_per_day' => $item['frequency_per_day'] ?? null,
-                    'food_timing' => $item['food_timing'] ?? null,
-                    'time_slots' => $item['time_slots'] ?? null,
-                    'duration_days' => $durationDays,
-                    'duration_unit' => $durationUnit,
-                    'duration_value' => $durationValue,
-                ]);
-
-                $medicine->increment('uses_count');
-            }
+            $this->createItems($prescription, $items);
 
             $this->notify('prescription_issued', (int) $patient->id, $prescription,
                 'وصفة طبية جديدة', 'New prescription',
                 'كتب لك الطبيب وصفة طبية جديدة.', 'Your doctor issued a new prescription for you.');
 
             return $prescription->load('items');
+        });
+    }
+
+    /** @param  array<int,array<string,mixed>>  $items */
+    private function createItems(Prescription $prescription, array $items): void
+    {
+        foreach ($items as $item) {
+            // The dictionary row is the one source of truth for the name
+            // printed on the prescription — never the client's own text,
+            // and never `name_ar` (a phonetic alias, not a registered
+            // brand — see MedicineController::serialize).
+            $medicine = Medicine::query()->findOrFail((int) $item['medicine_id']);
+
+            // "٢ أسبوع" ⇒ duration_value=2, duration_unit=weeks,
+            // duration_days=14 — the scheduler only ever reads the days
+            // total, so it needs no change; these two are display/input
+            // only.
+            $durationUnit = $item['duration_unit'] ?? null;
+            $durationValue = isset($item['duration_value']) ? (int) $item['duration_value'] : null;
+            $durationDays = ($durationUnit && $durationValue)
+                ? $durationValue * PrescriptionItem::DURATION_UNIT_DAYS[$durationUnit]
+                : null;
+
+            $prescription->items()->create([
+                'medicine_id' => $medicine->id,
+                'name' => $medicine->name,
+                'dosage' => $item['dosage'] ?? null,
+                'quantity' => $item['quantity'] ?? null,
+                'instructions' => $item['instructions'] ?? null,
+                'frequency_per_day' => $item['frequency_per_day'] ?? null,
+                'food_timing' => $item['food_timing'] ?? null,
+                'time_slots' => $item['time_slots'] ?? null,
+                'duration_days' => $durationDays,
+                'duration_unit' => $durationUnit,
+                'duration_value' => $durationValue,
+            ]);
+
+            $medicine->increment('uses_count');
+        }
+    }
+
+    /**
+     * Grant a second doctor read-only access — either the patient or the
+     * ORIGINAL doctor may do this («الاثنين معا»); enforced by the caller
+     * (PrescriptionController::share), which is who actually knows who is
+     * asking. Idempotent: sharing the same doctor twice is a no-op.
+     */
+    public function share(Prescription $prescription, User $doctor, User $sharedBy): PrescriptionShare
+    {
+        if ((int) $doctor->id === (int) $prescription->doctor_id) {
+            throw ValidationException::withMessages([
+                'doctor_id' => __('هذا الطبيب هو من أصدر الوصفة بالفعل.'),
+            ]);
+        }
+
+        return PrescriptionShare::query()->firstOrCreate(
+            ['prescription_id' => $prescription->id, 'doctor_id' => $doctor->id],
+            ['shared_by_user_id' => $sharedBy->id],
+        );
+    }
+
+    /**
+     * The ORIGINAL doctor amends a prescription. Never overwrites: a new
+     * prescription row is created (revises_prescription_id points back at
+     * this one), and this one is cancelled — never deleted — so the full
+     * history stays readable by everyone who could already read it.
+     *
+     * @param  array<int,array<string,mixed>>  $items
+     */
+    public function revise(Prescription $prescription, array $header, array $items): Prescription
+    {
+        if ($prescription->status === Prescription::STATUS_DISPENSED) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن تعديل وصفة تم صرفها بالفعل — أصدر وصفة جديدة.'),
+            ]);
+        }
+
+        if ($prescription->status === Prescription::STATUS_CANCELLED) {
+            throw ValidationException::withMessages([
+                'status' => __('هذه الوصفة ملغاة بالفعل ولا يمكن تعديلها.'),
+            ]);
+        }
+
+        return DB::transaction(function () use ($prescription, $header, $items) {
+            $revision = Prescription::create([
+                'doctor_id' => (int) $prescription->doctor_id,
+                'patient_id' => (int) $prescription->patient_id,
+                'appointment_id' => $prescription->appointment_id,
+                'revises_prescription_id' => (int) $prescription->id,
+                'status' => Prescription::STATUS_ISSUED,
+                'diagnosis' => $header['diagnosis'] ?? $prescription->diagnosis,
+                'patient_condition' => $header['patient_condition'] ?? $prescription->patient_condition,
+                'notes' => $header['notes'] ?? $prescription->notes,
+                'issued_at' => now(),
+            ]);
+
+            $this->createItems($revision, $items);
+
+            $prescription->update(['status' => Prescription::STATUS_CANCELLED]);
+
+            $this->notify('prescription_issued', (int) $prescription->patient_id, $revision,
+                'تعديل على وصفتك الطبية', 'Your prescription was amended',
+                'عدّل طبيبك وصفتك الطبية — راجع النسخة الجديدة.', 'Your doctor amended your prescription — check the new version.');
+
+            foreach ($prescription->sharedDoctorIds() as $doctorId) {
+                PrescriptionShare::query()->firstOrCreate([
+                    'prescription_id' => $revision->id,
+                    'doctor_id' => $doctorId,
+                ], ['shared_by_user_id' => (int) $prescription->doctor_id]);
+            }
+
+            return $revision->load('items');
         });
     }
 

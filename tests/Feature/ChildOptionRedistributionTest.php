@@ -217,6 +217,15 @@ class ChildOptionRedistributionTest extends TestCase
      *
      * @see \App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog
      * @see \App\Support\CategoryBServiceSupport::allowsItemType()
+     *
+     * Scoped to services that actually declare item types
+     * (`platform_service_item_types`). `business_offers` has none — it never
+     * lists "types" per child; an offer names one already-priced row
+     * (`OfferableResolver`), so `allowed_item_types` is not a concept that
+     * service has, and an empty config there restricts nothing because there
+     * is nothing to restrict. Its 313 `business_offers_enablement` configs
+     * (2026-08-23) are the blanket "this child may publish offers" switch, not
+     * an unbounded item-type list.
      */
     public function test_no_active_service_config_allows_nothing(): void
     {
@@ -225,6 +234,11 @@ class ChildOptionRedistributionTest extends TestCase
             ->join('category_children_master as ch', 'ch.id', '=', 'c.child_id')
             ->where('c.is_active', 1)
             ->where('s.is_active', 1)
+            ->whereExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('platform_service_item_types as t')
+                    ->whereColumn('t.platform_service_id', 's.id');
+            })
             ->get(['ch.name_ar', 's.key', 'c.config'])
             ->filter(function ($row) {
                 $cfg = json_decode($row->config ?: '{}', true) ?: [];

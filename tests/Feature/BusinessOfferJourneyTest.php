@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessServicePrice;
 use App\Models\CommercialOffer;
 use App\Models\OfferFollow;
 use App\Models\User;
@@ -57,6 +58,27 @@ class BusinessOfferJourneyTest extends TestCase
         CommercialOffer::query()->where('seller_business_id', (int) $this->business->id)->forceDelete();
     }
 
+    /**
+     * A `service`-typed offer must name a real priced row it owns — see
+     * OfferableResolver/OfferEligibility (owner rule 2026-08-23, commit
+     * `77e2a1d4`): base_price is read off this row, never typed. A fresh row's
+     * price history is empty (no prior increase), so it clears the 30-day
+     * quiet-window check for free.
+     */
+    private function pricedServiceRow(float $price): BusinessServicePrice
+    {
+        return BusinessServicePrice::query()->updateOrCreate(
+            [
+                'business_id' => (int) $this->business->id,
+                'child_id' => null,
+                'service_id' => $this->serviceId,
+                'bookable_item_type' => null,
+                'line_option_id' => 0,
+            ],
+            ['price' => $price, 'currency' => 'EGP', 'is_active' => 1],
+        );
+    }
+
     /** @return array<int,int> ids of offers on the seller's storefront in discovery */
     private function discoveredOfferIds(): array
     {
@@ -72,12 +94,14 @@ class BusinessOfferJourneyTest extends TestCase
         // ── 1. Publish ────────────────────────────────────────────────
         Sanctum::actingAs($this->business);
 
+        $priced = $this->pricedServiceRow(200);
+
         $created = $this->postJson('/api/v2/business/offers', [
             'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
+            'offerable_id' => $priced->id,
             'audience_type' => CommercialOffer::AUDIENCE_BOTH,
-            'base_price' => 200,
             'final_price' => 150,
+            'ends_at' => now()->addDays(10)->toDateTimeString(),
             'title_ar' => 'عرض رحلة اختبار',
         ])->assertCreated()->assertJsonPath('success', true);
 
@@ -131,8 +155,7 @@ class BusinessOfferJourneyTest extends TestCase
         // ── 9. Edit the price (ranking_score stays system-owned) ──────
         $this->putJson("/api/v2/business/offers/{$offerId}", [
             'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
-            'base_price' => 200,
+            'offerable_id' => $priced->id,
             'final_price' => 120,
             'ranking_score' => 999999,
         ])->assertOk();
@@ -163,11 +186,16 @@ class BusinessOfferJourneyTest extends TestCase
 
         Sanctum::actingAs($this->business);
 
+        // A valid priced row + end date, so the 422 below is unambiguously the
+        // subscription gate — not OfferableResolver/OfferEligibility, which run
+        // first in store() and would otherwise 422 for an unrelated reason.
+        $priced = $this->pricedServiceRow(100);
+
         $this->postJson('/api/v2/business/offers', [
             'offerable_type' => CommercialOffer::OFFERABLE_SERVICE,
-            'offerable_id' => 0,
-            'base_price' => 100,
+            'offerable_id' => $priced->id,
             'final_price' => 80,
+            'ends_at' => now()->addDays(10)->toDateTimeString(),
         ])->assertStatus(422);
     }
 }

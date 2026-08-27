@@ -45,6 +45,7 @@ use App\Http\Controllers\AdminV2\{
     ProjectAdminController,
     TrainingAdminController,
     ClinicAppointmentAdminController,
+    PrescriptionAdminController,
     AgendaAdminController,
     JobFollowController,
     JobPostController,
@@ -498,6 +499,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::prefix('clinic-appointments')->name('clinic-appointments.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
                 Route::get('/', [ClinicAppointmentAdminController::class, 'index'])->name('index');
                 Route::get('{appointment}', [ClinicAppointmentAdminController::class, 'show'])->whereNumber('appointment')->name('show');
+            });
+
+            // Read-only oversight of every prescription. Gated OPERATIONS.
+            Route::prefix('prescriptions')->name('prescriptions.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+                Route::get('/', [PrescriptionAdminController::class, 'index'])->name('index');
+                Route::get('{prescription}', [PrescriptionAdminController::class, 'show'])->whereNumber('prescription')->name('show');
             });
 
             // Read-only oversight of every user's personal agenda. Gated OPERATIONS.

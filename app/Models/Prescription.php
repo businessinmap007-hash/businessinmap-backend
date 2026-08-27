@@ -25,6 +25,15 @@ class Prescription extends Model
     public const STATUS_DISPENSED = 'dispensed';
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUSES = [
+        self::STATUS_ISSUED,
+        self::STATUS_SENT,
+        self::STATUS_PREPARING,
+        self::STATUS_READY,
+        self::STATUS_DISPENSED,
+        self::STATUS_CANCELLED,
+    ];
+
     public const FULFILLMENT_DELIVERY = 'delivery';
     public const FULFILLMENT_PICKUP = 'pickup';
 

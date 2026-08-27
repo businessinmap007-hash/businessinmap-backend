@@ -89,7 +89,7 @@
         | عنوانها. وما يعبر الخدماتِ كلَّها — النزاعات، المحادثات — بقى فى
         | «العمليات»، لأنه ليس خدمةً بل ما يقع بين طرفَى أىِّ عملية.
         */
-        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.agenda.', 'admin.projects.'], 'children' => [
+        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.prescriptions.', 'admin.agenda.', 'admin.projects.'], 'children' => [
             ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -126,6 +126,7 @@
             ['label' => 'التدريب والعيادات والمشاريع', 'type' => 'section', 'children' => [
                 ['label' => 'خطط التدريب (إشراف)', 'route' => 'admin.training-plans.index', 'active' => 'admin.training-plans.'],
                 ['label' => 'مواعيد العيادات (إشراف)', 'route' => 'admin.clinic-appointments.index', 'active' => 'admin.clinic-appointments.'],
+                ['label' => 'الوصفات الطبية (إشراف)', 'route' => 'admin.prescriptions.index', 'active' => 'admin.prescriptions.'],
                 ['label' => 'الجداول الشخصية (إشراف)', 'route' => 'admin.agenda.index', 'active' => 'admin.agenda.'],
                 ['label' => 'مشاريع الأعمال (إشراف)', 'route' => 'admin.projects.index', 'active' => 'admin.projects.'],
             ]],

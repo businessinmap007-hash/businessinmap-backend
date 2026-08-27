@@ -119,6 +119,13 @@ class NotificationChannelRule extends Model
             'medication_reminder' => ['تذكير بالدواء', 'Medication reminder', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             // A due personal task from the agenda (→ the owner).
             'agenda_reminder' => ['تذكير بمهمة', 'Task reminder', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+
+            // The shared retail catalog now has stock under a business's
+            // allowed types, and it never listed a single product — the
+            // screen has worked since 2026-08-04 but nothing ever announced
+            // it (2026-08-28 investigation: zero business_catalog_listings
+            // despite 1,295 catalog rows). Sent once per business, ever.
+            'retail_catalog_ready' => ['بضاعة جاهزة في كتالوج التجزئة', 'Retail catalog has products for you', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
         ];
     }
 

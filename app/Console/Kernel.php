@@ -82,6 +82,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('accounts:finalize-deletions --limit=100')
             ->dailyAt('03:30')
             ->withoutOverlapping();
+
+        // One-time-per-business nudge that the shared retail catalog now has
+        // stock for them (2026-08-28). Daily, not off-peak: this is meant to
+        // be seen the same day, and the eligible pool only grows as new
+        // children/products get wired — nothing time-sensitive to race.
+        $schedule->command('retail:notify-catalog-ready --limit=200')
+            ->dailyAt('09:00')
+            ->withoutOverlapping();
     }
 
     protected function commands(): void

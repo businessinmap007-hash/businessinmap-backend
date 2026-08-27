@@ -59,6 +59,10 @@ class Prescription extends Model
         'dispensed_at',
         'medicine_total',
         'priced_at',
+        'delivery_driver_id',
+        'delivery_stage',
+        'pickup_token',
+        'delivery_token',
     ];
 
     protected $casts = [
@@ -66,6 +70,7 @@ class Prescription extends Model
         'dispensed_at' => 'datetime',
         'medicine_total' => 'decimal:2',
         'priced_at' => 'datetime',
+        'delivery_driver_id' => 'integer',
     ];
 
     public function items(): HasMany
@@ -86,6 +91,12 @@ class Prescription extends Model
     public function pharmacy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pharmacy_id');
+    }
+
+    /** The same driver pool menu orders use — a driver isn't order-specific. */
+    public function deliveryDriver(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryDriver::class, 'delivery_driver_id');
     }
 
     public function appointment(): BelongsTo

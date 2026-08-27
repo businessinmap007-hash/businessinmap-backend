@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
+use App\Http\Controllers\Api\V2\PrescriptionDeliveryController;
 use App\Http\Controllers\Api\V2\MedicineController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
@@ -699,6 +700,15 @@ Route::prefix('v2')->group(function () {
             Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
+
+            // Same driver pool, same loop, for prescription delivery — see
+            // PrescriptionDeliveryService.
+            Route::get('available-prescriptions', [PrescriptionDeliveryController::class, 'available']);
+            Route::post('prescriptions/{prescription}/accept', [PrescriptionDeliveryController::class, 'accept'])->whereNumber('prescription');
+            Route::post('prescriptions/{prescription}/pickup-token', [PrescriptionDeliveryController::class, 'issuePickupToken'])->whereNumber('prescription');
+            Route::post('prescriptions/{prescription}/delivery-token', [PrescriptionDeliveryController::class, 'issueDeliveryToken'])->whereNumber('prescription');
+            Route::post('prescriptions/pickup/{token}/confirm', [PrescriptionDeliveryController::class, 'confirmPickup']);
+            Route::post('prescriptions/deliver/{token}/confirm', [PrescriptionDeliveryController::class, 'confirmDelivery']);
         });
 
         // Friend co-guarantors for an operation (guarantee-as-deposit).

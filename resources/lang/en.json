@@ -2755,5 +2755,12 @@
     "حسب نوع الصنف": "By item type",
     "غير مصنّف": "Unfiled",
     "خارج المفردات": "Outside the vocabulary",
-    "بلا بند": "No band"
+    "بلا بند": "No band",
+    "طلب توصيل الوصفة غير موجود.": "This prescription delivery request does not exist.",
+    "هذه الوصفة غير متاحة للاستلام.": "This prescription is not available to pick up.",
+    "لست صيدلية هذه الوصفة.": "You are not the pharmacy for this prescription.",
+    "الوصفة غير جاهزة لتسليمها للموصّل.": "The prescription is not ready to be handed to the driver.",
+    "هذه الوصفة غير مُسندة إليك.": "This prescription is not assigned to you.",
+    "لم يتم استلام الوصفة من الصيدلية بعد.": "The prescription has not been picked up from the pharmacy yet.",
+    "هذه الوصفة ليست لك.": "This prescription is not yours."
 }

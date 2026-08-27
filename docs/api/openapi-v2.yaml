@@ -2005,6 +2005,20 @@ paths:
   /delivery/deliver/{token}/confirm:
     post: { tags: [Delivery], summary: Customer scans delivery token → completed, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
 
+  # Same driver pool, same loop, mirrored for prescription delivery.
+  /delivery/available-prescriptions:
+    get: { tags: [Delivery], summary: Delivery prescriptions open to take (ready, unassigned), responses: { '200': { description: OK } } }
+  /delivery/prescriptions/{prescription}/accept:
+    post: { tags: [Delivery], summary: Take a delivery prescription, parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } } }
+  /delivery/prescriptions/{prescription}/pickup-token:
+    post: { tags: [Delivery], summary: Pharmacy issues the pickup QR token (stage 1), parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /delivery/prescriptions/pickup/{token}/confirm:
+    post: { tags: [Delivery], summary: Driver scans pickup token → picked_up, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+  /delivery/prescriptions/{prescription}/delivery-token:
+    post: { tags: [Delivery], summary: Driver issues the delivery QR token (stage 2), parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /delivery/prescriptions/deliver/{token}/confirm:
+    post: { tags: [Delivery], summary: Patient scans delivery token → dispensed, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+
   # ─────────────────────────── Tables ───────────────────────────
   /table/{token}/scan:
     post:

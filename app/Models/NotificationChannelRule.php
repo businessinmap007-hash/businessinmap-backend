@@ -101,6 +101,8 @@ class NotificationChannelRule extends Model
             'prescription_ready' => ['دواؤك جاهز', 'Your medicine is ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             // The pharmacy priced the prescription — the patient can see the invoice.
             'prescription_priced' => ['فاتورة دوائك جاهزة', 'Your medicine invoice is ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            // A driver delivered the prescription — tells the pharmacy (→ pharmacy).
+            'prescription_delivered' => ['تم تسليم الوصفة', 'Prescription delivered', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
 
             // Training: a coach assigns/updates a client's plan (→ the client).
             'training_plan_assigned' => ['خطة تدريب جديدة', 'New training plan', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],

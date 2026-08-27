@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwnedImages;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Prescription extends Model
 {
+    use HasOwnedImages;
+
+    /** A scan of the original paper prescription, or a doctor's supporting note. */
+    public const MAX_IMAGES = 5;
+
     public const STATUS_ISSUED = 'issued';
     public const STATUS_SENT = 'sent_to_pharmacy';
     public const STATUS_PREPARING = 'preparing';

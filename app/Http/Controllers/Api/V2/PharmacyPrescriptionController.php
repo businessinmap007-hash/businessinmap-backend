@@ -113,6 +113,7 @@ class PharmacyPrescriptionController extends Controller
             'patient' => $p->patient ? ['id' => (int) $p->patient->id, 'name' => $p->patient->name] : ['id' => (int) $p->patient_id],
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),
+            'images' => $p->imagePayload(),
             'items' => $p->relationLoaded('items')
                 ? $p->items->map(fn ($i) => [
                     'id' => (int) $i->id,

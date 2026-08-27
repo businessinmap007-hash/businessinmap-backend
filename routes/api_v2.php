@@ -382,6 +382,8 @@ Route::prefix('v2')->group(function () {
         Route::post('prescriptions/{prescription}/share', [PrescriptionController::class, 'share'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/images', [PrescriptionController::class, 'storeImage'])->whereNumber('prescription');
+        Route::delete('prescriptions/{prescription}/images/{image}', [PrescriptionController::class, 'destroyImage'])->whereNumber(['prescription', 'image']);
 
         // Shared medicine dictionary: doctors search + add (name + strength).
         Route::get('medicines', [MedicineController::class, 'index']);

@@ -3754,6 +3754,30 @@ paths:
       description: Turns each medicine's structured dosage into agenda medication reminders, timed off the patient's meal times. Re-running rebuilds the schedule.
       parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: 'Scheduled (returns reminders count)' }, '404': { description: 'Not yours' } }
+  /prescriptions/{prescription}/images:
+    post:
+      tags: [Prescriptions]
+      summary: Attach a scan of the paper prescription (doctor or patient only)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+                source: { type: string, enum: [camera, upload] }
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /prescriptions/{prescription}/images/{image}:
+    delete:
+      tags: [Prescriptions]
+      summary: Remove a prescription photo (doctor or patient only)
+      parameters:
+        - { name: prescription, in: path, required: true, schema: { type: integer } }
+        - { name: image, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /agenda:
     get:
       tags: [Agenda]

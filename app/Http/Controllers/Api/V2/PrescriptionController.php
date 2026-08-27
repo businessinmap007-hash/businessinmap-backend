@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
+use App\Models\Image;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Models\User;
 use App\Services\Agenda\MedicationScheduleService;
+use App\Services\Media\ImageUploadService;
 use App\Services\Prescriptions\PrescriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -171,6 +173,52 @@ class PrescriptionController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/v2/prescriptions/{prescription}/images — a scan of the
+     * original paper prescription, or a doctor's supporting note. Only the
+     * doctor or the patient may add one (whoever holds the physical paper) —
+     * not the pharmacy, not a shared-in second doctor.
+     */
+    public function storeImage(Request $request, int $prescription)
+    {
+        $row = $this->issuingPartyOrFail($request, $prescription);
+
+        $request->validate([
+            'image' => array_merge(['required'], ImageUploadService::validationRules()),
+            'source' => ['nullable', 'string', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
+        ]);
+
+        if ($row->images()->count() >= Prescription::MAX_IMAGES) {
+            return response()->json([
+                'success' => false,
+                'message' => __('الحد الأقصى :max صور لكل وصفة.', ['max' => Prescription::MAX_IMAGES]),
+            ], 422);
+        }
+
+        $image = $row->images()->create([
+            'image' => app(ImageUploadService::class)->store($request->file('image')),
+            'source' => $request->input('source', Image::SOURCE_UPLOAD),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إضافة الصورة.'),
+            'data' => ['image' => ['id' => (int) $image->id, 'image' => $image->image]],
+        ], 201);
+    }
+
+    /** DELETE /api/v2/prescriptions/{prescription}/images/{image} */
+    public function destroyImage(Request $request, int $prescription, int $image)
+    {
+        $row = $this->issuingPartyOrFail($request, $prescription);
+        $img = $row->images()->findOrFail($image);
+
+        app(ImageUploadService::class)->delete($img->image);
+        $img->delete();
+
+        return response()->json(['success' => true, 'message' => __('تم حذف الصورة.')]);
+    }
+
     /** POST /api/v2/prescriptions/{prescription}/cancel — doctor or patient. */
     public function cancel(Request $request, int $prescription)
     {
@@ -286,6 +334,17 @@ class PrescriptionController extends Controller
         return $row;
     }
 
+    /** Whoever holds the physical paper — the doctor who wrote it or the patient. Not the pharmacy, not a shared-in doctor. */
+    private function issuingPartyOrFail(Request $request, int $id): Prescription
+    {
+        $row = Prescription::query()->findOrFail($id);
+        $uid = (int) $request->user()->id;
+
+        abort_if($uid !== (int) $row->doctor_id && $uid !== (int) $row->patient_id, 404);
+
+        return $row;
+    }
+
     private function serialize(Prescription $p): array
     {
         return [
@@ -301,6 +360,7 @@ class PrescriptionController extends Controller
             'delivery_address' => $p->delivery_address,
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),
+            'images' => $p->imagePayload(),
             'doctor' => $this->party($p->doctor, $p->doctor_id),
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,

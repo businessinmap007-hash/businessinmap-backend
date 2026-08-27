@@ -2762,5 +2762,8 @@
     "الوصفة غير جاهزة لتسليمها للموصّل.": "The prescription is not ready to be handed to the driver.",
     "هذه الوصفة غير مُسندة إليك.": "This prescription is not assigned to you.",
     "لم يتم استلام الوصفة من الصيدلية بعد.": "The prescription has not been picked up from the pharmacy yet.",
-    "هذه الوصفة ليست لك.": "This prescription is not yours."
+    "هذه الوصفة ليست لك.": "This prescription is not yours.",
+    "الحد الأقصى :max صور لكل وصفة.": "A maximum of :max photos per prescription.",
+    "تم إضافة الصورة.": "Photo added.",
+    "تم حذف الصورة.": "Photo deleted."
 }

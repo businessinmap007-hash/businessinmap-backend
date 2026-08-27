@@ -176,6 +176,31 @@ class MenuMarketCatalogTest extends TestCase
         $this->assertFalse((bool) $item->fresh()->is_active);
     }
 
+    /** «سعر التوريد ومهامش الربح مش واضحين كفاية» — المالك، 2026-08-27. */
+    public function test_the_screen_explains_supply_price_and_the_configured_margin(): void
+    {
+        $business = $this->marketBusiness(272);
+
+        BusinessMenuSetting::updateOrCreate(['business_id' => $business->id], ['default_margin_percent' => 15]);
+
+        $this->actingAs($business)
+            ->get(route('business.menu.catalog.index'))
+            ->assertOk()
+            ->assertSee('15')
+            ->assertSee(number_format(115, 2));
+    }
+
+    public function test_the_screen_points_to_settings_when_no_margin_is_configured(): void
+    {
+        $business = $this->marketBusiness(272);
+        BusinessMenuSetting::query()->where('business_id', $business->id)->delete();
+
+        $this->actingAs($business)
+            ->get(route('business.menu.catalog.index'))
+            ->assertOk()
+            ->assertSee(route('business.menu-settings.edit', [], false));
+    }
+
     /** «هامش ربح افتراضى فوق السعر الإرشادى» — المالك، 2026-08-25. */
     public function test_a_blank_price_with_supply_price_and_a_default_margin_is_computed_automatically(): void
     {

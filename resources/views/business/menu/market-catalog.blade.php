@@ -20,6 +20,25 @@
     <div class="a2-alert a2-alert-success">{{ session('success') }}</div>
 @endif
 
+<div class="a2-alert a2-alert-info a2-mb-16">
+    <div><strong>{{ __('سعر التوريد') }}</strong> — {{ __('تكلفة الصنف عليك (اختياري، لا يظهر للعميل أبدًا).') }}</div>
+    <div><strong>{{ __('سعر البيع') }}</strong> — {{ __('السعر الذي يراه العميل.') }}</div>
+    @if($defaultMargin !== null)
+        <div class="a2-mt-8">
+            {{ __('هامش ربحك الافتراضي حاليًا :margin%. اكتب سعر التوريد واترك سعر البيع فارغًا ليُحسَب تلقائيًا (مثال: توريد 100 ⇐ بيع :example).', [
+                'margin' => rtrim(rtrim(number_format((float) $defaultMargin, 2), '0'), '.'),
+                'example' => number_format(100 * (1 + (float) $defaultMargin / 100), 2),
+            ]) }}
+        </div>
+    @else
+        <div class="a2-mt-8">
+            {{ __('لم تحدد هامش ربح افتراضي بعد، فسعر التوريد وحده لا يكفي لتسعير الصنف — إما اكتب سعر البيع بنفسك، أو') }}
+            <a href="{{ route('business.menu-settings.edit') }}">{{ __('اضبط هامشًا افتراضيًا من الإعدادات') }}</a>.
+        </div>
+    @endif
+    <div class="a2-mt-8 a2-muted">{{ __('صفٌّ بلا سعر بيع (ولا هامش يحسبه) يبقى كما هو — لا يُنشأ ولا يُحذف.') }}</div>
+</div>
+
 @if($errors->any())
     <div class="a2-alert a2-alert-danger">
         @foreach($errors->all() as $error)

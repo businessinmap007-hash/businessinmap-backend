@@ -193,6 +193,45 @@ class PrescriptionFlowTest extends TestCase
         ]);
     }
 
+    /** «حالة المريض» و«مدة العلاج كام يوم او اسبوع او شهر» — المالك، 2026-08-27. */
+    public function test_patient_condition_and_a_week_long_duration_are_recorded(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $medicine = $this->medicine('Amoxicillin');
+
+        Sanctum::actingAs($doctor);
+        $res = $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'diagnosis' => 'Sinusitis',
+            'patient_condition' => 'حرارة مرتفعة وإجهاد عام',
+            'items' => [[
+                'medicine_id' => $medicine->id,
+                'duration_value' => 2,
+                'duration_unit' => 'weeks',
+            ]],
+        ])->assertCreated();
+
+        $this->assertSame('حرارة مرتفعة وإجهاد عام', $res->json('data.prescription.patient_condition'));
+        $this->assertSame(2, $res->json('data.prescription.items.0.duration_value'));
+        $this->assertSame('weeks', $res->json('data.prescription.items.0.duration_unit'));
+        // The scheduler still only ever reads a plain day count.
+        $this->assertSame(14, $res->json('data.prescription.items.0.duration_days'));
+    }
+
+    public function test_duration_value_and_unit_must_be_given_together(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $medicine = $this->medicine('Amoxicillin');
+
+        Sanctum::actingAs($doctor);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['medicine_id' => $medicine->id, 'duration_value' => 2]],
+        ])->assertStatus(422)->assertJsonValidationErrors('items.0.duration_unit');
+    }
+
     public function test_a_client_cannot_issue_a_prescription(): void
     {
         $notADoctor = $this->user(User::TYPE_CLIENT, 'Client');

@@ -33,6 +33,7 @@ class PrescriptionController extends Controller
             'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $doctor->id],
             'appointment_id' => ['nullable', 'integer', 'exists:clinic_appointments,id'],
             'diagnosis' => ['nullable', 'string', 'max:255'],
+            'patient_condition' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             // A prescription line names a real, dictionary-verified drug — never
@@ -48,7 +49,11 @@ class PrescriptionController extends Controller
             'items.*.food_timing' => ['nullable', Rule::in(PrescriptionItem::FOOD_TIMINGS)],
             'items.*.time_slots' => ['nullable', 'array'],
             'items.*.time_slots.*' => [Rule::in(PrescriptionItem::SLOTS)],
-            'items.*.duration_days' => ['nullable', 'integer', 'min:1', 'max:30'],
+            // "كام يوم او اسبوع او شهر" — the doctor states a number + unit;
+            // duration_days (always in days, what the reminder scheduler
+            // reads) is derived from it, never taken directly.
+            'items.*.duration_value' => ['nullable', 'integer', 'min:1', 'max:60', 'required_with:items.*.duration_unit'],
+            'items.*.duration_unit' => ['nullable', Rule::in(array_keys(PrescriptionItem::DURATION_UNIT_DAYS)), 'required_with:items.*.duration_value'],
         ]);
 
         $patient = User::query()->findOrFail((int) $data['patient_id']);
@@ -67,6 +72,7 @@ class PrescriptionController extends Controller
         $prescription = $this->service->issue($doctor, $patient, [
             'appointment_id' => $data['appointment_id'] ?? null,
             'diagnosis' => $data['diagnosis'] ?? null,
+            'patient_condition' => $data['patient_condition'] ?? null,
             'notes' => $data['notes'] ?? null,
         ], $data['items']);
 
@@ -215,6 +221,7 @@ class PrescriptionController extends Controller
             'appointment_id' => $p->appointment_id ? (int) $p->appointment_id : null,
             'fulfillment_type' => $p->fulfillment_type,
             'diagnosis' => $p->diagnosis,
+            'patient_condition' => $p->patient_condition,
             'notes' => $p->notes,
             'delivery_address' => $p->delivery_address,
             'doctor' => $this->party($p->doctor, $p->doctor_id),
@@ -232,6 +239,8 @@ class PrescriptionController extends Controller
                     'food_timing' => $i->food_timing,
                     'time_slots' => $i->time_slots,
                     'duration_days' => $i->duration_days,
+                    'duration_value' => $i->duration_value,
+                    'duration_unit' => $i->duration_unit,
                 ])->all()
                 : [],
             'issued_at' => optional($p->issued_at)->toIso8601String(),

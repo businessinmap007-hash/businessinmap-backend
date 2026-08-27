@@ -4,6 +4,7 @@ namespace App\Services\Prescriptions;
 
 use App\Models\Medicine;
 use App\Models\Prescription;
+use App\Models\PrescriptionItem;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,7 @@ class PrescriptionService
                 'appointment_id' => isset($header['appointment_id']) ? (int) $header['appointment_id'] : null,
                 'status' => Prescription::STATUS_ISSUED,
                 'diagnosis' => $header['diagnosis'] ?? null,
+                'patient_condition' => $header['patient_condition'] ?? null,
                 'notes' => $header['notes'] ?? null,
                 'issued_at' => now(),
             ]);
@@ -46,6 +48,16 @@ class PrescriptionService
                 // brand — see MedicineController::serialize).
                 $medicine = Medicine::query()->findOrFail((int) $item['medicine_id']);
 
+                // "٢ أسبوع" ⇒ duration_value=2, duration_unit=weeks,
+                // duration_days=14 — the scheduler only ever reads the days
+                // total, so it needs no change; these two are display/input
+                // only.
+                $durationUnit = $item['duration_unit'] ?? null;
+                $durationValue = isset($item['duration_value']) ? (int) $item['duration_value'] : null;
+                $durationDays = ($durationUnit && $durationValue)
+                    ? $durationValue * PrescriptionItem::DURATION_UNIT_DAYS[$durationUnit]
+                    : null;
+
                 $prescription->items()->create([
                     'medicine_id' => $medicine->id,
                     'name' => $medicine->name,
@@ -55,7 +67,9 @@ class PrescriptionService
                     'frequency_per_day' => $item['frequency_per_day'] ?? null,
                     'food_timing' => $item['food_timing'] ?? null,
                     'time_slots' => $item['time_slots'] ?? null,
-                    'duration_days' => $item['duration_days'] ?? null,
+                    'duration_days' => $durationDays,
+                    'duration_unit' => $durationUnit,
+                    'duration_value' => $durationValue,
                 ]);
 
                 $medicine->increment('uses_count');

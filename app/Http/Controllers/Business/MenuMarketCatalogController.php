@@ -73,6 +73,9 @@ class MenuMarketCatalogController extends Controller
         return view('business.menu.market-catalog', [
             'groups' => $this->groups(),
             'saleUnits' => SaleUnits::options(),
+            'defaultMargin' => BusinessMenuSetting::query()
+                ->where('business_id', $this->businessId())
+                ->value('default_margin_percent'),
         ]);
     }
 

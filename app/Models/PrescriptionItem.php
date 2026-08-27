@@ -18,6 +18,8 @@ class PrescriptionItem extends Model
         'food_timing',
         'time_slots',
         'duration_days',
+        'duration_unit',
+        'duration_value',
     ];
 
     protected $casts = [
@@ -25,10 +27,14 @@ class PrescriptionItem extends Model
         'frequency_per_day' => 'integer',
         'time_slots' => 'array',
         'duration_days' => 'integer',
+        'duration_value' => 'integer',
     ];
 
     public const FOOD_TIMINGS = ['before', 'with', 'after'];
     public const SLOTS = ['breakfast', 'lunch', 'dinner', 'morning', 'evening'];
+
+    /** How many days one unit of duration actually is — the scheduler only ever reads duration_days. */
+    public const DURATION_UNIT_DAYS = ['days' => 1, 'weeks' => 7, 'months' => 30];
 
     public function prescription(): BelongsTo
     {

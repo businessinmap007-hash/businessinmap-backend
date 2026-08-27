@@ -266,7 +266,7 @@ class AgendaFlowTest extends TestCase
             'items' => [[
                 'medicine_id' => Medicine::create(['name' => 'Antibiotic'])->id, 'dosage' => '250mg',
                 'frequency_per_day' => 1, 'food_timing' => 'after',
-                'time_slots' => ['dinner'], 'duration_days' => 3,
+                'time_slots' => ['dinner'], 'duration_value' => 3, 'duration_unit' => 'days',
             ]],
         ])->assertCreated()->json('data.prescription.id');
 

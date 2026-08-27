@@ -32,6 +32,7 @@ class Prescription extends Model
         'status',
         'fulfillment_type',
         'diagnosis',
+        'patient_condition',
         'notes',
         'delivery_address',
         'issued_at',

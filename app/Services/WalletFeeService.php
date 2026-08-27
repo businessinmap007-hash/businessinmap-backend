@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BusinessFinancialLedger;
 use App\Models\CategoryChildServiceFee;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceFeePromotion;
@@ -25,7 +26,8 @@ class WalletFeeService
     public const DEFAULT_FEE_CODE = CategoryChildServiceFee::DEFAULT_FEE_CODE;
 
     public function __construct(
-        protected PlatformTreasuryService $treasury
+        protected PlatformTreasuryService $treasury,
+        protected FinancialLedgerService $ledger,
     ) {}
 
     public function resolveBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
@@ -418,6 +420,12 @@ class WalletFeeService
             idempotencyKey: $idempotencyKey.':treasury',
             meta: ['booking_id' => (int) $booking->id, 'fee_code' => $feeCode, 'payer' => $payer]
         );
+
+        // صادرٌ على النشاط فقط حين يكون هو مَن دُفع منه — العميل قد يدفع نفس
+        // نوع الرسم فى سطرٍ آخر، وذاك ليس تكلفةً على النشاط.
+        if ($userId === (int) $booking->business_id) {
+            $this->ledger->recordFee($userId, BusinessFinancialLedger::SOURCE_BOOKING, $amount);
+        }
 
         return $transaction;
     }

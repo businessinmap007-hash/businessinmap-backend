@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Agenda\AgendaService;
 use App\Services\BookingReminderService;
 use App\Services\BookingShapeResolver;
+use App\Services\FinancialLedgerService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
@@ -28,7 +29,8 @@ final class BookingController extends Controller
         protected BookingReminderService $bookingReminderService,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
         protected AgendaService $agenda,
-        protected BookingShapeResolver $bookingShapes
+        protected BookingShapeResolver $bookingShapes,
+        protected FinancialLedgerService $ledger
     ) {
     }
 
@@ -475,8 +477,10 @@ final class BookingController extends Controller
             message: 'Booking completed successfully.'
         );
 
-        $this->bookingGuaranteeIntegration->recordCompleted($booking->refresh());
+        $booking->refresh();
+        $this->bookingGuaranteeIntegration->recordCompleted($booking);
         $this->bookingReminderService->cancelForBooking($booking);
+        $this->ledger->recordSale((int) $booking->business_id, \App\Models\BusinessFinancialLedger::SOURCE_BOOKING, $booking->finalPriceAmount(), 0.0);
 
         return $response;
     }

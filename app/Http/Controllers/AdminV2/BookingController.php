@@ -13,6 +13,7 @@ use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\BookingDepositService;
 use App\Services\BookingReminderService;
+use App\Services\FinancialLedgerService;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
 use App\Models\PlatformServiceItemType;
@@ -33,7 +34,8 @@ class BookingController extends Controller
         protected ServiceExecutionEngine $serviceExecutionEngine,
         protected ServiceEventDispatcher $serviceEventDispatcher,
         protected BookingReminderService $bookingReminderService,
-        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration
+        protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
+        protected FinancialLedgerService $ledger
     ) {
     }
 
@@ -1011,6 +1013,7 @@ class BookingController extends Controller
             // guarantee coverage. Idempotent + safe when a deposit release
             // already returned it.
             $this->bookingDepositService->releaseGuarantees($booking);
+            $this->ledger->recordSale((int) $booking->business_id, \App\Models\BusinessFinancialLedger::SOURCE_BOOKING, $booking->finalPriceAmount(), 0.0);
 
             $this->serviceEventDispatcher->bookingCompleted(
                 booking: $booking,

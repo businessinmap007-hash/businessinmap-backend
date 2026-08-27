@@ -93,6 +93,7 @@
             // أن يكون له طلبٌ أو موظّف.
             ['label' => 'ملف النشاط', 'route' => 'business.profile.edit', 'active' => ['business.profile.']],
             ['label' => 'الطلبات', 'route' => 'business.orders.index', 'gate' => 'orders', 'active' => ['business.orders.']],
+            ['label' => 'كشف الحساب', 'route' => 'business.financial-statement.index', 'gate' => 'financial-statement', 'active' => ['business.financial-statement.']],
             ['label' => 'الموظفون', 'route' => 'business.staff.index', 'active' => ['business.staff.']],
             ['label' => 'شارك متجرك', 'route' => 'business.share-store', 'active' => ['business.share-store']],
         ]],

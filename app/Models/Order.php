@@ -143,4 +143,17 @@ class Order extends Model
         return (bool) $this->is_shared;
     }
 
+    /**
+     * الكشف المالى يحتاج مصدرًا واحدًا للطلب — منيو أو تجزئة — لا خلطًا.
+     * أول سطرٍ يقرّر: عربات المنيو والتجزئة منفصلتان أصلًا فى بنية السلة.
+     */
+    public function ledgerSource(): string
+    {
+        $item = $this->items()->first();
+
+        return $item && (string) $item->offering_type === BusinessCatalogListing::class
+            ? BusinessFinancialLedger::SOURCE_RETAIL
+            : BusinessFinancialLedger::SOURCE_MENU;
+    }
+
 }

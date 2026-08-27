@@ -8,6 +8,7 @@ use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
+use App\Http\Controllers\Business\FinancialStatementController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuMarketCatalogController;
@@ -50,6 +51,8 @@ Route::prefix('business')->name('business.')->group(function () {
 
     Route::middleware(['business.panel'])->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('financial-statement', [FinancialStatementController::class, 'index'])->name('financial-statement.index');
 
         Route::get('offerings', [OfferingController::class, 'index'])->name('offerings.index');
         // The owner's own sequence: which offering leads his list.

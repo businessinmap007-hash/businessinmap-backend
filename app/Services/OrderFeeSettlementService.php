@@ -27,7 +27,10 @@ class OrderFeeSettlementService
 {
     public const REFERENCE_TYPE = 'order';
 
-    public function __construct(private readonly PlatformTreasuryService $treasury) {}
+    public function __construct(
+        private readonly PlatformTreasuryService $treasury,
+        private readonly FinancialLedgerService $ledger,
+    ) {}
 
     /**
      * Settle the order's platform service fee against the business wallet.
@@ -117,6 +120,10 @@ class OrderFeeSettlementService
                 idempotencyKey: $idempotencyKey.':treasury',
                 meta: ['order_id' => (int) $order->id, 'fee_code' => 'menu_service', 'payer' => 'business']
             );
+
+            // رسوم المنصة دائمًا على النشاط هنا — العملاء لا يُخصم منهم هذا الرسم
+            // (راجع تعليق الكلاس)، فهى صادرٌ على النشاط فى كل الأحوال.
+            $this->ledger->recordFee($businessId, $order->ledgerSource(), $fee);
 
             return $transaction;
         });

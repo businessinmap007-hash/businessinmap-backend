@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\BusinessCatalogListing;
+use App\Models\BusinessFinancialLedger;
+use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\RatingOutcomeEvent;
 use App\Services\Ratings\RatingService;
@@ -22,6 +25,7 @@ class OrderHandoverService
 
     public function __construct(
         protected RatingService $ratingService,
+        protected FinancialLedgerService $ledger,
     ) {
     }
 
@@ -73,6 +77,8 @@ class OrderHandoverService
             $order->handover_token = null; // consume — one-use
             $order->save();
 
+            $this->recordSaleToLedger($order);
+
             return $order;
         });
 
@@ -94,5 +100,42 @@ class OrderHandoverService
         if ((int) $order->business_id !== $userId && (int) $order->user_id !== $userId) {
             abort(403, __('لست طرفاً في هذا الطلب.'));
         }
+    }
+
+    /**
+     * الوارد = ما دفعه العميل، الصادر (تكلفة البضاعة) = سعر توريد كل سطر ×
+     * كميته — من `MenuItem.supply_price` أو `BusinessCatalogListing.cost_price`،
+     * أيهما ما ينطبق على السطر. صفٌّ بلا سعر توريد يُحسب تكلفته صفرًا، لا يمنع
+     * تسجيل البيع.
+     */
+    private function recordSaleToLedger(Order $order): void
+    {
+        $businessId = (int) $order->business_id;
+
+        if ($businessId <= 0) {
+            return;
+        }
+
+        $costOfGoods = 0.0;
+        $source = $order->ledgerSource();
+
+        foreach ($order->items()->get() as $item) {
+            $qty = (int) ($item->qty ?: 1);
+
+            if ((string) $item->offering_type === BusinessCatalogListing::class) {
+                $listing = BusinessCatalogListing::find($item->offering_id);
+                if ($listing && $listing->cost_price !== null) {
+                    $costOfGoods += (float) $listing->cost_price * $qty;
+                }
+                continue;
+            }
+
+            $menuItem = MenuItem::find($item->offering_id ?: $item->menu_id);
+            if ($menuItem && $menuItem->supply_price !== null) {
+                $costOfGoods += (float) $menuItem->supply_price * $qty;
+            }
+        }
+
+        $this->ledger->recordSale($businessId, $source, $order->foodTotal(), $costOfGoods);
     }
 }

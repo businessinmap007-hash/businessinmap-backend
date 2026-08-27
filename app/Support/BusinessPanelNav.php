@@ -46,6 +46,8 @@ class BusinessPanelNav
      */
     private const GATED_ANY = [
         'orders' => ['menu', 'delivery', 'retail'],
+        // كشف الحساب يخص أى نشاطٍ يبيع من أى خدمة — لا خدمةٌ بعينها.
+        'financial-statement' => ['menu', 'delivery', 'retail', PlatformService::KEY_BOOKING],
     ];
 
     /**

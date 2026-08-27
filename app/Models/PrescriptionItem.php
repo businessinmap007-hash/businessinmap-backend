@@ -9,6 +9,7 @@ class PrescriptionItem extends Model
 {
     protected $fillable = [
         'prescription_id',
+        'medicine_id',
         'name',
         'dosage',
         'quantity',
@@ -20,6 +21,7 @@ class PrescriptionItem extends Model
     ];
 
     protected $casts = [
+        'medicine_id' => 'integer',
         'frequency_per_day' => 'integer',
         'time_slots' => 'array',
         'duration_days' => 'integer',
@@ -31,5 +33,15 @@ class PrescriptionItem extends Model
     public function prescription(): BelongsTo
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    /**
+     * The real, dictionary-verified drug this line names — required for every
+     * NEW prescription (see PrescriptionController::store); nullable only
+     * because older rows were free-text `name` before this existed.
+     */
+    public function medicine(): BelongsTo
+    {
+        return $this->belongsTo(Medicine::class);
     }
 }

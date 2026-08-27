@@ -40,8 +40,15 @@ class PrescriptionService
             ]);
 
             foreach ($items as $item) {
+                // The dictionary row is the one source of truth for the name
+                // printed on the prescription — never the client's own text,
+                // and never `name_ar` (a phonetic alias, not a registered
+                // brand — see MedicineController::serialize).
+                $medicine = Medicine::query()->findOrFail((int) $item['medicine_id']);
+
                 $prescription->items()->create([
-                    'name' => $item['name'],
+                    'medicine_id' => $medicine->id,
+                    'name' => $medicine->name,
                     'dosage' => $item['dosage'] ?? null,
                     'quantity' => $item['quantity'] ?? null,
                     'instructions' => $item['instructions'] ?? null,
@@ -51,9 +58,7 @@ class PrescriptionService
                     'duration_days' => $item['duration_days'] ?? null,
                 ]);
 
-                // Grow the shared dictionary from what doctors actually write, so
-                // the next doctor sees this drug in their picker (name + strength).
-                Medicine::remember((string) $item['name'], $item['dosage'] ?? null, (int) $doctor->id);
+                $medicine->increment('uses_count');
             }
 
             $this->notify('prescription_issued', (int) $patient->id, $prescription,

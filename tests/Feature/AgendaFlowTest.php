@@ -7,6 +7,7 @@ use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\MealSchedule;
+use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\ReminderPreference;
 use App\Models\User;
@@ -263,7 +264,7 @@ class AgendaFlowTest extends TestCase
         $rxId = $this->postJson('/api/v2/prescriptions', [
             'patient_id' => $patient->id,
             'items' => [[
-                'name' => 'Antibiotic', 'dosage' => '250mg',
+                'medicine_id' => Medicine::create(['name' => 'Antibiotic'])->id, 'dosage' => '250mg',
                 'frequency_per_day' => 1, 'food_timing' => 'after',
                 'time_slots' => ['dinner'], 'duration_days' => 3,
             ]],

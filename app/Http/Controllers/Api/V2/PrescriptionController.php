@@ -35,7 +35,11 @@ class PrescriptionController extends Controller
             'diagnosis' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
-            'items.*.name' => ['required', 'string', 'max:200'],
+            // A prescription line names a real, dictionary-verified drug — never
+            // free text, so a typo can never become what the patient buys.
+            // Missing the drug in the dictionary? MedicineController::store adds
+            // it as its own explicit step first, never silently mid-prescription.
+            'items.*.medicine_id' => ['required', 'integer', 'exists:medicines,id'],
             'items.*.dosage' => ['nullable', 'string', 'max:120'],
             'items.*.quantity' => ['nullable', 'string', 'max:120'],
             'items.*.instructions' => ['nullable', 'string', 'max:255'],
@@ -219,6 +223,7 @@ class PrescriptionController extends Controller
             'items' => $p->relationLoaded('items')
                 ? $p->items->map(fn ($i) => [
                     'id' => (int) $i->id,
+                    'medicine_id' => $i->medicine_id ? (int) $i->medicine_id : null,
                     'name' => $i->name,
                     'dosage' => $i->dosage,
                     'quantity' => $i->quantity,

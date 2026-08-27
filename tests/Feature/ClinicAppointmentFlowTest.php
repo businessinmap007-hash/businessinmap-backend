@@ -6,6 +6,7 @@ use App\Models\AppNotification;
 use App\Models\BusinessStaff;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
+use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Services\Clinics\ClinicAppointmentService;
@@ -283,7 +284,7 @@ class ClinicAppointmentFlowTest extends TestCase
         $rxId = $this->postJson('/api/v2/prescriptions', [
             'patient_id' => $patient->id,
             'appointment_id' => $appointment->id,
-            'items' => [['name' => 'Paracetamol', 'dosage' => '500mg']],
+            'items' => [['medicine_id' => Medicine::create(['name' => 'Paracetamol'])->id, 'dosage' => '500mg']],
         ])->assertCreated()->assertJsonPath('data.prescription.appointment_id', $appointment->id)
             ->json('data.prescription.id');
 
@@ -309,7 +310,7 @@ class ClinicAppointmentFlowTest extends TestCase
         $this->postJson('/api/v2/prescriptions', [
             'patient_id' => $patient->id,
             'appointment_id' => $appointment->id,
-            'items' => [['name' => 'Paracetamol']],
+            'items' => [['medicine_id' => Medicine::create(['name' => 'Paracetamol'])->id]],
         ])->assertStatus(422);
 
         $this->assertDatabaseMissing('prescriptions', ['appointment_id' => $appointment->id]);

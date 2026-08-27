@@ -49,20 +49,44 @@ class MedicineDictionaryTest extends TestCase
             ->assertJsonPath('data.0.name', $name);
     }
 
-    public function test_writing_a_prescription_captures_its_drugs(): void
+    /**
+     * Reversed 2026-08-27 («يجب ان يختار من الاصناف حتى تكون نسبة الخطأ
+     * صفر»): a prescription used to grow the dictionary from whatever the
+     * doctor typed, so a typo became a real, selectable drug for the next
+     * doctor. Now a line must name an EXISTING dictionary row — writing a
+     * prescription only counts a use, it never creates one.
+     */
+    public function test_writing_a_prescription_counts_a_use_but_never_creates_a_drug(): void
     {
         $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
         $patient = $this->user(User::TYPE_CLIENT, 'Patient');
-        $name = 'Brufen' . Str::random(4);
+        $medicine = Medicine::create(['name' => 'Brufen' . Str::random(4)]);
+        $before = Medicine::query()->count();
+
+        Sanctum::actingAs($doctor);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['medicine_id' => $medicine->id, 'dosage' => '400mg']],
+        ])->assertCreated();
+
+        $this->assertSame(1, (int) $medicine->fresh()->uses_count);
+        $this->assertSame($before, Medicine::query()->count(), 'issuing a prescription must never create a new dictionary row');
+    }
+
+    /** A name that never went through MedicineController::store first cannot be prescribed. */
+    public function test_a_drug_never_added_to_the_dictionary_cannot_be_prescribed(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $name = 'NeverAdded' . Str::random(6);
 
         Sanctum::actingAs($doctor);
         $this->postJson('/api/v2/prescriptions', [
             'patient_id' => $patient->id,
             'items' => [['name' => $name, 'dosage' => '400mg']],
-        ])->assertCreated();
+        ])->assertStatus(422)->assertJsonValidationErrors('items.0.medicine_id');
 
-        // The written drug is now in the shared dictionary.
-        $this->assertDatabaseHas('medicines', ['name' => $name, 'strength' => '400mg']);
+        $this->assertDatabaseMissing('medicines', ['name' => $name]);
     }
 
     public function test_the_same_drug_is_not_duplicated_and_counts_uses(): void

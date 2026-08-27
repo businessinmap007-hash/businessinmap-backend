@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AppNotification;
+use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -34,16 +35,24 @@ class PrescriptionFlowTest extends TestCase
         return $u;
     }
 
+    private function medicine(string $name): Medicine
+    {
+        return Medicine::create(['name' => $name . ' ' . Str::random(4)]);
+    }
+
     private function issue(User $doctor, User $patient): int
     {
         Sanctum::actingAs($doctor);
+
+        $paracetamol = $this->medicine('Paracetamol');
+        $vitaminC = $this->medicine('Vitamin C');
 
         return $this->postJson('/api/v2/prescriptions', [
             'patient_id' => $patient->id,
             'diagnosis' => 'Seasonal flu',
             'items' => [
-                ['name' => 'Paracetamol', 'dosage' => '500mg', 'quantity' => '2 boxes', 'instructions' => 'After meals, 3x daily'],
-                ['name' => 'Vitamin C', 'dosage' => '1000mg', 'quantity' => '1 box'],
+                ['medicine_id' => $paracetamol->id, 'dosage' => '500mg', 'quantity' => '2 boxes', 'instructions' => 'After meals, 3x daily'],
+                ['medicine_id' => $vitaminC->id, 'dosage' => '1000mg', 'quantity' => '1 box'],
             ],
         ])->assertCreated()
             ->assertJsonPath('data.prescription.status', 'issued')
@@ -139,6 +148,49 @@ class PrescriptionFlowTest extends TestCase
         // A different pharmacy the script was not sent to cannot touch it.
         Sanctum::actingAs($other);
         $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/prepare")->assertNotFound();
+    }
+
+    /** «يجب ان يختار من الاصناف حتى تكون نسبة الخطأ صفر» — المالك، 2026-08-27. */
+    public function test_a_prescription_line_must_name_a_real_dictionary_drug(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        Sanctum::actingAs($doctor);
+
+        // Free-typed text is no longer an accepted line at all.
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['name' => 'Some Drug I Typed']],
+        ])->assertStatus(422)->assertJsonValidationErrors('items.0.medicine_id');
+
+        // Neither is a medicine_id that does not exist in the dictionary.
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['medicine_id' => 999999999]],
+        ])->assertStatus(422)->assertJsonValidationErrors('items.0.medicine_id');
+    }
+
+    /** The name printed on the prescription comes from the dictionary row, never client text. */
+    public function test_the_line_name_is_the_dictionary_records_own_name(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $medicine = $this->medicine('AUGMENTIN 1GM');
+
+        Sanctum::actingAs($doctor);
+        $res = $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['medicine_id' => $medicine->id, 'dosage' => '1g']],
+        ])->assertCreated();
+
+        $this->assertSame($medicine->id, $res->json('data.prescription.items.0.medicine_id'));
+        $this->assertSame($medicine->name, $res->json('data.prescription.items.0.name'));
+
+        $this->assertDatabaseHas('prescription_items', [
+            'medicine_id' => $medicine->id,
+            'name' => $medicine->name,
+        ]);
     }
 
     public function test_a_client_cannot_issue_a_prescription(): void

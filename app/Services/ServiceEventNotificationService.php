@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\AppNotification;
 use App\Models\Booking;
+use App\Models\NotificationChannelRule;
 use App\Models\ServiceEvent;
 use App\Models\User;
 use App\Notifications\ServiceEventDatabaseNotification;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Notifications\NotificationTypeService;
 use App\Support\AdminV2\ServiceEvents\ServiceEventKeys;
 use Illuminate\Support\Facades\Route;
@@ -197,11 +199,10 @@ class ServiceEventNotificationService
             return;
         }
 
-        $this->inAppNotificationService->create([
+        $data = [
             'user_id' => $userId,
             'actor_id' => $event->actor_id ?: null,
             'type' => $this->appNotificationType($event),
-            'channel' => AppNotification::CHANNEL_IN_APP,
             'priority' => $priority,
             // Only the Arabic source is built here; create() fills the English
             // side from the translations, so an English reader is no longer
@@ -228,7 +229,26 @@ class ServiceEventNotificationService
                 'occurred_at' => optional($event->occurred_at)->toDateTimeString(),
                 'payload' => $event->payload ?? [],
             ], $extra),
-        ]);
+        ];
+
+        /*
+         * Booking's event keys (`booking.*`) are registered as real
+         * NotificationChannelRule rows (2026-08-28) so they get realtime +
+         * Firebase like every other live event, not an in-app-only row
+         * forever — see the docblock on NotificationChannelRule's booking.*
+         * entries. Any OTHER service-event key (menu/delivery/wallet/dispute
+         * — none dispatch through THIS system yet, see ServiceEventKeys) has
+         * no rule registered, so it falls through to the direct write that
+         * always worked, rather than being silently dropped by the
+         * dispatcher's "no rule" no-op.
+         */
+        if (array_key_exists((string) $event->event_key, NotificationChannelRule::defaultEventKeys())) {
+            app(NotificationDispatcherService::class)->dispatch((string) $event->event_key, $userId, $data);
+
+            return;
+        }
+
+        $this->inAppNotificationService->create($data + ['channel' => AppNotification::CHANNEL_IN_APP]);
     }
 
     protected function booking(ServiceEvent $event): ?Booking

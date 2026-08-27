@@ -57,9 +57,29 @@ class NotificationChannelRule extends Model
             // an unattended call is chased.
             'table_service_requested' => ['نداء من طاولة', 'Table service request', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, true, false, 2, 'order_new'],
             'delivery_assigned' => ['قبول موصّل للطلب', 'Driver accepted delivery', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
-            'booking_created' => ['حجز جديد', 'New booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 3, 'booking_new'],
-            'booking_confirmed' => ['تأكيد حجز', 'Booking confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
-            'booking_cancelled' => ['إلغاء حجز', 'Booking cancelled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, true, 0, 'booking_cancelled'],
+            // The three generic booking_* keys above this comment used to live
+            // here but were never dispatched by anything — every real booking
+            // notification goes through ServiceEventDispatcher/ServiceEventKeys
+            // instead, with its own finer-grained `booking.*` keys (2026-08-28
+            // audit). Replaced by the real keys below so booking notifications
+            // finally get realtime + Firebase like every other live event,
+            // rather than silently staying in-app-only forever. See
+            // ServiceEventNotificationService::notifyUser().
+            'booking.requested' => ['طلب حجز جديد', 'New booking request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, true, true, 3, 'booking_new'],
+            'booking.accepted' => ['تم قبول الحجز', 'Booking accepted', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.rejected' => ['تم رفض الحجز', 'Booking rejected', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'booking_cancelled'],
+            'booking.cancelled' => ['إلغاء حجز', 'Booking cancelled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'booking_cancelled'],
+            'booking.rescheduled' => ['إعادة جدولة الحجز', 'Booking rescheduled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_new'],
+            'booking.started' => ['بدأ تنفيذ الحجز', 'Booking started', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            'booking.completed' => ['تم إنهاء الحجز', 'Booking completed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.client_confirmed' => ['تأكيد العميل', 'Client confirmed the booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.business_confirmed' => ['تأكيد مقدم الخدمة', 'Provider confirmed the booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.reminder_24h' => ['تذكير بموعد الحجز', 'Booking reminder (24h)', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_reminder'],
+            'booking.reminder_1h' => ['تذكير قريب بموعد الحجز', 'Booking reminder (1h)', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_reminder'],
+            'booking.deposit_frozen' => ['تم تجميد الضمان', 'Booking deposit frozen', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            'booking.deposit_released' => ['تم تحرير الضمان', 'Booking deposit released', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.deposit_refunded' => ['تم استرداد الضمان', 'Booking deposit refunded', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.dispute_opened' => ['نزاع على حجز', 'Dispute opened on a booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_URGENT, true, true, true, true, false, true, 2, 'warning'],
             'delivery_task_assigned' => ['مهمة دليفري جديدة', 'Delivery task assigned', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_URGENT, true, true, true, true, true, true, 1, 'delivery_new'],
             'wallet_deposit' => ['إيداع في المحفظة', 'Wallet deposit', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'wallet'],
             'wallet_withdraw' => ['خصم من المحفظة', 'Wallet withdraw', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],

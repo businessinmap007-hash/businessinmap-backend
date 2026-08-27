@@ -214,9 +214,66 @@ class PrescriptionService
         return $prescription;
     }
 
-    /** Pharmacy: dispensed (delivered or handed over). */
+    /**
+     * Pharmacy states its own price for each line — its price, not the
+     * doctor's, not the shared drug dictionary's, and never inferred from
+     * the pharmacy's own «قاموس الأدوية» catalog (stock and price both move
+     * day to day). All-or-nothing: every item must be priced together, so
+     * the invoice this produces is never partial. Re-priceable any time
+     * before dispense — stock or price can still change while it waits.
+     *
+     * @param  array<int,array{prescription_item_id:int,unit_price:float,billed_quantity:int}>  $lines
+     */
+    public function price(Prescription $prescription, array $lines): Prescription
+    {
+        if (in_array($prescription->status, [
+            Prescription::STATUS_ISSUED,
+            Prescription::STATUS_DISPENSED,
+            Prescription::STATUS_CANCELLED,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن تسعير الوصفة في حالتها الحالية.'),
+            ]);
+        }
+
+        return DB::transaction(function () use ($prescription, $lines) {
+            $total = 0.0;
+
+            foreach ($lines as $line) {
+                $unitPrice = round((float) $line['unit_price'], 2);
+                $quantity = (int) $line['billed_quantity'];
+                $lineTotal = round($unitPrice * $quantity, 2);
+                $total += $lineTotal;
+
+                PrescriptionItem::whereKey((int) $line['prescription_item_id'])->update([
+                    'unit_price' => $unitPrice,
+                    'billed_quantity' => $quantity,
+                    'line_total' => $lineTotal,
+                ]);
+            }
+
+            $prescription->update([
+                'medicine_total' => round($total, 2),
+                'priced_at' => now(),
+            ]);
+
+            $this->notify('prescription_priced', (int) $prescription->patient_id, $prescription,
+                'فاتورة دوائك جاهزة', 'Your medicine invoice is ready',
+                'حددت الصيدلية سعر دوائك — راجع الفاتورة قبل الاستلام.', 'The pharmacy has priced your medicine — check the invoice before pickup.');
+
+            return $prescription->fresh('items');
+        });
+    }
+
+    /** Pharmacy: dispensed (delivered or handed over) — only once priced. */
     public function dispense(Prescription $prescription): Prescription
     {
+        if ($prescription->medicine_total === null) {
+            throw ValidationException::withMessages([
+                'medicine_total' => __('يجب تسعير الوصفة قبل صرفها.'),
+            ]);
+        }
+
         $this->transition($prescription, [Prescription::STATUS_READY, Prescription::STATUS_PREPARING], Prescription::STATUS_DISPENSED);
         $prescription->update(['dispensed_at' => now()]);
 

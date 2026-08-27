@@ -107,6 +107,18 @@ class PrescriptionFlowTest extends TestCase
             ->assertJsonPath('data.prescription.status', 'preparing');
         $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/ready")->assertOk()
             ->assertJsonPath('data.prescription.status', 'ready');
+
+        // Dispensing is refused until the pharmacy has priced it.
+        $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/dispense")->assertStatus(422);
+
+        $itemIds = Prescription::query()->findOrFail($id)->items()->pluck('id')->all();
+        $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/price", [
+            'items' => [
+                ['prescription_item_id' => $itemIds[0], 'unit_price' => 15, 'billed_quantity' => 2],
+                ['prescription_item_id' => $itemIds[1], 'unit_price' => 20, 'billed_quantity' => 1],
+            ],
+        ])->assertOk();
+
         $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/dispense")->assertOk()
             ->assertJsonPath('data.prescription.status', 'dispensed');
 

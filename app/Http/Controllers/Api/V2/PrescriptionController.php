@@ -299,6 +299,8 @@ class PrescriptionController extends Controller
             'patient_condition' => $p->patient_condition,
             'notes' => $p->notes,
             'delivery_address' => $p->delivery_address,
+            'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
+            'priced_at' => optional($p->priced_at)->toIso8601String(),
             'doctor' => $this->party($p->doctor, $p->doctor_id),
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
@@ -319,6 +321,9 @@ class PrescriptionController extends Controller
                     'duration_days' => $i->duration_days,
                     'duration_value' => $i->duration_value,
                     'duration_unit' => $i->duration_unit,
+                    'unit_price' => $i->unit_price !== null ? (float) $i->unit_price : null,
+                    'billed_quantity' => $i->billed_quantity,
+                    'line_total' => $i->line_total !== null ? (float) $i->line_total : null,
                 ])->all()
                 : [],
             'issued_at' => optional($p->issued_at)->toIso8601String(),

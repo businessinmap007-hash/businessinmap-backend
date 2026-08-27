@@ -57,11 +57,15 @@ class Prescription extends Model
         'delivery_address',
         'issued_at',
         'dispensed_at',
+        'medicine_total',
+        'priced_at',
     ];
 
     protected $casts = [
         'issued_at' => 'datetime',
         'dispensed_at' => 'datetime',
+        'medicine_total' => 'decimal:2',
+        'priced_at' => 'datetime',
     ];
 
     public function items(): HasMany

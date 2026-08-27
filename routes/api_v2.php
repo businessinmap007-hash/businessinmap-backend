@@ -432,6 +432,7 @@ Route::prefix('v2')->group(function () {
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
             Route::get('/', [PharmacyPrescriptionController::class, 'incoming']);
+            Route::post('{prescription}/price', [PharmacyPrescriptionController::class, 'price'])->whereNumber('prescription');
             Route::post('{prescription}/prepare', [PharmacyPrescriptionController::class, 'prepare'])->whereNumber('prescription');
             Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');
             Route::post('{prescription}/dispense', [PharmacyPrescriptionController::class, 'dispense'])->whereNumber('prescription');

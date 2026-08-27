@@ -3878,6 +3878,33 @@ paths:
         - { name: status, in: query, schema: { type: string, enum: [sent_to_pharmacy, preparing, ready, dispensed] } }
         - { $ref: '#/components/parameters/PerPage' }
       responses: { '200': { description: OK } }
+  /pharmacy/prescriptions/{prescription}/price:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy prices every line at once (all-or-nothing invoice)
+      description: >-
+        The pharmacy's own price per line, never inferred from anywhere else.
+        Every prescription item must be priced in the same call; a partial
+        set is rejected. Re-priceable any time before dispense.
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [prescription_item_id, unit_price, billed_quantity]
+                    properties:
+                      prescription_item_id: { type: integer }
+                      unit_price: { type: number, example: 25.5 }
+                      billed_quantity: { type: integer, example: 2 }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /pharmacy/prescriptions/{prescription}/prepare:
     post:
       tags: [Prescriptions]

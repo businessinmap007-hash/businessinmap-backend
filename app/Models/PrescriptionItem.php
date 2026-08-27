@@ -20,6 +20,9 @@ class PrescriptionItem extends Model
         'duration_days',
         'duration_unit',
         'duration_value',
+        'unit_price',
+        'billed_quantity',
+        'line_total',
     ];
 
     protected $casts = [
@@ -28,6 +31,9 @@ class PrescriptionItem extends Model
         'time_slots' => 'array',
         'duration_days' => 'integer',
         'duration_value' => 'integer',
+        'unit_price' => 'decimal:2',
+        'billed_quantity' => 'integer',
+        'line_total' => 'decimal:2',
     ];
 
     public const FOOD_TIMINGS = ['before', 'with', 'after'];

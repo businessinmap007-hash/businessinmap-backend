@@ -99,6 +99,8 @@ class NotificationChannelRule extends Model
             'prescription_issued' => ['وصفة طبية جديدة', 'New prescription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'prescription_received' => ['وصفة طبية لتجهيزها', 'A prescription to prepare', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],
             'prescription_ready' => ['دواؤك جاهز', 'Your medicine is ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            // The pharmacy priced the prescription — the patient can see the invoice.
+            'prescription_priced' => ['فاتورة دوائك جاهزة', 'Your medicine invoice is ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
 
             // Training: a coach assigns/updates a client's plan (→ the client).
             'training_plan_assigned' => ['خطة تدريب جديدة', 'New training plan', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],

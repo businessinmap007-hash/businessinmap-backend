@@ -142,6 +142,118 @@ class OfferDiscoveryApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    /**
+     * The category tab: «شوف كل من يعرض خصومات فى ملابس وإكسسوارات» —
+     * 2026-08-27. Filters by the SELLING business's own root/child, not the
+     * offerable's.
+     */
+    public function test_category_filter_scopes_to_the_selling_businesss_root(): void
+    {
+        $inCategory = User::query()->where('type', 'business')->whereNotNull('category_id')->orderBy('id')->firstOrFail();
+        $otherCategoryId = (int) \Illuminate\Support\Facades\DB::table('categories')
+            ->where('parent_id', 0)
+            ->where('id', '!=', (int) $inCategory->category_id)
+            ->value('id') ?: $this->markTestSkipped('Needs a second root category.');
+
+        $outsideCategory = User::query()->where('type', 'business')
+            ->where('category_id', $otherCategoryId)
+            ->orderBy('id')->first();
+
+        if (! $outsideCategory) {
+            $this->markTestSkipped('Needs a business in a different root category.');
+        }
+
+        $matching = CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_PRODUCT,
+            'offerable_id' => $this->offerableId,
+            'owner_business_id' => $inCategory->id,
+            'seller_business_id' => $inCategory->id,
+            'source_type' => CommercialOffer::SOURCE_DIRECT,
+            'audience_type' => CommercialOffer::AUDIENCE_B2C,
+            'title_ar' => 'عرض داخل التصنيف', 'title_en' => 'In-category offer',
+            'base_price' => 100, 'final_price' => 90, 'currency' => 'EGP',
+            'availability_mode' => CommercialOffer::AVAILABILITY_INSTANT,
+            'status' => CommercialOffer::STATUS_ACTIVE,
+        ]);
+
+        $other = CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_PRODUCT,
+            'offerable_id' => $this->offerableId,
+            'owner_business_id' => $outsideCategory->id,
+            'seller_business_id' => $outsideCategory->id,
+            'source_type' => CommercialOffer::SOURCE_DIRECT,
+            'audience_type' => CommercialOffer::AUDIENCE_B2C,
+            'title_ar' => 'عرض خارج التصنيف', 'title_en' => 'Out-of-category offer',
+            'base_price' => 100, 'final_price' => 90, 'currency' => 'EGP',
+            'availability_mode' => CommercialOffer::AVAILABILITY_INSTANT,
+            'status' => CommercialOffer::STATUS_ACTIVE,
+        ]);
+
+        $ids = $this->idsFor($this->client, '&category_id=' . (int) $inCategory->category_id);
+
+        $this->assertContains($matching->id, $ids);
+        $this->assertNotContains($other->id, $ids, 'a different root leaked into the filtered category');
+    }
+
+    public function test_child_filter_narrows_within_the_root(): void
+    {
+        $inChild = User::query()->where('type', 'business')
+            ->whereNotNull('category_id')->whereNotNull('category_child_id')
+            ->orderBy('id')->first() ?: $this->markTestSkipped('Needs a business with a category child.');
+
+        $matching = CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_PRODUCT,
+            'offerable_id' => $this->offerableId,
+            'owner_business_id' => $inChild->id,
+            'seller_business_id' => $inChild->id,
+            'source_type' => CommercialOffer::SOURCE_DIRECT,
+            'audience_type' => CommercialOffer::AUDIENCE_B2C,
+            'title_ar' => 'عرض داخل الفرع', 'title_en' => 'In-child offer',
+            'base_price' => 100, 'final_price' => 90, 'currency' => 'EGP',
+            'availability_mode' => CommercialOffer::AVAILABILITY_INSTANT,
+            'status' => CommercialOffer::STATUS_ACTIVE,
+        ]);
+
+        $ids = $this->idsFor($this->client, '&child_id=' . (int) $inChild->category_child_id);
+        $this->assertContains($matching->id, $ids);
+
+        $wrongChildId = (int) \Illuminate\Support\Facades\DB::table('category_children_master')
+            ->where('id', '!=', (int) $inChild->category_child_id)
+            ->value('id');
+        $idsWrongChild = $this->idsFor($this->client, '&child_id=' . $wrongChildId);
+        $this->assertNotContains($matching->id, $idsWrongChild, 'a different child leaked into the filtered child');
+    }
+
+    /** The tab's own top navigation: which roots currently have live offers, and how many. */
+    public function test_categories_endpoint_counts_offers_by_root(): void
+    {
+        $business = User::query()->where('type', 'business')->whereNotNull('category_id')->orderBy('id')->firstOrFail();
+        $rootId = (int) $business->category_id;
+
+        $before = collect(
+            $this->getJson('/api/v2/offers/categories')->assertOk()->json('data.categories')
+        )->firstWhere('id', $rootId)['offers_count'] ?? 0;
+
+        CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_PRODUCT,
+            'offerable_id' => $this->offerableId,
+            'owner_business_id' => $business->id,
+            'seller_business_id' => $business->id,
+            'source_type' => CommercialOffer::SOURCE_DIRECT,
+            'audience_type' => CommercialOffer::AUDIENCE_B2C,
+            'title_ar' => 'عرض للعدّ', 'title_en' => 'Counted offer',
+            'base_price' => 100, 'final_price' => 90, 'currency' => 'EGP',
+            'availability_mode' => CommercialOffer::AVAILABILITY_INSTANT,
+            'status' => CommercialOffer::STATUS_ACTIVE,
+        ]);
+
+        $after = collect(
+            $this->getJson('/api/v2/offers/categories')->assertOk()->json('data.categories')
+        )->firstWhere('id', $rootId)['offers_count'] ?? 0;
+
+        $this->assertSame($before + 1, $after);
+    }
+
     public function test_guest_browsing_is_public_but_only_sees_b2c_and_both(): void
     {
         // Offer discovery is intentionally public (guests browse as clients).

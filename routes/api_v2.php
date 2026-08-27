@@ -117,6 +117,7 @@ Route::prefix('v2')->group(function () {
 
     Route::prefix('offers')->group(function () {
         Route::get('/', [OfferDiscoveryController::class, 'index']);
+        Route::get('categories', [OfferDiscoveryController::class, 'categories']);
         Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
         Route::get('business/{business}', [OfferDiscoveryController::class, 'byBusiness'])->whereNumber('business');
         Route::post('{offer}/track', [OfferTrackingController::class, 'track'])->whereNumber('offer');

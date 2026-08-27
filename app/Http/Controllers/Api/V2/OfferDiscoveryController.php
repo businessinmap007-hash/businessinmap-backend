@@ -24,6 +24,8 @@ final class OfferDiscoveryController extends Controller
             'offerable_id' => ['nullable', 'integer', 'min:0'],
             'seller_business_id' => ['nullable', 'integer', 'min:1'],
             'owner_business_id' => ['nullable', 'integer', 'min:1'],
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'child_id' => ['nullable', 'integer', 'min:1'],
             'source_type' => ['nullable', Rule::in($this->publicSourceTypes())],
             'audience_type' => ['nullable', Rule::in(CommercialOffer::audienceTypes())],
             'min_price' => ['nullable', 'numeric', 'min:0'],
@@ -91,6 +93,46 @@ final class OfferDiscoveryController extends Controller
         $request->merge(['seller_business_id' => $business]);
 
         return $this->index($request);
+    }
+
+    /**
+     * The tab's own top-level navigation: which root categories currently
+     * have at least one live public offer, and how many — «ملابس وإكسسوارات
+     * (24 عرض)» — computed BEFORE the customer picks one, not a flat list
+     * they have to filter blind. Same active/audience/source rules as
+     * `index()`, just grouped by the selling business's root instead of
+     * filtered to one.
+     */
+    public function categories(Request $request)
+    {
+        $query = CommercialOffer::query()
+            ->active()
+            ->whereIn('source_type', $this->publicSourceTypes());
+
+        $this->applyAudience($query, $request, []);
+
+        $rows = $query
+            ->join('users as seller', function ($join) {
+                $join->whereRaw('seller.id = COALESCE(commercial_offers.seller_business_id, commercial_offers.owner_business_id)');
+            })
+            ->join('categories as root', 'root.id', '=', 'seller.category_id')
+            ->selectRaw('root.id, root.name_ar, root.name_en, root.slug, COUNT(*) as offers_count')
+            ->groupBy('root.id', 'root.name_ar', 'root.name_en', 'root.slug')
+            ->orderByDesc('offers_count')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categories' => $rows->map(fn ($r) => [
+                    'id' => (int) $r->id,
+                    'name_ar' => $r->name_ar,
+                    'name_en' => $r->name_en,
+                    'slug' => $r->slug,
+                    'offers_count' => (int) $r->offers_count,
+                ]),
+            ],
+        ]);
     }
 
     public function lowestForOfferable(Request $request, OfferComparisonService $comparisonService)
@@ -188,6 +230,21 @@ final class OfferDiscoveryController extends Controller
 
         if (! empty($data['owner_business_id'])) {
             $query->where('owner_business_id', (int) $data['owner_business_id']);
+        }
+
+        // The taxonomy tab: "شوف كل من يعرض خصومات فى ملابس وإكسسوارات" — the
+        // SELLING business (seller_business_id when set — a reseller/allocation
+        // offer sells under a different account than whoever owns it — falling
+        // back to owner_business_id otherwise, same resolution `open_now` above
+        // already uses) is what the category filter reads, not owner_business_id
+        // alone, or a reseller's own listing would be filed under the wrong shop.
+        if (! empty($data['category_id']) || ! empty($data['child_id'])) {
+            $query->whereExists(function ($sub) use ($data) {
+                $sub->from('users as seller')
+                    ->whereRaw('seller.id = COALESCE(commercial_offers.seller_business_id, commercial_offers.owner_business_id)')
+                    ->when(! empty($data['category_id']), fn ($q) => $q->where('seller.category_id', (int) $data['category_id']))
+                    ->when(! empty($data['child_id']), fn ($q) => $q->where('seller.category_child_id', (int) $data['child_id']));
+            });
         }
 
         if (! empty($data['source_type'])) {

@@ -193,6 +193,27 @@ return [
             'frozen' => ['مجمدات', 'Frozen'],
             'cleaning_tools' => ['أدوات نظافة', 'Cleaning Supplies'],
             'baby_care' => ['عناية بالطفل', 'Baby Care'],
+
+            /*
+             * Added 2026-08-27: these 12 close the gap between this branch
+             * and the option-group vocabulary «سوبر ماركت» #272 already
+             * carries («أنواع X» / «أصناف X») — a supermarket could price
+             * these on its menu/shelf-fill screen but had no matching retail
+             * item-type to scope its catalog listings by. Named to match
+             * that vocabulary's own words, minus the أنواع/أصناف prefix.
+             */
+            'fruits' => ['فواكه', 'Fruits'],
+            'vegetables' => ['خضروات', 'Vegetables'],
+            'meat' => ['لحوم', 'Meat'],
+            'fish_seafood' => ['أسماك ومأكولات بحرية', 'Fish & Seafood'],
+            'poultry' => ['دواجن', 'Poultry'],
+            'sugar_sweeteners' => ['سكر ومحليات', 'Sugar & Sweeteners'],
+            'honey_jam' => ['عسل ومربى', 'Honey & Jam'],
+            'pickles_vinegar' => ['مخللات وخل', 'Pickles & Vinegar'],
+            'nuts_snacks' => ['مكسرات وتسالي', 'Nuts & Snacks'],
+            'baby_food' => ['أغذية أطفال', 'Baby Food'],
+            'pet_supplies' => ['مستلزمات حيوانات أليفة', 'Pet Supplies'],
+            'home_fuel' => ['فحم ووقود منزلي', 'Home Fuel'],
         ],
     ],
 ];

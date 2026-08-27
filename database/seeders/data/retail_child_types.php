@@ -200,9 +200,22 @@ return [
     // have no retail config at all, so nothing here touches those rulings.
     // Whether a fish or sweets FACTORY should list SKUs is still his call;
     // this only says that while it does, it lists fish and sweets.
+    //
+    // «أسماك» widened 2026-08-27: `fish_seafood` didn't exist when this was
+    // first narrowed, so frozen/canned were the closest available proxies
+    // (a fish shop plausibly also sells frozen or canned fish) — additive,
+    // frozen/canned were never wrong, just incomplete.
     'حلويات' => ['chocolate', 'biscuits_snacks'],
-    'أسماك' => ['frozen', 'canned'],
+    'أسماك' => ['frozen', 'canned', 'fish_seafood'],
     'عصائر' => ['juice', 'soft_drinks', 'water'],
+
+    // Two more shops that were stuck with the WHOLE generic 22 for lack of a
+    // real type of their own (same gap `fish_seafood` closed above) — a fruit
+    // & veg trader had no business being offered cheese and detergents any
+    // more than a rug shop should be offered mattresses. Added 2026-08-27
+    // once `fruits`/`vegetables`/`poultry` existed to narrow to.
+    'خضار وفاكهة' => ['fruits', 'vegetables'],
+    'دواجن' => ['poultry'],
 
     // Deliberately NOT narrowed:
     //   «مواد غذائية» / «مواد غذائية ومنظفات» — the whole grocery range is

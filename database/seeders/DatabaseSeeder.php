@@ -62,6 +62,7 @@ class DatabaseSeeder extends Seeder
            RetailBranchesSeeder::class,
            RetailChildBranchesSeeder::class,
            RetailProductTaxonomySeeder::class,
+           FreshProduceCatalogSeeder::class,
            BusinessOffersEnablementSeeder::class,
 
            // Last, so it sees the final link/config set: an active config with

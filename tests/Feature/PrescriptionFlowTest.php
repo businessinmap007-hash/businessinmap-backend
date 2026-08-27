@@ -30,6 +30,14 @@ class PrescriptionFlowTest extends TestCase
         $u->password = 'secret-password';
         $u->type = $type;
         $u->api_token = Str::random(80);
+
+        // Prescription::isDoctorBusiness() gates issuing/revising/being a
+        // share target to a physician's practice (عيادة) — any business used
+        // as a doctor in this file needs the child stamped.
+        if (in_array($tag, ['Clinic', 'SecondOpinion', 'Other'], true)) {
+            $u->category_child_id = 514;
+        }
+
         $u->save();
 
         return $u;
@@ -340,5 +348,42 @@ class PrescriptionFlowTest extends TestCase
             'patient_id' => $patient->id,
             'items' => [['name' => 'Aspirin']],
         ])->assertForbidden();
+    }
+
+    /**
+     * «يجب تقييد الطبيب بتخصص طبي» — a business account is not enough; it
+     * must be a physician's own practice (Prescription::DOCTOR_CHILD_IDS).
+     * A pharmacy is the clearest case: it is a business, it is even a PARTY
+     * on prescriptions it dispenses, and it still may not issue one.
+     */
+    public function test_a_non_medical_business_cannot_issue_a_prescription(): void
+    {
+        $pharmacy = $this->user(User::TYPE_BUSINESS, 'Pharmacy');
+        $pharmacy->category_child_id = 215; // صيدلية — dispenses, does not prescribe
+        $pharmacy->save();
+
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        Sanctum::actingAs($pharmacy);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'items' => [['medicine_id' => $this->medicine('Aspirin')->id]],
+        ])->assertForbidden();
+    }
+
+    /** A doctor cannot share a prescription onto a non-medical business either. */
+    public function test_sharing_to_a_non_medical_business_is_refused(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $id = $this->issue($doctor, $patient);
+
+        $notADoctor = $this->user(User::TYPE_BUSINESS, 'Pharmacy');
+        $notADoctor->category_child_id = 215;
+        $notADoctor->save();
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/prescriptions/{$id}/share", ['doctor_id' => $notADoctor->id])
+            ->assertStatus(422);
     }
 }

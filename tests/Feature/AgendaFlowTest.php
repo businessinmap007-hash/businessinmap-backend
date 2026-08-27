@@ -38,6 +38,13 @@ class AgendaFlowTest extends TestCase
         $u->password = 'secret-password';
         $u->type = $type;
         $u->api_token = Str::random(80);
+
+        // Prescription::isDoctorBusiness() gates issuing to a physician's
+        // practice (عيادة) — this file issues a prescription as 'Clinic'.
+        if ($tag === 'Clinic') {
+            $u->category_child_id = 514;
+        }
+
         $u->save();
 
         return $u;

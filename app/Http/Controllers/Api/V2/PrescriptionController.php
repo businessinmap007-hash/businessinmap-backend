@@ -206,7 +206,7 @@ class PrescriptionController extends Controller
         ], [], ['doctor_id' => 'الطبيب']);
 
         $doctor = User::query()->findOrFail((int) $data['doctor_id']);
-        abort_unless($doctor->isBusiness(), 422, __('يجب اختيار حساب طبيب/عيادة صحيح.'));
+        abort_unless(Prescription::isDoctorBusiness($doctor), 422, __('يجب اختيار حساب طبيب/عيادة صحيح.'));
 
         $this->service->share($row, $doctor, $request->user());
 
@@ -255,14 +255,20 @@ class PrescriptionController extends Controller
         ], 201);
     }
 
+    /**
+     * «يجب تقييد الطبيب بتخصص طبي» — المالك. Any business could issue a
+     * prescription; now only a physician's own practice can (Prescription::
+     * DOCTOR_CHILD_IDS — مستشفى/عيادة/مركز طبي, not a lab/pharmacy/imaging
+     * center/cupping center).
+     */
     private function businessOrFail(Request $request): User
     {
         $user = $request->user();
 
-        if (! $user || ! $user->isBusiness()) {
+        if (! Prescription::isDoctorBusiness($user)) {
             abort(response()->json([
                 'success' => false,
-                'message' => __('إصدار الوصفات متاح لحسابات العيادات فقط.'),
+                'message' => __('إصدار الوصفات متاح لحسابات العيادات والمستشفيات والمراكز الطبية فقط.'),
             ], 403));
         }
 

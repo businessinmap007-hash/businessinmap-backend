@@ -24,6 +24,25 @@ class Prescription extends Model
 
     public const FULFILLMENTS = [self::FULFILLMENT_DELIVERY, self::FULFILLMENT_PICKUP];
 
+    /**
+     * The health-root children that are an actual physician's practice —
+     * مستشفى/عيادة/مركز طبي. NOT معمل تحاليل (163, tests) or صيدلية (215,
+     * dispenses) or مراكز أشعة (252, imaging) or مركز حجامة (542, not a
+     * doctor prescribing pharmaceutical drugs). Hardcoded ids, matching this
+     * codebase's existing convention for a specific child
+     * ({@see \App\Support\BusinessPanelNav::PHARMACY_CHILD_ID}) — only ROOTS
+     * are looked up by slug here, because children keep their id.
+     */
+    public const DOCTOR_CHILD_IDS = [513, 514, 515];
+
+    /** True for a business account that is actually a physician's practice. */
+    public static function isDoctorBusiness(?User $user): bool
+    {
+        return $user
+            && $user->isBusiness()
+            && in_array((int) ($user->category_child_id ?? 0), self::DOCTOR_CHILD_IDS, true);
+    }
+
     protected $fillable = [
         'doctor_id',
         'patient_id',

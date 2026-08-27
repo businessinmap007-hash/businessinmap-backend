@@ -399,7 +399,7 @@ class WalletFeeService
             'reference_id' => (string) $booking->id,
             'idempotency_key' => $idempotencyKey,
 
-            'note' => $this->buildHumanNote($feeCode, $payer, $booking),
+            'note' => $this->buildHumanNote($feeCode, $payer, $booking, $line),
 
             'meta' => $this->buildTransactionMeta(
                 booking: $booking,
@@ -601,7 +601,7 @@ class WalletFeeService
         return 'booking_fee:' . $bookingId . ':' . $this->normalizeFeeCode($feeCode) . ':' . $payer;
     }
 
-    protected function buildHumanNote(string $feeCode, string $payer, Booking $booking): string
+    protected function buildHumanNote(string $feeCode, string $payer, Booking $booking, array $line = []): string
     {
         $serviceName = (string) (
             $booking->service?->name_ar
@@ -616,7 +616,46 @@ class WalletFeeService
             default => $payer,
         };
 
-        return "خصم رسوم {$feeCode} ({$payerLabel}) للحجز #{$booking->id} - {$serviceName}";
+        $note = "خصم رسوم {$feeCode} ({$payerLabel}) للحجز #{$booking->id} - {$serviceName}";
+
+        $promotionNote = $this->promotionNoteSuffix($line);
+
+        return $promotionNote !== '' ? "{$note} — {$promotionNote}" : $note;
+    }
+
+    /**
+     * The one place a payer could ever see that a promotion applied to their
+     * fee — everywhere else (WalletTransactionResource, the admin
+     * wallet-transactions list) strips `meta` entirely. Without this, a fully
+     * waived fee never even creates a transaction, and a partial discount
+     * showed only a smaller-than-expected amount with no explanation.
+     */
+    private function promotionNoteSuffix(array $line): string
+    {
+        $promotion = $line['promotion'] ?? null;
+
+        if (! is_array($promotion)) {
+            return '';
+        }
+
+        $name = trim((string) ($promotion['name'] ?? ''));
+        $discountAmount = round((float) ($line['promotion_discount_amount'] ?? 0), 2);
+
+        $descriptor = match ((string) ($promotion['discount_type'] ?? '')) {
+            PlatformServiceFeePromotion::DISCOUNT_WAIVE => 'إعفاء كامل من الرسوم',
+            PlatformServiceFeePromotion::DISCOUNT_OVERRIDE_TO_FIXED => "تخفيض الرسوم إلى مبلغ ثابت (خُصم {$discountAmount})",
+            PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT => "خصم {$discountAmount} ثابت",
+            PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT => 'خصم ' . round((float) ($promotion['discount_value'] ?? 0), 2) . '%',
+            default => null,
+        };
+
+        if ($descriptor === null) {
+            return '';
+        }
+
+        return $name !== ''
+            ? "عرض «{$name}»: {$descriptor}"
+            : "عرض ترويجي: {$descriptor}";
     }
 
     protected function normalizeFeeCode(?string $feeCode): string

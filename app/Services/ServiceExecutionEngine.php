@@ -420,6 +420,11 @@ class ServiceExecutionEngine
                 'client_required' => round($clientFeeRequired, 2),
                 'business_required' => round($businessFeeRequired, 2),
                 'non_refundable_after_in_progress' => true,
+                // A clean, top-level summary so the booking screen can show a
+                // promo banner without digging through each fee line — the
+                // promotion detail was already computed per line, just never
+                // surfaced anywhere the client/business could see it.
+                'active_promotions' => $this->summarizeActivePromotions($feeLines),
             ],
 
             'client' => [
@@ -439,6 +444,42 @@ class ServiceExecutionEngine
 
             'messages' => $messages,
         ];
+    }
+
+    /**
+     * A clean {payer, name, message} summary of whichever fee lines carried
+     * an applied promotion — WalletFeeService::applyPromotionToLine() already
+     * computes the full detail per line, it just never had anywhere
+     * client-facing to surface. Deduplicated: the same promotion applying to
+     * both payers only needs to say so once each.
+     */
+    private function summarizeActivePromotions(\Illuminate\Support\Collection $feeLines): array
+    {
+        return $feeLines
+            ->filter(fn ($line) => is_array($line['promotion'] ?? null))
+            ->map(function ($line) {
+                $promotion = $line['promotion'];
+                $discountAmount = round((float) ($line['promotion_discount_amount'] ?? 0), 2);
+                $name = trim((string) ($promotion['name'] ?? '')) ?: __('عرض ترويجي');
+
+                $message = match ((string) ($promotion['discount_type'] ?? '')) {
+                    \App\Models\PlatformServiceFeePromotion::DISCOUNT_WAIVE => __('إعفاء كامل من الرسوم'),
+                    \App\Models\PlatformServiceFeePromotion::DISCOUNT_OVERRIDE_TO_FIXED => __('تخفيض الرسوم إلى مبلغ ثابت (خُصم :amount)', ['amount' => $discountAmount]),
+                    \App\Models\PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT => __('خصم :amount ثابت', ['amount' => $discountAmount]),
+                    \App\Models\PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT => __('خصم :percent% من الرسوم', ['percent' => round((float) ($promotion['discount_value'] ?? 0), 2)]),
+                    default => __('خصم على الرسوم'),
+                };
+
+                return [
+                    'payer' => (string) ($line['payer'] ?? ''),
+                    'promotion_id' => (int) ($promotion['id'] ?? 0),
+                    'name' => $name,
+                    'message' => "{$name}: {$message}",
+                ];
+            })
+            ->unique(fn ($row) => $row['payer'] . ':' . $row['promotion_id'])
+            ->values()
+            ->all();
     }
 
     public function ensureFinancialReadiness(Booking $booking): array

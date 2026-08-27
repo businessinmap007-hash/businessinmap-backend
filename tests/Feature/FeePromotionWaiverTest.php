@@ -124,4 +124,81 @@ class FeePromotionWaiverTest extends TestCase
         $this->assertSame('business', $result['promotion']['applied_for_payer']);
         $this->assertSame(PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT, $result['promotion']['discount_type']);
     }
+
+    /**
+     * Gap #2 coverage, 2026-08-27: a promotion was real money-wise but
+     * invisible everywhere a payer could see it — WalletTransactionResource
+     * strips `meta`, and the note used to never mention it. The note is the
+     * one thing that survives into the payer's own transaction history.
+     */
+    private function buildNote(string $payer, array $line): string
+    {
+        $service = app(WalletFeeService::class);
+        $method = new ReflectionMethod($service, 'buildHumanNote');
+        $method->setAccessible(true);
+
+        $booking = \App\Models\Booking::withTrashed()->whereNotNull('service_id')->first()
+            ?: $this->markTestSkipped('Needs a booking.');
+
+        if ($booking->trashed()) {
+            $booking->restore();
+        }
+
+        return $method->invoke($service, 'booking_execution', $payer, $booking, $line);
+    }
+
+    public function test_the_note_names_a_full_waiver(): void
+    {
+        $line = $this->apply($this->line(100), $this->promotion(PlatformServiceFeePromotion::DISCOUNT_WAIVE, 0));
+
+        $this->assertStringContainsString('إعفاء كامل من الرسوم', $this->buildNote('client', $line));
+    }
+
+    public function test_the_note_names_a_percent_discount_and_the_promotion(): void
+    {
+        $promotion = $this->promotion(PlatformServiceFeePromotion::DISCOUNT_PERCENT_DISCOUNT, 20);
+        $promotion->name = 'عرض رمضان';
+        $line = $this->apply($this->line(100), $promotion);
+
+        $note = $this->buildNote('client', $line);
+
+        $this->assertStringContainsString('عرض رمضان', $note);
+        $this->assertStringContainsString('20', $note);
+    }
+
+    public function test_the_note_is_unchanged_without_a_promotion(): void
+    {
+        $note = $this->buildNote('client', $this->line(100));
+
+        $this->assertStringNotContainsString('عرض', $note);
+    }
+
+    /** The booking screen's clean top-level summary, not buried in a raw meta blob. */
+    public function test_the_booking_preview_summarizes_active_promotions(): void
+    {
+        $engine = app(\App\Services\ServiceExecutionEngine::class);
+        $method = new ReflectionMethod($engine, 'summarizeActivePromotions');
+        $method->setAccessible(true);
+
+        $promotion = $this->promotion(PlatformServiceFeePromotion::DISCOUNT_FIXED_DISCOUNT, 15);
+        $promotion->name = 'عرض تجريبي';
+        $line = $this->apply($this->line(100), $promotion, 'client');
+
+        $summary = $method->invoke($engine, collect([$line]));
+
+        $this->assertCount(1, $summary);
+        $this->assertSame('client', $summary[0]['payer']);
+        $this->assertStringContainsString('عرض تجريبي', $summary[0]['message']);
+    }
+
+    public function test_no_active_promotions_summarizes_to_an_empty_list(): void
+    {
+        $engine = app(\App\Services\ServiceExecutionEngine::class);
+        $method = new ReflectionMethod($engine, 'summarizeActivePromotions');
+        $method->setAccessible(true);
+
+        $summary = $method->invoke($engine, collect([$this->line(100)]));
+
+        $this->assertSame([], $summary);
+    }
 }

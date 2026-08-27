@@ -225,7 +225,6 @@
 
                                     <form method="POST" action="{{ route('admin.platform-service-fee-promotions.toggle', $promotion) }}">
                                         @csrf
-                                        @method('PATCH')
                                         <button type="submit" class="a2-btn a2-btn-sm a2-btn-dark">
                                             {{ $promotion->is_active ? 'إيقاف' : 'تفعيل' }}
                                         </button>

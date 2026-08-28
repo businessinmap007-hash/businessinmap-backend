@@ -36,13 +36,19 @@ class PrescriptionDeliveryService
     ) {
     }
 
-    /** Ready, unassigned delivery prescriptions open for a driver to take. */
-    public function availablePrescriptions(int $limit = 50)
+    /**
+     * Ready, unassigned delivery prescriptions open for a driver to take. A
+     * pharmacy's own private driver (delivery_drivers.business_id set) only
+     * ever sees THAT pharmacy's own prescriptions — same rule as
+     * DeliveryDispatchService::availableOrders() for menu orders.
+     */
+    public function availablePrescriptions(int $limit = 50, ?int $pharmacyId = null)
     {
         return Prescription::query()
             ->where('fulfillment_type', Prescription::FULFILLMENT_DELIVERY)
             ->where('status', Prescription::STATUS_READY)
             ->whereNull('delivery_driver_id')
+            ->when($pharmacyId, fn ($q) => $q->where('pharmacy_id', $pharmacyId))
             ->with('pharmacy:id,name')
             ->orderBy('id')
             ->limit($limit)
@@ -65,6 +71,9 @@ class PrescriptionDeliveryService
             }
             if ((string) $row->status !== Prescription::STATUS_READY || $row->delivery_driver_id) {
                 abort(409, __('هذه الوصفة غير متاحة للاستلام.'));
+            }
+            if ($driver->business_id && (int) $driver->business_id !== (int) $row->pharmacy_id) {
+                abort(403, __('هذه الوصفة لا تخص نشاطك.'));
             }
 
             $row->delivery_driver_id = $driver->id;

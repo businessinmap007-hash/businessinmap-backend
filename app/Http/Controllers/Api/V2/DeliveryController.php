@@ -43,15 +43,19 @@ final class DeliveryController extends Controller
     /** GET /api/v2/delivery/available-orders */
     public function available(Request $request)
     {
-        $this->delivery->driverOrFail((int) $request->user()->id);
+        $driver = $this->delivery->driverOrFail((int) $request->user()->id);
 
-        $orders = $this->delivery->availableOrders()->map(fn ($o) => [
-            'order_id' => (int) $o->id,
-            'business' => $o->business ? ['id' => (int) $o->business->id, 'name' => (string) $o->business->name] : null,
-            'address' => (string) $o->address,
-            'final_total' => (float) $o->final_total,
-            'delivery_fee' => (float) $o->delivery_fee,
-        ]);
+        // A business's own private driver only ever sees that business's own
+        // orders; a freelance driver (business_id null) keeps the full pool.
+        $orders = $this->delivery
+            ->availableOrders(50, $driver->business_id ? (int) $driver->business_id : null)
+            ->map(fn ($o) => [
+                'order_id' => (int) $o->id,
+                'business' => $o->business ? ['id' => (int) $o->business->id, 'name' => (string) $o->business->name] : null,
+                'address' => (string) $o->address,
+                'final_total' => (float) $o->final_total,
+                'delivery_fee' => (float) $o->delivery_fee,
+            ]);
 
         return response()->json(['success' => true, 'data' => ['orders' => $orders]]);
     }

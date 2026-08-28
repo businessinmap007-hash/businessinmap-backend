@@ -71,18 +71,151 @@ class DeliveryDispatchService
         return $driver;
     }
 
+    // ─────────────────────────── Business-owned fleet ───────────────────────────
+
+    /**
+     * A business links an EXISTING user (by phone) as its own private driver —
+     * same find-never-mint pattern as business_staff, so this needs no new
+     * signup flow. The driver then uses the exact same self-service loop
+     * (register is a no-op for them; accept/pickup/deliver all work as-is),
+     * just scoped to this business's own orders (see acceptOrder/availableOrders).
+     *
+     * A user already privately driving for a DIFFERENT business is refused —
+     * one business's roster action must never silently poach another's driver.
+     * Already this business's own driver, or currently freelance (business_id
+     * null), is fine and just (re)links/reactivates.
+     */
+    public function linkBusinessDriver(int $businessId, string $lookupPhone, array $data = []): DeliveryDriver
+    {
+        $user = User::query()->where('phone', trim($lookupPhone))->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'phone' => __('لم يُعثر على مستخدم بهذا الهاتف.'),
+            ]);
+        }
+
+        if ((int) $user->id === $businessId) {
+            throw ValidationException::withMessages([
+                'phone' => __('لا يمكنك تعيين نفسك موصّلاً.'),
+            ]);
+        }
+
+        $existing = DeliveryDriver::query()->where('user_id', $user->id)->first();
+
+        if ($existing && $existing->business_id && (int) $existing->business_id !== $businessId) {
+            throw ValidationException::withMessages([
+                'phone' => __('هذا المستخدم مسجَّل بالفعل كموصّل لنشاط آخر.'),
+            ]);
+        }
+
+        return DeliveryDriver::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'business_id' => $businessId,
+                'is_active' => true,
+                'phone' => $data['phone'] ?? $existing->phone ?? $user->phone,
+                'vehicle_label' => $data['vehicle_label'] ?? $existing->vehicle_label ?? null,
+            ]
+        );
+    }
+
+    /** The business toggles ITS OWN driver on/off duty — never a hard delete (see below). */
+    public function setBusinessDriverActive(int $businessId, int $driverId, bool $active): DeliveryDriver
+    {
+        $driver = DeliveryDriver::query()
+            ->where('id', $driverId)
+            ->where('business_id', $businessId)
+            ->first();
+
+        if (! $driver) {
+            abort(404, __('هذا الموصّل لا يخص نشاطك.'));
+        }
+
+        $driver->update(['is_active' => $active]);
+
+        return $driver;
+    }
+
+    /**
+     * The business's own driver roster with each one's LIVE workload — busy
+     * means an order still points at them unfinished, not a flag anyone set.
+     * A driver carrying more than one active order at once is the "route":
+     * acceptOrder() never blocked a second accept, it just was never surfaced.
+     *
+     * @return \Illuminate\Support\Collection<int,array>
+     */
+    public function businessRoster(int $businessId): \Illuminate\Support\Collection
+    {
+        $drivers = DeliveryDriver::query()
+            ->where('business_id', $businessId)
+            ->with('user:id,name,phone')
+            ->orderByDesc('is_active')
+            ->orderBy('id')
+            ->get();
+
+        if ($drivers->isEmpty()) {
+            return collect();
+        }
+
+        $driverIds = $drivers->pluck('id');
+
+        $activeOrders = Order::query()
+            ->whereIn('delivery_driver_id', $driverIds)
+            ->whereIn('delivery_stage', [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP])
+            ->orderBy('id')
+            ->get(['id', 'delivery_driver_id', 'delivery_stage', 'address', 'final_total'])
+            ->groupBy('delivery_driver_id');
+
+        $deliveredToday = DeliveryCompletion::query()
+            ->whereIn('delivery_driver_id', $driverIds)
+            ->whereDate('completed_at', now()->toDateString())
+            ->selectRaw('delivery_driver_id, COUNT(*) as c')
+            ->groupBy('delivery_driver_id')
+            ->pluck('c', 'delivery_driver_id');
+
+        return $drivers->map(function (DeliveryDriver $driver) use ($activeOrders, $deliveredToday) {
+            $orders = $activeOrders->get($driver->id, collect());
+
+            return [
+                'id' => (int) $driver->id,
+                'user_id' => (int) $driver->user_id,
+                'name' => optional($driver->user)->name,
+                'phone' => $driver->phone ?: optional($driver->user)->phone,
+                'vehicle_label' => $driver->vehicle_label,
+                'is_active' => (bool) $driver->is_active,
+                'busy' => $orders->isNotEmpty(),
+                'active_order_count' => $orders->count(),
+                'delivered_today' => (int) ($deliveredToday[$driver->id] ?? 0),
+                'delivered_count' => (int) $driver->delivered_count,
+                'active_orders' => $orders->map(fn ($o) => [
+                    'order_id' => (int) $o->id,
+                    // assigned = تم الاستلام من المطعم لم يبدأ بعد، picked_up = في الطريق
+                    'stage' => (string) $o->delivery_stage,
+                    'address' => (string) $o->address,
+                    'final_total' => (float) $o->final_total,
+                ])->values()->all(),
+            ];
+        })->values();
+    }
+
     /**
      * Delivery orders open for a driver to take: accepted by the business and at
      * least into preparation (so a driver can get ready while the food is made),
      * still pending and unassigned.
+     *
+     * A driver whose own `delivery_drivers.business_id` is set (a business's own
+     * private driver, not the freelance pool) only ever sees THAT business's
+     * orders — see driverOrFail()'s caller in DeliveryController::available().
      */
-    public function availableOrders(int $limit = 50)
+    public function availableOrders(int $limit = 50, ?int $businessId = null)
     {
         return Order::query()
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->where('status', self::STATUS_PENDING)
             ->whereIn('prep_status', [Order::PREP_PREPARING, Order::PREP_READY])
             ->whereNull('delivery_driver_id')
+            ->when($businessId, fn ($q) => $q->where('business_id', $businessId))
             ->with('business:id,name,logo')
             ->orderBy('id')
             ->limit($limit)
@@ -107,6 +240,12 @@ class DeliveryDispatchService
             }
             if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id) {
                 abort(409, __('هذا الطلب غير متاح للاستلام.'));
+            }
+            // A business's own private driver may only ever carry that
+            // business's orders — the picker in the app already filters this
+            // (availableOrders()), this is the guard against a stale/crafted id.
+            if ($driver->business_id && (int) $driver->business_id !== (int) $order->business_id) {
+                abort(403, __('هذا الطلب لا يخص نشاطك.'));
             }
 
             $order->delivery_driver_id = $driver->id;

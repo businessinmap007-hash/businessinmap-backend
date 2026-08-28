@@ -34,6 +34,7 @@ class BusinessPanelNav
         'bookings' => PlatformService::KEY_BOOKING,
         'menu' => 'menu',
         'products' => 'retail',
+        'delivery-drivers' => 'delivery',
         'schedules' => 'schedules',
         'training-plans' => 'training',
     ];

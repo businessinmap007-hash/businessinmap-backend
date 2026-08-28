@@ -70,6 +70,7 @@ class Prescription extends Model
         'patient_condition',
         'notes',
         'delivery_address',
+        'delivery_address_id',
         'issued_at',
         'dispensed_at',
         'medicine_total',
@@ -106,6 +107,12 @@ class Prescription extends Model
     public function pharmacy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pharmacy_id');
+    }
+
+    /** The saved address-book entry the delivery was snapshotted from, if any. */
+    public function deliveryAddress(): BelongsTo
+    {
+        return $this->belongsTo(Address::class, 'delivery_address_id');
     }
 
     /** The same driver pool menu orders use — a driver isn't order-specific. */

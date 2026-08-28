@@ -38,6 +38,7 @@
             'heart' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M12 21s-8-5.4-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.6-8 11-8 11Z"/></svg>',
             'tag' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M2 12 12 2h8a2 2 0 0 1 2 2v8L12 22 2 12Zm15-7a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>',
             'users' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Zm-4 6c-4.4 0-8 2-8 4v1h16v-1c0-2-3.6-4-8-4Z"/></svg>',
+            'delivery' => '<svg class="a2-ico" viewBox="0 0 24 24"><path d="M3 6h11v8H3V6Zm11 3h4l3 3v2h-1a2.5 2.5 0 0 1-5 0H9a2.5 2.5 0 0 1-5 0H3v-2h1V9h10Zm2 5.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM6.5 14.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>',
         ];
 
         return $svgs[$key] ?? '<span class="a2-nav-dot"></span>';
@@ -72,6 +73,10 @@
 
         ['label' => 'التجزئة', 'icon' => 'box', 'gate' => 'products', 'children' => [
             ['label' => 'منتجاتي', 'route' => 'business.products.index', 'gate' => 'products', 'active' => ['business.products.']],
+        ]],
+
+        ['label' => 'التوصيل', 'icon' => 'delivery', 'gate' => 'delivery-drivers', 'children' => [
+            ['label' => 'موصّليّ', 'route' => 'business.delivery-drivers.index', 'gate' => 'delivery-drivers', 'active' => ['business.delivery-drivers.']],
         ]],
 
         ['label' => 'خطوط التشغيل', 'icon' => 'route', 'gate' => 'schedules', 'children' => [

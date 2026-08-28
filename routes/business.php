@@ -8,6 +8,7 @@ use App\Http\Controllers\Business\BookingController;
 use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
+use App\Http\Controllers\Business\DeliveryDriverController;
 use App\Http\Controllers\Business\FinancialStatementController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
@@ -191,6 +192,11 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('products/{id}/edit', [CatalogListingController::class, 'edit'])->whereNumber('id')->name('products.edit');
         Route::put('products/{id}', [CatalogListingController::class, 'update'])->whereNumber('id')->name('products.update');
         Route::delete('products/{id}', [CatalogListingController::class, 'destroy'])->whereNumber('id')->name('products.destroy');
+
+        // "موصّليّ" — the business's own private delivery-driver roster (2026-08-28).
+        Route::get('delivery-drivers', [DeliveryDriverController::class, 'index'])->name('delivery-drivers.index');
+        Route::post('delivery-drivers', [DeliveryDriverController::class, 'store'])->name('delivery-drivers.store');
+        Route::put('delivery-drivers/{driver}', [DeliveryDriverController::class, 'update'])->whereNumber('driver')->name('delivery-drivers.update');
 
         // Scheduling service: the carrier publishes trip legs, then works the
         // reservation desk for them. Static paths stay ahead of the dynamic

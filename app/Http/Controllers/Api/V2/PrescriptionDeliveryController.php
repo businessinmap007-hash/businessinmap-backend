@@ -24,14 +24,16 @@ final class PrescriptionDeliveryController extends Controller
     /** GET /api/v2/delivery/available-prescriptions */
     public function available(Request $request)
     {
-        $this->baseDelivery->driverOrFail((int) $request->user()->id);
+        $driver = $this->baseDelivery->driverOrFail((int) $request->user()->id);
 
-        $rows = $this->delivery->availablePrescriptions()->map(fn (Prescription $p) => [
-            'prescription_id' => (int) $p->id,
-            'pharmacy' => $p->pharmacy ? ['id' => (int) $p->pharmacy->id, 'name' => (string) $p->pharmacy->name] : null,
-            'delivery_address' => (string) $p->delivery_address,
-            'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
-        ]);
+        $rows = $this->delivery
+            ->availablePrescriptions(50, $driver->business_id ? (int) $driver->business_id : null)
+            ->map(fn (Prescription $p) => [
+                'prescription_id' => (int) $p->id,
+                'pharmacy' => $p->pharmacy ? ['id' => (int) $p->pharmacy->id, 'name' => (string) $p->pharmacy->name] : null,
+                'delivery_address' => (string) $p->delivery_address,
+                'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
+            ]);
 
         return response()->json(['success' => true, 'data' => ['prescriptions' => $rows]]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Prescriptions;
 
+use App\Models\Address;
 use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
@@ -167,8 +168,14 @@ class PrescriptionService
     /**
      * The patient sends the prescription to a pharmacy to be dispensed, choosing
      * delivery (with an address) or pickup.
+     *
+     * A saved address-book entry ($addressId) wins over the free-text
+     * $address, mirroring CustomerCartService::placeOrder — `delivery_address`
+     * stores the resolved, human-readable SNAPSHOT either way (never
+     * rewritten by a later address-book edit), `delivery_address_id` is the
+     * pointer back for the frontend to preselect it next time.
      */
-    public function sendToPharmacy(Prescription $prescription, User $pharmacy, string $fulfillment, ?string $address): Prescription
+    public function sendToPharmacy(Prescription $prescription, User $pharmacy, string $fulfillment, ?string $address, ?int $addressId = null): Prescription
     {
         if (! in_array($prescription->status, [Prescription::STATUS_ISSUED], true)) {
             throw ValidationException::withMessages([
@@ -176,16 +183,38 @@ class PrescriptionService
             ]);
         }
 
-        if ($fulfillment === Prescription::FULFILLMENT_DELIVERY && ! $address) {
-            throw ValidationException::withMessages([
-                'delivery_address' => __('أدخل عنوان التوصيل.'),
-            ]);
+        $resolvedAddress = null;
+        $resolvedAddressId = null;
+
+        if ($fulfillment === Prescription::FULFILLMENT_DELIVERY) {
+            if ($addressId) {
+                $book = Address::query()
+                    ->where('id', $addressId)
+                    ->where('user_id', (int) $prescription->patient_id)
+                    ->first();
+
+                if (! $book) {
+                    throw ValidationException::withMessages([
+                        'address_id' => __('العنوان غير موجود.'),
+                    ]);
+                }
+
+                $resolvedAddress = $book->toDeliveryLine();
+                $resolvedAddressId = (int) $book->id;
+            } elseif ($address) {
+                $resolvedAddress = $address;
+            } else {
+                throw ValidationException::withMessages([
+                    'delivery_address' => __('أدخل عنوان التوصيل.'),
+                ]);
+            }
         }
 
         $prescription->update([
             'pharmacy_id' => (int) $pharmacy->id,
             'fulfillment_type' => $fulfillment,
-            'delivery_address' => $fulfillment === Prescription::FULFILLMENT_DELIVERY ? $address : null,
+            'delivery_address' => $resolvedAddress,
+            'delivery_address_id' => $resolvedAddressId,
             'status' => Prescription::STATUS_SENT,
         ]);
 

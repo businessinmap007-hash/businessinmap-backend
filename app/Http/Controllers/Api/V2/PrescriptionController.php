@@ -134,6 +134,11 @@ class PrescriptionController extends Controller
         $data = $request->validate([
             'pharmacy_id' => ['required', 'integer', 'exists:users,id'],
             'fulfillment_type' => ['required', Rule::in(Prescription::FULFILLMENTS)],
+            // A saved address book entry wins over the free-text fallback —
+            // same two-source pattern as menu/retail checkout. Ownership is
+            // verified in the service, not here (the id alone doesn't say
+            // whose address it is).
+            'address_id' => ['nullable', 'integer', 'exists:addresses,id'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -145,6 +150,7 @@ class PrescriptionController extends Controller
             $pharmacy,
             $data['fulfillment_type'],
             $data['delivery_address'] ?? null,
+            isset($data['address_id']) ? (int) $data['address_id'] : null,
         );
 
         return response()->json([
@@ -358,6 +364,7 @@ class PrescriptionController extends Controller
             'patient_condition' => $p->patient_condition,
             'notes' => $p->notes,
             'delivery_address' => $p->delivery_address,
+            'delivery_address_id' => $p->delivery_address_id ? (int) $p->delivery_address_id : null,
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),
             'images' => $p->imagePayload(),

@@ -151,7 +151,18 @@ class NotificationChannelRule extends Model
 
     public static function ensureDefaults(): void
     {
-        foreach (self::defaultEventKeys() as $eventKey => $row) {
+        $defaults = self::defaultEventKeys();
+
+        // The common case, by far: every default row already exists. Skip
+        // straight past the 50+ firstOrCreate() calls below — each dispatch()
+        // used to pay that cost unconditionally, and now that wallet
+        // deposits/withdrawals dispatch too, that was hammering this table
+        // with writes on nearly every wallet operation in the app.
+        if (self::query()->whereIn('event_key', array_keys($defaults))->count() === count($defaults)) {
+            return;
+        }
+
+        foreach ($defaults as $eventKey => $row) {
             self::query()->firstOrCreate(
                 ['event_key' => $eventKey],
                 [

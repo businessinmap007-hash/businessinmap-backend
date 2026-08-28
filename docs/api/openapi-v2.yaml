@@ -1992,6 +1992,12 @@ paths:
       summary: Toggle driver availability
       requestBody: { content: { application/json: { schema: { type: object, properties: { active: { type: boolean } } } } } }
       responses: { '200': { description: OK } }
+  /delivery/location:
+    post:
+      tags: [Delivery]
+      summary: Driver pings their live position (every 30-60s while carrying an active order)
+      requestBody: { content: { application/json: { schema: { type: object, required: [lat, lng], properties: { lat: { type: number }, lng: { type: number } } } } } }
+      responses: { '200': { description: OK } }
   /delivery/available-orders:
     get: { tags: [Delivery], summary: Delivery orders open to take (preparing/ready, unassigned), responses: { '200': { description: OK } } }
   /delivery/orders/{order}/accept:

@@ -71,6 +71,25 @@ class DeliveryDispatchService
         return $driver;
     }
 
+    /**
+     * The driver's own app calls this every 30-60s WHILE it is carrying an
+     * active order — not a constant background ping, and not enforced here
+     * either way (a stale ping just makes distanceKmTo()/hasFreshLocation()
+     * return null, never a stale number presented as current).
+     */
+    public function pingLocation(int $userId, float $lat, float $lng): DeliveryDriver
+    {
+        $driver = $this->driverOrFail($userId);
+
+        $driver->update([
+            'last_lat' => $lat,
+            'last_lng' => $lng,
+            'location_updated_at' => now(),
+        ]);
+
+        return $driver;
+    }
+
     // ─────────────────────────── Business-owned fleet ───────────────────────────
 
     /**
@@ -143,9 +162,13 @@ class DeliveryDispatchService
      * A driver carrying more than one active order at once is the "route":
      * acceptOrder() never blocked a second accept, it just was never surfaced.
      *
+     * $restaurantLat/$restaurantLng (the business's own location, e.g.
+     * users.latitude/longitude) enable "how far is he from picking up" —
+     * omit them and that figure is simply absent, not wrong.
+     *
      * @return \Illuminate\Support\Collection<int,array>
      */
-    public function businessRoster(int $businessId): \Illuminate\Support\Collection
+    public function businessRoster(int $businessId, ?float $restaurantLat = null, ?float $restaurantLng = null): \Illuminate\Support\Collection
     {
         $drivers = DeliveryDriver::query()
             ->where('business_id', $businessId)
@@ -164,7 +187,7 @@ class DeliveryDispatchService
             ->whereIn('delivery_driver_id', $driverIds)
             ->whereIn('delivery_stage', [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP])
             ->orderBy('id')
-            ->get(['id', 'delivery_driver_id', 'delivery_stage', 'address', 'final_total'])
+            ->get(['id', 'delivery_driver_id', 'delivery_stage', 'address', 'final_total', 'delivery_lat', 'delivery_lng', 'delivery_address_id'])
             ->groupBy('delivery_driver_id');
 
         $deliveredToday = DeliveryCompletion::query()
@@ -174,7 +197,7 @@ class DeliveryDispatchService
             ->groupBy('delivery_driver_id')
             ->pluck('c', 'delivery_driver_id');
 
-        return $drivers->map(function (DeliveryDriver $driver) use ($activeOrders, $deliveredToday) {
+        return $drivers->map(function (DeliveryDriver $driver) use ($activeOrders, $deliveredToday, $restaurantLat, $restaurantLng) {
             $orders = $activeOrders->get($driver->id, collect());
 
             return [
@@ -188,15 +211,60 @@ class DeliveryDispatchService
                 'active_order_count' => $orders->count(),
                 'delivered_today' => (int) ($deliveredToday[$driver->id] ?? 0),
                 'delivered_count' => (int) $driver->delivered_count,
-                'active_orders' => $orders->map(fn ($o) => [
-                    'order_id' => (int) $o->id,
-                    // assigned = تم الاستلام من المطعم لم يبدأ بعد، picked_up = في الطريق
-                    'stage' => (string) $o->delivery_stage,
-                    'address' => (string) $o->address,
-                    'final_total' => (float) $o->final_total,
-                ])->values()->all(),
+                'location_available' => $driver->hasFreshLocation(),
+                'active_orders' => $orders->map(function (Order $o) use ($driver, $restaurantLat, $restaurantLng) {
+                    [$customerLat, $customerLng] = $o->customerLatLng() ?? [null, null];
+
+                    return [
+                        'order_id' => (int) $o->id,
+                        // assigned = تم الاستلام من المطعم لم يبدأ بعد، picked_up = في الطريق
+                        'stage' => (string) $o->delivery_stage,
+                        'address' => (string) $o->address,
+                        'final_total' => (float) $o->final_total,
+                        // Meaningful only before pickup — once picked up the
+                        // driver is heading away from the restaurant, not toward it.
+                        'distance_to_restaurant_km' => $o->delivery_stage === self::STAGE_ASSIGNED
+                            ? $driver->distanceKmTo($restaurantLat, $restaurantLng)
+                            : null,
+                        'distance_to_customer_km' => $driver->distanceKmTo($customerLat, $customerLng),
+                    ];
+                })->values()->all(),
             ];
         })->values();
+    }
+
+    /**
+     * Freelance drivers (business_id null, on duty, a fresh ping) within
+     * $radiusKm of the business's own location — visibility only: the
+     * business cannot assign one directly, a freelance driver still self-selects
+     * from the job board. Answers "how many are actually around me right now".
+     *
+     * @return \Illuminate\Support\Collection<int,array>
+     */
+    public function nearbyFreelanceDrivers(float $originLat, float $originLng, float $radiusKm, int $limit = 50): \Illuminate\Support\Collection
+    {
+        return DeliveryDriver::query()
+            ->whereNull('business_id')
+            ->where('is_active', true)
+            ->whereNotNull('last_lat')
+            ->whereNotNull('last_lng')
+            ->where('location_updated_at', '>=', now()->subMinutes(DeliveryDriver::LOCATION_STALE_AFTER_MINUTES))
+            ->with('user:id,name,phone')
+            ->get()
+            ->map(fn (DeliveryDriver $driver) => [
+                'driver' => $driver,
+                'distance_km' => DeliveryDriver::haversineKm($originLat, $originLng, (float) $driver->last_lat, (float) $driver->last_lng),
+            ])
+            ->filter(fn ($row) => $row['distance_km'] <= $radiusKm)
+            ->sortBy('distance_km')
+            ->take($limit)
+            ->map(fn ($row) => [
+                'user_id' => (int) $row['driver']->user_id,
+                'name' => optional($row['driver']->user)->name,
+                'vehicle_label' => $row['driver']->vehicle_label,
+                'distance_km' => round($row['distance_km'], 1),
+            ])
+            ->values();
     }
 
     /**

@@ -696,6 +696,7 @@ Route::prefix('v2')->group(function () {
         Route::prefix('delivery')->group(function () {
             Route::post('register', [DeliveryController::class, 'register']);
             Route::post('availability', [DeliveryController::class, 'availability']);
+            Route::post('location', [DeliveryController::class, 'pingLocation']);
             Route::get('available-orders', [DeliveryController::class, 'available']);
             Route::post('orders/{order}/accept', [DeliveryController::class, 'accept'])->whereNumber('order');
             Route::post('orders/{order}/pickup-token', [DeliveryController::class, 'issuePickupToken'])->whereNumber('order');

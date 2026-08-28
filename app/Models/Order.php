@@ -114,6 +114,29 @@ class Order extends Model
         return $this->belongsTo(Address::class, 'delivery_address_id');
     }
 
+    /**
+     * Where the customer actually is, for a distance calculation — a one-off
+     * GPS pin wins (it is exactly where they stood at checkout), then the
+     * saved address's own coordinates. A free-text address has neither, and
+     * that is a real "unknown", not a bug to paper over with a guess.
+     *
+     * @return array{0:float,1:float}|null [lat, lng]
+     */
+    public function customerLatLng(): ?array
+    {
+        if ($this->delivery_lat !== null && $this->delivery_lng !== null) {
+            return [(float) $this->delivery_lat, (float) $this->delivery_lng];
+        }
+
+        $address = $this->relationLoaded('deliveryAddress') ? $this->deliveryAddress : $this->deliveryAddress()->first();
+
+        if ($address && $address->lat !== null && $address->lng !== null) {
+            return [(float) $address->lat, (float) $address->lng];
+        }
+
+        return null;
+    }
+
     public function isDineIn(): bool
     {
         return (string) $this->fulfillment_type === self::FULFILLMENT_DINE_IN;

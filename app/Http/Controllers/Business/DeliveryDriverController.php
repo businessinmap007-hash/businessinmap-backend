@@ -30,10 +30,20 @@ class DeliveryDriverController extends Controller
     {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $business = $this->actingBusiness();
+        $lat = $business && $business->latitude !== null ? (float) $business->latitude : null;
+        $lng = $business && $business->longitude !== null ? (float) $business->longitude : null;
+        $radiusKm = max(1, min(50, (float) $request->get('radius_km', 5)));
+
         return view('business.delivery-drivers.index', [
-            'drivers' => $this->delivery->businessRoster($this->businessId()),
+            'drivers' => $this->delivery->businessRoster($this->businessId(), $lat, $lng),
+            'hasLocation' => $lat !== null && $lng !== null,
+            'radiusKm' => $radiusKm,
+            'nearbyFreelancers' => ($lat !== null && $lng !== null)
+                ? $this->delivery->nearbyFreelanceDrivers($lat, $lng, $radiusKm)
+                : collect(),
         ]);
     }
 

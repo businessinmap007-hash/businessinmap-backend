@@ -40,6 +40,23 @@ final class DeliveryController extends Controller
         return response()->json(['success' => true, 'data' => $this->driverPayload($driver)]);
     }
 
+    /**
+     * POST /api/v2/delivery/location — the driver's app calls this every
+     * 30-60s WHILE it is carrying an active order. Not enforced server-side
+     * (an idle ping is harmless), so no separate "am I on a job" check here.
+     */
+    public function pingLocation(Request $request)
+    {
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $driver = $this->delivery->pingLocation((int) $request->user()->id, (float) $data['lat'], (float) $data['lng']);
+
+        return response()->json(['success' => true, 'data' => $this->driverPayload($driver)]);
+    }
+
     /** GET /api/v2/delivery/available-orders */
     public function available(Request $request)
     {

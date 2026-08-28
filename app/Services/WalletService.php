@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Wallet;
 use App\Models\WalletPin;
 use App\Models\WalletTransaction;
+use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -95,13 +96,15 @@ class WalletService
         array $meta = []
     ): WalletTransaction {
         $amount = $this->normalizeAmount($amount);
+        $isReplay = false;
 
-        return DB::transaction(function () use ($userId, $amount, $note, $referenceType, $referenceId, $idempotencyKey, $meta) {
+        $tx = DB::transaction(function () use ($userId, $amount, $note, $referenceType, $referenceId, $idempotencyKey, $meta, &$isReplay) {
 
             $wallet = $this->getOrCreateWallet($userId);
             $this->ensureActive($wallet);
 
             if ($existing = $this->findByIdempotency($wallet, $idempotencyKey)) {
+                $isReplay = true;
                 return $existing;
             }
 
@@ -135,6 +138,12 @@ class WalletService
                 'meta' => $meta,
             ]);
         });
+
+        if (! $isReplay) {
+            $this->notifyWalletMove('wallet_deposit', $tx);
+        }
+
+        return $tx;
     }
 
     /**
@@ -150,13 +159,15 @@ class WalletService
         array $meta = []
     ): WalletTransaction {
         $amount = $this->normalizeAmount($amount);
+        $isReplay = false;
 
-        return DB::transaction(function () use ($userId, $amount, $note, $referenceType, $referenceId, $idempotencyKey, $meta) {
+        $tx = DB::transaction(function () use ($userId, $amount, $note, $referenceType, $referenceId, $idempotencyKey, $meta, &$isReplay) {
 
             $wallet = $this->getOrCreateWallet($userId);
             $this->ensureActive($wallet);
 
             if ($existing = $this->findByIdempotency($wallet, $idempotencyKey)) {
+                $isReplay = true;
                 return $existing;
             }
 
@@ -195,6 +206,12 @@ class WalletService
                 'meta' => $meta,
             ]);
         });
+
+        if (! $isReplay) {
+            $this->notifyWalletMove('wallet_withdraw', $tx);
+        }
+
+        return $tx;
     }
 
     /**
@@ -603,5 +620,34 @@ class WalletService
                 ]);
             });
         }
+
+    /**
+     * Wallet balance moved — tell the owner. Runs after the transaction that
+     * created $tx has committed, so a notification never survives a rollback
+     * and the row lock isn't held any longer than the money movement needs.
+     */
+    private function notifyWalletMove(string $eventKey, WalletTransaction $tx): void
+    {
+        $amount = number_format((float) $tx->amount, 2);
+        $balance = number_format((float) $tx->balance_after, 2);
+
+        $body = $eventKey === 'wallet_deposit'
+            ? [
+                'body_ar' => "تم إيداع {$amount} جنيه في محفظتك. الرصيد الحالي: {$balance} جنيه.",
+                'body_en' => "EGP {$amount} was deposited into your wallet. Current balance: EGP {$balance}.",
+            ]
+            : [
+                'body_ar' => "تم خصم {$amount} جنيه من محفظتك. الرصيد الحالي: {$balance} جنيه.",
+                'body_en' => "EGP {$amount} was withdrawn from your wallet. Current balance: EGP {$balance}.",
+            ];
+
+        app(NotificationDispatcherService::class)->dispatch($eventKey, (int) $tx->user_id, $body + [
+            'action_type' => 'open_wallet',
+            'action_url' => '/wallet',
+            'source_type' => WalletTransaction::class,
+            'source_id' => $tx->id,
+            'meta' => ['amount' => (float) $tx->amount, 'balance_after' => (float) $tx->balance_after, 'type' => $tx->type],
+        ]);
+    }
 
 }

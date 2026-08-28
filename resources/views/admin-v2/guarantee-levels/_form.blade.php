@@ -96,6 +96,21 @@
     </div>
 
     <div class="a2-card">
+        <h2 class="a2-section-title">{{ __('خصم ولاء الرسوم') }}</h2>
+        <p class="a2-help">{{ __('يُمنح مرة واحدة فقط عند بلوغ هذا المستوى: خصم بسيط من كل رسمة خدمة، حتى يصل إجمالي الخصم إلى المبلغ المطلوب تجميده لهذا المستوى، ثم يتوقف نهائيًا على هذا المستوى تحديدًا. الترقية لمستوى أعلى تمنح خصمًا جديدًا. اترك الحقلين فارغين لتعطيل الميزة. إذا مُلئ الحقلان معًا، يُستخدم المبلغ الثابت فقط.') }}</p>
+
+        <div class="a2-field">
+            <label class="a2-label">{{ __('خصم ثابت لكل رسمة') }}</label>
+            <input class="a2-input" type="number" step="0.01" min="0" name="fee_discount_amount" value="{{ old('fee_discount_amount', $level->fee_discount_amount) }}" placeholder="{{ __('مثال: 1 (جنيه من كل رسمة)') }}">
+        </div>
+
+        <div class="a2-field">
+            <label class="a2-label">{{ __('أو نسبة من كل رسمة %') }}</label>
+            <input class="a2-input" type="number" step="0.01" min="0" max="100" name="fee_discount_percent" value="{{ old('fee_discount_percent', $level->fee_discount_percent) }}" placeholder="{{ __('مثال: 10') }}">
+        </div>
+    </div>
+
+    <div class="a2-card">
         <h2 class="a2-section-title">{{ __('شروط التأهيل') }}</h2>
 
         <div class="a2-field">

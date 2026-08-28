@@ -32,6 +32,8 @@ class GuaranteeLevel extends Model
         'priority',
         'is_active',
         'meta',
+        'fee_discount_amount',
+        'fee_discount_percent',
     ];
 
     protected $casts = [
@@ -49,6 +51,8 @@ class GuaranteeLevel extends Model
         'priority' => 'integer',
         'is_active' => 'boolean',
         'meta' => 'array',
+        'fee_discount_amount' => 'decimal:2',
+        'fee_discount_percent' => 'decimal:2',
     ];
 
     public function userGuarantees(): HasMany

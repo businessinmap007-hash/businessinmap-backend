@@ -174,6 +174,10 @@ final class GuaranteeLevelAdminController extends Controller
             'priority' => ['required', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
             'meta_json' => ['nullable', 'string'],
+            // One-time loyalty discount off every platform fee, capped at
+            // required_locked_amount total — set at most one of these two.
+            'fee_discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'fee_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active');
@@ -187,6 +191,14 @@ final class GuaranteeLevelAdminController extends Controller
         $data['boost_max_dispute_rate'] = ($data['boost_max_dispute_rate'] ?? '') === '' ? null : round((float) $data['boost_max_dispute_rate'], 2);
         $data['meta'] = $this->decodeMeta($data['meta_json'] ?? null);
         unset($data['meta_json']);
+
+        $data['fee_discount_amount'] = ($data['fee_discount_amount'] ?? '') === '' ? null : round((float) $data['fee_discount_amount'], 2);
+        $data['fee_discount_percent'] = ($data['fee_discount_percent'] ?? '') === '' ? null : round((float) $data['fee_discount_percent'], 2);
+
+        // Fixed amount wins if an admin fills both — see WalletFeeService::applyLoyaltyDiscount.
+        if ($data['fee_discount_amount'] !== null && $data['fee_discount_percent'] !== null) {
+            $data['fee_discount_percent'] = null;
+        }
 
         return $data;
     }

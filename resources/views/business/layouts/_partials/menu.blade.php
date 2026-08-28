@@ -79,6 +79,10 @@
             ['label' => 'موصّليّ', 'route' => 'business.delivery-drivers.index', 'gate' => 'delivery-drivers', 'active' => ['business.delivery-drivers.']],
         ]],
 
+        ['label' => 'الثقة والضمان', 'icon' => 'tag', 'gate' => 'trusted-partners', 'children' => [
+            ['label' => 'شركاء موثوقون', 'route' => 'business.trusted-partners.index', 'gate' => 'trusted-partners', 'active' => ['business.trusted-partners.']],
+        ]],
+
         ['label' => 'خطوط التشغيل', 'icon' => 'route', 'gate' => 'schedules', 'children' => [
             ['label' => 'الخطوط', 'route' => 'business.schedules.index', 'gate' => 'schedules', 'active' => ['business.schedules.']],
         ]],

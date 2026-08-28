@@ -15,6 +15,7 @@ use App\Models\OrderItem;
 use App\Models\OrderParticipant;
 use App\Models\User;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
+use App\Services\Guarantees\TrustedPartnerService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Retail\RetailListingVisibility;
 use Illuminate\Support\Collection;
@@ -53,6 +54,7 @@ class CustomerCartService
         protected NotificationDispatcherService $notifications,
         protected CityLocatorService $cityLocator,
         protected GuaranteeOperationCoverageService $guaranteeCoverage,
+        protected TrustedPartnerService $trustedPartners,
     ) {
     }
 
@@ -663,6 +665,16 @@ class CustomerCartService
 
         $cart->requires_deposit = true;
         $cart->deposit_amount = (float) $cart->final_total;
+
+        // A standing vouch ("we've dealt before, I trust him") skips the
+        // coverage math entirely — see TrustedPartnerService's own docblock
+        // for why this is pure trust, not a money-backed exemption.
+        if ($this->trustedPartners->isWaived((int) $cart->business_id, (int) $cart->user_id)) {
+            $cart->deposit_covered = true;
+            $cart->deposit_covered_by = 'vouched';
+
+            return;
+        }
 
         $customer = User::query()->find($cart->user_id);
 

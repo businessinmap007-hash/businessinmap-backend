@@ -9,6 +9,7 @@ use App\Http\Controllers\Business\BusinessServicePriceController;
 use App\Http\Controllers\Business\CatalogListingController;
 use App\Http\Controllers\Business\DashboardController;
 use App\Http\Controllers\Business\DeliveryDriverController;
+use App\Http\Controllers\Business\TrustedPartnerController;
 use App\Http\Controllers\Business\FinancialStatementController;
 use App\Http\Controllers\Business\LocaleController;
 use App\Http\Controllers\Business\MenuItemController;
@@ -197,6 +198,11 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('delivery-drivers', [DeliveryDriverController::class, 'index'])->name('delivery-drivers.index');
         Route::post('delivery-drivers', [DeliveryDriverController::class, 'store'])->name('delivery-drivers.store');
         Route::put('delivery-drivers/{driver}', [DeliveryDriverController::class, 'update'])->whereNumber('driver')->name('delivery-drivers.update');
+
+        // "شركاء موثوقون" — standing deposit waiver per trusted customer (2026-08-28).
+        Route::get('trusted-partners', [TrustedPartnerController::class, 'index'])->name('trusted-partners.index');
+        Route::post('trusted-partners', [TrustedPartnerController::class, 'store'])->name('trusted-partners.store');
+        Route::put('trusted-partners/{partner}', [TrustedPartnerController::class, 'update'])->whereNumber('partner')->name('trusted-partners.update');
 
         // Scheduling service: the carrier publishes trip legs, then works the
         // reservation desk for them. Static paths stay ahead of the dynamic

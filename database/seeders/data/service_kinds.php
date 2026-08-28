@@ -176,27 +176,33 @@ return [
              * comes, draws blood and leaves; a doctor comes and examines. Same
              * doorstep, different thing bought, and the price says so.
              */
-            514 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // عيادة
+            /*
+             * The clinic gained «استشارة» on 2026-08-28 — the owner's own edit
+             * from the bulk screen, kept: a clinic offering a paid opinion
+             * alongside كشف/متابعة is a real, distinct thing to book.
+             */
+            514 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // عيادة
             /*
              * The hospital gained «استشارة» on 2026-08-07 — the owner's own
              * edit, kept because a hospital really does sell an opinion that is
              * neither a كشف nor a متابعة (a second opinion, a pre-op review).
-             * It is the one child here that carries all three.
              */
             513 => ['booking_consultation', 'booking_examination', 'booking_procedure', 'booking_online_consultation', 'booking_follow_up', 'booking_home_sample'], // مستشفى
             515 => ['booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_online_consultation', 'booking_home_sample'], // مركز طبي
             /*
              * «مركز حجامة» #542, added 2026-08-09 with its booking config copied
-             * whole from the clinic. The copy is not enough on its own: THIS map
-             * is what ServiceKindsCollapseSeeder rewrites configs from, and a
-             * child missing from it is handed the bare «موعد» — which is how the
+             * whole from the clinic — kept in lockstep with عيادة's shape by
+             * design (see TradeVocabularyTest), so its 2026-08-28 «استشارة»
+             * addition carries over here too. THIS map is what
+             * ServiceKindsCollapseSeeder rewrites configs from, and a child
+             * missing from it is handed the bare «موعد» — which is how the
              * cupping centre silently lost the four clinic kinds the day the
              * collapse next ran. A new booking child belongs in both places.
              *
              * No «سحب عينة بالمنزل»: a cupping session at home is a visit, not a
              * sample. Same four the clinic carries.
              */
-            542 => ['booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // مركز حجامة
+            542 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // مركز حجامة
 
             /*
              * A lab keeps the plain appointment — coming in to give a sample is

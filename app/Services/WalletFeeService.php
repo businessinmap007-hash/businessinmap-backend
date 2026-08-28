@@ -5,13 +5,12 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\BusinessFinancialLedger;
 use App\Models\CategoryChildServiceFee;
-use App\Models\GuaranteeLoyaltyGrant;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceFeePromotion;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
-use App\Services\Guarantees\GuaranteeCoverageService;
+use App\Services\Guarantees\FeeLoyaltyDiscountService;
 use App\Services\Wallet\PlatformTreasuryService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +29,7 @@ class WalletFeeService
     public function __construct(
         protected PlatformTreasuryService $treasury,
         protected FinancialLedgerService $ledger,
-        protected GuaranteeCoverageService $guaranteeCoverage,
+        protected FeeLoyaltyDiscountService $loyaltyDiscount,
     ) {}
 
     public function resolveBookingFees(Booking $booking, string $feeCode = self::DEFAULT_FEE_CODE): Collection
@@ -370,7 +369,7 @@ class WalletFeeService
             throw new RuntimeException(__('قيمة الرسوم غير صالحة.'));
         }
 
-        $loyalty = $this->applyLoyaltyDiscount($user, $amount);
+        $loyalty = $this->loyaltyDiscount->apply($user, $amount);
         $amount = round($amount - $loyalty['discount'], 2);
 
         if ($balanceBefore < $amount) {
@@ -437,93 +436,6 @@ class WalletFeeService
         return $transaction;
     }
 
-    /**
-     * A one-time, self-limiting loyalty perk: while a user's active guarantee
-     * level carries a fee_discount_amount/percent, every fee they pay is
-     * shaved down until the running total shaved reaches the level's own
-     * price (required_locked_amount) — then it stops, permanently, for that
-     * level. Upgrading to a higher level grants a fresh allowance there.
-     *
-     * Always at least 0.01 is left on the fee itself, so a fully-discounted
-     * fee never collapses to zero and skips the "invalid fee" guard above.
-     */
-    protected function applyLoyaltyDiscount(User $user, float $amount): array
-    {
-        $none = ['discount' => 0.0, 'level' => null, 'grant' => null];
-
-        $guarantee = $this->guaranteeCoverage->activeGuarantee($user);
-
-        if (! $guarantee || ! $guarantee->isUsable()) {
-            return $none;
-        }
-
-        $level = $guarantee->effectiveLevel ?: $guarantee->purchasedLevel;
-
-        if (! $level) {
-            return $none;
-        }
-
-        $fixedDiscount = $level->fee_discount_amount !== null ? (float) $level->fee_discount_amount : null;
-        $percentDiscount = $level->fee_discount_percent !== null ? (float) $level->fee_discount_percent : null;
-
-        if ($fixedDiscount === null && $percentDiscount === null) {
-            return $none;
-        }
-
-        $cap = round((float) $level->required_locked_amount, 2);
-
-        if ($cap <= 0) {
-            return $none;
-        }
-
-        $grant = GuaranteeLoyaltyGrant::query()
-            ->where('user_id', $user->id)
-            ->where('guarantee_level_id', $level->id)
-            ->lockForUpdate()
-            ->first();
-
-        if (! $grant) {
-            $grant = GuaranteeLoyaltyGrant::create([
-                'user_id' => $user->id,
-                'guarantee_level_id' => $level->id,
-                'discount_given' => 0,
-            ]);
-        }
-
-        if ($grant->exhausted_at) {
-            return $none;
-        }
-
-        $remaining = round($cap - (float) $grant->discount_given, 2);
-
-        if ($remaining <= 0) {
-            $grant->exhausted_at = now();
-            $grant->save();
-
-            return $none;
-        }
-
-        $proposed = $fixedDiscount !== null
-            ? $fixedDiscount
-            : round($amount * ($percentDiscount / 100), 2);
-
-        $discount = min($proposed, $remaining, round($amount - 0.01, 2));
-
-        if ($discount <= 0) {
-            return $none;
-        }
-
-        $grant->discount_given = round((float) $grant->discount_given + $discount, 2);
-
-        if ($grant->discount_given >= $cap) {
-            $grant->exhausted_at = now();
-        }
-
-        $grant->save();
-
-        return ['discount' => round($discount, 2), 'level' => $level, 'grant' => $grant];
-    }
-
     protected function buildTransactionMeta(
         Booking $booking,
         string $feeCode,
@@ -583,14 +495,7 @@ class WalletFeeService
             'rules' => $line['rules'] ?? null,
             'notes' => $line['notes'] ?? null,
 
-            'loyalty_discount' => ($loyalty['discount'] ?? 0) > 0 ? [
-                'amount' => round((float) $loyalty['discount'], 2),
-                'guarantee_level_id' => (int) $loyalty['level']->id,
-                'guarantee_level_code' => $loyalty['level']->code,
-                'discount_given_total' => round((float) $loyalty['grant']->discount_given, 2),
-                'cap' => round((float) $loyalty['level']->required_locked_amount, 2),
-                'exhausted' => $loyalty['grant']->exhausted_at !== null,
-            ] : null,
+            'loyalty_discount' => $this->loyaltyDiscount->metaFragment($loyalty),
         ];
     }
 
@@ -732,23 +637,10 @@ class WalletFeeService
 
         $suffixes = array_filter([
             $this->promotionNoteSuffix($line),
-            $this->loyaltyNoteSuffix($loyalty),
+            $this->loyaltyDiscount->noteSuffix($loyalty),
         ], fn ($s) => $s !== '');
 
         return $suffixes === [] ? $note : $note . ' — ' . implode(' — ', $suffixes);
-    }
-
-    private function loyaltyNoteSuffix(array $loyalty): string
-    {
-        $discount = round((float) ($loyalty['discount'] ?? 0), 2);
-
-        if ($discount <= 0 || ! ($loyalty['level'] ?? null)) {
-            return '';
-        }
-
-        $levelName = (string) ($loyalty['level']->name_ar ?: $loyalty['level']->name_en ?: $loyalty['level']->code);
-
-        return "خصم ولاء ضمان «{$levelName}»: {$discount}";
     }
 
     /**

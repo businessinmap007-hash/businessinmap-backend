@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
+use App\Services\Guarantees\FeeLoyaltyDiscountService;
 use App\Services\Wallet\PlatformTreasuryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,7 @@ class OrderFeeSettlementService
     public function __construct(
         private readonly PlatformTreasuryService $treasury,
         private readonly FinancialLedgerService $ledger,
+        private readonly FeeLoyaltyDiscountService $loyaltyDiscount,
     ) {}
 
     /**
@@ -55,6 +57,10 @@ class OrderFeeSettlementService
             if ($existing) {
                 return $existing; // already settled
             }
+
+            $business = User::query()->find($businessId);
+            $loyalty = $business ? $this->loyaltyDiscount->apply($business, $fee) : ['discount' => 0.0, 'level' => null, 'grant' => null];
+            $fee = round($fee - $loyalty['discount'], 2);
 
             $wallet = Wallet::query()->where('user_id', $businessId)->lockForUpdate()->first();
             if (! $wallet) {
@@ -100,7 +106,8 @@ class OrderFeeSettlementService
                 'reference_type' => self::REFERENCE_TYPE,
                 'reference_id' => (string) $order->id,
                 'idempotency_key' => $idempotencyKey,
-                'note' => 'عمولة خدمة المنيو للطلب #' . $order->id,
+                'note' => 'عمولة خدمة المنيو للطلب #' . $order->id
+                    . ($this->loyaltyDiscount->noteSuffix($loyalty) !== '' ? ' — ' . $this->loyaltyDiscount->noteSuffix($loyalty) : ''),
                 'meta' => [
                     'order_id' => (int) $order->id,
                     'business_id' => $businessId,
@@ -108,6 +115,7 @@ class OrderFeeSettlementService
                     'fee_code' => 'menu_service',
                     'payer' => 'business',
                     'source' => 'order_fee_settlement',
+                    'loyalty_discount' => $this->loyaltyDiscount->metaFragment($loyalty),
                 ],
             ]);
 

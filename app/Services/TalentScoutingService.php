@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Post;
 use App\Models\TalentView;
 use App\Models\User;
+use App\Services\Guarantees\FeeLoyaltyDiscountService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -47,8 +48,10 @@ use Illuminate\Validation\ValidationException;
  */
 class TalentScoutingService
 {
-    public function __construct(private readonly WalletService $wallet)
-    {
+    public function __construct(
+        private readonly WalletService $wallet,
+        private readonly FeeLoyaltyDiscountService $loyaltyDiscount,
+    ) {
     }
 
     /**
@@ -98,7 +101,7 @@ class TalentScoutingService
             $view->fill([
                 'first_seen_at' => now(),
                 'view_count' => 1,
-                'view_fee' => $fee,
+                'view_fee' => $tx?->amount ?? $fee,
                 'view_transaction_id' => $tx?->id,
             ])->save();
 
@@ -128,7 +131,7 @@ class TalentScoutingService
 
             $view->forceFill([
                 'revealed_at' => now(),
-                'reveal_fee' => $fee,
+                'reveal_fee' => $tx?->amount ?? $fee,
                 'reveal_transaction_id' => $tx?->id,
             ])->save();
 
@@ -151,12 +154,20 @@ class TalentScoutingService
             return null;
         }
 
+        $loyalty = $this->loyaltyDiscount->apply($scout, $fee);
+        $fee = round($fee - $loyalty['discount'], 2);
+
         $key = "talent:{$event}:{$talent->id}:{$scout->id}";
         $note = $event === 'reveal'
             ? 'كشف بيانات ناشئ'
             : 'مشاهدة بطاقة ناشئ';
 
-        $meta = ['talent_post_id' => $talent->id, 'event' => $event];
+        $suffix = $this->loyaltyDiscount->noteSuffix($loyalty);
+        if ($suffix !== '') {
+            $note .= ' — ' . $suffix;
+        }
+
+        $meta = ['talent_post_id' => $talent->id, 'event' => $event, 'loyalty_discount' => $this->loyaltyDiscount->metaFragment($loyalty)];
 
         $treasury = (int) config('bim.platform_wallet_user_id');
 

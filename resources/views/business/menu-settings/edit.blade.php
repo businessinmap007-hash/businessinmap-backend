@@ -106,6 +106,26 @@
         </div>
     </div>
 
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
+                <div class="a2-card-title">{{ __('حدٌّ يستوجب ضمانًا') }}</div>
+                <div class="a2-card-sub">{{ __('طلب بقيمة أعلى من هذا الحد ولا يملك عميله ضمانًا أو رصيد محفظة يكفيه، يوصلك معلَّم عليه "بلا ضمان" — وأنت تقرر وقت القبول: تكمله على مسؤوليتك أو ترفضه. اترك الحقل فارغاً لعدم اشتراط ضمان أبداً.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="deposit_required_above">{{ __('قيمة الطلب التي تستوجب ضماناً (جنيه)') }}</label>
+                <input type="number" step="0.01" min="0" id="deposit_required_above" name="deposit_required_above"
+                    class="a2-input @error('deposit_required_above') a2-input-error @enderror"
+                    value="{{ old('deposit_required_above', $row->deposit_required_above) }}"
+                    placeholder="{{ __('بلا اشتراط') }}">
+                @error('deposit_required_above')<div class="a2-field-error">{{ $message }}</div>@enderror
+            </div>
+        </div>
+    </div>
+
     <div class="a2-page-actions" style="justify-content:flex-end;margin-top:16px;">
         <button type="submit" class="a2-btn a2-btn-primary">{{ __('حفظ') }}</button>
     </div>

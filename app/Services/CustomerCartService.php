@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderParticipant;
 use App\Models\User;
+use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Retail\RetailListingVisibility;
 use Illuminate\Support\Collection;
@@ -51,6 +52,7 @@ class CustomerCartService
         protected MenuBillingService $billing,
         protected NotificationDispatcherService $notifications,
         protected CityLocatorService $cityLocator,
+        protected GuaranteeOperationCoverageService $guaranteeCoverage,
     ) {
     }
 
@@ -626,12 +628,67 @@ class CustomerCartService
         $cart->service_fee = $bill['service_fee'];
         $cart->tax = $bill['tax'];
         $cart->final_total = round($bill['menu_payable'] + $bill['retail_subtotal'] + $delivery - $discount, 2);
+        $this->assessDeposit($cart);
         $cart->save();
 
         // Alert the business a new order just landed. Covers every checkout path
         // that funnels through here — personal delivery/pickup, a shared cart, and
         // a dine-in table scan — so a scanned table order reaches the restaurant.
         $this->notifyBusinessOfNewOrder($cart);
+    }
+
+    /**
+     * The merchant's own «حدٌّ يستوجب ضمانًا» — orders had NO financial
+     * protection at all before this: a client can refuse to receive a
+     * delivered order and the business eats the shipping cost, with nothing
+     * to deter it. Deliberately NOT a hard gate — nothing is held or frozen
+     * here, unlike the booking deposit engine. An uncovered order still
+     * reaches the business; the merchant decides at accept time whether to
+     * take the risk anyway (Api\V2\OrderController::businessAccept) or
+     * refuse. `check()` is read-only, so nothing needs releasing on
+     * cancel/refund either.
+     */
+    private function assessDeposit(Order $cart): void
+    {
+        $cart->requires_deposit = false;
+        $cart->deposit_amount = null;
+        $cart->deposit_covered = false;
+        $cart->deposit_covered_by = null;
+
+        $threshold = BusinessMenuSetting::query()->where('business_id', $cart->business_id)->value('deposit_required_above');
+
+        if ($threshold === null || (float) $threshold <= 0 || (float) $cart->final_total < (float) $threshold) {
+            return;
+        }
+
+        $cart->requires_deposit = true;
+        $cart->deposit_amount = (float) $cart->final_total;
+
+        $customer = User::query()->find($cart->user_id);
+
+        if (! $customer) {
+            return;
+        }
+
+        $decision = $this->guaranteeCoverage->check(
+            $customer,
+            (float) $cart->final_total,
+            GuaranteeOperationCoverageService::OP_MARKETPLACE_ORDER,
+        );
+
+        if ((bool) $decision['covered']) {
+            $cart->deposit_covered = true;
+            $cart->deposit_covered_by = 'guarantee';
+
+            return;
+        }
+
+        $wallet = $customer->wallet;
+
+        if ($wallet && $wallet->availableBalance() >= (float) $cart->final_total) {
+            $cart->deposit_covered = true;
+            $cart->deposit_covered_by = 'wallet';
+        }
     }
 
     /**

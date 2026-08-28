@@ -33,6 +33,16 @@ class OrderResource extends JsonResource
             'payment_method' => $this->payment_method,
             'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
             'paid_at' => optional($this->paid_at)->toIso8601String(),
+
+            // Set at checkout from the merchant's own deposit_required_above
+            // setting — advisory, nothing is held. See Order::needsExplicitDepositDecision().
+            'deposit' => [
+                'required' => (bool) $this->requires_deposit,
+                'amount' => $this->deposit_amount !== null ? (float) $this->deposit_amount : null,
+                'covered' => (bool) $this->deposit_covered,
+                'covered_by' => $this->deposit_covered_by,
+                'accepted_without_cover' => (bool) $this->deposit_accepted_without_cover,
+            ],
             'address' => $this->address,
             'notes' => $this->notes,
 

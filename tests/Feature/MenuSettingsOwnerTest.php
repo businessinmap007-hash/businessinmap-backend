@@ -93,4 +93,27 @@ class MenuSettingsOwnerTest extends TestCase
             'default_margin_percent' => null,
         ]);
     }
+
+    /** «حدٌّ يستوجب ضمانًا» على طلبات المنيو/التوصيل — 2026-08-28، انظر OrderDepositTest. */
+    public function test_owner_saves_and_clears_the_deposit_threshold(): void
+    {
+        $owner = User::query()->where('type', 'business')->firstOrFail();
+        $this->actingAs($owner);
+
+        $this->put(route('business.menu-settings.update', [], false), [
+            'deposit_required_above' => 200,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $owner->id,
+            'deposit_required_above' => 200,
+        ]);
+
+        $this->put(route('business.menu-settings.update', [], false), [])->assertRedirect();
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $owner->id,
+            'deposit_required_above' => null,
+        ]);
+    }
 }

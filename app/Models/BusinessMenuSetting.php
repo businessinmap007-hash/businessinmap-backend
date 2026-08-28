@@ -18,6 +18,7 @@ class BusinessMenuSetting extends Model
         'tax_rate_percent',
         'min_order_amount',
         'default_margin_percent',
+        'deposit_required_above',
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class BusinessMenuSetting extends Model
         'tax_rate_percent' => 'float',
         'min_order_amount' => 'float',
         'default_margin_percent' => 'float',
+        'deposit_required_above' => 'float',
     ];
 
     public function business(): BelongsTo

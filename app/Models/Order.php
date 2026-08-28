@@ -51,6 +51,11 @@ class Order extends Model
         'service_fee',
         'tax',
         'final_total',
+        'requires_deposit',
+        'deposit_amount',
+        'deposit_covered',
+        'deposit_covered_by',
+        'deposit_accepted_without_cover',
         'payment_method',
         'payment_status',
         'paid_at',
@@ -78,7 +83,17 @@ class Order extends Model
         'is_shared' => 'boolean',
         'handover_confirmed_at' => 'datetime',
         'paid_at' => 'datetime',
+        'requires_deposit' => 'boolean',
+        'deposit_amount' => 'float',
+        'deposit_covered' => 'boolean',
+        'deposit_accepted_without_cover' => 'boolean',
     ];
+
+    /** The business must explicitly choose to accept this — see businessAccept(). */
+    public function needsExplicitDepositDecision(): bool
+    {
+        return (bool) $this->requires_deposit && ! $this->deposit_covered;
+    }
 
     public const PAYMENT_UNPAID = 'unpaid';
     public const PAYMENT_PAID = 'paid';

@@ -12,6 +12,7 @@ use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * v2 placed-order surfaces (replaces the legacy Api\V1 OrderController). Two
@@ -194,8 +195,13 @@ final class OrderController extends Controller
     public function businessAccept(Request $request, int $order)
     {
         $businessId = BusinessContext::id($request);
+        // The merchant's own deposit threshold (BusinessMenuSetting) flagged
+        // this order uncovered at checkout — nothing was held or blocked then,
+        // this is the one place the merchant actually decides. Silently
+        // accepting would defeat the whole point of asking in the first place.
+        $acceptWithoutDeposit = $request->boolean('accept_without_deposit');
 
-        $model = DB::transaction(function () use ($businessId, $order) {
+        $model = DB::transaction(function () use ($businessId, $order, $acceptWithoutDeposit) {
             /** @var Order|null $m */
             $m = Order::query()
                 ->where('business_id', $businessId)
@@ -209,11 +215,17 @@ final class OrderController extends Controller
             if ((string) $m->status !== 'pending' || $m->prep_status !== null) {
                 abort(409, __('لا يمكن قبول هذا الطلب في حالته الحالية.'));
             }
+            if ($m->needsExplicitDepositDecision() && ! $acceptWithoutDeposit) {
+                throw ValidationException::withMessages([
+                    'accept_without_deposit' => __('هذا الطلب بلا ضمان أو ديبوزت من العميل. أرسل accept_without_deposit=true لقبوله على مسؤوليتك، أو ارفض الطلب.'),
+                ]);
+            }
 
             // Collect BIM's fee from the business wallet (may block on balance).
             $this->feeSettlement->settleForOrder($m);
 
             $m->prep_status = Order::PREP_ACCEPTED;
+            $m->deposit_accepted_without_cover = $m->needsExplicitDepositDecision();
             $m->save();
 
             return $m;

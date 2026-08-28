@@ -40,15 +40,20 @@ class MenuSettingsController extends Controller
             // Empty → NULL → no default; the shelf-fill screen still requires
             // a manual price when neither is set.
             'default_margin_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            // Empty → NULL → never require one. Checked at checkout against
+            // the customer's own guarantee/wallet cover (CustomerCartService::assessDeposit).
+            'deposit_required_above' => ['nullable', 'numeric', 'min:0'],
         ], [], [
             'tax_rate_percent' => 'نسبة الضريبة',
             'min_order_amount' => 'حد أدنى للطلب',
             'default_margin_percent' => 'هامش الربح الافتراضي',
+            'deposit_required_above' => 'حد يستوجب ضمانًا',
         ]);
 
         $rate = $request->filled('tax_rate_percent') ? round((float) $data['tax_rate_percent'], 2) : null;
         $minOrder = $request->filled('min_order_amount') ? round((float) $data['min_order_amount'], 2) : null;
         $margin = $request->filled('default_margin_percent') ? round((float) $data['default_margin_percent'], 2) : null;
+        $depositAbove = $request->filled('deposit_required_above') ? round((float) $data['deposit_required_above'], 2) : null;
 
         BusinessMenuSetting::updateOrCreate(
             ['business_id' => $this->businessId()],
@@ -58,6 +63,7 @@ class MenuSettingsController extends Controller
                 'tax_rate_percent' => $rate,
                 'min_order_amount' => $minOrder,
                 'default_margin_percent' => $margin,
+                'deposit_required_above' => $depositAbove,
             ]
         );
 

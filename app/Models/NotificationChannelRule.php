@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class NotificationChannelRule extends Model
 {
@@ -154,34 +155,78 @@ class NotificationChannelRule extends Model
         $defaults = self::defaultEventKeys();
 
         // The common case, by far: every default row already exists. Skip
-        // straight past the 50+ firstOrCreate() calls below — each dispatch()
-        // used to pay that cost unconditionally, and now that wallet
-        // deposits/withdrawals dispatch too, that was hammering this table
-        // with writes on nearly every wallet operation in the app.
+        // straight past the 50+ firstOrCreate() calls below.
         if (self::query()->whereIn('event_key', array_keys($defaults))->count() === count($defaults)) {
             return;
         }
 
-        foreach ($defaults as $eventKey => $row) {
-            self::query()->firstOrCreate(
-                ['event_key' => $eventKey],
-                [
-                    'name_ar' => $row[0],
-                    'name_en' => $row[1],
-                    'type' => $row[2],
-                    'priority' => $row[3],
-                    'is_active' => true,
-                    'in_app_enabled' => (bool) $row[4],
-                    'realtime_enabled' => (bool) $row[5],
-                    'firebase_enabled' => (bool) $row[6],
-                    'fallback_to_firebase' => (bool) $row[7],
-                    'requires_operator_session' => (bool) $row[8],
-                    'critical' => (bool) $row[9],
-                    'escalation_minutes' => (int) $row[10],
-                    'sound_key' => $row[11],
-                ]
-            );
+        try {
+            // MySQL's own advice for SQLSTATE 40001 is "restart the
+            // transaction" — this app runs against a live, shared database,
+            // so real traffic can be writing to this same table at the same
+            // moment. The retry only actually fires when this call is NOT
+            // already nested inside a caller's own transaction (Laravel
+            // disables mid-savepoint retries — see the try/catch below for
+            // that case instead).
+            DB::transaction(function () use ($defaults) {
+                foreach ($defaults as $eventKey => $row) {
+                    self::query()->firstOrCreate(['event_key' => $eventKey], self::attributesFromRow($row));
+                }
+            }, 3);
+        } catch (\Throwable $e) {
+            // Best-effort seeding: a deadlock here must never abort a
+            // caller's own transaction (a booking, an order accept, …) over
+            // a config table. Whatever key the caller actually needed either
+            // already existed or will seed itself on a later, luckier call —
+            // dispatch() already degrades gracefully when a rule is missing.
+            report($e);
         }
+    }
+
+    /**
+     * The narrow, dispatch()-facing counterpart to ensureDefaults(): seeds
+     * only the ONE row a specific event actually needs instead of sweeping
+     * all ~50, so a single dispatch() call touches (at most) one row instead
+     * of racing real traffic across the whole table every time.
+     */
+    public static function ensureDefault(string $eventKey): void
+    {
+        $defaults = self::defaultEventKeys();
+
+        if (! array_key_exists($eventKey, $defaults)) {
+            return;
+        }
+
+        if (self::query()->where('event_key', $eventKey)->exists()) {
+            return;
+        }
+
+        try {
+            DB::transaction(function () use ($eventKey, $defaults) {
+                self::query()->firstOrCreate(['event_key' => $eventKey], self::attributesFromRow($defaults[$eventKey]));
+            }, 3);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    private static function attributesFromRow(array $row): array
+    {
+        return [
+            'name_ar' => $row[0],
+            'name_en' => $row[1],
+            'type' => $row[2],
+            'priority' => $row[3],
+            'is_active' => true,
+            'in_app_enabled' => (bool) $row[4],
+            'realtime_enabled' => (bool) $row[5],
+            'firebase_enabled' => (bool) $row[6],
+            'fallback_to_firebase' => (bool) $row[7],
+            'requires_operator_session' => (bool) $row[8],
+            'critical' => (bool) $row[9],
+            'escalation_minutes' => (int) $row[10],
+            'sound_key' => $row[11],
+        ];
     }
 
     public function displayName(): string

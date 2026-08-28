@@ -10,7 +10,7 @@ final class NotificationDispatcherService
 {
     public function dispatch(string $eventKey, int $userId, array $data = []): array
     {
-        NotificationChannelRule::ensureDefaults();
+        NotificationChannelRule::ensureDefault($eventKey);
 
         $rule = NotificationChannelRule::query()->where('event_key', $eventKey)->first();
         if (! $rule || ! $rule->is_active) {

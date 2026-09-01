@@ -58,6 +58,9 @@ class User extends Authenticatable
         'latitude',
         'longitude',
         'location_id',
+        'country_id',
+        'governorate_id',
+        'city_id',
         'category_id',
         'category_child_id',
         'about',
@@ -366,6 +369,11 @@ class User extends Authenticatable
     public function posts()
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function albums()
+    {
+        return $this->hasMany(Album::class);
     }
 
     /**

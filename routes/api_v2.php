@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V2\AccountDeletionController;
 use App\Http\Controllers\Api\V2\AddressController;
+use App\Http\Controllers\Api\V2\AlbumController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
@@ -249,6 +250,16 @@ Route::prefix('v2')->group(function () {
         // describe it, scoped to what its own specialty (child) allows.
         Route::get('profile/options', [ProfileController::class, 'showOptions']);
         Route::match(['put', 'patch'], 'profile/options', [ProfileController::class, 'updateOptions']);
+
+        // My photo albums — first v2 surface for the legacy Album model.
+        Route::get('profile/albums', [AlbumController::class, 'index']);
+        Route::post('profile/albums', [AlbumController::class, 'store']);
+        Route::get('profile/albums/{album}', [AlbumController::class, 'show'])->whereNumber('album');
+        Route::match(['put', 'patch'], 'profile/albums/{album}', [AlbumController::class, 'update'])->whereNumber('album');
+        Route::delete('profile/albums/{album}', [AlbumController::class, 'destroy'])->whereNumber('album');
+        Route::post('profile/albums/{album}/photos', [AlbumController::class, 'addPhoto'])->whereNumber('album');
+        Route::delete('profile/albums/{album}/photos/{photo}', [AlbumController::class, 'removePhoto'])
+            ->whereNumber(['album', 'photo']);
 
         // Jobs: a business posts one, a client applies. Applicant identities
         // are visible only to the posting business — see JobController.

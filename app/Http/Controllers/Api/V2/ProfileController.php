@@ -40,6 +40,14 @@ final class ProfileController extends Controller
             'about' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            // The administrative location — independent of the GPS point
+            // above. Settable manually (a picker) or from GET
+            // /locations/nearest's result (GPS), either way as plain ids;
+            // no cross-hierarchy check here, same as the address book this
+            // reuses (countries/governorates/cities) doesn't enforce one.
+            'country_id' => ['sometimes', 'nullable', 'integer', 'exists:countries,id'],
+            'governorate_id' => ['sometimes', 'nullable', 'integer', 'exists:governorates,id'],
+            'city_id' => ['sometimes', 'nullable', 'integer', 'exists:cities,id'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
             // `category_children` does not exist — the table is
             // `category_children_master`. The rule threw a QueryException, so

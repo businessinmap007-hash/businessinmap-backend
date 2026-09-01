@@ -69,6 +69,32 @@ class ProfileApiTest extends TestCase
         $this->getJson('/api/v2/profile')->assertUnauthorized();
     }
 
+    public function test_update_persists_administrative_location_independent_of_gps(): void
+    {
+        $this->user->forceFill(['country_id' => null, 'governorate_id' => null, 'city_id' => null])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['country_id' => 1, 'governorate_id' => 1, 'city_id' => 1])
+            ->assertOk()
+            ->assertJsonPath('data.country_id', 1)
+            ->assertJsonPath('data.governorate_id', 1)
+            ->assertJsonPath('data.city_id', 1);
+
+        $fresh = $this->user->fresh();
+        $this->assertSame(1, (int) $fresh->country_id);
+        $this->assertSame(1, (int) $fresh->governorate_id);
+        $this->assertSame(1, (int) $fresh->city_id);
+    }
+
+    public function test_locations_nearest_resolves_gps_to_city_governorate_country(): void
+    {
+        $this->getJson('/api/v2/locations/nearest?lat=30.0443879&lng=31.2357257')
+            ->assertOk()
+            ->assertJsonPath('data.match.city.id', 1)
+            ->assertJsonPath('data.match.governorate.id', 1)
+            ->assertJsonPath('data.match.country_id', 1);
+    }
+
     public function test_client_can_self_upgrade_to_business_with_a_specialty(): void
     {
         $this->user->forceFill(['type' => 'client', 'category_child_id' => null])->save();

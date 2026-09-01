@@ -30,6 +30,13 @@ class AccountResource extends JsonResource
             'image' => $this->image ?: null,
             'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
+            // Administrative location, independent of the GPS point above —
+            // resolved to a name via GET /locations/{countries,governorates,
+            // cities}, the same endpoints the picker itself calls, rather
+            // than joining here.
+            'country_id' => $this->country_id !== null ? (int) $this->country_id : null,
+            'governorate_id' => $this->governorate_id !== null ? (int) $this->governorate_id : null,
+            'city_id' => $this->city_id !== null ? (int) $this->city_id : null,
             'category_id' => $this->category_id !== null ? (int) $this->category_id : null,
             'category_child_id' => $this->category_child_id !== null ? (int) $this->category_child_id : null,
             'balance' => (float) $this->balance,

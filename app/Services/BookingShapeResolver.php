@@ -147,7 +147,13 @@ class BookingShapeResolver
             return ! empty($payload[self::COLUMNS[$field]]);
         }
 
-        return ! empty(data_get($payload, "meta.{$field}"));
+        // A meta field's answer can legitimately be 0 — «كم طفلًا؟» is answered
+        // by «صفر» as much as by «اثنان» — so presence, not truthiness, is what
+        // "required" means here. `empty()` treated 0 the same as never having
+        // asked, which made a required-but-zero answer impossible to give.
+        $value = data_get($payload, "meta.{$field}");
+
+        return $value !== null && $value !== '';
     }
 
     private function message(string $field): string

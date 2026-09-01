@@ -30,6 +30,7 @@ class BusinessServicePriceResource extends JsonResource
             'price' => (float) $this->price,
             'charge_mode' => $this->charge_mode,
             'charge_amount' => (float) $this->charge_amount,
+            'duration_minutes' => $this->duration_minutes !== null ? (int) $this->duration_minutes : null,
             'currency' => $this->currency,
             'is_active' => (bool) $this->is_active,
             'discount_enabled' => (bool) $this->discount_enabled,

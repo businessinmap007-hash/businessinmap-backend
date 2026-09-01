@@ -46,12 +46,28 @@ final class ProfileController extends Controller
             // every profile update carrying a category_child_id answered 500.
             // The same mistake was already found and fixed in AuthController.
             'category_child_id' => ['sometimes', 'nullable', 'integer', 'exists:category_children_master,id'],
+            // A client can self-upgrade to a business from their own profile
+            // screen. The reverse isn't offered here — downgrading a real
+            // business account needs to deal with its menu/services/bookings
+            // first, which this endpoint has no business doing.
+            'type' => ['sometimes', Rule::in(['business'])],
         ]);
+
+        $willBeBusiness = ($data['type'] ?? $user->type) === 'business';
 
         // A customer has one name box, so an English name posted to a client
         // account is dropped rather than stored where nothing will read it.
-        if (! $user->isBusiness()) {
+        if (! $willBeBusiness) {
             unset($data['name_en']);
+        }
+
+        if (($data['type'] ?? null) === 'business' && ! $user->isBusiness()) {
+            $categoryChildId = $data['category_child_id'] ?? $user->category_child_id;
+            if (empty($categoryChildId)) {
+                throw ValidationException::withMessages([
+                    'category_child_id' => [__('اختر تخصص النشاط التجاري قبل التحويل.')],
+                ]);
+            }
         }
 
         if (! empty($data)) {

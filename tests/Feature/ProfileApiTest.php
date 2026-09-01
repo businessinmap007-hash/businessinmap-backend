@@ -69,6 +69,43 @@ class ProfileApiTest extends TestCase
         $this->getJson('/api/v2/profile')->assertUnauthorized();
     }
 
+    public function test_client_can_self_upgrade_to_business_with_a_specialty(): void
+    {
+        $this->user->forceFill(['type' => 'client', 'category_child_id' => null])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['type' => 'business', 'category_id' => 24, 'category_child_id' => 116])
+            ->assertOk()
+            ->assertJsonPath('data.type', 'business')
+            ->assertJsonPath('data.is_business', true);
+
+        $fresh = $this->user->fresh();
+        $this->assertSame('business', (string) $fresh->type);
+        $this->assertSame(116, (int) $fresh->category_child_id);
+    }
+
+    public function test_upgrading_to_business_without_a_specialty_is_rejected(): void
+    {
+        $this->user->forceFill(['type' => 'client', 'category_child_id' => null])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['type' => 'business'])
+            ->assertStatus(422);
+
+        $this->assertSame('client', (string) $this->user->fresh()->type);
+    }
+
+    public function test_downgrading_a_business_account_is_not_offered_by_this_endpoint(): void
+    {
+        $this->user->forceFill(['type' => 'business'])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['type' => 'client'])
+            ->assertStatus(422);
+
+        $this->assertSame('business', (string) $this->user->fresh()->type);
+    }
+
     private const A_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
     public function test_image_upload_stores_a_new_photo_and_deletes_the_old_one(): void

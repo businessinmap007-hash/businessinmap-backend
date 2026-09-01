@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\V2\PrescriptionDeliveryController;
 use App\Http\Controllers\Api\V2\MedicineController;
 use App\Http\Controllers\Api\V2\ThreadAttachmentController;
 use App\Http\Controllers\Api\V2\GuaranteeController;
+use App\Http\Controllers\Api\V2\FollowController;
 use App\Http\Controllers\Api\V2\JobController;
 use App\Http\Controllers\Api\V2\JobFollowController;
 use App\Http\Controllers\Api\V2\LocationController;
@@ -264,6 +265,7 @@ Route::prefix('v2')->group(function () {
         // Jobs: a business posts one, a client applies. Applicant identities
         // are visible only to the posting business — see JobController.
         Route::post('jobs', [JobController::class, 'store']);
+        Route::get('jobs/mine', [JobController::class, 'mine']);
         Route::get('jobs/mine/stats', [JobController::class, 'myStats']);
 
         // Follow job fields → live push when a vacancy is posted there.
@@ -312,6 +314,13 @@ Route::prefix('v2')->group(function () {
         Route::post('comments/{comment}/replies', [CommentController::class, 'reply'])->whereNumber('comment');
         Route::match(['put', 'patch'], 'comments/{comment}', [CommentController::class, 'update'])->whereNumber('comment');
         Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->whereNumber('comment');
+
+        // Follow: this is the write side of the same `follow_user` table
+        // PostAudienceService already reads to build the personal feed —
+        // following a business here is what makes its posts show up there.
+        Route::get('follows', [FollowController::class, 'index']);
+        Route::post('follows', [FollowController::class, 'store']);
+        Route::delete('follows/{user}', [FollowController::class, 'destroy'])->whereNumber('user');
 
         // Escrow deposits — READ ONLY on purpose. Creating, releasing and
         // refunding belong to BookingDepositService and DisputeService; v1

@@ -118,6 +118,30 @@ final class JobController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
+    /**
+     * GET /api/v2/jobs/mine — this business's own job posts, any status
+     * (open, closed, expired) — unlike the public index, which is open-only.
+     */
+    public function mine(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->isBusiness()) {
+            abort(403, 'Only a business account has job posts.');
+        }
+
+        $jobs = Post::query()->jobs()
+            ->where('user_id', $user->id)
+            ->withCount('applies')
+            ->orderByDesc('id')
+            ->paginate((int) $request->get('per_page', 20))
+            ->appends($request->query());
+
+        $jobs->getCollection()->transform(fn (Post $p) => $this->publicShape($p, withBody: true));
+
+        return response()->json(['success' => true, 'data' => $jobs]);
+    }
+
     /** POST /api/v2/jobs — a business posts a vacancy. */
     public function store(Request $request)
     {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeedPost;
+use App\Models\FollowUser;
 use App\Models\User;
 use App\Models\UserOperationRating;
 use App\Services\BusinessHoursService;
@@ -43,6 +44,13 @@ final class BusinessPageController extends Controller
         $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
         $hasServices = DB::table('business_service_prices')->where('business_id', $business)->where('is_active', 1)->exists();
 
+        $viewer = $request->user() ?: auth('sanctum')->user();
+        $followersCount = FollowUser::query()->where('follow_id', $business)->count();
+        $isFollowing = $viewer !== null && FollowUser::query()
+            ->where('user_id', $viewer->id)
+            ->where('follow_id', $business)
+            ->exists();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -63,7 +71,8 @@ final class BusinessPageController extends Controller
                 ],
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),
-                'counts' => ['posts' => $postsCount],
+                'is_following' => $isFollowing,
+                'counts' => ['posts' => $postsCount, 'followers' => $followersCount],
                 // Which tabs the client should surface for this business.
                 'sections' => [
                     'posts' => $postsCount > 0,

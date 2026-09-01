@@ -1029,6 +1029,23 @@ paths:
         '200': { description: OK }
         '422': { $ref: '#/components/responses/Validation' }
 
+  /profile/image:
+    post:
+      tags: [Profile]
+      summary: Set or remove the account photo (multipart — POST, not PUT/PATCH, since PHP cannot decode a file upload on those verbs)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: { type: string, format: binary, description: 'Omit and send remove=1 to clear the current photo.' }
+                remove: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+
   # ─────────────────────────── Addresses ───────────────────────────
   /addresses:
     get:

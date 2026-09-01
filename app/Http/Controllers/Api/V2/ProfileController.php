@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\AccountResource;
 use App\Models\CategoryChild;
+use App\Services\Media\ImageUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
  */
 final class ProfileController extends Controller
 {
+    public function __construct(private readonly ImageUploadService $uploads) {}
+
     /** GET /api/v2/profile */
     public function show(Request $request)
     {
@@ -54,6 +57,34 @@ final class ProfileController extends Controller
         if (! empty($data)) {
             $user->fill($data)->save();
         }
+
+        return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);
+    }
+
+    /**
+     * POST /api/v2/profile/image — set or remove the account photo.
+     * POST (not PUT/PATCH) because a file upload needs multipart, which PHP
+     * cannot decode on those verbs. Send `remove=1` with no file to clear it.
+     */
+    public function updateImage(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'image' => ['required_without:remove', ...ImageUploadService::validationRules()],
+            'remove' => ['sometimes', 'boolean'],
+        ]);
+
+        $previous = $user->image;
+
+        if ($request->hasFile('image')) {
+            $user->image = $this->uploads->store($request->file('image'));
+        } elseif ($request->boolean('remove')) {
+            $user->image = null;
+        }
+
+        $user->save();
+        $this->uploads->delete($previous);
 
         return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);
     }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -66,5 +67,45 @@ class ProfileApiTest extends TestCase
     public function test_profile_requires_auth(): void
     {
         $this->getJson('/api/v2/profile')->assertUnauthorized();
+    }
+
+    private const A_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+    public function test_image_upload_stores_a_new_photo_and_deletes_the_old_one(): void
+    {
+        $this->user->forceFill(['image' => 'files/uploads/does-not-exist-old.png'])->save();
+
+        $file = UploadedFile::fake()->createWithContent('avatar.png', base64_decode(self::A_PNG));
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->post('/api/v2/profile/image', ['image' => $file])
+            ->assertOk();
+
+        $newPath = $response->json('data.image');
+        $this->assertNotNull($newPath);
+        $this->assertNotSame('files/uploads/does-not-exist-old.png', $newPath);
+        $this->assertSame($newPath, (string) $this->user->fresh()->image);
+
+        // Clean up the file this test actually wrote (DB rolls back, disk doesn't).
+        @unlink(public_path($newPath));
+    }
+
+    public function test_image_remove_clears_the_photo(): void
+    {
+        $this->user->forceFill(['image' => 'files/uploads/does-not-exist.png'])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->post('/api/v2/profile/image', ['remove' => true])
+            ->assertOk()
+            ->assertJsonPath('data.image', null);
+
+        $this->assertNull($this->user->fresh()->image);
+    }
+
+    public function test_image_upload_requires_either_a_file_or_remove(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/profile/image', [])
+            ->assertStatus(422);
     }
 }

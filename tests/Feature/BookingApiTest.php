@@ -136,6 +136,28 @@ class BookingApiTest extends TestCase
             ->assertJsonPath('data.booking.id', $booking->id);
     }
 
+    /**
+     * Owner rule: a business fulfilling a booking may see the client's name,
+     * phone, location, and photo (needed to actually deliver the service) —
+     * never email, which is not part of that list.
+     */
+    public function test_show_exposes_only_the_allowed_client_fields_to_the_business(): void
+    {
+        $this->client->forceFill(['latitude' => 30.1, 'longitude' => 31.2])->save();
+        $booking = $this->makeBooking();
+
+        $response = $this->actingAs($this->business, 'sanctum')
+            ->getJson("/api/v2/bookings/{$booking->id}")
+            ->assertOk();
+
+        $response->assertJsonPath('data.booking.user.id', $this->client->id);
+        $response->assertJsonPath('data.booking.user.name', $this->client->name);
+        $response->assertJsonPath('data.booking.user.phone', $this->client->phone);
+        $response->assertJsonPath('data.booking.user.latitude', 30.1);
+        $response->assertJsonPath('data.booking.user.longitude', 31.2);
+        $this->assertArrayNotHasKey('email', $response->json('data.booking.user'));
+    }
+
     public function test_show_is_forbidden_for_a_non_party(): void
     {
         $booking = $this->makeBooking();

@@ -26,6 +26,11 @@ class BusinessServicePriceResource extends JsonResource
             'line_option' => $this->optionPayload($this->resource->lineOption()),
             'modifier_options' => $this->resource->modifierOptions()
                 ->map(fn ($o) => $this->optionPayload($o))->values(),
+            // What each modifier currently adds — otherwise an edit screen has
+            // no way to prefill these, and resubmitting the modifier without a
+            // value would silently reset it to 0. Keyed by option_id, same
+            // shape the store/update endpoints accept back.
+            'modifier_adjust' => (object) $this->resource->currentOfferingAdjustments(),
             'label' => $this->resource->offeringLabel(),
             'price' => (float) $this->price,
             'charge_mode' => $this->charge_mode,

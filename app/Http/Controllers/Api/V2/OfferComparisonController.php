@@ -61,7 +61,10 @@ final class OfferComparisonController extends Controller
                 'quantity' => (int) ($data['quantity'] ?? 1),
                 'sort' => (string) ($data['sort'] ?? OfferComparisonService::SORT_LOWEST_PRICE),
                 'offers' => $offers,
-                'lowest_price' => $offers->first(),
+                // Always the true cheapest, independent of $sort — "first of
+                // whatever order the client asked for" isn't the same thing
+                // and was silently wrong for every sort but the default.
+                'lowest_price' => $offers->sortBy('final_price')->first(),
             ],
         ]);
     }

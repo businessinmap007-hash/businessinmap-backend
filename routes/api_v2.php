@@ -248,6 +248,7 @@ Route::prefix('v2')->group(function () {
         Route::match(['put', 'patch'], 'profile', [ProfileController::class, 'update']);
         Route::post('profile/password', [ProfileController::class, 'updatePassword']);
         Route::post('profile/image', [ProfileController::class, 'updateImage']);
+        Route::post('profile/cover', [ProfileController::class, 'updateCover']);
         // Attributes axis self-service: a business picks the options that
         // describe it, scoped to what its own specialty (child) allows.
         Route::get('profile/options', [ProfileController::class, 'showOptions']);

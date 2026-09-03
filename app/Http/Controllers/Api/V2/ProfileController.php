@@ -114,6 +114,36 @@ final class ProfileController extends Controller
     }
 
     /**
+     * POST /api/v2/profile/cover — the account's own cover photo. Same
+     * shape as updateImage(): the mobile app's counterpart to what
+     * Business\ProfileController's web panel already lets a shopkeeper set,
+     * open to every account type (a customer's own account page shows a
+     * cover too, not just a business's).
+     */
+    public function updateCover(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'cover' => ['required_without:remove', ...ImageUploadService::validationRules()],
+            'remove' => ['sometimes', 'boolean'],
+        ]);
+
+        $previous = $user->cover;
+
+        if ($request->hasFile('cover')) {
+            $user->cover = $this->uploads->store($request->file('cover'));
+        } elseif ($request->boolean('remove')) {
+            $user->cover = null;
+        }
+
+        $user->save();
+        $this->uploads->delete($previous);
+
+        return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);
+    }
+
+    /**
      * GET /api/v2/profile/options — the attributes catalog for the business's
      * own specialty (category_child_id), with the ones it currently carries
      * marked selected. Attributes describe the BUSINESS, never priced alone.

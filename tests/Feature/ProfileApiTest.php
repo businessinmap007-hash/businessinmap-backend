@@ -136,7 +136,7 @@ class ProfileApiTest extends TestCase
 
     public function test_image_upload_stores_a_new_photo_and_deletes_the_old_one(): void
     {
-        $this->user->forceFill(['image' => 'files/uploads/does-not-exist-old.png'])->save();
+        $this->user->forceFill(['type' => 'client', 'image' => 'files/uploads/does-not-exist-old.png'])->save();
 
         $file = UploadedFile::fake()->createWithContent('avatar.png', base64_decode(self::A_PNG));
 
@@ -155,7 +155,7 @@ class ProfileApiTest extends TestCase
 
     public function test_image_remove_clears_the_photo(): void
     {
-        $this->user->forceFill(['image' => 'files/uploads/does-not-exist.png'])->save();
+        $this->user->forceFill(['type' => 'client', 'image' => 'files/uploads/does-not-exist.png'])->save();
 
         $this->actingAs($this->user, 'sanctum')
             ->post('/api/v2/profile/image', ['remove' => true])
@@ -163,6 +163,48 @@ class ProfileApiTest extends TestCase
             ->assertJsonPath('data.image', null);
 
         $this->assertNull($this->user->fresh()->image);
+    }
+
+    /**
+     * A business has no self-service `logo` upload of its own on the mobile
+     * side — this endpoint IS that upload for a business, so it has to land
+     * on `logo` (what every other resource in the app reads as "this
+     * account's photo"), not the separate `image` column a client uses.
+     */
+    public function test_image_upload_targets_logo_for_a_business_account(): void
+    {
+        $this->user->forceFill([
+            'type' => 'business',
+            'logo' => 'files/uploads/does-not-exist-old-logo.png',
+            'image' => 'files/uploads/unrelated-image-slot.png',
+        ])->save();
+
+        $file = UploadedFile::fake()->createWithContent('logo.png', base64_decode(self::A_PNG));
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->post('/api/v2/profile/image', ['image' => $file])
+            ->assertOk();
+
+        $newPath = $response->json('data.logo');
+        $this->assertNotNull($newPath);
+        $this->assertNotSame('files/uploads/does-not-exist-old-logo.png', $newPath);
+        $this->assertSame($newPath, (string) $this->user->fresh()->logo);
+        // The unrelated `image` slot is left untouched.
+        $this->assertSame('files/uploads/unrelated-image-slot.png', (string) $this->user->fresh()->image);
+
+        @unlink(public_path($newPath));
+    }
+
+    public function test_image_remove_clears_the_logo_for_a_business_account(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'logo' => 'files/uploads/does-not-exist.png'])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->post('/api/v2/profile/image', ['remove' => true])
+            ->assertOk()
+            ->assertJsonPath('data.logo', null);
+
+        $this->assertNull($this->user->fresh()->logo);
     }
 
     public function test_image_upload_requires_either_a_file_or_remove(): void

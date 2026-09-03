@@ -89,22 +89,34 @@ final class ProfileController extends Controller
      * POST /api/v2/profile/image — set or remove the account photo.
      * POST (not PUT/PATCH) because a file upload needs multipart, which PHP
      * cannot decode on those verbs. Send `remove=1` with no file to clear it.
+     *
+     * Writes `logo`, not `image`, for a business — `logo` is the column
+     * every OTHER resource in the app already reads as "this account's
+     * photo" (PostResource/CommentResource/OrderResource, the public
+     * business page, Business\ProfileController's own web-panel upload).
+     * Writing to the separate `image` column for a business account meant
+     * this endpoint silently changed nothing anyone could see — the app's
+     * own drawer avatar was the one place reading `image` directly with no
+     * `logo` fallback, so it looked "stuck" while the real photo (`logo`,
+     * still showing correctly everywhere else) never moved. A client has no
+     * `logo` concept, so `image` stays correct for that side.
      */
     public function updateImage(Request $request)
     {
         $user = $request->user();
+        $slot = $user->isBusiness() ? 'logo' : 'image';
 
         $data = $request->validate([
             'image' => ['required_without:remove', ...ImageUploadService::validationRules()],
             'remove' => ['sometimes', 'boolean'],
         ]);
 
-        $previous = $user->image;
+        $previous = $user->{$slot};
 
         if ($request->hasFile('image')) {
-            $user->image = $this->uploads->store($request->file('image'));
+            $user->{$slot} = $this->uploads->store($request->file('image'));
         } elseif ($request->boolean('remove')) {
-            $user->image = null;
+            $user->{$slot} = null;
         }
 
         $user->save();

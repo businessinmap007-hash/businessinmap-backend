@@ -220,6 +220,11 @@ final class DiscoveryController extends Controller
             'option_ids.*' => ['integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
             'open_now' => ['nullable', 'boolean'],
+            'governorate_id' => ['nullable', 'integer', 'min:1', 'exists:governorates,id'],
+            // Only honoured together with governorate_id — a city id alone
+            // says nothing about which governorate it belongs to without a
+            // second lookup, and the app's own picker always sets both.
+            'city_id' => ['nullable', 'integer', 'min:1', 'exists:cities,id'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -247,13 +252,18 @@ final class DiscoveryController extends Controller
             });
         };
 
+        $governorateId = (int) ($data['governorate_id'] ?? 0);
+        $cityId = (int) ($data['city_id'] ?? 0);
+
         $query = User::query()
             ->where('type', 'business')
             ->where('category_child_id', $childId)
             // Both names, and only the names: a shop that wrote «panda» must be
             // findable by someone typing «باندا»'s alphabet either way, and a
             // customer browsing shops must not be able to probe phone numbers.
-            ->when($q !== '', fn (Builder $w) => $w->searchByName($q));
+            ->when($q !== '', fn (Builder $w) => $w->searchByName($q))
+            ->when($governorateId > 0, fn (Builder $w) => $w->where('governorate_id', $governorateId))
+            ->when($cityId > 0, fn (Builder $w) => $w->where('city_id', $cityId));
 
         /*
          * A business appears for its child whether or not it has priced

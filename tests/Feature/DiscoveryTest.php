@@ -120,4 +120,36 @@ class DiscoveryTest extends TestCase
     {
         $this->getJson('/api/v2/discovery/filters')->assertStatus(422);
     }
+
+    public function test_governorate_and_city_narrow_the_results(): void
+    {
+        $childId = (int) DB::table('category_children_master')->value('id');
+        $govA = (int) DB::table('governorates')->orderBy('id')->value('id');
+        $govB = (int) DB::table('governorates')->orderBy('id', 'desc')->value('id');
+        $cityInA = (int) DB::table('cities')->where('governorate_id', $govA)->value('id');
+
+        $bizA = \App\Models\User::create([
+            'name' => 'discovery-loc-a', 'email' => 'discovery-loc-a-' . uniqid() . '@example.test',
+            'phone' => '01' . random_int(100000000, 999999999), 'password' => 'secret-password',
+            'type' => 'business', 'category_child_id' => $childId, 'api_token' => \Illuminate\Support\Str::random(80),
+            'governorate_id' => $govA, 'city_id' => $cityInA,
+        ]);
+        $bizB = \App\Models\User::create([
+            'name' => 'discovery-loc-b', 'email' => 'discovery-loc-b-' . uniqid() . '@example.test',
+            'phone' => '01' . random_int(100000000, 999999999), 'password' => 'secret-password',
+            'type' => 'business', 'category_child_id' => $childId, 'api_token' => \Illuminate\Support\Str::random(80),
+            'governorate_id' => $govB,
+        ]);
+
+        $byGovernorate = $this->getJson("/api/v2/discovery/businesses?child_id={$childId}&governorate_id={$govA}")
+            ->assertOk()->json('data.businesses.data');
+        $ids = array_column($byGovernorate, 'id');
+        $this->assertContains($bizA->id, $ids);
+        $this->assertNotContains($bizB->id, $ids);
+
+        $byCity = $this->getJson(
+            "/api/v2/discovery/businesses?child_id={$childId}&governorate_id={$govA}&city_id={$cityInA}"
+        )->assertOk()->json('data.businesses.data');
+        $this->assertContains($bizA->id, array_column($byCity, 'id'));
+    }
 }

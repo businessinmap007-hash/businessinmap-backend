@@ -50,7 +50,7 @@
         <div class="a2-card-head">
             <div>
                 <div class="a2-card-title">{{ __('نسبة الضريبة') }}</div>
-                <div class="a2-card-sub">{{ __('اترك الحقل فارغاً لاستخدام النسبة الافتراضية للمنصة (:rate%).', ['rate' => rtrim(rtrim(number_format($defaultTaxRate, 2), '0'), '.')]) }}</div>
+                <div class="a2-card-sub">{{ __('لا تُفرض أي ضريبة إطلاقاً ما لم تحدد نسبة هنا بنفسك. اترك الحقل فارغاً لعدم فرض ضريبة على طلبات المنيو.') }}</div>
             </div>
         </div>
 
@@ -60,7 +60,7 @@
                 <input type="number" step="0.01" min="0" max="100" id="tax_rate_percent" name="tax_rate_percent"
                     class="a2-input @error('tax_rate_percent') a2-input-error @enderror"
                     value="{{ old('tax_rate_percent', $row->tax_rate_percent) }}"
-                    placeholder="{{ rtrim(rtrim(number_format($defaultTaxRate, 2), '0'), '.') }}">
+                    placeholder="{{ __('بلا ضريبة') }}">
                 @error('tax_rate_percent')<div class="a2-field-error">{{ $message }}</div>@enderror
             </div>
         </div>

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BusinessCatalogListing;
 use App\Models\User;
+use App\Models\UserServiceFeeConsent;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -27,10 +28,17 @@ class PersonalCartBillingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['bim.menu_tax_rate_percent' => 14]);
 
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
         $this->customer = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->firstOrFail();
+
+        // The fee is only ever charged to a party who opened their own
+        // rating (owner rule, 2026-09-03) — the customer must consent too,
+        // not just the business.
+        UserServiceFeeConsent::updateOrCreate(
+            ['user_id' => $this->customer->id],
+            ['fee_auto_charge_enabled' => true, 'rating_enabled' => true, 'enabled_at' => now()],
+        );
 
         // A fee is per (root, child) now, not per (child, menu) — a free
         // child is simply one with no fee row at all yet.
@@ -59,6 +67,14 @@ class PersonalCartBillingTest extends TestCase
 
     public function test_menu_gets_fee_and_tax_retail_stays_plain(): void
     {
+        // Tax is off by default (owner rule, 2026-09-03) — this business
+        // explicitly turned it on.
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'tax_rate_percent' => 14,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $menu = $this->seedMenuItem($this->biz->id, null, 100.0)->id;
         $product = $this->makeCatalogProduct('furniture');
         $listing = BusinessCatalogListing::create([
@@ -96,6 +112,7 @@ class PersonalCartBillingTest extends TestCase
             'business_id' => $this->biz->id,
             'prices_include_service' => 1,
             'prices_include_tax' => 1,
+            'tax_rate_percent' => 14,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 

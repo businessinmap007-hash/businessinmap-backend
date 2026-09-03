@@ -167,7 +167,10 @@ class OrderDepositTest extends TestCase
         $res = $this->getJson('/api/v2/orders/' . $order->id)->assertOk();
 
         $res->assertJsonPath('data.deposit.required', true)
-            ->assertJsonPath('data.deposit.covered', false)
-            ->assertJsonPath('data.deposit.amount', (float) $order->fresh()->final_total);
+            ->assertJsonPath('data.deposit.covered', false);
+        // assertJsonPath compares strictly (===) — a whole-number total (no
+        // menu tax is set for this business) round-trips through JSON as a
+        // bare int, not a float, so compare numerically instead.
+        $this->assertEquals((float) $order->fresh()->final_total, (float) $res->json('data.deposit.amount'));
     }
 }

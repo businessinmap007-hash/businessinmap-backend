@@ -36,7 +36,6 @@ class CustomerCartTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['bim.menu_tax_rate_percent' => 14]);
 
         $this->customer = User::query()->orderBy('id')->first();
         $businesses = User::query()->where('type', 'business')->take(2)->pluck('id')->all();
@@ -67,19 +66,22 @@ class CustomerCartTest extends TestCase
         $this->assertSame(2, (int) $res->json('data.totals.businesses'));
 
         /*
-         * businessA: retail 2*10=20 (plain) + menu 75 → +14% tax 10.5 = 85.5
-         * businessB: retail 4 (plain) = 4 ; goods and tax = 109.5
+         * businessA: retail 2*10=20 (plain) + menu 75 ; businessB: retail 4
+         * (plain) ; goods = 99.
          *
          * Asserted as a FLOOR plus the goods figure rather than as one frozen
-         * number. The grand total also carries whatever service fee the child's
-         * fee row declares, and that row is configuration the owner edits from
-         * the admin — he switched delivery fees on across «المحلات» on
+         * number. The grand total also carries whatever service fee the
+         * child's fee row declares and neither business here set a menu tax
+         * rate (tax is off unless a business explicitly turns it on — owner
+         * rule, 2026-09-03), so 99 is the true floor, not a rounded-down
+         * approximation. That row is configuration the owner edits from the
+         * admin — he switched delivery fees on across «المحلات» on
          * 2026-08-16 03:52 and every hard-coded total in the suite went red at
          * once. What this test is about is that three items from two businesses
          * land in one cart and are totalled per business; it should not also be
          * an assertion about the current fee table.
          */
-        $goods = 109.5;
+        $goods = 99.0;
         $grand = (float) $res->json('data.totals.grand_total');
 
         $this->assertGreaterThanOrEqual($goods, $grand, 'the cart lost part of its goods');

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\UserServiceFeeConsent;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -26,7 +27,6 @@ class SharedCartBillingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['bim.menu_tax_rate_percent' => 14]);
 
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
         $customers = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->take(2)->get();
@@ -34,6 +34,16 @@ class SharedCartBillingTest extends TestCase
             $this->markTestSkipped('Needs two non-business users.');
         }
         [$this->host, $this->member] = [$customers[0], $customers[1]];
+
+        // The fee is only ever charged to a party who opened their own
+        // rating (owner rule, 2026-09-03) — each participant must consent
+        // on their own, independent of the business or of each other.
+        foreach ([$this->host, $this->member] as $participant) {
+            UserServiceFeeConsent::updateOrCreate(
+                ['user_id' => $participant->id],
+                ['fee_auto_charge_enabled' => true, 'rating_enabled' => true, 'enabled_at' => now()],
+            );
+        }
 
         // A real category child (FK on users.category_child_id) that has no
         // fee yet — a fee is per (root, child) now, not per (child, menu) —
@@ -67,6 +77,14 @@ class SharedCartBillingTest extends TestCase
 
     public function test_each_participant_bill_has_own_service_fee_and_tax(): void
     {
+        // Tax is off by default (owner rule, 2026-09-03) — this business
+        // explicitly turned it on.
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'tax_rate_percent' => 14,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $item100 = $this->seedMenuItem($this->biz->id, null, 100.0, 'طبق كبير')->id;
         $item50 = $this->seedMenuItem($this->biz->id, null, 50.0, 'طبق صغير')->id;
 
@@ -109,6 +127,7 @@ class SharedCartBillingTest extends TestCase
             'business_id' => $this->biz->id,
             'prices_include_service' => 1,
             'prices_include_tax' => 1,
+            'tax_rate_percent' => 14,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -136,6 +155,7 @@ class SharedCartBillingTest extends TestCase
             'business_id' => $this->biz->id,
             'prices_include_service' => 0,
             'prices_include_tax' => 1,
+            'tax_rate_percent' => 14,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -156,9 +176,9 @@ class SharedCartBillingTest extends TestCase
         $this->assertSame(125.40, (float) $host['total']); // 115.40 + 10 service
     }
 
-    public function test_owner_set_tax_rate_overrides_the_global_rate(): void
+    public function test_owner_set_tax_rate_is_honoured(): void
     {
-        // Global default is 14%; the owner sets their own 8%.
+        // Tax is off unless the owner sets a rate; here they set 8%.
         DB::table('business_menu_settings')->insert([
             'business_id' => $this->biz->id,
             'prices_include_service' => 0,
@@ -176,7 +196,7 @@ class SharedCartBillingTest extends TestCase
         $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
             ->firstWhere('user_id', $this->host->id);
 
-        // items 100, fee 10, tax = 110 * 8% = 8.8, total 118.8 (not 15.4/125.4).
+        // items 100, fee 10, tax = 110 * 8% = 8.8, total 118.8.
         $this->assertSame(10.0, (float) $host['service_fee']);
         $this->assertSame(8.8, (float) $host['tax']);
         $this->assertSame(118.8, (float) $host['total']);
@@ -207,7 +227,7 @@ class SharedCartBillingTest extends TestCase
         $host = collect($this->getJson("/api/v2/cart/shared/{$orderId}")->json('data.cart.participants'))
             ->firstWhere('user_id', $this->host->id);
 
-        // A zero owner rate means tax-free (must NOT fall back to the 14% global).
+        // An explicit zero rate is honoured (still distinct from "unset", which is also tax-free).
         $this->assertSame(10.0, (float) $host['service_fee']);
         $this->assertSame(0.0, (float) $host['tax']);
         $this->assertSame(110.0, (float) $host['total']);
@@ -215,6 +235,12 @@ class SharedCartBillingTest extends TestCase
 
     public function test_checkout_forces_cash(): void
     {
+        DB::table('business_menu_settings')->insert([
+            'business_id' => $this->biz->id,
+            'tax_rate_percent' => 14,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $item = $this->seedMenuItem($this->biz->id, null, 100.0)->id;
 
         Sanctum::actingAs($this->host);

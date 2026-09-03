@@ -24,16 +24,15 @@ class MenuSettingsController extends Controller
     {
         $row = BusinessMenuSetting::query()->firstOrNew(['business_id' => $this->businessId()]);
 
-        return view('business.menu-settings.edit', [
-            'row' => $row,
-            'defaultTaxRate' => (float) config('bim.menu_tax_rate_percent', 14),
-        ]);
+        return view('business.menu-settings.edit', ['row' => $row]);
     }
 
     public function update(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            // Empty → NULL → fall back to the global tax rate.
+            // Empty → NULL → no tax at all. There is no platform-wide default
+            // a business is silently opted into (owner rule, 2026-09-03) —
+            // tax only applies once a business explicitly sets its own rate.
             'tax_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             // Empty → NULL → no minimum enforced (unchanged behaviour).
             'min_order_amount' => ['nullable', 'numeric', 'min:0'],

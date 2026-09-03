@@ -11,9 +11,10 @@ use App\Models\User;
 
 /**
  * Computes a menu-order bill: items subtotal + platform service fee (the client
- * fee configured per category-child for the menu service) + tax (a global VAT
- * percentage). Used to show each participant of a shared cart their own share
- * (service fee + tax on their own order only); payment is cash on arrival.
+ * fee configured per category-child for the menu service) + tax (a rate the
+ * business itself set). Used to show each participant of a shared cart their
+ * own share (service fee + tax on their own order only); payment is cash on
+ * arrival.
  *
  * A restaurant may declare (business_menu_settings) that its displayed prices
  * already INCLUDE the service fee and/or tax. When a component is included it is
@@ -70,21 +71,34 @@ class MenuBillingService
         ];
     }
 
-    /** The global (default) menu tax rate (percent). */
-    public function taxRatePercent(): float
-    {
-        return (float) config('bim.menu_tax_rate_percent', 14);
-    }
-
     /**
-     * The tax rate (percent) for a business: the owner's own rate when set,
-     * otherwise the global config rate. An owner rate of 0 is honoured (tax-free).
+     * The tax rate (percent) for a business — 0 (no tax at all) unless the
+     * business itself set a rate in its own menu settings. There is no
+     * platform-wide default rate a business is silently opted into (owner
+     * rule, 2026-09-03): tax is off everywhere until a business turns it on.
      */
     public function taxRatePercentForBusiness(int $businessId): float
     {
         $rate = BusinessMenuSetting::query()->where('business_id', $businessId)->value('tax_rate_percent');
 
-        return $rate === null ? $this->taxRatePercent() : (float) $rate;
+        return $rate === null ? 0.0 : (float) $rate;
+    }
+
+    /**
+     * Whether this specific user has opened their own rating — the only
+     * thing that makes THEM fee-liable (owner rule, 2026-09-03). A menu
+     * order's service fee used to ride entirely on the BUSINESS's consent;
+     * now each biller (the person who actually added those lines — see
+     * orderBill()) is only charged if they themselves consented, same as a
+     * booking already worked via WalletFeeService::canAutoChargeFees().
+     */
+    public function clientConsents(int $userId): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return (bool) User::query()->whereKey($userId)->first()?->hasFeeAutoChargeEnabled();
     }
 
     /**
@@ -99,13 +113,18 @@ class MenuBillingService
      *
      * With both flags false this reduces to net = S and total = S + service +
      * tax — the original behaviour.
+     *
+     * $clientConsents gates the fee alone (see clientConsents()) — a fee row
+     * that itself declares no client-side charge, or a client who hasn't
+     * opened their own rating, both zero out the fee the same way; tax is
+     * untouched either way (it isn't a consent-gated concept).
      */
-    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow, bool $incService = false, bool $incTax = false, ?float $taxRatePercent = null): array
+    public function bill(float $itemsSubtotal, ?CategoryChildServiceFee $feeRow, bool $incService = false, bool $incTax = false, ?float $taxRatePercent = null, bool $clientConsents = true): array
     {
         $s = round(max($itemsSubtotal, 0), 2);
-        $tr = ($taxRatePercent ?? $this->taxRatePercent()) / 100;
+        $tr = ($taxRatePercent ?? 0.0) / 100;
 
-        $chargeable = $feeRow && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT);
+        $chargeable = $feeRow && $clientConsents && $feeRow->isChargeableFor(CategoryChildServiceFee::PAYER_CLIENT);
         $isPercent = $chargeable && $feeRow->calcTypeFor(CategoryChildServiceFee::PAYER_CLIENT) === CategoryChildServiceFee::CALC_TYPE_PERCENT;
         $sp = $isPercent ? $feeRow->rateValueFor(CategoryChildServiceFee::PAYER_CLIENT) / 100 : 0.0;
         $fixed = ($chargeable && ! $isPercent) ? $feeRow->rateValueFor(CategoryChildServiceFee::PAYER_CLIENT) : 0.0;
@@ -162,9 +181,18 @@ class MenuBillingService
         $tax = 0.0;
         $menuPayable = 0.0;
 
-        // Group by biller (added_by_user_id); a personal cart has one null group.
-        foreach ($menuLines->groupBy(fn ($l) => (int) ($l->added_by_user_id ?? 0)) as $lines) {
-            $bill = $this->bill((float) $lines->sum('total_price'), $feeRow, $incService, $incTax, $taxRate);
+        // Group by biller (added_by_user_id); a personal cart has one null
+        // group, billed as the order's own owner.
+        foreach ($menuLines->groupBy(fn ($l) => (int) ($l->added_by_user_id ?? 0)) as $billerId => $lines) {
+            $billerId = $billerId > 0 ? $billerId : (int) $order->user_id;
+            $bill = $this->bill(
+                (float) $lines->sum('total_price'),
+                $feeRow,
+                $incService,
+                $incTax,
+                $taxRate,
+                $this->clientConsents($billerId),
+            );
             $serviceFee += $bill['service_fee'];
             $tax += $bill['tax'];
             $menuPayable += $bill['total'];

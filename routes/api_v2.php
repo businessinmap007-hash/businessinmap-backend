@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
+use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
@@ -377,6 +378,12 @@ Route::prefix('v2')->group(function () {
         // A party deletes an expired, undisputed chat (or lets the sweep do it).
         Route::delete('operation-chats/{type}/{id}', [OperationChatController::class, 'destroy'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+
+        // Whether admins may ever read this thread's decrypted content — a
+        // standing decision each real participant (never the arbitrator) can
+        // set or change any time, independent of any specific admin request.
+        Route::get('threads/{thread}/access-status', [ThreadAccessController::class, 'show'])->whereNumber('thread');
+        Route::post('threads/{thread}/access-consent', [ThreadAccessController::class, 'store'])->whereNumber('thread');
 
         // The contracted customer follows the build/manufacturing progress the
         // business linked to this operation — read-only project timeline + the

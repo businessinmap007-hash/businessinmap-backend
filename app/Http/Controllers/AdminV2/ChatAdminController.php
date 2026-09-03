@@ -7,6 +7,8 @@ use App\Models\Booking;
 use App\Models\Dispute;
 use App\Models\Order;
 use App\Models\Thread;
+use App\Services\Chat\ThreadAccessGateService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,14 +17,21 @@ use Illuminate\View\View;
  * dispute rooms, operation chats, direct messages and groups — merged into a
  * single moderation view.
  *
- * Access is deliberately narrow: the routes are gated on the DISPUTES (judge)
- * ability, and conversation text is encrypted at rest, so only someone trusted
- * to rule on a case can read what was said. This screen is read-only — it does
- * not post; ruling and the consented dispute-room purge stay on their own
- * screens.
+ * Conversation text is encrypted at rest (ThreadMessage's `encrypted` cast).
+ * Beyond the DISPUTES ability gating the route, a DISPUTE ROOM decrypts
+ * straight away — the arbitrator is already a legitimate participant there
+ * by design. Every other kind (operation chat, DMs, groups) additionally
+ * requires ThreadAccessGateService::isAccessible(): both real participants'
+ * consent, or enough admins have each vouched for the need. This screen is
+ * read-only — it does not post; ruling and the consented dispute-room purge
+ * stay on their own screens.
  */
 class ChatAdminController extends Controller
 {
+    public function __construct(private readonly ThreadAccessGateService $access)
+    {
+    }
+
     /** GET admin/chats — every thread, filterable by type. */
     public function index(Request $request): View
     {
@@ -40,15 +49,50 @@ class ChatAdminController extends Controller
         return view('admin-v2.chats.index', ['rows' => $rows, 'type' => $type]);
     }
 
-    /** GET admin/chats/{thread} — read one conversation (decrypted). */
+    /** GET admin/chats/{thread} — read one conversation (decrypted), if unlocked. */
     public function show(Thread $thread): View
     {
-        $thread->load(['participants.user:id,name', 'messages.sender:id,name', 'messages.attachments']);
+        $thread->load(['participants.user:id,name']);
+        $kind = $this->kindOf($thread);
+
+        if (! $this->isDisputeRoom($thread) && ! $this->access->isAccessible($thread)) {
+            return view('admin-v2.chats.locked', [
+                'thread' => $thread,
+                'kind' => $kind,
+                'decisions' => $this->access->partyDecisions($thread),
+                'approvalCount' => $this->access->adminApprovalCount($thread),
+                'quorum' => $this->access->quorum(),
+                'alreadyApproved' => $this->access->hasAdminApproved($thread, (int) auth()->id()),
+            ]);
+        }
+
+        $thread->load(['messages.sender:id,name', 'messages.attachments']);
 
         return view('admin-v2.chats.show', [
             'thread' => $thread,
-            'kind' => $this->kindOf($thread),
+            'kind' => $kind,
         ]);
+    }
+
+    /** POST admin/chats/{thread}/approve-access — this admin's own vote toward the quorum. */
+    public function approveAccess(Thread $thread): RedirectResponse
+    {
+        $this->access->recordAdminApproval($thread, auth()->user());
+
+        return back()->with('success', __('تم تسجيل موافقتك على الاطلاع.'));
+    }
+
+    /** POST admin/chats/{thread}/request-consent — nudge both parties to decide. */
+    public function requestConsent(Thread $thread): RedirectResponse
+    {
+        $this->access->notifyPartiesRequestConsent($thread);
+
+        return back()->with('success', __('تم إرسال طلب الموافقة للطرفين.'));
+    }
+
+    private function isDisputeRoom(Thread $thread): bool
+    {
+        return $thread->subject_type === (new Dispute())->getMorphClass();
     }
 
     /** Human label for a thread's kind, from its subject/owner. */

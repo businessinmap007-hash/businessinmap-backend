@@ -462,6 +462,44 @@
     </div>
     @endif
 
+    @if($operationChatAccess)
+        <div class="a2-card" style="padding:14px;margin-top:14px;">
+            <div class="a2-title" style="font-size:15px;margin-bottom:8px;">{{ __('محادثة العملية (كدليل)') }}</div>
+            <div class="a2-hint">{{ __('محادثة منفصلة عن غرفة النزاع أعلاه — بين العميل والتاجر مباشرة على العملية نفسها. مشفّرة ولا تظهر إلا بموافقة الطرفين أو نِصاب من المشرفين.') }}</div>
+
+            @if($operationChatAccess['anyDeclined'])
+                <div class="a2-alert a2-alert-danger" style="margin-top:10px;">
+                    ⚠️ {{ __('رفض أحد الطرفين إتاحة الاطلاع على محادثة العملية — يُرجى وضع ذلك فى الاعتبار عند إصدار القرار.') }}
+                </div>
+            @endif
+
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;">
+                @foreach($operationChatAccess['decisions'] as $userId => $decision)
+                    @php
+                        [$label, $badgeKind] = match($decision) {
+                            'approved' => [__('وافق'), 'success'],
+                            'declined' => [__('رفض'), 'danger'],
+                            default => [__('لم يردّ بعد'), 'muted'],
+                        };
+                    @endphp
+                    <div>#{{ $userId }} <span class="a2-badge a2-badge-{{ $badgeKind }}" style="margin-inline-start:6px">{{ $label }}</span></div>
+                @endforeach
+            </div>
+
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                @if($operationChatAccess['accessible'])
+                    <a class="a2-btn a2-btn-primary" href="{{ route('admin.chats.show', $operationChatAccess['thread']) }}">{{ __('عرض المحادثة') }}</a>
+                @else
+                    <a class="a2-btn a2-btn-ghost" href="{{ route('admin.chats.show', $operationChatAccess['thread']) }}">{{ __('حالة الاطلاع') }}</a>
+                    <form method="POST" action="{{ route('admin.disputes.request-chat-access', $dispute) }}">
+                        @csrf
+                        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('طلب الاطلاع لأغراض التحكيم') }}</button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if($canResolve)
         <div class="a2-card" style="padding:14px;margin-top:14px;">
             <div class="a2-title" style="font-size:15px;margin-bottom:10px;">{{ __('قرارات النزاع والخصم من الضمان') }}</div>

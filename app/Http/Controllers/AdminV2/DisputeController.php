@@ -7,10 +7,13 @@ use App\Models\Booking;
 use App\Models\Dispute;
 use App\Models\PlatformService;
 use App\Models\User;
+use App\Services\Chat\ThreadAccessGateService;
 use App\Services\DisputeService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Models\GuaranteeLevel;
 use App\Services\Guarantees\GuaranteePenaltyService;
+use App\Services\OperationChatService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +25,8 @@ class DisputeController extends Controller
         protected DisputeService $disputeService,
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
         protected GuaranteePenaltyService $guaranteePenaltyService,
+        protected OperationChatService $operationChats,
+        protected ThreadAccessGateService $chatAccess,
     ) {
     }
 
@@ -136,7 +141,33 @@ class DisputeController extends Controller
         $claimableLines = app(\App\Services\ArbitrationService::class)->claimableLines($dispute);
         $compliance = $this->disputeService->complianceState($dispute);
 
-        return view('admin-v2.disputes.show', compact('dispute', 'disputeable', 'thread', 'session', 'violations', 'claimableLines', 'compliance'));
+        // The operation chat is a DIFFERENT thread from the dispute room above
+        // (subject is the order/booking, not the dispute) — evidence the
+        // arbitrator may want, gated the same way any other chat is.
+        $operationChatThread = $disputeable ? $this->operationChats->findThread($disputeable) : null;
+        $operationChatAccess = $operationChatThread ? [
+            'thread' => $operationChatThread,
+            'accessible' => $this->chatAccess->isAccessible($operationChatThread),
+            'decisions' => $this->chatAccess->partyDecisions($operationChatThread),
+            'anyDeclined' => $this->chatAccess->anyPartyDeclined($operationChatThread),
+        ] : null;
+
+        return view('admin-v2.disputes.show', compact(
+            'dispute', 'disputeable', 'thread', 'session', 'violations', 'claimableLines', 'compliance', 'operationChatAccess'
+        ));
+    }
+
+    /** POST admin/disputes/{dispute}/request-chat-access — nudge both parties for arbitration purposes. */
+    public function requestChatAccess(Dispute $dispute): RedirectResponse
+    {
+        $disputeable = $this->resolveDisputeable($dispute);
+        $thread = $disputeable ? $this->operationChats->findThread($disputeable) : null;
+
+        if ($thread) {
+            $this->chatAccess->notifyPartiesRequestConsent($thread);
+        }
+
+        return back()->with('success', __('تم إرسال طلب الاطلاع على محادثة العملية للطرفين.'));
     }
 
     /**

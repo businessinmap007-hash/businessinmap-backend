@@ -45,6 +45,16 @@ class Thread extends Model
         return $this->hasMany(ThreadMessage::class);
     }
 
+    public function accessConsents(): HasMany
+    {
+        return $this->hasMany(ThreadAccessConsent::class);
+    }
+
+    public function accessApprovals(): HasMany
+    {
+        return $this->hasMany(ThreadAccessApproval::class);
+    }
+
     public function isLocked(): bool
     {
         return $this->status === self::STATUS_LOCKED;

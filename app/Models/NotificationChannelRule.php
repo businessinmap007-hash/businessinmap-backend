@@ -92,6 +92,7 @@ class NotificationChannelRule extends Model
             'dispute_resolved' => ['صدور قرار في نزاع', 'Dispute ruling issued', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'warning'],
             'dispute_fine' => ['غرامة منصة على نزاع', 'Platform fine on a dispute', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'warning'],
             'dispute_room_message' => ['رسالة جديدة في غرفة النزاع', 'New message in the dispute room', AppNotification::TYPE_MESSAGE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'chat_access_requested' => ['طلب اطلاع على محادثة', 'Chat access requested', AppNotification::TYPE_DISPUTE, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
             'offer_matched' => ['عرض مناسب لمتابعتك', 'Offer matched your follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'offer'],
             'job_posted' => ['وظيفة جديدة في مجال تتابعه', 'New job in a field you follow', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'offer'],
             'job_application_approved' => ['تم قبول تقديمك على وظيفة', 'Your job application was accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, false, true, false, false, false, 0, 'system'],

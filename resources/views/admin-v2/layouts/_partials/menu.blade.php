@@ -194,7 +194,7 @@
             ['label' => 'قاموس الأدوية', 'route' => 'admin.medicines.index', 'active' => 'admin.medicines.'],
         ]],
         // App-level integration credentials (paste-and-go, no redeploy).
-        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.merchant-payment-accounts.', 'admin.merchant-account-requests.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.', 'admin.dispute-fees.'], 'children' => [
+        ['label' => 'إعدادات التطبيق', 'route' => 'admin.payment-settings.edit', 'icon' => 'settings', 'active' => ['admin.payment-settings.', 'admin.merchant-payment-accounts.', 'admin.merchant-account-requests.', 'admin.push-settings.', 'admin.admin-roles.', 'admin.arbitrators.', 'admin.dispute-rules.', 'admin.dispute-fees.', 'admin.chat-access-settings.'], 'children' => [
             ['label' => 'بوابة الدفع (فوري)', 'route' => 'admin.payment-settings.edit', 'active' => 'admin.payment-settings.'],
             ['label' => 'حسابات التجّار الفرعية', 'route' => 'admin.merchant-payment-accounts.index', 'active' => 'admin.merchant-payment-accounts.'],
             ['label' => 'طلبات حسابات التجّار', 'route' => 'admin.merchant-account-requests.index', 'active' => 'admin.merchant-account-requests.'],
@@ -203,6 +203,7 @@
             ['label' => 'الحُكّام', 'route' => 'admin.arbitrators.index', 'active' => 'admin.arbitrators.'],
             ['label' => 'قواعد النزاع', 'route' => 'admin.dispute-rules.index', 'active' => 'admin.dispute-rules.'],
             ['label' => 'رسوم جلسات التحكيم', 'route' => 'admin.dispute-fees.index', 'active' => 'admin.dispute-fees.'],
+            ['label' => 'الاطلاع على المحادثات', 'route' => 'admin.chat-access-settings.edit', 'active' => 'admin.chat-access-settings.'],
         ]],
     ];
 

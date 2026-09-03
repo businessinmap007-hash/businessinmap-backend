@@ -67,6 +67,15 @@ class OperationChatService
         return [(int) $operation->user_id, (int) $operation->business_id];
     }
 
+    /** The operation's chat thread if one was ever opened — never creates one. */
+    public function findThread(Model $operation): ?Thread
+    {
+        return Thread::query()
+            ->where('subject_type', $operation->getMorphClass())
+            ->where('subject_id', $operation->getKey())
+            ->first();
+    }
+
     /** The caller must be the buyer or the business on the operation. */
     public function assertParty(Model $operation, int $userId): void
     {

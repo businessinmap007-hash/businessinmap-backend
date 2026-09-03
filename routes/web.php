@@ -74,6 +74,11 @@ Route::get('/cart/join/{token}', [App\Http\Controllers\SharedCartWebController::
 Route::get('/cart/share/{business}', [App\Http\Controllers\SharedCartWebController::class, 'share'])
     ->whereNumber('business')->name('cart.shared.host');
 
+// A shared post link: what the mobile app's share sheet hands to
+// WhatsApp/Facebook — Open Graph tags for a real preview card, no auth.
+Route::get('/posts/{post}', [App\Http\Controllers\PostShareController::class, 'show'])
+    ->whereNumber('post')->name('posts.share');
+
 // Restaurant-table QR (BIM-13.3): a permanent sticker points at /t/{token}.
 Route::get('/t/{token}/qr', [App\Http\Controllers\SharedCartWebController::class, 'tableQr'])
     ->name('table.qr');

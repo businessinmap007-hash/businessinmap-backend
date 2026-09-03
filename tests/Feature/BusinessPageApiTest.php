@@ -79,12 +79,15 @@ class BusinessPageApiTest extends TestCase
         $this->getJson('/api/v2/businesses/99999999')->assertNotFound();
     }
 
-    public function test_the_posts_wall_returns_only_the_businesss_live_posts(): void
+    public function test_the_posts_wall_returns_only_the_businesss_active_posts(): void
     {
         $liveA = $this->makePost($this->biz, 'live A');
         $liveB = $this->makePost($this->biz, 'live B');
         $inactive = $this->makePost($this->biz, 'hidden', ['is_active' => false]);
-        $expired = $this->makePost($this->biz, 'gone', ['expire_at' => Carbon::now()->subDay()]);
+        // expire_at isn't checked here (dropped 2026-09-03) — index()/mine()/
+        // show() never checked it either, so a post a follower already sees
+        // in their feed no longer vanishes the moment they open this wall.
+        $oldExpireAt = $this->makePost($this->biz, 'still shown', ['expire_at' => Carbon::now()->subDay()]);
         $foreign = $this->makePost($this->otherBiz, 'someone else');
 
         $ids = collect($this->getJson("/api/v2/businesses/{$this->biz->id}/posts")->assertOk()->json('data'))
@@ -92,12 +95,12 @@ class BusinessPageApiTest extends TestCase
 
         $this->assertContains($liveA->id, $ids);
         $this->assertContains($liveB->id, $ids);
+        $this->assertContains($oldExpireAt->id, $ids, 'a past expire_at no longer hides a post here');
         $this->assertNotContains($inactive->id, $ids, 'an inactive post is hidden');
-        $this->assertNotContains($expired->id, $ids, 'an expired post is hidden');
         $this->assertNotContains($foreign->id, $ids, "another business's post never leaks in");
 
         // Newest first.
-        $this->assertSame($liveB->id, $ids[0]);
+        $this->assertSame($oldExpireAt->id, $ids[0]);
     }
 
     public function test_the_posts_wall_is_404_for_a_non_business(): void

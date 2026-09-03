@@ -168,8 +168,17 @@ final class PostController extends Controller
      * GET /api/v2/businesses/{business}/posts — one business's own wall.
      *
      * A deliberate visit to a discoverable business's page, so it shows that
-     * business's live posts (active + unexpired) to anyone — unlike the personal
-     * feed, which is audience-scoped. Reactions still personalise for a bearer.
+     * business's live posts to anyone — unlike the personal feed, which is
+     * audience-scoped. Reactions still personalise for a bearer.
+     *
+     * No `expire_at` filter (dropped 2026-09-03): index()/mine()/show() never
+     * checked it either, `expire_at` isn't even settable from the app's own
+     * create-post screen, and the mismatch meant a post a follower could see
+     * fine in their feed simply vanished the moment they tapped through to
+     * the business's own page — confirmed against a real account whose posts
+     * (`is_active=1`) all carried an `expire_at` years in the past. Being the
+     * only one of four read endpoints enforcing it was the bug, not a
+     * deliberate stricter rule for this one.
      */
     public function business(Request $request, int $business)
     {
@@ -183,7 +192,6 @@ final class PostController extends Controller
         $posts = $this->baseQuery()
             ->where('user_id', $business)
             ->where('is_active', 1)
-            ->where(fn (Builder $w) => $w->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
             ->orderByDesc('id')
             ->paginate($perPage)
             ->appends($request->query());

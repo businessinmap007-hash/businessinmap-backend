@@ -124,7 +124,7 @@ final class OrderController extends Controller
             'body_en' => 'The customer cancelled order #' . $model->id . '.',
         ]);
 
-        return (new OrderResource($model))->additional(['success' => true]);
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
     // ─────────────────────────── Business ───────────────────────────
@@ -183,7 +183,7 @@ final class OrderController extends Controller
             'body_en' => 'The restaurant could not fulfil your order #' . $model->id . '.',
         ]);
 
-        return (new OrderResource($model))->additional(['success' => true]);
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
     /**
@@ -236,7 +236,7 @@ final class OrderController extends Controller
             'body_en' => 'The restaurant accepted your order #' . $model->id . '.',
         ]);
 
-        return (new OrderResource($model))->additional(['success' => true]);
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
     /** POST /api/v2/business/orders/{order}/preparing — accepted → preparing. */
@@ -249,7 +249,7 @@ final class OrderController extends Controller
             'body_en' => 'Your order #' . $model->id . ' is now being prepared.',
         ]);
 
-        return (new OrderResource($model))->additional(['success' => true]);
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
     /** POST /api/v2/business/orders/{order}/ready — preparing → ready. */
@@ -262,7 +262,26 @@ final class OrderController extends Controller
             'body_en' => 'Your order #' . $model->id . ' is ready.',
         ]);
 
-        return (new OrderResource($model))->additional(['success' => true]);
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
+    /**
+     * Every business/customer action returns a fresh `OrderResource` so the
+     * caller's detail screen updates in place — but each of those methods
+     * loads the row bare (only what its own logic needs, under a lock).
+     * Load the same relations `show()`/`businessShow()` do before handing
+     * it to the resource, or a client watching the response of an action
+     * (not a separate reload) sees the customer/items/table vanish the
+     * moment they act on it.
+     */
+    private function loadForResource(Order $model): Order
+    {
+        return $model->load([
+            'user:id,name,phone',
+            'business:id,name,logo',
+            'items.menuItem:id,name_ar,name_en',
+            'businessTable:id,label',
+        ]);
     }
 
     /** Advance a business's order from one prep_status to the next under a lock. */

@@ -35,10 +35,14 @@ final class BusinessPageController extends Controller
 
         abort_unless((bool) $model, 404, __('النشاط التجاري غير موجود.'));
 
+        // No expire_at filter here (dropped 2026-09-03, same fix as
+        // PostController::business() below) — this count decides whether
+        // the Posts tab shows up at all; filtering it the same stale way
+        // meant a business whose posts all carried an old expire_at got no
+        // Posts tab whatsoever, not just a hidden post.
         $postsCount = FeedPost::query()
             ->where('user_id', $business)
             ->where('is_active', 1)
-            ->where(fn ($w) => $w->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
             ->count();
 
         $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();

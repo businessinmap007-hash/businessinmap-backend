@@ -71,6 +71,21 @@ class BusinessPageApiTest extends TestCase
         $this->assertArrayHasKey('phone', $res->json('data'));
     }
 
+    /**
+     * The exact bug reported live: a business whose posts all carried an old
+     * expire_at got sections.posts=false, so the app rendered no Posts tab
+     * at all — not just a hidden post inside one.
+     */
+    public function test_sections_posts_stays_true_when_every_post_has_an_old_expire_at(): void
+    {
+        $this->makePost($this->biz, 'old one', ['expire_at' => Carbon::now()->subYear()]);
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.counts.posts', 1)
+            ->assertJsonPath('data.sections.posts', true);
+    }
+
     public function test_the_business_page_is_404_for_a_non_business(): void
     {
         $client = User::query()->where('type', '!=', User::TYPE_BUSINESS)->firstOrFail();

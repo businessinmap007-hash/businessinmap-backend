@@ -44,24 +44,47 @@ final class OfferBoostService
             $price = round((float) $package->price, 2);
 
             if ($price > 0) {
-                $tx = $ledger->withdraw(
-                    walletId: (int) $wallet->id,
-                    userId: $businessId,
-                    amount: $price,
-                    op: [
-                        'type' => 'offer_boost_fee',
-                        'reference_type' => 'offer_boost_package',
-                        'reference_id' => (string) $package->id,
-                        'idempotency_key' => 'offer_boost:' . $offer->id . ':' . $package->id . ':' . now()->format('YmdHis') . ':' . uniqid(),
-                        'meta' => [
-                            'source' => 'admin_offer_boost',
-                            'offer_id' => (int) $offer->id,
-                            'package_id' => (int) $package->id,
-                            'business_id' => $businessId,
-                            'admin_id' => $adminId,
-                        ],
-                    ]
-                );
+                try {
+                    $tx = $ledger->withdraw(
+                        walletId: (int) $wallet->id,
+                        userId: $businessId,
+                        amount: $price,
+                        op: [
+                            // 'offer_boost_fee' is not one of wallet_transactions.type's
+                            // enum values (deposit/withdraw/hold/release/refund/
+                            // adjustment/transfer/platform_fee) — every prior call here
+                            // failed at the INSERT with a truncation error before ever
+                            // reaching a real balance check. 'platform_fee' is the enum
+                            // member this actually is.
+                            'type' => 'platform_fee',
+                            'reference_type' => 'offer_boost_package',
+                            'reference_id' => (string) $package->id,
+                            'idempotency_key' => 'offer_boost:' . $offer->id . ':' . $package->id . ':' . now()->format('YmdHis') . ':' . uniqid(),
+                            'meta' => [
+                                'source' => 'admin_offer_boost',
+                                'offer_id' => (int) $offer->id,
+                                'package_id' => (int) $package->id,
+                                'business_id' => $businessId,
+                                'admin_id' => $adminId,
+                            ],
+                        ]
+                    );
+                } catch (\RuntimeException $e) {
+                    // The ledger throws a plain RuntimeException (message:
+                    // 'Insufficient wallet balance') on insufficient balance, which
+                    // nothing turns into a clean 4xx — left uncaught, a business
+                    // tapping "Boost" without enough wallet balance (the ordinary
+                    // case, not an edge case) sees a raw 500. Checked by message
+                    // rather than caught blindly: PDOException (a real DB error,
+                    // e.g. the enum mismatch above) also extends RuntimeException,
+                    // and must not be relabelled as a balance problem.
+                    if ($e->getMessage() !== 'Insufficient wallet balance') {
+                        throw $e;
+                    }
+                    throw ValidationException::withMessages([
+                        'package_id' => __('رصيد المحفظة غير كافٍ لشراء هذه الباقة. من فضلك اشحن محفظتك أولاً.'),
+                    ]);
+                }
             }
 
             $startsAt = now();

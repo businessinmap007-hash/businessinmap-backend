@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserOperationRating;
+use App\Models\UserServiceFeeConsent;
 use App\Services\Ratings\RatingService;
 use App\Services\ServiceFeeConsentEnforcer;
 use Illuminate\Http\Request;
@@ -50,9 +51,11 @@ final class RatingController extends Controller
      * opening theirs makes only the CLIENT liable — because fees are charged per
      * user via WalletFeeService::canAutoChargeFees($thatUser).
      *
-     * Forward-only (ServiceFeeConsentEnforcer never auto-disables), so a party
-     * cannot take the trust/visibility benefit of an open rating and then close
-     * it to dodge the fees.
+     * `ServiceFeeConsentEnforcer::enforce()` itself never auto-disables — a
+     * guarantee/deposit action re-asserts consent going forward. That is
+     * unrelated to this self-service pair: the user (owner-confirmed,
+     * 2026-09-03) may explicitly close what they explicitly opened via
+     * disable() below.
      */
     public function enable(Request $request)
     {
@@ -68,6 +71,49 @@ final class RatingController extends Controller
                 'user_id' => (int) $user->id,
                 'rating_enabled' => true,
                 'fee_auto_charge_enabled' => true,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v2/ratings/disable — the caller closes their OWN rating again.
+     *
+     * The exact reverse of enable(): both `rating_enabled` and
+     * `fee_auto_charge_enabled` go back to false, and the `users.rating_enabled`
+     * mirror column (which hasRatingEnabled() also reads) is synced off too —
+     * otherwise the OR between the two columns would keep the account reading
+     * as enabled. Once closed, the caller's own operation record and reviews
+     * go back to hidden (see MyRatingScreen), the same as before ever opening
+     * it, and no new operation is fee-liable until re-opened.
+     */
+    public function disable(Request $request)
+    {
+        $user = $request->user();
+        $reason = 'إغلاق التقييم (' . ($user->isBusiness() ? 'بزنس' : 'عميل') . ')';
+
+        $consent = UserServiceFeeConsent::firstOrCreate(
+            ['user_id' => (int) $user->id],
+            ['fee_auto_charge_enabled' => false, 'rating_enabled' => false, 'stats_enabled' => false],
+        );
+
+        $consent->forceFill([
+            'fee_auto_charge_enabled' => false,
+            'rating_enabled' => false,
+            'disabled_at' => now(),
+            'notes' => trim((string) $consent->notes . "\n[إغلاق ذاتي] " . $reason),
+        ])->save();
+
+        if ((bool) $user->rating_enabled) {
+            $user->forceFill(['rating_enabled' => false])->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إغلاق التقييم. لن تُطبَّق رسوم الخدمة على عملياتك الجديدة.'),
+            'data' => [
+                'user_id' => (int) $user->id,
+                'rating_enabled' => false,
+                'fee_auto_charge_enabled' => false,
             ],
         ]);
     }

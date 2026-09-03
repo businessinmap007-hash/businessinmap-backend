@@ -771,6 +771,8 @@ Route::prefix('v2')->group(function () {
             // Open your OWN rating (per-party opt-in): this is what makes the
             // caller liable for service fees — transacting itself is free.
             Route::post('enable', [RatingController::class, 'enable']);
+            // Close it again — owner-confirmed self-service reversal, 2026-09-03.
+            Route::post('disable', [RatingController::class, 'disable']);
             Route::get('user/{user}', [RatingController::class, 'show'])->whereNumber('user');
             Route::get('user/{user}/reviews', [RatingController::class, 'reviews'])->whereNumber('user');
             // Star review — gated on a real, completed operation between the parties.

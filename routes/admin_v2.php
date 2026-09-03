@@ -38,6 +38,7 @@ use App\Http\Controllers\AdminV2\{
     FraudFlagController,
     GuaranteeAdminController,
     GuaranteeLevelAdminController,
+    ChatAccessSettingsController,
     ChatAdminController,
     ChatAttachmentController,
     HeldDeletionController,
@@ -475,54 +476,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('{user}/restore', [HeldDeletionController::class, 'restore'])->whereNumber('user')->name('restore');
             });
 
-            // Operation chats whose retention window has passed — evidence kept
-            // for 7 days after completion, then deletable here. Gated OPERATIONS.
-            Route::prefix('operation-chats')->name('operation-chats.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [OperationChatController::class, 'index'])->name('index');
-                Route::delete('{thread}', [OperationChatController::class, 'destroy'])->whereNumber('thread')->name('destroy');
-            });
-
-            // Read-only oversight of every business's project timeline (build /
-            // manufacturing progress). Gated OPERATIONS; no edits, view only.
-            Route::prefix('projects')->name('projects.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [ProjectAdminController::class, 'index'])->name('index');
-                Route::get('{project}', [ProjectAdminController::class, 'show'])->whereNumber('project')->name('show');
-            });
-
-            // Read-only oversight of every trainer's plans. Gated OPERATIONS.
-            Route::prefix('training-plans')->name('training-plans.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [TrainingAdminController::class, 'index'])->name('index');
-                Route::get('{plan}', [TrainingAdminController::class, 'show'])->whereNumber('plan')->name('show');
-            });
-
-            // Read-only oversight of every clinic's appointments. Gated OPERATIONS.
-            Route::prefix('clinic-appointments')->name('clinic-appointments.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [ClinicAppointmentAdminController::class, 'index'])->name('index');
-                Route::get('{appointment}', [ClinicAppointmentAdminController::class, 'show'])->whereNumber('appointment')->name('show');
-            });
-
-            // Read-only oversight of every prescription. Gated OPERATIONS.
-            Route::prefix('prescriptions')->name('prescriptions.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [PrescriptionAdminController::class, 'index'])->name('index');
-                Route::get('{prescription}', [PrescriptionAdminController::class, 'show'])->whereNumber('prescription')->name('show');
-            });
-
-            // Read-only oversight of every user's personal agenda. Gated OPERATIONS.
-            Route::prefix('agenda')->name('agenda.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
-                Route::get('/', [AgendaAdminController::class, 'index'])->name('index');
-            });
-
-            // Every conversation on the platform, merged for moderation. Text is
-            // encrypted at rest; only a judge (DISPUTES) may read it. Read-only.
-            Route::prefix('chats')->name('chats.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {
-                Route::get('/', [ChatAdminController::class, 'index'])->name('index');
-                Route::get('{thread}', [ChatAdminController::class, 'show'])->whereNumber('thread')->name('show');
-            });
-
-            // Private conversation evidence, streamed to the judge (DISPUTES).
-            Route::get('chat-attachments/{attachment}', [ChatAttachmentController::class, 'show'])
-                ->whereNumber('attachment')->middleware('can:' . AdminAbility::DISPUTES)->name('chat-attachments.show');
-
             Route::prefix('wallet-transactions')->name('wallet-transactions.')->group(function () {
                 Route::get('/', [WalletTransactionController::class, 'index'])->name('index');
                 Route::get('user/{user}', [WalletTransactionController::class, 'user'])->whereNumber('user')->name('user');
@@ -546,6 +499,56 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('{fine}/cancel', [FineController::class, 'cancel'])->whereNumber('fine')->name('cancel');
             });
         });
+
+        // Operation chats whose retention window has passed — evidence kept
+        // for 7 days after completion, then deletable here. Gated OPERATIONS.
+        Route::prefix('operation-chats')->name('operation-chats.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [OperationChatController::class, 'index'])->name('index');
+            Route::delete('{thread}', [OperationChatController::class, 'destroy'])->whereNumber('thread')->name('destroy');
+        });
+
+        // Read-only oversight of every business's project timeline (build /
+        // manufacturing progress). Gated OPERATIONS; no edits, view only.
+        Route::prefix('projects')->name('projects.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [ProjectAdminController::class, 'index'])->name('index');
+            Route::get('{project}', [ProjectAdminController::class, 'show'])->whereNumber('project')->name('show');
+        });
+
+        // Read-only oversight of every trainer's plans. Gated OPERATIONS.
+        Route::prefix('training-plans')->name('training-plans.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [TrainingAdminController::class, 'index'])->name('index');
+            Route::get('{plan}', [TrainingAdminController::class, 'show'])->whereNumber('plan')->name('show');
+        });
+
+        // Read-only oversight of every clinic's appointments. Gated OPERATIONS.
+        Route::prefix('clinic-appointments')->name('clinic-appointments.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [ClinicAppointmentAdminController::class, 'index'])->name('index');
+            Route::get('{appointment}', [ClinicAppointmentAdminController::class, 'show'])->whereNumber('appointment')->name('show');
+        });
+
+        // Read-only oversight of every prescription. Gated OPERATIONS.
+        Route::prefix('prescriptions')->name('prescriptions.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [PrescriptionAdminController::class, 'index'])->name('index');
+            Route::get('{prescription}', [PrescriptionAdminController::class, 'show'])->whereNumber('prescription')->name('show');
+        });
+
+        // Read-only oversight of every user's personal agenda. Gated OPERATIONS.
+        Route::prefix('agenda')->name('agenda.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
+            Route::get('/', [AgendaAdminController::class, 'index'])->name('index');
+        });
+
+        // Every conversation on the platform, merged for moderation. Text is
+        // encrypted at rest; only a judge (DISPUTES) may read it. Read-only.
+        Route::prefix('chats')->name('chats.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {
+            Route::get('/', [ChatAdminController::class, 'index'])->name('index');
+            Route::get('{thread}', [ChatAdminController::class, 'show'])->whereNumber('thread')->name('show');
+            Route::post('{thread}/approve-access', [ChatAdminController::class, 'approveAccess'])->whereNumber('thread')->name('approve-access');
+            Route::post('{thread}/request-consent', [ChatAdminController::class, 'requestConsent'])->whereNumber('thread')->name('request-consent');
+        });
+
+        // Private conversation evidence, streamed to the judge (DISPUTES).
+        Route::get('chat-attachments/{attachment}', [ChatAttachmentController::class, 'show'])
+            ->whereNumber('attachment')->middleware('can:' . AdminAbility::DISPUTES)->name('chat-attachments.show');
 
         Route::prefix('guarantee-levels')->name('guarantee-levels.')->middleware('can:' . AdminAbility::TRUST)->group(function () {
             Route::get('/', [GuaranteeLevelAdminController::class, 'index'])->name('index');
@@ -624,6 +627,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('push-settings/test', [PushSettingsController::class, 'test'])->name('push-settings.test');
         });
 
+        // How many admins must each vouch for a chat before it unlocks without
+        // the parties' own consent. Platform policy, not a per-case DISPUTES
+        // action — same rationale as dispute-rules above.
+        Route::middleware('can:' . AdminAbility::SETTINGS)->group(function () {
+            Route::get('chat-access-settings', [ChatAccessSettingsController::class, 'edit'])->name('chat-access-settings.edit');
+            Route::put('chat-access-settings', [ChatAccessSettingsController::class, 'update'])->name('chat-access-settings.update');
+        });
+
         // Who may do what. Its own ability, NOT SETTINGS: whoever can hand out
         // MONEY effectively has MONEY, so bundling it with the push-credentials
         // screen would have quietly made SETTINGS equal to everything.
@@ -673,6 +684,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{dispute}/conduct-violation', [DisputeController::class, 'recordConductViolation'])->whereNumber('dispute')->name('conduct-violation');
             // Posting takes the arbitrator's seat — reading the case does not.
             Route::post('{dispute}/room', [DisputeController::class, 'roomPost'])->whereNumber('dispute')->name('room.post');
+            // Nudges both parties to decide on sharing the OPERATION chat (a
+            // different thread from the room above) as arbitration evidence.
+            Route::post('{dispute}/request-chat-access', [DisputeController::class, 'requestChatAccess'])->whereNumber('dispute')->name('request-chat-access');
             Route::post('{dispute}/close', [DisputeController::class, 'close'])->whereNumber('dispute')->name('close');
             // The verdict that the ruling was carried out — refused while anything is unpaid.
             Route::post('{dispute}/close-complied', [DisputeController::class, 'closeWithCompliance'])->whereNumber('dispute')->name('close-complied');

@@ -152,4 +152,35 @@ class AdminAbilityCoverageTest extends TestCase
             );
         }
     }
+
+    public function test_read_only_oversight_screens_do_not_require_the_money_ability(): void
+    {
+        // Regression guard: these screens were briefly nested inside the MONEY
+        // route group by accident (copy-pasted next to genuinely money-moving
+        // groups like held-deletions and fines), silently doubling their gate.
+        // None of them move money — they read, and the judge-only chats screen
+        // is read-only too — so their own domain ability must be enough alone.
+        $readOnly = [
+            'admin.operation-chats.index',
+            'admin.projects.index',
+            'admin.training-plans.index',
+            'admin.clinic-appointments.index',
+            'admin.prescriptions.index',
+            'admin.agenda.index',
+            'admin.chats.index',
+            'admin.chats.show',
+            'admin.chat-attachments.show',
+        ];
+
+        foreach ($readOnly as $name) {
+            $route = Route::getRoutes()->getByName($name);
+
+            $this->assertNotNull($route, $name . ' should exist');
+            $this->assertNotContains(
+                AdminAbility::MONEY,
+                $this->abilitiesOf($route),
+                $name . ' is read-only oversight — requiring ' . AdminAbility::MONEY . ' on top of its own ability is the bug this test guards against'
+            );
+        }
+    }
 }

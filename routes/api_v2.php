@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
+use App\Http\Controllers\Api\V2\MenuMarketCatalogController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\BusinessOfferingsController;
 use App\Http\Controllers\Api\V2\BusinessRetailListingController;
@@ -687,6 +688,11 @@ Route::prefix('v2')->group(function () {
             Route::post('items/{item}/extras', [BusinessMenuItemController::class, 'storeExtra'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'updateExtra'])->whereNumber(['item', 'extra']);
             Route::delete('items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'destroyExtra'])->whereNumber(['item', 'extra']);
+
+            // «تعبئة الرفوف» — bulk-priced shelf for menu_market children
+            // (supermarket/greengrocer/etc.), mirrors business/menu/market-catalog on the web panel.
+            Route::get('market-catalog', [MenuMarketCatalogController::class, 'index']);
+            Route::post('market-catalog', [MenuMarketCatalogController::class, 'save']);
         });
 
         // Business pricing: one row per (service, item type). `options` returns

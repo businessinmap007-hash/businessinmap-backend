@@ -72,6 +72,30 @@ class BusinessPageApiTest extends TestCase
     }
 
     /**
+     * The info-screen fields (2026-09-04): governorate/city names, not just
+     * ids, so the app doesn't need a separate picker fetch to show "which
+     * governorate/city" on a business's own info page.
+     */
+    public function test_the_business_page_includes_governorate_and_city_names(): void
+    {
+        $city = \App\Models\City::query()->whereNotNull('governorate_id')->firstOrFail();
+        $this->biz->forceFill(['governorate_id' => $city->governorate_id, 'city_id' => $city->id])->save();
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.location.city.id', $city->id)
+            ->assertJsonPath('data.location.governorate.id', $city->governorate_id);
+    }
+
+    public function test_the_business_page_governorate_and_city_are_null_when_unset(): void
+    {
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.location.governorate', null)
+            ->assertJsonPath('data.location.city', null);
+    }
+
+    /**
      * The exact bug reported live: a business whose posts all carried an old
      * expire_at got sections.posts=false, so the app rendered no Posts tab
      * at all — not just a hidden post inside one.

@@ -109,4 +109,53 @@ class AlbumApiTest extends TestCase
     {
         $this->getJson('/api/v2/profile/albums')->assertUnauthorized();
     }
+
+    /**
+     * The public counterpart (2026-09-04): a business's own album, read-only,
+     * for the "who is this business" info screen a visitor opens — no
+     * ownership check on purpose, unlike every /profile/albums/* route above.
+     */
+    public function test_a_businesss_album_is_visible_publicly(): void
+    {
+        $business = User::query()->where('type', 'business')->firstOrFail();
+        $album = $business->albums()->create(['title_ar' => 'ألبوم عام']);
+        $album->images()->create(['image' => 'files/uploads/does-not-exist.png', 'source' => Image::SOURCE_UPLOAD]);
+
+        // No Authorization header at all. Accept-Language pinned — see the
+        // note on test_can_create_an_album_and_it_appears_in_the_index.
+        $this->withHeaders(['Accept-Language' => 'ar'])
+            ->getJson("/api/v2/businesses/{$business->id}/albums")
+            ->assertOk()
+            ->assertJsonFragment(['id' => $album->id, 'title' => 'ألبوم عام']);
+
+        $this->getJson("/api/v2/businesses/{$business->id}/albums/{$album->id}")
+            ->assertOk()
+            ->assertJsonPath('data.photos_count', 1);
+    }
+
+    /**
+     * Album::title used to pick title_ar/title_en strictly by locale with no
+     * fallback — a business that only ever filled in the Arabic title (the
+     * overwhelmingly common case) showed a blank title to an English-locale
+     * viewer. Fixed 2026-09-04 to fall back like every other localized field.
+     */
+    public function test_album_title_falls_back_to_arabic_for_an_english_locale_viewer(): void
+    {
+        $business = User::query()->where('type', 'business')->firstOrFail();
+        $album = $business->albums()->create(['title_ar' => 'ألبوم بالعربي فقط']);
+
+        $this->withHeaders(['Accept-Language' => 'en'])
+            ->getJson("/api/v2/businesses/{$business->id}/albums")
+            ->assertOk()
+            ->assertJsonFragment(['title' => 'ألبوم بالعربي فقط']);
+    }
+
+    public function test_a_businesss_album_404s_under_the_wrong_business(): void
+    {
+        $business = User::query()->where('type', 'business')->firstOrFail();
+        $other = User::query()->where('type', 'business')->where('id', '!=', $business->id)->firstOrFail();
+        $album = $business->albums()->create(['title_ar' => 'ألبوم']);
+
+        $this->getJson("/api/v2/businesses/{$other->id}/albums/{$album->id}")->assertNotFound();
+    }
 }

@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Models\User;
+use App\Support\Concerns\HasLocalizedFields;
 use Illuminate\Database\Eloquent\Model;
 
 class Album extends Model
 {
+    use HasLocalizedFields;
+
     protected $fillable = [
         'image',
         'title_ar',
@@ -17,18 +20,23 @@ class Album extends Model
 
     protected $appends = ['title', 'description'];
 
+    /**
+     * Falls back to whichever language IS filled in (see HasLocalizedFields)
+     * instead of going blank for the other one — almost every business only
+     * ever fills in title_ar, so a strict locale-only pick (the original
+     * shape here) meant an English-locale viewer saw no title at all, not
+     * the Arabic one it does have. Caught building the public album view
+     * (2026-09-04); the same gap existed on the owner's own management
+     * screen too.
+     */
     public function getTitleAttribute(): ?string
     {
-        return app()->getLocale() === 'ar'
-            ? $this->title_ar
-            : $this->title_en;
+        return $this->loc('title');
     }
 
     public function getDescriptionAttribute(): ?string
     {
-        return app()->getLocale() === 'ar'
-            ? $this->description_ar
-            : $this->description_en;
+        return $this->loc('description');
     }
 
     public function images()

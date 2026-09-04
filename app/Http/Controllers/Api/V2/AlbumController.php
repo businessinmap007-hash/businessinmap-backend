@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\Album;
 use App\Models\Image;
+use App\Models\User;
 use App\Services\Media\ImageUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -35,6 +36,30 @@ final class AlbumController extends Controller
             'success' => true,
             'data' => $albums->map(fn (Album $album) => $this->summary($album))->values(),
         ]);
+    }
+
+    /**
+     * GET /api/v2/businesses/{business}/albums — the same gallery, read-only,
+     * for anyone viewing that business's page. Public, no ownership check:
+     * this is the whole point, unlike every /profile/albums/* route above.
+     */
+    public function forBusiness(int $business)
+    {
+        $owner = User::query()->where('type', 'business')->whereKey($business)->firstOrFail();
+        $albums = $owner->albums()->withCount('images')->latest('id')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $albums->map(fn (Album $album) => $this->summary($album))->values(),
+        ]);
+    }
+
+    /** GET /api/v2/businesses/{business}/albums/{album} — one album's photos, public. */
+    public function albumForBusiness(int $business, Album $album)
+    {
+        abort_unless((int) $album->user_id === $business, 404);
+
+        return response()->json(['success' => true, 'data' => $this->detail($album->load('images'))]);
     }
 
     /** POST /api/v2/profile/albums */

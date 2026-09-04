@@ -218,6 +218,11 @@ Route::prefix('v2')->group(function () {
     Route::prefix('businesses')->group(function () {
         Route::get('{business}', [BusinessPageController::class, 'show'])->whereNumber('business');
         Route::get('{business}/posts', [PostController::class, 'business'])->whereNumber('business');
+        // The business's own photo album, read-only — the info screen a
+        // visitor opens for "who is this business" (2026-09-04).
+        Route::get('{business}/albums', [AlbumController::class, 'forBusiness'])->whereNumber('business');
+        Route::get('{business}/albums/{album}', [AlbumController::class, 'albumForBusiness'])
+            ->whereNumber(['business', 'album']);
     });
 
     // Payment gateway server-to-server callback for wallet top-ups. PUBLIC (the

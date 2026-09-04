@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\City;
 use App\Models\FeedPost;
 use App\Models\FollowUser;
+use App\Models\Governorate;
 use App\Models\User;
 use App\Models\UserOperationRating;
 use App\Services\BusinessHoursService;
 use App\Services\Ratings\RatingService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -68,6 +71,12 @@ final class BusinessPageController extends Controller
                 'location' => [
                     'latitude' => $model->latitude !== null ? (float) $model->latitude : null,
                     'longitude' => $model->longitude !== null ? (float) $model->longitude : null,
+                    // Admin-area names, not just the GPS point — the info
+                    // screen shows "which governorate/city", not a map pin.
+                    'governorate' => $this->nameOf(
+                        $model->governorate_id ? Governorate::find($model->governorate_id) : null
+                    ),
+                    'city' => $this->nameOf($model->city_id ? City::find($model->city_id) : null),
                 ],
                 'category' => [
                     'id' => $model->category_id !== null ? (int) $model->category_id : null,
@@ -85,5 +94,20 @@ final class BusinessPageController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /** Mirrors AddressResource::nameOf() — id + both languages, not just one. */
+    private function nameOf(?Model $relation): ?array
+    {
+        if (! $relation) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $relation->id,
+            'name' => method_exists($relation, 'loc') ? $relation->loc('name') : ($relation->name_ar ?: $relation->name_en),
+            'name_ar' => $relation->name_ar,
+            'name_en' => $relation->name_en,
+        ];
     }
 }

@@ -4656,6 +4656,8 @@ paths:
     delete: { tags: [Jobs], summary: Unfollow a job field, parameters: [{ name: follow, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /jobs/{post}:
     get: { tags: [Jobs], summary: Job detail — includes applicants_count, never applicant identities (public), security: [], parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+    post: { tags: [Jobs], summary: "The posting business edits its own vacancy — category/child are not editable", parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Jobs], summary: The posting business deletes its own vacancy, parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business } } }
   /jobs/{post}/apply:
     post: { tags: [Jobs], summary: A client applies (once — a repeat is 422), parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /jobs/{post}/close:

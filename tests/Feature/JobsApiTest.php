@@ -237,4 +237,75 @@ class JobsApiTest extends TestCase
         $this->assertFalse($ids->contains($expired->id));
         $this->assertFalse($ids->contains($inactive->id));
     }
+
+    // ---- edit / delete -----------------------------------------------------
+
+    private function postAJob(User $business, array $overrides = []): int
+    {
+        return $this->actingAs($business, 'sanctum')->postJson('/api/v2/jobs', array_merge([
+            'category_id' => self::ROOT_CATEGORY_ID,
+            'title' => 'وظيفة أصلية',
+            'body' => 'وصف أصلي',
+        ], $overrides))->assertCreated()->json('data.id');
+    }
+
+    public function test_the_posting_business_can_edit_its_own_job(): void
+    {
+        $business = $this->business();
+        $jobId = $this->postAJob($business);
+
+        $this->actingAs($business, 'sanctum')->postJson("/api/v2/jobs/{$jobId}", [
+            'title' => 'وظيفة معدّلة',
+            'body' => 'وصف معدّل',
+            'salary' => '10000',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'وظيفة معدّلة')
+            ->assertJsonPath('data.salary', '10000');
+
+        $this->assertDatabaseHas('posts', ['id' => $jobId, 'title' => 'وظيفة معدّلة', 'body' => 'وصف معدّل']);
+    }
+
+    public function test_a_foreign_business_cannot_edit_or_delete_a_job(): void
+    {
+        $owner = $this->business();
+        $other = $this->business();
+        $jobId = $this->postAJob($owner);
+
+        $this->actingAs($other, 'sanctum')
+            ->postJson("/api/v2/jobs/{$jobId}", ['title' => 'استيلاء', 'body' => 'ب'])
+            ->assertForbidden();
+
+        $this->actingAs($other, 'sanctum')
+            ->deleteJson("/api/v2/jobs/{$jobId}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('posts', ['id' => $jobId, 'title' => 'وظيفة أصلية']);
+    }
+
+    public function test_the_posting_business_can_delete_its_own_job(): void
+    {
+        $business = $this->business();
+        $jobId = $this->postAJob($business);
+
+        $this->actingAs($business, 'sanctum')
+            ->deleteJson("/api/v2/jobs/{$jobId}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('posts', ['id' => $jobId]);
+    }
+
+    public function test_editing_clears_a_field_when_sent_empty(): void
+    {
+        $business = $this->business();
+        $jobId = $this->postAJob($business, ['salary' => '5000']);
+
+        $this->actingAs($business, 'sanctum')->postJson("/api/v2/jobs/{$jobId}", [
+            'title' => 'وظيفة أصلية',
+            'body' => 'وصف أصلي',
+            'salary' => '',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('posts', ['id' => $jobId, 'salary' => null]);
+    }
 }

@@ -281,6 +281,8 @@ Route::prefix('v2')->group(function () {
         Route::get('jobs/{post}/applicants', [JobController::class, 'applicants'])->whereNumber('post');
         Route::post('jobs/{post}/applicants/{apply}/approve', [JobController::class, 'approveApplicant'])->whereNumber('post')->whereNumber('apply');
         Route::post('jobs/{post}/close', [JobController::class, 'close'])->whereNumber('post');
+        Route::post('jobs/{post}', [JobController::class, 'update'])->whereNumber('post');
+        Route::delete('jobs/{post}', [JobController::class, 'destroy'])->whereNumber('post');
 
         // Posts: publish, edit and react. `mine` is declared before {post} and
         // {post} is numeric-constrained, so the two never collide.

@@ -297,6 +297,54 @@ final class JobController extends Controller
     }
 
     /**
+     * POST /api/v2/jobs/{post} — the posting business edits its own vacancy.
+     *
+     * category_id/category_child_id are NOT editable here: a job is always
+     * the posting business's own field (see store()'s comment and
+     * CreateJobScreen), never a choice, so there is nothing to change.
+     */
+    public function update(Request $request, JobPost $post)
+    {
+        $user = $request->user();
+
+        if ((int) $post->user_id !== (int) $user->id) {
+            abort(403, 'Only the business that posted this job can edit it.');
+        }
+
+        $data = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:191'],
+            'body' => ['sometimes', 'required', 'string'],
+            'requirements' => ['nullable', 'string'],
+            'salary' => ['nullable', 'string', 'max:191'],
+            'interview_starts_at' => ['nullable', 'date'],
+            'expire_at' => ['nullable', 'date', 'after_or_equal:interview_starts_at'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        foreach ($data as $field => $value) {
+            $post->{$field} = $value;
+        }
+
+        $post->save();
+
+        return response()->json(['success' => true, 'data' => $this->publicShape($post->refresh(), withBody: true)]);
+    }
+
+    /** DELETE /api/v2/jobs/{post} — the posting business deletes its own vacancy. */
+    public function destroy(Request $request, JobPost $post)
+    {
+        $user = $request->user();
+
+        if ((int) $post->user_id !== (int) $user->id) {
+            abort(403, 'Only the business that posted this job can delete it.');
+        }
+
+        $post->delete();
+
+        return response()->json(['success' => true, 'message' => 'Job deleted.']);
+    }
+
+    /**
      * GET /api/v2/jobs/mine/stats — the counters for the signed-in business:
      * how many jobs it posted, total applicants, total accepted.
      */

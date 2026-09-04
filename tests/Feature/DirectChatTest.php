@@ -187,4 +187,26 @@ class DirectChatTest extends TestCase
         $this->getJson("/api/v2/chats/{$withCarol}")->assertOk();
         $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 0);
     }
+
+    public function test_a_sent_message_is_read_only_once_the_other_party_opens_the_thread(): void
+    {
+        Sanctum::actingAs($this->alice);
+        $threadId = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
+        $this->postJson("/api/v2/chats/{$threadId}/messages", ['body' => 'seen yet?'])->assertCreated();
+
+        // Not read yet — Bob hasn't opened the thread.
+        $this->getJson("/api/v2/chats/{$threadId}")
+            ->assertOk()
+            ->assertJsonPath('data.0.is_mine', true)
+            ->assertJsonPath('data.0.is_read', false);
+
+        Sanctum::actingAs($this->bob);
+        $this->getJson("/api/v2/chats/{$threadId}")->assertOk();
+
+        // Bob's own view never claims a read receipt on someone else's message.
+        Sanctum::actingAs($this->alice);
+        $this->getJson("/api/v2/chats/{$threadId}")
+            ->assertOk()
+            ->assertJsonPath('data.0.is_read', true);
+    }
 }

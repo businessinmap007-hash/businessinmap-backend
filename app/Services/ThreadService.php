@@ -544,6 +544,25 @@ class ThreadService
         return $counts;
     }
 
+    /**
+     * The timestamp through which every OTHER participant (everyone but
+     * [$viewerId]) has read the thread — null if any of them has never
+     * opened it. A message the viewer sent at or before this timestamp has
+     * been seen by everyone else; the read-receipt checkmark's boundary.
+     */
+    public function otherPartiesReadThrough(Thread $thread, int $viewerId): ?\Illuminate\Support\Carbon
+    {
+        $thread->loadMissing('participants');
+
+        $others = $thread->participants->where('user_id', '!=', $viewerId);
+
+        if ($others->isEmpty() || $others->contains(fn ($p) => $p->last_read_at === null)) {
+            return null;
+        }
+
+        return $others->min('last_read_at');
+    }
+
     private function write(Thread $thread, ?int $senderId, string $kind, string $body, bool $allowEmpty = false): ThreadMessage
     {
         $body = trim($body);

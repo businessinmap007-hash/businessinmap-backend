@@ -154,6 +154,25 @@ class OperationChatTest extends TestCase
         $this->postJson($this->chatUrl() . '/messages', ['body' => 'x'])->assertNotFound();
     }
 
+    public function test_a_sent_message_is_read_only_once_the_other_party_opens_the_thread(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->chatUrl() . '/messages', ['body' => 'seen yet?'])->assertCreated();
+
+        $this->getJson($this->chatUrl())
+            ->assertOk()
+            ->assertJsonPath('data.0.is_mine', true)
+            ->assertJsonPath('data.0.is_read', false);
+
+        Sanctum::actingAs($this->business);
+        $this->getJson($this->chatUrl())->assertOk();
+
+        Sanctum::actingAs($this->client);
+        $this->getJson($this->chatUrl())
+            ->assertOk()
+            ->assertJsonPath('data.0.is_read', true);
+    }
+
     public function test_an_unknown_operation_type_is_not_found(): void
     {
         Sanctum::actingAs($this->client);

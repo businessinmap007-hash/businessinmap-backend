@@ -19,6 +19,12 @@ class ThreadMessageResource extends JsonResource
             // coming from anyone.
             'is_mine' => $this->kind === ThreadMessage::KIND_MESSAGE
                 && (int) $this->sender_id === $viewerId,
+            // Only meaningful for a message I sent — whether every other
+            // participant has since read the thread. Set by the controller
+            // (via otherPartiesReadThrough()); false where it never was.
+            'is_read' => $this->kind === ThreadMessage::KIND_MESSAGE
+                && (int) $this->sender_id === $viewerId
+                && (bool) $this->getAttribute('is_read_by_other'),
             'sender' => $this->sender_id === null ? null : [
                 'id' => (int) $this->sender_id,
                 'name' => $this->whenLoaded('sender', fn () => $this->sender?->name),

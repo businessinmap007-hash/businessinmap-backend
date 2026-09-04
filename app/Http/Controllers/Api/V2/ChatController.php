@@ -158,6 +158,11 @@ class ChatController extends Controller
             ->paginate((int) ($data['per_page'] ?? 30))
             ->appends($request->query());
 
+        $readThrough = $this->threads->otherPartiesReadThrough($thread, (int) $request->user()->id);
+        $messages->getCollection()->each(
+            fn ($m) => $m->setAttribute('is_read_by_other', $readThrough !== null && $m->created_at <= $readThrough)
+        );
+
         $this->threads->markRead($thread, (int) $request->user()->id);
 
         return ThreadMessageResource::collection($messages)->additional([

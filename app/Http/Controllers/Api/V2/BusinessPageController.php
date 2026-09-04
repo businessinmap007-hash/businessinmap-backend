@@ -82,6 +82,7 @@ final class BusinessPageController extends Controller
                     'id' => $model->category_id !== null ? (int) $model->category_id : null,
                     'child_id' => $model->category_child_id !== null ? (int) $model->category_child_id : null,
                 ],
+                'social' => $this->socialLinks($model),
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),
                 'is_following' => $isFollowing,
@@ -94,6 +95,26 @@ final class BusinessPageController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /** Null when the business has never set a single link — not an empty object. */
+    private function socialLinks(User $model): ?array
+    {
+        $social = $model->social;
+
+        if (! $social) {
+            return null;
+        }
+
+        $links = array_filter([
+            'facebook' => $social->facebook ?: null,
+            'instagram' => $social->instagram ?: null,
+            'twitter' => $social->twitter ?: null,
+            'youtube' => $social->youtube ?: null,
+            'linkedin' => $social->linkedin ?: null,
+        ]);
+
+        return $links === [] ? null : $links;
     }
 
     /** Mirrors AddressResource::nameOf() — id + both languages, not just one. */

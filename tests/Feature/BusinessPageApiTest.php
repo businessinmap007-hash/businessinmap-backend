@@ -95,6 +95,23 @@ class BusinessPageApiTest extends TestCase
             ->assertJsonPath('data.location.city', null);
     }
 
+    public function test_the_business_page_includes_its_social_links(): void
+    {
+        $this->biz->social()->create(['facebook' => 'fb.com/bim', 'youtube' => '']);
+
+        $this->getJson("/api/v2/businesses/{$this->biz->id}")
+            ->assertOk()
+            ->assertJsonPath('data.social.facebook', 'fb.com/bim')
+            ->assertJsonMissingPath('data.social.youtube');
+    }
+
+    public function test_the_business_page_social_is_null_when_never_set(): void
+    {
+        $this->getJson("/api/v2/businesses/{$this->biz->id}")
+            ->assertOk()
+            ->assertJsonPath('data.social', null);
+    }
+
     /**
      * The exact bug reported live: a business whose posts all carried an old
      * expire_at got sections.posts=false, so the app rendered no Posts tab

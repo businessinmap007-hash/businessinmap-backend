@@ -14,8 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * v2 profile — the authenticated user reads and edits their own account
- * (replaces the legacy Api\V1 ProfileController without its social/options/
- * device coupling). Auth is a Sanctum token on the auth:sanctum group.
+ * (replaces the legacy Api\V1 ProfileController without its device coupling;
+ * options were ported separately below, social links 2026-09-04).
+ * Auth is a Sanctum token on the auth:sanctum group.
  */
 final class ProfileController extends Controller
 {
@@ -59,7 +60,21 @@ final class ProfileController extends Controller
             // business account needs to deal with its menu/services/bookings
             // first, which this endpoint has no business doing.
             'type' => ['sometimes', Rule::in(['business'])],
+            // The `socials` table + its v1 controller both already existed —
+            // only ported here now. Each is optional on its own (a business
+            // with just an Instagram account shouldn't be forced to fill in
+            // the rest); blank clears that one link, `sometimes` leaves it
+            // untouched if the key is absent entirely.
+            'facebook' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'instagram' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'twitter' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'youtube' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'linkedin' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
+
+        $socialKeys = ['facebook', 'instagram', 'twitter', 'youtube', 'linkedin'];
+        $socialData = array_intersect_key($data, array_flip($socialKeys));
+        $data = array_diff_key($data, array_flip($socialKeys));
 
         $willBeBusiness = ($data['type'] ?? $user->type) === 'business';
 
@@ -80,6 +95,10 @@ final class ProfileController extends Controller
 
         if (! empty($data)) {
             $user->fill($data)->save();
+        }
+
+        if (! empty($socialData)) {
+            $user->social()->updateOrCreate([], $socialData);
         }
 
         return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);

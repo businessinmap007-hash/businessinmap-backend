@@ -40,7 +40,26 @@ class AccountResource extends JsonResource
             'category_id' => $this->category_id !== null ? (int) $this->category_id : null,
             'category_child_id' => $this->category_child_id !== null ? (int) $this->category_child_id : null,
             'balance' => (float) $this->balance,
+            'social' => $this->socialLinks(),
             'created_at' => optional($this->created_at)->toIso8601String(),
+        ];
+    }
+
+    /** Null links are dropped, not sent as "" — a field genuinely unset. */
+    private function socialLinks(): ?array
+    {
+        $social = $this->social;
+
+        if (! $social) {
+            return null;
+        }
+
+        return [
+            'facebook' => $social->facebook ?: null,
+            'instagram' => $social->instagram ?: null,
+            'twitter' => $social->twitter ?: null,
+            'youtube' => $social->youtube ?: null,
+            'linkedin' => $social->linkedin ?: null,
         ];
     }
 }

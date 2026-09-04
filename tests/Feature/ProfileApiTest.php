@@ -41,6 +41,38 @@ class ProfileApiTest extends TestCase
         $this->assertSame('Renamed Person', (string) $this->user->fresh()->name);
     }
 
+    public function test_update_persists_social_links(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['facebook' => 'fb.com/bim', 'instagram' => 'instagram.com/bim'])
+            ->assertOk()
+            ->assertJsonPath('data.social.facebook', 'fb.com/bim')
+            ->assertJsonPath('data.social.instagram', 'instagram.com/bim')
+            ->assertJsonPath('data.social.twitter', null);
+
+        $this->assertSame('fb.com/bim', $this->user->fresh()->social->facebook);
+    }
+
+    public function test_a_blank_social_link_clears_only_that_one(): void
+    {
+        $this->user->social()->create(['facebook' => 'fb.com/bim', 'instagram' => 'instagram.com/bim']);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['facebook' => ''])
+            ->assertOk()
+            ->assertJsonPath('data.social.facebook', null)
+            ->assertJsonPath('data.social.instagram', 'instagram.com/bim');
+    }
+
+    public function test_social_is_null_when_never_set(): void
+    {
+        $this->user->social()->delete();
+
+        $this->actingAs($this->user, 'sanctum')->getJson('/api/v2/profile')
+            ->assertOk()
+            ->assertJsonPath('data.social', null);
+    }
+
     public function test_password_change_requires_correct_current_password(): void
     {
         $this->user->forceFill(['password' => Hash::make('old-pass')])->save();

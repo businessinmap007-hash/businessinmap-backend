@@ -104,6 +104,66 @@ final class BookingController extends Controller
     }
 
     /**
+     * سعرٌ حيٌّ قبل الحجز — نفس حساب `store()` بالضبط («خط الأساس + مُوصِّفاته
+     * لكل فترة، مضروبًا فى عدد الفترات») دون إنشاء أى صفٍّ، حتى لا يرى العميلُ
+     * رقمًا يخصّه وحده ثم رقمًا آخر عند التأكيد.
+     *
+     * لا يشترط شيئًا لم يُختَر بعد: التاريخ أو الوحدة الغائبة تعنى معاينةً
+     * جزئيةً (سعرَ الليلة الواحدة مثلًا) لا خطأً — الشاشة تستدعيها بعد كل
+     * تغييرٍ بصرف النظر عمّا اكتمل من الحقول.
+     */
+    public function preview(Request $request)
+    {
+        $data = $request->validate([
+            'business_id' => ['required', 'integer', 'min:1'],
+            'service_id' => ['required', 'integer', 'min:1'],
+            'bookable_id' => ['nullable', 'integer', 'min:1'],
+            'offering_id' => ['nullable', 'integer', 'min:1'],
+            'offering_type' => ['nullable', Rule::in(['service_price', 'menu_item'])],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'party_size' => ['nullable', 'integer', 'min:1'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer'],
+        ]);
+
+        $business = User::query()
+            ->where('id', (int) $data['business_id'])
+            ->where('type', User::TYPE_BUSINESS)
+            ->first();
+
+        if (! $business) {
+            throw ValidationException::withMessages([
+                'business_id' => __('البزنس غير موجود أو غير صحيح.'),
+            ]);
+        }
+
+        $offering = $this->resolveOffering($data, (int) $data['business_id']);
+
+        $calc = $this->serviceExecutionEngine->preview(
+            businessId: (int) $data['business_id'],
+            serviceId: (int) $data['service_id'],
+            bookableId: ! empty($data['bookable_id']) ? (int) $data['bookable_id'] : null,
+            quantity: max((int) ($data['quantity'] ?? 1), 1),
+            startsAt: $data['starts_at'] ?? null,
+            endsAt: $data['ends_at'] ?? null,
+            optionIds: $data['option_ids'] ?? [],
+            partySize: max((int) ($data['party_size'] ?? 1), 1),
+            offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'price' => $calc['price'],
+                'price_breakdown' => $calc['price_breakdown'],
+                'availability' => $calc['availability'],
+            ],
+        ]);
+    }
+
+    /**
      * المُوصِّفات المسعَّرة عند هذا النشاط، مجموعةً تحت سطرها.
      *
      * تُقرأ من مفردات صفوف السعر لا من مفردات التصنيف: التصنيف يقول ما **يجوز**

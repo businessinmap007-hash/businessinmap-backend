@@ -278,7 +278,12 @@ class ServiceExecutionEngine
         mixed $startsAt = null,
         mixed $endsAt = null,
         array $optionIds = [],
-        int $partySize = 1
+        int $partySize = 1,
+        // Which priced row the customer is actually looking at — the same
+        // thing `store()` resolves before calling `prepare()`. Without it, a
+        // service/item combo with more than one price row could preview a
+        // different row than the one `store()` ultimately books.
+        ?int $offeringId = null
     ): array {
         $calc = $this->prepare(
             businessId: $businessId,
@@ -288,6 +293,7 @@ class ServiceExecutionEngine
             // كانت `preview` تستقبل نهايةَ النافذة وتستعملها للتوفّر وحده،
             // فتعرض سعرَ ليلةٍ واحدة لإقامةِ أسبوع.
             pricingDate: $startsAt,
+            offeringId: $offeringId,
             optionIds: $optionIds,
             until: $endsAt,
             partySize: $partySize

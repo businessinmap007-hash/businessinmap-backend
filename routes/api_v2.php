@@ -811,6 +811,8 @@ Route::prefix('v2')->group(function () {
              * تطبيق. قبل `{booking}` لأن «form» ليست رقمًا لكن الترتيب أوضح.
              */
             Route::get('form/{business}', [BookingController::class, 'form'])->whereNumber('business');
+            // Same price math as store(), no row created — see the method's own doc.
+            Route::post('preview', [BookingController::class, 'preview']);
             // Owe a ruling, start no new business until it is met.
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');

@@ -6,6 +6,7 @@ use App\Models\Thread;
 use App\Models\ThreadParticipant;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -278,5 +279,24 @@ class DirectChatService
                 'last_message_at' => optional($thread->last_message_at)->toIso8601String(),
             ];
         });
+    }
+
+    /**
+     * Unread messages across every general chat I'm in, summed in one query
+     * (never per-thread — see [[listFor]]) — a home-screen icon badge, not a
+     * feed the caller pages through.
+     */
+    public function unreadTotal(User $me): int
+    {
+        return (int) DB::table('thread_messages as tm')
+            ->join('thread_participants as tp', function ($join) use ($me) {
+                $join->on('tp.thread_id', '=', 'tm.thread_id')
+                    ->where('tp.user_id', '=', $me->id);
+            })
+            ->join('threads as t', 't.id', '=', 'tm.thread_id')
+            ->whereNull('t.subject_type')
+            ->where(fn ($q) => $q->whereNull('tm.sender_id')->orWhere('tm.sender_id', '!=', $me->id))
+            ->where(fn ($q) => $q->whereNull('tp.last_read_at')->orWhereColumn('tm.created_at', '>', 'tp.last_read_at'))
+            ->count();
     }
 }

@@ -166,4 +166,25 @@ class DirectChatTest extends TestCase
         $this->assertSame((int) $this->alice->id, (int) $row['participants'][0]['user_id']);
         $this->assertFalse($row['last_message']['is_mine']);
     }
+
+    public function test_unread_count_sums_across_every_conversation_and_drops_after_reading(): void
+    {
+        Sanctum::actingAs($this->alice);
+        $withBob = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
+        $withCarol = $this->postJson('/api/v2/chats', ['user_id' => $this->carol->id])->json('data.id');
+        $this->postJson("/api/v2/chats/{$withBob}/messages", ['body' => 'one'])->assertCreated();
+        $this->postJson("/api/v2/chats/{$withCarol}/messages", ['body' => 'two'])->assertCreated();
+        // Alice's own messages are never news to her.
+        $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 0);
+
+        Sanctum::actingAs($this->bob);
+        $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 1);
+
+        Sanctum::actingAs($this->carol);
+        $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 1);
+
+        // Reading the conversation clears it out of the total.
+        $this->getJson("/api/v2/chats/{$withCarol}")->assertOk();
+        $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 0);
+    }
 }

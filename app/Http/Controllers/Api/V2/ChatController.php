@@ -35,6 +35,15 @@ class ChatController extends Controller
         ]);
     }
 
+    /** GET /api/v2/chats/unread-count — a home-screen icon badge. */
+    public function unreadCount(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['unread_count' => $this->chats->unreadTotal($request->user())],
+        ]);
+    }
+
     /** POST /api/v2/chats — start (or return) a direct chat with a user. */
     public function store(Request $request)
     {

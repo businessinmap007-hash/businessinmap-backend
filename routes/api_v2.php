@@ -484,6 +484,8 @@ Route::prefix('v2')->group(function () {
         // a participant may read or post; attachments as everywhere else.
         Route::get('chats', [ChatController::class, 'index']);
         Route::post('chats', [ChatController::class, 'store']);
+        // A lightweight count for a home-screen icon badge — never the full list.
+        Route::get('chats/unread-count', [ChatController::class, 'unreadCount']);
         // Group chats: a titled, owned conversation with more than two members.
         Route::post('chats/group', [ChatController::class, 'storeGroup']);
         Route::get('chats/{thread}', [ChatController::class, 'show'])->whereNumber('thread');

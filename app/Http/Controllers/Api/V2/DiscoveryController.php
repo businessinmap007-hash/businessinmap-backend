@@ -164,6 +164,16 @@ final class DiscoveryController extends Controller
 
         $groups = [];
         foreach ($options as $o) {
+            // «اذا كان هناك خيار غير مربوط بنشاط تجارى فلا يظهر» — المالك،
+            // 2026-09-04: هذا فلتر بحثٍ يقود إلى نتائج، لا معرضًا لكل ما
+            // يحمله التصنيف نظريًّا — خيارٌ لم يختره أىُّ نشاطٍ بعد يُزدحم به
+            // الباحثُ بلا فائدة، لأن اختياره يعيد صفرَ جهة دائمًا.
+            $businesses = (int) ($counts[$o->id] ?? 0);
+
+            if ($businesses <= 0) {
+                continue;
+            }
+
             $gid = (int) ($o->group_id ?? 0);
             $groups[$gid] ??= [
                 'id' => $gid ?: null,
@@ -176,7 +186,7 @@ final class DiscoveryController extends Controller
             $groups[$gid]['options'][] = [
                 'id' => (int) $o->id,
                 'name' => $this->label($o->name_ar, $o->name_en, ''),
-                'businesses' => (int) ($counts[$o->id] ?? 0),
+                'businesses' => $businesses,
             ];
         }
 

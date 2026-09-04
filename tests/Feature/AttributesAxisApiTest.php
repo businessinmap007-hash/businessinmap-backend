@@ -66,6 +66,38 @@ class AttributesAxisApiTest extends TestCase
         $this->assertArrayHasKey('businesses', $flat[self::OPTION_DELIVERY]);
     }
 
+    /**
+     * «اذا كان هناك خيار غير مربوط بنشاط تجارى فلا يظهر» — المالك، 2026-09-04.
+     * An option in the taxonomy that no live business under this child has
+     * actually ticked must not clutter the filter — it would only ever
+     * return zero results.
+     */
+    public function test_an_option_no_business_has_ticked_is_excluded_from_the_filter(): void
+    {
+        // Clear the slate for this option under this child within the
+        // transaction — a live dev-DB row would otherwise make "zero
+        // businesses" untrue and the assertion flaky.
+        DB::table('option_user')
+            ->whereIn('user_id', function ($q) {
+                $q->select('id')->from('users')->where('category_child_id', self::CHILD_ID);
+            })
+            ->where('option_id', self::OPTION_PREPAID)
+            ->delete();
+
+        $before = $this->getJson('/api/v2/discovery/attributes?child_id='.self::CHILD_ID);
+        $before->assertOk();
+        $flatBefore = collect($before->json('data.groups'))->pluck('options')->flatten(1)->keyBy('id');
+        $this->assertFalse($flatBefore->has(self::OPTION_PREPAID), 'an untouched option must not appear at all');
+
+        $ticked = $this->business();
+        DB::table('option_user')->insert(['user_id' => $ticked->id, 'option_id' => self::OPTION_PREPAID]);
+
+        $after = $this->getJson('/api/v2/discovery/attributes?child_id='.self::CHILD_ID);
+        $flatAfter = collect($after->json('data.groups'))->pluck('options')->flatten(1)->keyBy('id');
+        $this->assertTrue($flatAfter->has(self::OPTION_PREPAID), 'once a real business ticks it, it must appear');
+        $this->assertSame(1, $flatAfter[self::OPTION_PREPAID]['businesses']);
+    }
+
     public function test_businesses_filter_narrows_to_holders_of_every_selected_option(): void
     {
         $both = $this->business();

@@ -2774,5 +2774,9 @@
     "هذه الوصفة ليست لك.": "This prescription is not yours.",
     "الحد الأقصى :max صور لكل وصفة.": "A maximum of :max photos per prescription.",
     "تم إضافة الصورة.": "Photo added.",
-    "تم حذف الصورة.": "Photo deleted."
+    "تم حذف الصورة.": "Photo deleted.",
+    "الكمية المتاحة من هذا التخصيص غير كافية.": "The available quantity in this allocation is insufficient.",
+    "عادت هذه الحصّة لصاحبها ولا يمكن للشريك بيعها لهذا التاريخ.": "This allotment has reverted to its owner and can no longer be sold by the partner for this date.",
+    "أقل إقامة لهذا التخصيص :n ليلة.": "The minimum stay for this allocation is :n nights.",
+    "أقصى إقامة لهذا التخصيص :n ليلة.": "The maximum stay for this allocation is :n nights."
 }

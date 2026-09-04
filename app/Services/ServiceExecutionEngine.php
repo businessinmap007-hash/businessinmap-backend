@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BookableAllocation;
 use App\Models\BookableItem;
 use App\Models\BusinessServicePrice;
 use App\Models\CategoryChildServiceFee;
@@ -25,6 +26,14 @@ class ServiceExecutionEngine
 {
     public const EXECUTION_FEE_CODE = WalletFeeService::DEFAULT_FEE_CODE;
 
+    /**
+     * التخصيصُ الذى طابقه آخرُ نداءٍ لـ `resolveBookableItem` — الوحدةُ
+     * تنتمى لصاحبها لا للشريك الذى يحجز هذا الطلب، فلا طريقةَ لإعادته من
+     * توقيع الدالّة نفسه دون تغييره فى كل مكانٍ يناديها. يُصفَّر فى بداية
+     * كل `prepare()` فلا يتسرّب بين طلبين.
+     */
+    protected ?BookableAllocation $resolvedAllocation = null;
+
     public function __construct(
         protected WalletFeeService $walletFeeService,
         protected BookingDepositService $bookingDepositService,
@@ -37,6 +46,7 @@ class ServiceExecutionEngine
         protected BusinessServicePriceResolver $businessServicePriceResolver,
         protected OperationGuarantorService $operationGuarantors,
         protected BookingShapeResolver $bookingShapes,
+        protected AllocationConsumptionService $allocationConsumption,
     ) {
     }
 
@@ -91,18 +101,57 @@ class ServiceExecutionEngine
         }
 
         $bookable = null;
+        $allocation = null;
 
         if ($bookableId) {
+            $this->resolvedAllocation = null;
             $bookable = $this->resolveBookableItem($businessId, $serviceId, $bookableId);
+            $allocation = $this->resolvedAllocation;
+            $this->resolvedAllocation = null;
         }
 
         $this->assertBookableItemChosen($service, $categoryId, $childId, $bookable, $businessId);
+
+        if ($allocation) {
+            if ($allocation->availableQuantity() < $quantity) {
+                throw ValidationException::withMessages([
+                    'bookable_id' => __('الكمية المتاحة من هذا التخصيص غير كافية.'),
+                ]);
+            }
+
+            // بعد موعد الإفراج، ترجع الحصّةُ لصاحبها — البيعُ منها لم يعد
+            // حقًّا للشريك.
+            if ($pricingDate && $allocation->isReleasedForDate($pricingDate)) {
+                throw ValidationException::withMessages([
+                    'bookable_id' => __('عادت هذه الحصّة لصاحبها ولا يمكن للشريك بيعها لهذا التاريخ.'),
+                ]);
+            }
+
+            $nights = count($this->periodsBetween($pricingDate, $until, $this->granularityOf($bookable)));
+
+            if ($allocation->min_nights && $nights < (int) $allocation->min_nights) {
+                throw ValidationException::withMessages([
+                    'ends_at' => __('أقل إقامة لهذا التخصيص :n ليلة.', ['n' => $allocation->min_nights]),
+                ]);
+            }
+
+            if ($allocation->max_nights && $nights > (int) $allocation->max_nights) {
+                throw ValidationException::withMessages([
+                    'ends_at' => __('أقصى إقامة لهذا التخصيص :n ليلة.', ['n' => $allocation->max_nights]),
+                ]);
+            }
+        }
 
         $itemType = $bookable
             ? trim((string) ($bookable->item_type ?? ''))
             : null;
 
-        $businessPrice = $this->resolveBusinessServicePrice(
+        /*
+         * حجزٌ عبر تخصيصٍ لا يسأل عن سعر البزنس على الإطلاق — سعرُ العقد هو
+         * السلطةُ الوحيدة، و$businessId هنا شريكٌ لا يملك بالضرورة سطرَ سعرٍ
+         * لهذا النوع أصلًا (وليس مطلوبًا منه أن يملك).
+         */
+        $businessPrice = $allocation ? null : $this->resolveBusinessServicePrice(
             businessId: $businessId,
             serviceId: $serviceId,
             childId: $childId,
@@ -111,7 +160,7 @@ class ServiceExecutionEngine
             lineOptionId: $bookable ? ((int) $bookable->line_option_id ?: null) : null
         );
 
-        if (! $businessPrice) {
+        if (! $businessPrice && ! $allocation) {
             /*
              * الرسالةُ تسمّى ما ينقص بلغة صاحبه.
              *
@@ -165,10 +214,21 @@ class ServiceExecutionEngine
             pricingDate: $pricingDate,
             optionIds: $optionIds,
             until: $until,
-            partySize: $partySize
+            partySize: $partySize,
+            allocation: $allocation
         );
 
-        $depositPolicy = $this->resolveDepositPolicy(
+        /*
+         * لا وديعةَ فى حجزٍ عبر تخصيص — شروطُه بين الشريكين فى عقد الشراكة،
+         * لا مبلغًا يُجمَّد من محفظة العميل النهائى.
+         */
+        $depositPolicy = $allocation ? [
+            'service_supports_deposit' => (bool) ($service->supports_deposit ?? false),
+            'required' => false,
+            'amount' => 0.00,
+            'hold' => 0.00,
+            'source' => 'allocation_booking',
+        ] : $this->resolveDepositPolicy(
             service: $service,
             businessPrice: $businessPrice,
             price: (float) $priceBreakdown['final_price'],
@@ -188,6 +248,7 @@ class ServiceExecutionEngine
             'service' => $service,
             'business_price' => $businessPrice,
             'bookable' => $bookable,
+            'allocation' => $allocation,
 
             'business_id' => $businessId,
             'business_category_id' => $categoryId,
@@ -545,7 +606,7 @@ class ServiceExecutionEngine
             'price' => (float) $priceBreakdown['final_price'],
             'currency' => (string) ($priceBreakdown['currency'] ?? 'EGP'),
             'source' => (string) $priceBreakdown['source'],
-            'business_service_price_id' => (int) $businessPrice->id,
+            'business_service_price_id' => (int) ($businessPrice->id ?? 0),
             'business_service_price_child_id' => (int) ($businessPrice->child_id ?? 0),
             'pricing_source' => (string) ($priceBreakdown['pricing_source'] ?? $priceBreakdown['source'] ?? ''),
             'bookable_rule' => $priceBreakdown['bookable_rule'] ?? null,
@@ -824,15 +885,20 @@ class ServiceExecutionEngine
 
     public function resolvePriceBreakdown(
         PlatformService $service,
-        BusinessServicePrice $businessPrice,
+        ?BusinessServicePrice $businessPrice,
         ?BookableItem $bookable = null,
         int $quantity = 1,
         mixed $pricingDate = null,
         array $optionIds = [],
         mixed $until = null,
-        int $partySize = 1
+        int $partySize = 1,
+        ?BookableAllocation $allocation = null
     ): array {
         $quantity = max($quantity, 1);
+
+        if ($allocation) {
+            return $this->resolveAllocationPriceBreakdown($allocation, $bookable, $quantity, $pricingDate, $until);
+        }
 
         // Price authority is BusinessServicePrice (per item type). The bookable
         // only identifies which type; $businessPrice was already resolved for
@@ -956,6 +1022,60 @@ class ServiceExecutionEngine
             'discount_amount' => $discountAmount,
             'final_price' => $finalPrice,
             'currency' => (string) ($businessPrice->currency ?: 'EGP'),
+        ];
+    }
+
+    /**
+     * حجزٌ عبر تخصيصٍ يُسعَّر بسعر العقد وحده — لا قاعدةَ يومٍ ولا زيادةَ
+     * صفةٍ من عند المالك، فهما جزءٌ من سعره العادى لا من عقد الشراكة. نفسُ
+     * صيغةِ المنصّة رغم ذلك: الإجمالى = مجموعُ الفترات (لياليها) × الوحدات.
+     */
+    protected function resolveAllocationPriceBreakdown(
+        BookableAllocation $allocation,
+        ?BookableItem $bookable,
+        int $quantity,
+        mixed $pricingDate,
+        mixed $until
+    ): array {
+        $periods = $this->periodsBetween($pricingDate, $until, $this->granularityOf($bookable));
+        $nightlyPrice = $allocation->finalPrice();
+        $currency = (string) ($allocation->currency ?: 'EGP');
+
+        $periodLines = array_map(
+            fn (Carbon $period) => [
+                'date' => $period->toDateString(),
+                'base_price' => $nightlyPrice,
+                'modifiers_total' => 0.0,
+                'price' => $nightlyPrice,
+                'rule' => null,
+            ],
+            $periods
+        );
+
+        $units = max($quantity, 1);
+        $unitPrice = (float) ($periodLines[0]['price'] ?? $nightlyPrice);
+        $originalPrice = round(array_sum(array_column($periodLines, 'price')) * $units, 2);
+
+        return [
+            'source' => 'allocation',
+            'unit_price' => $unitPrice,
+            'base_unit_price' => $nightlyPrice,
+            'price_rule' => null,
+            'modifiers' => [],
+            'modifiers_total' => 0.0,
+            'periods' => $periodLines,
+            'periods_count' => count($periodLines),
+            'period_unit' => $this->granularityOf($bookable)['unit'] ?? null,
+            'units' => $units,
+            'quantity' => $quantity,
+            'original_price' => $originalPrice,
+            // سعرُ العقد نفسُه، لا تخفيضَ سعريًّا يملكه الشريك على مخزونٍ ليس له.
+            'discount_enabled' => false,
+            'discount_percent' => 0,
+            'discount_amount' => 0.00,
+            'final_price' => $originalPrice,
+            'currency' => $currency,
+            'allocation_id' => (int) $allocation->id,
         ];
     }
 
@@ -1552,13 +1672,35 @@ class ServiceExecutionEngine
             ->where('is_active', 1)
             ->first();
 
-        if (! $bookable) {
-            throw ValidationException::withMessages([
-                'bookable_id' => __('العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.'),
-            ]);
+        if ($bookable) {
+            return $bookable;
         }
 
-        return $bookable;
+        /*
+         * ليست تابعةً لهذا البزنس مباشرة — والسببُ المشروعُ الوحيدُ الآخر أن
+         * يكون $businessId شريكًا يعيد بيعها بتخصيصٍ نشِط من صاحبها (نمط
+         * «حصّة فندقية»). الوحدةُ تبقى ملكًا لصاحبها؛ $businessId هنا هو
+         * البائعُ لا المالك.
+         */
+        $ownedElsewhere = BookableItem::query()
+            ->where('id', $bookableId)
+            ->where('service_id', $serviceId)
+            ->where('is_active', 1)
+            ->first();
+
+        if ($ownedElsewhere) {
+            $allocation = $this->allocationConsumption->findActiveAllocation($businessId, (int) $ownedElsewhere->id);
+
+            if ($allocation) {
+                $this->resolvedAllocation = $allocation;
+
+                return $ownedElsewhere;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'bookable_id' => __('العنصر القابل للحجز غير موجود أو غير تابع لهذا البزنس/الخدمة.'),
+        ]);
     }
 
     /*

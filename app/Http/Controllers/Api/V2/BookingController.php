@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
+use App\Services\AllocationConsumptionService;
 use App\Services\BookingReminderService;
 use App\Services\BookingShapeResolver;
 use App\Services\FinancialLedgerService;
@@ -30,7 +31,8 @@ final class BookingController extends Controller
         protected BookingGuaranteeIntegration $bookingGuaranteeIntegration,
         protected AgendaService $agenda,
         protected BookingShapeResolver $bookingShapes,
-        protected FinancialLedgerService $ledger
+        protected FinancialLedgerService $ledger,
+        protected AllocationConsumptionService $allocationConsumption
     ) {
     }
 
@@ -316,7 +318,19 @@ final class BookingController extends Controller
             bookable: $bookable
         );
 
-        $booking = DB::transaction(fn () => Booking::query()->create($payload));
+        $allocation = $calc['allocation'] ?? null;
+
+        $booking = DB::transaction(function () use ($payload, $allocation, $quantity) {
+            $booking = Booking::query()->create($payload);
+
+            if ($allocation) {
+                // مقفولٌ داخل هذه المعاملة نفسها — لا يفوز طلبان بآخر وحدة معًا.
+                $this->allocationConsumption->reserve($allocation, $quantity);
+                $this->allocationConsumption->tagBooking($booking, $allocation, $quantity);
+            }
+
+            return $booking;
+        });
         $booking->refresh()->load($this->relations());
 
         $this->serviceEventDispatcher->bookingRequested(
@@ -508,6 +522,7 @@ final class BookingController extends Controller
         $booking = DB::transaction(function () use ($booking, $status) {
             $booking->refresh();
             $booking->update(['status' => $status]);
+            $this->allocationConsumption->onStatusChanged($booking, $status);
 
             return $booking->refresh();
         });

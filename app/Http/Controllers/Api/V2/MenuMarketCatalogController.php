@@ -41,6 +41,9 @@ final class MenuMarketCatalogController extends Controller
                 'default_margin_percent' => BusinessMenuSetting::query()
                     ->where('business_id', $business->id)
                     ->value('default_margin_percent'),
+                'low_stock_threshold' => BusinessMenuSetting::query()
+                    ->where('business_id', $business->id)
+                    ->value('low_stock_threshold'),
             ],
         ]);
     }
@@ -62,6 +65,29 @@ final class MenuMarketCatalogController extends Controller
         );
 
         return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    /**
+     * PUT /api/v2/business/menu/market-catalog/low-stock-threshold
+     *
+     * Its own tiny endpoint rather than folding into a general settings API —
+     * there isn't one for bim_app yet, and this is the one setting this
+     * screen actually needs; see LowStockAlertService.
+     */
+    public function updateLowStockThreshold(Request $request)
+    {
+        $business = $this->assertMarket($request);
+
+        $data = $request->validate([
+            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        BusinessMenuSetting::updateOrCreate(
+            ['business_id' => $business->id],
+            ['low_stock_threshold' => $data['low_stock_threshold'] ?? null]
+        );
+
+        return response()->json(['success' => true, 'data' => ['low_stock_threshold' => $data['low_stock_threshold'] ?? null]]);
     }
 
     private function assertMarket(Request $request): \App\Models\User

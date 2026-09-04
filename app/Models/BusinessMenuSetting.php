@@ -19,6 +19,7 @@ class BusinessMenuSetting extends Model
         'min_order_amount',
         'default_margin_percent',
         'deposit_required_above',
+        'low_stock_threshold',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class BusinessMenuSetting extends Model
         'min_order_amount' => 'float',
         'default_margin_percent' => 'float',
         'deposit_required_above' => 'float',
+        'low_stock_threshold' => 'integer',
     ];
 
     public function business(): BelongsTo

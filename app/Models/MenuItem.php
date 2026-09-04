@@ -41,6 +41,37 @@ class MenuItem extends Model
 
     protected $table = 'menu_items';
 
+    protected static function booted(): void
+    {
+        // Every write path (the bulk market-catalog grid, the one-by-one
+        // edit form) funnels through save(), so hooking it here — rather
+        // than duplicating the check in each caller — means nothing that
+        // changes the quantity can skip the alert.
+        // Two separate hooks, not one `saved` — wasChanged() reports false
+        // for a brand-new row (nothing to compare against yet, even though
+        // the column just went from "no row" to a real value), and
+        // `wasRecentlyCreated` stays true for the rest of this object's life
+        // once set, so checking it inside `saved` would re-fire "just
+        // created" logic on every later, unrelated update of the same
+        // in-memory instance.
+        static::created(function (self $item) {
+            app(\App\Services\Menu\LowStockAlertService::class)->checkAndNotify($item, null);
+        });
+
+        static::updated(function (self $item) {
+            if (! $item->wasChanged('available_quantity')) {
+                return;
+            }
+
+            $previous = $item->getOriginal('available_quantity');
+
+            app(\App\Services\Menu\LowStockAlertService::class)->checkAndNotify(
+                $item,
+                $previous !== null ? (int) $previous : null
+            );
+        });
+    }
+
     protected $fillable = [
         'business_id',
         'menu_section_id',

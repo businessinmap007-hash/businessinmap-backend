@@ -1862,6 +1862,35 @@ paths:
       - { name: extra, in: path, required: true, schema: { type: integer } }
     patch: { tags: [Business Menu], summary: Update an extra, responses: { '200': { description: OK } } }
     delete: { tags: [Business Menu], summary: Delete an extra, responses: { '200': { description: OK } } }
+  /business/menu/market-catalog:
+    get: { tags: [Business Menu], summary: "«تعبئة الرفوف» bulk shelf pricing (menu_market children only) — every sellable row pre-named from the platform's option vocabulary, grouped into the same sections a customer sees.", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    post:
+      tags: [Business Menu]
+      summary: Batch-save one or more rows (typically one section's worth). A blank base_price deactivates that row instead of deleting it; an option outside this merchant's own vocabulary is silently skipped.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: object
+                  description: 'Keyed by option id, e.g. {"123": {quantity, supply_price, base_price, sale_unit, brand_name}}.'
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/menu/market-catalog/low-stock-threshold:
+    put:
+      tags: [Business Menu]
+      summary: Set the quantity at or below which a low-stock alert is sent to the business itself (never the customer). Null/omitted reverts to alerting only once an item is fully at zero.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                low_stock_threshold: { type: integer, minimum: 0, nullable: true }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
 
   # ─────────────────────── Business Prices ───────────────────────
   /business/prices:

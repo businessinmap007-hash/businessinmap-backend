@@ -42,17 +42,24 @@ class MenuSettingsController extends Controller
             // Empty → NULL → never require one. Checked at checkout against
             // the customer's own guarantee/wallet cover (CustomerCartService::assessDeposit).
             'deposit_required_above' => ['nullable', 'numeric', 'min:0'],
+            // Empty → NULL → alert only once a shelf item is fully at 0 (the
+            // original behaviour). A number applies regardless of the item's
+            // own sale unit — "5" means 5 كجم for a weighed item and 5 عبوة
+            // for a packaged one; see LowStockAlertService.
+            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
         ], [], [
             'tax_rate_percent' => 'نسبة الضريبة',
             'min_order_amount' => 'حد أدنى للطلب',
             'default_margin_percent' => 'هامش الربح الافتراضي',
             'deposit_required_above' => 'حد يستوجب ضمانًا',
+            'low_stock_threshold' => 'حد التنبيه لاقتراب النفاد',
         ]);
 
         $rate = $request->filled('tax_rate_percent') ? round((float) $data['tax_rate_percent'], 2) : null;
         $minOrder = $request->filled('min_order_amount') ? round((float) $data['min_order_amount'], 2) : null;
         $margin = $request->filled('default_margin_percent') ? round((float) $data['default_margin_percent'], 2) : null;
         $depositAbove = $request->filled('deposit_required_above') ? round((float) $data['deposit_required_above'], 2) : null;
+        $lowStockThreshold = $request->filled('low_stock_threshold') ? (int) $data['low_stock_threshold'] : null;
 
         BusinessMenuSetting::updateOrCreate(
             ['business_id' => $this->businessId()],
@@ -63,6 +70,7 @@ class MenuSettingsController extends Controller
                 'min_order_amount' => $minOrder,
                 'default_margin_percent' => $margin,
                 'deposit_required_above' => $depositAbove,
+                'low_stock_threshold' => $lowStockThreshold,
             ]
         );
 

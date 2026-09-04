@@ -53,6 +53,12 @@ class NotificationChannelRule extends Model
             'menu_order_accepted' => ['قبول الطلب', 'Order accepted', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
             'menu_order_preparing' => ['الطلب قيد التحضير', 'Order being prepared', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'order_new'],
             'menu_order_ready' => ['الطلب جاهز', 'Order ready', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'order_new'],
+            // Stock alerts to the BUSINESS itself, not a customer — see
+            // App\Services\Menu\LowStockAlertService. Out-of-stock is HIGH
+            // (the item is now unsellable); low-stock is a normal-priority
+            // heads-up so the owner can reorder before it runs out.
+            'menu_item_out_of_stock' => ['نفاد صنف من المخزون', 'Menu item out of stock', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
+            'menu_item_low_stock' => ['اقتراب نفاد صنف', 'Menu item running low', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             // A dine-in customer calls staff / asks for the bill from their table
             // (BIM-13.3). Routed to the business with the table label; escalates so
             // an unattended call is chased.

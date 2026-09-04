@@ -109,6 +109,26 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
+                <div class="a2-card-title">{{ __('تنبيه اقتراب النفاد') }}</div>
+                <div class="a2-card-sub">{{ __('عند وصول كمية أي صنف إلى هذا الحد أو أقل، تصلك أنت (صاحب الحساب) رسالة تنبيه لطلب كمية إضافية من موردك. الرقم عام لكل الأصناف بصرف النظر عن وحدة البيع (كيلو، عبوة...). اتركه فارغاً للتنبيه فقط عند النفاد التام (صفر).') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-label" for="low_stock_threshold">{{ __('التنبيه عند وصول الكمية إلى') }}</label>
+                <input type="number" step="1" min="0" id="low_stock_threshold" name="low_stock_threshold"
+                    class="a2-input @error('low_stock_threshold') a2-input-error @enderror"
+                    value="{{ old('low_stock_threshold', $row->low_stock_threshold) }}"
+                    placeholder="{{ __('بلا تنبيه مسبق — عند الصفر فقط') }}">
+                @error('low_stock_threshold')<div class="a2-field-error">{{ $message }}</div>@enderror
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
                 <div class="a2-card-title">{{ __('حدٌّ يستوجب ضمانًا') }}</div>
                 <div class="a2-card-sub">{{ __('طلب بقيمة أعلى من هذا الحد ولا يملك عميله ضمانًا أو رصيد محفظة يكفيه، يوصلك معلَّم عليه "بلا ضمان" — وأنت تقرر وقت القبول: تكمله على مسؤوليتك أو ترفضه. اترك الحقل فارغاً لعدم اشتراط ضمان أبداً.') }}</div>
             </div>

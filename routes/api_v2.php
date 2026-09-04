@@ -693,6 +693,7 @@ Route::prefix('v2')->group(function () {
             // (supermarket/greengrocer/etc.), mirrors business/menu/market-catalog on the web panel.
             Route::get('market-catalog', [MenuMarketCatalogController::class, 'index']);
             Route::post('market-catalog', [MenuMarketCatalogController::class, 'save']);
+            Route::put('market-catalog/low-stock-threshold', [MenuMarketCatalogController::class, 'updateLowStockThreshold']);
         });
 
         // Business pricing: one row per (service, item type). `options` returns

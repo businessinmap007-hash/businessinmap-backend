@@ -119,6 +119,30 @@ final class TripScheduleController extends Controller
         return response()->json(['success' => true, 'data' => $schedules]);
     }
 
+    /**
+     * Search-as-you-type for the "pick a business as this stop" field.
+     * Excludes the caller's own account (a leg doesn't stop at itself).
+     */
+    public function businessLookup(Request $request)
+    {
+        $business = $this->businessOrFail($request);
+        $term = trim((string) $request->get('q', ''));
+
+        $businesses = \App\Models\User::query()
+            ->select(['id', 'name', 'logo'])
+            ->where('type', 'business')
+            ->where('id', '!=', (int) $business->id)
+            ->when($term !== '', fn ($query) => $query->where('name', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['businesses' => $businesses],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $business = $this->businessOrFail($request);
@@ -246,6 +270,9 @@ final class TripScheduleController extends Controller
                     'sequence' => (int) $stop->sequence,
                     'label' => $stop->label,
                     'address' => $stop->address,
+                    'business_id' => $stop->business_id ? (int) $stop->business_id : null,
+                    'lat' => $stop->lat !== null ? (float) $stop->lat : null,
+                    'lng' => $stop->lng !== null ? (float) $stop->lng : null,
                 ])->values()
                 : [],
         ];

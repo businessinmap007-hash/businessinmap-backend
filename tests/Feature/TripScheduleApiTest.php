@@ -365,4 +365,41 @@ class TripScheduleApiTest extends TestCase
         Sanctum::actingAs($client);
         $this->postJson('/api/v2/business/schedules', $this->payload())->assertStatus(403);
     }
+
+    public function test_a_stop_can_point_at_a_business_and_inherits_its_gps_location(): void
+    {
+        $this->otherBusiness->forceFill(['latitude' => 30.123456, 'longitude' => 31.654321])->save();
+
+        Sanctum::actingAs($this->business);
+
+        $create = $this->postJson('/api/v2/business/schedules', $this->payload([
+            'stops' => [
+                ['business_id' => $this->otherBusiness->id],
+                ['label' => 'مخزن يدوي', 'address' => 'شارع يدوي'],
+            ],
+        ]))->assertCreated();
+
+        $stops = $create->json('data.schedule.stops');
+        $this->assertCount(2, $stops);
+        // Label defaults to the business's own name when none was typed.
+        $this->assertSame($this->otherBusiness->name, $stops[0]['label']);
+        $this->assertSame((int) $this->otherBusiness->id, $stops[0]['business_id']);
+        $this->assertEqualsWithDelta(30.123456, $stops[0]['lat'], 0.00001);
+        $this->assertEqualsWithDelta(31.654321, $stops[0]['lng'], 0.00001);
+        // A plain manual stop is untouched, with no business/lat/lng.
+        $this->assertNull($stops[1]['business_id']);
+        $this->assertNull($stops[1]['lat']);
+    }
+
+    public function test_business_lookup_excludes_self_and_matches_by_name(): void
+    {
+        Sanctum::actingAs($this->business);
+
+        $res = $this->getJson('/api/v2/business/schedules/business-lookup?q='.urlencode(mb_substr((string) $this->otherBusiness->name, 0, 3)))
+            ->assertOk();
+
+        $ids = collect($res->json('data.businesses'))->pluck('id');
+        $this->assertTrue($ids->contains((int) $this->otherBusiness->id));
+        $this->assertFalse($ids->contains((int) $this->business->id));
+    }
 }

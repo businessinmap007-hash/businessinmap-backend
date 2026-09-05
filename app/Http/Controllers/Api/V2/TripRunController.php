@@ -156,6 +156,8 @@ final class TripRunController extends Controller
                 'sequence' => (int) $s->sequence,
                 'label' => $s->label,
                 'address' => $s->address,
+                'lat' => $s->lat !== null ? (float) $s->lat : null,
+                'lng' => $s->lng !== null ? (float) $s->lng : null,
                 'status' => (string) $s->status,
                 'arrived_at' => optional($s->arrived_at)->toIso8601String(),
                 'completed_at' => optional($s->completed_at)->toIso8601String(),

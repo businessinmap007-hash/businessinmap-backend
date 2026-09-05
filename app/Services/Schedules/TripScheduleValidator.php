@@ -114,7 +114,15 @@ final class TripScheduleValidator
      * yet). Blank rows (no label typed) are dropped rather than rejected, so
      * a form with empty trailing "add stop" rows still saves cleanly.
      *
-     * @return list<array{label:string, address:?string}>
+     * A stop may point at a registered business (picked via the business
+     * lookup) instead of a hand-typed address — its GPS location is captured
+     * here at pick time, since that gives a Google Maps deep link a precise
+     * coordinate instead of a name/address text search. The label still
+     * defaults to the business's own name but stays editable (a nickname for
+     * this stop is fine), and re-typing over a fetched label doesn't clear
+     * the business link.
+     *
+     * @return list<array{label:string, address:?string, business_id:?int, lat:?float, lng:?float}>
      */
     public function validatedStops(Request $request): array
     {
@@ -122,13 +130,57 @@ final class TripScheduleValidator
             'stops' => ['nullable', 'array'],
             'stops.*.label' => ['nullable', 'string', 'max:120'],
             'stops.*.address' => ['nullable', 'string', 'max:255'],
+            'stops.*.business_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        return collect($data['stops'] ?? [])
-            ->map(fn ($stop) => [
-                'label' => trim((string) ($stop['label'] ?? '')),
-                'address' => trim((string) ($stop['address'] ?? '')) ?: null,
-            ])
+        // Laravel's validate() rebuilds wildcard array data by iterating the
+        // rules rather than the input, so the returned 'stops' array can come
+        // back keyed out of numeric order (e.g. row 1 inserted before row 0)
+        // even though PHP preserves insertion order on foreach/collect. Sort
+        // by the original numeric key first so stop order always matches
+        // what was actually submitted.
+        $rawStops = $data['stops'] ?? [];
+        ksort($rawStops);
+
+        $businessIds = collect($rawStops)
+            ->pluck('business_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        $businesses = $businessIds->isEmpty()
+            ? collect()
+            : \App\Models\User::query()
+                ->where('type', 'business')
+                ->whereIn('id', $businessIds)
+                ->get(['id', 'name', 'latitude', 'longitude'])
+                ->keyBy('id');
+
+        return collect($rawStops)
+            ->map(function ($stop) use ($businesses) {
+                $businessId = ! empty($stop['business_id']) ? (int) $stop['business_id'] : null;
+                $business = $businessId ? $businesses->get($businessId) : null;
+
+                // A business_id that isn't actually a business account (or
+                // doesn't exist) is silently dropped rather than rejected —
+                // the stop still saves as a plain manual one.
+                if ($businessId && ! $business) {
+                    $businessId = null;
+                }
+
+                $label = trim((string) ($stop['label'] ?? ''));
+                if ($label === '' && $business) {
+                    $label = (string) $business->name;
+                }
+
+                return [
+                    'label' => $label,
+                    'address' => trim((string) ($stop['address'] ?? '')) ?: null,
+                    'business_id' => $businessId,
+                    'lat' => $business && $business->latitude !== null ? (float) $business->latitude : null,
+                    'lng' => $business && $business->longitude !== null ? (float) $business->longitude : null,
+                ];
+            })
             ->filter(fn ($stop) => $stop['label'] !== '')
             ->values()
             ->all();

@@ -210,6 +210,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('schedules', [TripScheduleController::class, 'index'])->name('schedules.index');
         Route::get('schedules/create', [TripScheduleController::class, 'create'])->name('schedules.create');
         Route::post('schedules', [TripScheduleController::class, 'store'])->name('schedules.store');
+        Route::get('schedules/business-lookup', [TripScheduleController::class, 'businessLookup'])->name('schedules.business-lookup');
 
         Route::get('schedules/reservations', [TripReservationController::class, 'index'])->name('schedules.reservations.index');
         Route::post('schedules/reservations/{id}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('id')->name('schedules.reservations.confirm');

@@ -221,6 +221,28 @@ class TripRunApiTest extends TestCase
             ->assertJsonPath('data.run.status', 'completed');
     }
 
+    public function test_a_run_snapshots_a_business_stops_gps_location(): void
+    {
+        $other = $this->makeUser(User::TYPE_BUSINESS, 'Clinic');
+        $other->forceFill(['latitude' => 29.9, 'longitude' => 31.2])->save();
+
+        Sanctum::actingAs($this->business);
+        $leg = $this->schedule(TripSchedule::MODE_DISTRIBUTION);
+        $leg->syncStops([
+            ['label' => '', 'business_id' => $other->id],
+        ]);
+        // Mirror what TripScheduleValidator would have resolved, since we
+        // bypassed it by calling syncStops() directly with raw data here.
+        $leg->stops()->update(['label' => $other->name, 'lat' => 29.9, 'lng' => 31.2]);
+
+        $run = $this->postJson("/api/v2/business/schedules/{$leg->id}/runs", [
+            'manifest' => [['label' => 'دواء', 'assigned_qty' => 5]],
+        ])->assertCreated()->json('data.run');
+
+        $this->assertSame((float) 29.9, (float) $run['stops'][0]['lat']);
+        $this->assertSame((float) 31.2, (float) $run['stops'][0]['lng']);
+    }
+
     public function test_a_stranger_business_gets_404_on_someone_elses_run(): void
     {
         Sanctum::actingAs($this->business);

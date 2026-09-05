@@ -2,7 +2,12 @@
     use App\Models\TripSchedule;
 
     $isEdit = isset($row) && $row?->exists;
-    $currentStops = old('stops', isset($stops) ? $stops->map(fn ($s) => ['label' => $s->label, 'address' => $s->address])->all() : []);
+    $currentStops = old('stops', isset($stops) ? $stops->map(fn ($s) => [
+        'label' => $s->label,
+        'address' => $s->address,
+        'business_id' => $s->business_id,
+        'business_name' => optional($s->business)->name,
+    ])->all() : []);
 
     $currentMode = (string) old('mode', $row->mode ?? '');
     $currentScope = (string) old('scope', $row->scope ?? TripSchedule::SCOPE_DOMESTIC);
@@ -236,10 +241,23 @@
 
     <div id="js-stops-list">
         @foreach($currentStops as $i => $stop)
-            <div class="a2-form-grid js-stop-row" style="grid-template-columns:1fr 2fr auto;align-items:end;">
+            <div class="a2-form-grid js-stop-row" style="grid-template-columns:1.3fr 1fr 1.6fr auto;align-items:end;">
+                <div class="a2-form-group">
+                    <label class="a2-label">{{ __('نشاط تجاري مسجّل (اختياري)') }}</label>
+                    <select class="a2-select js-stop-business"
+                            name="stops[{{ $i }}][business_id]"
+                            data-remote-url="{{ route('business.schedules.business-lookup', [], false) }}"
+                            data-current-value="{{ $stop['business_id'] ?? '' }}"
+                            data-current-label="{{ $stop['business_name'] ?? '' }}">
+                        <option value="">{{ __('بدون — أدخل العنوان يدويًا') }}</option>
+                        @if(!empty($stop['business_id']))
+                            <option value="{{ $stop['business_id'] }}" selected>{{ $stop['business_name'] }}</option>
+                        @endif
+                    </select>
+                </div>
                 <div class="a2-form-group">
                     <label class="a2-label">{{ __('اسم النقطة') }}</label>
-                    <input class="a2-input" name="stops[{{ $i }}][label]" value="{{ $stop['label'] ?? '' }}" placeholder="{{ __('فرع المهندسين') }}">
+                    <input class="a2-input js-stop-label" name="stops[{{ $i }}][label]" value="{{ $stop['label'] ?? '' }}" placeholder="{{ __('فرع المهندسين') }}">
                 </div>
                 <div class="a2-form-group">
                     <label class="a2-label">{{ __('العنوان') }}</label>
@@ -253,6 +271,7 @@
     </div>
 
     <button type="button" id="js-stop-add" class="a2-btn a2-btn-ghost a2-mt-8">{{ __('+ أضف نقطة') }}</button>
+    <div class="a2-hint a2-mt-8">{{ __('عند اختيار نشاط تجاري مسجّل، يُستخدم موقعه الفعلي (GPS) لفتح خرائط جوجل بدقة عند التنفيذ.') }}</div>
 </div>
 
 <div class="a2-card a2-card--section">
@@ -393,33 +412,86 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Stops: a plain add/remove row list, no framework — indices are just
     // re-derived from DOM position on every change so a removed middle row
-    // never leaves a gap in the submitted stops[] array.
+    // never leaves a gap in the submitted stops[] array. The business picker
+    // is the one exception to "no AJAX" in this form: the business list (like
+    // the admin panel's own business-lookup pickers) is too large to ship
+    // inline the way governorates/cities are.
     const stopsList = document.getElementById('js-stops-list');
     const stopAddBtn = document.getElementById('js-stop-add');
-    const stopLabels = { name: @json(__('اسم النقطة')), address: @json(__('العنوان')), namePh: @json(__('فرع المهندسين')), addrPh: @json(__('15 شارع جامعة الدول العربية، المهندسين، الجيزة')), remove: @json(__('حذف')) };
+    const stopLabels = {
+        business: @json(__('نشاط تجاري مسجّل (اختياري)')),
+        noBusiness: @json(__('بدون — أدخل العنوان يدويًا')),
+        name: @json(__('اسم النقطة')), address: @json(__('العنوان')),
+        namePh: @json(__('فرع المهندسين')), addrPh: @json(__('15 شارع جامعة الدول العربية، المهندسين، الجيزة')),
+        remove: @json(__('حذف')),
+    };
+    const stopBusinessLookupUrl = @json(route('business.schedules.business-lookup', [], false));
 
     function reindexStops() {
         if (!stopsList) return;
         stopsList.querySelectorAll('.js-stop-row').forEach(function (row, i) {
-            row.querySelectorAll('input').forEach(function (input) {
-                input.name = input.name.replace(/stops\[\d+\]/, 'stops[' + i + ']');
+            row.querySelectorAll('input, select').forEach(function (field) {
+                field.name = field.name.replace(/stops\[\d+\]/, 'stops[' + i + ']');
             });
         });
+    }
+
+    function initStopBusinessSelect(select) {
+        if (!select || select.tomselect || !window.TomSelect) return;
+        const ts = new TomSelect(select, {
+            valueField: 'value',
+            labelField: 'text',
+            searchField: 'text',
+            create: false,
+            maxOptions: 30,
+            placeholder: stopLabels.noBusiness,
+            dropdownParent: 'body',
+            shouldLoad: function (query) { return query.length >= 1; },
+            load: function (query, callback) {
+                const url = new URL(stopBusinessLookupUrl, window.location.origin);
+                url.searchParams.set('q', query);
+                fetch(url.toString(), { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        const rows = (data && data.ok && Array.isArray(data.businesses)) ? data.businesses : [];
+                        callback(rows.map(function (b) { return { value: String(b.id), text: b.name }; }));
+                    })
+                    .catch(function () { callback(); });
+            },
+            onChange: function (value) {
+                const row = select.closest('.js-stop-row');
+                const labelInput = row ? row.querySelector('.js-stop-label') : null;
+                if (!labelInput || !value) return;
+                const opt = ts.options[value];
+                if (opt) labelInput.value = opt.text;
+            },
+        });
+
+        // Preload the saved business as a labeled option so edit shows its name.
+        const currentValue = select.dataset.currentValue;
+        const currentLabel = select.dataset.currentLabel;
+        if (currentValue && currentLabel) {
+            ts.addOption({ value: currentValue, text: currentLabel });
+            ts.setValue(currentValue, true);
+        }
     }
 
     function addStopRow() {
         if (!stopsList) return;
         const row = document.createElement('div');
         row.className = 'a2-form-grid js-stop-row';
-        row.style.gridTemplateColumns = '1fr 2fr auto';
+        row.style.gridTemplateColumns = '1.3fr 1fr 1.6fr auto';
         row.style.alignItems = 'end';
         row.innerHTML =
+            '<div class="a2-form-group"><label class="a2-label">' + stopLabels.business + '</label>' +
+            '<select class="a2-select js-stop-business" name="stops[0][business_id]"><option value="">' + stopLabels.noBusiness + '</option></select></div>' +
             '<div class="a2-form-group"><label class="a2-label">' + stopLabels.name + '</label>' +
-            '<input class="a2-input" name="stops[0][label]" placeholder="' + stopLabels.namePh + '"></div>' +
+            '<input class="a2-input js-stop-label" name="stops[0][label]" placeholder="' + stopLabels.namePh + '"></div>' +
             '<div class="a2-form-group"><label class="a2-label">' + stopLabels.address + '</label>' +
             '<input class="a2-input" name="stops[0][address]" placeholder="' + stopLabels.addrPh + '"></div>' +
             '<div class="a2-form-group"><button type="button" class="a2-btn a2-btn-ghost js-stop-remove">' + stopLabels.remove + '</button></div>';
         stopsList.appendChild(row);
+        initStopBusinessSelect(row.querySelector('.js-stop-business'));
         reindexStops();
     }
 
@@ -430,6 +502,8 @@ document.addEventListener('DOMContentLoaded', function () {
             reindexStops();
         }
     });
+
+    stopsList?.querySelectorAll('.js-stop-business').forEach(initStopBusinessSelect);
 });
 </script>
 @endpush

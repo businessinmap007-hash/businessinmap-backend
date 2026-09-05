@@ -24,6 +24,8 @@ class TripRunStop extends Model
         'sequence',
         'label',
         'address',
+        'lat',
+        'lng',
         'status',
         'arrived_at',
         'completed_at',
@@ -33,6 +35,8 @@ class TripRunStop extends Model
         'trip_run_id' => 'integer',
         'trip_stop_id' => 'integer',
         'sequence' => 'integer',
+        'lat' => 'decimal:7',
+        'lng' => 'decimal:7',
         'arrived_at' => 'datetime',
         'completed_at' => 'datetime',
     ];

@@ -9,6 +9,7 @@ use App\Models\Governorate;
 use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\TripSchedule;
+use App\Models\User;
 use App\Services\Schedules\TripReservationService;
 use App\Services\Schedules\TripScheduleValidator;
 use Illuminate\Http\RedirectResponse;
@@ -72,6 +73,28 @@ class TripScheduleController extends Controller
             'mode' => $mode,
             'status' => $status,
         ]);
+    }
+
+    /**
+     * Search-as-you-type for the "pick a business as this stop" field —
+     * TomSelect against the server rather than embedding every business as a
+     * static option. Excludes the caller's own account (a leg doesn't stop
+     * at itself).
+     */
+    public function businessLookup(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $businesses = User::query()
+            ->select(['id', 'name'])
+            ->where('type', 'business')
+            ->where('id', '!=', $this->businessId())
+            ->when($term !== '', fn ($query) => $query->where('name', 'like', "%{$term}%"))
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json(['ok' => true, 'businesses' => $businesses]);
     }
 
     public function create(): View
@@ -144,7 +167,7 @@ class TripScheduleController extends Controller
             'countries' => Country::query()->orderBy('name_ar')->get(['id', 'name_ar']),
             'citiesByGovernorate' => $this->citiesByGovernorate(),
             'parentLegs' => $this->parentLegOptions($row),
-            'stops' => $row->exists ? $row->stops()->orderBy('sequence')->get() : collect(),
+            'stops' => $row->exists ? $row->stops()->with('business:id,name')->orderBy('sequence')->get() : collect(),
         ];
     }
 

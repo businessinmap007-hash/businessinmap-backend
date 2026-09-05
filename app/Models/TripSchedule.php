@@ -201,7 +201,7 @@ class TripSchedule extends Model
      * Replace the leg's stop list wholesale — the cheapest way to keep a
      * small ordered child list consistent with what the form submitted.
      *
-     * @param  list<array{label:string, address?:?string}>  $stops
+     * @param  list<array{label:string, address?:?string, business_id?:?int, lat?:?float, lng?:?float}>  $stops
      */
     public function syncStops(array $stops): void
     {
@@ -212,6 +212,9 @@ class TripSchedule extends Model
                 'sequence' => $i,
                 'label' => $stop['label'],
                 'address' => $stop['address'] ?? null,
+                'business_id' => $stop['business_id'] ?? null,
+                'lat' => $stop['lat'] ?? null,
+                'lng' => $stop['lng'] ?? null,
             ]);
         }
     }

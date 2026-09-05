@@ -861,6 +861,7 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/schedules')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
             Route::get('/', [TripScheduleController::class, 'index']);
             Route::post('/', [TripScheduleController::class, 'store']);
+            Route::get('business-lookup', [TripScheduleController::class, 'businessLookup']);
 
             // Carrier blocks capacity for an off-app deal (direct sale).
             Route::post('{schedule}/block', [TripReservationController::class, 'block'])->whereNumber('schedule');

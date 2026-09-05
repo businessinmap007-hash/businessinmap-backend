@@ -73,6 +73,8 @@ final class TripRunService
                     'sequence' => $i,
                     'label' => $stop->label,
                     'address' => $stop->address,
+                    'lat' => $stop->lat,
+                    'lng' => $stop->lng,
                     'status' => $i === 0 ? TripRunStop::STATUS_HEADING : TripRunStop::STATUS_PENDING,
                 ]);
             }

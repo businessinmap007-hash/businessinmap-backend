@@ -3,18 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\JobPost;
-use App\Models\Sponsor;
 use App\Models\User;
 use App\Support\AdminAbility;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
- * The jobs and sponsors "show" pages render without error.
+ * The jobs "show" pages render without error.
  *
- * Both were reworked to the a2 design system — jobs/show rewritten off inline
- * styles onto a2 components, and a sponsors/show page created from scratch (the
- * resource had none). New blades are exactly where a bad class or a missing
+ * Reworked to the a2 design system — jobs/show rewritten off inline styles
+ * onto a2 components. New blades are exactly where a bad class or a missing
  * relation blows up at render, so this just asserts a clean 200 with the key
  * chrome present.
  */
@@ -59,19 +57,5 @@ class AdminShowPagesRenderTest extends TestCase
             ->assertOk()
             ->assertSee('a2-page-head', false)   // unified header, not the inline-styled one
             ->assertSee('a2-table-wrap', false); // wrapped table
-    }
-
-    public function test_the_sponsor_show_page_renders(): void
-    {
-        $sponsor = Sponsor::query()->first();
-        if (! $sponsor) {
-            $this->markTestSkipped('no sponsors');
-        }
-
-        $this->actingAs($this->contentAdmin())
-            ->get(route('admin.sponsors.show', $sponsor->id))
-            ->assertOk()
-            ->assertSee('a2-album-show-grid', false)
-            ->assertSee('a2-pill', false);             // styled status pill, not the undefined a2-badge
     }
 }

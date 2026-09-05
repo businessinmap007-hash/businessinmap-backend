@@ -72,7 +72,6 @@ use App\Http\Controllers\AdminV2\{
     LabListController,
     LabOptionsController,
     PostController,
-    SponsorController,
     SubscriptionController,
     UploadController,
     CatalogBrandController,
@@ -759,9 +758,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Its own path segment, not jobs/*, because Route::resource above
             // registers an unconstrained GET jobs/{post} that would swallow it.
             Route::get('job-follows', [JobFollowController::class, 'index'])->name('job-follows.index');
-
-            Route::resource('sponsors', SponsorController::class)->names('sponsors');
-            Route::post('sponsors/{sponsor}/toggle-active', [SponsorController::class, 'toggleActive'])->whereNumber('sponsor')->name('sponsors.toggleActive');
 
             Route::resource('albums', AlbumController::class)->names('albums');
             Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');

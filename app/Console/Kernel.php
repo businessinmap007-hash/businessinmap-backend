@@ -13,7 +13,6 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\SendDueBookingReminders::class,
         \App\Console\Commands\SendClinicAppointmentReminders::class,
         \App\Console\Commands\SendAgendaReminders::class,
-        \App\Console\Commands\DeleteExpiredSponsors::class,
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
         \App\Console\Commands\ProcessExpiredGuarantees::class,
         \App\Console\Commands\ProcessDisputes::class,
@@ -21,7 +20,6 @@ class Kernel extends ConsoleKernel
 
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('sponsors:delete-expired')->everyTenMinutes();
         $schedule->command('bookings:send-due-reminders --limit=100')->everyMinute();
 
         // Patient reminders for confirmed clinic appointments (a day before, and

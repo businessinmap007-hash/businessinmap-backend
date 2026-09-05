@@ -30,7 +30,6 @@ class UserPurgeService
             'ratings',
             'rides',
             'socials',
-            'sponsors',
             'subscriptions',
             'target_user',
         ];

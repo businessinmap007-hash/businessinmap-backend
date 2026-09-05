@@ -60,7 +60,7 @@ final class AdminAbility
     /** B2B: offers, partnerships, allocations, boosts, subscriptions, prices. */
     public const COMMERCE = 'admin.commerce';
 
-    /** Marketing content: posts, jobs, sponsors, albums. */
+    /** Marketing content: posts, jobs, albums. */
     public const CONTENT = 'admin.content';
 
     /** Platform configuration: push credentials, notification centre. */

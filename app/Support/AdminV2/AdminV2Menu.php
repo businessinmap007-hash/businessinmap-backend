@@ -123,7 +123,6 @@ final class AdminV2Menu
                     'categories'    => 'folder',
                     'posts'         => 'file',
                     'jobs'          => 'briefcase',
-                    'sponsors'      => 'megaphone',
                     'transactions'  => 'credit',
                     'albums'        => 'image',
                     'coupons'       => 'ticket',

@@ -53,14 +53,6 @@ final class AdminV2PermissionMap
             ],
 
             [
-                'key'     => 'sponsors',
-                'label'   => 'الإعلانات',
-                'icon'    => 'zmdi zmdi-view-dashboard',
-                'ability' => null,
-                'route'   => 'admin.sponsors.index',
-            ],
-
-            [
                 'label' => 'ملاحظات المعاملات',
                 'route' => 'admin.wallet-notes.index',
             ],

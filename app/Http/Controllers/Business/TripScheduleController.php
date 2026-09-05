@@ -91,7 +91,8 @@ class TripScheduleController extends Controller
         $data = $this->validator->validated($request, $this->businessId());
         $data['business_id'] = $this->businessId();
 
-        TripSchedule::create($data);
+        $schedule = TripSchedule::create($data);
+        $schedule->syncStops($this->validator->validatedStops($request));
 
         return redirect()
             ->route('business.schedules.index')
@@ -108,6 +109,7 @@ class TripScheduleController extends Controller
         $row = $this->scopedLeg($id);
 
         $row->update($this->validator->validated($request, $this->businessId(), $row));
+        $row->syncStops($this->validator->validatedStops($request));
 
         return redirect()
             ->route('business.schedules.index')
@@ -142,6 +144,7 @@ class TripScheduleController extends Controller
             'countries' => Country::query()->orderBy('name_ar')->get(['id', 'name_ar']),
             'citiesByGovernorate' => $this->citiesByGovernorate(),
             'parentLegs' => $this->parentLegOptions($row),
+            'stops' => $row->exists ? $row->stops()->orderBy('sequence')->get() : collect(),
         ];
     }
 

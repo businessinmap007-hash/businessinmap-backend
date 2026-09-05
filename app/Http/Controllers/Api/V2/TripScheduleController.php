@@ -110,7 +110,7 @@ final class TripScheduleController extends Controller
 
         $schedules = TripSchedule::query()
             ->where('business_id', (int) $business->id)
-            ->with(['originGovernorate:id,name_ar,name_en', 'destinationGovernorate:id,name_ar,name_en'])
+            ->with(['originGovernorate:id,name_ar,name_en', 'destinationGovernorate:id,name_ar,name_en', 'stops'])
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -126,6 +126,7 @@ final class TripScheduleController extends Controller
         $data['business_id'] = (int) $business->id;
 
         $schedule = TripSchedule::create($data);
+        $schedule->syncStops($this->validator->validatedStops($request));
 
         return response()->json([
             'success' => true,
@@ -133,6 +134,7 @@ final class TripScheduleController extends Controller
             'data' => ['schedule' => $this->serialize($schedule->fresh([
                 'originGovernorate:id,name_ar,name_en',
                 'destinationGovernorate:id,name_ar,name_en',
+                'stops',
             ]))],
         ], 201);
     }
@@ -144,6 +146,7 @@ final class TripScheduleController extends Controller
 
         $data = $this->validator->validated($request, (int) $business->id, $row);
         $row->update($data);
+        $row->syncStops($this->validator->validatedStops($request));
 
         return response()->json([
             'success' => true,
@@ -151,6 +154,7 @@ final class TripScheduleController extends Controller
             'data' => ['schedule' => $this->serialize($row->fresh([
                 'originGovernorate:id,name_ar,name_en',
                 'destinationGovernorate:id,name_ar,name_en',
+                'stops',
             ]))],
         ]);
     }
@@ -236,6 +240,14 @@ final class TripScheduleController extends Controller
             'parent_trip_id' => $s->parent_trip_id ? (int) $s->parent_trip_id : null,
             'notes' => $s->notes,
             'status' => (string) $s->status,
+            'stops' => $s->relationLoaded('stops')
+                ? $s->stops->map(fn (\App\Models\TripStop $stop) => [
+                    'id' => (int) $stop->id,
+                    'sequence' => (int) $stop->sequence,
+                    'label' => $stop->label,
+                    'address' => $stop->address,
+                ])->values()
+                : [],
         ];
     }
 }

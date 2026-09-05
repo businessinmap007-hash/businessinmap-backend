@@ -472,6 +472,44 @@ components:
         default_unit: { type: string, nullable: true }
         is_default: { type: boolean }
         group: { type: object, nullable: true, description: 'The mode branch this class hangs off {id,key,name}.' }
+    TripRun:
+      type: object
+      description: One live execution of a trip leg — see TripRunService.
+      properties:
+        id: { type: integer }
+        trip_schedule_id: { type: integer }
+        mode: { type: string, nullable: true }
+        vehicle_label: { type: string, nullable: true }
+        status: { type: string, enum: [in_progress, awaiting_reconciliation, completed] }
+        passenger_count: { type: integer, nullable: true, description: Set at start for passenger/limousine legs only. }
+        started_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        current_stop_id: { type: integer, nullable: true }
+        stops:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              sequence: { type: integer }
+              label: { type: string }
+              address: { type: string, nullable: true }
+              status: { type: string, enum: [pending, heading, arrived, done] }
+              arrived_at: { type: string, format: date-time, nullable: true }
+              completed_at: { type: string, format: date-time, nullable: true }
+        manifest_items:
+          type: array
+          description: Freight/distribution only.
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              label: { type: string }
+              unit: { type: string, nullable: true }
+              assigned_qty: { type: integer }
+              delivered_qty: { type: integer, nullable: true }
+              returned_qty: { type: integer, nullable: true }
+              remaining_qty: { type: integer, nullable: true, description: Computed; only present once the run is completed. }
 
 paths:
   # ─────────────────────────── Auth ───────────────────────────
@@ -2521,6 +2559,105 @@ paths:
         '200': { description: OK }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { description: Not cancellable in its current state., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/{schedule}/runs:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Start a live run of a leg
+      description: |
+        Snapshots the leg's published stops into the run (the first becomes
+        `heading`, the rest `pending`) — the leg must have at least one stop.
+        Passenger/limousine legs require `passenger_count`; freight/
+        distribution legs require a non-empty `manifest` instead — each is
+        forbidden for the other mode.
+      parameters: [{ name: schedule, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                passenger_count: { type: integer, minimum: 1 }
+                manifest:
+                  type: array
+                  items:
+                    type: object
+                    required: [label, assigned_qty]
+                    properties:
+                      label: { type: string, maxLength: 150 }
+                      unit: { type: string, maxLength: 24 }
+                      assigned_qty: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Created.
+          content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, message: { type: string }, data: { type: object, properties: { run: { $ref: '#/components/schemas/TripRun' } } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Missing stops, or a passenger_count/manifest mismatch for the leg's mode., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/runs:
+    get:
+      tags: [Schedules (Carrier)]
+      summary: My legs' live and past runs
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [in_progress, awaiting_reconciliation, completed] } }
+        - { $ref: '#/components/parameters/PerPage' }
+      responses:
+        '200': { description: 'Paginated TripRun.', content: { application/json: { schema: { $ref: '#/components/schemas/Paginated' } } } }
+  /business/schedules/runs/{run}:
+    get:
+      tags: [Schedules (Carrier)]
+      summary: One run's live detail
+      parameters: [{ name: run, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, data: { type: object, properties: { run: { $ref: '#/components/schemas/TripRun' } } } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /business/schedules/runs/{run}/arrive:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Mark the current stop arrived
+      parameters: [{ name: run, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, message: { type: string }, data: { type: object, properties: { run: { $ref: '#/components/schemas/TripRun' } } } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: No stop is currently `heading`., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/runs/{run}/advance:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Complete the current stop and move to the next
+      description: |
+        On the last stop: a freight/distribution run moves to
+        `awaiting_reconciliation` instead of completing outright; any other
+        mode completes immediately.
+      parameters: [{ name: run, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, message: { type: string }, data: { type: object, properties: { run: { $ref: '#/components/schemas/TripRun' } } } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: The current stop has not been marked arrived yet., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+  /business/schedules/runs/{run}/reconcile:
+    post:
+      tags: [Schedules (Carrier)]
+      summary: Report delivered/returned per manifest line and complete the run
+      description: Freight/distribution only, and only once the run is `awaiting_reconciliation`. `remaining_qty` is computed, never entered directly.
+      parameters: [{ name: run, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [manifest_item_id, delivered_qty, returned_qty]
+                    properties:
+                      manifest_item_id: { type: integer }
+                      delivered_qty: { type: integer, minimum: 0 }
+                      returned_qty: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, message: { type: string }, data: { type: object, properties: { run: { $ref: '#/components/schemas/TripRun' } } } } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Not awaiting reconciliation, an unknown manifest line, or delivered+returned exceeding what was assigned., content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
 
   # ─────────────────────────── Bookings ───────────────────────────
   /bookings:

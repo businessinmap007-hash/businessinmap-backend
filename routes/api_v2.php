@@ -75,6 +75,7 @@ use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripReservationController;
+use App\Http\Controllers\Api\V2\TripRunController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
 use App\Http\Controllers\Api\V2\WalletController;
 use App\Http\Controllers\Api\V2\WalletTopupController;
@@ -869,6 +870,14 @@ Route::prefix('v2')->group(function () {
             Route::post('reservations/{reservation}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/complete', [TripReservationController::class, 'complete'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/reject', [TripReservationController::class, 'reject'])->whereNumber('reservation');
+
+            // Live execution of a leg: start a run, then cycle its stops.
+            Route::post('{schedule}/runs', [TripRunController::class, 'start'])->whereNumber('schedule');
+            Route::get('runs', [TripRunController::class, 'index']);
+            Route::get('runs/{run}', [TripRunController::class, 'show'])->whereNumber('run');
+            Route::post('runs/{run}/arrive', [TripRunController::class, 'arrive'])->whereNumber('run');
+            Route::post('runs/{run}/advance', [TripRunController::class, 'advance'])->whereNumber('run');
+            Route::post('runs/{run}/reconcile', [TripRunController::class, 'reconcile'])->whereNumber('run');
 
             Route::match(['put', 'patch'], '{schedule}', [TripScheduleController::class, 'update'])->whereNumber('schedule');
             Route::delete('{schedule}', [TripScheduleController::class, 'destroy'])->whereNumber('schedule');

@@ -53,6 +53,7 @@ final class TripScheduleService
                 'originCountry:id,name_ar,name_en',
                 'destinationCountry:id,name_ar,name_en',
                 'vehicleType:id,key,name_ar,name_en',
+                'stops',
             ]);
 
         if ($hasGovPair) {

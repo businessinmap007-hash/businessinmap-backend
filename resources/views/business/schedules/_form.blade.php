@@ -2,6 +2,7 @@
     use App\Models\TripSchedule;
 
     $isEdit = isset($row) && $row?->exists;
+    $currentStops = old('stops', isset($stops) ? $stops->map(fn ($s) => ['label' => $s->label, 'address' => $s->address])->all() : []);
 
     $currentMode = (string) old('mode', $row->mode ?? '');
     $currentScope = (string) old('scope', $row->scope ?? TripSchedule::SCOPE_DOMESTIC);
@@ -228,6 +229,35 @@
 <div class="a2-card a2-card--section">
     <div class="a2-card-head">
         <div>
+            <div class="a2-card-title">{{ __('نقاط التوقف على الطريق (اختياري)') }}</div>
+            <div class="a2-card-sub">{{ __('اسم مختصر + عنوان نصي لكل نقطة — يُستخدم العنوان لفتح خرائط جوجل مباشرة على هاتف السائق دون أي تكلفة إضافية على المنصة. رتّب النقاط بترتيب المرور عليها؛ يلزم وجود نقطة واحدة على الأقل قبل بدء تنفيذ الرحلة من التطبيق.') }}</div>
+        </div>
+    </div>
+
+    <div id="js-stops-list">
+        @foreach($currentStops as $i => $stop)
+            <div class="a2-form-grid js-stop-row" style="grid-template-columns:1fr 2fr auto;align-items:end;">
+                <div class="a2-form-group">
+                    <label class="a2-label">{{ __('اسم النقطة') }}</label>
+                    <input class="a2-input" name="stops[{{ $i }}][label]" value="{{ $stop['label'] ?? '' }}" placeholder="{{ __('فرع المهندسين') }}">
+                </div>
+                <div class="a2-form-group">
+                    <label class="a2-label">{{ __('العنوان') }}</label>
+                    <input class="a2-input" name="stops[{{ $i }}][address]" value="{{ $stop['address'] ?? '' }}" placeholder="{{ __('15 شارع جامعة الدول العربية، المهندسين، الجيزة') }}">
+                </div>
+                <div class="a2-form-group">
+                    <button type="button" class="a2-btn a2-btn-ghost js-stop-remove">{{ __('حذف') }}</button>
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    <button type="button" id="js-stop-add" class="a2-btn a2-btn-ghost a2-mt-8">{{ __('+ أضف نقطة') }}</button>
+</div>
+
+<div class="a2-card a2-card--section">
+    <div class="a2-card-head">
+        <div>
             <div class="a2-card-title">{{ __('رحلة عودة (اختياري)') }}</div>
             <div class="a2-card-sub">{{ __('عائد فارغاً من رحلة سابقة؟ اربط هذا الخط بها واعرضه بسعر مخفّض ليجده من يريد نفس الاتجاه.') }}</div>
         </div>
@@ -360,6 +390,46 @@ document.addEventListener('DOMContentLoaded', function () {
     syncPattern();
     syncCities(originGov, originCity);
     syncCities(destGov, destCity);
+
+    // Stops: a plain add/remove row list, no framework — indices are just
+    // re-derived from DOM position on every change so a removed middle row
+    // never leaves a gap in the submitted stops[] array.
+    const stopsList = document.getElementById('js-stops-list');
+    const stopAddBtn = document.getElementById('js-stop-add');
+    const stopLabels = { name: @json(__('اسم النقطة')), address: @json(__('العنوان')), namePh: @json(__('فرع المهندسين')), addrPh: @json(__('15 شارع جامعة الدول العربية، المهندسين، الجيزة')), remove: @json(__('حذف')) };
+
+    function reindexStops() {
+        if (!stopsList) return;
+        stopsList.querySelectorAll('.js-stop-row').forEach(function (row, i) {
+            row.querySelectorAll('input').forEach(function (input) {
+                input.name = input.name.replace(/stops\[\d+\]/, 'stops[' + i + ']');
+            });
+        });
+    }
+
+    function addStopRow() {
+        if (!stopsList) return;
+        const row = document.createElement('div');
+        row.className = 'a2-form-grid js-stop-row';
+        row.style.gridTemplateColumns = '1fr 2fr auto';
+        row.style.alignItems = 'end';
+        row.innerHTML =
+            '<div class="a2-form-group"><label class="a2-label">' + stopLabels.name + '</label>' +
+            '<input class="a2-input" name="stops[0][label]" placeholder="' + stopLabels.namePh + '"></div>' +
+            '<div class="a2-form-group"><label class="a2-label">' + stopLabels.address + '</label>' +
+            '<input class="a2-input" name="stops[0][address]" placeholder="' + stopLabels.addrPh + '"></div>' +
+            '<div class="a2-form-group"><button type="button" class="a2-btn a2-btn-ghost js-stop-remove">' + stopLabels.remove + '</button></div>';
+        stopsList.appendChild(row);
+        reindexStops();
+    }
+
+    if (stopAddBtn) stopAddBtn.addEventListener('click', addStopRow);
+    if (stopsList) stopsList.addEventListener('click', function (e) {
+        if (e.target && e.target.classList.contains('js-stop-remove')) {
+            e.target.closest('.js-stop-row').remove();
+            reindexStops();
+        }
+    });
 });
 </script>
 @endpush

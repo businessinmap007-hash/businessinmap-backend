@@ -107,4 +107,30 @@ final class TripScheduleValidator
 
         return $data;
     }
+
+    /**
+     * The leg's waypoint list — optional on the schedule itself (a run can't
+     * start without at least one, but publishing the leg doesn't require it
+     * yet). Blank rows (no label typed) are dropped rather than rejected, so
+     * a form with empty trailing "add stop" rows still saves cleanly.
+     *
+     * @return list<array{label:string, address:?string}>
+     */
+    public function validatedStops(Request $request): array
+    {
+        $data = $request->validate([
+            'stops' => ['nullable', 'array'],
+            'stops.*.label' => ['nullable', 'string', 'max:120'],
+            'stops.*.address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        return collect($data['stops'] ?? [])
+            ->map(fn ($stop) => [
+                'label' => trim((string) ($stop['label'] ?? '')),
+                'address' => trim((string) ($stop['address'] ?? '')) ?: null,
+            ])
+            ->filter(fn ($stop) => $stop['label'] !== '')
+            ->values()
+            ->all();
+    }
 }

@@ -187,6 +187,35 @@ class TripSchedule extends Model
         return $this->hasMany(TripReservation::class, 'trip_schedule_id');
     }
 
+    public function stops(): HasMany
+    {
+        return $this->hasMany(TripStop::class, 'trip_schedule_id')->orderBy('sequence');
+    }
+
+    public function runs(): HasMany
+    {
+        return $this->hasMany(TripRun::class, 'trip_schedule_id');
+    }
+
+    /**
+     * Replace the leg's stop list wholesale — the cheapest way to keep a
+     * small ordered child list consistent with what the form submitted.
+     *
+     * @param  list<array{label:string, address?:?string}>  $stops
+     */
+    public function syncStops(array $stops): void
+    {
+        $this->stops()->delete();
+
+        foreach (array_values($stops) as $i => $stop) {
+            $this->stops()->create([
+                'sequence' => $i,
+                'label' => $stop['label'],
+                'address' => $stop['address'] ?? null,
+            ]);
+        }
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE);

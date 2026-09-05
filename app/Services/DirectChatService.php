@@ -282,9 +282,12 @@ class DirectChatService
     }
 
     /**
-     * Unread messages across every general chat I'm in, summed in one query
-     * (never per-thread — see [[listFor]]) — a home-screen icon badge, not a
-     * feed the caller pages through.
+     * How many general-chat conversations I'm in have at least one unread
+     * message — counted as CONVERSATIONS, not raw messages, since that's what
+     * the home-screen icon badge (a chat is either "has something new" or
+     * not) should show; a single very active thread must not inflate the
+     * number the way it would if this summed messages instead (see
+     * [[listFor]] for the per-thread count).
      */
     public function unreadTotal(User $me): int
     {
@@ -297,6 +300,7 @@ class DirectChatService
             ->whereNull('t.subject_type')
             ->where(fn ($q) => $q->whereNull('tm.sender_id')->orWhere('tm.sender_id', '!=', $me->id))
             ->where(fn ($q) => $q->whereNull('tp.last_read_at')->orWhereColumn('tm.created_at', '>', 'tp.last_read_at'))
-            ->count();
+            ->distinct()
+            ->count('tm.thread_id');
     }
 }

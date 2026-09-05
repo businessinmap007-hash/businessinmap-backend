@@ -111,6 +111,22 @@ class AppNotification extends Model
         });
     }
 
+    /**
+     * A general chat (DM/group) message notification — `notifiable_type` is
+     * null because that kind of thread has no subject (see ThreadService::
+     * notifyOthers). It already has its own badge (DirectChatService::
+     * unreadTotal), so it must not also count here or it would double as
+     * both a chat unread and a bell notification. A dispute-room or
+     * operation-chat message keeps its subject as `notifiable_type` and
+     * stays visible here — there is no other surface for it yet.
+     */
+    public function scopeExcludingGeneralChat(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where('type', '!=', self::TYPE_MESSAGE)->orWhereNotNull('notifiable_type');
+        });
+    }
+
     public function displayTitle(): string
     {
         return $this->title_ar ?: ($this->title_en ?: 'Notification');

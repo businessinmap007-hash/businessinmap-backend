@@ -167,7 +167,7 @@ class DirectChatTest extends TestCase
         $this->assertFalse($row['last_message']['is_mine']);
     }
 
-    public function test_unread_count_sums_across_every_conversation_and_drops_after_reading(): void
+    public function test_unread_count_counts_conversations_not_messages_and_drops_after_reading(): void
     {
         Sanctum::actingAs($this->alice);
         $withBob = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
@@ -186,6 +186,19 @@ class DirectChatTest extends TestCase
         // Reading the conversation clears it out of the total.
         $this->getJson("/api/v2/chats/{$withCarol}")->assertOk();
         $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 0);
+    }
+
+    public function test_several_unread_messages_in_one_thread_count_as_a_single_conversation(): void
+    {
+        Sanctum::actingAs($this->alice);
+        $threadId = $this->postJson('/api/v2/chats', ['user_id' => $this->bob->id])->json('data.id');
+        $this->postJson("/api/v2/chats/{$threadId}/messages", ['body' => 'one'])->assertCreated();
+        $this->postJson("/api/v2/chats/{$threadId}/messages", ['body' => 'two'])->assertCreated();
+        $this->postJson("/api/v2/chats/{$threadId}/messages", ['body' => 'three'])->assertCreated();
+
+        // Three unread messages, but still only one conversation with something new.
+        Sanctum::actingAs($this->bob);
+        $this->getJson('/api/v2/chats/unread-count')->assertOk()->assertJsonPath('data.unread_count', 1);
     }
 
     public function test_a_sent_message_is_read_only_once_the_other_party_opens_the_thread(): void

@@ -157,4 +157,68 @@ class NotificationCenterApiTest extends TestCase
         $this->getJson('/api/v2/notifications')->assertUnauthorized();
         $this->getJson('/api/v2/notifications/unread-count')->assertUnauthorized();
     }
+
+    /**
+     * A general chat (DM/group) message notification has no subject
+     * (notifiable_type null) — it must stay out of the bell entirely since
+     * DirectChatService::unreadTotal already gives it its own badge.
+     */
+    public function test_general_chat_message_notifications_are_excluded_from_the_bell(): void
+    {
+        $before = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/notifications/unread-count')
+            ->assertOk()
+            ->json('data.unread_count');
+
+        $chatMessage = $this->makeNotification($this->user->id, [
+            'type' => AppNotification::TYPE_MESSAGE,
+            'notifiable_type' => null,
+            'notifiable_id' => null,
+        ]);
+
+        $after = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/notifications/unread-count')
+            ->assertOk()
+            ->json('data.unread_count');
+
+        $this->assertSame((int) $before, (int) $after);
+
+        $ids = collect(
+            $this->actingAs($this->user, 'sanctum')
+                ->getJson('/api/v2/notifications')
+                ->assertOk()
+                ->json('data.notifications.data')
+        )->pluck('id')->all();
+        $this->assertNotContains($chatMessage->id, $ids);
+    }
+
+    /** A dispute-room or operation-chat message keeps its subject and still counts. */
+    public function test_a_subject_bearing_message_notification_still_counts_in_the_bell(): void
+    {
+        $before = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/notifications/unread-count')
+            ->assertOk()
+            ->json('data.unread_count');
+
+        $roomMessage = $this->makeNotification($this->user->id, [
+            'type' => AppNotification::TYPE_MESSAGE,
+            'notifiable_type' => User::class,
+            'notifiable_id' => $this->other->id,
+        ]);
+
+        $after = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/notifications/unread-count')
+            ->assertOk()
+            ->json('data.unread_count');
+
+        $this->assertSame((int) $before + 1, (int) $after);
+
+        $ids = collect(
+            $this->actingAs($this->user, 'sanctum')
+                ->getJson('/api/v2/notifications')
+                ->assertOk()
+                ->json('data.notifications.data')
+        )->pluck('id')->all();
+        $this->assertContains($roomMessage->id, $ids);
+    }
 }

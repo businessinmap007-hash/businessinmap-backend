@@ -26,6 +26,7 @@ final class NotificationCenterController extends Controller
             ->with(['actor:id,name,type,logo,image'])
             ->where('user_id', (int) $user->id)
             ->visible()
+            ->excludingGeneralChat()
             ->latest('id');
 
         if (! empty($data['status'])) {
@@ -151,6 +152,7 @@ final class NotificationCenterController extends Controller
         return (int) AppNotification::query()
             ->where('user_id', $userId)
             ->visible()
+            ->excludingGeneralChat()
             ->unread()
             ->count();
     }
@@ -161,6 +163,7 @@ final class NotificationCenterController extends Controller
             ->selectRaw('type, COUNT(*) as total')
             ->where('user_id', $userId)
             ->visible()
+            ->excludingGeneralChat()
             ->where('status', AppNotification::STATUS_UNREAD)
             ->groupBy('type')
             ->pluck('total', 'type')

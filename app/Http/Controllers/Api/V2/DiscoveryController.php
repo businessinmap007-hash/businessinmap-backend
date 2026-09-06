@@ -367,6 +367,85 @@ final class DiscoveryController extends Controller
     }
 
     /**
+     * Businesses ranked by aggregate review rating — same average-stars math
+     * as RatingService::summaryFor() (stars_average = review_stars_sum /
+     * review_count, rounded to 2dp, 0.0 with no reviews), computed here for
+     * MANY businesses at once via a join instead of one at a time.
+     *
+     * Deliberately NOT scoped to one specialty (child_id) like `businesses()`
+     * — `category_id` (a root, optional) is as narrow as this gets, since
+     * this is a cross-specialty "what's good under Health" or platform-wide
+     * browsing surface, not a specialty-driven filter search.
+     */
+    public function recommended(Request $request)
+    {
+        $data = $request->validate([
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $categoryId = (int) ($data['category_id'] ?? 0);
+        $q = trim((string) ($data['q'] ?? ''));
+
+        // COALESCE to 0 (not left NULL) so a never-rated business sorts
+        // deterministically alongside every other never-rated business
+        // (by review_count then id) rather than relying on the database's
+        // own NULL-ordering convention for DESC, which differs across
+        // engines.
+        $ratingExpr = 'COALESCE(ROUND(uor.review_stars_sum / GREATEST(uor.review_count, 1), 2), 0)';
+
+        $businesses = User::query()
+            ->where('users.type', 'business')
+            ->when($categoryId > 0, fn (Builder $w) => $w->where('users.category_id', $categoryId))
+            ->when($q !== '', fn (Builder $w) => $w->searchByName($q))
+            ->leftJoin('user_operation_ratings as uor', function ($join) {
+                $join->on('uor.user_id', '=', 'users.id')->where('uor.role', 'business');
+            })
+            ->orderByRaw("$ratingExpr DESC")
+            ->orderByDesc('uor.review_count')
+            ->orderBy('users.id')
+            ->paginate(
+                (int) ($data['per_page'] ?? 20),
+                ['users.id', 'users.name', 'users.type', 'users.logo', 'users.category_id', 'users.category_child_id']
+            )
+            ->withQueryString();
+
+        $ids = $businesses->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $ratings = DB::table('user_operation_ratings')
+            ->whereIn('user_id', $ids)
+            ->where('role', 'business')
+            ->get(['user_id', 'review_stars_sum', 'review_count'])
+            ->keyBy('user_id');
+
+        $openNow = app(\App\Services\BusinessHoursService::class)->openNowMap($ids);
+
+        $businesses->getCollection()->transform(function (User $b) use ($ratings, $openNow) {
+            $arr = $b->only(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
+            $rating = $ratings->get($b->id);
+            $reviewCount = (int) ($rating->review_count ?? 0);
+            $starsSum = (int) ($rating->review_stars_sum ?? 0);
+            $arr['stars_average'] = $reviewCount > 0 ? round($starsSum / $reviewCount, 2) : 0.0;
+            $arr['review_count'] = $reviewCount;
+            $arr['is_open_now'] = $openNow[(int) $b->id] ?? true;
+
+            return $arr;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'query' => [
+                    'category_id' => $categoryId ?: null,
+                    'q' => $q ?: null,
+                ],
+                'businesses' => $businesses,
+            ],
+        ]);
+    }
+
+    /**
      * The priced OFFERINGS behind a filter, not just the businesses holding
      * them: «كشف عظام — 300 — مستشفى BIM».
      *

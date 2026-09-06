@@ -165,6 +165,9 @@ Route::prefix('v2')->group(function () {
         // distinct from the offering axis above (services/item types).
         Route::get('attributes', [DiscoveryController::class, 'attributes']);
         Route::get('businesses', [DiscoveryController::class, 'businesses']);
+        // Rating-ranked browsing, not specialty-scoped like `businesses` above
+        // — powers a "recommended" surface with no child_id chosen yet.
+        Route::get('recommended', [DiscoveryController::class, 'recommended']);
         // The priced offerings themselves — «كشف عظام — 300 — مستشفى BIM» —
         // so a search on an option reaches the row, not only the shop.
         Route::get('offerings', [DiscoveryController::class, 'offerings']);

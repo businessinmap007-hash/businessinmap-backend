@@ -152,4 +152,98 @@ class DiscoveryTest extends TestCase
         )->assertOk()->json('data.businesses.data');
         $this->assertContains($bizA->id, array_column($byCity, 'id'));
     }
+
+    private function makeBusiness(string $namePrefix, ?int $categoryId = null): \App\Models\User
+    {
+        return \App\Models\User::create([
+            'name' => $namePrefix,
+            'email' => 'recommended-' . uniqid() . '@example.test',
+            'phone' => '01' . random_int(100000000, 999999999),
+            'password' => 'secret-password',
+            'type' => 'business',
+            'category_id' => $categoryId,
+            'api_token' => \Illuminate\Support\Str::random(80),
+        ]);
+    }
+
+    private function rate(\App\Models\User $business, int $starsSum, int $reviewCount): void
+    {
+        DB::table('user_operation_ratings')->insert([
+            'user_id' => $business->id,
+            'role' => \App\Models\UserOperationRating::ROLE_BUSINESS,
+            'total_operations' => $reviewCount,
+            'success_count' => $reviewCount,
+            'cancelled_count' => 0,
+            'disputed_count' => 0,
+            'fault_count' => 0,
+            'vindicated_count' => 0,
+            'review_stars_sum' => $starsSum,
+            'review_count' => $reviewCount,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_recommended_ranks_by_average_stars_highest_first(): void
+    {
+        // A shared, unique name prefix scopes the query (via `q`) to just
+        // these 3 rows — the dev DB already has hundreds of zero-rated
+        // businesses that would otherwise bury a freshly created one past
+        // the first page, since ties order oldest-id-first.
+        $tag = 'rec-rank-' . uniqid();
+
+        $low = $this->makeBusiness("{$tag}-low");
+        $this->rate($low, starsSum: 6, reviewCount: 3); // 2.0 average
+
+        $high = $this->makeBusiness("{$tag}-high");
+        $this->rate($high, starsSum: 20, reviewCount: 4); // 5.0 average
+
+        $unrated = $this->makeBusiness("{$tag}-unrated");
+
+        $res = $this->getJson("/api/v2/discovery/recommended?q={$tag}&per_page=50")->assertOk();
+        $rows = collect($res->json('data.businesses.data'))->keyBy('id');
+
+        // assertEquals, not assertSame: json_encode drops the trailing .0 off
+        // a whole-number float (5.0 round-trips through JSON as the int 5).
+        $this->assertEquals(5.0, $rows[$high->id]['stars_average']);
+        $this->assertEquals(2.0, $rows[$low->id]['stars_average']);
+        $this->assertEquals(0.0, $rows[$unrated->id]['stars_average']);
+        $this->assertSame(0, $rows[$unrated->id]['review_count']);
+
+        $ids = array_column($res->json('data.businesses.data'), 'id');
+        $this->assertLessThan(
+            array_search($low->id, $ids),
+            array_search($high->id, $ids),
+            'the 5.0-star business must rank above the 2.0-star one'
+        );
+        $this->assertLessThan(
+            array_search($unrated->id, $ids),
+            array_search($low->id, $ids),
+            'a rated business must rank above a never-rated one'
+        );
+    }
+
+    public function test_recommended_category_id_narrows_to_that_root(): void
+    {
+        $rootA = (int) DB::table('categories')->orderBy('id')->value('id');
+        $rootB = (int) DB::table('categories')->orderBy('id', 'desc')->value('id');
+        $tag = 'rec-cat-' . uniqid();
+
+        $inA = $this->makeBusiness("{$tag}-a", $rootA);
+        $inB = $this->makeBusiness("{$tag}-b", $rootB);
+
+        $ids = array_column(
+            $this->getJson("/api/v2/discovery/recommended?category_id={$rootA}&q={$tag}&per_page=50")
+                ->assertOk()->json('data.businesses.data'),
+            'id'
+        );
+
+        $this->assertContains($inA->id, $ids);
+        $this->assertNotContains($inB->id, $ids);
+    }
+
+    public function test_recommended_requires_no_parameters_at_all(): void
+    {
+        $this->getJson('/api/v2/discovery/recommended')->assertOk()->assertJsonPath('success', true);
+    }
 }

@@ -185,6 +185,13 @@ tags:
       to — businesses targeting their category, accounts they follow,
       categories they follow, accounts targeting them — and never their own
       posts. Job postings are excluded here; they live under Jobs.
+  - name: Follows
+    description: Follow/unfollow another account — the table the personal feed's audience is built from.
+  - name: Thread Access
+    description: >-
+      A chat participant's own standing say over whether an admin may ever
+      read this thread's decrypted content — independent of any specific
+      admin request, and separate from a dispute's own evidence rules.
 
 components:
   securitySchemes:
@@ -1083,6 +1090,78 @@ paths:
       responses:
         '200': { description: OK }
         '422': { $ref: '#/components/responses/Validation' }
+  /profile/cover:
+    post:
+      tags: [Profile]
+      summary: Set or remove the account cover photo (multipart — POST, not PUT/PATCH, since PHP cannot decode a file upload on those verbs)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                cover: { type: string, format: binary, description: 'Omit and send remove=1 to clear the current cover.' }
+                remove: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
+
+  # First v2 surface for the legacy Album model — a signed-in account's own
+  # photo albums. Every route re-checks ownership by hand since implicit
+  # route-model-binding resolves ANY album id, not just the caller's.
+  /profile/albums:
+    get: { tags: [Profile], summary: My photo albums, responses: { '200': { description: OK } } }
+    post:
+      tags: [Profile]
+      summary: Create an album
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title_ar]
+              properties:
+                title_ar: { type: string, maxLength: 191 }
+                title_en: { type: string, maxLength: 191, nullable: true }
+                description_ar: { type: string, maxLength: 2000, nullable: true }
+                description_en: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /profile/albums/{album}:
+    parameters: [{ name: album, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Profile], summary: One album with its photos, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    patch: { tags: [Profile], summary: Edit an album's title/description, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Profile], summary: Delete an album (and its photo files), responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /profile/albums/{album}/photos:
+    post:
+      tags: [Profile]
+      summary: Add a photo to an album
+      parameters: [{ name: album, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+                source: { type: string, enum: [camera, upload] }
+      responses:
+        '201': { description: Created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /profile/albums/{album}/photos/{photo}:
+    delete:
+      tags: [Profile]
+      summary: Remove a photo from an album
+      parameters:
+        - { name: album, in: path, required: true, schema: { type: integer } }
+        - { name: photo, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } }
 
   # ─────────────────────────── Addresses ───────────────────────────
   /addresses:
@@ -1887,9 +1966,10 @@ paths:
               type: object
               required: [name_ar, selection_type]
               properties:
-                name_ar: { type: string }
-                name_en: { type: string }
-                selection_type: { type: string, enum: [single, multiple] }
+                name_ar: { type: string, maxLength: 100 }
+                name_en: { type: string, maxLength: 100 }
+                selection_type: { type: string, enum: [single, multiple], description: 'single renders as radio buttons, multiple as checkboxes.' }
+                reorder: { type: integer, minimum: 0 }
                 is_active: { type: boolean }
       responses: { '201': { description: Created } }
   /business/menu/items/{item}/extra-groups/{group}:
@@ -2184,6 +2264,16 @@ paths:
         - { name: business, in: path, required: true, schema: { type: integer } }
         - { name: per_page, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50 } }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /businesses/{business}/albums:
+    get: { tags: [Business Page], summary: "A business's photo albums, public read-only", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /businesses/{business}/albums/{album}:
+    get:
+      tags: [Business Page]
+      summary: One of a business's albums with its photos, public
+      parameters:
+        - { name: business, in: path, required: true, schema: { type: integer } }
+        - { name: album, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
 
   # ─────────────────────────── Operator presence ───────────────────────────
   /operator/session:
@@ -2237,6 +2327,8 @@ paths:
     get: { tags: [Ratings], summary: My operation rating (percentages + stars) + my rating/fee opt-in state, responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
   /ratings/enable:
     post: { tags: [Ratings], summary: Open my own rating (per-party opt-in; makes only me liable for service fees — transacting is free), responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
+  /ratings/disable:
+    post: { tags: [Ratings], summary: Close my own rating again (self-service reversal of /ratings/enable), responses: { '200': { description: OK }, '401': { $ref: '#/components/responses/Unauthorized' } } }
   /ratings/user/{user}:
     get: { tags: [Ratings], summary: Another user's operation rating, parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /ratings/user/{user}/reviews:
@@ -2485,6 +2577,15 @@ paths:
                       schedule: { $ref: '#/components/schemas/TripSchedule' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Validation' }
+  /business/schedules/business-lookup:
+    get:
+      tags: [Schedules (Carrier)]
+      summary: Search other businesses, for picking a backhaul partner
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string }, description: 'Name filter; omit to list.' }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /business/schedules/{schedule}:
     parameters: [{ name: schedule, in: path, required: true, schema: { type: integer } }]
     put:
@@ -2689,6 +2790,31 @@ paths:
     post: { tags: [Bookings], summary: 'Create a booking. offering_id + offering_type say what the booking is about — a price row (service_price, the default) names «كشف عظام» rather than «كشف» and decides the amount; a listing (menu_item) is what a showroom or estate agent is booked ON and never sets the price, since a flat''s asking price is not what a viewing costs.', responses: { '201': { description: Created }, '422': { description: 'The offering does not belong to this business, or is switched off.' } } }
   /bookings/form/{business}:
     get: { tags: [Bookings], summary: 'The booking screen for ONE business: which fields to show, which are required, and its bookable units. The app knows nothing about hotels or playstations — it draws what this returns, which is why a new trade needs no app release. `shape` is null when the business''s category carries no booking pattern.', parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'No such business.' } } }
+  /bookings/preview:
+    post:
+      tags: [Bookings]
+      summary: Live running total for a booking-in-progress — same price math as store(), no row created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_id, service_id]
+              properties:
+                business_id: { type: integer, minimum: 1 }
+                service_id: { type: integer, minimum: 1 }
+                bookable_id: { type: integer, minimum: 1, nullable: true }
+                offering_id: { type: integer, minimum: 1, nullable: true }
+                offering_type: { type: string, enum: [service_price, menu_item], nullable: true }
+                starts_at: { type: string, format: date-time, nullable: true }
+                ends_at: { type: string, format: date-time, nullable: true }
+                quantity: { type: integer, minimum: 1, nullable: true }
+                party_size: { type: integer, minimum: 1, nullable: true }
+                option_ids: { type: array, items: { type: integer }, nullable: true }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /bookings/{booking}:
     get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/financial-preview:
@@ -2700,7 +2826,18 @@ paths:
   /bookings/{booking}/cancel:
     post: { tags: [Bookings], summary: Cancel, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/client-confirm:
-    post: { tags: [Bookings], summary: Client confirms, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+    post:
+      tags: [Bookings]
+      summary: Client confirms
+      description: 'The wallet PIN (`pin`) is required only when this booking will actually need a wallet-held deposit — confirming is the client''s own commitment to that hold, taken before the business''s own start() actually freezes it.'
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { pin: { type: string, description: 'Required when the booking''s financial preview shows a non-zero deposit.client_wallet_required.' } } }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /bookings/{booking}/business-confirm:
     post: { tags: [Bookings], summary: Business confirms, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/start:
@@ -2728,18 +2865,27 @@ paths:
   /guarantees/activate:
     post:
       tags: [Guarantees]
-      summary: Subscribe/activate a guarantee level (forces fee + rating consent)
+      summary: Subscribe/activate a guarantee level (forces fee + rating consent). PIN-gated — it spends from the wallet.
       requestBody:
+        required: true
         content:
           application/json:
-            schema: { type: object, properties: { level_id: { type: integer }, target_type: { type: string, enum: [client, business] } } }
-      responses: { '200': { description: OK } }
+            schema: { type: object, required: [pin], properties: { level_id: { type: integer }, target_type: { type: string, enum: [client, business] }, pin: { type: string } } }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /guarantees/unlock:
     post:
       tags: [Guarantees]
-      summary: Unlock the guarantee back to balance
-      requestBody: { content: { application/json: { schema: { type: object, properties: { target_type: { type: string, enum: [client, business] } } } } } }
-      responses: { '200': { description: OK } }
+      summary: Unlock the guarantee back to balance. PIN-gated — it drops the guarantee's coverage for good.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [pin], properties: { target_type: { type: string, enum: [client, business] }, pin: { type: string } } }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /guarantees/check-operation:
     post:
       tags: [Guarantees]
@@ -4263,6 +4409,34 @@ paths:
         '404': { description: 'Not found, or you are not a party to it' }
         '422': { $ref: '#/components/responses/Validation' }
 
+  # ──────────────────── Thread access consent ────────────────────
+  /threads/{thread}/access-status:
+    get:
+      tags: [Thread Access]
+      summary: My and the other party's standing decision on admin read access to this thread
+      parameters: [{ name: thread, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a real party to it' }
+  /threads/{thread}/access-consent:
+    post:
+      tags: [Thread Access]
+      summary: Record my own decision (approve or decline admin read access)
+      parameters: [{ name: thread, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approved, declined] }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a real party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+
   # ──────────────────── Direct chats ────────────────────
   /chats:
     get:
@@ -4292,6 +4466,8 @@ paths:
         '201': { description: 'Created or existing; returns the thread and the other participant(s).' }
         '404': { description: 'That user does not exist' }
         '422': { $ref: '#/components/responses/Validation' }
+  /chats/unread-count:
+    get: { tags: [Chats], summary: 'A lightweight count for a home-screen badge (never the full list)', responses: { '200': { description: OK } } }
   /chats/group:
     post:
       tags: [Chats]
@@ -4532,6 +4708,27 @@ paths:
       responses:
         '200': { description: 'The full card' }
         '422': { description: 'Not a scout account, or insufficient balance' }
+
+  # ──────────────────── Follows ────────────────────
+  /follows:
+    get: { tags: [Follows], summary: Accounts I follow, most-recently-followed first, responses: { '200': { description: OK } } }
+    post:
+      tags: [Follows]
+      summary: Follow an account. Idempotent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [follow_id]
+              properties:
+                follow_id: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /follows/{user}:
+    delete: { tags: [Follows], summary: Unfollow. Idempotent, parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 
   /posts:
     get:
@@ -4825,6 +5022,14 @@ paths:
       security: []
       responses:
         '200': { description: OK }
+  /jobs/mine:
+    get:
+      tags: [Jobs]
+      summary: My own job posts (business only)
+      parameters: [{ $ref: '#/components/parameters/PerPage' }]
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a business account }
   /jobs/mine/stats:
     get: { tags: [Jobs], summary: The signed-in business's counters — jobs_posted, jobs_open, applicants_total, approved_total, responses: { '200': { description: OK }, '403': { description: Not a business account } } }
   /jobs/follows:

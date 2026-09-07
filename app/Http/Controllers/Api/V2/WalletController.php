@@ -97,7 +97,7 @@ final class WalletController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $this->assertPin((int) $request->user()->id, $data['pin']);
+        $this->wallet->assertPinValid((int) $request->user()->id, $data['pin']);
 
         $tx = $this->wallet->withdraw(
             (int) $request->user()->id,
@@ -126,7 +126,7 @@ final class WalletController extends Controller
             throw ValidationException::withMessages(['to_user_id' => [__('لا يمكنك التحويل إلى نفسك.')]]);
         }
 
-        $this->assertPin($fromId, $data['pin']);
+        $this->wallet->assertPinValid($fromId, $data['pin']);
 
         // A transfer out is how money leaves an account for good, so it waits
         // for the cooldown after the last operation or dispute — otherwise a
@@ -198,13 +198,5 @@ final class WalletController extends Controller
         $valid = $this->wallet->verifyPin((int) $request->user()->id, $data['pin']);
 
         return response()->json(['success' => true, 'data' => ['valid' => $valid]]);
-    }
-
-    /** Verify the PIN for a spending action, or 422. */
-    private function assertPin(int $userId, string $pin): void
-    {
-        if (! $this->wallet->verifyPin($userId, $pin)) {
-            throw ValidationException::withMessages(['pin' => [__('رمز المحفظة غير صحيح.')]]);
-        }
     }
 }

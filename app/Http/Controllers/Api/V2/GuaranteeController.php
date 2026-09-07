@@ -9,6 +9,7 @@ use App\Models\UserGuarantee;
 use App\Services\Guarantees\GuaranteeAutoUpgradeService;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\GuaranteeUnlockService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -88,14 +89,20 @@ final class GuaranteeController extends Controller
         ]);
     }
 
-    public function activate(Request $request, GuaranteeAutoUpgradeService $service)
+    public function activate(Request $request, GuaranteeAutoUpgradeService $service, WalletService $wallet)
     {
         $data = $request->validate([
             'level_id' => ['nullable', 'integer', 'exists:guarantee_levels,id'],
             'target_type' => ['nullable', Rule::in([GuaranteeLevel::TARGET_CLIENT, GuaranteeLevel::TARGET_BUSINESS])],
+            'pin' => ['required', 'string'],
         ]);
 
         $user = $request->user();
+
+        // Purchasing/upgrading a level spends from the wallet — same PIN gate
+        // as a direct withdraw/transfer.
+        $wallet->assertPinValid((int) $user->id, $data['pin']);
+
         $targetType = $this->resolveTargetType($request, $data['target_type'] ?? null);
 
         if (! empty($data['level_id'])) {
@@ -148,15 +155,23 @@ final class GuaranteeController extends Controller
     }
 
     /** Unlock the user's guarantee and return its backing money to the wallet. */
-    public function unlock(Request $request, GuaranteeUnlockService $service)
+    public function unlock(Request $request, GuaranteeUnlockService $service, WalletService $wallet)
     {
         $data = $request->validate([
             'target_type' => ['nullable', Rule::in([GuaranteeLevel::TARGET_CLIENT, GuaranteeLevel::TARGET_BUSINESS])],
+            'pin' => ['required', 'string'],
         ]);
+
+        $user = $request->user();
+
+        // Unlocking drops the guarantee's coverage for good, so it is gated
+        // the same as any other action that changes what the wallet PIN
+        // protects — not just plain "money coming in".
+        $wallet->assertPinValid((int) $user->id, $data['pin']);
 
         $targetType = $this->resolveTargetType($request, $data['target_type'] ?? null);
 
-        $result = $service->unlockToBalance($request->user(), $targetType);
+        $result = $service->unlockToBalance($user, $targetType);
 
         return response()->json([
             'success' => true,

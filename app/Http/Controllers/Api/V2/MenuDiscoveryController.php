@@ -205,6 +205,7 @@ final class MenuDiscoveryController extends Controller
             'sale_unit_label' => null,
             'brand_name' => null,
             'available_quantity' => null,
+            'is_featured' => false,
             'variants' => [],
             'extra_groups' => [],
             'extras' => [],
@@ -249,6 +250,9 @@ final class MenuDiscoveryController extends Controller
             'available_quantity' => $item->available_quantity === null
                 ? null
                 : (int) $item->available_quantity,
+            // Doubles as the customer-facing "Bestseller" badge — the same
+            // flag already used to sort featured items first, above.
+            'is_featured' => (bool) $item->is_featured,
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

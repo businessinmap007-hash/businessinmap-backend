@@ -6,6 +6,7 @@ use App\Models\FeedPost;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -93,6 +94,77 @@ class BusinessPageApiTest extends TestCase
 
         $res->assertJsonPath('data.location.governorate', null)
             ->assertJsonPath('data.location.city', null);
+    }
+
+    /**
+     * The info-screen fields (2026-09-07): country_id is rarely set at
+     * signup, but the display must not go blank for almost every business —
+     * it defaults to Egypt rather than leaving the field empty.
+     */
+    public function test_the_business_page_defaults_country_to_egypt_when_unset(): void
+    {
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $egypt = \App\Models\Country::query()->where('iso2', 'EG')->firstOrFail();
+        $res->assertJsonPath('data.location.country.id', $egypt->id);
+    }
+
+    public function test_the_business_page_uses_the_set_country_when_present(): void
+    {
+        $other = \App\Models\Country::query()->where('iso2', '!=', 'EG')->firstOrFail();
+        $this->biz->forceFill(['country_id' => $other->id])->save();
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.location.country.id', $other->id);
+    }
+
+    public function test_the_business_page_includes_its_primary_address(): void
+    {
+        $this->biz->addresses()->create([
+            'address_line' => 'شارع الاختبار',
+            'is_primary' => true,
+        ]);
+        $this->biz->addresses()->create([
+            'address_line' => 'not primary',
+            'is_primary' => false,
+        ]);
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.address', 'شارع الاختبار');
+    }
+
+    public function test_the_business_page_address_is_null_when_none_is_primary(): void
+    {
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.address', null);
+    }
+
+    public function test_the_business_page_includes_category_and_child_names(): void
+    {
+        $root = \App\Models\Category::query()->firstOrFail();
+        $child = \App\Models\CategoryChild::query()->firstOrFail();
+        $this->biz->forceFill(['category_id' => $root->id, 'category_child_id' => $child->id])->save();
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.category.id', $root->id)
+            ->assertJsonPath('data.category.child_id', $child->id)
+            ->assertJsonPath('data.category.child_name.id', $child->id)
+            ->assertJsonPath('data.category.name.id', $root->id);
+    }
+
+    public function test_the_business_page_includes_its_options(): void
+    {
+        $option = \App\Models\Option::query()->firstOrFail();
+        DB::table('option_user')->insert(['user_id' => $this->biz->id, 'option_id' => $option->id]);
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $ids = collect($res->json('data.options'))->pluck('id')->all();
+        $this->assertContains($option->id, $ids);
     }
 
     public function test_the_business_page_includes_its_social_links(): void

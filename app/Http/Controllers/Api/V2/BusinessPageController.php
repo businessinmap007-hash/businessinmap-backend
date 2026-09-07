@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\City;
+use App\Models\Country;
 use App\Models\FeedPost;
 use App\Models\FollowUser;
 use App\Models\Governorate;
+use App\Models\Option;
 use App\Models\User;
 use App\Models\UserOperationRating;
 use App\Services\BusinessHoursService;
@@ -58,6 +60,23 @@ final class BusinessPageController extends Controller
             ->where('follow_id', $business)
             ->exists();
 
+        // A street-level address is optional and lives in the same book a
+        // customer's own delivery addresses do (Address::user_id) — the
+        // business's own is whichever one it flagged primary, same as any
+        // other account. No fallback to fabricate one when none is set.
+        $address = $model->addresses()->where('is_primary', 1)->first();
+
+        // Every account is Egyptian today (see [[location-and-delivery-address]]
+        // convention) but country_id itself is rarely set at signup — default
+        // the *display* to Egypt rather than leaving the field blank for
+        // almost every business on the platform.
+        $countryId = $model->country_id ?: Country::query()->where('iso2', 'EG')->value('id');
+
+        $optionIds = DB::table('option_user')->where('user_id', $business)->pluck('option_id');
+        $options = Option::query()->whereIn('id', $optionIds)->get()
+            ->map(fn (Option $o) => $this->nameOf($o))
+            ->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -68,11 +87,13 @@ final class BusinessPageController extends Controller
                 'image' => $model->image ?: null,
                 'about' => $model->about ?: null,
                 'phone' => $model->phone ?: null,
+                'address' => $address?->address_line,
                 'location' => [
                     'latitude' => $model->latitude !== null ? (float) $model->latitude : null,
                     'longitude' => $model->longitude !== null ? (float) $model->longitude : null,
                     // Admin-area names, not just the GPS point — the info
                     // screen shows "which governorate/city", not a map pin.
+                    'country' => $this->nameOf($countryId ? Country::find($countryId) : null),
                     'governorate' => $this->nameOf(
                         $model->governorate_id ? Governorate::find($model->governorate_id) : null
                     ),
@@ -80,8 +101,11 @@ final class BusinessPageController extends Controller
                 ],
                 'category' => [
                     'id' => $model->category_id !== null ? (int) $model->category_id : null,
+                    'name' => $model->category_id ? $this->nameOf($model->category) : null,
                     'child_id' => $model->category_child_id !== null ? (int) $model->category_child_id : null,
+                    'child_name' => $model->category_child_id ? $this->nameOf($model->categoryChild) : null,
                 ],
+                'options' => $options,
                 'social' => $this->socialLinks($model),
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),

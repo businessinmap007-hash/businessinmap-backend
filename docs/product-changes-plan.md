@@ -100,12 +100,20 @@ ListFormat.multiCompatible)` من Dio نفسه بدل تمرير الـ List خ�
 الصف صح، والصفحة اللي تحته باقية زي ما هي من غير ما تتحرك في نفس الوقت.
 كوميت `fed51f2` (bim_app).
 
-**⚠️ ملاحظة نطاق**: نفس المشكلة (`ListView` أفقي بلا معالجة عجلة الماوس)
-موجودة في **19 ملف تاني** في المشروع (منها: `business_info_screen.dart`
-لصف الألبومات، `menu_items_screen.dart`، `jobs_screen.dart`، شاشات
-الحجوزات/العيادات/المشاريع...). اتصلح بس اللي في شاشة التصنيفات لأنها اللي
-اتذكرت في الملاحظة — الباقي يستاهل مراجعة/إصلاح منفصل لاحقًا بنفس الويدجت
-المشترك، مش أولوية فورية.
+### ✅ باقي الـ16 ملف بنفس مشكلة سكرول العجلة الأفقية (تم)
+نفس السبب أعلاه (`ListView`/`ListView.separated` أفقي، عجلة ماوس عادية بتبعت
+`dy` بس) كان موجود في 16 ملف تاني (17 مكان لأن `training_plan_detail_screen.dart`
+فيه اثنين — صور التمرين وصور الوجبة)، من ضمنهم: `business_info_screen.dart`
+(الألبومات)، `menu_items_screen.dart`/`menu_item_edit_screen.dart`،
+`jobs_screen.dart`، `business_offers_screen.dart`، `business_prices_screen.dart`،
+`operation_chat_screen.dart`، `clinic_management_screen.dart`،
+`deposits_screen.dart`، `edit_post_screen.dart`، `pharmacy_queue_screen.dart`،
+`prescription_detail_screen.dart`، `project_progress_screen.dart`،
+`shop_products_screen.dart`، `incoming_reservations_screen.dart`،
+`training_plan_detail_screen.dart`. كل مكان اتلف بنفس ويدجت
+`MouseWheelHorizontalScroll` الجاهز أصلًا (بلا تكرار منطق) —
+اتأكد بـ`flutter analyze` (0 أخطاء، بس تحذيرات `groupValue`/`onChanged`
+القديمة مش لها علاقة). كوميت `7a440d8` (bim_app).
 
 ---
 
@@ -328,14 +336,14 @@ ListFormat.multiCompatible)` من Dio نفسه بدل تمرير الـ List خ�
 2. ~~**أ.3** (نقل وظائفي)~~ ✅ **تم** — كوميت `4a49404` (شاشة جديدة + مدخل قائمة جانبية، مش حذف بسيط زي ما كان متوقع).
 3. ~~**أ.4** (الفلترة بالخيارات)~~ ✅ **تم** — كوميت `9435514` (باگ حقيقي في تسلسل Dio مع Laravel، مش في منطق الكود المقروء).
 4. ~~**أ.5 + ج** (بروفايل البيزنس)~~ ✅ **تم بالكامل** — كوميتات `a27153e` (bim_app)، `abc5f1b6` (testing).
-5. ~~**أ.6** (سكرول التصنيفات بالماوس)~~ ✅ **تم** — كوميت `fed51f2` (bim_app)؛ 19 ملف تاني فيهم نفس المشكلة لسه مستنيين (راجع الملاحظة تحت أ.6).
-6. ~~**هـ** (نظام الاختيارات القابلة للتسعير + فردي/متعدد)~~ ✅ **تم للمنيو
-   بالكامل** (باك إند + bim_app owner/customer UI، موثّق بالتفصيل فى قسم هـ
-   فوق). توحيد البوكينج (`offering_options`) مع نفس النظام لسه مفتوح.
+5. ~~**أ.6** (سكرول التصنيفات بالماوس)~~ ✅ **تم بالكامل** — كوميت `fed51f2` (شاشة التصنيفات) + كوميت `7a440d8` (باقي الـ16 ملف) (bim_app).
+6. ~~**هـ** (نظام الاختيارات القابلة للتسعير + فردي/متعدد)~~ ✅ **تم بالكامل
+   للمنيو وللحجز** (باك إند + bim_app owner/customer UI، موثّق بالتفصيل فى
+   قسم هـ فوق). توحيد البوكينج (`offering_options`) اتعمل فى كوميت `1767fdd4`
+   (testing) — `offering_option_group_settings` + `ServiceExecutionEngine` +
+   `BookingModifier.selectionType` فى bim_app.
 7. باقي بند (ب) — تحسينات كل خدمة، تُجدول حسب أي خدمة صاحب الأولوية عندنا
    دلوقتي.
-8. إصلاح باقي الـ19 ملف بمشكلة سكرول العجلة الأفقية (راجع أ.6) — أولوية أقل،
-   نفس الويدجت المشترك جاهز فعلًا.
 
 > كل بند في القسم (ب) و(ج توسّع) و(د) و(هـ نقطة 2-4) لسه **للنقاش** مش
 > معتمد للتنفيذ المباشر — الأقسام (أ) بس هي إصلاحات مؤكدة بالكود ومافيش

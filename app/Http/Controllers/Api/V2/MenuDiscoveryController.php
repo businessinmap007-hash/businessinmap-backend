@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\MenuBundle;
+use App\Models\MenuBundleItem;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\User;
@@ -88,6 +90,28 @@ final class MenuDiscoveryController extends Controller
             $out[] = $heading;
         }
 
+        // Fixed-composition combos ("وجبة العيلة") — rendered as their own
+        // heading at the very top so the customer sees them before the raw
+        // menu, same reuse-the-section-shape approach as everywhere else in
+        // this response: one more "items" array, no new client-side widget.
+        $bundles = MenuBundle::query()
+            ->where('business_id', $business)
+            ->where('is_active', true)
+            ->with('items.menuItem')
+            ->orderByRaw('COALESCE(sort_order, 999999) ASC')
+            ->orderBy('id')
+            ->get();
+
+        if ($bundles->isNotEmpty()) {
+            array_unshift($out, [
+                'id' => null,
+                'name' => __('باقات مجمّعة'),
+                'source' => 'bundle',
+                'option_ids' => [],
+                'items' => $bundles->map(fn (MenuBundle $b) => $this->bundlePayload($b))->values(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -152,12 +176,48 @@ final class MenuDiscoveryController extends Controller
         return $out;
     }
 
+    /**
+     * A bundle's card in the menu: its own name, its computed price, and a
+     * description built from the component list ("برجر × 1، بطاطس × 1،
+     * مشروب × 1") so what's inside is visible without any new UI — the
+     * client already renders `description` under the name for a plain item.
+     */
+    private function bundlePayload(MenuBundle $bundle): array
+    {
+        $contents = $bundle->items->map(function (MenuBundleItem $i) {
+            $item = $i->menuItem;
+            $name = $item ? $this->label($item->name_ar, $item->name_en, '#' . $i->menu_item_id) : ('#' . $i->menu_item_id);
+
+            return $i->qty > 1 ? ($name . ' × ' . $i->qty) : $name;
+        })->values()->all();
+
+        return [
+            'id' => (int) $bundle->id,
+            'kind' => 'bundle',
+            'name' => $this->label($bundle->name_ar, $bundle->name_en, __('باقة #') . $bundle->id),
+            'description' => implode('، ', $contents),
+            'offering_label' => null,
+            'option_ids' => [],
+            'image' => null,
+            'images' => [],
+            'base_price' => $bundle->price(),
+            'sale_unit' => null,
+            'sale_unit_label' => null,
+            'brand_name' => null,
+            'available_quantity' => null,
+            'variants' => [],
+            'extra_groups' => [],
+            'extras' => [],
+        ];
+    }
+
     private function itemPayload(MenuItem $item): array
     {
         $base = (float) $item->base_price;
 
         return [
             'id' => (int) $item->id,
+            'kind' => 'menu',
             'name' => $this->label($item->name_ar, $item->name_en, __('صنف #') . $item->id),
             'description' => $this->label($item->description_ar, $item->description_en, ''),
             // «غرفة نوم — مودرن»: what the item is in the platform's own words,

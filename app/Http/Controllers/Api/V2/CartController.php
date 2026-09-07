@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessCatalogListing;
+use App\Models\MenuBundle;
 use App\Models\MenuItem;
 use App\Models\MerchantPayment;
 use App\Models\Order;
@@ -59,7 +60,7 @@ final class CartController extends Controller
     public function addItem(Request $request)
     {
         $data = $request->validate([
-            'kind' => ['required', 'in:retail,menu'],
+            'kind' => ['required', 'in:retail,menu,bundle'],
             'offering_id' => ['required', 'integer', 'min:1'],
             'qty' => ['nullable', 'integer', 'min:1', 'max:999'],
             'size_id' => ['nullable', 'integer', 'min:1'],
@@ -161,7 +162,11 @@ final class CartController extends Controller
 
         $items = $order->items->map(fn ($line) => [
             'id' => (int) $line->id,
-            'kind' => $line->offering_type === BusinessCatalogListing::class ? 'retail' : 'menu',
+            'kind' => match ($line->offering_type) {
+                BusinessCatalogListing::class => 'retail',
+                MenuBundle::class => 'bundle',
+                default => 'menu',
+            },
             'offering_id' => (int) $line->offering_id,
             // the label frozen when the line was added wins: it says what the
             // customer picked («غرفة نوم — مودرن»), not what the item is called today
@@ -223,11 +228,17 @@ final class CartController extends Controller
     {
         $menuIds = $order->items->where('offering_type', MenuItem::class)->pluck('offering_id')->filter()->unique();
         $listingIds = $order->items->where('offering_type', BusinessCatalogListing::class)->pluck('offering_id')->filter()->unique();
+        $bundleIds = $order->items->where('offering_type', MenuBundle::class)->pluck('offering_id')->filter()->unique();
 
-        $names = [MenuItem::class => [], BusinessCatalogListing::class => []];
+        $names = [MenuItem::class => [], BusinessCatalogListing::class => [], MenuBundle::class => []];
 
         if ($menuIds->isNotEmpty()) {
             $names[MenuItem::class] = MenuItem::query()->whereIn('id', $menuIds)
+                ->pluck('name_ar', 'id')->map(fn ($n) => (string) $n)->all();
+        }
+
+        if ($bundleIds->isNotEmpty()) {
+            $names[MenuBundle::class] = MenuBundle::query()->whereIn('id', $bundleIds)
                 ->pluck('name_ar', 'id')->map(fn ($n) => (string) $n)->all();
         }
 

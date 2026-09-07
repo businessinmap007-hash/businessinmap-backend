@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V2\AlbumController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
+use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\MenuMarketCatalogController;
@@ -727,6 +728,17 @@ Route::prefix('v2')->group(function () {
             Route::get('market-catalog', [MenuMarketCatalogController::class, 'index']);
             Route::post('market-catalog', [MenuMarketCatalogController::class, 'save']);
             Route::put('market-catalog/low-stock-threshold', [MenuMarketCatalogController::class, 'updateLowStockThreshold']);
+
+            // Fixed-composition combos ("وجبة العيلة") — a named, priced set
+            // of the business's own menu items. Edited as a whole (no
+            // per-component sub-endpoints, unlike variants/extras): the
+            // composition is fixed by design, not something a customer or
+            // this screen builds up incrementally.
+            Route::get('bundles', [BusinessMenuBundleController::class, 'index']);
+            Route::post('bundles', [BusinessMenuBundleController::class, 'store']);
+            Route::get('bundles/{bundle}', [BusinessMenuBundleController::class, 'show'])->whereNumber('bundle');
+            Route::match(['put', 'patch'], 'bundles/{bundle}', [BusinessMenuBundleController::class, 'update'])->whereNumber('bundle');
+            Route::delete('bundles/{bundle}', [BusinessMenuBundleController::class, 'destroy'])->whereNumber('bundle');
         });
 
         // Business pricing: one row per (service, item type). `options` returns

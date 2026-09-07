@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Address;
 use App\Models\BusinessCatalogListing;
 use App\Models\BusinessMenuSetting;
+use App\Models\MenuBundle;
+use App\Models\MenuBundleItem;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemExtraGroup;
@@ -49,6 +51,7 @@ class CustomerCartService
     private const KINDS = [
         'retail' => BusinessCatalogListing::class,
         'menu' => MenuItem::class,
+        'bundle' => MenuBundle::class,
     ];
 
     public function __construct(
@@ -1000,6 +1003,29 @@ class CustomerCartService
             }
 
             return [(int) $listing->business_id, $type, (float) $listing->price, null, null, null];
+        }
+
+        if ($type === MenuBundle::class) {
+            $bundle = MenuBundle::query()->where('is_active', 1)->with('items.menuItem')->find($offeringId);
+
+            if (! $bundle) {
+                throw ValidationException::withMessages(['offering_id' => __('الباقة غير متاحة.')]);
+            }
+
+            // The component list rides along as the line's own "addons" —
+            // same column the menu-extras snapshot uses, and the app already
+            // renders addons' names as sub-text under a line, which is
+            // exactly "what's inside this bundle". price=0 on each: the
+            // bundle's own price (below) already covers the whole thing, so
+            // nothing here should be summed into anything.
+            $contents = $bundle->items->map(fn (MenuBundleItem $i) => [
+                'id' => (int) $i->menu_item_id,
+                'name' => (string) ($i->menuItem?->loc('name') ?: ('#' . $i->menu_item_id)),
+                'price' => 0.0,
+                'qty' => (int) $i->qty,
+            ])->values()->all();
+
+            return [(int) $bundle->business_id, $type, $bundle->price(), null, null, $contents ?: null];
         }
 
         $menu = MenuItem::query()->where('is_active', 1)->find($offeringId);

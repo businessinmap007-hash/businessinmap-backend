@@ -2172,6 +2172,45 @@ paths:
               properties:
                 low_stock_threshold: { type: integer, minimum: 0, nullable: true }
       responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/menu/bundles:
+    get:
+      tags: [Business Menu]
+      summary: List the business's own bundles ("وجبة العيلة") — fixed-composition combos of its own menu items, each with its computed price
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Menu]
+      summary: Create a bundle. Composition is edited as a whole list, not incrementally — items always replaces the full set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name_ar, pricing_mode, items]
+              properties:
+                name_ar: { type: string }
+                name_en: { type: string }
+                pricing_mode: { type: string, enum: [fixed, discount_percent, discount_fixed], description: 'fixed = a flat price for the whole bundle. discount_percent/discount_fixed = the live sum of the components'' own current prices, minus a percentage or flat discount.' }
+                fixed_price: { type: number, minimum: 0, description: Required when pricing_mode=fixed. }
+                discount_value: { type: number, minimum: 0, maximum: 100, description: 'Required when pricing_mode is a discount mode. Percent (0-100) for discount_percent, a flat amount for discount_fixed.' }
+                is_active: { type: boolean }
+                sort_order: { type: integer }
+                items:
+                  type: array
+                  minItems: 2
+                  description: At least 2 components — one item under its own name is not a bundle.
+                  items:
+                    type: object
+                    required: [menu_item_id]
+                    properties:
+                      menu_item_id: { type: integer, description: Must belong to this business. }
+                      qty: { type: integer, minimum: 1, maximum: 99 }
+      responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/menu/bundles/{bundle}:
+    parameters: [{ name: bundle, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Menu], summary: Bundle detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    patch: { tags: [Business Menu], summary: Update a bundle (same body as create; items replaces the whole composition), responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Business Menu], summary: Delete a bundle, responses: { '200': { description: OK } } }
 
   # ─────────────────────── Business Prices ───────────────────────
   /business/prices:

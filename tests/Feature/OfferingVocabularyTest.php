@@ -103,6 +103,30 @@ class OfferingVocabularyTest extends TestCase
         );
     }
 
+    /**
+     * A simple, single-name good ("بطاطس") is often tagged under a
+     * vocabulary line option that is literally its own name — the fix for
+     * the live-reported "Potato — Potato" order line.
+     */
+    public function test_a_line_matching_the_items_own_name_is_not_repeated(): void
+    {
+        $business = $this->business();
+        $line = $this->optionInRole(OptionGroup::ROLE_LINE);
+        $ownName = \App\Models\Option::query()->find($line->id)->displayName;
+
+        $item = MenuItem::create([
+            'business_id' => $business->id,
+            'name_ar' => 'صنف اختبار',
+            'base_price' => 100,
+            'is_active' => 1,
+            'sort_order' => 0,
+        ]);
+
+        $item->syncOfferingOptions($line->id, []);
+
+        $this->assertSame($ownName, $item->offeringLabel($ownName));
+    }
+
     /** Two lines would mean two different things sold at one price. */
     public function test_an_offering_holds_at_most_one_line(): void
     {

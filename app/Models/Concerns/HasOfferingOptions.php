@@ -187,11 +187,18 @@ trait HasOfferingOptions
      */
     public function offeringLabel(?string $fallback = null): string
     {
+        $fallback = $fallback !== null ? trim($fallback) : null;
+
         $parts = collect([$this->lineOption()])
             ->merge($this->modifierOptions())
             ->filter()
             ->map(fn (Option $o) => $o->displayName ?? $o->name_ar)
             ->filter()
+            // A simple, single-name good is often tagged under a vocabulary
+            // line option that is literally its own name — «بطاطس» sold
+            // under the line «بطاطس» — so appending it verbatim would read
+            // as «بطاطس — بطاطس» instead of just «بطاطس».
+            ->reject(fn ($part) => $fallback !== null && trim($part) === $fallback)
             ->values();
 
         if ($parts->isEmpty()) {

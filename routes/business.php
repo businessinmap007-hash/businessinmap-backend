@@ -17,6 +17,7 @@ use App\Http\Controllers\Business\MenuMarketCatalogController;
 use App\Http\Controllers\Business\MenuPharmacyCatalogController;
 use App\Http\Controllers\Business\MenuReviewController;
 use App\Http\Controllers\Business\MenuItemExtraController;
+use App\Http\Controllers\Business\MenuItemExtraGroupController;
 use App\Http\Controllers\Business\MenuItemVariantController;
 use App\Http\Controllers\Business\MenuSectionController;
 use App\Http\Controllers\Business\ShareStoreController;
@@ -182,6 +183,9 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::post('menu/{menuItem}/variants', [MenuItemVariantController::class, 'store'])->whereNumber('menuItem')->name('menu.variants.store');
         Route::put('menu/{menuItem}/variants/{variant}', [MenuItemVariantController::class, 'update'])->whereNumber(['menuItem', 'variant'])->name('menu.variants.update');
         Route::delete('menu/{menuItem}/variants/{variant}', [MenuItemVariantController::class, 'destroy'])->whereNumber(['menuItem', 'variant'])->name('menu.variants.destroy');
+        Route::post('menu/{menuItem}/extra-groups', [MenuItemExtraGroupController::class, 'store'])->whereNumber('menuItem')->name('menu.extra-groups.store');
+        Route::put('menu/{menuItem}/extra-groups/{group}', [MenuItemExtraGroupController::class, 'update'])->whereNumber(['menuItem', 'group'])->name('menu.extra-groups.update');
+        Route::delete('menu/{menuItem}/extra-groups/{group}', [MenuItemExtraGroupController::class, 'destroy'])->whereNumber(['menuItem', 'group'])->name('menu.extra-groups.destroy');
         Route::post('menu/{menuItem}/extras', [MenuItemExtraController::class, 'store'])->whereNumber('menuItem')->name('menu.extras.store');
         Route::put('menu/{menuItem}/extras/{extra}', [MenuItemExtraController::class, 'update'])->whereNumber(['menuItem', 'extra'])->name('menu.extras.update');
         Route::delete('menu/{menuItem}/extras/{extra}', [MenuItemExtraController::class, 'destroy'])->whereNumber(['menuItem', 'extra'])->name('menu.extras.destroy');

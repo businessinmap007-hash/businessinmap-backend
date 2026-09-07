@@ -158,6 +158,21 @@ class MenuItem extends Model
             ->where('is_active', true);
     }
 
+    public function extraGroups(): HasMany
+    {
+        return $this->hasMany(MenuItemExtraGroup::class, 'menu_item_id')
+            ->orderBy('reorder')
+            ->orderBy('id');
+    }
+
+    public function activeExtraGroups(): HasMany
+    {
+        return $this->hasMany(MenuItemExtraGroup::class, 'menu_item_id')
+            ->where('is_active', true)
+            ->orderBy('reorder')
+            ->orderBy('id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

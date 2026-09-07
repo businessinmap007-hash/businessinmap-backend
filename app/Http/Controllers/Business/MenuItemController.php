@@ -152,6 +152,7 @@ class MenuItemController extends Controller
         $row = $this->scopedItem($id);
         $row->load([
             'variants' => fn ($q) => $q->orderBy('id'),
+            'extraGroups',
             'extras' => fn ($q) => $q->orderBy('id'),
             'images',
         ]);

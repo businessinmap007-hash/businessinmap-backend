@@ -52,9 +52,19 @@ class MenuItemResource extends JsonResource
                 'is_active' => (bool) $v->is_active,
             ])->values()),
 
+            'extra_groups' => $this->whenLoaded('extraGroups', fn () => $this->extraGroups->map(fn ($g) => [
+                'id' => (int) $g->id,
+                'name' => $g->loc('name'),
+                'name_ar' => $g->name_ar,
+                'name_en' => $g->name_en,
+                'selection_type' => $g->selection_type,
+                'reorder' => (int) $g->reorder,
+                'is_active' => (bool) $g->is_active,
+            ])->values()),
+
             'extras' => $this->whenLoaded('extras', fn () => $this->extras->map(fn ($e) => [
                 'id' => (int) $e->id,
-                'group_key' => $e->group_key,
+                'extra_group_id' => $e->extra_group_id !== null ? (int) $e->extra_group_id : null,
                 'name' => $e->loc('name'),
                 'name_ar' => $e->name_ar,
                 'name_en' => $e->name_en,

@@ -7,6 +7,7 @@ use App\Models\BusinessCatalogListing;
 use App\Models\BusinessMenuSetting;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
+use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
 use App\Models\AppNotification;
 use App\Models\BusinessTable;
@@ -941,6 +942,28 @@ class CustomerCartService
 
         if ($rows->count() !== count($wanted)) {
             throw ValidationException::withMessages(['extras' => __('إحدى الإضافات المختارة غير متاحة.')]);
+        }
+
+        // A "single" group is a radio button, not a checkbox — the customer
+        // (or a client bug, or a direct API call bypassing the UI) must not
+        // be able to price in two options from a group the business owner
+        // explicitly said is one-or-the-other.
+        $singleGroupIds = MenuItemExtraGroup::query()
+            ->where('menu_item_id', $menuItemId)
+            ->where('selection_type', MenuItemExtraGroup::SELECTION_SINGLE)
+            ->pluck('id');
+
+        if ($singleGroupIds->isNotEmpty()) {
+            $picksPerGroup = $rows->whereIn('extra_group_id', $singleGroupIds)
+                ->groupBy('extra_group_id');
+
+            foreach ($picksPerGroup as $groupRows) {
+                if ($groupRows->count() > 1) {
+                    throw ValidationException::withMessages([
+                        'extras' => __('يجب اختيار خيار واحد فقط من :group.', ['group' => $groupRows->first()->group?->display_name ?? '']),
+                    ]);
+                }
+            }
         }
 
         return $rows->sortBy('id')->map(function (MenuItemExtra $x) use ($wanted) {

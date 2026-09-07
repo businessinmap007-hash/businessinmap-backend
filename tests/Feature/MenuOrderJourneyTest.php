@@ -86,7 +86,6 @@ class MenuOrderJourneyTest extends TestCase
             'name_ar' => 'أرز إضافي',
             'price' => 15,
             'is_active' => true,
-            'group_key' => 'sides',
         ]);
 
         return $business->fresh();

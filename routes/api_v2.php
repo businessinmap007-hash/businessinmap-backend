@@ -691,6 +691,10 @@ Route::prefix('v2')->group(function () {
             Route::match(['put', 'patch'], 'items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'updateVariant'])->whereNumber(['item', 'variant']);
             Route::delete('items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'destroyVariant'])->whereNumber(['item', 'variant']);
 
+            Route::post('items/{item}/extra-groups', [BusinessMenuItemController::class, 'storeExtraGroup'])->whereNumber('item');
+            Route::match(['put', 'patch'], 'items/{item}/extra-groups/{group}', [BusinessMenuItemController::class, 'updateExtraGroup'])->whereNumber(['item', 'group']);
+            Route::delete('items/{item}/extra-groups/{group}', [BusinessMenuItemController::class, 'destroyExtraGroup'])->whereNumber(['item', 'group']);
+
             Route::post('items/{item}/extras', [BusinessMenuItemController::class, 'storeExtra'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'updateExtra'])->whereNumber(['item', 'extra']);
             Route::delete('items/{item}/extras/{extra}', [BusinessMenuItemController::class, 'destroyExtra'])->whereNumber(['item', 'extra']);

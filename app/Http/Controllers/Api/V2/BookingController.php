@@ -261,7 +261,7 @@ final class BookingController extends Controller
         $user = $request->user();
 
         if (! $user || ! $user->isClient()) {
-            return $this->error('Client account is required.', 403);
+            return $this->error(__('لا يمكن الحجز إلا بحساب عميل.'), 403);
         }
 
         $data = $request->validate($this->storeRules());

@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
+use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
 use App\Models\MenuSection;
 
@@ -48,14 +49,32 @@ trait SeedsMenu
         ]);
     }
 
-    protected function seedExtra(MenuItem $item, string $nameAr = 'جبنة زيادة', float $price = 10.0, int $maxQty = 3): MenuItemExtra
-    {
+    protected function seedExtra(
+        MenuItem $item,
+        string $nameAr = 'جبنة زيادة',
+        float $price = 10.0,
+        int $maxQty = 3,
+        ?int $extraGroupId = null
+    ): MenuItemExtra {
         return MenuItemExtra::create([
             'menu_item_id' => $item->id,
-            'group_key' => null,
+            'extra_group_id' => $extraGroupId,
             'name_ar' => $nameAr,
             'price' => $price,
             'max_qty' => $maxQty,
+            'is_active' => 1,
+        ]);
+    }
+
+    protected function seedExtraGroup(
+        MenuItem $item,
+        string $nameAr = 'الصوص',
+        string $selectionType = MenuItemExtraGroup::SELECTION_MULTIPLE
+    ): MenuItemExtraGroup {
+        return MenuItemExtraGroup::create([
+            'menu_item_id' => $item->id,
+            'name_ar' => $nameAr,
+            'selection_type' => $selectionType,
             'is_active' => 1,
         ]);
     }

@@ -8,6 +8,7 @@ use App\Models\MenuItemExtra;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 /**
  * Owner-panel management of a menu item's extras (add-ons: إضافة جبنة، صوص …).
@@ -25,7 +26,7 @@ class MenuItemExtraController extends Controller
     public function store(Request $request, int $menuItem): RedirectResponse
     {
         $item = $this->ownItem($menuItem);
-        MenuItemExtra::create($this->validateData($request) + ['menu_item_id' => $item->id]);
+        MenuItemExtra::create($this->validateData($request, $item) + ['menu_item_id' => $item->id]);
 
         return back()->with('success', 'تمت إضافة الإضافة بنجاح.');
     }
@@ -34,7 +35,7 @@ class MenuItemExtraController extends Controller
     {
         $item = $this->ownItem($menuItem);
         $row = MenuItemExtra::query()->where('menu_item_id', $item->id)->findOrFail($extra);
-        $row->update($this->validateData($request));
+        $row->update($this->validateData($request, $item));
 
         return back()->with('success', 'تم تحديث الإضافة بنجاح.');
     }
@@ -47,10 +48,10 @@ class MenuItemExtraController extends Controller
         return back()->with('success', 'تم حذف الإضافة بنجاح.');
     }
 
-    protected function validateData(Request $request): array
+    protected function validateData(Request $request, MenuItem $item): array
     {
         $data = $request->validate([
-            'group_key' => ['nullable', 'string', 'max:50'],
+            'extra_group_id' => ['nullable', 'integer', Rule::exists('menu_item_extra_groups', 'id')->where('menu_item_id', $item->id)],
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
             'price' => ['required', 'numeric', 'min:0'],
@@ -59,7 +60,7 @@ class MenuItemExtraController extends Controller
         ], [], ['name_ar' => 'اسم الإضافة', 'price' => 'السعر']);
 
         return [
-            'group_key' => trim((string) ($data['group_key'] ?? '')) ?: null,
+            'extra_group_id' => ($data['extra_group_id'] ?? null) ?: null,
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'price' => round((float) $data['price'], 2),

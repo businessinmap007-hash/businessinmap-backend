@@ -109,6 +109,61 @@
     </table>
 </div>
 
+{{-- ───────── مجموعات الإضافات (extra groups) ───────── --}}
+<div class="a2-card a2-card--section" style="margin-top:20px;">
+    <div class="a2-card-head">
+        <div>
+            <div class="a2-card-title">{{ __('مجموعات الإضافات') }}</div>
+            <div class="a2-card-sub">{{ __('اختيار واحد = راديو بوتون (زي المقاس)، اختيار متعدد = تشيك بوكس (زي الصوصات).') }}</div>
+        </div>
+    </div>
+
+    <table class="a2-table">
+        <thead><tr><th>{{ __('اسم المجموعة') }}</th><th>{{ __('نوع الاختيار') }}</th><th>{{ __('نشط') }}</th><th></th></tr></thead>
+        <tbody>
+        @forelse($row->extraGroups as $g)
+            <tr>
+                <form method="POST" action="{{ route('business.menu.extra-groups.update', [$row->id, $g->id]) }}">
+                    @csrf @method('PUT')
+                    <td><input class="a2-input" name="name_ar" value="{{ $g->name_ar }}" required></td>
+                    <td>
+                        <select class="a2-input" name="selection_type">
+                            <option value="single" @selected($g->selection_type === 'single')>{{ __('اختيار واحد (راديو بوتون)') }}</option>
+                            <option value="multiple" @selected($g->selection_type === 'multiple')>{{ __('اختيار متعدد (تشيك بوكس)') }}</option>
+                        </select>
+                    </td>
+                    <td><input type="checkbox" name="is_active" value="1" @checked($g->is_active)></td>
+                    <td>
+                        <button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
+                </form>
+                        <form method="POST" action="{{ route('business.menu.extra-groups.destroy', [$row->id, $g->id]) }}" style="display:inline" onsubmit="return confirm('{{ __('حذف هذه المجموعة؟ الإضافات اللي جواها هتفضل موجودة بدون مجموعة.') }}')">
+                            @csrf @method('DELETE')
+                            <button class="a2-btn a2-btn-sm a2-btn-ghost" type="submit">{{ __('حذف') }}</button>
+                        </form>
+                    </td>
+            </tr>
+        @empty
+            <tr><td colspan="4" class="a2-muted">{{ __('لا مجموعات بعد — الإضافات تظهر مستقلة (تشيك بوكس) بدون مجموعة.') }}</td></tr>
+        @endforelse
+            {{-- add new group --}}
+            <tr>
+                <form method="POST" action="{{ route('business.menu.extra-groups.store', $row->id) }}">
+                    @csrf
+                    <td><input class="a2-input" name="name_ar" placeholder="{{ __('الصوص') }}" required></td>
+                    <td>
+                        <select class="a2-input" name="selection_type">
+                            <option value="single">{{ __('اختيار واحد (راديو بوتون)') }}</option>
+                            <option value="multiple" selected>{{ __('اختيار متعدد (تشيك بوكس)') }}</option>
+                        </select>
+                    </td>
+                    <td><input type="checkbox" name="is_active" value="1" checked></td>
+                    <td><button class="a2-btn a2-btn-sm a2-btn-primary" type="submit">{{ __('إضافة مجموعة') }}</button></td>
+                </form>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
 {{-- ───────── الإضافات (extras) ───────── --}}
 <div class="a2-card a2-card--section" style="margin-top:20px;">
     <div class="a2-card-head">
@@ -125,7 +180,14 @@
             <tr>
                 <form method="POST" action="{{ route('business.menu.extras.update', [$row->id, $x->id]) }}">
                     @csrf @method('PUT')
-                    <td><input class="a2-input" name="group_key" value="{{ $x->group_key }}" placeholder="—" style="width:110px"></td>
+                    <td>
+                        <select class="a2-input" name="extra_group_id" style="width:130px">
+                            <option value="">{{ __('بدون مجموعة') }}</option>
+                            @foreach($row->extraGroups as $g)
+                                <option value="{{ $g->id }}" @selected($x->extra_group_id === $g->id)>{{ $g->name_ar }}</option>
+                            @endforeach
+                        </select>
+                    </td>
                     <td><input class="a2-input" name="name_ar" value="{{ $x->name_ar }}" required></td>
                     <td><input class="a2-input" name="price" value="{{ $x->price }}" inputmode="decimal" style="width:90px" required></td>
                     <td><input class="a2-input" name="max_qty" value="{{ $x->max_qty }}" type="number" min="1" max="99" style="width:70px"></td>
@@ -146,7 +208,14 @@
             <tr>
                 <form method="POST" action="{{ route('business.menu.extras.store', $row->id) }}">
                     @csrf
-                    <td><input class="a2-input" name="group_key" placeholder="{{ __('اختياري') }}" style="width:110px"></td>
+                    <td>
+                        <select class="a2-input" name="extra_group_id" style="width:130px">
+                            <option value="">{{ __('بدون مجموعة') }}</option>
+                            @foreach($row->extraGroups as $g)
+                                <option value="{{ $g->id }}">{{ $g->name_ar }}</option>
+                            @endforeach
+                        </select>
+                    </td>
                     <td><input class="a2-input" name="name_ar" placeholder="{{ __('جبنة زيادة') }}" required></td>
                     <td><input class="a2-input" name="price" inputmode="decimal" placeholder="{{ __('سعر') }}" style="width:90px" required></td>
                     <td><input class="a2-input" name="max_qty" type="number" min="1" max="99" value="1" style="width:70px"></td>

@@ -38,7 +38,8 @@ final class MenuDiscoveryController extends Controller
             ->where('is_active', true)
             ->with([
                 'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
-                'activeExtras' => fn ($q) => $q->orderBy('group_key')->orderBy('id'),
+                'activeExtras' => fn ($q) => $q->orderBy('extra_group_id')->orderBy('id'),
+                'activeExtraGroups',
                 'offeringOptions.option.group',
                 'section',
                 'images',
@@ -195,10 +196,19 @@ final class MenuDiscoveryController extends Controller
                 'price' => $v->resolvePrice($base),
                 'is_default' => (bool) $v->is_default,
             ])->values(),
+            // Groups first (each with its own selection_type — 'single' means
+            // the client must render a radio, not a checkbox, and enforce
+            // exactly one pick before "add to cart" makes sense) so the
+            // client never has to guess grouping/type from the flat list.
+            'extra_groups' => $item->activeExtraGroups->map(fn ($g) => [
+                'id' => (int) $g->id,
+                'name' => $this->label($g->name_ar, $g->name_en, __('مجموعة #') . $g->id),
+                'selection_type' => $g->selection_type,
+            ])->values(),
             'extras' => $item->activeExtras->map(fn ($e) => [
                 'id' => (int) $e->id,
                 'name' => $this->label($e->name_ar, $e->name_en, __('إضافة #') . $e->id),
-                'group_key' => $e->group_key,
+                'extra_group_id' => $e->extra_group_id !== null ? (int) $e->extra_group_id : null,
                 'price' => (float) $e->price,
                 'max_qty' => (int) ($e->max_qty ?: 1),
             ])->values(),

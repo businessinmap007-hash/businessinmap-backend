@@ -16,7 +16,7 @@ class MenuItemExtra extends Model
 
     protected $fillable = [
         'menu_item_id',
-        'group_key',
+        'extra_group_id',
         'name_ar',
         'name_en',
         'price',
@@ -26,6 +26,7 @@ class MenuItemExtra extends Model
 
     protected $casts = [
         'menu_item_id' => 'integer',
+        'extra_group_id' => 'integer',
         'price' => 'decimal:2',
         'max_qty' => 'integer',
         'is_active' => 'boolean',
@@ -34,6 +35,11 @@ class MenuItemExtra extends Model
     public function menuItem(): BelongsTo
     {
         return $this->belongsTo(MenuItem::class, 'menu_item_id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(MenuItemExtraGroup::class, 'extra_group_id');
     }
 
     public function scopeActive(Builder $query): Builder

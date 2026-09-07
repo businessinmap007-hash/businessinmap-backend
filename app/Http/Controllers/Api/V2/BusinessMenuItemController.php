@@ -7,6 +7,7 @@ use App\Http\Resources\V2\MenuItemResource;
 use App\Models\Image;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
+use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
 use App\Services\Media\ImageUploadService;
 use App\Support\SaleUnits;
@@ -58,6 +59,7 @@ final class BusinessMenuItemController extends Controller
         $model = $this->ownItem($request, $item);
         $model->load([
             'variants' => fn ($q) => $q->orderBy('id'),
+            'extraGroups',
             'extras' => fn ($q) => $q->orderBy('id'),
             'images',
         ]);
@@ -201,13 +203,47 @@ final class BusinessMenuItemController extends Controller
         return response()->json(['success' => true]);
     }
 
+    // ────────────────────────── Extra groups ──────────────────────────
+
+    /** POST /api/v2/business/menu/items/{item}/extra-groups */
+    public function storeExtraGroup(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+        $group = $model->extraGroups()->create($this->validatedExtraGroup($request));
+
+        return response()->json(['success' => true, 'data' => ['id' => (int) $group->id]], 201);
+    }
+
+    /** PUT/PATCH /api/v2/business/menu/items/{item}/extra-groups/{group} */
+    public function updateExtraGroup(Request $request, int $item, int $group)
+    {
+        $model = $this->ownItem($request, $item);
+        MenuItemExtraGroup::query()->where('menu_item_id', $model->id)->findOrFail($group)
+            ->update($this->validatedExtraGroup($request));
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * DELETE /api/v2/business/menu/items/{item}/extra-groups/{group}
+     * Its extras are not deleted — they fall back to standalone (nullOnDelete
+     * on extra_group_id), same as an item losing its menu section.
+     */
+    public function destroyExtraGroup(Request $request, int $item, int $group)
+    {
+        $model = $this->ownItem($request, $item);
+        MenuItemExtraGroup::query()->where('menu_item_id', $model->id)->findOrFail($group)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     // ─────────────────────────── Extras ───────────────────────────
 
     /** POST /api/v2/business/menu/items/{item}/extras */
     public function storeExtra(Request $request, int $item)
     {
         $model = $this->ownItem($request, $item);
-        $extra = $model->extras()->create($this->validatedExtra($request));
+        $extra = $model->extras()->create($this->validatedExtra($request, $model));
 
         return response()->json(['success' => true, 'data' => ['id' => (int) $extra->id]], 201);
     }
@@ -217,7 +253,7 @@ final class BusinessMenuItemController extends Controller
     {
         $model = $this->ownItem($request, $item);
         MenuItemExtra::query()->where('menu_item_id', $model->id)->findOrFail($extra)
-            ->update($this->validatedExtra($request));
+            ->update($this->validatedExtra($request, $model));
 
         return response()->json(['success' => true]);
     }
@@ -306,10 +342,12 @@ final class BusinessMenuItemController extends Controller
     }
 
     /** @return array<string,mixed> */
-    private function validatedExtra(Request $request): array
+    private function validatedExtra(Request $request, MenuItem $item): array
     {
         $data = $request->validate([
-            'group_key' => ['nullable', 'string', 'max:50'],
+            // Must belong to the SAME item — an id from someone else's menu
+            // (or a different item of the caller's own) must not slip in.
+            'extra_group_id' => ['nullable', 'integer', Rule::exists('menu_item_extra_groups', 'id')->where('menu_item_id', $item->id)],
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
             'price' => ['required', 'numeric', 'min:0'],
@@ -318,11 +356,31 @@ final class BusinessMenuItemController extends Controller
         ]);
 
         return [
-            'group_key' => trim((string) ($data['group_key'] ?? '')) ?: null,
+            'extra_group_id' => ($data['extra_group_id'] ?? null) ?: null,
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'price' => round((float) $data['price'], 2),
             'max_qty' => (int) ($data['max_qty'] ?? 1),
+            'is_active' => $request->boolean('is_active', true),
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function validatedExtraGroup(Request $request): array
+    {
+        $data = $request->validate([
+            'name_ar' => ['required', 'string', 'max:100'],
+            'name_en' => ['nullable', 'string', 'max:100'],
+            'selection_type' => ['required', Rule::in(MenuItemExtraGroup::SELECTION_TYPES)],
+            'reorder' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        return [
+            'name_ar' => trim((string) $data['name_ar']),
+            'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
+            'selection_type' => $data['selection_type'],
+            'reorder' => max(0, (int) ($data['reorder'] ?? 0)),
             'is_active' => $request->boolean('is_active', true),
         ];
     }

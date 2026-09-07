@@ -15,6 +15,7 @@ use App\Services\FinancialLedgerService;
 use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
+use App\Services\WalletService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -32,7 +33,8 @@ final class BookingController extends Controller
         protected AgendaService $agenda,
         protected BookingShapeResolver $bookingShapes,
         protected FinancialLedgerService $ledger,
-        protected AllocationConsumptionService $allocationConsumption
+        protected AllocationConsumptionService $allocationConsumption,
+        protected WalletService $wallet
     ) {
     }
 
@@ -470,6 +472,20 @@ final class BookingController extends Controller
     public function clientConfirm(Request $request, Booking $booking)
     {
         $this->authorizeClientBooking($request, $booking);
+
+        // Confirming is the client's own commitment to let the wallet be used
+        // as this booking's deposit — start() (the business's action) is what
+        // actually freezes it, so the PIN belongs here, at the client's own
+        // step, not there.
+        $walletHoldNeeded = round((float) data_get(
+            $this->safeFinancialPreview($booking),
+            'deposit.client_wallet_required',
+            0
+        ), 2);
+
+        if ($walletHoldNeeded > 0) {
+            $this->wallet->assertPinValid((int) $request->user()->id, $request->input('pin'));
+        }
 
         $booking = DB::transaction(function () use ($booking, $request) {
             $booking->refresh();

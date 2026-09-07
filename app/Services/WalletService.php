@@ -521,6 +521,18 @@ class WalletService
     }
 
     /**
+     * PIN gate for any money-moving or guarantee-changing action a user
+     * triggers on their own account — the same check withdraw/transfer use,
+     * shared so every such action fails the same way on a missing/wrong PIN.
+     */
+    public function assertPinValid(int $userId, ?string $pin): void
+    {
+        if (empty($pin) || ! $this->verifyPin($userId, $pin)) {
+            throw ValidationException::withMessages(['pin' => [__('رمز المحفظة غير صحيح.')]]);
+        }
+    }
+
+    /**
      * PIN verify
      */
     public function verifyPin(int $userId, string $pin): bool

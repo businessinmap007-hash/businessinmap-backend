@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\User;
+use App\Services\ServiceExecutionEngine;
+use App\Services\WalletService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -235,6 +237,41 @@ class BookingApiTest extends TestCase
         $this->actingAs($this->client, 'sanctum')
             ->postJson("/api/v2/bookings/{$booking->id}/business-confirm")
             ->assertForbidden();
+    }
+
+    public function test_client_confirm_requires_pin_when_a_wallet_deposit_hold_is_needed(): void
+    {
+        $booking = $this->makeBooking();
+
+        $this->mock(ServiceExecutionEngine::class, function ($mock) {
+            $mock->shouldReceive('financialPreview')
+                ->andReturn(['deposit' => ['client_wallet_required' => 150.0]]);
+        });
+
+        $this->actingAs($this->client, 'sanctum')
+            ->postJson("/api/v2/bookings/{$booking->id}/client-confirm")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['pin']);
+
+        $this->assertNull(data_get($booking->fresh()->meta, 'confirmations.client'));
+    }
+
+    public function test_client_confirm_accepts_the_correct_pin_when_a_wallet_deposit_hold_is_needed(): void
+    {
+        $booking = $this->makeBooking();
+
+        app(WalletService::class)->setPin((int) $this->client->id, '654321');
+
+        $this->mock(ServiceExecutionEngine::class, function ($mock) {
+            $mock->shouldReceive('financialPreview')
+                ->andReturn(['deposit' => ['client_wallet_required' => 150.0]]);
+        });
+
+        $this->actingAs($this->client, 'sanctum')
+            ->postJson("/api/v2/bookings/{$booking->id}/client-confirm", ['pin' => '654321'])
+            ->assertOk();
+
+        $this->assertTrue((bool) data_get($booking->fresh()->meta, 'confirmations.client.confirmed'));
     }
 
     public function test_financial_preview_is_party_only(): void

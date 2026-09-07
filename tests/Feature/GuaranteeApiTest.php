@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\GuaranteeLevel;
 use App\Models\User;
+use App\Services\WalletService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -97,5 +98,46 @@ class GuaranteeApiTest extends TestCase
         $this->getJson('/api/v2/guarantees/me')->assertUnauthorized();
         $this->getJson('/api/v2/guarantees/levels')->assertUnauthorized();
         $this->postJson('/api/v2/guarantees/unlock')->assertUnauthorized();
+    }
+
+    // ---- wallet PIN gate (activate spends, unlock drops coverage) --------
+
+    public function test_activate_requires_a_pin(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/guarantees/activate', [
+                'target_type' => GuaranteeLevel::TARGET_CLIENT,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['pin']);
+    }
+
+    public function test_activate_rejects_a_wrong_pin(): void
+    {
+        app(WalletService::class)->setPin((int) $this->user->id, '111111');
+
+        $level = GuaranteeLevel::query()
+            ->where('target_type', GuaranteeLevel::TARGET_CLIENT)
+            ->where('is_active', 1)
+            ->first();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/guarantees/activate', [
+                'level_id' => $level?->id,
+                'target_type' => GuaranteeLevel::TARGET_CLIENT,
+                'pin' => '222222',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['pin']);
+    }
+
+    public function test_unlock_requires_a_pin(): void
+    {
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/guarantees/unlock', [
+                'target_type' => GuaranteeLevel::TARGET_CLIENT,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['pin']);
     }
 }

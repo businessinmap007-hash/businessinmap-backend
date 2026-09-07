@@ -45,6 +45,7 @@ class OrderResource extends JsonResource
             ],
             'address' => $this->address,
             'notes' => $this->notes,
+            'out_of_stock_policy' => $this->out_of_stock_policy,
 
             // Dine-in table (BIM-13.3): the business queue shows which table to serve.
             'business_table_id' => $this->business_table_id ? (int) $this->business_table_id : null,

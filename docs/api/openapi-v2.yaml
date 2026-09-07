@@ -348,6 +348,7 @@ components:
         payment_method: { type: string }
         address: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        out_of_stock_policy: { type: string, nullable: true, enum: [substitute, remove, cancel], description: "What the customer chose at checkout for a line that turns out unavailable; null on orders placed before this existed." }
         business_table_id: { type: integer, nullable: true, description: "Dine-in table id (BIM-13.3) when the order came from a table scan." }
         table_label: { type: string, nullable: true, description: "The dine-in table label; present when the businessTable relation is loaded." }
         business: { type: object, nullable: true }
@@ -1419,6 +1420,7 @@ paths:
                 address: { type: string, description: Free-text fallback used only when address_id is absent. }
                 notes: { type: string }
                 payment_method: { type: string }
+                out_of_stock_policy: { type: string, enum: [substitute, remove, cancel], description: "What to do if a line turns out unavailable while the business prepares it — applied later by /business/orders/{order}/items/{item}/unavailable." }
       responses: { '200': { description: OK } }
 
   # ──────────────────────── Shared Cart ────────────────────────
@@ -1455,6 +1457,17 @@ paths:
       tags: [Shared Cart]
       summary: Host checks out the shared cart (one invoice)
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fulfillment_type: { type: string, enum: [delivery, pickup, dine_in] }
+                address_id: { type: integer }
+                address: { type: string }
+                notes: { type: string }
+                out_of_stock_policy: { type: string, enum: [substitute, remove, cancel], description: "The host's choice for the whole shared order — see the personal-cart checkout." }
       responses: { '200': { description: OK } }
   /cart/shared/{order}/leave:
     post:
@@ -1870,6 +1883,34 @@ paths:
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
       responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/items/{item}/unavailable:
+    post:
+      tags: [Orders (Business)]
+      summary: A line turned out unavailable while preparing — apply the customer's out_of_stock_policy
+      description: >-
+        Reads what the customer chose at checkout (Order.out_of_stock_policy)
+        and applies it — never guesses. substitute keeps the line at its
+        original price and requires `note` (what it became); remove drops the
+        line from the total; cancel cancels the whole order, the one
+        deliberate exception to "no cancelling after acceptance". A `422`
+        with a `policy` error means the order carries no stated policy
+        (placed before this existed) — resolve it with the customer directly
+        via the order chat instead.
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: integer } }
+        - { name: item, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500, description: Required when the order's policy is "substitute" — what the item became. }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
 
   # ─────────────────────── Business Menu ───────────────────────
   /business/menu/sections:

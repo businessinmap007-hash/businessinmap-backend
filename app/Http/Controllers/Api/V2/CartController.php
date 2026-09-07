@@ -13,6 +13,7 @@ use App\Services\MenuBillingService;
 use App\Services\Payments\MerchantPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * The customer's cart (Phase 3d). A cart is a draft Order per business; lines
@@ -113,6 +114,9 @@ final class CartController extends Controller
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'payment_method' => ['nullable', 'string', 'max:50'],
+            // "لو الصنف نفذ، تحب نعمل إيه؟" — asked once here, applied later
+            // per line by OrderController::businessMarkItemUnavailable.
+            'out_of_stock_policy' => ['nullable', Rule::in(Order::OUT_OF_STOCK_POLICIES)],
         ]);
 
         $order = $this->cart->checkout((int) $request->user()->id, $business, $data);

@@ -20,6 +20,13 @@ class OrderItemResource extends JsonResource
             'price' => (float) $this->price,
             'total_price' => (float) $this->total_price,
             'addons' => $this->addons ?: [],
+            // Set once a business marks this line unavailable — see
+            // OrderController::businessMarkItemUnavailable. null/null/null
+            // for the overwhelming majority of lines that were fulfilled as
+            // ordered.
+            'resolution' => $this->resolution,
+            'resolution_note' => $this->resolution_note,
+            'unavailable_marked_at' => optional($this->unavailable_marked_at)->toIso8601String(),
         ];
     }
 

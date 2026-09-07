@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
+    /** How a business resolved this line once it turned out unavailable. */
+    public const RESOLUTION_SUBSTITUTED = 'substituted';
+    public const RESOLUTION_REMOVED = 'removed';
+
     // Columns match the order_items table. `offering_type`/`offering_id` are the
     // polymorphic offering reference (menu item now; catalog listing / bookable
     // type later); `menu_id` is kept for backward compatibility.
@@ -21,6 +25,9 @@ class OrderItem extends Model
         'qty',
         'price',
         'total_price',
+        'unavailable_marked_at',
+        'resolution',
+        'resolution_note',
     ];
 
     protected $casts = [
@@ -28,7 +35,14 @@ class OrderItem extends Model
         'qty' => 'integer',
         'price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'unavailable_marked_at' => 'datetime',
     ];
+
+    /** Dropped out of the order's total — MenuOrderService::recalc excludes it. */
+    public function isRemoved(): bool
+    {
+        return (string) $this->resolution === self::RESOLUTION_REMOVED;
+    }
 
     /**
      * Freeze what this line was at the moment it was ordered.

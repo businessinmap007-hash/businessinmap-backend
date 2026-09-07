@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -63,7 +64,14 @@ class MenuOrderService
 
     public function recalc(Order $order): void
     {
-        $foodTotal = round((float) $order->items()->sum('total_price'), 2);
+        // A line the business marked 'removed' (unavailable, no substitute)
+        // no longer counts toward what the customer owes; a 'substituted'
+        // line keeps its original price — the business absorbs any
+        // difference rather than re-billing for something the customer
+        // never explicitly agreed to pay more for.
+        $foodTotal = round((float) $order->items()
+            ->where(fn ($q) => $q->whereNull('resolution')->orWhere('resolution', '!=', OrderItem::RESOLUTION_REMOVED))
+            ->sum('total_price'), 2);
         $deliveryFee = round((float) ($order->delivery_fee ?? 0), 2);
         $discount = round((float) ($order->discount ?? 0), 2);
 

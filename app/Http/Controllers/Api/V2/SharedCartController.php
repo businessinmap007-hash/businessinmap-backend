@@ -10,6 +10,7 @@ use App\Services\CustomerCartService;
 use App\Services\MenuBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Shared (group) cart — friends join the host's cart via a share token and each
@@ -117,6 +118,9 @@ final class SharedCartController extends Controller
             'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // "لو الصنف نفذ، تحب نعمل إيه؟" — the host decides for the whole
+            // shared order, same as any other checkout.
+            'out_of_stock_policy' => ['nullable', Rule::in(Order::OUT_OF_STOCK_POLICIES)],
         ]);
 
         // Shared carts are cash-on-arrival; each participant pays their own share.

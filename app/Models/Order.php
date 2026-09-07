@@ -32,6 +32,22 @@ class Order extends Model
         self::PREP_READY,
     ];
 
+    /**
+     * What the customer asked for if a menu line turns out unavailable while
+     * the business is preparing it — asked once at checkout, applied by
+     * OrderController::businessMarkItemUnavailable whenever a specific line
+     * actually goes missing.
+     */
+    public const OUT_OF_STOCK_SUBSTITUTE = 'substitute';
+    public const OUT_OF_STOCK_REMOVE = 'remove';
+    public const OUT_OF_STOCK_CANCEL = 'cancel';
+
+    public const OUT_OF_STOCK_POLICIES = [
+        self::OUT_OF_STOCK_SUBSTITUTE,
+        self::OUT_OF_STOCK_REMOVE,
+        self::OUT_OF_STOCK_CANCEL,
+    ];
+
     // Columns match the orders table: total / delivery_fee / discount /
     // final_total (there is no `subtotal` column).
     protected $fillable = [
@@ -64,6 +80,7 @@ class Order extends Model
         'delivery_lat',
         'delivery_lng',
         'notes',
+        'out_of_stock_policy',
         'status',
         'prep_status',
         'share_token',

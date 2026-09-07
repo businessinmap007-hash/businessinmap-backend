@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\OrderResource;
 use App\Models\AppNotification;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Services\MenuOrderService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OrderFeeSettlementService;
 use App\Support\BusinessContext;
@@ -32,6 +34,7 @@ final class OrderController extends Controller
         private readonly OrderFeeSettlementService $feeSettlement,
         private readonly \App\Services\Ratings\RatingService $ratingService,
         private readonly \App\Services\CustomerCartService $cart,
+        private readonly MenuOrderService $menuOrders,
     ) {
     }
 
@@ -190,7 +193,12 @@ final class OrderController extends Controller
      * POST /api/v2/business/orders/{order}/accept — business accepts a pending
      * order. Settles BIM's platform service fee against the business wallet
      * (blocks with 402 if the wallet can't cover it), then moves prep_status to
-     * `accepted`. One-way: after this the order can no longer be cancelled/rejected.
+     * `accepted`. One-way: after this the order can no longer be cancelled/
+     * rejected outright — the one deliberate exception is
+     * businessMarkItemUnavailable() with the customer's own pre-consented
+     * out_of_stock_policy=cancel, which is a different action for a
+     * different reason (a specific line turned out unavailable, not a
+     * change of mind).
      */
     public function businessAccept(Request $request, int $order)
     {
@@ -261,6 +269,113 @@ final class OrderController extends Controller
             'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز.',
             'body_en' => 'Your order #' . $model->id . ' is ready.',
         ]);
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
+    /**
+     * POST /api/v2/business/orders/{order}/items/{item}/unavailable — the
+     * business discovers, while preparing, that one line can't actually be
+     * fulfilled. Applies whatever the customer pre-consented to at checkout
+     * (Order::out_of_stock_policy) — never guesses:
+     *   - substitute: the line stays, priced as before; `note` (required)
+     *     records what it became.
+     *   - remove: the line drops out of the order's total (MenuOrderService
+     *     recalc excludes it) — the rest of the order proceeds.
+     *   - cancel: the whole order is cancelled, the one deliberate exception
+     *     to "no cancelling after acceptance" (see businessAccept).
+     * A order with no stated policy (placed before this feature, or a
+     * non-menu order) refuses — there is nothing safe to assume, and the
+     * business is pointed at the operation chat instead.
+     */
+    public function businessMarkItemUnavailable(Request $request, int $order, int $item)
+    {
+        $businessId = BusinessContext::id($request);
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+
+        $result = DB::transaction(function () use ($businessId, $order, $item, $data) {
+            /** @var Order|null $m */
+            $m = Order::query()
+                ->where('business_id', $businessId)
+                ->whereNull('booking_id')
+                ->lockForUpdate()
+                ->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ((string) $m->status !== 'pending' || (string) $m->prep_status === Order::PREP_READY) {
+                abort(409, __('لا يمكن تعديل هذا الطلب في حالته الحالية.'));
+            }
+
+            /** @var OrderItem|null $line */
+            $line = $m->items()->whereKey($item)->first();
+            if (! $line) {
+                abort(404, __('صنف الطلب غير موجود.'));
+            }
+            if ($line->resolution !== null) {
+                abort(409, __('تم التعامل مع هذا الصنف من قبل.'));
+            }
+
+            $policy = (string) $m->out_of_stock_policy;
+            if (! in_array($policy, Order::OUT_OF_STOCK_POLICIES, true)) {
+                throw ValidationException::withMessages([
+                    'policy' => [__('لم يحدد العميل ماذا يفعل لو نفذ صنف فى هذا الطلب. تواصل معه مباشرة عبر شات الطلب.')],
+                ]);
+            }
+
+            if ($policy === Order::OUT_OF_STOCK_SUBSTITUTE) {
+                if (empty($data['note'])) {
+                    throw ValidationException::withMessages(['note' => [__('اكتب بماذا استبدلت الصنف — العميل اختار "بديل" وقت الطلب.')]]);
+                }
+                $line->update([
+                    'resolution' => OrderItem::RESOLUTION_SUBSTITUTED,
+                    'resolution_note' => $data['note'],
+                    'unavailable_marked_at' => now(),
+                ]);
+            } elseif ($policy === Order::OUT_OF_STOCK_REMOVE) {
+                $line->update(['resolution' => OrderItem::RESOLUTION_REMOVED, 'unavailable_marked_at' => now()]);
+                $this->menuOrders->recalc($m);
+                $m->refresh();
+            } else { // cancel
+                $line->update(['resolution' => OrderItem::RESOLUTION_REMOVED, 'unavailable_marked_at' => now()]);
+                $m->status = 'cancelled';
+                $m->notes = trim((string) $m->notes . "\n[إلغاء تلقائي] صنف غير متاح: " . $line->displayName());
+                $m->save();
+            }
+
+            return ['order' => $m, 'line' => $line, 'policy' => $policy];
+        });
+
+        /** @var Order $model */
+        $model = $result['order'];
+        /** @var OrderItem $line */
+        $line = $result['line'];
+        $policy = $result['policy'];
+
+        if ($policy === Order::OUT_OF_STOCK_CANCEL) {
+            $this->ratingService->recordForBothParties(
+                businessUserId: $businessId,
+                clientUserId: (int) $model->user_id,
+                outcome: \App\Models\RatingOutcomeEvent::OUTCOME_CANCELLED,
+                operationType: \App\Models\RatingOutcomeEvent::OP_ORDER,
+                operationId: (int) $model->id,
+            );
+
+            $this->notifyCancellation($model, (int) $model->user_id, $businessId, null, [
+                'body_ar' => 'اعتذر المطعم، "' . $line->displayName() . '" غير متاح، وتم إلغاء طلبك رقم #' . $model->id . ' بالكامل حسب اختيارك وقت الطلب.',
+                'body_en' => '"' . $line->displayName() . '" is unavailable, so your order #' . $model->id . ' was cancelled entirely, as you chose at checkout.',
+            ]);
+        } else {
+            $bodyAr = $policy === Order::OUT_OF_STOCK_SUBSTITUTE
+                ? 'تم استبدال "' . $line->displayName() . '" فى طلبك رقم #' . $model->id . ' بـ: ' . $line->resolution_note
+                : 'تعذّر توفير "' . $line->displayName() . '"، فتم حذفه من طلبك رقم #' . $model->id . '. الإجمالي الجديد: ' . $model->final_total;
+            $bodyEn = $policy === Order::OUT_OF_STOCK_SUBSTITUTE
+                ? '"' . $line->displayName() . '" in order #' . $model->id . ' was substituted with: ' . $line->resolution_note
+                : '"' . $line->displayName() . '" was unavailable and removed from order #' . $model->id . '. New total: ' . $model->final_total;
+
+            $this->notifyCustomer($model, 'menu_order_item_unavailable', $businessId, ['body_ar' => $bodyAr, 'body_en' => $bodyEn]);
+        }
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

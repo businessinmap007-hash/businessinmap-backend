@@ -614,6 +614,7 @@ class CustomerCartService
         }
 
         $cart->notes = $data['notes'] ?? $cart->notes;
+        $cart->out_of_stock_policy = $data['out_of_stock_policy'] ?? $cart->out_of_stock_policy;
         $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
         $cart->status = self::STATUS_PENDING;
         $cart->save();

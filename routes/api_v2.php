@@ -633,6 +633,10 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+            // A specific line turns out unavailable while preparing — applies
+            // whatever the customer chose at checkout (out_of_stock_policy).
+            Route::post('business/orders/{order}/items/{item}/unavailable', [OrderController::class, 'businessMarkItemUnavailable'])
+                ->whereNumber(['order', 'item']);
 
             // Dine-in table service calls (BIM-13.3): the live "waiter / bill"
             // queue and marking one handled.

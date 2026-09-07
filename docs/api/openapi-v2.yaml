@@ -55,6 +55,7 @@ tags:
       specialty is that `child_id`.
   - name: Locations
   - name: Addresses
+  - name: Contact Groups
   - name: Wallet
   - name: Wallet Top-up
   - name: Merchant Payments
@@ -1215,6 +1216,65 @@ paths:
       parameters: [{ name: address, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
 
+  # ─────────────────────── Contact Groups ───────────────────────
+  /contact-groups:
+    get:
+      tags: [Contact Groups]
+      summary: List the caller's own named contact groups (e.g. "family", "friends"), newest first
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Contact Groups]
+      summary: Create a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string, maxLength: 100 } } }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /contact-groups/{group}:
+    parameters: [{ name: group, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [Contact Groups]
+      summary: Rename a group (own only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string, maxLength: 100 } } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+    delete:
+      tags: [Contact Groups]
+      summary: Delete a group (own only) and all its membership rows
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /contact-groups/{group}/members:
+    post:
+      tags: [Contact Groups]
+      summary: Add a member by phone or email — an already-registered account only
+      parameters: [{ name: group, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier: { type: string, description: Phone number or email of an existing account. }
+      responses:
+        '201': { description: Created }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /contact-groups/{group}/members/{member}:
+    delete:
+      tags: [Contact Groups]
+      summary: Remove a member from the group (own group only)
+      parameters:
+        - { name: group, in: path, required: true, schema: { type: integer } }
+        - { name: member, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+
   # ─────────────────────────── Wallet ───────────────────────────
   /wallet:
     get:
@@ -1492,6 +1552,21 @@ paths:
       responses:
         '200': { description: OK }
         '422': { $ref: '#/components/responses/Validation' }
+  /cart/shared/{order}/invite-group/{group}:
+    post:
+      tags: [Shared Cart]
+      summary: Invite every member of one of the host's own contact groups at once (host only)
+      description: >-
+        Same notify-then-join semantics as inviting one friend — a member
+        already in the cart, or the host themself if somehow a member of
+        their own group, is skipped rather than failing the whole batch.
+        Returns only the friends genuinely newly notified.
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: integer } }
+        - { name: group, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
   /cart/shared/{order}/leave:
     post:
       tags: [Shared Cart]

@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V2\BusinessRetailListingController;
 use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
+use App\Http\Controllers\Api\V2\ContactGroupController;
 use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
@@ -589,6 +590,18 @@ Route::prefix('v2')->group(function () {
             Route::delete('{address}', [AddressController::class, 'destroy'])->whereNumber('address');
         });
 
+        // A user's own named contact groups (e.g. "family", "friends") — a
+        // reusable circle of already-registered friends to invite to a
+        // shared cart in one action. See ContactGroup(Member).
+        Route::prefix('contact-groups')->group(function () {
+            Route::get('/', [ContactGroupController::class, 'index']);
+            Route::post('/', [ContactGroupController::class, 'store']);
+            Route::match(['put', 'patch'], '{group}', [ContactGroupController::class, 'update'])->whereNumber('group');
+            Route::delete('{group}', [ContactGroupController::class, 'destroy'])->whereNumber('group');
+            Route::post('{group}/members', [ContactGroupController::class, 'addMember'])->whereNumber('group');
+            Route::delete('{group}/members/{member}', [ContactGroupController::class, 'removeMember'])->whereNumber(['group', 'member']);
+        });
+
         // Customer cart over the offering layer (retail listings + menu items).
         Route::prefix('cart')->group(function () {
             Route::get('/', [CartController::class, 'index']);
@@ -607,6 +620,7 @@ Route::prefix('v2')->group(function () {
             Route::delete('shared/{order}/items/{item}', [SharedCartController::class, 'removeItem'])->whereNumber(['order', 'item']);
             Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order')->middleware('dispute.settled');
             Route::post('shared/{order}/invite', [SharedCartController::class, 'invite'])->whereNumber('order');
+            Route::post('shared/{order}/invite-group/{group}', [SharedCartController::class, 'inviteGroup'])->whereNumber(['order', 'group']);
             Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
             Route::delete('shared/{order}', [SharedCartController::class, 'cancel'])->whereNumber('order');
         });

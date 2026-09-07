@@ -11,6 +11,7 @@ use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
 use App\Models\AppNotification;
 use App\Models\BusinessTable;
+use App\Models\ContactGroup;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderParticipant;
@@ -19,6 +20,7 @@ use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\TrustedPartnerService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Retail\RetailListingVisibility;
+use App\Support\UserLookup;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -258,6 +260,53 @@ class CustomerCartService
      */
     public function inviteToShared(int $hostId, int $orderId, string $identifier): User
     {
+        $cart = $this->sharedHostCartOrFail($orderId, $hostId);
+
+        $friend = UserLookup::byIdentifier($identifier);
+        if (! $friend) {
+            throw ValidationException::withMessages(['identifier' => [__('لم يُعثر على مستخدم بهذا الرقم أو الإيميل.')]]);
+        }
+
+        $this->inviteResolvedFriend($cart, $hostId, $friend);
+
+        return $friend;
+    }
+
+    /**
+     * Invite every member of one of the host's own contact groups
+     * (ContactGroup) to this shared cart in one action. Unlike
+     * inviteToShared(), a single bad member (the host themself, somehow
+     * already invited elsewhere) is skipped rather than failing the whole
+     * batch — returns only the friends actually newly notified.
+     */
+    public function inviteGroupToShared(int $hostId, int $orderId, int $groupId): array
+    {
+        $cart = $this->sharedHostCartOrFail($orderId, $hostId);
+
+        $group = ContactGroup::query()->where('user_id', $hostId)->findOrFail($groupId);
+
+        $invited = [];
+        foreach ($group->members()->with('user')->get() as $member) {
+            $friend = $member->user;
+            if (! $friend) {
+                continue;
+            }
+            try {
+                if ($this->inviteResolvedFriend($cart, $hostId, $friend)) {
+                    $invited[] = $friend;
+                }
+            } catch (ValidationException) {
+                // The host somehow ended up as their own group member — skip,
+                // never let one bad row block the rest of the group.
+            }
+        }
+
+        return $invited;
+    }
+
+    /** The host's own open shared cart, or a validation error naming the host-only rule. */
+    private function sharedHostCartOrFail(int $orderId, int $hostId): Order
+    {
         $cart = Order::query()
             ->where('id', $orderId)
             ->where('is_shared', 1)
@@ -274,16 +323,12 @@ class CustomerCartService
             throw ValidationException::withMessages(['identifier' => [__('صاحب السلة فقط يقدر يدعو أصدقاء.')]]);
         }
 
-        $identifier = trim($identifier);
-        $friend = User::query()
-            ->where('phone', $identifier)
-            ->orWhere('email', $identifier)
-            ->first();
+        return $cart;
+    }
 
-        if (! $friend) {
-            throw ValidationException::withMessages(['identifier' => [__('لم يُعثر على مستخدم بهذا الرقم أو الإيميل.')]]);
-        }
-
+    /** Notifies $friend of the invite unless they're already in; returns whether it was a genuinely new invite. */
+    private function inviteResolvedFriend(Order $cart, int $hostId, User $friend): bool
+    {
         if ((int) $friend->id === $hostId) {
             throw ValidationException::withMessages(['identifier' => [__('لا يمكنك دعوة نفسك.')]]);
         }
@@ -297,7 +342,7 @@ class CustomerCartService
             $this->notifyInvitedFriend($cart, $hostId, $friend);
         }
 
-        return $friend;
+        return ! $alreadyIn;
     }
 
     /** Best-effort: an invite that fails to notify is still a valid invite (the token still works). */

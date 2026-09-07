@@ -61,6 +61,17 @@ final class SharedCartController extends Controller
         ]);
     }
 
+    /** Host-only: invites every member of one of the host's own contact groups at once. */
+    public function inviteGroup(Request $request, int $order, int $group)
+    {
+        $invited = $this->cart->inviteGroupToShared((int) $request->user()->id, $order, $group);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['invited' => collect($invited)->map(fn ($u) => ['id' => (int) $u->id, 'name' => (string) $u->name])->values()],
+        ]);
+    }
+
     /** Join a shared cart by token. */
     public function join(Request $request, string $token)
     {

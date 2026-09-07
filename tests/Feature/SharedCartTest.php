@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AppNotification;
+use App\Models\ContactGroup;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
@@ -269,6 +270,73 @@ class SharedCartTest extends TestCase
                 ->count(),
             'an already-joined friend is not re-notified'
         );
+    }
+
+    public function test_host_can_invite_a_whole_group_at_once(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        $group = ContactGroup::query()->create(['user_id' => $this->host->id, 'name' => 'العائلة']);
+        $group->members()->create(['user_id' => $this->member->id]);
+        $group->members()->create(['user_id' => $this->outsider->id]);
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite-group/{$group->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.invited');
+
+        $this->assertSame(
+            2,
+            AppNotification::query()->where('source_type', 'shared_cart_invited')
+                ->whereIn('user_id', [$this->member->id, $this->outsider->id])->count()
+        );
+    }
+
+    public function test_group_invite_skips_a_member_already_in_the_cart(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        $group = ContactGroup::query()->create(['user_id' => $this->host->id, 'name' => 'العائلة']);
+        $group->members()->create(['user_id' => $this->member->id]);
+        $group->members()->create(['user_id' => $this->outsider->id]);
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite-group/{$group->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.invited')
+            ->assertJsonPath('data.invited.0.id', $this->outsider->id);
+    }
+
+    public function test_only_the_host_can_invite_a_group(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        $group = ContactGroup::query()->create(['user_id' => $this->member->id, 'name' => 'أصدقاء']);
+        $group->members()->create(['user_id' => $this->outsider->id]);
+
+        // The member (not the host) tries to invite their own group.
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite-group/{$group->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['identifier']);
+    }
+
+    public function test_group_invite_requires_a_group_owned_by_the_host(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        $othersGroup = ContactGroup::query()->create(['user_id' => $this->outsider->id, 'name' => 'مش بتاعي']);
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite-group/{$othersGroup->id}")
+            ->assertStatus(404);
     }
 
     public function test_rejoining_does_not_notify_the_host_again(): void

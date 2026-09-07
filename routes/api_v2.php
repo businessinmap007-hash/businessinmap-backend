@@ -606,6 +606,7 @@ Route::prefix('v2')->group(function () {
             Route::patch('shared/{order}/items/{item}', [SharedCartController::class, 'updateItem'])->whereNumber(['order', 'item']);
             Route::delete('shared/{order}/items/{item}', [SharedCartController::class, 'removeItem'])->whereNumber(['order', 'item']);
             Route::post('shared/{order}/checkout', [SharedCartController::class, 'checkout'])->whereNumber('order')->middleware('dispute.settled');
+            Route::post('shared/{order}/invite', [SharedCartController::class, 'invite'])->whereNumber('order');
             Route::post('shared/{order}/leave', [SharedCartController::class, 'leave'])->whereNumber('order');
             Route::delete('shared/{order}', [SharedCartController::class, 'cancel'])->whereNumber('order');
         });

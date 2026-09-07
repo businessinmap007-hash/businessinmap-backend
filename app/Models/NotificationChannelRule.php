@@ -112,6 +112,7 @@ class NotificationChannelRule extends Model
             'trip_run_stop_departed' => ['انتقال المركبة إلى النقطة التالية', 'Vehicle heading to the next stop', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_run_completed' => ['اكتمال تنفيذ الرحلة', 'Trip run completed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'shared_cart_member_joined' => ['انضمام عضو للسلة الجماعية', 'Member joined shared cart', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'shared_cart_invited' => ['دعوة لسلة جماعية', 'Invited to a shared cart', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'shared_cart_cancelled' => ['إلغاء السلة الجماعية', 'Shared cart cancelled', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'system_announcement' => ['تنبيه من النظام', 'System announcement', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'system'],
             // A new message in any conversation (dispute room, operation chat,

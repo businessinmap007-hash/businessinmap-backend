@@ -42,6 +42,25 @@ final class SharedCartController extends Controller
         ], 201);
     }
 
+    /**
+     * Invite a friend to the shared cart by phone or email — an
+     * already-registered account only. Sends a notification carrying the
+     * join token; never adds them as a participant directly.
+     */
+    public function invite(Request $request, int $order)
+    {
+        $data = $request->validate([
+            'identifier' => ['required', 'string', 'max:190'],
+        ], [], ['identifier' => __('رقم الهاتف أو الإيميل')]);
+
+        $friend = $this->cart->inviteToShared((int) $request->user()->id, $order, $data['identifier']);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['user' => ['id' => (int) $friend->id, 'name' => (string) $friend->name]],
+        ]);
+    }
+
     /** Join a shared cart by token. */
     public function join(Request $request, string $token)
     {

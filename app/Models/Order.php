@@ -188,6 +188,16 @@ class Order extends Model
         return $this->hasOne(Escrow::class);
     }
 
+    /**
+     * The build/manufacturing timeline the business linked to this order, if
+     * any — Project uses its own operation_type/operation_id columns rather
+     * than Laravel's default morph naming, so this isn't a plain morphOne.
+     */
+    public function project()
+    {
+        return $this->hasOne(Project::class, 'operation_id')->where('operation_type', self::class);
+    }
+
     public function participants()
     {
         return $this->hasMany(OrderParticipant::class);

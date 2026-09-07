@@ -250,6 +250,87 @@ class CustomerCartService
     }
 
     /**
+     * The host invites a specific friend — by phone or email, an already-
+     * registered account only (no SMS/email invite to a stranger; the app
+     * has no way to onboard someone through this door). Never silently pulls
+     * them in: it sends a notification carrying the join token, the same
+     * consent-by-joining shape as sharing a link or scanning a QR.
+     */
+    public function inviteToShared(int $hostId, int $orderId, string $identifier): User
+    {
+        $cart = Order::query()
+            ->where('id', $orderId)
+            ->where('is_shared', 1)
+            ->where('status', self::STATUS_CART)
+            ->firstOrFail();
+
+        $isHost = OrderParticipant::query()
+            ->where('order_id', $cart->id)
+            ->where('user_id', $hostId)
+            ->where('role', OrderParticipant::ROLE_HOST)
+            ->exists();
+
+        if (! $isHost) {
+            throw ValidationException::withMessages(['identifier' => [__('صاحب السلة فقط يقدر يدعو أصدقاء.')]]);
+        }
+
+        $identifier = trim($identifier);
+        $friend = User::query()
+            ->where('phone', $identifier)
+            ->orWhere('email', $identifier)
+            ->first();
+
+        if (! $friend) {
+            throw ValidationException::withMessages(['identifier' => [__('لم يُعثر على مستخدم بهذا الرقم أو الإيميل.')]]);
+        }
+
+        if ((int) $friend->id === $hostId) {
+            throw ValidationException::withMessages(['identifier' => [__('لا يمكنك دعوة نفسك.')]]);
+        }
+
+        $alreadyIn = OrderParticipant::query()
+            ->where('order_id', $cart->id)
+            ->where('user_id', $friend->id)
+            ->exists();
+
+        if (! $alreadyIn) {
+            $this->notifyInvitedFriend($cart, $hostId, $friend);
+        }
+
+        return $friend;
+    }
+
+    /** Best-effort: an invite that fails to notify is still a valid invite (the token still works). */
+    private function notifyInvitedFriend(Order $cart, int $hostId, User $friend): void
+    {
+        try {
+            $hostName = (string) (User::query()->whereKey($hostId)->value('name') ?? '');
+            $businessName = (string) ($cart->business?->name ?? '');
+            $prefix = $hostName !== '' ? $hostName . ' ' : '';
+
+            $this->notifications->dispatch('shared_cart_invited', (int) $friend->id, [
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => $hostId,
+                'body_ar' => trim($prefix . 'دعاك للانضمام لسلته الجماعية' . ($businessName !== '' ? ' فى ' . $businessName : '') . '.'),
+                'body_en' => trim(($hostName !== '' ? $hostName . ' ' : '') . 'invited you to a shared cart' . ($businessName !== '' ? ' at ' . $businessName : '') . '.'),
+                'action_type' => 'open_shared_cart_invite',
+                'action_url' => '/cart/join/' . $cart->share_token,
+                'notifiable_type' => Order::class,
+                'notifiable_id' => (int) $cart->id,
+                'source_id' => (int) $cart->id,
+                'meta' => [
+                    'order_id' => (int) $cart->id,
+                    'share_token' => (string) $cart->share_token,
+                    'host_id' => $hostId,
+                    'host_name' => $hostName,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
      * Tell the host that a member just joined their shared cart. Best-effort:
      * a notification failure must never break the join. Routed through the full
      * pipeline (in-app + realtime + push, gated by the channel rule).

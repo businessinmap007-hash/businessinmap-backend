@@ -46,6 +46,10 @@ class OrderResource extends JsonResource
             'address' => $this->address,
             'notes' => $this->notes,
             'out_of_stock_policy' => $this->out_of_stock_policy,
+            // Whether the business linked a project timeline to this order —
+            // most orders (a coffee, a food delivery) never have one, so the
+            // client only shows "view progress" when this is true.
+            'has_project' => $this->relationLoaded('project') ? $this->project !== null : false,
 
             // Dine-in table (BIM-13.3): the business queue shows which table to serve.
             'business_table_id' => $this->business_table_id ? (int) $this->business_table_id : null,

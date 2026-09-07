@@ -349,6 +349,7 @@ components:
         address: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         out_of_stock_policy: { type: string, nullable: true, enum: [substitute, remove, cancel], description: "What the customer chose at checkout for a line that turns out unavailable; null on orders placed before this existed." }
+        has_project: { type: boolean, description: "Whether the business linked a project timeline to this order — most orders never have one." }
         business_table_id: { type: integer, nullable: true, description: "Dine-in table id (BIM-13.3) when the order came from a table scan." }
         table_label: { type: string, nullable: true, description: "The dine-in table label; present when the businessTable relation is loaded." }
         business: { type: object, nullable: true }
@@ -1469,6 +1470,28 @@ paths:
                 notes: { type: string }
                 out_of_stock_policy: { type: string, enum: [substitute, remove, cancel], description: "The host's choice for the whole shared order — see the personal-cart checkout." }
       responses: { '200': { description: OK } }
+  /cart/shared/{order}/invite:
+    post:
+      tags: [Shared Cart]
+      summary: Invite a friend by phone or email (host only, already-registered accounts only)
+      description: >-
+        Never adds the friend as a participant directly — sends a
+        notification (action_type=open_shared_cart_invite) carrying the join
+        token; they still have to join, same as opening a shared link or
+        scanning the cart's QR.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier: { type: string, description: Phone number or email of an existing account. }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/Validation' }
   /cart/shared/{order}/leave:
     post:
       tags: [Shared Cart]

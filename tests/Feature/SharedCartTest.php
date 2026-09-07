@@ -192,6 +192,85 @@ class SharedCartTest extends TestCase
         );
     }
 
+    public function test_host_can_invite_a_friend_by_phone(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite", ['identifier' => $this->member->phone])
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $this->member->id);
+
+        $note = AppNotification::query()
+            ->where('user_id', $this->member->id)
+            ->where('source_type', 'shared_cart_invited')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($note, 'the invited friend should receive a notification');
+        $this->assertSame($this->host->id, (int) $note->actor_id);
+        $this->assertSame('open_shared_cart_invite', (string) $note->action_type);
+        $this->assertSame($this->token($orderId), (string) ($note->meta['share_token'] ?? ''));
+
+        // The friend hasn't joined yet — only invited.
+        $this->assertDatabaseMissing('order_participants', ['order_id' => $orderId, 'user_id' => $this->member->id]);
+    }
+
+    public function test_invite_rejects_an_unknown_identifier(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite", ['identifier' => 'no-such-person-anywhere@example.test'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['identifier']);
+    }
+
+    public function test_invite_rejects_inviting_yourself(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite", ['identifier' => $this->host->phone])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['identifier']);
+    }
+
+    public function test_only_the_host_can_invite(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        // The member (not the host) tries to invite the outsider.
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite", ['identifier' => $this->outsider->phone])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['identifier']);
+    }
+
+    public function test_inviting_an_already_joined_friend_does_not_re_notify(): void
+    {
+        $orderId = $this->shareAsHost();
+        $token = $this->token($orderId);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/v2/cart/join/{$token}")->assertCreated();
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite", ['identifier' => $this->member->phone])->assertOk();
+
+        $this->assertSame(
+            0,
+            AppNotification::query()
+                ->where('user_id', $this->member->id)
+                ->where('source_type', 'shared_cart_invited')
+                ->count(),
+            'an already-joined friend is not re-notified'
+        );
+    }
+
     public function test_rejoining_does_not_notify_the_host_again(): void
     {
         $orderId = $this->shareAsHost();

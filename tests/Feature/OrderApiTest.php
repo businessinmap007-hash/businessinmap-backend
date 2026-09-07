@@ -51,6 +51,35 @@ class OrderApiTest extends TestCase
         $this->assertNotContains($cart->id, $ids);
     }
 
+    /**
+     * Live-reported: the customer's order-detail sheet always showed a "view
+     * project progress" action even for a plain food order, which never has
+     * one — has_project lets the client hide it instead of dead-ending.
+     */
+    public function test_show_exposes_has_project(): void
+    {
+        $order = $this->makeOrder();
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson("/api/v2/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.has_project', false);
+
+        \App\Models\Project::create([
+            'business_id' => $this->business->id,
+            'title' => 'test project',
+            'status' => 'active',
+            'visibility' => 'private',
+            'operation_type' => Order::class,
+            'operation_id' => $order->id,
+        ]);
+
+        $this->actingAs($this->customer, 'sanctum')
+            ->getJson("/api/v2/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.has_project', true);
+    }
+
     public function test_show_is_party_only(): void
     {
         $order = $this->makeOrder();

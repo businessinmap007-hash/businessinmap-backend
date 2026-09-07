@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\OfferingOption;
+use App\Models\OfferingOptionGroupSetting;
 use App\Models\User;
 use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -54,6 +56,12 @@ class BookingAddOnController extends Controller
             // تُسعَّر داخل كل غرفةٍ على حدة. سعرُها واحد، فمكانُه واحد.
             'features' => $this->featureVocabulary(),
             'addOns' => $this->business()->currentOfferingAdjustments(),
+            // فردي (راديو) أو متعدد (تشيك بوكس) لكل مجموعة إضافات — لا شأن
+            // للمميزات به، فهى صفةُ وحدةٍ لا يختارها النزيل أصلًا.
+            'selectionTypes' => OfferingOptionGroupSetting::forOwnOffering(
+                (new User)->getMorphClass(),
+                $this->businessId()
+            ),
         ]);
     }
 
@@ -98,6 +106,19 @@ class BookingAddOnController extends Controller
             ->map(fn ($o) => (int) $o->id)->unique()->values();
     }
 
+    /**
+     * معرّفاتُ مجموعات «ما يختاره النزيل» وحدها — لا المميزات، فهى صفةُ
+     * وحدةٍ لا يُسأل عنها النزيل، فلا معنى لفردي/متعدد فيها.
+     */
+    private function addOnGroupIds(): Collection
+    {
+        return $this->addOnVocabulary()
+            ->map(fn ($options) => $options->first()?->group_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()->values();
+    }
+
     private function business(): User
     {
         return $this->actingBusiness() ?: User::findOrFail($this->businessId());
@@ -113,6 +134,8 @@ class BookingAddOnController extends Controller
             'adjust' => ['nullable', 'array'],
             'adjust_type' => ['nullable', 'array'],
             'per_person' => ['nullable', 'array'],
+            'selection_type' => ['nullable', 'array'],
+            'selection_type.*' => ['string', Rule::in(OfferingOptionGroupSetting::SELECTION_TYPES)],
         ]);
 
         $allowed = $this->pickableIds();
@@ -150,7 +173,46 @@ class BookingAddOnController extends Controller
 
         $this->business()->syncOfferingOptions(null, $chosen->all(), $adjustments);
 
+        $this->saveSelectionTypes((array) ($data['selection_type'] ?? []));
+
         return back()->with('success', __('تم حفظ الأسعار.'));
+    }
+
+    /**
+     * فردي (راديو) أو متعدد (تشيك بوكس) — مجموعةً مجموعة، ولا تُقبل إلا
+     * لمجموعةٍ يعرضها هذا التاجرُ فعلًا كإضافة.
+     *
+     * @param  array<int|string,string>  $bySelectionGroupId
+     */
+    private function saveSelectionTypes(array $bySelectionGroupId): void
+    {
+        $allowedGroups = $this->addOnGroupIds();
+        $offeringType = (new User)->getMorphClass();
+        $businessId = $this->businessId();
+
+        foreach ($bySelectionGroupId as $groupId => $type) {
+            $groupId = (int) $groupId;
+
+            if (! $allowedGroups->contains($groupId)) {
+                continue;
+            }
+
+            // متعدد هو الافتراض المخزَّن أصلًا — إعادة كتابته صفٌّ زائد.
+            if ($type === OfferingOptionGroupSetting::SELECTION_MULTIPLE) {
+                OfferingOptionGroupSetting::query()
+                    ->where('offering_type', $offeringType)
+                    ->where('offering_id', $businessId)
+                    ->where('option_group_id', $groupId)
+                    ->delete();
+
+                continue;
+            }
+
+            OfferingOptionGroupSetting::query()->updateOrCreate(
+                ['offering_type' => $offeringType, 'offering_id' => $businessId, 'option_group_id' => $groupId],
+                ['selection_type' => $type]
+            );
+        }
     }
 
 }

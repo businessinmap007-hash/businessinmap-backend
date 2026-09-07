@@ -11,6 +11,7 @@ use App\Models\Deposit;
 use App\Models\PlatformService;
 use App\Models\GuaranteeLevel;
 use App\Models\OfferingOption;
+use App\Models\OfferingOptionGroupSetting;
 use App\Models\OperationGuarantor;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\OperationGuarantorService;
@@ -955,6 +956,8 @@ class ServiceExecutionEngine
         // مقاديرُها. وإقامةُ شهرٍ كانت ثلاثين استعلامًا لنفس الصفوف.
         $modifierRows = $this->modifierRowsFor($businessPrice, $optionIds);
 
+        $this->assertModifierSelectionsValid($modifierRows, $businessPrice);
+
         $periodLines = [];
         $ruleApplied = null;
 
@@ -1225,6 +1228,7 @@ class ServiceExecutionEngine
          * والسطرُ يغلب عند التكرار، فمن أراد لنوعٍ سعرًا خاصًّا كتبه عليه.
          */
         $rows = OfferingOption::query()
+            ->with(['option:id,group_id', 'option.group:id,name_ar'])
             ->where('role', OfferingOption::ROLE_MODIFIER)
             ->whereIn('option_id', $ids->all())
             ->where(function ($query) use ($businessPrice) {
@@ -1245,6 +1249,52 @@ class ServiceExecutionEngine
         return $rows->groupBy('option_id')
             ->map(fn ($group) => $group->firstWhere('offering_type', $rowMorph) ?: $group->first())
             ->values();
+    }
+
+    /**
+     * راديو لا يصير تشيك بوكس بتخطّى التطبيق.
+     *
+     * مجموعةٌ أعلن صاحبُها (سطرٌ بعينه أو النشاطُ كلُّه) أنها اختيارٌ واحد —
+     * راجع `OfferingOptionGroupSetting` — لا يصحّ أن يصلها أكثرُ من خيارٍ فى
+     * طلب حجزٍ واحد، سواء أرسلته الشاشةُ أم طلبٌ مباشرٌ تخطّاها. نفسُ الحارس
+     * المكتوب لمجموعات إضافات المنيو (`CustomerCartService::resolveExtras`).
+     *
+     * @param  \Illuminate\Support\Collection<int,OfferingOption>  $rows
+     */
+    protected function assertModifierSelectionsValid($rows, BusinessServicePrice $businessPrice): void
+    {
+        if ($rows->count() < 2) {
+            return;
+        }
+
+        $byGroup = $rows->filter(fn (OfferingOption $row) => $row->option?->group_id)
+            ->groupBy(fn (OfferingOption $row) => $row->option->group_id);
+
+        $multiPicked = $byGroup->filter(fn ($group) => $group->count() > 1);
+
+        if ($multiPicked->isEmpty()) {
+            return;
+        }
+
+        $effective = OfferingOptionGroupSetting::effectiveFor(
+            [
+                ['type' => $businessPrice->getMorphClass(), 'id' => (int) $businessPrice->id],
+                ['type' => (new User)->getMorphClass(), 'id' => (int) $businessPrice->business_id],
+            ],
+            $multiPicked->keys()
+        );
+
+        foreach ($multiPicked as $groupId => $groupRows) {
+            if (($effective[$groupId] ?? OfferingOptionGroupSetting::SELECTION_MULTIPLE) !== OfferingOptionGroupSetting::SELECTION_SINGLE) {
+                continue;
+            }
+
+            $groupName = optional($groupRows->first()->option?->group)->name_ar ?? '';
+
+            throw ValidationException::withMessages([
+                'option_ids' => __('يجب اختيار خيار واحد فقط من :group.', ['group' => $groupName]),
+            ]);
+        }
     }
 
     /**

@@ -164,17 +164,28 @@ final class BookingController extends Controller
     }
 
     /**
-     * المُوصِّفات المسعَّرة عند هذا النشاط، مجموعةً تحت سطرها.
+     * المُوصِّفات المسعَّرة عند هذا النشاط، مجموعةً تحت سطرها ومجموعةِ
+     * تصنيفها.
      *
      * تُقرأ من مفردات صفوف السعر لا من مفردات التصنيف: التصنيف يقول ما **يجوز**
      * وصفُه، وهذه تقول ما وضع صاحبُ المحل عليه سعرًا فعلًا. وما قيمتُه صفرٌ
      * لا يُرسَل: مُوصِّفٌ بلا سعرٍ لا شأن لشاشة الدفع به.
      *
+     * من مصدرين: صفوفُ سعرٍ بعينها («إطلالة بحرية» على نوع غرفةٍ)، ونشاطٌ
+     * كامل («نظام الوجبات» — راجع `BookingAddOnController`). الثانى كان
+     * يُكتب ولا يُعرض قطّ للعميل قبل هذا التعديل، رغم أن محرّك التسعير كان
+     * يقرأه ويُسعِّره — عيبٌ سابقٌ لا علاقة له بفردي/متعدد بذاته، انكشف أثناء
+     * توحيد هذه الشاشة مع نظام `selection_type`.
+     *
+     * `group_id`/`group_name`/`selection_type` تصف كيف تُعرض المجموعة: راديو
+     * (فردي) أو تشيك بوكس (متعدد) — من `OfferingOptionGroupSetting`، بنطاق
+     * النشاط كلِّه، وهو النطاق الوحيد الذى تكتبه شاشة الإضافات اليوم.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function modifiersOf(User $business): array
     {
-        return \App\Models\OfferingOption::query()
+        $lineScoped = \App\Models\OfferingOption::query()
             ->join('business_service_prices as p', function ($join) {
                 $join->on('p.id', '=', 'offering_options.offering_id')
                     ->where('offering_options.offering_type', '=', (new \App\Models\BusinessServicePrice)->getMorphClass());
@@ -192,17 +203,53 @@ final class BookingController extends Controller
                 'l.name_ar as line_name',
                 'offering_options.option_id',
                 'o.name_ar as name',
+                'o.group_id as group_id',
+                'offering_options.adjust_type',
+                'offering_options.adjust_value',
+            ]);
+
+        $businessWide = \App\Models\OfferingOption::query()
+            ->where('offering_options.offering_type', '=', (new User)->getMorphClass())
+            ->where('offering_options.offering_id', '=', $business->id)
+            ->leftJoin('options as o', 'o.id', '=', 'offering_options.option_id')
+            ->where('offering_options.role', \App\Models\OfferingOption::ROLE_MODIFIER)
+            ->where('offering_options.adjust_value', '!=', 0)
+            ->orderBy('offering_options.sort_order')
+            ->get([
+                'offering_options.option_id',
+                'o.name_ar as name',
+                'o.group_id as group_id',
                 'offering_options.adjust_type',
                 'offering_options.adjust_value',
             ])
-            ->map(fn ($r) => [
-                'price_id' => (int) $r->price_id,
-                'line' => $r->line_name,
-                'option_id' => (int) $r->option_id,
-                'name' => $r->name,
-                'adjust_type' => $r->adjust_type,
-                'adjust_value' => (float) $r->adjust_value,
-            ])->all();
+            // سطرٌ بعينه أخصّ من النشاط كلِّه — ما ذُكر هناك يغلب هنا.
+            ->reject(fn ($r) => $lineScoped->contains('option_id', (int) $r->option_id));
+
+        $rows = $lineScoped->concat($businessWide);
+
+        $groupIds = $rows->pluck('group_id')->filter()->unique()->values();
+        $groupNames = $groupIds->isEmpty()
+            ? collect()
+            : \App\Models\OptionGroup::query()->whereIn('id', $groupIds)->pluck('name_ar', 'id');
+
+        $selectionTypes = \App\Models\OfferingOptionGroupSetting::forOwnOffering(
+            (new User)->getMorphClass(),
+            (int) $business->id
+        );
+
+        return $rows->map(fn ($r) => [
+            'price_id' => isset($r->price_id) ? (int) $r->price_id : null,
+            'line' => $r->line_name ?? null,
+            'option_id' => (int) $r->option_id,
+            'name' => $r->name,
+            'group_id' => $r->group_id ? (int) $r->group_id : null,
+            'group_name' => $r->group_id ? ($groupNames[$r->group_id] ?? null) : null,
+            'selection_type' => $r->group_id
+                ? ($selectionTypes[$r->group_id] ?? \App\Models\OfferingOptionGroupSetting::SELECTION_MULTIPLE)
+                : \App\Models\OfferingOptionGroupSetting::SELECTION_MULTIPLE,
+            'adjust_type' => $r->adjust_type,
+            'adjust_value' => (float) $r->adjust_value,
+        ])->values()->all();
     }
 
     /** @return array<int, array<string, mixed>> */

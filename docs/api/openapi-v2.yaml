@@ -1874,6 +1874,30 @@ paths:
       - { name: variant, in: path, required: true, schema: { type: integer } }
     patch: { tags: [Business Menu], summary: Update a variant, responses: { '200': { description: OK } } }
     delete: { tags: [Business Menu], summary: Delete a variant, responses: { '200': { description: OK } } }
+  /business/menu/items/{item}/extra-groups:
+    post:
+      tags: [Business Menu]
+      summary: Add an extra group — decides whether its extras are picked one at a time (single, radio) or any number (multiple, checkbox)
+      parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name_ar, selection_type]
+              properties:
+                name_ar: { type: string }
+                name_en: { type: string }
+                selection_type: { type: string, enum: [single, multiple] }
+                is_active: { type: boolean }
+      responses: { '201': { description: Created } }
+  /business/menu/items/{item}/extra-groups/{group}:
+    parameters:
+      - { name: item, in: path, required: true, schema: { type: integer } }
+      - { name: group, in: path, required: true, schema: { type: integer } }
+    patch: { tags: [Business Menu], summary: Update an extra group, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Menu], summary: "Delete an extra group — its extras become standalone (extra_group_id is nulled), not deleted", responses: { '200': { description: OK } } }
   /business/menu/items/{item}/extras:
     post:
       tags: [Business Menu]
@@ -1887,7 +1911,7 @@ paths:
               type: object
               required: [name_ar, price]
               properties:
-                group_key: { type: string }
+                extra_group_id: { type: integer, nullable: true }
                 name_ar: { type: string }
                 name_en: { type: string }
                 price: { type: number, minimum: 0 }

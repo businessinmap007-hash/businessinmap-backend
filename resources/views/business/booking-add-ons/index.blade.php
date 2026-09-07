@@ -84,6 +84,7 @@
 
     @foreach($sections as $section)
     @foreach($section['groups'] as $groupName => $options)
+        @php $groupId = (int) ($options->first()->group_id ?? 0); @endphp
         <div class="a2-card a2-card--section" style="margin-bottom:14px;">
             <div class="a2-card-head">
                 <div>
@@ -93,6 +94,14 @@
                     </div>
                     <div class="a2-card-sub">{{ $section['note'] }}</div>
                 </div>
+                @if($section['kind'] === 'addon' && $groupId > 0)
+                    <div>
+                        <select class="a2-select" name="selection_type[{{ $groupId }}]">
+                            <option value="multiple" @selected(($selectionTypes[$groupId] ?? 'multiple') === 'multiple')>{{ __('اختيار متعدد (تشيك بوكس)') }}</option>
+                            <option value="single" @selected(($selectionTypes[$groupId] ?? 'multiple') === 'single')>{{ __('اختيار واحد (راديو بوتون)') }}</option>
+                        </select>
+                    </div>
+                @endif
             </div>
 
             {{-- جدولٌ لا أقراص.

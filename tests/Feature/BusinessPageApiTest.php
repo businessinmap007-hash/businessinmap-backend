@@ -199,6 +199,58 @@ class BusinessPageApiTest extends TestCase
             ->assertJsonPath('data.sections.posts', true);
     }
 
+    /**
+     * The unified fulfillment-method entry point (bim_app, above the menu):
+     * no BusinessMenuSetting row means the business never opted out of
+     * either — both stay available, matching checkout's own historical
+     * unconditional acceptance of delivery/pickup. Dine-in stays false with
+     * no active table.
+     */
+    public function test_the_business_page_fulfillment_defaults_to_delivery_and_pickup_with_no_settings_row(): void
+    {
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.fulfillment.delivery', true)
+            ->assertJsonPath('data.fulfillment.pickup', true)
+            ->assertJsonPath('data.fulfillment.dine_in', false);
+    }
+
+    public function test_the_business_page_fulfillment_reflects_an_opt_out(): void
+    {
+        \App\Models\BusinessMenuSetting::create([
+            'business_id' => $this->biz->id,
+            'supports_delivery' => false,
+            'supports_pickup' => true,
+        ]);
+
+        $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
+
+        $res->assertJsonPath('data.fulfillment.delivery', false)
+            ->assertJsonPath('data.fulfillment.pickup', true);
+    }
+
+    public function test_the_business_page_fulfillment_dine_in_is_true_only_with_an_active_table(): void
+    {
+        DB::table('business_tables')->insert([
+            'business_id' => $this->biz->id,
+            'label' => 'Table 1',
+            'token' => \Illuminate\Support\Str::random(40),
+            'is_active' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson("/api/v2/businesses/{$this->biz->id}")
+            ->assertOk()
+            ->assertJsonPath('data.fulfillment.dine_in', false);
+
+        DB::table('business_tables')->where('business_id', $this->biz->id)->update(['is_active' => true]);
+
+        $this->getJson("/api/v2/businesses/{$this->biz->id}")
+            ->assertOk()
+            ->assertJsonPath('data.fulfillment.dine_in', true);
+    }
+
     public function test_the_business_page_is_404_for_a_non_business(): void
     {
         $client = User::query()->where('type', '!=', User::TYPE_BUSINESS)->firstOrFail();

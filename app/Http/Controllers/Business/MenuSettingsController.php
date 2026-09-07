@@ -71,6 +71,8 @@ class MenuSettingsController extends Controller
                 'default_margin_percent' => $margin,
                 'deposit_required_above' => $depositAbove,
                 'low_stock_threshold' => $lowStockThreshold,
+                'supports_delivery' => (int) $request->boolean('supports_delivery'),
+                'supports_pickup' => (int) $request->boolean('supports_pickup'),
             ]
         );
 

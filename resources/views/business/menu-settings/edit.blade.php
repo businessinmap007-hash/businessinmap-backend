@@ -49,6 +49,31 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
+                <div class="a2-card-title">{{ __('طرق الاستلام') }}</div>
+                <div class="a2-card-sub">{{ __('يختار العميل من بينها في شاشة النشاط قبل تصفح المنيو مباشرة. "استلام من الطاولة" يظهر تلقائيًا لو عندك طاولات مفعّلة (شاشة رموز QR)، وليس هنا.') }}</div>
+            </div>
+        </div>
+
+        <div class="a2-form-grid">
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-check">
+                    <input type="checkbox" name="supports_delivery" value="1" @checked((bool) old('supports_delivery', $row->supports_delivery ?? true))>
+                    <span>{{ __('توصيل') }}</span>
+                </label>
+            </div>
+
+            <div class="a2-form-group a2-field-full">
+                <label class="a2-check">
+                    <input type="checkbox" name="supports_pickup" value="1" @checked((bool) old('supports_pickup', $row->supports_pickup ?? true))>
+                    <span>{{ __('استلام من المكان') }}</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="a2-card a2-card--section">
+        <div class="a2-card-head">
+            <div>
                 <div class="a2-card-title">{{ __('نسبة الضريبة') }}</div>
                 <div class="a2-card-sub">{{ __('لا تُفرض أي ضريبة إطلاقاً ما لم تحدد نسبة هنا بنفسك. اترك الحقل فارغاً لعدم فرض ضريبة على طلبات المنيو.') }}</div>
             </div>

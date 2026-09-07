@@ -116,4 +116,21 @@ class MenuSettingsOwnerTest extends TestCase
             'deposit_required_above' => null,
         ]);
     }
+
+    /** طرق الاستلام (delivery/pickup) — يقرأها BusinessPageController للعميل، 2026-09-07. */
+    public function test_owner_saves_fulfillment_support_flags(): void
+    {
+        $owner = User::query()->where('type', 'business')->firstOrFail();
+        $this->actingAs($owner);
+
+        $this->put(route('business.menu-settings.update', [], false), [
+            'supports_delivery' => 1,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $owner->id,
+            'supports_delivery' => 1,
+            'supports_pickup' => 0,
+        ]);
+    }
 }

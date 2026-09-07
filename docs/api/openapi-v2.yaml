@@ -2252,7 +2252,7 @@ paths:
     get:
       tags: [Business Page]
       summary: The public business page aggregate (profile + rating + section flags)
-      description: What a search result opens — profile header (including address, country, governorate/city, category + sub-category names, and its options list), rating summary, open-now, and which tabs exist (posts/menu/services). The heavy lists stay on their own endpoints.
+      description: What a search result opens — profile header (including address, country, governorate/city, category + sub-category names, and its options list), rating summary, open-now, which tabs exist (posts/menu/services), and which fulfillment methods (delivery/pickup/dine_in) the unified entry point above the menu should offer. The heavy lists stay on their own endpoints.
       parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /businesses/{business}/posts:

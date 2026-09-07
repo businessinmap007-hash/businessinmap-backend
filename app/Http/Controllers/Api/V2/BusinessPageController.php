@@ -53,6 +53,18 @@ final class BusinessPageController extends Controller
         $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
         $hasServices = DB::table('business_service_prices')->where('business_id', $business)->where('is_active', 1)->exists();
 
+        // The one entry point (bim_app, above the menu, before checkout)
+        // needs to know which methods to even offer. No row yet means the
+        // business never opted out of either — both stay available, same as
+        // checkout's own fulfillment_type validation always allowed. Dine-in
+        // has no settings flag of its own: it's whether the business has any
+        // active table (BIM-13.3), the existing signal for that capability.
+        $menuSettings = DB::table('business_menu_settings')->where('business_id', $business)->first();
+        $hasActiveTables = DB::table('business_tables')
+            ->where('business_id', $business)
+            ->where('is_active', 1)
+            ->exists();
+
         $viewer = $request->user() ?: auth('sanctum')->user();
         $followersCount = FollowUser::query()->where('follow_id', $business)->count();
         $isFollowing = $viewer !== null && FollowUser::query()
@@ -116,6 +128,14 @@ final class BusinessPageController extends Controller
                     'posts' => $postsCount > 0,
                     'menu' => $hasMenu,
                     'services' => $hasServices,
+                ],
+                // Which fulfillment methods the unified entry point should
+                // offer above the menu — see Order::FULFILLMENT_* and
+                // CustomerCartService::placeOrder for how the choice is spent.
+                'fulfillment' => [
+                    'delivery' => $menuSettings ? (bool) $menuSettings->supports_delivery : true,
+                    'pickup' => $menuSettings ? (bool) $menuSettings->supports_pickup : true,
+                    'dine_in' => $hasActiveTables,
                 ],
             ],
         ]);

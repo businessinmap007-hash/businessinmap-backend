@@ -20,6 +20,8 @@ class BusinessMenuSetting extends Model
         'default_margin_percent',
         'deposit_required_above',
         'low_stock_threshold',
+        'supports_delivery',
+        'supports_pickup',
     ];
 
     protected $casts = [
@@ -31,6 +33,8 @@ class BusinessMenuSetting extends Model
         'default_margin_percent' => 'float',
         'deposit_required_above' => 'float',
         'low_stock_threshold' => 'integer',
+        'supports_delivery' => 'boolean',
+        'supports_pickup' => 'boolean',
     ];
 
     public function business(): BelongsTo

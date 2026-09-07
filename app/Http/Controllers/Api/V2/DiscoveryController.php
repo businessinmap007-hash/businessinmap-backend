@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\CategoryChild;
+use App\Models\PlatformService;
 use App\Models\PlatformServiceItemType;
 use App\Models\User;
 use App\Services\OfferingDiscovery;
@@ -375,17 +376,23 @@ final class DiscoveryController extends Controller
      * Deliberately NOT scoped to one specialty (child_id) like `businesses()`
      * — `category_id` (a root, optional) is as narrow as this gets, since
      * this is a cross-specialty "what's good under Health" or platform-wide
-     * browsing surface, not a specialty-driven filter search.
+     * browsing surface, not a specialty-driven filter search. `service_id`
+     * (from serviceTypes()'s chip row) narrows unconditionally when given —
+     * unlike `businesses()`'s item_types axis, there's no child_id here to
+     * make an unpriced business relevant by default, so there's nothing to
+     * lose by requiring the priced row the moment a service is named.
      */
     public function recommended(Request $request)
     {
         $data = $request->validate([
             'category_id' => ['nullable', 'integer', 'min:1'],
+            'service_id' => ['nullable', 'integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
         $categoryId = (int) ($data['category_id'] ?? 0);
+        $serviceId = (int) ($data['service_id'] ?? 0);
         $q = trim((string) ($data['q'] ?? ''));
 
         // COALESCE to 0 (not left NULL) so a never-rated business sorts
@@ -395,9 +402,32 @@ final class DiscoveryController extends Controller
         // engines.
         $ratingExpr = 'COALESCE(ROUND(uor.review_stars_sum / GREATEST(uor.review_count, 1), 2), 0)';
 
+        // The menu service never writes a business_service_prices row — a
+        // restaurant's items live in the separate menu_items table (its own
+        // dedicated discovery path, /discovery/menu/{business}), so the
+        // priced-row check below would silently exclude every menu business
+        // otherwise. Same fallback BusinessPageController::show() uses for
+        // its own has_menu flag.
+        $serviceKey = $serviceId > 0 ? (string) (PlatformService::find($serviceId)?->key) : null;
+
         $businesses = User::query()
             ->where('users.type', 'business')
             ->when($categoryId > 0, fn (Builder $w) => $w->where('users.category_id', $categoryId))
+            ->when($serviceId > 0, fn (Builder $w) => $w->where(function (Builder $inner) use ($serviceId, $serviceKey) {
+                $inner->whereExists(function ($sub) use ($serviceId) {
+                    $sub->from('business_service_prices as p')
+                        ->whereColumn('p.business_id', 'users.id')
+                        ->where('p.is_active', 1)
+                        ->where('p.service_id', $serviceId);
+                });
+                if ($serviceKey === PlatformService::KEY_MENU) {
+                    $inner->orWhereExists(function ($sub) {
+                        $sub->from('menu_items as m')
+                            ->whereColumn('m.business_id', 'users.id')
+                            ->where('m.is_active', 1);
+                    });
+                }
+            }))
             ->when($q !== '', fn (Builder $w) => $w->searchByName($q))
             ->leftJoin('user_operation_ratings as uor', function ($join) {
                 $join->on('uor.user_id', '=', 'users.id')->where('uor.role', 'business');
@@ -438,6 +468,7 @@ final class DiscoveryController extends Controller
             'data' => [
                 'query' => [
                     'category_id' => $categoryId ?: null,
+                    'service_id' => $serviceId ?: null,
                     'q' => $q ?: null,
                 ],
                 'businesses' => $businesses,
@@ -598,6 +629,33 @@ final class DiscoveryController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * The complete platform-service vocabulary (booking/menu/delivery/retail/
+     * schedules/training), NOT scoped to a specialty — powers the discovery
+     * screen's own "what kind of service?" chip row, offered before the
+     * customer has picked a category child at all. Contrast with services(),
+     * which is scoped to one child and only lists what THAT child configured.
+     */
+    public function serviceTypes(Request $request)
+    {
+        $services = PlatformService::query()
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'key', 'name_ar', 'name_en']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'services' => $services->map(fn ($s) => [
+                    'id' => (int) $s->id,
+                    'key' => (string) $s->key,
+                    'name' => $this->label($s->name_ar, $s->name_en, $s->key),
+                ])->values(),
+            ],
+        ]);
     }
 
     /**

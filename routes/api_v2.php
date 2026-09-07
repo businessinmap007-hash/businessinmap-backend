@@ -158,6 +158,10 @@ Route::prefix('v2')->group(function () {
 
     // Customer discovery: specialty (category child) -> service + item types -> businesses.
     Route::prefix('discovery')->group(function () {
+        // The full platform-service vocabulary, unscoped — the discovery
+        // screen's own "what kind of service?" chip row, before any
+        // specialty is chosen. Contrast with `services` below (child-scoped).
+        Route::get('service-types', [DiscoveryController::class, 'serviceTypes']);
         // The services hub for a specialty: every service available for the
         // child category, for the app's "services" tab.
         Route::get('services', [DiscoveryController::class, 'services']);

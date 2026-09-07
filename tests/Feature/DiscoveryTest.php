@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SeedsMenu;
 use Tests\TestCase;
 
 /**
@@ -15,6 +16,7 @@ use Tests\TestCase;
 class DiscoveryTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsMenu;
 
     private function anyActivePrice(): ?object
     {
@@ -245,5 +247,68 @@ class DiscoveryTest extends TestCase
     public function test_recommended_requires_no_parameters_at_all(): void
     {
         $this->getJson('/api/v2/discovery/recommended')->assertOk()->assertJsonPath('success', true);
+    }
+
+    public function test_recommended_service_id_narrows_to_who_offers_it(): void
+    {
+        $price = $this->anyActivePrice();
+        if (! $price) {
+            $this->markTestSkipped('Needs an active business_service_prices row.');
+        }
+
+        $withService = \App\Models\User::whereKey($price->business_id)->first();
+
+        $ids = array_column(
+            $this->getJson('/api/v2/discovery/recommended?service_id=' . $price->service_id . '&q=' . urlencode((string) $withService->name))
+                ->assertOk()->json('data.businesses.data'),
+            'id'
+        );
+        $this->assertContains((int) $withService->id, $ids, 'a business that prices the service must appear');
+
+        $tag = 'rec-svc-' . uniqid();
+        $without = $this->makeBusiness($tag);
+
+        $idsWithout = array_column(
+            $this->getJson('/api/v2/discovery/recommended?service_id=' . $price->service_id . '&q=' . $tag)
+                ->assertOk()->json('data.businesses.data'),
+            'id'
+        );
+        $this->assertNotContains($without->id, $idsWithout, 'a business with no priced row for this service must not appear');
+    }
+
+    /**
+     * A menu business never writes a business_service_prices row — its items
+     * live in menu_items instead — so the plain priced-row check would
+     * silently hide every restaurant behind the "Menu" chip. Same gap
+     * BusinessPageController::show() already works around for its own
+     * has_menu flag.
+     */
+    public function test_recommended_service_id_menu_matches_via_menu_items_fallback(): void
+    {
+        $menuServiceId = (int) \App\Models\PlatformService::where('key', 'menu')->value('id');
+        if ($menuServiceId === 0) {
+            $this->markTestSkipped('No "menu" platform service seeded.');
+        }
+
+        $tag = 'rec-menu-' . uniqid();
+        $business = $this->makeBusiness($tag);
+        $this->seedMenuItem($business->id, null, 40.0, 'برجر');
+
+        $ids = array_column(
+            $this->getJson("/api/v2/discovery/recommended?service_id={$menuServiceId}&q={$tag}")
+                ->assertOk()->json('data.businesses.data'),
+            'id'
+        );
+        $this->assertContains($business->id, $ids, 'a business with an active menu item must appear for the menu service');
+    }
+
+    public function test_service_types_lists_the_platform_service_vocabulary(): void
+    {
+        $res = $this->getJson('/api/v2/discovery/service-types')->assertOk()->assertJsonPath('success', true);
+
+        $keys = array_column($res->json('data.services'), 'key');
+        $this->assertContains('menu', $keys);
+        $this->assertContains('booking', $keys);
+        $this->assertContains('retail', $keys);
     }
 }

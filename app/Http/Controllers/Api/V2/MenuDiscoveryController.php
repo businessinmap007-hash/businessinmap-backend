@@ -121,6 +121,11 @@ final class MenuDiscoveryController extends Controller
                     'logo' => $biz->logo,
                     // So the order screen can show "closed now" and gate ordering.
                     'is_open_now' => app(\App\Services\BusinessHoursService::class)->isOpenNow((int) $biz->id),
+                    // 'list' (default) or 'grid' — the merchant's own choice
+                    // for how their menu renders; see BusinessMenuSetting.
+                    'menu_display_mode' => \App\Models\BusinessMenuSetting::query()
+                        ->where('business_id', $biz->id)
+                        ->value('display_mode') ?: \App\Models\BusinessMenuSetting::DISPLAY_LIST,
                 ],
                 'sections' => $out,
             ],

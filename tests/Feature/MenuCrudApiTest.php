@@ -106,6 +106,49 @@ class MenuCrudApiTest extends TestCase
             ->deleteJson("/api/v2/business/menu/items/{$item->id}")->assertNotFound();
     }
 
+    public function test_display_mode_defaults_to_list_and_can_be_switched_to_grid(): void
+    {
+        $default = $this->actingAs($this->business, 'sanctum')
+            ->getJson('/api/v2/business/menu/display-mode')->assertOk()->json('data.display_mode');
+        $this->assertSame('list', $default);
+
+        $this->actingAs($this->business, 'sanctum')
+            ->putJson('/api/v2/business/menu/display-mode', ['display_mode' => 'grid'])
+            ->assertOk()
+            ->assertJsonPath('data.display_mode', 'grid');
+
+        $this->assertDatabaseHas('business_menu_settings', [
+            'business_id' => $this->business->id,
+            'display_mode' => 'grid',
+        ]);
+
+        $read = $this->actingAs($this->business, 'sanctum')
+            ->getJson('/api/v2/business/menu/display-mode')->assertOk()->json('data.display_mode');
+        $this->assertSame('grid', $read);
+    }
+
+    public function test_display_mode_rejects_an_unknown_value(): void
+    {
+        $this->actingAs($this->business, 'sanctum')
+            ->putJson('/api/v2/business/menu/display-mode', ['display_mode' => 'carousel'])
+            ->assertStatus(422);
+    }
+
+    public function test_the_customer_menu_reflects_the_chosen_display_mode(): void
+    {
+        MenuItem::create([
+            'business_id' => $this->business->id, 'name_ar' => 'صنف', 'base_price' => 10, 'is_active' => true,
+        ]);
+
+        $this->actingAs($this->business, 'sanctum')
+            ->putJson('/api/v2/business/menu/display-mode', ['display_mode' => 'grid'])
+            ->assertOk();
+
+        $this->getJson('/api/v2/discovery/menu/' . $this->business->id)
+            ->assertOk()
+            ->assertJsonPath('data.business.menu_display_mode', 'grid');
+    }
+
     /** A business whose vocabulary actually has a `line` group to sell under. */
     private function businessWithLineVocabulary(): array
     {

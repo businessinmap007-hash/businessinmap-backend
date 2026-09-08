@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\MenuItemResource;
+use App\Models\BusinessMenuSetting;
 use App\Models\Image;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
@@ -63,6 +64,39 @@ final class BusinessMenuItemController extends Controller
                 'modifiers' => $shape($vocabulary['modifiers']),
             ],
         ]);
+    }
+
+    /**
+     * GET /api/v2/business/menu/display-mode — how this business's menu
+     * renders for a customer: a plain row per item ('list', the default) or
+     * a 2-column card grid ('grid'). One merchant-wide switch — see
+     * BusinessMenuSetting::DISPLAY_MODES.
+     */
+    public function displayMode(Request $request)
+    {
+        $mode = BusinessMenuSetting::query()
+            ->where('business_id', $this->businessId($request))
+            ->value('display_mode');
+
+        return response()->json([
+            'success' => true,
+            'data' => ['display_mode' => $mode ?: BusinessMenuSetting::DISPLAY_LIST],
+        ]);
+    }
+
+    /** PUT /api/v2/business/menu/display-mode */
+    public function updateDisplayMode(Request $request)
+    {
+        $data = $request->validate([
+            'display_mode' => ['required', Rule::in(BusinessMenuSetting::DISPLAY_MODES)],
+        ]);
+
+        BusinessMenuSetting::updateOrCreate(
+            ['business_id' => $this->businessId($request)],
+            ['display_mode' => $data['display_mode']]
+        );
+
+        return response()->json(['success' => true, 'data' => ['display_mode' => $data['display_mode']]]);
     }
 
     /**

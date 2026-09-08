@@ -11,6 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class BusinessMenuSetting extends Model
 {
+    public const DISPLAY_LIST = 'list';
+    public const DISPLAY_GRID = 'grid';
+    public const DISPLAY_MODES = [self::DISPLAY_LIST, self::DISPLAY_GRID];
+
     protected $fillable = [
         'business_id',
         'prices_include_service',
@@ -22,6 +26,7 @@ class BusinessMenuSetting extends Model
         'low_stock_threshold',
         'supports_delivery',
         'supports_pickup',
+        'display_mode',
     ];
 
     protected $casts = [

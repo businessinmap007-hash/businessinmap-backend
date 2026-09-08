@@ -712,6 +712,11 @@ Route::prefix('v2')->group(function () {
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
 
+            // How the menu renders for a customer — list (default) or a
+            // photo-first grid, one merchant-wide switch.
+            Route::get('display-mode', [BusinessMenuItemController::class, 'displayMode']);
+            Route::put('display-mode', [BusinessMenuItemController::class, 'updateDisplayMode']);
+
             Route::get('items', [BusinessMenuItemController::class, 'index']);
             Route::post('items', [BusinessMenuItemController::class, 'store']);
             Route::get('items/{item}', [BusinessMenuItemController::class, 'show'])->whereNumber('item');

@@ -120,6 +120,35 @@ class MenuHeadingTest extends TestCase
         $this->assertCount(5, $group['items']);
     }
 
+    /**
+     * The customer payload names the branch itself, not just the heading it
+     * produced — the app groups a section's items by branch to let a
+     * customer jump to one directly, and needs the id/name to do it.
+     */
+    public function test_each_items_line_option_is_named_in_its_payload(): void
+    {
+        $business = $this->business();
+
+        $line = Option::query()
+            ->whereIn('group_id', OptionGroup::query()->where('price_role', OptionGroup::ROLE_LINE)->select('id'))
+            ->first();
+
+        if (! $line) {
+            $this->markTestSkipped('No line option.');
+        }
+
+        $item = $this->item($business, 'صنف بفرع');
+        $item->syncOfferingOptions((int) $line->id);
+
+        $group = collect($this->menu($business))->firstWhere('source', 'option_combo');
+        $this->assertNotNull($group);
+
+        $payload = collect($group['items'])->firstWhere('id', $item->id);
+        $this->assertNotNull($payload);
+        $this->assertSame((int) $line->id, $payload['line_option']['id']);
+        $this->assertSame($line->name_ar, $payload['line_option']['name_ar']);
+    }
+
     /** A heading the merchant wrote himself wins over the taxonomy's. */
     public function test_a_hand_written_section_wins(): void
     {

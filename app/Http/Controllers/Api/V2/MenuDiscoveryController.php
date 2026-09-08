@@ -225,6 +225,15 @@ final class MenuDiscoveryController extends Controller
             // so the option a customer searched by still shows on the result
             'offering_label' => $item->offeringLabel() ?: null,
             'option_ids' => $item->offeringOptions->pluck('option_id')->map(fn ($id) => (int) $id)->values(),
+            // The branch this item sits under within its section — e.g.
+            // "ثلاجات" inside "أنواع الأجهزة الكهربائية" — so the app can
+            // group a section's items by branch and let a customer jump to
+            // one directly, the way it already jumps to a section.
+            'line_option' => ($lineOption = $item->lineOption()) ? [
+                'id' => (int) $lineOption->id,
+                'name_ar' => $lineOption->name_ar,
+                'name_en' => $lineOption->name_en,
+            ] : null,
             // The legacy single column stays for whatever already reads it;
             // `images` is the gallery, and the one to draw.
             'image' => $item->image,

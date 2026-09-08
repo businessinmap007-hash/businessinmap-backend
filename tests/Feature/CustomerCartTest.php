@@ -88,6 +88,42 @@ class CustomerCartTest extends TestCase
         $this->assertLessThan($goods * 1.5, $grand, 'the total is no longer explained by the goods and a fee');
     }
 
+    public function test_items_count_is_distinct_lines_not_summed_quantity(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        // A weight-priced line's qty is kilograms, not units — summing
+        // quantities across two lines (2 + 5) must not read as "7 items"
+        // when there are really only 2 products in the cart.
+        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $this->listingA, 'qty' => 2])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->menuA, 'qty' => 5])->assertCreated();
+
+        $res = $this->getJson('/api/v2/cart')->assertOk();
+        $cart = collect($res->json('data.carts'))->firstWhere('business.id', $this->businessA);
+
+        $this->assertSame(2, $cart['items_count'], 'two distinct lines, not the summed quantity of 7');
+    }
+
+    public function test_an_empty_cart_never_appears_in_the_list(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        Order::create([
+            'user_id' => $this->customer->id,
+            'business_id' => $this->businessA,
+            'status' => 'cart',
+            'total' => 0,
+            'address' => '',
+        ]);
+
+        $res = $this->getJson('/api/v2/cart')->assertOk();
+
+        $this->assertFalse(
+            collect($res->json('data.carts'))->contains(fn ($c) => (int) $c['business']['id'] === $this->businessA),
+            'a cart with zero items must not be listed'
+        );
+    }
+
     public function test_adding_same_offering_merges_quantity(): void
     {
         Sanctum::actingAs($this->customer);

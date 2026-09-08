@@ -205,7 +205,10 @@ final class CartController extends Controller
             'delivery_lat' => $order->delivery_lat !== null ? (float) $order->delivery_lat : null,
             'delivery_lng' => $order->delivery_lng !== null ? (float) $order->delivery_lng : null,
             'items' => $items,
-            'items_count' => $items->sum('qty'),
+            // Distinct product lines, not summed quantities — a weight-priced
+            // line's qty is kilograms, not units, so "2 lines, 11kg" must not
+            // read as "11 items".
+            'items_count' => $items->count(),
             'bill' => [
                 'menu_subtotal' => $bill['menu_subtotal'],
                 'retail_subtotal' => $bill['retail_subtotal'],

@@ -62,10 +62,21 @@ final class SharedCartController extends Controller
         ]);
     }
 
-    /** Host-only: invites every member of one of the host's own contact groups at once. */
+    /**
+     * Host-only: invites members of one of the host's own contact groups at
+     * once — every member, or only the ones picked in `member_ids` (user
+     * ids) when the caller sent a selection instead of "everyone".
+     */
     public function inviteGroup(Request $request, int $order, int $group)
     {
-        $invited = $this->cart->inviteGroupToShared((int) $request->user()->id, $order, $group);
+        $data = $request->validate([
+            'member_ids' => ['nullable', 'array'],
+            'member_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $invited = $this->cart->inviteGroupToShared(
+            (int) $request->user()->id, $order, $group, $data['member_ids'] ?? null
+        );
 
         return response()->json([
             'success' => true,
@@ -242,7 +253,9 @@ final class SharedCartController extends Controller
                 'user_id' => (int) $p->user_id,
                 'name' => (string) ($p->user->name ?? ''),
                 'role' => (string) $p->role,
-                'items_count' => (int) $lines->sum('qty'),
+                // Distinct product lines, not summed quantities — see
+                // CartController::presentCart's same fix for why.
+                'items_count' => $lines->count(),
                 'items_subtotal' => $bill['items_subtotal'],
                 'service_fee' => $bill['service_fee'],
                 'service_included' => $bill['service_included'],
@@ -284,7 +297,9 @@ final class SharedCartController extends Controller
             'participants' => $breakdown,
             'items' => $items,
             'totals' => [
-                'items' => (int) $items->sum('qty'),
+                // Distinct product lines, not summed quantities — see
+                // CartController::presentCart's same fix for why.
+                'items' => $items->count(),
                 'items_subtotal' => round((float) $breakdown->sum('items_subtotal'), 2),
                 'service_fee' => round((float) $breakdown->sum('service_fee'), 2),
                 'tax' => round((float) $breakdown->sum('tax'), 2),

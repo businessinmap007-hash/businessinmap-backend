@@ -168,6 +168,12 @@ class CustomerCartService
         return Order::query()
             ->where('user_id', $userId)
             ->where('status', self::STATUS_CART)
+            // A cart abandoned before anything was added (or emptied down to
+            // nothing) is not a real cart — mergeOrCreateLine's own comment on
+            // the client side already assumes an empty cart "carries no
+            // business" and drops it; this is that same invariant enforced on
+            // the read side too, so one never lingers into the list.
+            ->whereHas('items')
             ->with(['items', 'business:id,name,logo'])
             ->orderByDesc('id')
             ->get();
@@ -276,20 +282,26 @@ class CustomerCartService
     }
 
     /**
-     * Invite every member of one of the host's own contact groups
-     * (ContactGroup) to this shared cart in one action. Unlike
-     * inviteToShared(), a single bad member (the host themself, somehow
-     * already invited elsewhere) is skipped rather than failing the whole
-     * batch — returns only the friends actually newly notified.
+     * Invite members of one of the host's own contact groups (ContactGroup)
+     * to this shared cart in one action — every member by default, or only
+     * the ones named in $memberUserIds (the group's own checkbox picker).
+     * Unlike inviteToShared(), a single bad member (the host themself,
+     * somehow already invited elsewhere) is skipped rather than failing the
+     * whole batch — returns only the friends actually newly notified.
      */
-    public function inviteGroupToShared(int $hostId, int $orderId, int $groupId): array
+    public function inviteGroupToShared(int $hostId, int $orderId, int $groupId, ?array $memberUserIds = null): array
     {
         $cart = $this->sharedHostCartOrFail($orderId, $hostId);
 
         $group = ContactGroup::query()->where('user_id', $hostId)->findOrFail($groupId);
 
+        $query = $group->members()->with('user');
+        if ($memberUserIds !== null) {
+            $query->whereIn('user_id', $memberUserIds);
+        }
+
         $invited = [];
-        foreach ($group->members()->with('user')->get() as $member) {
+        foreach ($query->get() as $member) {
             $friend = $member->user;
             if (! $friend) {
                 continue;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\AccountResource;
 use App\Models\CategoryChild;
+use App\Models\OptionGroup;
 use App\Services\Media\ImageUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -210,13 +211,22 @@ final class ProfileController extends Controller
         // carries a different attribute set under a different root (a furniture
         // factory is not asked what a furniture showroom is asked), and
         // category_child_option.category_id = 0 means "under every root".
-        $allowed = DB::table('category_child_option')
-            ->where('child_id', (int) $user->category_child_id)
+        //
+        // `line` groups are excluded — since 2026-09-08 what a goods business
+        // SELLS is picked per catalog item ({@see
+        // \App\Http\Controllers\Api\V2\BusinessMenuItemController::vocabulary()}),
+        // not once here with no price attached. This screen keeps only
+        // `modifier`/`descriptive` attributes about the business itself.
+        $allowed = DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('cco.child_id', (int) $user->category_child_id)
+            ->where('g.price_role', '!=', OptionGroup::ROLE_LINE)
             ->when(
                 (int) ($user->category_id ?? 0) > 0,
-                fn ($q) => $q->whereIn('category_id', [0, (int) $user->category_id])
+                fn ($q) => $q->whereIn('cco.category_id', [0, (int) $user->category_id])
             )
-            ->pluck('option_id')
+            ->pluck('cco.option_id')
             ->all();
 
         $invalid = array_diff($optionIds, $allowed);
@@ -242,6 +252,10 @@ final class ProfileController extends Controller
         $options = $childId
             ? (CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get() ?? collect())
             : collect();
+
+        // `line` groups moved to the catalog item form — see the matching
+        // exclusion in updateOptions() above.
+        $options = $options->reject(fn ($o) => $o->group?->price_role === OptionGroup::ROLE_LINE)->values();
 
         $groups = [];
         foreach ($options as $o) {

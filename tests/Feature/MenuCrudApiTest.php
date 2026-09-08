@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\User;
+use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -103,6 +104,96 @@ class MenuCrudApiTest extends TestCase
 
         $this->actingAs($otherBiz, 'sanctum')
             ->deleteJson("/api/v2/business/menu/items/{$item->id}")->assertNotFound();
+    }
+
+    /** A business whose vocabulary actually has a `line` group to sell under. */
+    private function businessWithLineVocabulary(): array
+    {
+        $vocabulary = app(MerchantOfferingVocabulary::class);
+
+        foreach (User::query()->where('type', 'business')->orderBy('id')->cursor() as $candidate) {
+            $lines = $vocabulary->for((int) $candidate->id, (int) $candidate->category_child_id, (int) $candidate->category_id)['lines'];
+
+            if ($lines->isNotEmpty()) {
+                $group = $lines->first();
+
+                return [$candidate, (int) $group->first()->id, (int) $group->first()->group_id];
+            }
+        }
+
+        $this->markTestSkipped('Needs a business whose specialty has a `line` option group.');
+    }
+
+    public function test_vocabulary_lists_the_businesss_own_line_and_modifier_groups(): void
+    {
+        [$business] = $this->businessWithLineVocabulary();
+
+        $data = $this->actingAs($business, 'sanctum')
+            ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data');
+
+        $this->assertNotEmpty($data['lines'], 'a business with a line group must see it here');
+        $this->assertArrayHasKey('group_id', $data['lines'][0]);
+        $this->assertArrayHasKey('options', $data['lines'][0]);
+        $this->assertArrayHasKey('id', $data['lines'][0]['options'][0]);
+    }
+
+    public function test_item_with_a_line_option_grows_its_own_section(): void
+    {
+        [$business, $lineOptionId, $groupId] = $this->businessWithLineVocabulary();
+
+        $item = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'صنف مربوط بفرع', 'base_price' => 30, 'line_option_id' => $lineOptionId,
+            ])->assertCreated()->json('data');
+
+        $this->assertSame($lineOptionId, $item['line_option']['id']);
+        $this->assertNotNull($item['menu_section_id'], 'a line option must grow a section automatically');
+
+        $this->assertDatabaseHas('menu_sections', [
+            'id' => $item['menu_section_id'],
+            'business_id' => $business->id,
+            'option_group_id' => $groupId,
+        ]);
+
+        // Same group, a second item — must land in the SAME section, not a duplicate.
+        $second = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'صنف تاني نفس الفرع', 'base_price' => 40, 'line_option_id' => $lineOptionId,
+            ])->assertCreated()->json('data');
+
+        $this->assertSame($item['menu_section_id'], $second['menu_section_id']);
+    }
+
+    public function test_a_hand_picked_section_is_not_overridden_by_the_line_options_group(): void
+    {
+        [$business, $lineOptionId] = $this->businessWithLineVocabulary();
+
+        $manualSection = MenuSection::create([
+            'business_id' => $business->id, 'name_ar' => 'قسم كتبته يدويًا', 'is_active' => true,
+        ]);
+
+        $item = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'صنف بقسم يدوي',
+                'base_price' => 30,
+                'menu_section_id' => $manualSection->id,
+                'line_option_id' => $lineOptionId,
+            ])->assertCreated()->json('data');
+
+        $this->assertSame($manualSection->id, $item['menu_section_id']);
+    }
+
+    public function test_a_foreign_line_option_is_ignored_not_rejected(): void
+    {
+        [$business] = $this->businessWithLineVocabulary();
+
+        $item = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'صنف بخيار غريب', 'base_price' => 30, 'line_option_id' => 999999999,
+            ])->assertCreated()->json('data');
+
+        $this->assertNull($item['line_option']);
+        $this->assertNull($item['menu_section_id']);
     }
 
     public function test_second_default_variant_unsets_the_first(): void

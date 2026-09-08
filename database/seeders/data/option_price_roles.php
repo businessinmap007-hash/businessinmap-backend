@@ -565,7 +565,11 @@ return [
         // which is worth knowing: this file is read top to bottom and a name in
         // two blocks takes the LAST, with no warning from anywhere.
         'درجة قطعة الغيار',       // أصلي وكيل ≠ تجاري — the trade's real price axis
-        'حالة المنتج',            // جديد ≠ مستعمل
+        'حالة المنتج',            // جديد ≠ مستعمل ≠ كسر زيرو — a price delta on the
+        // same line, exactly like an extra: «طلبت ساندوتش + بطاطس زيادة» is
+        // 150+30, not two sandwiches. Owner decision, 2026-09-08, reversing
+        // the same day's earlier `descriptive` call once the modifier's own
+        // delta pricing was walked through.
         // A PS4 hour and a PS5 hour are two prices for one line.
         'فئة جهاز الألعاب',       // بلايستيشن ٥ ≠ بلايستيشن ٤
         'ماركات الموبيلات',       // شاشة سامسونج ≠ شاشة شاومي

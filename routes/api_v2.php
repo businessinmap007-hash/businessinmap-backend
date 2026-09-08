@@ -705,6 +705,13 @@ Route::prefix('v2')->group(function () {
             // menu business can sell an item by weight or volume.
             Route::get('sale-units', [BusinessMenuItemController::class, 'saleUnits']);
 
+            // What this merchant may say an item IS (`lines`, e.g. "ثلاجات"
+            // grouped under their section "أنواع الأجهزة الكهربائية") and
+            // what may qualify it (`modifiers` — brand, condition...),
+            // narrowed to this business's own catalog. Powers the branch
+            // picker and the brand/condition fields on the item form.
+            Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
+
             Route::get('items', [BusinessMenuItemController::class, 'index']);
             Route::post('items', [BusinessMenuItemController::class, 'store']);
             Route::get('items/{item}', [BusinessMenuItemController::class, 'show'])->whereNumber('item');

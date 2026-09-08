@@ -33,6 +33,21 @@ class MenuItemResource extends JsonResource
             'sort_order' => (int) $this->sort_order,
             'is_active' => (bool) $this->is_active,
 
+            // What this item IS (a `line` option, e.g. "ثلاجات") and what
+            // qualifies it (brand, condition...) — {@see HasOfferingOptions}.
+            // Read fresh rather than gated behind whenLoaded: cheap (at most
+            // a handful of rows) and every edit screen needs it up front.
+            'line_option' => ($lineOption = $this->resource->lineOption()) ? [
+                'id' => (int) $lineOption->id,
+                'name_ar' => $lineOption->name_ar,
+                'name_en' => $lineOption->name_en,
+            ] : null,
+            'modifier_options' => $this->resource->modifierOptions()->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name_ar' => $o->name_ar,
+                'name_en' => $o->name_en,
+            ])->values(),
+
             // Relative paths, as everywhere else — an absolute URL breaks the
             // moment the host changes, which is exactly what happened before.
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($i) => [

@@ -22,6 +22,7 @@ class MenuSection extends Model
 
     protected $fillable = [
         'business_id',
+        'option_group_id',
         'name_ar',
         'name_en',
         'sort_order',
@@ -30,6 +31,7 @@ class MenuSection extends Model
 
     protected $casts = [
         'business_id' => 'integer',
+        'option_group_id' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -37,6 +39,16 @@ class MenuSection extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    /**
+     * Null for a section the owner typed by hand (a restaurant's "مقبلات").
+     * Set for one grown from a `line` option group — {@see
+     * \App\Services\Menu\MenuSectionFromOptionGroup}.
+     */
+    public function optionGroup(): BelongsTo
+    {
+        return $this->belongsTo(OptionGroup::class, 'option_group_id');
     }
 
     public function items(): HasMany

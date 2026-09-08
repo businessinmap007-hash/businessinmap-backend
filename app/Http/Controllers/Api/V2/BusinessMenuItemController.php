@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V2;
 
+use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\MenuItemResource;
 use App\Models\Image;
@@ -10,6 +11,8 @@ use App\Models\MenuItemExtra;
 use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
 use App\Services\Media\ImageUploadService;
+use App\Services\Menu\MenuSectionFromOptionGroup;
+use App\Services\MerchantOfferingVocabulary;
 use App\Support\SaleUnits;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -21,8 +24,46 @@ use Illuminate\Validation\Rule;
  */
 final class BusinessMenuItemController extends Controller
 {
+    use ResolvesOwnerCatalog;
+
     /** As many as a listing can usefully carry, and few enough to stay a page. */
     private const MAX_IMAGES = 10;
+
+    public function __construct(
+        private readonly MerchantOfferingVocabulary $vocabulary,
+        private readonly MenuSectionFromOptionGroup $sectionFromGroup,
+    ) {
+    }
+
+    /**
+     * GET /api/v2/business/menu/vocabulary — what this merchant may say a
+     * catalog item IS (`lines`, grouped by option group — the branches under
+     * a section) and what may qualify it (`modifiers` — brand, condition...),
+     * narrowed to this business's own ticks. Same source the web panel's
+     * pricing screen already reads: {@see MerchantOfferingVocabulary}.
+     */
+    public function vocabulary(Request $request)
+    {
+        $vocabulary = $this->vocabulary->for($this->businessId($request), $this->childId(), $this->rootId());
+
+        $shape = fn ($grouped) => collect($grouped)->map(fn ($options, $groupName) => [
+            'group_id' => (int) $options->first()->group_id,
+            'group_name' => (string) $groupName,
+            'options' => collect($options)->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name_ar' => $o->name_ar,
+                'name_en' => $o->name_en,
+            ])->values(),
+        ])->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'lines' => $shape($vocabulary['lines']),
+                'modifiers' => $shape($vocabulary['modifiers']),
+            ],
+        ]);
+    }
 
     /**
      * GET /api/v2/business/menu/sale-units — the vocabulary a base_price can
@@ -88,18 +129,65 @@ final class BusinessMenuItemController extends Controller
     public function store(Request $request)
     {
         $businessId = $this->businessId($request);
-        $item = MenuItem::create($this->validatedItem($request, $businessId) + ['business_id' => $businessId]);
+        $data = $this->validatedItem($request, $businessId);
+        $item = MenuItem::create($data + ['business_id' => $businessId]);
 
-        return (new MenuItemResource($item))->additional(['success' => true])->response()->setStatusCode(201);
+        if (! $item->medicine_id) {
+            $this->applyVocabulary($request, $item, explicitSection: $data['menu_section_id'] !== null);
+        }
+
+        return (new MenuItemResource($item->fresh()))->additional(['success' => true])->response()->setStatusCode(201);
     }
 
     /** PUT/PATCH /api/v2/business/menu/items/{item} */
     public function update(Request $request, int $item)
     {
         $model = $this->ownItem($request, $item);
-        $model->update($this->validatedItem($request, $this->businessId($request)));
+        $data = $this->validatedItem($request, $this->businessId($request));
+        $model->update($data);
+
+        if (! $model->medicine_id) {
+            $this->applyVocabulary($request, $model, explicitSection: $data['menu_section_id'] !== null);
+        }
 
         return (new MenuItemResource($model->fresh()))->additional(['success' => true]);
+    }
+
+    /**
+     * Store what the item IS (a `line` option, e.g. "ثلاجات") and what
+     * qualifies it (`modifier` options — brand, condition...), refusing
+     * anything outside this merchant's own vocabulary. Mirrors the web
+     * panel's `MenuItemController::applyVocabulary()` — one behavior, two
+     * doors.
+     *
+     * When the merchant did not name a section by hand, the line option's
+     * own group becomes one — {@see MenuSectionFromOptionGroup} — so a goods
+     * business never types "أنواع الأجهزة الكهربائية" itself.
+     */
+    private function applyVocabulary(Request $request, MenuItem $item, bool $explicitSection): void
+    {
+        $businessId = $this->businessId($request);
+        $picks = $this->vocabulary->pickableIds($businessId, $this->childId(), $this->rootId());
+
+        $line = (int) $request->input('line_option_id', 0);
+        $line = $picks['lines']->contains($line) ? $line : null;
+
+        $modifiers = collect($request->input('modifier_option_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $picks['modifiers']->contains($id))
+            ->values()
+            ->all();
+
+        $item->syncOfferingOptions($line, $modifiers, $item->currentOfferingAdjustments());
+
+        if ($line && ! $explicitSection) {
+            $lineOption = $item->lineOption();
+            $section = $lineOption ? $this->sectionFromGroup->resolve($businessId, $lineOption) : null;
+
+            if ($section && (int) $item->menu_section_id !== (int) $section->id) {
+                $item->forceFill(['menu_section_id' => $section->id])->saveQuietly();
+            }
+        }
     }
 
     /** DELETE /api/v2/business/menu/items/{item} */
@@ -312,6 +400,10 @@ final class BusinessMenuItemController extends Controller
             'supply_price' => ['nullable', 'numeric', 'min:0'],
             'sale_unit' => ['nullable', Rule::in(SaleUnits::codes())],
             'brand_name' => ['nullable', 'string', 'max:191'],
+            // NULL means «لا أتابع الكمية» — a kitchen does not count
+            // sandwiches. Zero is the other claim: «معروض، ونفد». Matches the
+            // web panel's own ceiling — see Business\MenuItemController.
+            'available_quantity' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -326,6 +418,9 @@ final class BusinessMenuItemController extends Controller
             'supply_price' => isset($data['supply_price']) && $data['supply_price'] !== ''
                 ? round((float) $data['supply_price'], 2)
                 : null,
+            'available_quantity' => ($data['available_quantity'] ?? null) === null || $data['available_quantity'] === ''
+                ? null
+                : max(0, (int) $data['available_quantity']),
             // Empty string and «by the item» are the same answer; both store null.
             'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
             'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: null,

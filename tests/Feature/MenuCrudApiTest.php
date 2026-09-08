@@ -50,6 +50,31 @@ class MenuCrudApiTest extends TestCase
         $this->assertDatabaseHas('menu_items', ['id' => $item['id'], 'business_id' => $this->business->id]);
     }
 
+    public function test_sale_units_lists_the_shared_vocabulary(): void
+    {
+        $units = $this->actingAs($this->business, 'sanctum')
+            ->getJson('/api/v2/business/menu/sale-units')->assertOk()->json('data.units');
+
+        $this->assertNotEmpty($units, 'the shared catalog_units vocabulary must not be empty');
+        $this->assertArrayHasKey('code', $units[0]);
+        $this->assertArrayHasKey('label', $units[0]);
+    }
+
+    public function test_item_stores_and_returns_its_sale_unit(): void
+    {
+        $units = $this->actingAs($this->business, 'sanctum')
+            ->getJson('/api/v2/business/menu/sale-units')->json('data.units');
+        $unit = collect($units)->firstWhere('code', 'kg') ?? $units[0];
+
+        $item = $this->actingAs($this->business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'بصل بالكيلو', 'base_price' => 20, 'sale_unit' => $unit['code'],
+            ])->assertCreated()->json('data');
+
+        $this->assertSame($unit['code'], $item['sale_unit']);
+        $this->assertSame($unit['label'], $item['sale_unit_label']);
+    }
+
     public function test_item_rejects_a_section_owned_by_another_business(): void
     {
         $otherBiz = User::query()->where('type', 'business')->where('id', '!=', $this->business->id)->first();

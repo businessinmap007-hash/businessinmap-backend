@@ -24,6 +24,23 @@ final class BusinessMenuItemController extends Controller
     /** As many as a listing can usefully carry, and few enough to stay a page. */
     private const MAX_IMAGES = 10;
 
+    /**
+     * GET /api/v2/business/menu/sale-units — the vocabulary a base_price can
+     * be priced "per" (كجم، لتر، قطعة...), for the item form's own dropdown.
+     * Null/omitted means the item is priced by the piece, as most are.
+     */
+    public function saleUnits(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'units' => collect(SaleUnits::options())
+                    ->map(fn ($label, $code) => ['code' => $code, 'label' => $label])
+                    ->values(),
+            ],
+        ]);
+    }
+
     /** GET /api/v2/business/menu/items */
     public function index(Request $request)
     {

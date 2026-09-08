@@ -699,6 +699,12 @@ Route::prefix('v2')->group(function () {
             Route::match(['put', 'patch'], 'sections/{section}', [BusinessMenuSectionController::class, 'update'])->whereNumber('section');
             Route::delete('sections/{section}', [BusinessMenuSectionController::class, 'destroy'])->whereNumber('section');
 
+            // The vocabulary an item's own price can be "per" — كجم، لتر،
+            // قطعة... — not gated to market-catalog merchants the way
+            // MenuMarketCatalogController's own copy of this list is; any
+            // menu business can sell an item by weight or volume.
+            Route::get('sale-units', [BusinessMenuItemController::class, 'saleUnits']);
+
             Route::get('items', [BusinessMenuItemController::class, 'index']);
             Route::post('items', [BusinessMenuItemController::class, 'store']);
             Route::get('items/{item}', [BusinessMenuItemController::class, 'show'])->whereNumber('item');

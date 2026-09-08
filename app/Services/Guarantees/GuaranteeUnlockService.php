@@ -2,12 +2,16 @@
 
 namespace App\Services\Guarantees;
 
+use App\Models\Booking;
+use App\Models\Dispute;
 use App\Models\GuaranteeLevel;
 use App\Models\GuaranteeTransaction;
 use App\Models\OperationGuarantor;
 use App\Models\User;
 use App\Models\UserGuarantee;
 use App\Models\Wallet;
+use App\Services\DisputeService;
+use App\Services\FineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +26,21 @@ use Illuminate\Validation\ValidationException;
  */
 class GuaranteeUnlockService
 {
+    public function __construct(private readonly FineService $fines)
+    {
+    }
+
+    /**
+     * A mutual settlement closes the dispute (and releases the operation
+     * freeze below) the moment the payee self-confirms receipt — no
+     * arbitrator needed, see DisputeSettlementService::confirmReceived(). A
+     * settlement fine on the losing side, though, is a SEPARATE admin action
+     * that can come after that release. This window keeps unlock blocked for
+     * a bit past a mutual resolution so that decision has time to land before
+     * the money it would come from goes back to being ordinary free balance.
+     */
+    private const SETTLEMENT_FINE_WINDOW_HOURS = 48;
+
     /**
      * @return array{guarantee: UserGuarantee, amount: float, wallet: Wallet}
      */
@@ -69,6 +88,15 @@ class GuaranteeUnlockService
             if ($activeAsGuarantor) {
                 throw ValidationException::withMessages([
                     'guarantee' => __('لا يمكن فكّ الضمان: أنت ضامن لعملية صديق جارية.'),
+                ]);
+            }
+
+            if ($this->hasPendingSettlementFineDecision($user, $targetType)) {
+                throw ValidationException::withMessages([
+                    'guarantee' => __(
+                        'لديك نزاع أُغلق بالتراضي مؤخرًا. انتظر :hours ساعة من إغلاقه (أو حتى يصدر قرار غرامة التسوية) قبل فكّ الضمان.',
+                        ['hours' => self::SETTLEMENT_FINE_WINDOW_HOURS]
+                    ),
                 ]);
             }
 
@@ -128,5 +156,37 @@ class GuaranteeUnlockService
 
             return ['guarantee' => $guarantee->refresh(), 'amount' => $amount, 'wallet' => $wallet->refresh()];
         });
+    }
+
+    /**
+     * True while a booking dispute this user was a party to (on the side this
+     * guarantee covers) closed by mutual settlement within the last
+     * SETTLEMENT_FINE_WINDOW_HOURS, and no settlement-fine decision has been
+     * recorded for it yet. An admin ruling (any other resolution type) never
+     * hits this: that path applies its own penalty/fine atomically inside the
+     * same resolve() transaction that releases the guarantee, so there is no
+     * gap for it to protect against.
+     */
+    private function hasPendingSettlementFineDecision(User $user, string $targetType): bool
+    {
+        $bookingColumn = $targetType === GuaranteeLevel::TARGET_BUSINESS ? 'business_id' : 'user_id';
+
+        $recentMutualDisputeIds = Dispute::query()
+            ->where('status', Dispute::STATUS_RESOLVED)
+            ->where('resolution_type', DisputeService::RESOLUTION_MUTUAL)
+            ->where('resolved_at', '>=', now()->subHours(self::SETTLEMENT_FINE_WINDOW_HOURS))
+            ->where('disputeable_type', Booking::class)
+            ->whereIn('disputeable_id', function ($query) use ($bookingColumn, $user) {
+                $query->select('id')->from('bookings')->where($bookingColumn, (int) $user->id);
+            })
+            ->pluck('id');
+
+        foreach ($recentMutualDisputeIds as $disputeId) {
+            if (! $this->fines->settlementFineExistsFor((int) $disputeId)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

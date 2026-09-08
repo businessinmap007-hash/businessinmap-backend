@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
+use App\Models\Dispute;
+use App\Models\Fine;
 use App\Models\GuaranteeLevel;
 use App\Models\GuaranteeTransaction;
 use App\Models\OperationGuarantor;
 use App\Models\User;
 use App\Models\UserGuarantee;
 use App\Models\Wallet;
+use App\Services\DisputeService;
 use App\Services\Guarantees\GuaranteeUnlockService;
 use App\Services\WalletService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -115,5 +119,93 @@ class GuaranteeUnlockServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->service->unlockToBalance($this->user);
+    }
+
+    /** A booking owned by $this->user, for the dispute tests below. */
+    private function bookingForUser(): Booking
+    {
+        $booking = Booking::withTrashed()->whereNotNull('business_id')->first();
+        if (! $booking) {
+            $this->markTestSkipped('Needs a booking.');
+        }
+
+        DB::table('bookings')->where('id', $booking->id)->update(['user_id' => $this->user->id]);
+
+        return $booking->fresh();
+    }
+
+    public function test_cannot_unlock_within_the_settlement_fine_window_after_a_mutual_dispute(): void
+    {
+        $booking = $this->bookingForUser();
+
+        $dispute = Dispute::create([
+            'disputeable_type' => Booking::class,
+            'disputeable_id' => $booking->id,
+            'opened_by_user_id' => $this->user->id,
+            'status' => Dispute::STATUS_RESOLVED,
+            'resolution_type' => DisputeService::RESOLUTION_MUTUAL,
+            'resolved_at' => now()->subHours(1),
+        ]);
+
+        try {
+            $this->service->unlockToBalance($this->user);
+            $this->fail('unlock must stay blocked until the settlement-fine window passes or a decision is recorded');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('guarantee', $e->errors());
+        }
+
+        $w = Wallet::query()->where('user_id', $this->user->id)->first();
+        $this->assertEqualsWithDelta(1000.0, (float) $w->locked_balance, 0.001, 'wallet untouched on rejection');
+
+        $dispute->delete();
+    }
+
+    public function test_can_unlock_once_the_settlement_fine_window_has_passed(): void
+    {
+        $booking = $this->bookingForUser();
+
+        $dispute = Dispute::create([
+            'disputeable_type' => Booking::class,
+            'disputeable_id' => $booking->id,
+            'opened_by_user_id' => $this->user->id,
+            'status' => Dispute::STATUS_RESOLVED,
+            'resolution_type' => DisputeService::RESOLUTION_MUTUAL,
+            'resolved_at' => now()->subHours(49),
+        ]);
+
+        $result = $this->service->unlockToBalance($this->user);
+        $this->assertEqualsWithDelta(1000.0, (float) $result['amount'], 0.001);
+
+        $dispute->delete();
+    }
+
+    public function test_can_unlock_once_a_settlement_fine_decision_is_already_recorded(): void
+    {
+        $booking = $this->bookingForUser();
+
+        $dispute = Dispute::create([
+            'disputeable_type' => Booking::class,
+            'disputeable_id' => $booking->id,
+            'opened_by_user_id' => $this->user->id,
+            'status' => Dispute::STATUS_RESOLVED,
+            'resolution_type' => DisputeService::RESOLUTION_MUTUAL,
+            'resolved_at' => now()->subHours(1),
+        ]);
+
+        Fine::create([
+            'user_id' => $this->user->id,
+            'amount' => 50,
+            'frozen_amount' => 0,
+            'reason' => 'Settlement fine for test',
+            'source' => Fine::SOURCE_SETTLEMENT,
+            'status' => Fine::STATUS_UPHELD,
+            'is_appealable' => false,
+            'meta' => ['dispute_id' => $dispute->id],
+        ]);
+
+        $result = $this->service->unlockToBalance($this->user);
+        $this->assertEqualsWithDelta(1000.0, (float) $result['amount'], 0.001);
+
+        $dispute->delete();
     }
 }

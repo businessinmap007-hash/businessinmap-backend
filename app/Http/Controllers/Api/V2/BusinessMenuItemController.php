@@ -50,6 +50,12 @@ final class BusinessMenuItemController extends Controller
         $shape = fn ($grouped) => collect($grouped)->map(fn ($options, $groupName) => [
             'group_id' => (int) $options->first()->group_id,
             'group_name' => (string) $groupName,
+            // "ماركات الموبيلات", "ماركات السيارات", "ماركات الأجهزة
+            // الكهربائية"... — every brand vocabulary on the platform is
+            // named this way, so the item form can single one out as ITS
+            // OWN dropdown instead of just another modifier chip: a
+            // merchant chooses the brand, not just qualifies with it.
+            'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
             'options' => collect($options)->map(fn ($o) => [
                 'id' => (int) $o->id,
                 'name_ar' => $o->name_ar,

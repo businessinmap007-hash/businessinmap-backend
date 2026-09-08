@@ -180,6 +180,37 @@ class MenuCrudApiTest extends TestCase
         $this->assertArrayHasKey('id', $data['lines'][0]['options'][0]);
     }
 
+    /**
+     * A closed brand vocabulary exists for appliance children (child 88) —
+     * see the 2026-09-09 migration. Its group must come back flagged
+     * `is_brand` so the item form can single it out as its own dropdown
+     * instead of a generic modifier chip, and an ordinary modifier group
+     * (not named "ماركات...") must not be flagged.
+     */
+    public function test_a_brand_named_group_is_flagged_as_the_brand_vocabulary(): void
+    {
+        $business = User::query()->where('category_child_id', 88)->first();
+
+        if (! $business) {
+            $this->markTestSkipped('Needs a business on the appliance child (88).');
+        }
+
+        $modifiers = collect(
+            $this->actingAs($business, 'sanctum')
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.modifiers')
+        );
+
+        $brandGroup = $modifiers->firstWhere('group_name', 'ماركات الأجهزة الكهربائية');
+        $this->assertNotNull($brandGroup, 'the appliance brand group must be in this business\'s modifiers');
+        $this->assertTrue($brandGroup['is_brand']);
+        $this->assertTrue(collect($brandGroup['options'])->pluck('name_ar')->contains('كريازي'));
+
+        $nonBrand = $modifiers->first(fn ($g) => $g['group_name'] !== 'ماركات الأجهزة الكهربائية');
+        if ($nonBrand) {
+            $this->assertFalse($nonBrand['is_brand']);
+        }
+    }
+
     public function test_item_with_a_line_option_grows_its_own_section(): void
     {
         [$business, $lineOptionId, $groupId] = $this->businessWithLineVocabulary();

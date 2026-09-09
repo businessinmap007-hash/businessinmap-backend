@@ -11,11 +11,14 @@ use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemExtraGroup;
 use App\Models\MenuItemVariant;
+use App\Models\OptionGroup;
+use App\Services\CategoryChildOptionScope;
 use App\Services\Media\ImageUploadService;
 use App\Services\Menu\MenuSectionFromOptionGroup;
 use App\Services\MerchantOfferingVocabulary;
 use App\Support\SaleUnits;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -33,6 +36,7 @@ final class BusinessMenuItemController extends Controller
     public function __construct(
         private readonly MerchantOfferingVocabulary $vocabulary,
         private readonly MenuSectionFromOptionGroup $sectionFromGroup,
+        private readonly CategoryChildOptionScope $childScope,
     ) {
     }
 
@@ -69,6 +73,97 @@ final class BusinessMenuItemController extends Controller
                 'lines' => $shape($vocabulary['lines']),
                 'modifiers' => $shape($vocabulary['modifiers']),
             ],
+        ]);
+    }
+
+    /**
+     * GET /api/v2/business/menu/available-types — every `line` option this
+     * business's (root, child) is allowed to carry AT ALL, grouped by
+     * section, each flagged `selected` by the business's own `option_user`
+     * ticks. Unlike `vocabulary()` (narrowed to what is already ticked, or
+     * the child's whole list when nothing is), this is the FULL universe —
+     * it powers the checklist a merchant uses to grow that narrowed set,
+     * e.g. a greengrocer who only ticked 29 of 122 vegetable/fruit kinds
+     * when the account was created and has no other way to add the rest.
+     */
+    public function availableTypes(Request $request)
+    {
+        $businessId = $this->businessId($request);
+        $allowed = $this->childScope->idsFor($this->childId(), $this->rootId());
+
+        if ($allowed->isEmpty()) {
+            return response()->json(['success' => true, 'data' => ['groups' => []]]);
+        }
+
+        $ticked = DB::table('option_user')->where('user_id', $businessId)
+            ->pluck('option_id')->map(fn ($id) => (int) $id);
+
+        $rows = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereIn('o.id', $allowed)
+            ->where('g.price_role', OptionGroup::ROLE_LINE)
+            ->where('g.is_active', 1)
+            ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
+            ->orderBy('o.id')
+            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name']);
+
+        $groups = $rows->groupBy('group_id')->map(fn ($options) => [
+            'group_id' => (int) $options->first()->group_id,
+            'group_name' => (string) $options->first()->group_name,
+            'options' => $options->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name_ar' => $o->name_ar,
+                'name_en' => $o->name_en,
+                'selected' => $ticked->contains((int) $o->id),
+            ])->values(),
+        ])->values();
+
+        return response()->json(['success' => true, 'data' => ['groups' => $groups]]);
+    }
+
+    /**
+     * PUT /api/v2/business/menu/available-types — set exactly which options
+     * WITHIN ONE section this business carries. Scoped to that section's own
+     * option ids only: every other section's ticks, and every non-`line`
+     * tick `ProfileController::updateOptions()` owns, are left untouched.
+     */
+    public function updateAvailableTypes(Request $request)
+    {
+        $businessId = $this->businessId($request);
+
+        $data = $request->validate([
+            'group_id' => ['required', 'integer'],
+            'option_ids' => ['present', 'array'],
+            'option_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $allowed = $this->childScope->idsFor($this->childId(), $this->rootId());
+
+        $groupOptionIds = DB::table('options')
+            ->where('group_id', (int) $data['group_id'])
+            ->whereIn('id', $allowed)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        $wanted = collect($data['option_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->intersect($groupOptionIds)
+            ->values();
+
+        DB::transaction(function () use ($businessId, $groupOptionIds, $wanted) {
+            DB::table('option_user')->where('user_id', $businessId)->whereIn('option_id', $groupOptionIds)->delete();
+
+            $rows = $wanted->map(fn ($id) => ['user_id' => $businessId, 'option_id' => $id])->values()->all();
+            foreach (array_chunk($rows, 200) as $chunk) {
+                if ($chunk) {
+                    DB::table('option_user')->insertOrIgnore($chunk);
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => ['group_id' => (int) $data['group_id'], 'selected_ids' => $wanted->values()],
         ]);
     }
 

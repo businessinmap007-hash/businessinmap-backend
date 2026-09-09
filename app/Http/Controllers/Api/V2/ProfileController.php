@@ -237,7 +237,29 @@ final class ProfileController extends Controller
             ]);
         }
 
-        $user->options()->sync($optionIds);
+        // Scoped, not `sync()`: a plain sync replaces the user's ENTIRE
+        // option_user set, and this screen never submits a `line` id (see
+        // the exclusion above) — a bare sync would silently erase every
+        // `line` tick a business grew via
+        // {@see BusinessMenuItemController::updateAvailableTypes()}, which
+        // owns that half of the same table. So only the non-`line` rows are
+        // ever touched here.
+        $nonLineOptionIds = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.price_role', '!=', OptionGroup::ROLE_LINE)
+            ->pluck('o.id')
+            ->map(fn ($id) => (int) $id);
+
+        DB::transaction(function () use ($user, $optionIds, $nonLineOptionIds) {
+            DB::table('option_user')->where('user_id', $user->id)->whereIn('option_id', $nonLineOptionIds)->delete();
+
+            $rows = collect($optionIds)->map(fn ($id) => ['user_id' => $user->id, 'option_id' => $id])->all();
+            foreach (array_chunk($rows, 200) as $chunk) {
+                if ($chunk) {
+                    DB::table('option_user')->insertOrIgnore($chunk);
+                }
+            }
+        });
 
         return response()->json(['success' => true, 'data' => $this->optionsPayload($user->fresh())]);
     }

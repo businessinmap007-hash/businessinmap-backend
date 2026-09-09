@@ -7,6 +7,7 @@ use App\Models\MenuSection;
 use App\Models\User;
 use App\Services\MerchantOfferingVocabulary;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -287,5 +288,121 @@ class MenuCrudApiTest extends TestCase
             ])->assertCreated();
 
         $this->assertDatabaseHas('menu_item_variants', ['id' => $v1, 'is_default' => 0]);
+    }
+
+    /**
+     * A business whose `line` catalog spans MORE options than it has ticked —
+     * the exact shape the "which types do you carry" checklist exists for
+     * (e.g. a greengrocer who ticked 29 of the child's 122 vegetable/fruit
+     * kinds when the account was seeded, with no in-app way to add more).
+     *
+     * @return array{0:User,1:int,2:int} the business, a group id, and one
+     *         option id in that group NOT currently ticked
+     */
+    private function businessWithGrowableLineCatalog(): array
+    {
+        $scope = app(\App\Services\CategoryChildOptionScope::class);
+
+        foreach (User::query()->where('type', 'business')->orderBy('id')->cursor() as $candidate) {
+            $childId = (int) $candidate->category_child_id;
+            $rootId = (int) $candidate->category_id;
+            if ($childId <= 0) {
+                continue;
+            }
+
+            $allowed = $scope->idsFor($childId, $rootId);
+            if ($allowed->isEmpty()) {
+                continue;
+            }
+
+            $ticked = DB::table('option_user')->where('user_id', $candidate->id)->pluck('option_id')->map(fn ($id) => (int) $id);
+
+            $rows = DB::table('options as o')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->whereIn('o.id', $allowed)
+                ->where('g.price_role', 'line')
+                ->get(['o.id', 'g.id as group_id']);
+
+            $untouched = $rows->first(fn ($r) => ! $ticked->contains((int) $r->id));
+
+            if ($untouched) {
+                return [$candidate, (int) $untouched->group_id, (int) $untouched->id];
+            }
+        }
+
+        $this->markTestSkipped('Needs a business with an un-ticked `line` option somewhere in its child\'s catalog.');
+    }
+
+    public function test_available_types_lists_the_full_line_catalog_with_selection_flags(): void
+    {
+        [$business, $groupId, $untickedOptionId] = $this->businessWithGrowableLineCatalog();
+
+        $groups = collect(
+            $this->actingAs($business, 'sanctum')
+                ->getJson('/api/v2/business/menu/available-types')->assertOk()->json('data.groups')
+        );
+
+        $this->assertNotEmpty($groups);
+        $group = $groups->firstWhere('group_id', $groupId);
+        $this->assertNotNull($group);
+
+        $option = collect($group['options'])->firstWhere('id', $untickedOptionId);
+        $this->assertNotNull($option);
+        $this->assertFalse($option['selected'], 'this option was picked specifically because it is not yet ticked');
+    }
+
+    public function test_updating_available_types_only_touches_that_groups_ticks(): void
+    {
+        [$business, $groupId, $optionId] = $this->businessWithGrowableLineCatalog();
+
+        $otherTicksBefore = DB::table('option_user')
+            ->where('user_id', $business->id)
+            ->whereNotIn('option_id', DB::table('options')->where('group_id', $groupId)->pluck('id'))
+            ->pluck('option_id')
+            ->sort()
+            ->values();
+
+        $response = $this->actingAs($business, 'sanctum')
+            ->putJson('/api/v2/business/menu/available-types', [
+                'group_id' => $groupId,
+                'option_ids' => [$optionId],
+            ])->assertOk();
+
+        $this->assertSame([$optionId], $response->json('data.selected_ids'));
+
+        $group = collect(
+            $this->actingAs($business, 'sanctum')
+                ->getJson('/api/v2/business/menu/available-types')->assertOk()->json('data.groups')
+        )->firstWhere('group_id', $groupId);
+
+        $this->assertTrue(collect($group['options'])->firstWhere('id', $optionId)['selected']);
+
+        $otherTicksAfter = DB::table('option_user')
+            ->where('user_id', $business->id)
+            ->whereNotIn('option_id', DB::table('options')->where('group_id', $groupId)->pluck('id'))
+            ->pluck('option_id')
+            ->sort()
+            ->values();
+
+        $this->assertSame($otherTicksBefore->all(), $otherTicksAfter->all(), 'ticks outside the edited group must be untouched');
+    }
+
+    public function test_profile_options_save_does_not_erase_line_ticks(): void
+    {
+        [$business, $groupId, $optionId] = $this->businessWithGrowableLineCatalog();
+
+        $this->actingAs($business, 'sanctum')
+            ->putJson('/api/v2/business/menu/available-types', [
+                'group_id' => $groupId,
+                'option_ids' => [$optionId],
+            ])->assertOk();
+
+        // A save on the UNRELATED business-attributes screen — even an empty
+        // one — used to `sync()` the whole option_user table and erase this.
+        $this->actingAs($business, 'sanctum')
+            ->patchJson('/api/v2/profile/options', ['option_ids' => []])
+            ->assertOk();
+
+        $this->assertDatabaseHas('option_user', ['user_id' => $business->id, 'option_id' => $optionId]);
     }
 }

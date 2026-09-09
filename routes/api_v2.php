@@ -712,6 +712,14 @@ Route::prefix('v2')->group(function () {
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
 
+            // The full `line` catalog for this business's (root, child) —
+            // e.g. all 122 vegetable/fruit kinds a greengrocer's child may
+            // carry — each flagged whether the business already ticked it.
+            // Powers the "which types do you carry" checklist that grows
+            // the narrowed set `vocabulary()` above actually offers.
+            Route::get('available-types', [BusinessMenuItemController::class, 'availableTypes']);
+            Route::put('available-types', [BusinessMenuItemController::class, 'updateAvailableTypes']);
+
             // How the menu renders for a customer — list (default) or a
             // photo-first grid, one merchant-wide switch.
             Route::get('display-mode', [BusinessMenuItemController::class, 'displayMode']);

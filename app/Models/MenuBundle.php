@@ -95,7 +95,7 @@ class MenuBundle extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return (string) ($this->name_ar ?: ($this->name_en ?: ('Bundle #' . $this->id)));
+        return (string) ($this->loc('name') ?: ('Bundle #' . $this->id));
     }
 
     /**

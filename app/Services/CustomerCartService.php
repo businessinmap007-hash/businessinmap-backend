@@ -1136,7 +1136,7 @@ class CustomerCartService
 
             return [
                 'id' => (int) $x->id,
-                'name' => (string) ($x->name_ar ?: $x->name_en ?: ('Extra #' . $x->id)),
+                'name' => (string) ($x->loc('name') ?: ('Extra #' . $x->id)),
                 'price' => round((float) $x->price, 2),
                 'qty' => max(1, $qty),
             ];

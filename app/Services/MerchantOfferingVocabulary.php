@@ -258,7 +258,7 @@ class MerchantOfferingVocabulary
             ->orderByRaw(OptionGroup::displayOrderSql('g'))
             ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
             ->orderBy('o.id')
-            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.price_role']);
+            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.name_en as group_name_en', 'g.price_role']);
     }
 
     /** Option ids this merchant may attach to an offering, in any role. */
@@ -305,7 +305,7 @@ class MerchantOfferingVocabulary
             ->orderByRaw(OptionGroup::displayOrderSql('g'))
             ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
             ->orderBy('o.id')
-            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.price_role']);
+            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.name_en as group_name_en', 'g.price_role']);
 
         if ($roles !== [OptionGroup::ROLE_DESCRIPTIVE]) {
             return $options;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuBundle;
 use App\Models\MenuItem;
+use App\Models\MenuItemVariant;
 use App\Models\MerchantPayment;
 use App\Models\Order;
 use App\Models\User;
@@ -196,7 +197,7 @@ final class CartController extends Controller
             'status' => (string) $order->status,
             'business' => $order->business ? [
                 'id' => (int) $order->business->id,
-                'name' => (string) $order->business->name,
+                'name' => $order->business->displayName(),
                 'logo' => $order->business->logo,
             ] : null,
             'fulfillment_type' => (string) $order->fulfillment_type,
@@ -236,20 +237,24 @@ final class CartController extends Controller
         $names = [MenuItem::class => [], BusinessCatalogListing::class => [], MenuBundle::class => []];
 
         if ($menuIds->isNotEmpty()) {
-            $names[MenuItem::class] = MenuItem::query()->whereIn('id', $menuIds)
-                ->pluck('name_ar', 'id')->map(fn ($n) => (string) $n)->all();
+            $names[MenuItem::class] = MenuItem::query()->whereIn('id', $menuIds)->get(['id', 'name_ar', 'name_en'])
+                ->mapWithKeys(fn (MenuItem $m) => [$m->id => (string) $m->loc('name')])->all();
         }
 
         if ($bundleIds->isNotEmpty()) {
-            $names[MenuBundle::class] = MenuBundle::query()->whereIn('id', $bundleIds)
-                ->pluck('name_ar', 'id')->map(fn ($n) => (string) $n)->all();
+            $names[MenuBundle::class] = MenuBundle::query()->whereIn('id', $bundleIds)->get(['id', 'name_ar', 'name_en'])
+                ->mapWithKeys(fn (MenuBundle $m) => [$m->id => (string) $m->loc('name')])->all();
         }
 
         if ($listingIds->isNotEmpty()) {
+            $isEnglish = app()->getLocale() === 'en';
             $names[BusinessCatalogListing::class] = DB::table('business_catalog_listings as l')
                 ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
                 ->whereIn('l.id', $listingIds)
-                ->pluck('p.name_ar', 'l.id')->map(fn ($n) => (string) $n)->all();
+                ->get(['l.id', 'p.name_ar', 'p.name_en'])
+                ->mapWithKeys(fn ($row) => [
+                    $row->id => (string) ($isEnglish ? ($row->name_en ?: $row->name_ar) : ($row->name_ar ?: $row->name_en)),
+                ])->all();
         }
 
         return $names;
@@ -264,10 +269,7 @@ final class CartController extends Controller
             return [];
         }
 
-        return DB::table('menu_item_variants')
-            ->whereIn('id', $sizeIds)
-            ->pluck('name_ar', 'id')
-            ->map(fn ($n) => (string) $n)
-            ->all();
+        return MenuItemVariant::query()->whereIn('id', $sizeIds)->get(['id', 'name_ar', 'name_en'])
+            ->mapWithKeys(fn (MenuItemVariant $v) => [$v->id => (string) $v->loc('name')])->all();
     }
 }

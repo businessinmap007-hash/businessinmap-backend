@@ -201,15 +201,49 @@ class MenuCrudApiTest extends TestCase
                 ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.modifiers')
         );
 
-        $brandGroup = $modifiers->firstWhere('group_name', 'ماركات الأجهزة الكهربائية');
+        // `group_name` is locale-resolved (the default test locale is
+        // English — see config/app.php), so the brand group is found by its
+        // `is_brand` flag, not by its Arabic display name.
+        $brandGroup = $modifiers->firstWhere('is_brand', true);
         $this->assertNotNull($brandGroup, 'the appliance brand group must be in this business\'s modifiers');
-        $this->assertTrue($brandGroup['is_brand']);
         $this->assertTrue(collect($brandGroup['options'])->pluck('name_ar')->contains('كريازي'));
 
-        $nonBrand = $modifiers->first(fn ($g) => $g['group_name'] !== 'ماركات الأجهزة الكهربائية');
+        $nonBrand = $modifiers->first(fn ($g) => $g['is_brand'] === false);
         if ($nonBrand) {
             $this->assertFalse($nonBrand['is_brand']);
         }
+    }
+
+    /**
+     * `group_name` used to be `option_groups.name_ar` unconditionally — a
+     * customer on an English screen could see a correctly-localized real
+     * section name ("Vegetables") sitting next to this endpoint's own
+     * Arabic-only group heading in the same list.
+     */
+    public function test_vocabulary_group_name_respects_the_requests_locale(): void
+    {
+        $business = User::query()->where('category_child_id', 88)->first();
+
+        if (! $business) {
+            $this->markTestSkipped('Needs a business on the appliance child (88).');
+        }
+
+        $arModifiers = collect(
+            $this->actingAs($business, 'sanctum')
+                ->withHeaders(['Accept-Language' => 'ar'])
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.modifiers')
+        );
+        $enModifiers = collect(
+            $this->actingAs($business, 'sanctum')
+                ->withHeaders(['Accept-Language' => 'en'])
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.modifiers')
+        );
+
+        $arBrand = $arModifiers->firstWhere('is_brand', true);
+        $enBrand = $enModifiers->firstWhere('is_brand', true);
+
+        $this->assertSame('ماركات الأجهزة الكهربائية', $arBrand['group_name']);
+        $this->assertSame('Appliance Brands', $enBrand['group_name']);
     }
 
     public function test_item_with_a_line_option_grows_its_own_section(): void

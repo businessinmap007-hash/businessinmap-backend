@@ -189,7 +189,7 @@ class MenuItem extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return (string) ($this->name_ar ?: ($this->name_en ?: ('Item #' . $this->id)));
+        return (string) ($this->loc('name') ?: ('Item #' . $this->id));
     }
 
     /**

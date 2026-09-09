@@ -51,21 +51,30 @@ final class BusinessMenuItemController extends Controller
     {
         $vocabulary = $this->vocabulary->for($this->businessId($request), $this->childId(), $this->rootId());
 
-        $shape = fn ($grouped) => collect($grouped)->map(fn ($options, $groupName) => [
-            'group_id' => (int) $options->first()->group_id,
-            'group_name' => (string) $groupName,
-            // "ماركات الموبيلات", "ماركات السيارات", "ماركات الأجهزة
-            // الكهربائية"... — every brand vocabulary on the platform is
-            // named this way, so the item form can single one out as ITS
-            // OWN dropdown instead of just another modifier chip: a
-            // merchant chooses the brand, not just qualifies with it.
-            'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
-            'options' => collect($options)->map(fn ($o) => [
-                'id' => (int) $o->id,
-                'name_ar' => $o->name_ar,
-                'name_en' => $o->name_en,
-            ])->values(),
-        ])->values();
+        // Grouping keys on the Arabic name (a stable, unique identifier
+        // regardless of the request's own locale) — `is_brand` matches
+        // against THAT, never the localized label chosen for display below.
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) {
+            $groupNameEn = $options->first()->group_name_en;
+
+            return [
+                'group_id' => (int) $options->first()->group_id,
+                'group_name' => app()->getLocale() === 'en' && $groupNameEn
+                    ? (string) $groupNameEn
+                    : (string) $groupName,
+                // "ماركات الموبيلات", "ماركات السيارات", "ماركات الأجهزة
+                // الكهربائية"... — every brand vocabulary on the platform is
+                // named this way, so the item form can single one out as ITS
+                // OWN dropdown instead of just another modifier chip: a
+                // merchant chooses the brand, not just qualifies with it.
+                'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
+                'options' => collect($options)->map(fn ($o) => [
+                    'id' => (int) $o->id,
+                    'name_ar' => $o->name_ar,
+                    'name_en' => $o->name_en,
+                ])->values(),
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
@@ -105,11 +114,13 @@ final class BusinessMenuItemController extends Controller
             ->where('g.is_active', 1)
             ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
             ->orderBy('o.id')
-            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name']);
+            ->get(['o.id', 'o.name_ar', 'o.name_en', 'g.id as group_id', 'g.name_ar as group_name', 'g.name_en as group_name_en']);
 
         $groups = $rows->groupBy('group_id')->map(fn ($options) => [
             'group_id' => (int) $options->first()->group_id,
-            'group_name' => (string) $options->first()->group_name,
+            'group_name' => app()->getLocale() === 'en' && $options->first()->group_name_en
+                ? (string) $options->first()->group_name_en
+                : (string) $options->first()->group_name,
             'options' => $options->map(fn ($o) => [
                 'id' => (int) $o->id,
                 'name_ar' => $o->name_ar,

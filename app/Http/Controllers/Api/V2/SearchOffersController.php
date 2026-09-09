@@ -35,10 +35,14 @@ final class SearchOffersController extends Controller
 
         $businesses = $this->businessesQuery($data)
             ->limit(20)
-            ->get(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
+            ->get(['id', 'name', 'name_en', 'type', 'logo', 'category_id', 'category_child_id'])
+            ->each(fn ($b) => $b->name = $b->displayName());
 
         $offersQuery = CommercialOffer::query()
-            ->with(['sellerBusiness:id,name,type,logo,category_id,category_child_id', 'ownerBusiness:id,name,type,logo,category_id,category_child_id'])
+            ->with([
+                'sellerBusiness:id,name,name_en,type,logo,category_id,category_child_id',
+                'ownerBusiness:id,name,name_en,type,logo,category_id,category_child_id',
+            ])
             ->active()
             ->whereIn('source_type', $this->sourceTypes());
 
@@ -71,6 +75,15 @@ final class SearchOffersController extends Controller
         $offers = $offersQuery
             ->paginate((int) ($data['per_page'] ?? 20))
             ->withQueryString();
+
+        foreach ($offers->getCollection() as $offer) {
+            if ($offer->sellerBusiness) {
+                $offer->sellerBusiness->name = $offer->sellerBusiness->displayName();
+            }
+            if ($offer->ownerBusiness) {
+                $offer->ownerBusiness->name = $offer->ownerBusiness->displayName();
+            }
+        }
 
         return response()->json([
             'success' => true,

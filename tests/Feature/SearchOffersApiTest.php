@@ -71,6 +71,23 @@ class SearchOffersApiTest extends TestCase
             ]);
     }
 
+    public function test_business_names_in_results_respect_the_requests_locale(): void
+    {
+        $this->business->forceFill(['name' => 'اسم عربى للاختبار', 'name_en' => 'English Test Name'])->save();
+
+        $arName = $this->withHeaders(['Accept-Language' => 'ar'])
+            ->getJson('/api/v2/search/offers?business_id=' . $this->business->id)
+            ->assertOk()
+            ->json('data.businesses.0.name');
+        $enName = $this->withHeaders(['Accept-Language' => 'en'])
+            ->getJson('/api/v2/search/offers?business_id=' . $this->business->id)
+            ->assertOk()
+            ->json('data.businesses.0.name');
+
+        $this->assertSame('اسم عربى للاختبار', $arName);
+        $this->assertSame('English Test Name', $enName);
+    }
+
     public function test_client_search_hides_b2b_and_private(): void
     {
         $b2c = $this->makeOffer(CommercialOffer::AUDIENCE_B2C);

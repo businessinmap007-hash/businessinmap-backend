@@ -275,7 +275,7 @@ class MenuItem extends Model
             if ($isGoodsCatalog) {
                 return [
                     'key' => 'group:' . (int) $line->group_id,
-                    'label' => (string) ($line->group?->name_ar ?: $line->group?->name_en),
+                    'label' => (string) $line->group?->displayName(),
                     'source' => 'catalog_group',
                     'option_ids' => [(int) $line->id],
                 ];

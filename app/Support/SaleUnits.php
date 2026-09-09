@@ -23,14 +23,18 @@ use Illuminate\Support\Facades\DB;
 final class SaleUnits
 {
     /**
-     * @return array<string,string> code => Arabic label, ordered by kind
+     * @return array<string,string> code => label in the current app locale
+     *         (falling back to whichever of name_ar/name_en is set), ordered
+     *         by kind
      */
     public static function options(): array
     {
-        static $cache = null;
+        static $cache = [];
 
-        if ($cache !== null) {
-            return $cache;
+        $locale = app()->getLocale();
+
+        if (isset($cache[$locale])) {
+            return $cache[$locale];
         }
 
         $rows = DB::table('catalog_units')
@@ -38,12 +42,15 @@ final class SaleUnits
             ->orderByRaw("FIELD(unit_type, 'count', 'weight', 'volume')")
             ->orderBy('sort_order')
             ->orderByRaw('CHAR_LENGTH(code)')
-            ->get(['code', 'name_ar', 'unit_type']);
+            ->get(['code', 'name_ar', 'name_en', 'unit_type']);
 
         $seen = [];
         $out = [];
 
         foreach ($rows as $row) {
+            // Deduping stays keyed on the Arabic name regardless of locale —
+            // it is what every row actually has, and the two words that
+            // collide («جم»/«جرام») always agree on it either way.
             $key = $row->unit_type . '|' . $row->name_ar;
 
             if (isset($seen[$key])) {
@@ -51,10 +58,13 @@ final class SaleUnits
             }
 
             $seen[$key] = true;
-            $out[(string) $row->code] = (string) $row->name_ar;
+            $label = $locale === 'en'
+                ? ((string) $row->name_en ?: (string) $row->name_ar)
+                : ((string) $row->name_ar ?: (string) $row->name_en);
+            $out[(string) $row->code] = $label;
         }
 
-        return $cache = $out;
+        return $cache[$locale] = $out;
     }
 
     /** The label to print beside a price, or null when the row sells by the item. */

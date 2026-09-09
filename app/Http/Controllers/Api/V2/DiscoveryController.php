@@ -329,7 +329,7 @@ final class DiscoveryController extends Controller
         $businesses = $query
             ->orderBy('name')
             ->orderBy('id')
-            ->paginate((int) ($data['per_page'] ?? 20), ['id', 'name', 'type', 'logo', 'category_id', 'category_child_id'])
+            ->paginate((int) ($data['per_page'] ?? 20), ['id', 'name', 'name_en', 'type', 'logo', 'category_id', 'category_child_id'])
             ->withQueryString();
 
         $matched = $this->matchedTypes(
@@ -343,6 +343,7 @@ final class DiscoveryController extends Controller
 
         $businesses->getCollection()->transform(function (User $b) use ($matched, $openNow) {
             $arr = $b->only(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
+            $arr['name'] = $b->displayName();
             $arr['offered_types'] = $matched[$b->id] ?? [];
             // So the card can say «اتصل للسعر» rather than showing nothing and
             // leaving the customer to guess why a business has no prices.
@@ -437,7 +438,7 @@ final class DiscoveryController extends Controller
             ->orderBy('users.id')
             ->paginate(
                 (int) ($data['per_page'] ?? 20),
-                ['users.id', 'users.name', 'users.type', 'users.logo', 'users.category_id', 'users.category_child_id']
+                ['users.id', 'users.name', 'users.name_en', 'users.type', 'users.logo', 'users.category_id', 'users.category_child_id']
             )
             ->withQueryString();
 
@@ -453,6 +454,7 @@ final class DiscoveryController extends Controller
 
         $businesses->getCollection()->transform(function (User $b) use ($ratings, $openNow) {
             $arr = $b->only(['id', 'name', 'type', 'logo', 'category_id', 'category_child_id']);
+            $arr['name'] = $b->displayName();
             $rating = $ratings->get($b->id);
             $reviewCount = (int) ($rating->review_count ?? 0);
             $starsSum = (int) ($rating->review_stars_sum ?? 0);

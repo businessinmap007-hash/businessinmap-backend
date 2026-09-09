@@ -93,7 +93,7 @@ final class BusinessPageController extends Controller
             'success' => true,
             'data' => [
                 'id' => (int) $model->id,
-                'name' => (string) $model->name,
+                'name' => $model->displayName(),
                 'logo' => $model->logo ?: null,
                 'cover' => $model->cover ?: null,
                 'image' => $model->image ?: null,

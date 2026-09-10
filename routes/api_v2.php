@@ -191,6 +191,9 @@ Route::prefix('v2')->group(function () {
             // One card per LISTING (business + product + price) — the feed
             // behind the Categories screen's "Retail" service chip.
             Route::get('listings', [RetailDiscoveryController::class, 'listings']);
+            // One seller's whole retail shelf — the storefront a listing
+            // card opens into.
+            Route::get('business/{business}', [RetailDiscoveryController::class, 'business'])->whereNumber('business');
         });
 
         // Menu: browse a business's menu grouped by sections, with variants + extras.

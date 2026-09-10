@@ -381,6 +381,73 @@ final class RetailDiscoveryController extends Controller
         ]);
     }
 
+    /**
+     * GET /discovery/retail/business/{business} — one seller's WHOLE retail
+     * shelf, for the storefront a listing card opens into (see listings()
+     * above) — the customer lands here having tapped one product, then sees
+     * everything else this seller carries in the same place, exactly like
+     * how the merchant's own "My Products" screen shows it to them.
+     *
+     * Deliberately its OWN endpoint rather than reusing
+     * BusinessOfferingsController::show() — that one's `OfferingDiscovery`
+     * only ever returns `menu`/`price` sourced rows
+     * (`app/Services/OfferingDiscovery.php`), never `business_catalog_listings`
+     * at all, so it cannot answer "what does this seller carry at retail".
+     */
+    public function business(Request $request, int $business)
+    {
+        $biz = User::query()->where('type', 'business')
+            ->find($business, ['id', 'name', 'name_en', 'logo']);
+
+        if (! $biz) {
+            return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
+        }
+
+        $listings = DB::table('business_catalog_listings as l')
+            ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
+            ->where('l.business_id', $business)
+            ->where('l.is_active', 1)
+            ->whereNull('p.deleted_at')
+            ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
+            ->orderBy('p.name_ar')
+            ->orderBy('l.id')
+            ->get([
+                'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
+                'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
+                'p.main_image as product_image',
+            ])
+            ->map(fn ($r) => [
+                'listing_id' => (int) $r->listing_id,
+                'price' => (float) $r->price,
+                'currency' => $r->currency ?: 'EGP',
+                'stock' => $r->stock !== null ? (int) $r->stock : null,
+                'product' => [
+                    'id' => (int) $r->product_id,
+                    'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
+                    'image' => $r->product_image,
+                ],
+            ])->values();
+
+        $minOrderAmount = \App\Models\BusinessRetailSetting::query()
+            ->where('business_id', $biz->id)->value('min_order_amount');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'business' => [
+                    'id' => (int) $biz->id,
+                    'name' => $this->label($biz->name, $biz->name_en, ''),
+                    'logo' => $biz->logo,
+                    // null = the seller imposes no minimum. Shown up front
+                    // here rather than only surfacing at the checkout-time
+                    // 422 — see CustomerCartService::assertMeetsRetailMinimum().
+                    'min_order_amount' => $minOrderAmount !== null ? (float) $minOrderAmount : null,
+                ],
+                'listings' => $listings,
+            ],
+        ]);
+    }
+
     private function package($p): string
     {
         $value = $p->package_value !== null ? rtrim(rtrim((string) $p->package_value, '0'), '.') : '';

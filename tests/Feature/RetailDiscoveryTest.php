@@ -129,6 +129,43 @@ class RetailDiscoveryTest extends TestCase
         $this->assertContains($businessA, $ids, 'a seller under the requested root must still appear');
     }
 
+    /** The storefront a listings() card opens into: one seller's whole shelf. */
+    public function test_business_storefront_lists_every_active_listing_and_the_minimum(): void
+    {
+        $businesses = User::query()->where('type', 'business')->take(1)->pluck('id')->all();
+        if (! $businesses) {
+            $this->markTestSkipped('Needs a business user.');
+        }
+        $businessId = (int) $businesses[0];
+
+        \App\Models\BusinessRetailSetting::updateOrCreate(['business_id' => $businessId], ['min_order_amount' => 75]);
+
+        $productA = $this->makeCatalogProduct();
+        $productB = $this->makeCatalogProduct();
+        BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $productA, 'sku' => 'SFA', 'price' => 20, 'currency' => 'EGP', 'stock' => 5, 'is_active' => 1]);
+        BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $productB, 'sku' => 'SFB', 'price' => 30, 'currency' => 'EGP', 'stock' => 2, 'is_active' => 1]);
+        // Inactive — must not surface.
+        BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $this->makeCatalogProduct(), 'sku' => 'SFC', 'price' => 40, 'currency' => 'EGP', 'stock' => 1, 'is_active' => 0]);
+
+        $res = $this->getJson("/api/v2/discovery/retail/business/{$businessId}")->assertOk();
+
+        $this->assertSame(75.0, (float) $res->json('data.business.min_order_amount'));
+        $productIds = collect($res->json('data.listings'))->pluck('product.id')->all();
+        $this->assertContains($productA, $productIds);
+        $this->assertContains($productB, $productIds);
+        $this->assertCount(2, $productIds, 'the inactive listing must not surface');
+    }
+
+    public function test_business_storefront_returns_404_for_a_non_business(): void
+    {
+        $customer = User::query()->where('type', '!=', 'business')->value('id');
+        if (! $customer) {
+            $this->markTestSkipped('Needs a non-business user.');
+        }
+
+        $this->getJson("/api/v2/discovery/retail/business/{$customer}")->assertNotFound();
+    }
+
     public function test_listings_hides_a_restricted_listing_from_a_stranger(): void
     {
         $businesses = User::query()->where('type', 'business')->take(1)->pluck('id')->all();

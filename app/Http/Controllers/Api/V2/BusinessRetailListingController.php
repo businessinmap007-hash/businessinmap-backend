@@ -173,43 +173,6 @@ final class BusinessRetailListingController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /**
-     * GET /api/v2/business/retail-settings — today just the minimum order
-     * amount this business may impose on a customer's cart of its own
-     * listings (null = no minimum). Mirrors the shape of
-     * BusinessMenuItemController::displayMode().
-     */
-    public function settings()
-    {
-        $minOrderAmount = \App\Models\BusinessRetailSetting::query()
-            ->where('business_id', $this->businessId())
-            ->value('min_order_amount');
-
-        return response()->json([
-            'success' => true,
-            'data' => ['min_order_amount' => $minOrderAmount !== null ? (float) $minOrderAmount : null],
-        ]);
-    }
-
-    /** PUT /api/v2/business/retail-settings */
-    public function updateSettings(Request $request)
-    {
-        $data = $request->validate([
-            'min_order_amount' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        $minOrderAmount = array_key_exists('min_order_amount', $data) && $data['min_order_amount'] !== null
-            ? round((float) $data['min_order_amount'], 2)
-            : null;
-
-        \App\Models\BusinessRetailSetting::updateOrCreate(
-            ['business_id' => $this->businessId()],
-            ['min_order_amount' => $minOrderAmount]
-        );
-
-        return response()->json(['success' => true, 'data' => ['min_order_amount' => $minOrderAmount]]);
-    }
-
     // ─────────────────────────── Helpers ───────────────────────────
 
     private function scoped(int $id): BusinessCatalogListing
@@ -255,6 +218,7 @@ final class BusinessRetailListingController extends Controller
         $rules = [
             'price' => ['required', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
+            'min_order_qty' => ['nullable', 'integer', 'min:1'],
             'sku' => ['nullable', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable', 'boolean'],
@@ -282,6 +246,7 @@ final class BusinessRetailListingController extends Controller
         $out = [
             'price' => round((float) $data['price'], 2),
             'stock' => max(0, (int) ($data['stock'] ?? 0)),
+            'min_order_qty' => isset($data['min_order_qty']) && $data['min_order_qty'] !== null ? (int) $data['min_order_qty'] : null,
             'sku' => trim((string) ($data['sku'] ?? '')) ?: null,
             'currency' => strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP',
             'is_active' => (int) $request->boolean('is_active', true),

@@ -37,6 +37,7 @@ class BusinessCatalogListing extends Model
         'cost_price',
         'currency',
         'stock',
+        'min_order_qty',
         'is_active',
         'visibility',
         'source_listing_id',
@@ -48,6 +49,7 @@ class BusinessCatalogListing extends Model
         'price' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'stock' => 'integer',
+        'min_order_qty' => 'integer',
         'source_listing_id' => 'integer',
         'is_active' => 'boolean',
     ];

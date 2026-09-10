@@ -138,22 +138,22 @@ class RetailDiscoveryTest extends TestCase
         }
         $businessId = (int) $businesses[0];
 
-        \App\Models\BusinessRetailSetting::updateOrCreate(['business_id' => $businessId], ['min_order_amount' => 75]);
-
         $productA = $this->makeCatalogProduct();
         $productB = $this->makeCatalogProduct();
-        BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $productA, 'sku' => 'SFA', 'price' => 20, 'currency' => 'EGP', 'stock' => 5, 'is_active' => 1]);
+        BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $productA, 'sku' => 'SFA', 'price' => 20, 'currency' => 'EGP', 'stock' => 500, 'min_order_qty' => 20, 'is_active' => 1]);
         BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $productB, 'sku' => 'SFB', 'price' => 30, 'currency' => 'EGP', 'stock' => 2, 'is_active' => 1]);
         // Inactive — must not surface.
         BusinessCatalogListing::create(['business_id' => $businessId, 'catalog_product_id' => $this->makeCatalogProduct(), 'sku' => 'SFC', 'price' => 40, 'currency' => 'EGP', 'stock' => 1, 'is_active' => 0]);
 
         $res = $this->getJson("/api/v2/discovery/retail/business/{$businessId}")->assertOk();
 
-        $this->assertSame(75.0, (float) $res->json('data.business.min_order_amount'));
-        $productIds = collect($res->json('data.listings'))->pluck('product.id')->all();
+        $listings = collect($res->json('data.listings'));
+        $productIds = $listings->pluck('product.id')->all();
         $this->assertContains($productA, $productIds);
         $this->assertContains($productB, $productIds);
         $this->assertCount(2, $productIds, 'the inactive listing must not surface');
+        $this->assertSame(20, $listings->firstWhere('product.id', $productA)['min_order_qty']);
+        $this->assertNull($listings->firstWhere('product.id', $productB)['min_order_qty']);
     }
 
     public function test_business_storefront_returns_404_for_a_non_business(): void

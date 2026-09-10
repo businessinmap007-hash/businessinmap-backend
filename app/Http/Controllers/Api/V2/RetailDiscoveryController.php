@@ -341,6 +341,7 @@ final class RetailDiscoveryController extends Controller
             ->orderByDesc('l.id')
             ->select(
                 'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
+                'l.min_order_qty',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
                 'u.id as business_id', 'u.name as business_name_ar', 'u.name_en as business_name_en',
@@ -357,6 +358,7 @@ final class RetailDiscoveryController extends Controller
             'price' => (float) $r->price,
             'currency' => $r->currency ?: 'EGP',
             'stock' => $r->stock !== null ? (int) $r->stock : null,
+            'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
             'product' => [
                 'id' => (int) $r->product_id,
                 'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
@@ -413,6 +415,7 @@ final class RetailDiscoveryController extends Controller
             ->orderBy('l.id')
             ->get([
                 'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
+                'l.min_order_qty',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
             ])
@@ -421,16 +424,13 @@ final class RetailDiscoveryController extends Controller
                 'price' => (float) $r->price,
                 'currency' => $r->currency ?: 'EGP',
                 'stock' => $r->stock !== null ? (int) $r->stock : null,
+                'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
                 'product' => [
                     'id' => (int) $r->product_id,
                     'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
                     'image' => $r->product_image,
                 ],
             ])->values();
-
-        $minOrderAmount = \App\Models\BusinessRetailSetting::query()
-            ->where('business_id', $biz->id)->value('min_order_amount');
-
         return response()->json([
             'success' => true,
             'data' => [
@@ -438,10 +438,6 @@ final class RetailDiscoveryController extends Controller
                     'id' => (int) $biz->id,
                     'name' => $this->label($biz->name, $biz->name_en, ''),
                     'logo' => $biz->logo,
-                    // null = the seller imposes no minimum. Shown up front
-                    // here rather than only surfacing at the checkout-time
-                    // 422 — see CustomerCartService::assertMeetsRetailMinimum().
-                    'min_order_amount' => $minOrderAmount !== null ? (float) $minOrderAmount : null,
                 ],
                 'listings' => $listings,
             ],

@@ -806,12 +806,6 @@ Route::prefix('v2')->group(function () {
             Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
         });
 
-        // Retail-channel settings — today just a minimum order amount.
-        Route::prefix('business/retail-settings')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
-            Route::get('/', [BusinessRetailListingController::class, 'settings']);
-            Route::match(['put', 'patch'], '/', [BusinessRetailListingController::class, 'updateSettings']);
-        });
-
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and
         // confirm the handover by scanning it (flips the order to completed).
         Route::post('orders/{order}/handover/issue', [OrderHandoverController::class, 'issue'])->whereNumber('order');

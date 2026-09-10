@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Address;
 use App\Models\BusinessCatalogListing;
 use App\Models\BusinessMenuSetting;
-use App\Models\BusinessRetailSetting;
 use App\Models\MenuBundle;
 use App\Models\MenuBundleItem;
 use App\Models\MenuItem;
@@ -767,7 +766,7 @@ class CustomerCartService
         $bill = $this->billing->orderBill($cart);
 
         $this->assertMeetsMenuMinimum((int) $cart->business_id, (float) $bill['menu_subtotal']);
-        $this->assertMeetsRetailMinimum((int) $cart->business_id, (float) $bill['retail_subtotal']);
+        $this->assertMeetsRetailMinimumQty($cart);
 
         $delivery = round((float) $cart->delivery_fee, 2);
         $discount = round((float) $cart->discount, 2);
@@ -874,31 +873,51 @@ class CustomerCartService
     }
 
     /**
-     * The retail seller's own «حدٌّ أدنى للطلب» — checked against the RETAIL
-     * lines only, the mirror of assertMeetsMenuMinimum() above. A business
-     * can carry both channels on the same account (see
-     * [[menu-vs-retail-dual-channel]]), so one cart may owe both checks
-     * independently.
+     * Each retail line's own «حدٌّ أدنى للطلب» — a per-LISTING minimum
+     * QUANTITY (e.g. 20 كيلو from stock of 500), not a cart-wide currency
+     * amount: a wholesale buyer's constraint is how much of THIS product
+     * they take, not what an unrelated mix of items in the same cart adds
+     * up to. See BusinessCatalogListing::min_order_qty.
      */
-    private function assertMeetsRetailMinimum(int $businessId, float $retailSubtotal): void
+    private function assertMeetsRetailMinimumQty(Order $cart): void
     {
-        if ($retailSubtotal <= 0) {
+        $lines = $cart->items()->where('offering_type', BusinessCatalogListing::class)->get();
+
+        if ($lines->isEmpty()) {
             return;
         }
 
-        $minimum = BusinessRetailSetting::query()->where('business_id', $businessId)->value('min_order_amount');
+        $listings = BusinessCatalogListing::query()
+            ->whereIn('id', $lines->pluck('offering_id'))
+            ->with('product:id,name_ar,name_en')
+            ->get()
+            ->keyBy('id');
 
-        if ($minimum === null || (float) $minimum <= 0 || $retailSubtotal >= (float) $minimum) {
-            return;
+        foreach ($lines as $line) {
+            $listing = $listings->get((int) $line->offering_id);
+            $minQty = $listing ? (int) ($listing->min_order_qty ?? 0) : 0;
+
+            if ($minQty <= 0 || (int) $line->qty >= $minQty) {
+                continue;
+            }
+
+            $product = $listing->product;
+            $name = $product
+                ? (app()->getLocale() === 'en'
+                    ? ($product->name_en ?: $product->name_ar)
+                    : ($product->name_ar ?: $product->name_en))
+                : (string) $line->name;
+
+            throw ValidationException::withMessages([
+                'cart' => __('الحد الأدنى لطلب :product هو :min (طلبك الحالي :qty).', [
+                    'product' => $name,
+                    'min' => $minQty,
+                    'qty' => (int) $line->qty,
+                ]),
+            ]);
         }
-
-        throw ValidationException::withMessages([
-            'cart' => __('الحد الأدنى لطلب التجزئة من هذا المتجر :min جنيه (طلبك الحالي :amount جنيه).', [
-                'min' => rtrim(rtrim(number_format((float) $minimum, 2), '0'), '.'),
-                'amount' => rtrim(rtrim(number_format($retailSubtotal, 2), '0'), '.'),
-            ]),
-        ]);
     }
+
 
     /**
      * Best-effort `menu_order_created` alert to the business that owns the order

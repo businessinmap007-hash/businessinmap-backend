@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessCatalogListing;
-use App\Models\BusinessRetailSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
@@ -12,9 +11,10 @@ use Tests\Concerns\SeedsRetailCatalog;
 use Tests\TestCase;
 
 /**
- * The retail seller's own «حدٌّ أدنى للطلب», mirroring MenuMinimumOrderTest —
- * checked against the RETAIL lines of the order alone, never a menu line
- * sitting in the same cart.
+ * The retail seller's own «حدٌّ أدنى للطلب» — a per-LISTING minimum QUANTITY
+ * (e.g. 20 كيلو), not a cart-wide currency amount: see
+ * CustomerCartService::assertMeetsRetailMinimumQty() and
+ * BusinessCatalogListing::min_order_qty.
  */
 class RetailMinimumOrderTest extends TestCase
 {
@@ -33,7 +33,7 @@ class RetailMinimumOrderTest extends TestCase
         $this->customer = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->firstOrFail();
     }
 
-    private function listing(float $price): int
+    private function listing(float $price, ?int $minOrderQty = null): int
     {
         return BusinessCatalogListing::create([
             'business_id' => $this->biz->id,
@@ -41,42 +41,37 @@ class RetailMinimumOrderTest extends TestCase
             'sku' => 'MIN-' . uniqid(),
             'price' => $price,
             'currency' => 'EGP',
-            'stock' => 50,
+            'stock' => 500,
+            'min_order_qty' => $minOrderQty,
             'is_active' => 1,
         ])->id;
     }
 
-    public function test_checkout_is_refused_below_the_minimum(): void
+    public function test_checkout_is_refused_below_the_minimum_quantity(): void
     {
-        BusinessRetailSetting::updateOrCreate(['business_id' => $this->biz->id], ['min_order_amount' => 100]);
-
-        $listing = $this->listing(60.0);
+        $listing = $this->listing(10.0, 20);
 
         Sanctum::actingAs($this->customer);
-        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 1])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 5])->assertCreated();
 
         $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('cart');
     }
 
-    public function test_checkout_succeeds_at_or_above_the_minimum(): void
+    public function test_checkout_succeeds_at_or_above_the_minimum_quantity(): void
     {
-        BusinessRetailSetting::updateOrCreate(['business_id' => $this->biz->id], ['min_order_amount' => 100]);
-
-        $listing = $this->listing(100.0);
+        $listing = $this->listing(10.0, 20);
 
         Sanctum::actingAs($this->customer);
-        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 1])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 20])->assertCreated();
 
         $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
     }
 
     public function test_no_minimum_configured_never_blocks_checkout(): void
     {
-        BusinessRetailSetting::query()->where('business_id', $this->biz->id)->delete();
-
-        $listing = $this->listing(1.0);
+        $listing = $this->listing(1.0, null);
 
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 1])->assertCreated();
@@ -84,11 +79,9 @@ class RetailMinimumOrderTest extends TestCase
         $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
     }
 
-    /** A cart with only menu lines has no retail subtotal — the retail minimum never applies to it. */
+    /** A cart with only menu lines has no retail lines — the retail minimum never applies to it. */
     public function test_a_pure_menu_cart_is_never_blocked_by_the_retail_minimum(): void
     {
-        BusinessRetailSetting::updateOrCreate(['business_id' => $this->biz->id], ['min_order_amount' => 1000]);
-
         $item = $this->seedMenuItem($this->biz->id, null, 10.0)->id;
 
         Sanctum::actingAs($this->customer);
@@ -97,30 +90,33 @@ class RetailMinimumOrderTest extends TestCase
         $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
     }
 
-    public function test_merchant_can_read_and_set_their_own_minimum(): void
+    /** Accumulating quantity across two adds still counts toward the same line's minimum. */
+    public function test_merged_quantity_across_two_adds_counts_toward_the_minimum(): void
     {
-        Sanctum::actingAs($this->biz);
+        $listing = $this->listing(10.0, 20);
 
-        $this->getJson('/api/v2/business/retail-settings')
-            ->assertOk()
-            ->assertJsonPath('data.min_order_amount', null);
+        Sanctum::actingAs($this->customer);
+        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 12])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 8])->assertCreated();
 
-        $this->putJson('/api/v2/business/retail-settings', ['min_order_amount' => 250.5])
-            ->assertOk()
-            ->assertJsonPath('data.min_order_amount', 250.5);
-
-        $this->getJson('/api/v2/business/retail-settings')
-            ->assertOk()
-            ->assertJsonPath('data.min_order_amount', 250.5);
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
     }
 
-    public function test_merchant_can_clear_their_minimum(): void
+    public function test_merchant_can_update_the_minimum_quantity_on_a_listing(): void
     {
-        BusinessRetailSetting::updateOrCreate(['business_id' => $this->biz->id], ['min_order_amount' => 100]);
+        $listingId = $this->listing(30.0, 20);
 
         Sanctum::actingAs($this->biz);
-        $this->putJson('/api/v2/business/retail-settings', ['min_order_amount' => null])
+
+        $this->getJson("/api/v2/business/retail-listings/{$listingId}")
             ->assertOk()
-            ->assertJsonPath('data.min_order_amount', null);
+            ->assertJsonPath('data.min_order_qty', 20);
+
+        $this->putJson("/api/v2/business/retail-listings/{$listingId}", [
+            'price' => 30.0,
+            'stock' => 500,
+            'min_order_qty' => 25,
+            'is_active' => true,
+        ])->assertOk()->assertJsonPath('data.min_order_qty', 25);
     }
 }

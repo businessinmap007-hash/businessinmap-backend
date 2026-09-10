@@ -33,7 +33,7 @@ class RetailMinimumOrderTest extends TestCase
         $this->customer = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->firstOrFail();
     }
 
-    private function listing(float $price, ?int $minOrderQty = null): int
+    private function listing(float $price, ?int $minOrderQty = null, ?string $unit = null): int
     {
         return BusinessCatalogListing::create([
             'business_id' => $this->biz->id,
@@ -43,6 +43,7 @@ class RetailMinimumOrderTest extends TestCase
             'currency' => 'EGP',
             'stock' => 500,
             'min_order_qty' => $minOrderQty,
+            'unit' => $unit,
             'is_active' => 1,
         ])->id;
     }
@@ -104,19 +105,23 @@ class RetailMinimumOrderTest extends TestCase
 
     public function test_merchant_can_update_the_minimum_quantity_on_a_listing(): void
     {
-        $listingId = $this->listing(30.0, 20);
+        $listingId = $this->listing(30.0, 20, 'kg');
 
         Sanctum::actingAs($this->biz);
 
         $this->getJson("/api/v2/business/retail-listings/{$listingId}")
             ->assertOk()
-            ->assertJsonPath('data.min_order_qty', 20);
+            ->assertJsonPath('data.min_order_qty', 20)
+            ->assertJsonPath('data.unit', 'kg');
 
         $this->putJson("/api/v2/business/retail-listings/{$listingId}", [
             'price' => 30.0,
             'stock' => 500,
             'min_order_qty' => 25,
+            'unit' => 'carton',
             'is_active' => true,
-        ])->assertOk()->assertJsonPath('data.min_order_qty', 25);
+        ])->assertOk()
+            ->assertJsonPath('data.min_order_qty', 25)
+            ->assertJsonPath('data.unit', 'carton');
     }
 }

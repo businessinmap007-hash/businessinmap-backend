@@ -38,6 +38,7 @@ class BusinessCatalogListing extends Model
         'currency',
         'stock',
         'min_order_qty',
+        'unit',
         'is_active',
         'visibility',
         'source_listing_id',

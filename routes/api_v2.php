@@ -188,6 +188,9 @@ Route::prefix('v2')->group(function () {
             Route::get('filters', [RetailDiscoveryController::class, 'filters']);
             Route::get('products', [RetailDiscoveryController::class, 'products']);
             Route::get('products/{product}', [RetailDiscoveryController::class, 'show'])->whereNumber('product');
+            // One card per LISTING (business + product + price) — the feed
+            // behind the Categories screen's "Retail" service chip.
+            Route::get('listings', [RetailDiscoveryController::class, 'listings']);
         });
 
         // Menu: browse a business's menu grouped by sections, with variants + extras.
@@ -798,6 +801,12 @@ Route::prefix('v2')->group(function () {
             Route::get('{listing}', [BusinessRetailListingController::class, 'show'])->whereNumber('listing');
             Route::match(['put', 'patch'], '{listing}', [BusinessRetailListingController::class, 'update'])->whereNumber('listing');
             Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
+        });
+
+        // Retail-channel settings — today just a minimum order amount.
+        Route::prefix('business/retail-settings')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
+            Route::get('/', [BusinessRetailListingController::class, 'settings']);
+            Route::match(['put', 'patch'], '/', [BusinessRetailListingController::class, 'updateSettings']);
         });
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and

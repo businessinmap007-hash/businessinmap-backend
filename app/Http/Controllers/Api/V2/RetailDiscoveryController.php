@@ -254,13 +254,13 @@ final class RetailDiscoveryController extends Controller
             ->orderBy('u.name')
             ->get([
                 'l.id', 'l.price', 'l.currency', 'l.stock', 'l.sku',
-                'u.id as business_id', 'u.name as business_name', 'u.logo as business_logo',
+                'u.id as business_id', 'u.name as business_name_ar', 'u.name_en as business_name_en', 'u.logo as business_logo',
             ])
             ->map(fn ($o) => [
                 'listing_id' => (int) $o->id,
                 'business' => [
                     'id' => (int) $o->business_id,
-                    'name' => (string) $o->business_name,
+                    'name' => $this->label($o->business_name_ar, $o->business_name_en, ''),
                     'logo' => $o->business_logo,
                 ],
                 'price' => (float) $o->price,
@@ -285,6 +285,98 @@ final class RetailDiscoveryController extends Controller
                     ],
                 ],
                 'offers' => $offers,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /discovery/retail/listings — one card per LISTING (business +
+     * product + price), the feed behind the Categories screen's "Retail"
+     * service chip. Deliberately per-listing rather than per-business (the
+     * generic DiscoveryController::recommended() shape) or per-product (the
+     * `products()` shape above): a customer choosing "Retail" wants to see
+     * what's actually for sale and at what price, not rediscover the same
+     * business/product hop this controller already offers elsewhere.
+     *
+     * `category_id` narrows to sellers under that ROOT category (e.g.
+     * "Factories" vs "Shops") — the same axis
+     * DiscoveryController::recommended() already supports for every other
+     * service, generalised here since retail sellers span very different
+     * trades (a furniture factory and a greengrocer both "do retail").
+     */
+    public function listings(Request $request)
+    {
+        $data = $request->validate([
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $categoryId = (int) ($data['category_id'] ?? 0);
+        $q = trim((string) ($data['q'] ?? ''));
+
+        $ratingExpr = 'COALESCE(ROUND(uor.review_stars_sum / GREATEST(uor.review_count, 1), 2), 0)';
+
+        $rows = DB::table('business_catalog_listings as l')
+            ->join('users as u', 'u.id', '=', 'l.business_id')
+            ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
+            ->leftJoin('user_operation_ratings as uor', function ($join) {
+                $join->on('uor.user_id', '=', 'u.id')->where('uor.role', 'business');
+            })
+            ->where('l.is_active', 1)
+            ->where('u.type', 'business')
+            ->whereNull('p.deleted_at')
+            ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
+            ->when($categoryId > 0, fn ($qq) => $qq->where('u.category_id', $categoryId))
+            ->when($q !== '', function ($qq) use ($q) {
+                $like = '%' . mb_strtolower($q) . '%';
+                $qq->where(function ($sub) use ($like) {
+                    $sub->whereRaw('LOWER(p.name_ar) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(p.name_en) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(u.name) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(u.name_en) LIKE ?', [$like]);
+                });
+            })
+            ->orderByRaw("$ratingExpr DESC")
+            ->orderByDesc('l.id')
+            ->select(
+                'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
+                'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
+                'p.main_image as product_image',
+                'u.id as business_id', 'u.name as business_name_ar', 'u.name_en as business_name_en',
+                'u.logo as business_logo', 'u.category_id', 'u.category_child_id'
+            )
+            ->paginate((int) ($data['per_page'] ?? 20))
+            ->withQueryString();
+
+        $businessIds = $rows->getCollection()->pluck('business_id')->unique()->map(fn ($id) => (int) $id)->all();
+        $openNow = app(\App\Services\BusinessHoursService::class)->openNowMap($businessIds);
+
+        $rows->getCollection()->transform(fn ($r) => [
+            'listing_id' => (int) $r->listing_id,
+            'price' => (float) $r->price,
+            'currency' => $r->currency ?: 'EGP',
+            'stock' => $r->stock !== null ? (int) $r->stock : null,
+            'product' => [
+                'id' => (int) $r->product_id,
+                'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
+                'image' => $r->product_image,
+            ],
+            'business' => [
+                'id' => (int) $r->business_id,
+                'name' => $this->label($r->business_name_ar, $r->business_name_en, ''),
+                'logo' => $r->business_logo,
+                'category_id' => $r->category_id ? (int) $r->category_id : null,
+                'category_child_id' => $r->category_child_id ? (int) $r->category_child_id : null,
+                'is_open_now' => $openNow[(int) $r->business_id] ?? true,
+            ],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'query' => ['category_id' => $categoryId ?: null, 'q' => $q ?: null],
+                'listings' => $rows,
             ],
         ]);
     }

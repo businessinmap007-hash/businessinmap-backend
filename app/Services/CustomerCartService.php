@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Address;
 use App\Models\BusinessCatalogListing;
 use App\Models\BusinessMenuSetting;
+use App\Models\BusinessRetailSetting;
 use App\Models\MenuBundle;
 use App\Models\MenuBundleItem;
 use App\Models\MenuItem;
@@ -766,6 +767,7 @@ class CustomerCartService
         $bill = $this->billing->orderBill($cart);
 
         $this->assertMeetsMenuMinimum((int) $cart->business_id, (float) $bill['menu_subtotal']);
+        $this->assertMeetsRetailMinimum((int) $cart->business_id, (float) $bill['retail_subtotal']);
 
         $delivery = round((float) $cart->delivery_fee, 2);
         $discount = round((float) $cart->discount, 2);
@@ -867,6 +869,33 @@ class CustomerCartService
             'cart' => __('الحد الأدنى لطلب المنيو من هذا المتجر :min جنيه (طلبك الحالي :amount جنيه).', [
                 'min' => rtrim(rtrim(number_format((float) $minimum, 2), '0'), '.'),
                 'amount' => rtrim(rtrim(number_format($menuSubtotal, 2), '0'), '.'),
+            ]),
+        ]);
+    }
+
+    /**
+     * The retail seller's own «حدٌّ أدنى للطلب» — checked against the RETAIL
+     * lines only, the mirror of assertMeetsMenuMinimum() above. A business
+     * can carry both channels on the same account (see
+     * [[menu-vs-retail-dual-channel]]), so one cart may owe both checks
+     * independently.
+     */
+    private function assertMeetsRetailMinimum(int $businessId, float $retailSubtotal): void
+    {
+        if ($retailSubtotal <= 0) {
+            return;
+        }
+
+        $minimum = BusinessRetailSetting::query()->where('business_id', $businessId)->value('min_order_amount');
+
+        if ($minimum === null || (float) $minimum <= 0 || $retailSubtotal >= (float) $minimum) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'cart' => __('الحد الأدنى لطلب التجزئة من هذا المتجر :min جنيه (طلبك الحالي :amount جنيه).', [
+                'min' => rtrim(rtrim(number_format((float) $minimum, 2), '0'), '.'),
+                'amount' => rtrim(rtrim(number_format($retailSubtotal, 2), '0'), '.'),
             ]),
         ]);
     }

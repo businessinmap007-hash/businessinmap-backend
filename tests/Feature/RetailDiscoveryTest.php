@@ -86,4 +86,72 @@ class RetailDiscoveryTest extends TestCase
         $skus = array_map(fn ($o) => $o['sku'] ?? null, $res->json('data.offers') ?? []);
         $this->assertNotContains('INACT', $skus, 'inactive listings must not surface');
     }
+
+    /**
+     * One card per LISTING (business + product + price) — the feed behind
+     * the Categories screen's "Retail" service chip, not the product-first
+     * `products()` shape above.
+     */
+    public function test_listings_returns_one_card_per_listing_with_business_and_product(): void
+    {
+        [$businessA, $businessB, $productId] = $this->seedTwoSellersOfOneProduct();
+
+        $res = $this->getJson('/api/v2/discovery/retail/listings?per_page=50')->assertOk();
+
+        $rows = collect($res->json('data.listings.data'));
+        $forProduct = $rows->where('product.id', $productId);
+        $this->assertCount(2, $forProduct, 'both sellers of the seeded product must appear as separate cards');
+
+        $sellerIds = $forProduct->pluck('business.id')->all();
+        $this->assertContains($businessA, $sellerIds);
+        $this->assertContains($businessB, $sellerIds);
+
+        $row = $forProduct->first();
+        $this->assertNotEmpty($row['product']['name']);
+        $this->assertNotEmpty($row['business']['name']);
+        $this->assertArrayHasKey('price', $row);
+    }
+
+    public function test_listings_category_id_narrows_to_sellers_under_that_root(): void
+    {
+        [$businessA, , $productId] = $this->seedTwoSellersOfOneProduct();
+
+        $rootId = (int) User::query()->find($businessA)->category_id;
+        if ($rootId <= 0) {
+            $this->markTestSkipped('Seeded seller has no root category.');
+        }
+
+        $ids = collect(
+            $this->getJson("/api/v2/discovery/retail/listings?category_id={$rootId}&per_page=50")
+                ->assertOk()->json('data.listings.data')
+        )->where('product.id', $productId)->pluck('business.id')->all();
+
+        $this->assertContains($businessA, $ids, 'a seller under the requested root must still appear');
+    }
+
+    public function test_listings_hides_a_restricted_listing_from_a_stranger(): void
+    {
+        $businesses = User::query()->where('type', 'business')->take(1)->pluck('id')->all();
+        if (! $businesses) {
+            $this->markTestSkipped('Needs a business user.');
+        }
+        $productId = $this->makeCatalogProduct();
+
+        BusinessCatalogListing::create([
+            'business_id' => $businesses[0],
+            'catalog_product_id' => $productId,
+            'sku' => 'RESTRICTED-CARD',
+            'price' => 55.00,
+            'currency' => 'EGP',
+            'stock' => 1,
+            'is_active' => 1,
+            'visibility' => \App\Services\Retail\RetailListingVisibility::RESTRICTED,
+        ]);
+
+        $skus = collect(
+            $this->getJson('/api/v2/discovery/retail/listings?per_page=50')->assertOk()->json('data.listings.data')
+        )->pluck('product.id')->all();
+
+        $this->assertNotContains($productId, $skus, 'a restricted listing must not surface as a card to a guest');
+    }
 }

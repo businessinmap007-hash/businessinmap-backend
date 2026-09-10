@@ -173,6 +173,43 @@ final class BusinessRetailListingController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /**
+     * GET /api/v2/business/retail-settings — today just the minimum order
+     * amount this business may impose on a customer's cart of its own
+     * listings (null = no minimum). Mirrors the shape of
+     * BusinessMenuItemController::displayMode().
+     */
+    public function settings()
+    {
+        $minOrderAmount = \App\Models\BusinessRetailSetting::query()
+            ->where('business_id', $this->businessId())
+            ->value('min_order_amount');
+
+        return response()->json([
+            'success' => true,
+            'data' => ['min_order_amount' => $minOrderAmount !== null ? (float) $minOrderAmount : null],
+        ]);
+    }
+
+    /** PUT /api/v2/business/retail-settings */
+    public function updateSettings(Request $request)
+    {
+        $data = $request->validate([
+            'min_order_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $minOrderAmount = array_key_exists('min_order_amount', $data) && $data['min_order_amount'] !== null
+            ? round((float) $data['min_order_amount'], 2)
+            : null;
+
+        \App\Models\BusinessRetailSetting::updateOrCreate(
+            ['business_id' => $this->businessId()],
+            ['min_order_amount' => $minOrderAmount]
+        );
+
+        return response()->json(['success' => true, 'data' => ['min_order_amount' => $minOrderAmount]]);
+    }
+
     // ─────────────────────────── Helpers ───────────────────────────
 
     private function scoped(int $id): BusinessCatalogListing

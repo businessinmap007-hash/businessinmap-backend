@@ -403,12 +403,15 @@ final class DiscoveryController extends Controller
         // engines.
         $ratingExpr = 'COALESCE(ROUND(uor.review_stars_sum / GREATEST(uor.review_count, 1), 2), 0)';
 
-        // The menu service never writes a business_service_prices row — a
-        // restaurant's items live in the separate menu_items table (its own
-        // dedicated discovery path, /discovery/menu/{business}), so the
-        // priced-row check below would silently exclude every menu business
-        // otherwise. Same fallback BusinessPageController::show() uses for
-        // its own has_menu flag.
+        // The menu and retail services never write a business_service_prices
+        // row — a restaurant's items live in the separate menu_items table
+        // (its own dedicated discovery path, /discovery/menu/{business}),
+        // and a retail seller's listings live in business_catalog_listings
+        // (/discovery/retail/products) — so the priced-row check below would
+        // silently exclude every menu or retail business otherwise. Same
+        // fallback BusinessPageController::show() uses for its own has_menu
+        // flag; caught live the same way the menu one was, by picking
+        // "Retail" and finding a business with real listings missing.
         $serviceKey = $serviceId > 0 ? (string) (PlatformService::find($serviceId)?->key) : null;
 
         $businesses = User::query()
@@ -426,6 +429,13 @@ final class DiscoveryController extends Controller
                         $sub->from('menu_items as m')
                             ->whereColumn('m.business_id', 'users.id')
                             ->where('m.is_active', 1);
+                    });
+                }
+                if ($serviceKey === PlatformService::KEY_RETAIL) {
+                    $inner->orWhereExists(function ($sub) {
+                        $sub->from('business_catalog_listings as l')
+                            ->whereColumn('l.business_id', 'users.id')
+                            ->where('l.is_active', 1);
                     });
                 }
             }))

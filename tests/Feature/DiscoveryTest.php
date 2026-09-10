@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessCatalogListing;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\SeedsMenu;
+use Tests\Concerns\SeedsRetailCatalog;
 use Tests\TestCase;
 
 /**
@@ -17,6 +19,7 @@ class DiscoveryTest extends TestCase
 {
     use DatabaseTransactions;
     use SeedsMenu;
+    use SeedsRetailCatalog;
 
     private function anyActivePrice(): ?object
     {
@@ -300,6 +303,39 @@ class DiscoveryTest extends TestCase
             'id'
         );
         $this->assertContains($business->id, $ids, 'a business with an active menu item must appear for the menu service');
+    }
+
+    /**
+     * A retail seller never writes a business_service_prices row either — its
+     * listings live in business_catalog_listings instead
+     * (BusinessRetailListingController) — so the plain priced-row check would
+     * silently hide every retail seller behind the "Retail" chip, the exact
+     * gap the menu fallback above was already caught for.
+     */
+    public function test_recommended_service_id_retail_matches_via_catalog_listings_fallback(): void
+    {
+        $retailServiceId = (int) \App\Models\PlatformService::where('key', 'retail')->value('id');
+        if ($retailServiceId === 0) {
+            $this->markTestSkipped('No "retail" platform service seeded.');
+        }
+
+        $tag = 'rec-retail-' . uniqid();
+        $business = $this->makeBusiness($tag);
+        BusinessCatalogListing::create([
+            'business_id' => $business->id,
+            'catalog_product_id' => $this->makeCatalogProduct(),
+            'price' => 100,
+            'currency' => 'EGP',
+            'stock' => 10,
+            'is_active' => 1,
+        ]);
+
+        $ids = array_column(
+            $this->getJson("/api/v2/discovery/recommended?service_id={$retailServiceId}&q={$tag}")
+                ->assertOk()->json('data.businesses.data'),
+            'id'
+        );
+        $this->assertContains($business->id, $ids, 'a business with an active retail listing must appear for the retail service');
     }
 
     public function test_service_types_lists_the_platform_service_vocabulary(): void

@@ -42,7 +42,12 @@ class BusinessRetailListingResource extends JsonResource
     }
 
     /**
-     * @return array<string,array<int,int>>
+     * IDs alone are enough to WRITE an audience back, but a merchant's own
+     * edit screen needs to show him what he set without a second round trip
+     * per id — so each kind comes back both as bare ids (for the save
+     * payload) and resolved to a display name (for the screen).
+     *
+     * @return array<string,mixed>
      */
     private function audiencePayload(): array
     {
@@ -53,10 +58,27 @@ class BusinessRetailListingResource extends JsonResource
         $pick = fn (string $type) => $rows->where('audience_type', $type)
             ->pluck('audience_id')->map(fn ($id) => (int) $id)->values()->all();
 
+        $businessIds = $pick(\App\Models\CatalogListingAudience::TYPE_BUSINESS);
+        $childIds = $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY_CHILD);
+        $categoryIds = $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY);
+
+        $businesses = $businessIds
+            ? \App\Models\User::query()->whereIn('id', $businessIds)->get(['id', 'name', 'name_en'])
+            : collect();
+        $children = $childIds
+            ? \Illuminate\Support\Facades\DB::table('category_children_master')->whereIn('id', $childIds)->get(['id', 'name_ar', 'name_en'])
+            : collect();
+        $categories = $categoryIds
+            ? \Illuminate\Support\Facades\DB::table('categories')->whereIn('id', $categoryIds)->get(['id', 'name_ar', 'name_en'])
+            : collect();
+
         return [
-            'business_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_BUSINESS),
-            'child_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY_CHILD),
-            'category_ids' => $pick(\App\Models\CatalogListingAudience::TYPE_CATEGORY),
+            'business_ids' => $businessIds,
+            'child_ids' => $childIds,
+            'category_ids' => $categoryIds,
+            'businesses' => $businesses->map(fn ($b) => ['id' => (int) $b->id, 'name' => $b->displayName()])->values(),
+            'children' => $children->map(fn ($c) => ['id' => (int) $c->id, 'name' => $this->localize($c->name_ar, $c->name_en)])->values(),
+            'categories' => $categories->map(fn ($c) => ['id' => (int) $c->id, 'name' => $this->localize($c->name_ar, $c->name_en)])->values(),
         ];
     }
 

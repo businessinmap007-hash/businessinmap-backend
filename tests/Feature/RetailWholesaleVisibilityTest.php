@@ -338,6 +338,38 @@ class RetailWholesaleVisibilityTest extends TestCase
         $res->assertStatus(422)->assertJsonValidationErrors('visibility');
     }
 
+    /**
+     * The merchant's own edit screen needs a NAME for each id it stores, not
+     * just the id back — that's what its own audience picker just showed him.
+     */
+    public function test_a_restricted_listings_own_owner_sees_resolved_audience_names(): void
+    {
+        [$factory, $company] = $this->cast();
+        $product = $this->productInScopeOf($factory);
+
+        if (! $company->category_child_id) {
+            $this->markTestSkipped('The second business stands under no child.');
+        }
+
+        $row = $this->listing($factory, $product, 100, RetailListingVisibility::RESTRICTED);
+        $this->nameAudience($row, CatalogListingAudience::TYPE_BUSINESS, (int) $company->id);
+        $this->nameAudience($row, CatalogListingAudience::TYPE_CATEGORY_CHILD, (int) $company->category_child_id);
+
+        Sanctum::actingAs($factory);
+
+        $audience = $this->getJson("/api/v2/business/retail-listings/{$row->id}")
+            ->assertOk()
+            ->json('data.audience');
+
+        $this->assertSame([(int) $company->id], $audience['business_ids']);
+        $this->assertSame((int) $company->id, $audience['businesses'][0]['id']);
+        $this->assertNotEmpty($audience['businesses'][0]['name']);
+
+        $this->assertSame([(int) $company->category_child_id], $audience['child_ids']);
+        $this->assertSame((int) $company->category_child_id, $audience['children'][0]['id']);
+        $this->assertNotEmpty($audience['children'][0]['name']);
+    }
+
     /** Nothing that exists today changed: every pre-existing row is public. */
     public function test_the_default_is_public_so_nothing_already_listed_moved(): void
     {

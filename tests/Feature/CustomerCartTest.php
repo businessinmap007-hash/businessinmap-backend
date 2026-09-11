@@ -144,7 +144,7 @@ class CustomerCartTest extends TestCase
 
         $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $this->listingA, 'qty' => 2])->assertCreated();
 
-        $res = $this->postJson("/api/v2/cart/{$this->businessA}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $res = $this->postJson("/api/v2/cart/{$this->businessA}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
 
         $orderId = (int) $res->json('data.order.id');
         $this->assertSame('pending', Order::query()->whereKey($orderId)->value('status'));

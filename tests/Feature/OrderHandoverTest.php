@@ -39,6 +39,7 @@ class OrderHandoverTest extends TestCase
             'business_id' => $this->biz->id,
             'booking_id' => null,
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
             'status' => 'pending',
             'total' => 0, 'discount' => 0, 'delivery_fee' => 0, 'final_total' => 0,
             'payment_method' => 'cash', 'address' => '',

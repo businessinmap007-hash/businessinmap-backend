@@ -99,7 +99,7 @@ class PersonalCartBillingTest extends TestCase
 
         // Checkout persists service fee + tax + final total on the order.
         $orderId = (int) $cart['id'];
-        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
         $this->assertDatabaseHas('orders', [
             'id' => $orderId, 'status' => 'pending',
             'service_fee' => '10.00', 'tax' => '15.40', 'final_total' => '175.40',

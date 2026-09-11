@@ -40,7 +40,7 @@ class MenuMinimumOrderTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
 
-        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])
             ->assertStatus(422)
             ->assertJsonValidationErrors('cart');
     }
@@ -54,7 +54,7 @@ class MenuMinimumOrderTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
 
-        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
     }
 
     public function test_no_minimum_configured_never_blocks_checkout(): void
@@ -66,7 +66,7 @@ class MenuMinimumOrderTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1])->assertCreated();
 
-        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
     }
 
     /** A cart with only retail lines has no menu subtotal — the minimum never applies to it. */
@@ -83,6 +83,6 @@ class MenuMinimumOrderTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'retail', 'offering_id' => $listing, 'qty' => 1])->assertCreated();
 
-        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
     }
 }

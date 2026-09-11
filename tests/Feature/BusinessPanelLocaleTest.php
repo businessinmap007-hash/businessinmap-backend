@@ -89,6 +89,7 @@ class BusinessPanelLocaleTest extends TestCase
             'booking_id' => null,
             'status' => 'pending',
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
             'total' => 0,
             'discount' => 0,
             'delivery_fee' => 0,

@@ -165,6 +165,7 @@ class MenuOrderJourneyTest extends TestCase
         // ── Checkout.
         $order = $this->asCustomer($token)->postJson('/api/v2/cart/' . $this->business->id . '/checkout', [
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
         ])->assertCreated()->json('data.order');
 
         $this->assertNotNull($order['id'] ?? null);

@@ -163,6 +163,7 @@ final class SharedCartController extends Controller
             // "لو الصنف نفذ، تحب نعمل إيه؟" — the host decides for the whole
             // shared order, same as any other checkout.
             'out_of_stock_policy' => ['nullable', Rule::in(Order::OUT_OF_STOCK_POLICIES)],
+            'pickup_at' => ['required_if:fulfillment_type,pickup', 'nullable', 'date', 'after:now'],
         ]);
 
         // Shared carts are cash-on-arrival; each participant pays their own share.

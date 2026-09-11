@@ -76,6 +76,7 @@ class FinancialLedgerTest extends TestCase
             'user_id' => $this->customer->id,
             'business_id' => $this->biz->id,
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
             'status' => 'pending',
             'total' => $finalTotal, 'discount' => 0, 'delivery_fee' => 0,
             'service_fee' => $serviceFee, 'final_total' => $finalTotal,

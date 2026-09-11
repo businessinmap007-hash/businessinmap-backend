@@ -119,6 +119,7 @@ final class CartController extends Controller
             // "لو الصنف نفذ، تحب نعمل إيه؟" — asked once here, applied later
             // per line by OrderController::businessMarkItemUnavailable.
             'out_of_stock_policy' => ['nullable', Rule::in(Order::OUT_OF_STOCK_POLICIES)],
+            'pickup_at' => ['required_if:fulfillment_type,pickup', 'nullable', 'date', 'after:now'],
         ]);
 
         $order = $this->cart->checkout((int) $request->user()->id, $business, $data);
@@ -201,6 +202,7 @@ final class CartController extends Controller
                 'logo' => $order->business->logo,
             ] : null,
             'fulfillment_type' => (string) $order->fulfillment_type,
+            'pickup_at' => optional($order->pickup_at)->toIso8601String(),
             'address' => $order->address !== '' ? (string) $order->address : null,
             'delivery_address_id' => $order->delivery_address_id !== null ? (int) $order->delivery_address_id : null,
             'delivery_lat' => $order->delivery_lat !== null ? (float) $order->delivery_lat : null,

@@ -95,7 +95,7 @@ class MenuCartCustomizationTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item->id, 'qty' => 1, 'size_id' => $large->id])->assertCreated();
 
-        $res = $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])->assertCreated();
+        $res = $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
         $orderId = (int) $res->json('data.order.id');
 
         $order = Order::query()->whereKey($orderId)->firstOrFail();

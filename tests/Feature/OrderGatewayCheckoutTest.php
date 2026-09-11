@@ -66,6 +66,7 @@ class OrderGatewayCheckoutTest extends TestCase
 
         return $this->postJson("/api/v2/cart/{$this->businessId}/checkout", [
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
             'payment_method' => $method,
         ])->assertCreated();
     }

@@ -106,7 +106,7 @@ class MenuOrderStatusAudienceTest extends TestCase
     {
         Sanctum::actingAs($this->host);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1])->assertCreated();
-        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])
             ->assertCreated()->json('data.order.id');
 
         $memberBefore = $this->acceptedNotesFor($this->member->id)->count();

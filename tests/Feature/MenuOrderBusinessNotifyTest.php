@@ -47,7 +47,7 @@ class MenuOrderBusinessNotifyTest extends TestCase
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1])
             ->assertCreated();
-        $res = $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup'])
+        $res = $this->postJson("/api/v2/cart/{$this->biz->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])
             ->assertCreated();
 
         $orderId = (int) $res->json('data.order.id');

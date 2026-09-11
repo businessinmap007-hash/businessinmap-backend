@@ -197,6 +197,7 @@ class MenuOrderItemUnavailableTest extends TestCase
         $orderId = $this->actingAs($this->customer, 'sanctum')
             ->postJson('/api/v2/cart/' . $this->business->id . '/checkout', [
                 'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
                 'out_of_stock_policy' => Order::OUT_OF_STOCK_SUBSTITUTE,
             ])->assertCreated()->json('data.order.id');
 

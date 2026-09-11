@@ -18,6 +18,7 @@ class OrderResource extends JsonResource
             'status' => (string) $this->status,
             'prep_status' => $this->prep_status,
             'fulfillment_type' => (string) $this->fulfillment_type,
+            'pickup_at' => optional($this->pickup_at)->toIso8601String(),
             'delivery_stage' => $this->delivery_stage,
             'is_shared' => (bool) $this->is_shared,
 

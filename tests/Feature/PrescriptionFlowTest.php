@@ -144,6 +144,7 @@ class PrescriptionFlowTest extends TestCase
         $this->postJson("/api/v2/prescriptions/{$id}/send", [
             'pharmacy_id' => $pharmacy->id,
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
         ])->assertNotFound();
 
         // The doctor (a party) can read it.
@@ -163,6 +164,7 @@ class PrescriptionFlowTest extends TestCase
         $this->postJson("/api/v2/prescriptions/{$id}/send", [
             'pharmacy_id' => $pharmacy->id,
             'fulfillment_type' => 'pickup',
+                'pickup_at' => now()->addHour()->toIso8601String(),
         ])->assertOk();
 
         // A different pharmacy the script was not sent to cannot touch it.

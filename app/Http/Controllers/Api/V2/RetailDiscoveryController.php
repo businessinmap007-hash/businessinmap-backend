@@ -364,6 +364,7 @@ final class RetailDiscoveryController extends Controller
             'product' => [
                 'id' => (int) $r->product_id,
                 'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
+                'name_en' => $r->product_name_en ?: null,
                 'image' => $r->product_image,
             ],
             'business' => [
@@ -432,6 +433,7 @@ final class RetailDiscoveryController extends Controller
                 'product' => [
                     'id' => (int) $r->product_id,
                     'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
+                    'name_en' => $r->product_name_en ?: null,
                     'image' => $r->product_image,
                 ],
             ])->values();

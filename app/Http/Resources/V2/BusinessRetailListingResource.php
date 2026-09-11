@@ -37,6 +37,7 @@ class BusinessRetailListingResource extends JsonResource
             'product' => $product ? [
                 'id' => (int) $product->id,
                 'name' => $this->localize($product->name_ar, $product->name_en),
+                'name_en' => $product->name_en ?: null,
                 'image' => $product->main_image,
                 'barcode' => $product->default_barcode,
             ] : ['id' => (int) $this->catalog_product_id],

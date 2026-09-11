@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
 use App\Http\Controllers\Api\V2\ContactGroupController;
+use App\Http\Controllers\Api\V2\BusinessGroupController;
 use App\Http\Controllers\Api\V2\DeliveryController;
 use App\Http\Controllers\Api\V2\DepositController;
 use App\Http\Controllers\Api\V2\DiscoveryController;
@@ -611,6 +612,17 @@ Route::prefix('v2')->group(function () {
             Route::delete('{group}', [ContactGroupController::class, 'destroy'])->whereNumber('group');
             Route::post('{group}/members', [ContactGroupController::class, 'addMember'])->whereNumber('group');
             Route::delete('{group}/members/{member}', [ContactGroupController::class, 'removeMember'])->whereNumber(['group', 'member']);
+        });
+
+        // A business's own named groups of OTHER businesses — a reusable
+        // target list for wholesale/retail offers. See BusinessGroup(Member).
+        Route::prefix('business-groups')->group(function () {
+            Route::get('/', [BusinessGroupController::class, 'index']);
+            Route::post('/', [BusinessGroupController::class, 'store']);
+            Route::match(['put', 'patch'], '{group}', [BusinessGroupController::class, 'update'])->whereNumber('group');
+            Route::delete('{group}', [BusinessGroupController::class, 'destroy'])->whereNumber('group');
+            Route::post('{group}/members', [BusinessGroupController::class, 'addMember'])->whereNumber('group');
+            Route::delete('{group}/members/{member}', [BusinessGroupController::class, 'removeMember'])->whereNumber(['group', 'member']);
         });
 
         // Customer cart over the offering layer (retail listings + menu items).

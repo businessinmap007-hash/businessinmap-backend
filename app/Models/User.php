@@ -417,6 +417,11 @@ class User extends Authenticatable
         return $this->hasMany(ContactGroup::class, 'user_id');
     }
 
+    public function businessGroups()
+    {
+        return $this->hasMany(BusinessGroup::class, 'user_id');
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');
